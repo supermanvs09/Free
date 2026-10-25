@@ -14,7 +14,7 @@ The reference is astrix.security (identity security for NHIs and AI agents, acqu
 
 | Page type | Order |
 |---|---|
-| Home | H1 + two CTAs → orbit → customer band → problem + story film → platform console (product tabs) → identity types (progress tabs) → navy "Why" accordion → industries → certifications → research → CTA |
+| Home | H1 + two CTAs → orbit → customer band → problem (three animated scenario cards) → 25-second film → platform console (product tabs) → identity types (progress tabs) → What's new → navy "Why" accordion → industries → certifications → research → CTA |
 | Product (8) | Coloured rounded hero (rotating keyword, live console) → logos → capability sections (progress tabs, text left, UI right) → navy sourced stats → getting started + integrations → related modules → research → CTA |
 | Solution (4) | Navy hero with app-network illustration → logos → challenges (sourced stats) → navy "How we help" accordion → recommended products → research → CTA |
 | Platform | "Why Deep Algorithms": Discover / Secure / Prove, differentiators, all products, deployment, certifications |
@@ -40,6 +40,6 @@ The NHI page deliberately does **not** claim containment or credential freezing,
 | ink / ink-2 / ink-3 | `#0b1220` / `#3f4a5a` / `#5c6777` | Text. ink-3 passes AA on mist |
 | ok / warn / crit | `#17703c` / `#8a5a12` / `#c62828` | Status chips (AA on their soft fills) |
 
-- **Type.** Display is Hanken Grotesk, weight 300 (a free stand-in for Astrix's BDO Grotesk). Body is DM Sans.
+- **Type.** Display is Hanken Grotesk, weight 300 (a free stand-in for Astrix's BDO Grotesk). Body is Inter, as on cisco.com.
 - **Shape.** Cards have a 20px radius and panels 40px. Buttons are pills.
 - **Motion.** Every animation runs only while in view and stops under `prefers-reduced-motion`. Product demos use a coral cursor that glides between real UI targets.

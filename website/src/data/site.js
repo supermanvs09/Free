@@ -26,11 +26,13 @@ export const SITE = {
    ICMS owns personal-data compliance. */
 export const LINES = [
   {
+    promo: { thumb: 'zenstra', title: 'Check every agent action before it runs', body: 'See an allow, block or approve decision on a live tool call.', cta: 'Explore Zenstra AI' },
     key: 'zenstra', name: 'Zenstra AI', summary: 'AI agent security', icon: 'Sparkle',
     path: '/agentic-ai/agentic-identity',
     modules: [{ name: 'AI Agent Security', desc: 'Discover, govern and enforce every AI agent action', path: '/agentic-ai/agentic-identity' }],
   },
   {
+    promo: { thumb: 'nhi', badge: 'New', title: 'NHI Security for AWS', body: 'Connect an AWS account with one read-only role and see every machine identity.', cta: 'Explore NHI Security', to: '/adapid-ai/nhi-security' },
     key: 'adapid', name: 'adapID AI', summary: 'Human and non-human identity security', icon: 'Fingerprint',
     path: '/adapid-ai',
     modules: [
@@ -41,6 +43,7 @@ export const LINES = [
     ],
   },
   {
+    promo: { thumb: 'botshield', title: 'Fix what is actually exploitable', body: 'Agents map, validate and protect, while bot defence stops automation by intent.', cta: 'Explore BotShield AI' },
     key: 'botshield', name: 'BotShield AI', summary: 'Bot defence, CTEM and DDoS', icon: 'ShieldCheck',
     path: '/botshield-ai',
     modules: [
@@ -49,6 +52,7 @@ export const LINES = [
     ],
   },
   {
+    promo: { thumb: 'icms', title: 'Audit evidence in minutes', body: 'Every access to personal data checked against purpose and consent.', cta: 'Explore ICMS' },
     key: 'icms', name: 'ICMS Compliance Suite', summary: 'DPDPA data protection', icon: 'Scales',
     path: '/dpdpa-compliance',
     modules: [{ name: 'Data Protection & Compliance', desc: 'Automated DPDPA, RBI and SEBI evidence', path: '/dpdpa-compliance' }],
@@ -76,3 +80,15 @@ export const CERTS = [
   { code: 'ISO 42001', name: 'ISO/IEC 42001', desc: 'AI management system' },
   { code: 'ISO 27701', name: 'ISO/IEC 27701', desc: 'Privacy information management' },
 ];
+
+/* One-line product cards, shared by the menu, the products page and related-product rows. */
+export const CARD = {
+  zenstra: { name: 'Zenstra AI', body: 'Runtime security for AI agents', path: '/agentic-ai/agentic-identity', icon: 'Sparkle' },
+  adapid: { name: 'adapID AI', body: 'Continuous identity risk management', path: '/adapid-ai', icon: 'Fingerprint' },
+  nhi: { name: 'NHI Security for AWS', badge: 'New', body: 'Discover, score and baseline machine identities', path: '/adapid-ai/nhi-security', icon: 'Key' },
+  fraud: { name: 'Identity Fraud Prevention', body: 'Account takeover and mule defence', path: '/adapid-ai/fraud-prevention', icon: 'Wallet' },
+  ad: { name: 'Active Directory Security', body: 'Attack paths and AD threat detection', path: '/ad-security', icon: 'TreeStructure' },
+  botshield: { name: 'BotShield AI', body: 'Exposure management and bot defence', path: '/botshield-ai', icon: 'ShieldCheck' },
+  ddos: { name: 'DDoS Protection', body: 'Inline L3 to L7 mitigation', path: '/botshield-ai/ddos-protection', icon: 'Broadcast' },
+  icms: { name: 'ICMS Compliance Suite', body: 'Automated DPDPA evidence', path: '/dpdpa-compliance', icon: 'Scales' },
+};

@@ -24,7 +24,7 @@ export default function Blog() {
 
         {cat === 'All' && (
           <Link to={`/blogs/${lead.slug}`} className="group mt-12 grid items-center gap-8 rounded-[24px] bg-mist p-4 md:grid-cols-[1.15fr_1fr] md:gap-12 md:p-5">
-            <Cover big category={lead.category} className="aspect-[16/10] rounded-[18px]" />
+            <Cover big post={lead} className="aspect-[16/10] rounded-[18px]" />
             <div className="p-2 md:pr-8">
               <p className="text-[14px] font-medium text-brand">Latest · {lead.category}</p>
               <h2 className="mt-3 font-display text-[28px] font-light leading-tight tracking-[-0.02em] text-ink group-hover:text-brand md:text-[38px]">{lead.title}</h2>

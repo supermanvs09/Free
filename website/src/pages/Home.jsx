@@ -1,18 +1,18 @@
-import { Link } from 'react-router';
 import { Seo } from '../lib/head.jsx';
 import { SOLUTIONS } from '../data/site.js';
 import { POSTS } from '../data/posts.js';
-import { Button, Heading, Icon, LearnMore, LineIcon, ProgressTabs, Reveal, Section, Accordion } from '../components/ui.jsx';
-import { LogoBand, CtaPanel, PathArt, PostCard, CertRow } from '../components/blocks.jsx';
+import { Button, Heading, LearnMore, ProgressTabs, Reveal, Section, Accordion } from '../components/ui.jsx';
+import { LogoBand, CtaPanel, PathArt, PostCard, CertRow, IndustryCard, WhatsNew } from '../components/blocks.jsx';
 import HeroOrbit from '../components/visuals/HeroOrbit.jsx';
 import ProductTour from '../components/visuals/ProductTour.jsx';
 import StoryFilm from '../components/visuals/StoryFilm.jsx';
+import { AgentScenario, MachineScenario, LoginScenario } from '../components/visuals/Scenarios.jsx';
 import IdentityDetail from '../components/visuals/IdentityDetail.jsx';
 
 const PROBLEMS = [
-  { icon: 'Robot', title: 'AI agents act with real access', body: 'Copilots and agents read data, call tools and move money with credentials nobody reviewed.' },
-  { icon: 'Key', title: 'Machine identities outnumber people', body: 'Service accounts, roles and keys multiply with every deploy, and most are never rotated or owned.' },
-  { icon: 'User', title: 'Stolen logins look legitimate', body: 'Attackers sign in rather than break in, so rules and alerts stay quiet.' },
+  { Scene: AgentScenario, title: 'AI agents act with real access', body: 'Copilots and agents read data, call tools and move money with credentials nobody reviewed. One request can reach far beyond its task.' },
+  { Scene: MachineScenario, title: 'Machine identities outnumber people', body: 'Service accounts, roles and keys multiply with every deploy, and most are never rotated or owned.' },
+  { Scene: LoginScenario, title: 'Stolen logins look legitimate', body: 'Attackers sign in rather than break in, so rules and alerts stay quiet while the damage is done.' },
 ];
 
 const TYPES = [
@@ -25,7 +25,7 @@ const WHY = [
   { title: 'One platform for every identity', body: 'People, machine identities and AI agents share one inventory, one risk model and one record, so nothing falls between tools.' },
   { title: 'Behaviour, not just configuration', body: 'Posture tells you what an identity could do. Behavioural baselines tell you when it starts doing something new.' },
   { title: 'Explainable decisions', body: 'Every score and every block comes with the reasons behind it, in plain language your analysts and auditors can read.' },
-  { title: 'Built for regulated industries', body: 'Deployed in your cloud or on-premises, with evidence mapped to DPDPA, RBI and SEBI expectations.' },
+  { title: 'Built for regulated industries', body: 'Read-only connectors, an agentless AWS role and a gateway inside your VPC, with evidence mapped to DPDPA, RBI and SEBI expectations.' },
 ];
 
 export default function Home() {
@@ -48,23 +48,25 @@ export default function Home() {
       <LogoBand band title="Trusted by banks, government and enterprises across India" />
 
       <Section>
-        <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[1fr_1.25fr] lg:gap-16">
-          <div>
-            <Heading align="left" eyebrow="The identity problem" title="Most access in your company no longer belongs to a person" />
-            <ul className="mt-10 space-y-7">
-              {PROBLEMS.map((p, i) => (
-                <Reveal as="li" key={p.title} delay={i * 80} className="flex gap-5">
-                  <LineIcon name={p.icon} />
-                  <div><h3 className="t-h3">{p.title}</h3><p className="mt-1.5 text-ink-2">{p.body}</p></div>
-                </Reveal>
-              ))}
-            </ul>
-          </div>
-          <Reveal><StoryFilm /></Reveal>
+        <Heading eyebrow="The identity problem" title="Most access in your company no longer belongs to a person" lead="Attackers and mistakes now travel through keys, roles and AI agents, not just passwords. Here is how it goes wrong." />
+        <div className="mt-14 grid grid-cols-1 gap-x-6 gap-y-14 lg:grid-cols-3">
+          {PROBLEMS.map(({ Scene, title, body }, i) => (
+            <Reveal key={title} delay={i * 80}>
+              <Scene />
+              <h3 className="t-h3 mt-6">{title}</h3>
+              <p className="mt-2 text-ink-2">{body}</p>
+            </Reveal>
+          ))}
         </div>
       </Section>
 
-      <Section id="platform" tone="mist" className="scroll-mt-16">
+      <Section tone="mist">
+        <Heading eyebrow="See it in 25 seconds" title="Follow one identity, from a person to an army of agents" lead="Every action starts with an identity. Deep Algorithms checks each one, continuously." />
+        <Reveal className="mx-auto mt-12 max-w-[1040px]"><StoryFilm /></Reveal>
+        <div className="mt-10 flex justify-center"><Button to="/request-demo">Book a demo</Button></div>
+      </Section>
+
+      <Section id="platform" className="scroll-mt-16">
         <Heading eyebrow="The platform" title="Four products. One identity security platform." lead="Each product covers one kind of identity risk. Together they share one inventory, one risk model and one record." />
         <Reveal className="mx-auto mt-14 max-w-[1040px]"><ProductTour /></Reveal>
         <div className="mx-auto mt-10 grid max-w-[1040px] gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -72,9 +74,10 @@ export default function Home() {
             <div key={n}><p className="font-medium text-ink">{n}</p><p className="mb-2 text-[14px] text-ink-3">{d}</p><LearnMore to={to} /></div>
           ))}
         </div>
+        <div className="mt-10 flex justify-center"><Button to="/products" variant="outline">Explore all products</Button></div>
       </Section>
 
-      <Section>
+      <Section tone="mist">
         <Heading eyebrow="Every identity type" title="See what each identity can do, and what it is doing" />
         <div className="mt-12">
           <ProgressTabs items={TYPES.map((t) => t.tab)} interval={11000} render={(i) => {
@@ -93,6 +96,8 @@ export default function Home() {
         </div>
       </Section>
 
+      <WhatsNew />
+
       <section className="py-6">
         <div className="mx-auto w-full max-w-[1400px] px-3 md:px-5">
           <div className="grid grid-cols-1 gap-12 overflow-hidden rounded-[40px] bg-navy px-6 py-16 md:px-16 md:py-24 lg:grid-cols-[1.2fr_1fr]">
@@ -110,21 +115,12 @@ export default function Home() {
       <Section>
         <Heading eyebrow="Industries" title="Built for organisations that cannot afford a breach" />
         <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {SOLUTIONS.map((s, i) => (
-            <Reveal key={s.slug} delay={i * 70}>
-              <Link to={`/solutions/${s.slug}`} className="group flex h-full flex-col rounded-[20px] border border-line bg-white p-7 transition-colors hover:border-brand">
-                <span className="inline-flex h-12 w-12 items-center justify-center rounded-[12px] bg-sky text-brand"><Icon name={s.icon} size={24} weight="light" /></span>
-                <h3 className="t-h3 mt-6 group-hover:text-brand">{s.name}</h3>
-                <p className="mt-2 flex-1 text-[15px] text-ink-3">{s.desc}</p>
-                <span className="mt-6 inline-flex items-center gap-1 text-[15px] font-medium text-brand">Learn more <Icon name="CaretRight" size={13} weight="bold" /></span>
-              </Link>
-            </Reveal>
-          ))}
+          {SOLUTIONS.map((s, i) => <Reveal key={s.slug} delay={i * 70}><IndustryCard s={s} /></Reveal>)}
         </div>
       </Section>
 
       <Section tone="mist">
-        <Heading eyebrow="Trust" title="Independently certified" lead="Our own security programme is audited against the standards our customers are held to." />
+        <Heading eyebrow="Trust" title="Our certifications" lead="ISO 27001, SOC 2 Type II, ISO 42001 and ISO 27701. Compliance documentation is available on request." />
         <div className="mt-12"><CertRow /></div>
       </Section>
 

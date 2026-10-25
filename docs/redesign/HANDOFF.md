@@ -55,7 +55,7 @@ Deploy `dist/` to any static host. The prerender step fails the build if any pag
 
 | # | Check | Status |
 |---|---|---|
-| 1 | SSR/static for all public pages | Done: 32 pages + 404 prerendered |
+| 1 | SSR/static for all public pages | Done: 33 pages + 404 prerendered |
 | 2 | robots.txt | Done: generated, points to the sitemap |
 | 3 | sitemap.xml | Done: generated from the route list |
 | 4 | Unique title per page | Done: verified, 33/33 unique |
@@ -81,4 +81,13 @@ Deploy `dist/` to any static host. The prerender step fails the build if any pag
 - **Screenshots and checks.** All 32 routes at 1440px and 390px: no console errors, no hydration errors, no horizontal overflow.
 - **Accessibility.** axe-core (WCAG 2 A/AA and best practice): 0 violations at both widths.
 - **Bundle.** The main JS chunk is about 160 KB gzipped. Phosphor icons ship all six weights per icon. If page weight matters, swap to an icon set that tree-shakes per weight.
-- **Fonts.** BDO Grotesk (Astrix) was substituted with Hanken Grotesk because the licence was unclear.
+- **Fonts.** Body and UI use Inter (the font cisco.com uses; open source). Headings use Hanken Grotesk Light as a free stand-in for Astrix's BDO Grotesk, whose licence was unclear. CiscoSans is proprietary and is not used.
+
+## Imagery (v4)
+
+- **Research covers** (`src/components/visuals/CoverArt.jsx`) follow astrix.security's card style: flat brand-colour field, one subject from the story, two lines of big type, a category pill. They use real third-party marks (Okta, Microsoft 365, GitHub Copilot, Claude, PhonePe, Paytm, Razorpay) as editorial references to what each article discusses. Remove any mark you do not want to show.
+- **Product card images** (`public/img/products/*.webp`) are crops of an illustrative console with sample data. To regenerate them, run `npm run dev`, open `/tools/thumbs/index.html`, and screenshot each `#t-<key>` element at 2x (source: `tools/thumbs/thumbs.jsx`).
+- **Film and scenario cards** (`StoryFilm.jsx`, `Scenarios.jsx`) are live SVG/HTML and pause when off screen or under reduced motion.
+- **Cisco-style structure:** two-pane mega menu with promo cards, a `/products` page grouped by job to be done with an FAQ (FAQPage schema), and a "What's new" row. Research notes: `cisco-research.md`.
+- **Not used:** AI-generated or 3D-rendered imagery was tried and dropped because it read as abstract rather than real. No stock photography is used. Real team and event photos appear on the About page only.
+

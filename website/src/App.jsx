@@ -9,6 +9,7 @@ import { LEGAL } from './data/legal.js';
 
 const Home = lazy(() => import('./pages/Home.jsx'));
 const Platform = lazy(() => import('./pages/Platform.jsx'));
+const Products = lazy(() => import('./pages/Products.jsx'));
 const Product = lazy(() => import('./pages/Product.jsx'));
 const Solution = lazy(() => import('./pages/Solution.jsx'));
 const About = lazy(() => import('./pages/About.jsx'));
@@ -21,31 +22,20 @@ const NotFound = lazy(() => import('./pages/NotFound.jsx'));
 
 /* Every public URL; scripts/prerender.mjs renders these and lists them in sitemap.xml. */
 export const PATHS = [
-  '/', '/platform',
+  '/', '/platform', '/products',
   ...Object.values(PRODUCTS).map((p) => p.path),
   ...SOLUTIONS.map((s) => `/solutions/${s.slug}`),
   '/about-us', '/blogs', ...POSTS.map((p) => `/blogs/${p.slug}`),
   '/request-demo', '/contact', ...Object.keys(LEGAL).map((k) => `/${k}`),
 ];
 
-/* Scroll to top on navigation, or to the #hash target; reveal-on-scroll. */
+/* Scroll to top on navigation, or to the #hash target. */
 function PageEffects() {
   const { pathname, hash } = useLocation();
   useEffect(() => {
     if (hash) document.getElementById(hash.slice(1))?.scrollIntoView();
     else window.scrollTo(0, 0);
   }, [pathname, hash]);
-  useEffect(() => {
-    const io = new IntersectionObserver((es) => es.forEach((e) => {
-      if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
-    }), { rootMargin: '0px 0px -8% 0px' });
-    const scan = () => document.querySelectorAll('.reveal:not(.in)').forEach((el) => io.observe(el));
-    scan();
-    const mo = new MutationObserver(scan);
-    mo.observe(document.getElementById('main'), { childList: true, subtree: true });
-    document.documentElement.classList.add('io');
-    return () => { io.disconnect(); mo.disconnect(); };
-  }, []);
   return null;
 }
 
@@ -59,6 +49,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/platform" element={<Platform />} />
+            <Route path="/products" element={<Products />} />
             {Object.entries(PRODUCTS).map(([k, p]) => <Route key={k} path={p.path} element={<Product id={k} />} />)}
             <Route path="/solutions/:slug" element={<Solution />} />
             <Route path="/about-us" element={<About />} />

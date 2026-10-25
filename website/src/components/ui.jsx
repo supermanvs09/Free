@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import {
   ArrowRight, ArrowUpRight, CaretDown, CaretRight, Bank, FirstAidKit, Buildings, Browsers, Sparkle, Fingerprint, ShieldCheck,
@@ -42,8 +42,21 @@ export function LearnMore({ to, children = 'Learn more' }) {
   return <Link to={to} className="group inline-flex items-center gap-1 text-[15px] font-medium text-brand hover:text-navy">{children}<CaretRight size={13} weight="bold" className="transition-transform group-hover:translate-x-0.5" aria-hidden="true" /></Link>;
 }
 
+/* Fade-up on scroll. Reveal state lives in React (not in a document-level
+   observer) so classes never change on server HTML before it hydrates. */
+const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 export function Reveal({ as: As = 'div', delay = 0, className, children, ...rest }) {
-  return <As className={cx('reveal', className)} style={{ '--d': `${delay}ms` }} {...rest}>{children}</As>;
+  const ref = useRef(null);
+  const [seen, setSeen] = useState(false);
+  useIsoLayoutEffect(() => {
+    const el = ref.current;
+    document.documentElement.classList.add('io');
+    if (!el || el.getBoundingClientRect().top < window.innerHeight * 0.95) { setSeen(true); return undefined; }
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setSeen(true); io.disconnect(); } }, { rootMargin: '0px 0px -8% 0px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return <As ref={ref} className={cx('reveal', seen && 'in', className)} style={{ '--d': `${delay}ms` }} {...rest}>{children}</As>;
 }
 
 export function Section({ id, className, children, tone }) {

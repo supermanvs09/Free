@@ -114,7 +114,7 @@ export default function HeroOrbit() {
         .orbit [data-state="fix"] .ic { stroke: #0068ac; }
         .orbit [data-state="fix"] .tx { fill: #06406b; }
         .orbit .pill, .orbit .tx, .orbit .ic { transition: fill .5s, stroke .5s; }
-        .orbit text { font-family: 'DM Sans Variable', sans-serif; }
+        .orbit text { font-family: 'Inter Variable', sans-serif; }
       `}</style>
       <div className="overflow-hidden">
       {/* ponytail: phones see the centre of the orbit at a readable size, outer chips crop */}

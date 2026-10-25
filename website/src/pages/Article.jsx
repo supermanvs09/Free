@@ -62,7 +62,7 @@ export default function Article() {
               <span><span className="block font-medium text-ink-2">{authorOf(post)}</span>{formatDate(post)} · {post.read} min read</span>
             </div>
           </div>
-          <Cover big category={post.category} className="mt-12 aspect-[16/7] rounded-[24px]" />
+          <Cover big post={post} className="mt-12 aspect-[16/7] rounded-[24px]" />
         </header>
 
         <div className="wrap py-14 md:py-20">

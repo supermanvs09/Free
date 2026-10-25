@@ -45,13 +45,13 @@ export const SOLUTION_PAGES = {
   government: {
     name: 'Government & Public Sector', short: 'Government',
     seoTitle: 'Identity Security and DDoS Protection for Government and Public Sector',
-    description: 'Keep citizen services online, protect critical infrastructure identities and stop bots on public portals, with deployment on-premises or in sovereign cloud.',
+    description: 'Keep citizen services online, protect critical infrastructure identities and stop bots on public portals and keep your data in your own environment.',
     title: 'Keep citizen services online and trusted',
     sub: 'Inline DDoS and bot protection for public portals, and continuous identity security for the people and systems that run them.',
     net: { alert: { title: 'Portal traffic', body: 'Application-layer flood detected', action: 'Mitigate inline' }, logos: ['cloudflare', 'aws', 'ad', 'kubernetes', 'gcp'] },
     stats: [
       { icon: 'Broadcast', v: 'L3 to L7', l: 'DDoS coverage, volumetric to application layer, without diversion', s: 'BotShield AI' },
-      { icon: 'HardDrives', v: 'On-premises', l: 'or in-country cloud deployment for sensitive estates' },
+      { icon: 'LockKey', v: 'In your VPC', l: 'the Zenstra AI gateway checks agent actions inside your own cloud' },
       { icon: 'Certificate', v: '4', l: 'certifications: ISO 27001, SOC 2, ISO 42001 and ISO 27701', s: 'Deep Algorithms' },
     ],
     help: [

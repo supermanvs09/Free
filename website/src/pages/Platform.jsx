@@ -14,14 +14,14 @@ const STEPS = [
 const WHY = [
   { title: 'Every identity type, one risk model', body: 'Point tools see either people, cloud roles or agents. Attackers move between all three. We score them together, so a risky agent using an over-privileged role shows up as one story.' },
   { title: 'Behaviour as well as posture', body: 'Configuration checks show what an identity could do. Baselines show when it starts doing something new, which is how misuse of legitimate access is caught.' },
-  { title: 'Deployed where your data lives', body: 'Read-only connectors, an agentless AWS role and an in-VPC gateway for agents. Sensitive payloads stay in your environment.' },
+  { title: 'Connects without disruption', body: 'Read-only connectors, an agentless AWS role and an in-VPC gateway for agents. Sensitive payloads stay in your environment.' },
   { title: 'Built in India for regulated industries', body: 'Designed around DPDPA 2023, RBI and SEBI expectations from the start, with teams in Hyderabad, Bengaluru and Maryland.' },
 ];
 
 const DEPLOY = [
-  { icon: 'Cloud', title: 'Your cloud', body: 'Connectors and gateways run inside your own cloud account.' },
-  { icon: 'HardDrives', title: 'On-premises', body: 'For estates that cannot leave your data centre.' },
-  { icon: 'Globe', title: 'Hybrid and edge', body: 'Across data centres, cloud and the network edge.' },
+  { icon: 'Plug', title: 'Read-only connectors', body: 'Identity providers, IAM, HR systems, SaaS and application logs, read but never written to.' },
+  { icon: 'Cloud', title: 'Agentless on AWS', body: 'One read-only IAM role per account. Nothing is installed on your workloads.' },
+  { icon: 'LockKey', title: 'A gateway in your VPC', body: 'Zenstra AI checks agent actions inside your own cloud, so payloads stay with you.' },
 ];
 
 export default function Platform() {
@@ -80,7 +80,7 @@ export default function Platform() {
       <RelatedCards keys={['zenstra', 'adapid', 'nhi', 'fraud', 'ad', 'botshield', 'ddos', 'icms']} eyebrow="Products" title="Everything on the platform" />
 
       <Section tone="mist">
-        <Heading eyebrow="Deployment" title="Runs where your data lives" />
+        <Heading eyebrow="How it connects" title="Connects without disrupting what you run" />
         <div className="mt-14 grid gap-10 md:grid-cols-3">
           {DEPLOY.map((d, i) => (
             <Reveal key={d.title} delay={i * 80} className="text-center">

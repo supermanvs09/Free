@@ -142,16 +142,26 @@ const BRANDS = {
 /* Text badges for marks Simple Icons does not carry (AWS, Microsoft). */
 const TEXT_MARKS = { aws: ['aws', '#232f3e'], ad: ['AD', '#0067b8'], m365: ['M365', '#d83b01'], bedrock: ['BR', '#232f3e'] };
 
+const brandFill = (icon) => {
+  const n = parseInt(icon.hex, 16);
+  const lum = (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+  return lum < 0.2 ? '#0b1220' : `#${icon.hex}`;
+};
+
 export function Logo({ name, size = 16 }) {
   const icon = BRANDS[name];
-  if (icon) {
-    const n = parseInt(icon.hex, 16);
-    const lum = (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
-    return <svg role="img" aria-label={icon.title} viewBox="0 0 24 24" width={size} height={size} fill={lum < 0.2 ? '#0b1220' : `#${icon.hex}`}><path d={icon.path} /></svg>;
-  }
+  if (icon) return <svg role="img" aria-label={icon.title} viewBox="0 0 24 24" width={size} height={size} fill={brandFill(icon)}><path d={icon.path} /></svg>;
   const t = TEXT_MARKS[name];
   if (!t) return null;
   return <span role="img" aria-label={name.toUpperCase()} className="inline-flex items-center justify-center font-sans font-bold leading-none" style={{ color: t[1], fontSize: size * 0.62, minWidth: size, height: size }}>{t[0]}</span>;
+}
+
+/* Same marks for use inside an <svg> scene (decorative: the scene carries the label). */
+export function SvgLogo({ name, x = 0, y = 0, size = 24, fill, opacity }) {
+  const icon = BRANDS[name];
+  if (icon) return <svg x={x} y={y} width={size} height={size} viewBox="0 0 24 24" fill={fill || brandFill(icon)} opacity={opacity} aria-hidden="true"><path d={icon.path} /></svg>;
+  const t = TEXT_MARKS[name];
+  return t ? <text x={x + size / 2} y={y + size * (t[0].length > 3 ? 0.62 : 0.7)} textAnchor="middle" fontSize={size * (t[0].length > 3 ? 0.42 : 0.62)} fontWeight="700" fill={fill || t[1]} opacity={opacity}>{t[0]}</text> : null;
 }
 
 export function Tile({ name, size = 28 }) {

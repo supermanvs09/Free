@@ -1,19 +1,19 @@
 @import '@fontsource-variable/hanken-grotesk/wght.css';
-@import '@fontsource-variable/dm-sans/wght.css';
+@import '@fontsource-variable/inter/wght.css';
 @import 'tailwindcss';
 
 /* ==========================================================================
    Deep Algorithms design tokens.
    System measured from astrix.security and mapped to the Deep Algorithms
    logo colours (#0068AC, #00AEEF):
-   - Display: light grotesk (300) at 64/50px, tight tracking. Body: DM Sans.
+   - Display: light grotesk (300) at 64/50px, tight tracking. Body: Inter (as on cisco.com).
    - Navy pill CTAs, bright brand-blue bands, coral for risk, solid light-grey
      frames behind product UI (never dotted), 20px cards, 40px panels.
    Light theme only.
    ========================================================================== */
 @theme {
   --font-display: 'Hanken Grotesk Variable', ui-sans-serif, system-ui, sans-serif;
-  --font-sans: 'DM Sans Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
 
   --color-ink: #0b1220;
   --color-ink-2: #3f4a5a;
@@ -110,6 +110,14 @@
 .story-float { animation: story-float 3.2s ease-in-out infinite; }
 @keyframes story-ring { 0% { transform: scale(.05); opacity: .9; } 100% { transform: scale(1); opacity: 0; } }
 .story-ring { transform-box: fill-box; transform-origin: center; animation: story-ring 3.4s cubic-bezier(.2,.6,.3,1) .2s both; }
+
+/* Cover art ambient motion: calm by default, live on hover or on the article hero. */
+@keyframes cv-sway { 0%,100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+.cv-sway { animation: cv-sway 9s ease-in-out infinite; animation-play-state: paused; }
+@keyframes cv-ping { 0% { transform: scale(.55); opacity: .9; } 100% { transform: scale(1.5); opacity: 0; } }
+.cv-ping, .cv-ping-s { transform-box: fill-box; transform-origin: center; animation: cv-ping 2.6s ease-out infinite; animation-play-state: paused; }
+.cv-ping-s { animation-duration: 1.6s; }
+.group:hover .cv-sway, .group:hover .cv-ping, .group:hover .cv-ping-s, .cv-live .cv-sway, .cv-live .cv-ping, .cv-live .cv-ping-s { animation-play-state: running; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }

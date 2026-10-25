@@ -10,7 +10,7 @@ const OPTIONS = [
 ];
 
 const EXPECT = [
-  ['Clock', 'A 30-minute session', 'With a security engineer, not a sales script.'],
+  ['Clock', 'A 30-minute live demo', 'Focused on the risks you care about.'],
   ['Target', 'Built around your environment', 'We focus on the identities, agents and data you actually run.'],
   ['EnvelopeSimple', 'A reply within one business day', 'To confirm a time that suits your team.'],
 ];
@@ -31,7 +31,7 @@ export default function Demo() {
   return (
     <>
       <Seo title="Book a Demo" path="/request-demo" crumbs={[{ name: 'Book a demo', path: '/request-demo' }]}
-        description="See Deep Algorithms on your own environment. Book a 30-minute session with a security engineer for Zenstra AI, adapID AI, BotShield AI or ICMS." />
+        description="See Deep Algorithms on your own environment. Book a 30-minute live demo of Zenstra AI, adapID AI, BotShield AI or ICMS." />
       <section className="wrap grid grid-cols-1 gap-12 py-12 md:py-16 lg:grid-cols-[1fr_1.05fr] lg:gap-20">
         <div>
           <Breadcrumb items={[{ name: 'Book a demo' }]} />

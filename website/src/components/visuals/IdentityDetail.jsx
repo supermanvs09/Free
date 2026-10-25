@@ -23,8 +23,8 @@ const VARIANTS = {
     findings: [['Permission risk', 'AdministratorAccess', '97% of granted actions never used'], ['Credential risk', 'AKIA••••7Q2F', 'Never rotated, exposed in GitHub']],
   },
   human: {
-    icon: 'okta', name: 'Kavya Iyer', tags: ['Treasury', 'Okta', 'Full-time'], risk: 'High', person: true,
-    owner: 'Meera Pillai', ownerRole: 'Manager', center: { icon: 'okta', title: 'Kavya Iyer', sub: 'Treasury analyst | Okta', tag: 'User' },
+    icon: 'okta', name: 'Kavya Reddy', tags: ['Treasury', 'Okta', 'Full-time'], risk: 'High', person: true,
+    owner: 'Meera Pillai', ownerRole: 'Manager', center: { icon: 'okta', title: 'Kavya Reddy', sub: 'Treasury analyst | Okta', tag: 'User' },
     alert: 'Sign-in from unmanaged device at 23:47',
     mids: [{ icon: 'ad', title: 'Treasury-Approvers', sub: 'AD group', risk: 'High' }, { icon: 'okta', title: 'SAP Treasury', sub: 'SSO app', risk: 'Medium' }],
     perms: ['Approve payments', 'Export reports', 'Read ledgers', 'Admin console'],

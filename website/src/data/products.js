@@ -213,7 +213,7 @@ export const PRODUCTS = {
     ],
     stats: [{ v: 'L3 to L7', l: 'full-stack coverage, volumetric to application layer', s: 'BotShield AI' }, { v: 'Zero', l: 'traffic diversion required', s: 'BotShield AI' }, { v: '99.99%', l: 'availability SLA', s: 'Deep Algorithms' }],
     onboarding: { title: 'Fits the network you have', items: [
-      { icon: 'Globe', title: 'Edge or on-premises', body: 'At the ISP edge, in your cloud or in hybrid estates.' },
+      { icon: 'Globe', title: 'Close to your users', body: 'Deployed inside ISP and near-edge networks.' },
       { icon: 'Lightning', title: 'No manual tuning', body: 'Mitigation adapts to traffic automatically.' },
       { icon: 'Gauge', title: 'Clear visibility', body: 'Every attack, response and outcome in one place.' },
     ] },
@@ -252,13 +252,4 @@ export const PRODUCTS = {
   },
 };
 
-export const CARD = {
-  zenstra: { name: 'Zenstra AI', body: 'Runtime security for AI agents', path: '/agentic-ai/agentic-identity', icon: 'Sparkle' },
-  adapid: { name: 'adapID AI', body: 'Continuous identity risk management', path: '/adapid-ai', icon: 'Fingerprint' },
-  nhi: { name: 'NHI Security for AWS', body: 'Discover, score and baseline machine identities', path: '/adapid-ai/nhi-security', icon: 'Key' },
-  fraud: { name: 'Identity Fraud Prevention', body: 'Account takeover and mule defence', path: '/adapid-ai/fraud-prevention', icon: 'Wallet' },
-  ad: { name: 'Active Directory Security', body: 'Attack paths and AD threat detection', path: '/ad-security', icon: 'TreeStructure' },
-  botshield: { name: 'BotShield AI', body: 'Exposure management and bot defence', path: '/botshield-ai', icon: 'ShieldCheck' },
-  ddos: { name: 'DDoS Protection', body: 'Inline L3 to L7 mitigation', path: '/botshield-ai/ddos-protection', icon: 'Broadcast' },
-  icms: { name: 'ICMS Compliance Suite', body: 'Automated DPDPA evidence', path: '/dpdpa-compliance', icon: 'Scales' },
-};
+export { CARD } from './site.js';

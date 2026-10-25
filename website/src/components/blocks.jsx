@@ -1,9 +1,11 @@
 import { Link } from 'react-router';
 import { CUSTOMERS, CERTS } from '../data/site.js';
 import { POSTS, formatDate, authorOf } from '../data/posts.js';
-import { CARD } from '../data/products.js';
+import { CARD } from '../data/site.js';
 import { Button, Heading, Icon, LearnMore, Reveal, Section, cx } from './ui.jsx';
 import { Tile } from './visuals/kit.jsx';
+import CoverArt from './visuals/CoverArt.jsx';
+import Thumb from './visuals/Thumb.jsx';
 
 /* Customer logos. `band` = white logos in a brand-blue rounded band (home);
    otherwise full-colour logos on white (inner pages). One marquee per page. */
@@ -37,7 +39,7 @@ function Waveform() {
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 flex h-[42%] items-end justify-between gap-[3px] px-6 opacity-70">
       {bars.map((h, i) => (
-        <span key={i} className="wave-bar w-px rounded-full bg-gradient-to-t from-white/45 to-white/5" style={{ height: `${h * 100}%`, animationDelay: `${-(i % 24) * 0.15}s` }} />
+        <span key={i} className="wave-bar w-px rounded-full bg-gradient-to-t from-white/45 to-white/5" style={{ height: `${(h * 100).toFixed(1)}%`, animationDelay: `${(-(i % 24) * 0.15).toFixed(2)}s` }} />
       ))}
     </div>
   );
@@ -105,34 +107,15 @@ export function LogoNet({ alert = { title: 'API Key', body: 'Over-privileged acc
   );
 }
 
-/* Branded flat covers for research posts: one colour family per topic, a big
-   topic word and a line icon. No photography, no textures. */
-const COVERS = {
-  'AI Agent Security': ['bg-brand', 'Robot'],
-  'Identity Security': ['bg-navy', 'Fingerprint'],
-  'Threat Intelligence': ['bg-navy', 'Crosshair'],
-  'Financial Crime': ['bg-coral', 'Wallet'],
-  'Bot Defence': ['bg-brand', 'ShieldCheck'],
-  Compliance: ['bg-navy', 'Scales'],
-  'Field Notes': ['bg-coral', 'Detective'],
-};
-export function Cover({ category, className, big }) {
-  const [bg, icon] = COVERS[category] || COVERS['Identity Security'];
-  return (
-    <div className={cx('relative overflow-hidden text-white', bg, className)} aria-hidden="true">
-      <img src="/brand/logo-lockup-inverse.webp" alt="" className={cx('absolute left-5 top-5 w-auto brightness-0 invert', big ? 'h-7' : 'h-5')} />
-      <span className={cx('absolute bottom-5 left-5 max-w-[60%] font-display font-light leading-[1.05] tracking-[-0.02em]', big ? 'text-[44px]' : 'text-[28px]')}>{category}</span>
-      <span className={cx('absolute right-5 top-1/2 -translate-y-1/2 opacity-90', big ? '' : '')}>
-        <Icon name={icon} size={big ? 140 : 84} weight="thin" />
-      </span>
-    </div>
-  );
+/* Research cover: illustrated scene per topic with the article's headline figure. */
+export function Cover({ post, big, className }) {
+  return <CoverArt slug={post.slug} category={post.category} big={big} className={className} />;
 }
 
 export function PostCard({ post }) {
   return (
     <Link to={`/blogs/${post.slug}`} className="group block">
-      <Cover category={post.category} className="aspect-[370/220] rounded-[20px] transition-transform duration-500 group-hover:-translate-y-1" />
+      <Cover post={post} className="aspect-[370/220] rounded-[20px] transition-transform duration-500 group-hover:-translate-y-1" />
       <h3 className="mt-5 font-display text-[19px] font-normal leading-snug tracking-[-0.01em] text-ink group-hover:text-brand">{post.title}</h3>
       <div className="mt-3 flex items-center gap-2.5 text-[13px] text-ink-3">
         <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-sky"><img src="/brand/mark.webp" alt="" className="h-3.5 w-3.5" /></span>
@@ -158,15 +141,17 @@ export function CertRow({ dark }) {
   );
 }
 
-/* Product link card (icon tile, name, one line, Learn more). */
+/* Product card: console thumbnail, name, one line, link (as on cisco.com product cards). */
 export function ProductCard({ k }) {
   const c = CARD[k];
   return (
-    <Link to={c.path} className="group flex h-full flex-col rounded-[20px] border border-line bg-white p-7 transition-colors hover:border-brand">
-      <span className="inline-flex h-12 w-12 items-center justify-center rounded-[12px] bg-sky text-brand"><Icon name={c.icon} size={24} weight="light" /></span>
-      <h3 className="t-h3 mt-6 group-hover:text-brand">{c.name}</h3>
-      <p className="mt-2 flex-1 text-[15px] text-ink-3">{c.body}</p>
-      <span className="mt-6 inline-flex items-center gap-1 text-[15px] font-medium text-brand">Learn more <Icon name="CaretRight" size={13} weight="bold" /></span>
+    <Link to={c.path} className="group flex h-full flex-col overflow-hidden rounded-[20px] border border-line bg-white transition-all duration-300 hover:-translate-y-1 hover:border-brand hover:shadow-[0_18px_40px_-24px_rgba(6,47,87,.45)]">
+      <span className="block overflow-hidden"><Thumb k={k} className="transition-transform duration-500 group-hover:scale-[1.04]" /></span>
+      <span className="flex flex-1 flex-col p-6">
+        <span className="flex items-center gap-2"><Icon name={c.icon} size={20} weight="light" className="text-brand" /><h3 className="t-h3 group-hover:text-brand">{c.name}</h3>{c.badge && <span className="rounded-full bg-coral-soft px-1.5 text-[10.5px] font-semibold text-coral-2">{c.badge}</span>}</span>
+        <span className="mt-2 flex-1 text-[15px] text-ink-3">{c.body}</span>
+        <span className="mt-5 inline-flex items-center gap-1 text-[15px] font-medium text-brand">Explore {c.name}<Icon name="CaretRight" size={13} weight="bold" /></span>
+      </span>
     </Link>
   );
 }
@@ -193,6 +178,54 @@ export function ResearchRow({ slugs, tone = 'mist' }) {
       </div>
       <div className="mt-12 grid gap-8 md:grid-cols-3">
         {posts.map((p, i) => <Reveal key={p.slug} delay={i * 70}><PostCard post={p} /></Reveal>)}
+      </div>
+    </Section>
+  );
+}
+
+/* Industry card: illustrated header, name, line, link. */
+export function IndustryCard({ s }) {
+  return (
+    <Link to={`/solutions/${s.slug}`} className="group flex h-full flex-col overflow-hidden rounded-[20px] border border-line bg-white transition-all duration-300 hover:-translate-y-1 hover:border-brand hover:shadow-[0_18px_40px_-24px_rgba(6,47,87,.45)]">
+      <CoverArt compact slug={s.slug} className="aspect-[320/200]" />
+      <span className="flex flex-1 flex-col p-6">
+        <h3 className="t-h3 group-hover:text-brand">{s.name}</h3>
+        <span className="mt-2 flex-1 text-[15px] text-ink-3">{s.desc}</span>
+        <span className="mt-5 inline-flex items-center gap-1 text-[15px] font-medium text-brand">Learn more<Icon name="CaretRight" size={13} weight="bold" /></span>
+      </span>
+    </Link>
+  );
+}
+
+/* "What's new" row, as on cisco.com category pages. */
+export function WhatsNew() {
+  const p = POSTS[0];
+  const items = [
+    { thumb: 'nhi', badge: 'New', title: 'NHI Security for AWS', body: 'Discover every IAM role, key and workload identity across your AWS accounts, with posture, access and behaviour for each.', to: '/adapid-ai/nhi-security', cta: 'Explore NHI Security' },
+    { thumb: 'zenstra', title: 'Runtime security for AI agents', body: 'Zenstra AI checks each agent action against its task and keeps a decision record your auditor can read.', to: '/agentic-ai/agentic-identity', cta: 'Explore Zenstra AI' },
+  ];
+  return (
+    <Section>
+      <Heading eyebrow="What’s new" title="Latest from Deep Algorithms" />
+      <div className="mt-12 grid gap-8 md:grid-cols-3">
+        {items.map((c, i) => (
+          <Reveal key={c.title} delay={i * 70}>
+            <Link to={c.to} className="group block">
+              <span className="block overflow-hidden rounded-[20px]"><Thumb k={c.thumb} className="transition-transform duration-500 group-hover:scale-[1.04]" /></span>
+              <span className="mt-5 flex items-center gap-2 font-display text-[22px] leading-snug text-ink group-hover:text-brand">{c.title}{c.badge && <span className="rounded-full bg-coral-soft px-1.5 text-[10.5px] font-semibold text-coral-2">{c.badge}</span>}</span>
+              <span className="mt-2 block text-[15px] text-ink-3">{c.body}</span>
+              <span className="mt-3 inline-flex items-center gap-1 text-[15px] font-medium text-brand">{c.cta}<Icon name="CaretRight" size={13} weight="bold" /></span>
+            </Link>
+          </Reveal>
+        ))}
+        <Reveal delay={140}>
+          <Link to={`/blogs/${p.slug}`} className="group block">
+            <Cover post={p} className="aspect-[320/200] rounded-[20px] transition-transform duration-500 group-hover:-translate-y-1" />
+            <span className="mt-5 block font-display text-[22px] leading-snug text-ink group-hover:text-brand">{p.title}</span>
+            <span className="mt-2 block text-[15px] text-ink-3">{p.excerpt}</span>
+            <span className="mt-3 inline-flex items-center gap-1 text-[15px] font-medium text-brand">Read the research<Icon name="CaretRight" size={13} weight="bold" /></span>
+          </Link>
+        </Reveal>
       </div>
     </Section>
   );

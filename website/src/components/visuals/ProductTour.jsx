@@ -50,11 +50,11 @@ export const PRODUCTS = [
         [C.name('aws', 'svc-payments-recon'), C.txt('IAM role'), C.txt('prod-payments'), C.risk('High'), C.who('Rahul Menon')],
         [C.name('github', 'gh-actions-deploy'), C.txt('OIDC role'), C.txt('prod-web'), C.risk('High'), C.who('Priya Sharma')],
         [C.name('aws', 'glue-ledger-etl'), C.txt('Glue job role'), C.txt('data-lake'), C.risk('Medium'), C.who('Arjun Nair')],
-        [C.name('aws', 'lambda-kyc-sync'), C.txt('Lambda role'), C.txt('prod-kyc'), C.risk('Low'), C.who('Kavya Iyer')],
+        [C.name('aws', 'lambda-kyc-sync'), C.txt('Lambda role'), C.txt('prod-kyc'), C.risk('Low'), C.who('Kavya Reddy')],
       ] },
       1: { grid: '1.4fr 1fr 1.6fr .8fr', cols: ['User', 'Source', 'Latest signal', 'Risk'], rows: [
         [C.who('Vikram Shah'), C.tiles(['ad']), C.txt('Sign-in after contract end'), C.risk('Critical')],
-        [C.who('Kavya Iyer'), C.tiles(['okta']), C.txt('Unmanaged device at 23:47'), C.risk('High')],
+        [C.who('Kavya Reddy'), C.tiles(['okta']), C.txt('Unmanaged device at 23:47'), C.risk('High')],
         [C.who('Rahul Menon'), C.tiles(['ad']), C.txt('1,240 records in 6 minutes'), C.risk('Medium')],
         [C.who('Sara Joseph'), C.tiles(['okta']), C.txt('Within baseline'), C.risk('Low')],
         [C.who('Meera Pillai'), C.tiles(['okta']), C.txt('Within baseline'), C.risk('Low')],
@@ -105,7 +105,7 @@ export const PRODUCTS = [
     key: 'icms', name: 'ICMS Compliance', caps: ['Data Discovery', 'Access Monitoring', 'Consent', 'Audit Evidence'], demo: [1, 3],
     panels: {
       0: { grid: '1.4fr 1.6fr .8fr 1fr', cols: ['Data store', 'Personal data found', 'Records', 'Owner'], rows: [
-        [C.name('aws', 'kyc-documents (S3)'), C.txt('PAN, Aadhaar refs, addresses'), C.txt('2.1M'), C.who('Kavya Iyer')],
+        [C.name('aws', 'kyc-documents (S3)'), C.txt('PAN, Aadhaar refs, addresses'), C.txt('2.1M'), C.who('Kavya Reddy')],
         [C.name('snowflake', 'customer_360'), C.txt('Names, phones, email'), C.txt('8.4M'), C.who('Rahul Kumar')],
         [C.name('databricks', 'loan_features'), C.txt('Income, credit score'), C.txt('640K'), C.who('Arjun Nair')],
         [C.name('m365', 'HR SharePoint'), C.txt('Payroll, bank details'), C.txt('12K'), C.chip('No owner', 'coral')],

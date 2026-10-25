@@ -23,6 +23,7 @@ export default function Footer() {
             <p className="mt-5 max-w-[300px] text-[14px] leading-relaxed text-ink-3">Identity security for the AI era. Built in Hyderabad for regulated enterprises.</p>
           </div>
           <Col title="Products">
+            <L to="/products">All products</L>
             {LINES.map((l) => <L key={l.key} to={l.path}>{l.name}</L>)}
             <L to="/adapid-ai/nhi-security">NHI Security for AWS</L>
             <L to="/platform">Why Deep Algorithms</L>
