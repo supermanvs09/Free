@@ -53,7 +53,7 @@ function ProductsMenu() {
           {l.modules.map((m) => (
             <li key={m.path + m.name}>
               <Link to={m.path} className="group block">
-                <span className="flex items-center gap-2 text-[15px] text-ink group-hover:text-brand">{m.name}{m.badge && <span className="rounded-full bg-coral-soft px-1.5 text-[10.5px] font-semibold text-coral-2">{m.badge}</span>}</span>
+                <span className="flex items-center gap-2 text-[15px] text-ink group-hover:text-brand">{m.name}</span>
                 <span className="block text-[13px] leading-snug text-ink-3">{m.desc}</span>
               </Link>
             </li>
@@ -63,7 +63,7 @@ function ProductsMenu() {
         <Col title="Related research"><ResearchLinks posts={posts} /></Col>
         <Link to={promoTo} className="group block">
           <span className="block overflow-hidden rounded-[12px]"><Thumb k={l.promo.thumb} className="transition-transform duration-500 group-hover:scale-[1.03]" /></span>
-          <span className="mt-3 flex items-center gap-2 font-display text-[18px] leading-snug text-ink group-hover:text-brand">{l.promo.title}{l.promo.badge && <span className="rounded-full bg-coral-soft px-1.5 text-[10.5px] font-semibold text-coral-2">{l.promo.badge}</span>}</span>
+          <span className="mt-3 flex items-center gap-2 font-display text-[18px] leading-snug text-ink group-hover:text-brand">{l.promo.title}</span>
           <span className="mt-1 block text-[13.5px] leading-snug text-ink-3">{l.promo.body}</span>
           <span className="mt-2 inline-flex items-center gap-1 text-[14px] font-medium text-brand">{l.promo.cta}<Icon name="CaretRight" size={12} weight="bold" /></span>
         </Link>

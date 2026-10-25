@@ -22,7 +22,7 @@ The reference is astrix.security (identity security for NHIs and AI agents, acqu
 ## Product architecture on the site
 
 - **Zenstra AI**: AI agent security (`/agentic-ai/agentic-identity`). Context from zenstra.ai.
-- **adapID AI**: identity risk (CIRM, `/adapid-ai`), plus three modules: **NHI Security for AWS** (new, `/adapid-ai/nhi-security`, claims limited to what the NHI codebase does), Identity Fraud Prevention, and Active Directory Security.
+- **adapID AI**: identity risk (CIRM, `/adapid-ai`), plus three modules: **NHI Security for AWS** (`/adapid-ai/nhi-security`, claims limited to what the NHI codebase does), Identity Fraud Prevention, and Active Directory Security.
 - **BotShield AI**: CTEM and bot defence, plus DDoS Protection.
 - **ICMS Compliance Suite**: DPDPA.
 

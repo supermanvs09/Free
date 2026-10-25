@@ -1,8 +1,8 @@
 import { Seo } from '../lib/head.jsx';
 import { SOLUTIONS } from '../data/site.js';
 import { POSTS } from '../data/posts.js';
-import { Button, Heading, LearnMore, ProgressTabs, Reveal, Section, Accordion } from '../components/ui.jsx';
-import { LogoBand, CtaPanel, PathArt, PostCard, CertRow, IndustryCard, WhatsNew } from '../components/blocks.jsx';
+import { Button, Heading, Icon, LearnMore, ProgressTabs, Reveal, Section, Accordion } from '../components/ui.jsx';
+import { LogoBand, CtaPanel, PathArt, PostCard, CertRow, IndustryCard, WhatsNew, WhyNow } from '../components/blocks.jsx';
 import HeroOrbit from '../components/visuals/HeroOrbit.jsx';
 import ProductTour from '../components/visuals/ProductTour.jsx';
 import StoryFilm from '../components/visuals/StoryFilm.jsx';
@@ -36,11 +36,16 @@ export default function Home() {
       <section className="overflow-hidden pt-14 md:pt-20">
         <div className="wrap text-center">
           <h1 className="t-h1 rise mx-auto max-w-[900px]">Identity Security for the AI Era</h1>
-          <p className="t-lead rise mx-auto mt-6 max-w-[640px]" style={{ animationDelay: '80ms' }}>Discover, secure and govern every human, non-human and AI agent identity, from one platform.</p>
+          <p className="t-lead rise mx-auto mt-6 max-w-[640px]" style={{ animationDelay: '80ms' }}>Autonomous agents are joining your workforce. Discover, secure and govern every human, non-human and AI agent identity, from one platform.</p>
           <div className="rise mt-9 flex flex-wrap justify-center gap-3" style={{ animationDelay: '160ms' }}>
             <Button to="/request-demo">Book a demo</Button>
             <Button href="#platform" variant="outline">See it in action</Button>
           </div>
+          <ul className="rise mx-auto mt-8 flex max-w-[760px] flex-wrap justify-center gap-x-8 gap-y-2 text-[15px] text-ink-2" style={{ animationDelay: '240ms' }}>
+            {['Discover every identity', 'Fix risk before it is used', 'Prove it to every auditor'].map((t) => (
+              <li key={t} className="inline-flex items-center gap-2"><Icon name="CheckCircle" size={18} weight="fill" className="text-brand" />{t}</li>
+            ))}
+          </ul>
         </div>
         <div className="wrap mt-10 md:mt-6"><HeroOrbit /></div>
       </section>
@@ -48,7 +53,7 @@ export default function Home() {
       <LogoBand band title="Trusted by banks, government and enterprises across India" />
 
       <Section>
-        <Heading eyebrow="The identity problem" title="Most access in your company no longer belongs to a person" lead="Attackers and mistakes now travel through keys, roles and AI agents, not just passwords. Here is how it goes wrong." />
+        <Heading eyebrow="The new perimeter" title="Attackers no longer break in. They log in." lead="Most access in your company no longer belongs to a person. Keys, roles and AI agents hold it now, and that is where attackers are heading." />
         <div className="mt-14 grid grid-cols-1 gap-x-6 gap-y-14 lg:grid-cols-3">
           {PROBLEMS.map(({ Scene, title, body }, i) => (
             <Reveal key={title} delay={i * 80}>
@@ -60,14 +65,16 @@ export default function Home() {
         </div>
       </Section>
 
+      <WhyNow />
+
       <Section tone="mist">
-        <Heading eyebrow="See it in 25 seconds" title="Follow one identity, from a person to an army of agents" lead="Every action starts with an identity. Deep Algorithms checks each one, continuously." />
+        <Heading eyebrow="See it in 25 seconds" title="From one login to every agent, secured." lead="Watch Deep Algorithms find identity risk, and fix it before it is used." />
         <Reveal className="mx-auto mt-12 max-w-[1040px]"><StoryFilm /></Reveal>
         <div className="mt-10 flex justify-center"><Button to="/request-demo">Book a demo</Button></div>
       </Section>
 
       <Section id="platform" className="scroll-mt-16">
-        <Heading eyebrow="The platform" title="Four products. One identity security platform." lead="Each product covers one kind of identity risk. Together they share one inventory, one risk model and one record." />
+        <Heading eyebrow="The platform" title="One platform for every identity that acts in your enterprise." lead="People, machine identities and AI agents share one inventory, one risk model and one record. Four products, built to work as one." />
         <Reveal className="mx-auto mt-14 max-w-[1040px]"><ProductTour /></Reveal>
         <div className="mx-auto mt-10 grid max-w-[1040px] gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {[['Zenstra AI', 'AI agent security', '/agentic-ai/agentic-identity'], ['adapID AI', 'Human and machine identities', '/adapid-ai'], ['BotShield AI', 'Bots, exposure and DDoS', '/botshield-ai'], ['ICMS Compliance', 'DPDPA data protection', '/dpdpa-compliance']].map(([n, d, to]) => (
@@ -103,7 +110,7 @@ export default function Home() {
           <div className="grid grid-cols-1 gap-12 overflow-hidden rounded-[40px] bg-navy px-6 py-16 md:px-16 md:py-24 lg:grid-cols-[1.2fr_1fr]">
             <div>
               <p className="eyebrow mb-3 !text-cyan">Why Deep Algorithms</p>
-              <h2 className="t-h2 text-white">Built for the identities attackers now target</h2>
+              <h2 className="t-h2 text-white">Built for the identities of tomorrow. Securing them today.</h2>
               <div className="mt-10"><Accordion items={WHY} /></div>
               <div className="mt-10"><Button to="/platform" variant="white">Why Deep Algorithms</Button></div>
             </div>

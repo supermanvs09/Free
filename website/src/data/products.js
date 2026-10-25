@@ -37,7 +37,7 @@ export const PRODUCTS = {
       { icon: 'Plug', title: 'No agent rewrite', body: 'Works with the platforms your teams already build on.' },
     ], logos: ['claude', 'gemini', 'copilot', 'cursor', 'mcp', 'n8n', 'zapier', 'langgraph', 'gcp', 'kubernetes', 'terraform', 'aws'] },
     research: ['ai-security-intelligence', 'ai-agent-governance', 'ai-security'],
-    cta: { title: 'Deploy agents your board can sign off on', body: 'See Zenstra enforce a live policy against your own agent, in your own cloud.' },
+    cta: { title: 'Let AI agents act. Keep every action accountable.', body: 'See Zenstra enforce a live policy against your own agent, in your own cloud.' },
   },
 
   adapid: {
@@ -68,7 +68,7 @@ export const PRODUCTS = {
     ], logos: ['okta', 'ad', 'm365', 'google', 'aws', 'github', 'atlassian'] },
     modules: ['nhi', 'fraud', 'ad'],
     research: ['identity-security', 'threat-intelligence', 'confessions-entry-01'],
-    cta: { title: 'Compromise happens in minutes. Detection should too.', body: 'Run CIRM on your own identity data with a Deep Algorithms engineer.' },
+    cta: { title: 'Stop the breach that starts with a login.', body: 'Run CIRM on your own identity data with a Deep Algorithms engineer.' },
   },
 
   nhi: {
@@ -108,7 +108,7 @@ export const PRODUCTS = {
     ], logos: ['aws', 'github'] },
     modules: ['adapid', 'fraud', 'ad'],
     research: ['identity-security', 'ai-security', 'threat-intelligence'],
-    cta: { title: 'See your AWS machine identities in one sync', body: 'Connect a sandbox account with a read-only role and walk through the results with our engineers.' },
+    cta: { title: 'Know every machine identity in your cloud. Today.', body: 'Connect a sandbox account with a read-only role and walk through the results with our engineers.' },
   },
 
   fraud: {
@@ -138,7 +138,7 @@ export const PRODUCTS = {
     ] },
     modules: ['adapid', 'nhi', 'ad'],
     research: ['india-mule-account-crisis', 'mythos-ai-banking-threat', 'ctem-bot-defence-fintech'],
-    cta: { title: 'Score your own traffic, not a staged demo', body: 'See live risk decisions on a sample of your sessions, with every signal explained.' },
+    cta: { title: 'Stop the fraud before the money moves.', body: 'See live risk decisions on a sample of your sessions, with every signal explained.' },
   },
 
   ad: {

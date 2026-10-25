@@ -32,12 +32,12 @@ export const LINES = [
     modules: [{ name: 'AI Agent Security', desc: 'Discover, govern and enforce every AI agent action', path: '/agentic-ai/agentic-identity' }],
   },
   {
-    promo: { thumb: 'nhi', badge: 'New', title: 'NHI Security for AWS', body: 'Connect an AWS account with one read-only role and see every machine identity.', cta: 'Explore NHI Security', to: '/adapid-ai/nhi-security' },
+    promo: { thumb: 'nhi', title: 'NHI Security for AWS', body: 'Connect an AWS account with one read-only role and see every machine identity.', cta: 'Explore NHI Security', to: '/adapid-ai/nhi-security' },
     key: 'adapid', name: 'adapID AI', summary: 'Human and non-human identity security', icon: 'Fingerprint',
     path: '/adapid-ai',
     modules: [
       { name: 'Identity Risk Management (CIRM)', desc: 'Continuous risk scoring for every human identity', path: '/adapid-ai' },
-      { name: 'NHI Security for AWS', desc: 'Discover, score and baseline machine identities', path: '/adapid-ai/nhi-security', badge: 'New' },
+      { name: 'NHI Security for AWS', desc: 'Discover, score and baseline machine identities', path: '/adapid-ai/nhi-security' },
       { name: 'Identity Fraud Prevention', desc: 'Stop account takeover and mule accounts', path: '/adapid-ai/fraud-prevention' },
       { name: 'Active Directory Security', desc: 'Map and close attack paths through AD', path: '/ad-security' },
     ],
@@ -85,7 +85,7 @@ export const CERTS = [
 export const CARD = {
   zenstra: { name: 'Zenstra AI', body: 'Runtime security for AI agents', path: '/agentic-ai/agentic-identity', icon: 'Sparkle' },
   adapid: { name: 'adapID AI', body: 'Continuous identity risk management', path: '/adapid-ai', icon: 'Fingerprint' },
-  nhi: { name: 'NHI Security for AWS', badge: 'New', body: 'Discover, score and baseline machine identities', path: '/adapid-ai/nhi-security', icon: 'Key' },
+  nhi: { name: 'NHI Security for AWS', body: 'Discover, score and baseline machine identities', path: '/adapid-ai/nhi-security', icon: 'Key' },
   fraud: { name: 'Identity Fraud Prevention', body: 'Account takeover and mule defence', path: '/adapid-ai/fraud-prevention', icon: 'Wallet' },
   ad: { name: 'Active Directory Security', body: 'Attack paths and AD threat detection', path: '/ad-security', icon: 'TreeStructure' },
   botshield: { name: 'BotShield AI', body: 'Exposure management and bot defence', path: '/botshield-ai', icon: 'ShieldCheck' },

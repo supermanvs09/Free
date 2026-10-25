@@ -36,7 +36,7 @@ export default function Platform() {
             <div className="text-center">
               <div className="flex justify-center"><Breadcrumb light items={[{ name: 'Why Deep Algorithms' }]} /></div>
               <h1 className="t-h1 rise mx-auto mt-8 max-w-[920px] text-white">One platform for every human, machine and AI identity</h1>
-              <p className="rise mx-auto mt-6 max-w-[660px] text-[17px] leading-relaxed text-white/90 md:text-[19px]" style={{ animationDelay: '80ms' }}>Attackers no longer break in. They log in, with a person’s password, a forgotten key or an agent’s token. We secure all three from one place.</p>
+              <p className="rise mx-auto mt-6 max-w-[660px] text-[17px] leading-relaxed text-white/90 md:text-[19px]" style={{ animationDelay: '80ms' }}>Attackers no longer break in. They log in, with a person’s password, a forgotten key or an agent’s token. Deep Algorithms secures all three from one place, today.</p>
               <div className="rise mt-8 flex flex-wrap justify-center gap-3" style={{ animationDelay: '160ms' }}>
                 <Button to="/request-demo" variant="white">Book a demo</Button>
                 <Button href="#how" variant="ghostWhite">How it works</Button>
@@ -69,7 +69,7 @@ export default function Platform() {
           <div className="grid grid-cols-1 gap-12 rounded-[40px] bg-navy px-6 py-16 md:px-16 md:py-24 lg:grid-cols-[1.2fr_1fr]">
             <div>
               <p className="eyebrow mb-3 !text-cyan">What makes us different</p>
-              <h2 className="t-h2 text-white">Identity is the attack surface now</h2>
+              <h2 className="t-h2 text-white">Identity is the new perimeter. Secure it before it scales.</h2>
               <div className="mt-10"><Accordion items={WHY} /></div>
             </div>
             <PathArt className="hidden self-center lg:block" />

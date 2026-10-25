@@ -45,7 +45,7 @@ function Waveform() {
   );
 }
 
-export function CtaPanel({ title = 'Secure every identity, starting this quarter', body = 'See how Deep Algorithms discovers, scores and protects human, non-human and AI agent identities in your own environment.' }) {
+export function CtaPanel({ title = 'Secure the future of work. Start today.', body = 'See how Deep Algorithms discovers, scores and protects every human, machine and AI agent identity in your own environment.' }) {
   return (
     <section className="py-16 md:py-24">
       <div className="mx-auto w-full max-w-[1400px] px-3 md:px-5">
@@ -148,7 +148,7 @@ export function ProductCard({ k }) {
     <Link to={c.path} className="group flex h-full flex-col overflow-hidden rounded-[20px] border border-line bg-white transition-all duration-300 hover:-translate-y-1 hover:border-brand hover:shadow-[0_18px_40px_-24px_rgba(6,47,87,.45)]">
       <span className="block overflow-hidden"><Thumb k={k} className="transition-transform duration-500 group-hover:scale-[1.04]" /></span>
       <span className="flex flex-1 flex-col p-6">
-        <span className="flex items-center gap-2"><Icon name={c.icon} size={20} weight="light" className="text-brand" /><h3 className="t-h3 group-hover:text-brand">{c.name}</h3>{c.badge && <span className="rounded-full bg-coral-soft px-1.5 text-[10.5px] font-semibold text-coral-2">{c.badge}</span>}</span>
+        <span className="flex items-center gap-2"><Icon name={c.icon} size={20} weight="light" className="text-brand" /><h3 className="t-h3 group-hover:text-brand">{c.name}</h3></span>
         <span className="mt-2 flex-1 text-[15px] text-ink-3">{c.body}</span>
         <span className="mt-5 inline-flex items-center gap-1 text-[15px] font-medium text-brand">Explore {c.name}<Icon name="CaretRight" size={13} weight="bold" /></span>
       </span>
@@ -197,22 +197,22 @@ export function IndustryCard({ s }) {
   );
 }
 
-/* "What's new" row, as on cisco.com category pages. */
+/* Featured row, after the "What's new" strip on cisco.com category pages. */
 export function WhatsNew() {
   const p = POSTS[0];
   const items = [
-    { thumb: 'nhi', badge: 'New', title: 'NHI Security for AWS', body: 'Discover every IAM role, key and workload identity across your AWS accounts, with posture, access and behaviour for each.', to: '/adapid-ai/nhi-security', cta: 'Explore NHI Security' },
+    { thumb: 'nhi', title: 'NHI Security for AWS', body: 'Discover every IAM role, key and workload identity across your AWS accounts, with posture, access and behaviour for each.', to: '/adapid-ai/nhi-security', cta: 'Explore NHI Security' },
     { thumb: 'zenstra', title: 'Runtime security for AI agents', body: 'Zenstra AI checks each agent action against its task and keeps a decision record your auditor can read.', to: '/agentic-ai/agentic-identity', cta: 'Explore Zenstra AI' },
   ];
   return (
     <Section>
-      <Heading eyebrow="What’s new" title="Latest from Deep Algorithms" />
+      <Heading eyebrow="Featured" title="Where to start" />
       <div className="mt-12 grid gap-8 md:grid-cols-3">
         {items.map((c, i) => (
           <Reveal key={c.title} delay={i * 70}>
             <Link to={c.to} className="group block">
               <span className="block overflow-hidden rounded-[20px]"><Thumb k={c.thumb} className="transition-transform duration-500 group-hover:scale-[1.04]" /></span>
-              <span className="mt-5 flex items-center gap-2 font-display text-[22px] leading-snug text-ink group-hover:text-brand">{c.title}{c.badge && <span className="rounded-full bg-coral-soft px-1.5 text-[10.5px] font-semibold text-coral-2">{c.badge}</span>}</span>
+              <span className="mt-5 flex items-center gap-2 font-display text-[22px] leading-snug text-ink group-hover:text-brand">{c.title}</span>
               <span className="mt-2 block text-[15px] text-ink-3">{c.body}</span>
               <span className="mt-3 inline-flex items-center gap-1 text-[15px] font-medium text-brand">{c.cta}<Icon name="CaretRight" size={13} weight="bold" /></span>
             </Link>
@@ -228,5 +228,40 @@ export function WhatsNew() {
         </Reveal>
       </div>
     </Section>
+  );
+}
+
+/* Manifesto plus sourced "why now" figures. Third-party figures carry their source. */
+const NOW = [
+  { v: '40%+', l: 'of agentic AI projects will be cancelled by the end of 2027, citing costs, unclear value or weak risk controls', s: 'Gartner, June 2025' },
+  { v: '15:1', l: 'non-human to human identities in the average enterprise', s: 'Deep Algorithms Research' },
+  { v: '$4.88M', l: 'average cost of a data breach in 2024, an all-time high', s: 'IBM Cost of a Data Breach, 2024' },
+  { v: '₹250 Cr', l: 'maximum penalty for failing to safeguard personal data', s: 'DPDPA 2023' },
+];
+export function WhyNow() {
+  return (
+    <section className="py-6">
+      <div className="mx-auto w-full max-w-[1400px] px-3 md:px-5">
+        <div className="relative overflow-hidden rounded-[40px] bg-navy px-6 py-16 md:px-16 md:py-24">
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-100"><svg viewBox="0 0 1400 600" className="h-full w-full" preserveAspectRatio="xMidYMid slice"><g fill="none" stroke="#fff" strokeOpacity=".07">{[200, 340, 500].map((r) => <circle key={r} cx="700" cy="300" r={r} />)}</g></svg></div>
+          <Reveal className="relative mx-auto max-w-[900px] text-center">
+            <p className="eyebrow mb-4 !text-cyan">Why now</p>
+            <blockquote className="font-display text-[30px] font-light leading-[1.2] tracking-[-0.02em] text-white md:text-[46px]">
+              The future will not be defended by walls. It will be defended by knowing who, and what, is acting.
+            </blockquote>
+            <p className="mt-6 text-[17px] text-white/80">Secure it before it scales. Today.</p>
+          </Reveal>
+          <dl className="relative mt-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8">
+            {NOW.map((n, i) => (
+              <Reveal key={n.v} delay={i * 80} className="border-t border-white/20 pt-6">
+                <dt className="font-display text-[48px] font-light leading-none tracking-[-0.03em] text-white md:text-[56px]">{n.v}</dt>
+                <dd className="mt-4 text-[16px] leading-snug text-white/90">{n.l}</dd>
+                <dd className="mt-3 text-[13px] text-white/70">Source: {n.s}</dd>
+              </Reveal>
+            ))}
+          </dl>
+        </div>
+      </div>
+    </section>
   );
 }

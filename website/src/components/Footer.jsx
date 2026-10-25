@@ -20,7 +20,7 @@ export default function Footer() {
         <div className="grid gap-12 md:grid-cols-[1.4fr_1fr_1fr_1fr_1fr]">
           <div>
             <Logo />
-            <p className="mt-5 max-w-[300px] text-[14px] leading-relaxed text-ink-3">Identity security for the AI era. Built in Hyderabad for regulated enterprises.</p>
+            <p className="mt-5 max-w-[300px] text-[14px] leading-relaxed text-ink-3">Identity security for the AI era. Built in Hyderabad to secure the agentic future, today.</p>
           </div>
           <Col title="Products">
             <L to="/products">All products</L>
