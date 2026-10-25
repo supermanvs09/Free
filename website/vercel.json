@@ -1,0 +1,8 @@
+{
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "redirects": [
+    { "source": "/svg-export", "destination": "/", "permanent": true },
+    { "source": "/verify", "destination": "/", "permanent": true }
+  ]
+}

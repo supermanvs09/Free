@@ -1,0 +1,117 @@
+@import '@fontsource-variable/hanken-grotesk/wght.css';
+@import '@fontsource-variable/dm-sans/wght.css';
+@import 'tailwindcss';
+
+/* ==========================================================================
+   Deep Algorithms design tokens.
+   System measured from astrix.security and mapped to the Deep Algorithms
+   logo colours (#0068AC, #00AEEF):
+   - Display: light grotesk (300) at 64/50px, tight tracking. Body: DM Sans.
+   - Navy pill CTAs, bright brand-blue bands, coral for risk, solid light-grey
+     frames behind product UI (never dotted), 20px cards, 40px panels.
+   Light theme only.
+   ========================================================================== */
+@theme {
+  --font-display: 'Hanken Grotesk Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'DM Sans Variable', ui-sans-serif, system-ui, sans-serif;
+
+  --color-ink: #0b1220;
+  --color-ink-2: #3f4a5a;
+  --color-ink-3: #5c6777;
+  --color-line: #e3e7ed;
+  --color-line-2: #cfd6df;
+  --color-paper: #ffffff;
+  --color-mist: #f6f7f9;
+  --color-frame: #e9ecf0;
+
+  --color-navy: #062f57;
+  --color-navy-2: #0a3d6f;
+  --color-brand: #0068ac;
+  --color-brand-2: #0b7bc4;
+  --color-cyan: #00aeef;
+  --color-sky: #e6f3fb;
+  --color-coral: #f0644d;
+  --color-coral-2: #b3361d;
+  --color-coral-soft: #fdebe7;
+
+  --color-ok: #17703c;
+  --color-ok-soft: #e4f4ea;
+  --color-warn: #8a5a12;
+  --color-warn-soft: #fbf1df;
+  --color-crit: #c62828;
+  --color-crit-soft: #fbe6e6;
+}
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; scroll-padding-top: 96px; }
+  body {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.625;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 { font-family: var(--font-display); color: var(--color-ink); text-wrap: balance; }
+  p { text-wrap: pretty; }
+  :focus-visible { outline: 2px solid var(--color-brand); outline-offset: 3px; border-radius: 6px; }
+  ::selection { background: #cfe8f7; }
+}
+
+@layer components {
+  .wrap { width: 100%; max-width: 1240px; margin-inline: auto; padding-inline: 20px; }
+  @media (min-width: 768px) { .wrap { padding-inline: 40px; } }
+
+  .t-h1 { font-family: var(--font-display); font-weight: 300; font-size: clamp(40px, 5.2vw, 68px); line-height: 1.1; letter-spacing: -0.025em; }
+  .t-h2 { font-family: var(--font-display); font-weight: 300; font-size: clamp(32px, 3.8vw, 50px); line-height: 1.18; letter-spacing: -0.022em; }
+  .t-h3 { font-family: var(--font-display); font-weight: 400; font-size: clamp(21px, 1.8vw, 24px); line-height: 1.4; letter-spacing: -0.02em; }
+  .t-lead { font-size: clamp(17px, 1.45vw, 20px); line-height: 1.6; color: var(--color-ink-2); }
+  .eyebrow { font-family: var(--font-sans); font-size: 15px; font-weight: 500; color: var(--color-brand); }
+
+  /* Solid grey frame behind product UI (Astrix). No dots, no textures. */
+  .frame { background: var(--color-frame); border-radius: 20px; padding: 14px; }
+  @media (min-width: 768px) { .frame { padding: 18px; } }
+
+  .prose-da { color: var(--color-ink-2); font-size: 18px; line-height: 1.75; }
+  .prose-da > * + * { margin-top: 1.1em; }
+  .prose-da h2 { color: var(--color-ink); font-size: 30px; line-height: 1.25; font-weight: 400; margin-top: 2em; letter-spacing: -0.02em; }
+  .prose-da h3 { color: var(--color-ink); font-size: 22px; line-height: 1.35; font-weight: 500; margin-top: 1.6em; }
+  .prose-da ul { padding-left: 1.2em; list-style: disc; }
+  .prose-da ul li + li { margin-top: 0.45em; }
+  .prose-da ul li::marker { color: var(--color-brand); }
+  .prose-da blockquote { font-family: var(--font-display); font-size: 26px; font-weight: 300; line-height: 1.4; color: var(--color-ink); letter-spacing: -0.015em; padding-block: 8px; }
+}
+
+/* Reveal on scroll: content is visible in prerendered HTML; the hidden
+   state applies only once the app has mounted (html.io). */
+.io .reveal { opacity: 0; transform: translateY(20px); transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1); transition-delay: var(--d, 0ms); }
+.io .reveal.in { opacity: 1; transform: none; }
+
+@keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+.rise { animation: rise .9s cubic-bezier(.16,1,.3,1) both; animation-delay: var(--d, 0ms); }
+
+@keyframes marquee { to { transform: translateX(-50%); } }
+.marquee { animation: marquee 50s linear infinite; }
+.marquee-wrap:hover .marquee { animation-play-state: paused; }
+
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+.fadein { animation: fadein .45s ease both; }
+
+@keyframes tab-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.tab-fill { width: 100%; transform-origin: left; animation: tab-fill linear both; }
+
+@keyframes wave { 0%,100% { transform: scaleY(.35); } 50% { transform: scaleY(1); } }
+.wave-bar { transform-origin: bottom; animation: wave 3.6s ease-in-out infinite; }
+
+@keyframes path-pulse { from { stroke-dashoffset: 600; } to { stroke-dashoffset: 0; } }
+.path-pulse { animation: path-pulse 5s linear infinite; }
+
+@keyframes story-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+.story-float { animation: story-float 3.2s ease-in-out infinite; }
+@keyframes story-ring { 0% { transform: scale(.05); opacity: .9; } 100% { transform: scale(1); opacity: 0; } }
+.story-ring { transform-box: fill-box; transform-origin: center; animation: story-ring 3.4s cubic-bezier(.2,.6,.3,1) .2s both; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+  .io .reveal { opacity: 1; transform: none; }
+}
