@@ -100,7 +100,9 @@ export default function Header() {
   const Menu = NAV.find((n) => n.label === open)?.menu;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-white/90 backdrop-blur-md" onMouseLeave={leave}>
+    <header className="sticky top-0 z-40 border-b border-line" onMouseLeave={leave}>
+      {/* blur lives on its own layer: backdrop-filter on the header would trap the fixed mobile drawer inside it */}
+      <div aria-hidden="true" className="absolute inset-0 -z-10 bg-white/90 backdrop-blur-md" />
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-50 focus:rounded-full focus:bg-navy focus:px-4 focus:py-2 focus:text-white">Skip to content</a>
       <div className="wrap flex h-[76px] items-center gap-6">
         <Link to="/" aria-label="Deep Algorithms home" className="shrink-0"><Logo /></Link>
