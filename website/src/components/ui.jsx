@@ -4,7 +4,7 @@ import {
   ArrowRight, ArrowUpRight, CaretDown, CaretRight, Bank, FirstAidKit, Buildings, Browsers, Sparkle, Fingerprint, ShieldCheck,
   Scales, Robot, Key, User, Eye, Lightning, ClipboardText, Graph, Plug, Clock, LockKey, Database, Globe, Target, Crosshair,
   MagnifyingGlass, Gauge, TreeStructure, Wallet, Broadcast, Handshake, FileText, Warning, CheckCircle, EnvelopeSimple, Phone,
-  MapPin, LinkedinLogo, List, X, Cloud, HardDrives, Detective, Path, Users, Siren, CloudCheck, Certificate, Stack, Play, LinkSimple,
+  MapPin, LinkedinLogo, List, X, Cloud, HardDrives, Detective, Path, Users, Siren, CloudCheck, Certificate, Stack, Play, LinkSimple, Pause,
 } from '@phosphor-icons/react/dist/ssr';
 import { useReducedMotion, useInView, cx } from './visuals/kit.jsx';
 
@@ -14,7 +14,7 @@ const ICONS = {
   ArrowRight, ArrowUpRight, CaretDown, CaretRight, Bank, FirstAidKit, Buildings, Browsers, Sparkle, Fingerprint, ShieldCheck,
   Scales, Robot, Key, User, Eye, Lightning, ClipboardText, Graph, Plug, Clock, LockKey, Database, Globe, Target, Crosshair,
   MagnifyingGlass, Gauge, TreeStructure, Wallet, Broadcast, Handshake, FileText, Warning, CheckCircle, EnvelopeSimple, Phone,
-  MapPin, LinkedinLogo, List, X, Cloud, HardDrives, Detective, Path, Users, Siren, CloudCheck, Certificate, Stack, Play, LinkSimple,
+  MapPin, LinkedinLogo, List, X, Cloud, HardDrives, Detective, Path, Users, Siren, CloudCheck, Certificate, Stack, Play, LinkSimple, Pause,
 };
 export function Icon({ name, size = 20, weight = 'regular', className }) {
   const C = ICONS[name];

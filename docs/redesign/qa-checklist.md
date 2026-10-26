@@ -5,7 +5,7 @@ Every rule below came from a mistake that was made and pointed out. Run all of i
 ## A. Brand first
 - [ ] Our mark is the largest and most saturated brand object in any picture that shows it. Nothing else competes with it for size or colour.
 - [ ] Third-party logos are small and drawn in one neutral tone (grey-blue), never in their full brand colours, wherever our mark is on screen.
-- [ ] The palette is minimal: navy, brand blue and cyan for us; coral only for risk; white and greys for the rest. No rainbow of app colours.
+- [ ] The palette is minimal: navy, brand blue and cyan for us; coral only for risk (and the one approved accent on the About beliefs cards); white and greys for the rest. No rainbow of app colours.
 - [ ] Icons share one weight and one style (Phosphor, one weight per picture). No mixed icon sets in one view.
 - [ ] Type: Hanken Grotesk Light for display, Inter for text. No third font. No bold display headings.
 - [ ] No utility strip above the main navigation. No on-page disclaimers inside pictures or players unless legally needed (sample-data notes live in alt text and docs).

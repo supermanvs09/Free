@@ -1,10 +1,10 @@
 # Voice-over
 
-The narration for "The Identity Shift" is synthetic speech made offline with [Piper](https://github.com/rhasspy/piper) (voice `en_US-lessac-high`).
+The narration for the home-page film is synthetic speech made offline with [Piper](https://github.com/rhasspy/piper) (voice `en_US-lessac-high`), over a very quiet generated music bed.
 
-- `build_vo.py` holds the script (one list per scene), synthesises each sentence, joins them with measured pauses, and writes `vo.wav` and `vo.json` (sentence timings).
-- Copy `vo.json` into `src/data/voiceover.js` (as `export const VO = ...`); the film animation and captions read their timings from it.
-- Encode: `ffmpeg -i vo.wav -af "loudnorm=I=-18:TP=-2:LRA=7,highpass=f=70" -ac 1 -c:a libmp3lame -b:a 64k public/audio/identity-shift.mp3`.
-- To change the voice: `pip install piper-tts`, download another voice from https://huggingface.co/rhasspy/piper-voices, run `python build_vo.py <voice>.onnx`. Samples of three voices are in `docs/redesign/voice-samples/`.
-- To change the words: edit `SEGS` in `build_vo.py`, regenerate, then update the timings and the matching step text in `src/components/visuals/Flows.jsx` (`STEPS`) if scene names change.
-- A human recording can replace the file one-for-one if you keep the same sentence timings, or re-time the cues in `voiceover.js`.
+- `vo20.py <voice>.onnx <name> F` synthesises the script (the `F` list), one sentence at a time with 0.34 s pauses, and writes `<name>.wav` plus `<name>.json` (sentence start and end times in seconds).
+- `mix.py <name>.wav <name>_bed.wav` adds the music bed (quiet pad that dips under the voice).
+- Encode: `ffmpeg -i <name>_bed.wav -af "loudnorm=I=-16:TP=-1.5:LRA=7,highpass=f=60" -ac 1 -c:a libmp3lame -b:a 96k public/audio/identity-shift.mp3`.
+- Copy the JSON timings into `src/data/voiceover.js` (five segments: shift, attack, find, trust, close). The film in `src/components/visuals/Flows.jsx` reads its cues from there, so a change of words or pace only needs the new timings.
+- Setup: `python -m venv v && v/bin/pip install piper-tts`, then download a voice from https://huggingface.co/rhasspy/piper-voices.
+- A human recording can replace the mp3 one-for-one if the sentence timings stay the same.

@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import { Link } from 'react-router';
 import { Seo } from '../lib/head.jsx';
 import { LINES, SITE } from '../data/site.js';
 import { LEADERS, ADVISORS, RECOGNITION, TEAM_PHOTOS, BELIEFS } from '../data/company.js';
-import { Breadcrumb, Button, Heading, Icon, IconTile, Reveal, Section } from '../components/ui.jsx';
+import { Breadcrumb, Button, Heading, Icon, Reveal, Section, cx } from '../components/ui.jsx';
 import { CtaPanel, LogoBand } from '../components/blocks.jsx';
 
 const Linked = ({ p }) => (
@@ -37,16 +38,73 @@ function Advisor({ p }) {
   );
 }
 
-/* Rows of equal, modest photos; a short last row is centred rather than left with a hole. */
-function Gallery({ items }) {
+/* Recognition: one featured photo beside a 2 x 2 of smaller ones, then the rest in a row. */
+function Recognition({ items }) {
+  const [first, ...rest] = items;
+  const small = rest.slice(0, 4), last = rest.slice(4);
+  const photo = 'h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.05]';
   return (
-    <div className="mt-12 flex flex-wrap justify-center gap-x-5 gap-y-8">
-      {items.map((r, i) => (
-        <Reveal as="figure" key={r.title} delay={(i % 4) * 60} className="w-full sm:w-[calc(50%-10px)] lg:w-[calc(25%-15px)]">
-          <img src={`/img/events/${r.img}.webp`} alt={r.where ? `${r.title}, ${r.where}, ${r.year}` : r.title} width="400" height="300" loading="lazy" decoding="async" className="aspect-[4/3] w-full rounded-[16px] bg-frame object-cover" />
-          <figcaption className="mt-3 text-[15px] font-medium leading-snug text-ink">{r.title}{r.where && <span className="mt-0.5 block text-[13.5px] font-normal text-ink-3">{r.where} · {r.year}</span>}</figcaption>
+    <div className="mx-auto mt-12 grid max-w-[1040px] grid-cols-2 gap-5 lg:grid-cols-4">
+      <Reveal as="figure" className="group col-span-2 lg:row-span-2">
+        <div className="relative aspect-[4/3] overflow-hidden rounded-[22px] bg-frame shadow-[0_18px_40px_-26px_rgba(6,47,87,.5)] lg:aspect-auto lg:h-[calc(100%-4px)] lg:min-h-[400px]">
+          <img src={`/img/events/${first.img}.webp`} alt={`${first.title}, ${first.where}, ${first.year}`} width="800" height="600" loading="lazy" decoding="async" className={photo} />
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#06182f]/85 via-[#06182f]/40 to-transparent p-5 pt-16 text-white">
+            <p className="text-[12.5px] font-medium uppercase tracking-[.12em] text-cyan">{first.where} · {first.year}</p>
+            <p className="mt-1 font-display text-[22px] font-light leading-snug">{first.title}</p>
+          </div>
+        </div>
+      </Reveal>
+      {small.map((r, i) => (
+        <Reveal as="figure" key={r.title} delay={(i + 1) * 70} className="group">
+          <div className="aspect-[4/3] overflow-hidden rounded-[18px] bg-frame transition-shadow duration-500 group-hover:shadow-[0_18px_36px_-22px_rgba(6,47,87,.55)]">
+            <img src={`/img/events/${r.img}.webp`} alt={`${r.title}, ${r.where}, ${r.year}`} width="400" height="300" loading="lazy" decoding="async" className={photo} />
+          </div>
+          <figcaption className="mt-3 text-[14.5px] font-medium leading-snug text-ink">{r.title}<span className="mt-0.5 block text-[13px] font-normal text-ink-3">{r.where} · {r.year}</span></figcaption>
         </Reveal>
       ))}
+      {last.map((r, i) => (
+        <Reveal as="figure" key={r.title} delay={(i + 5) * 70} className="group">
+          <div className="aspect-[4/3] overflow-hidden rounded-[18px] bg-frame transition-shadow duration-500 group-hover:shadow-[0_18px_36px_-22px_rgba(6,47,87,.55)]">
+            <img src={`/img/events/${r.img}.webp`} alt={`${r.title}, ${r.where}, ${r.year}`} width="400" height="300" loading="lazy" decoding="async" className={photo} />
+          </div>
+          <figcaption className="mt-3 text-[14.5px] font-medium leading-snug text-ink">{r.title}<span className="mt-0.5 block text-[13px] font-normal text-ink-3">{r.where} · {r.year}</span></figcaption>
+        </Reveal>
+      ))}
+      <Reveal delay={600} className="col-span-2 flex flex-col justify-center rounded-[18px] bg-navy p-7 text-white">
+        <p className="font-display text-[22px] font-light leading-snug">More from the field</p>
+        <p className="mt-1.5 text-[14.5px] text-white/75">Talks, awards and conferences, as they happen.</p>
+        <a href={SITE.linkedin} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 text-[15px] font-medium text-cyan hover:text-white"><Icon name="LinkedinLogo" size={20} />Follow us on LinkedIn<Icon name="ArrowUpRight" size={14} /></a>
+      </Reveal>
+    </div>
+  );
+}
+
+/* A slow, endless row of team photos. Hover or the button pauses it; reduced motion gets a plain scrolling row. */
+function PhotoRow({ items }) {
+  const [paused, setPaused] = useState(false);
+  const card = (t, k, hidden) => (
+    <li key={`${k}${t.title}`} className="w-[270px] shrink-0 sm:w-[310px]" aria-hidden={hidden || undefined}>
+      <figure className="group">
+        <div className="aspect-[4/3] overflow-hidden rounded-[20px] bg-frame shadow-[0_14px_34px_-24px_rgba(6,47,87,.5)]">
+          <img src={`/img/events/${t.img}.webp`} alt="" width="400" height="300" loading="lazy" decoding="async" className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.05]" />
+        </div>
+        <figcaption className="mt-3 text-[14px] leading-snug text-ink-3">{t.title}</figcaption>
+      </figure>
+    </li>
+  );
+  return (
+    <div className="relative mt-12">
+      <div className="marquee-wrap overflow-hidden motion-reduce:overflow-x-auto" style={{ WebkitMaskImage: 'linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)', maskImage: 'linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)' }}>
+        <ul className="marquee flex w-max gap-5 pr-5" style={{ animationDuration: '55s', animationPlayState: paused ? 'paused' : undefined }}>
+          {items.map((t) => card(t, 'a', false))}
+          {items.map((t) => card(t, 'b', true))}
+        </ul>
+      </div>
+      <div className="mt-6 flex justify-center">
+        <button type="button" onClick={() => setPaused((p) => !p)} aria-pressed={paused} className="inline-flex h-10 items-center gap-2 rounded-full border border-line bg-white px-4 text-[14px] text-ink-2 transition-colors hover:border-brand hover:text-brand motion-reduce:hidden">
+          <Icon name={paused ? 'Play' : 'Pause'} size={14} weight="fill" />{paused ? 'Play the photo row' : 'Pause the photo row'}
+        </button>
+      </div>
     </div>
   );
 }
@@ -126,12 +184,14 @@ export default function About() {
 
       <Section tone="mist">
         <Heading eyebrow="Our beliefs" title="The principles we build to" lead="Not values on a wall. Constraints on every line of code." />
-        <div className="mt-14 grid gap-x-8 gap-y-12 md:grid-cols-2 lg:grid-cols-3">
+        <div className="mx-auto mt-14 grid max-w-[1040px] gap-5 md:grid-cols-2 lg:grid-cols-3">
           {BELIEFS.map((b, i) => (
-            <Reveal key={b.title} delay={(i % 3) * 70}>
-              <IconTile name={b.icon} size={48} />
-              <h3 className="t-h3 mt-5">{b.title}</h3>
-              <p className="mt-2 text-ink-2">{b.body}</p>
+            <Reveal key={b.title} delay={(i % 3) * 80}>
+              <div className="group h-full rounded-[22px] bg-white p-7 shadow-[0_1px_2px_rgba(11,18,32,.04)] ring-1 ring-line/70 transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_22px_44px_-26px_rgba(6,47,87,.45)] hover:ring-brand/30">
+                <span className={cx('inline-flex h-12 w-12 items-center justify-center rounded-[14px] text-white shadow-[0_8px_18px_-8px_rgba(0,104,172,.7)] transition-transform duration-500 group-hover:scale-105', i % 3 === 1 ? 'bg-gradient-to-br from-[#f47a64] to-coral shadow-[0_8px_18px_-8px_rgba(240,100,77,.7)]' : 'bg-gradient-to-br from-[#1a86cf] to-brand')}><Icon name={b.icon} size={23} weight="light" /></span>
+                <h3 className="t-h3 mt-5">{b.title}</h3>
+                <p className="mt-2 text-[15.5px] leading-relaxed text-ink-2">{b.body}</p>
+              </div>
             </Reveal>
           ))}
         </div>
@@ -139,12 +199,12 @@ export default function About() {
 
       <Section>
         <Heading eyebrow="Recognition" title="Built to win. Recognised for it." />
-        <Gallery items={RECOGNITION} />
+        <Recognition items={RECOGNITION} />
       </Section>
 
       <Section tone="mist">
         <Heading eyebrow="The team" title="Outside the build" lead="At conferences, on stage and in the room where problems get solved." />
-        <Gallery items={TEAM_PHOTOS} />
+        <PhotoRow items={TEAM_PHOTOS} />
       </Section>
 
       <Section id="careers" className="scroll-mt-16">

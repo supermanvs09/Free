@@ -68,7 +68,7 @@ export default function Home() {
       <WhyNow />
 
       <Section tone="mist" id="film" className="scroll-mt-16">
-        <Heading eyebrow="The identity shift" title="Identity changed three times. Security has to catch up." lead="From people to cloud services to AI agents. Watch where the risk builds up, and how Deep Algorithms fixes it before it is used." />
+        <Heading eyebrow="The 20-second pitch" title="Most access no longer belongs to a person." lead="Watch how we find every identity, show the risk and fix it before it is used." />
         <Reveal className="mx-auto mt-14 max-w-[1180px]"><IdentityFilm /></Reveal>
         <div className="mt-10 flex justify-center"><Button to="/request-demo">Book a demo</Button></div>
       </Section>
