@@ -74,6 +74,7 @@ export function PostCard({ post }) {
       <Cover post={post} className="aspect-[370/220] rounded-[20px] transition-transform duration-500 group-hover:-translate-y-1" />
       <p className="mt-5 text-[13px] font-medium text-brand">{post.category}</p>
       <h3 className="mt-1.5 font-display text-[19px] font-normal leading-snug tracking-[-0.01em] text-ink group-hover:text-brand">{post.title}</h3>
+      <p className="mt-2 line-clamp-2 text-[14.5px] leading-relaxed text-ink-3">{post.excerpt}</p>
       <div className="mt-3 flex items-center gap-2.5 text-[13px] text-ink-3">
         <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-sky"><img src="/brand/mark.webp" alt="" className="h-3.5 w-3.5" /></span>
         <span><span className="block text-ink-2">{authorOf(post)}</span>{formatDate(post)} · {post.read} min read</span>
