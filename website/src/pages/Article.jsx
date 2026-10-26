@@ -53,16 +53,18 @@ export default function Article() {
       <article>
         <header className="wrap pt-12 md:pt-16">
           <Breadcrumb items={[{ name: 'Research', path: '/blogs' }, { name: post.title }]} />
-          <div className="mt-10 max-w-[900px]">
-            <p className="text-[15px] font-medium text-brand">{post.category}{post.fiction && ' · Dramatised account'}</p>
-            <h1 className="mt-3 font-display text-[36px] font-light leading-[1.1] tracking-[-0.025em] text-ink md:text-[54px]">{post.title}</h1>
-            <p className="t-lead mt-5">{post.excerpt}</p>
-            <div className="mt-8 flex items-center gap-3 text-[14px] text-ink-3">
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-sky"><img src="/brand/mark.webp" alt="" className="h-5 w-5" /></span>
-              <span><span className="block font-medium text-ink-2">{authorOf(post)}</span>{formatDate(post)} · {post.read} min read</span>
+          <div className="mt-10 grid items-center gap-10 lg:grid-cols-[1.15fr_.85fr] lg:gap-16">
+            <div>
+              <p className="text-[15px] font-medium text-brand">{post.category}{post.fiction && ' · Dramatised account'}</p>
+              <h1 className="mt-3 font-display text-[34px] font-light leading-[1.1] tracking-[-0.025em] text-ink md:text-[48px]">{post.title}</h1>
+              <p className="t-lead mt-5">{post.excerpt}</p>
+              <div className="mt-8 flex items-center gap-3 text-[14px] text-ink-3">
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-sky"><img src="/brand/mark.webp" alt="" className="h-5 w-5" /></span>
+                <span><span className="block font-medium text-ink-2">{authorOf(post)}</span>{formatDate(post)} · {post.read} min read</span>
+              </div>
             </div>
+            <Cover big post={post} className="aspect-[8/5] rounded-[24px]" />
           </div>
-          <Cover big post={post} className="mt-12 aspect-[16/7] rounded-[24px]" />
         </header>
 
         <div className="wrap py-14 md:py-20">

@@ -2,7 +2,8 @@ import { useParams } from 'react-router';
 import { Seo } from '../lib/head.jsx';
 import { SOLUTION_PAGES } from '../data/solutions.js';
 import { Accordion, Breadcrumb, Button, Heading, IconTile, Reveal, Section } from '../components/ui.jsx';
-import { CtaPanel, LogoBand, LogoNet, RelatedCards, ResearchRow } from '../components/blocks.jsx';
+import { CtaPanel, LogoBand, RelatedCards, ResearchRow } from '../components/blocks.jsx';
+import { OrbitMini } from '../components/visuals/Flows.jsx';
 import NotFound from './NotFound.jsx';
 
 export default function Solution() {
@@ -28,7 +29,7 @@ export default function Solution() {
                 <Button href="#how" variant="ghostWhite">How we help</Button>
               </div>
             </div>
-            <div className="rise" style={{ animationDelay: '240ms' }}><LogoNet alert={s.net.alert} logos={s.net.logos} /></div>
+            <div className="rise" style={{ animationDelay: '240ms' }}><OrbitMini /></div>
           </div>
         </div>
       </section>
@@ -36,11 +37,11 @@ export default function Solution() {
       <LogoBand title="Trusted by banks, government and enterprises across India" />
 
       <Section>
-        <Heading eyebrow="The challenge" title={`What ${s.short} security teams are up against`} />
+        <Heading eyebrow="The challenge" title={`What ${s.who} security teams are up against`} />
         <div className="mt-14 grid gap-10 md:grid-cols-3">
           {s.stats.map((x, i) => (
             <Reveal key={x.l} delay={i * 80}>
-              <IconTile name={x.icon} tone={i === 0 ? 'coral' : 'blue'} />
+              <IconTile name={x.icon} />
               <p className="mt-6 font-display text-[40px] font-light leading-none tracking-[-0.03em] text-ink">{x.v}</p>
               <p className="mt-3 text-ink-2">{x.l}</p>
               {x.s && <p className="mt-2 text-[13px] text-ink-3">Source: {x.s}</p>}
@@ -63,7 +64,7 @@ export default function Solution() {
 
       <RelatedCards keys={s.products} eyebrow="Products" title={`Recommended for ${s.short}`} />
       <ResearchRow slugs={s.research} />
-      <CtaPanel />
+      <CtaPanel title={s.cta.title} body={s.cta.body} />
     </>
   );
 }

@@ -63,60 +63,17 @@ export function CtaPanel({ title = 'Secure the future of work. Start today.', bo
   );
 }
 
-/* Line-path art for navy panels: an identity's journey drawn as a thin line
-   with key, account and agent nodes; a light pulse travels along it. */
-export function PathArt({ className }) {
-  const d = 'M0 60 H 210 Q 240 60 240 90 V 300 Q 240 330 270 330 H 420';
-  return (
-    <svg viewBox="0 0 420 360" className={cx('h-auto w-full', className)} aria-hidden="true">
-      <path d={d} fill="none" stroke="#5c86b3" strokeOpacity=".5" strokeWidth="1.4" />
-      <path d={d} fill="none" stroke="#00aeef" strokeWidth="2" strokeDasharray="40 560" className="path-pulse" />
-      <g fill="none" strokeWidth="1.6">
-        <g stroke="#f0644d" transform="translate(70 60)"><circle r="7" cx="10" /><path d="M-14 0h17M-10 0v5M-6 0v4" /></g>
-        <rect x="128" y="51" width="18" height="18" rx="4" stroke="#cfe0f0" />
-        <g stroke="#00aeef" transform="translate(240 160)"><rect x="-11" y="-9" width="22" height="18" rx="5" fill="#062f57" /><path d="M-5 0h.01M5 0h.01M0 -9v-5" /></g>
-        <g stroke="#f0644d" transform="translate(240 240)"><circle r="7" fill="#062f57" /><path d="M-2 -18v11" /></g>
-        <g stroke="#00aeef" transform="translate(340 330)"><rect x="-11" y="-9" width="22" height="18" rx="5" fill="#062f57" /><path d="M-5 0h.01M5 0h.01M0 -9v-5" /></g>
-      </g>
-    </svg>
-  );
-}
-
-/* Navy hero illustration for solution pages: real app tiles joined by thin
-   lines, with one coral finding card (Astrix use-case style). */
-export function LogoNet({ alert = { title: 'API Key', body: 'Over-privileged access', action: 'Remediate' }, logos = ['aws', 'snowflake', 'github', 'okta', 'gitlab'] }) {
-  const pos = [[52, 18], [16, 46], [86, 6], [30, 82], [58, 62]];
-  return (
-    <div className="relative mx-auto aspect-[5/4] w-full max-w-[460px]" aria-hidden="true">
-      <svg viewBox="0 0 100 80" className="absolute inset-0 h-full w-full" preserveAspectRatio="none">
-        {['M52 18 C 30 18, 30 46, 16 46', 'M52 18 H 86', 'M16 46 C 16 70, 30 70, 30 82', 'M52 18 C 60 30, 58 50, 58 62'].map((d) => (
-          <path key={d} d={d} fill="none" stroke="#cfe0f0" strokeOpacity=".7" strokeWidth=".35" vectorEffect="non-scaling-stroke" />
-        ))}
-      </svg>
-      {logos.map((l, i) => (
-        <span key={l} className="absolute -translate-x-1/2 -translate-y-1/2 rounded-[14px] shadow-lg" style={{ left: `${pos[i][0]}%`, top: `${(pos[i][1] / 80) * 100}%` }}>
-          <Tile name={l} size={i === 0 ? 64 : 48} />
-        </span>
-      ))}
-      <div className="absolute bottom-[4%] right-0 w-[56%] rounded-[16px] bg-coral-2 p-4 text-white shadow-xl">
-        <div className="flex items-center gap-2 font-medium"><Icon name="Warning" size={18} />{alert.title}</div>
-        <div className="mt-1 text-[15px] text-white/90">{alert.body}</div>
-        <div className="mt-3 rounded-[8px] bg-white py-1.5 text-center text-[14px] font-medium text-coral-2">{alert.action}</div>
-      </div>
-    </div>
-  );
-}
-
 /* Research cover: illustrated scene per topic with the article's headline figure. */
 export function Cover({ post, big, className }) {
-  return <CoverArt slug={post.slug} category={post.category} big={big} className={className} />;
+  return <CoverArt slug={post.slug} className={className} />;
 }
 
 export function PostCard({ post }) {
   return (
     <Link to={`/blogs/${post.slug}`} className="group block">
       <Cover post={post} className="aspect-[370/220] rounded-[20px] transition-transform duration-500 group-hover:-translate-y-1" />
-      <h3 className="mt-5 font-display text-[19px] font-normal leading-snug tracking-[-0.01em] text-ink group-hover:text-brand">{post.title}</h3>
+      <p className="mt-5 text-[13px] font-medium text-brand">{post.category}</p>
+      <h3 className="mt-1.5 font-display text-[19px] font-normal leading-snug tracking-[-0.01em] text-ink group-hover:text-brand">{post.title}</h3>
       <div className="mt-3 flex items-center gap-2.5 text-[13px] text-ink-3">
         <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-sky"><img src="/brand/mark.webp" alt="" className="h-3.5 w-3.5" /></span>
         <span><span className="block text-ink-2">{authorOf(post)}</span>{formatDate(post)} · {post.read} min read</span>

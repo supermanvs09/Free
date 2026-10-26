@@ -1,6 +1,7 @@
 import { Seo } from '../lib/head.jsx';
 import { Accordion, Breadcrumb, Button, Heading, IconTile, ProgressTabs, Reveal, Section } from '../components/ui.jsx';
-import { CertRow, CtaPanel, LogoBand, PathArt, RelatedCards } from '../components/blocks.jsx';
+import { CertRow, CtaPanel, LogoBand, RelatedCards } from '../components/blocks.jsx';
+import { OrbitMini } from '../components/visuals/Flows.jsx';
 import ProductTour from '../components/visuals/ProductTour.jsx';
 import ProductVisual from '../components/visuals/ProductVisual.jsx';
 import IdentityDetail from '../components/visuals/IdentityDetail.jsx';
@@ -72,7 +73,7 @@ export default function Platform() {
               <h2 className="t-h2 text-white">Identity is the new perimeter. Secure it before it scales.</h2>
               <div className="mt-10"><Accordion items={WHY} /></div>
             </div>
-            <PathArt className="hidden self-center lg:block" />
+            <OrbitMini className="hidden self-center lg:block" />
           </div>
         </div>
       </section>
@@ -93,7 +94,7 @@ export default function Platform() {
         <div className="mt-16"><CertRow /></div>
       </Section>
 
-      <CtaPanel />
+      <CtaPanel title="See every identity in one place." body="Book a demo and we will walk through discovery, risk and evidence together." />
     </>
   );
 }

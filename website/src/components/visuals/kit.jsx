@@ -148,12 +148,13 @@ const brandFill = (icon) => {
   return lum < 0.2 ? '#0b1220' : `#${icon.hex}`;
 };
 
-export function Logo({ name, size = 16 }) {
+/* mono: draw the mark in one neutral tone, for rows of integrations. */
+export function Logo({ name, size = 16, mono }) {
   const icon = BRANDS[name];
-  if (icon) return <svg role="img" aria-label={icon.title} viewBox="0 0 24 24" width={size} height={size} fill={brandFill(icon)}><path d={icon.path} /></svg>;
+  if (icon) return <svg role="img" aria-label={icon.title} viewBox="0 0 24 24" width={size} height={size} fill={mono ? '#5c6777' : brandFill(icon)}><path d={icon.path} /></svg>;
   const t = TEXT_MARKS[name];
   if (!t) return null;
-  return <span role="img" aria-label={name.toUpperCase()} className="inline-flex items-center justify-center font-sans font-bold leading-none" style={{ color: t[1], fontSize: size * 0.62, minWidth: size, height: size }}>{t[0]}</span>;
+  return <span role="img" aria-label={name.toUpperCase()} className="inline-flex items-center justify-center font-sans font-bold leading-none" style={{ color: mono ? '#5c6777' : t[1], fontSize: size * 0.62, minWidth: size, height: size }}>{t[0]}</span>;
 }
 
 /* Same marks for use inside an <svg> scene (decorative: the scene carries the label). */
@@ -164,10 +165,10 @@ export function SvgLogo({ name, x = 0, y = 0, size = 24, fill, opacity }) {
   return t ? <text x={x + size / 2} y={y + size * (t[0].length > 3 ? 0.62 : 0.7)} textAnchor="middle" fontSize={size * (t[0].length > 3 ? 0.42 : 0.62)} fontWeight="700" fill={fill || t[1]} opacity={opacity}>{t[0]}</text> : null;
 }
 
-export function Tile({ name, size = 28 }) {
+export function Tile({ name, size = 28, mono }) {
   return (
     <span className="inline-flex items-center justify-center rounded-[7px] border border-line bg-white" style={{ width: size, height: size }}>
-      <Logo name={name} size={Math.round(size * 0.56)} />
+      <Logo name={name} size={Math.round(size * 0.56)} mono={mono} />
     </span>
   );
 }

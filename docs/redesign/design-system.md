@@ -4,9 +4,10 @@
 
 The reference is astrix.security (identity security for NHIs and AI agents, acquired by Cisco in 2026), cross-checked against Cisco, SailPoint and other enterprise security sites. The site borrows Astrix's structure, restraint and illustration approach. It does not copy Astrix's artwork:
 
-- **Hero.** Astrix uses a logo line-flow. We use an *identity orbit* (`HeroOrbit`): three rings (people, machine identities, AI agents) around the Deep Algorithms mark. A scanning beam turns each risk chip into its fix ("Admin, 3% used" becomes "Least privilege").
+- **Hero.** The identity orbit (`OrbitHero`): our mark large at the centre, three rings of monochrome icons, a pulse that turns risk dots into ticks. The same orbit (`OrbitMini`) fills the navy panels on Home, Platform and the solution pages. Third-party logos are never shown next to our mark.
 - **Product console.** Products are the main tabs and capabilities are the sub-tabs. Only the two most important capabilities per product animate (`ProductTour`). No product mixes its alerts into another's view.
-- **Story film.** A short, captioned motion piece in the same spirit as Astrix's minimal video, with our own storyline (`StoryFilm`): one person creates keys, roles and tokens, which power hundreds of agents, and Deep Algorithms checks every one.
+- **Story film.** "The Identity Shift" (`IdentityFilm`): a narrated 72-second explainer. The orbit builds up, an attacker logs in unseen, then four product views show what Deep Algorithms does (inventory, risk analysis, fix, audit evidence). Chapters seek the player.
+- **Covers.** Soft 3D renders on a flat brand-colour field (glossy tiles, mascot, lifted chips) with SVG headlines on top, after Astrix's "Learn more" cards.
 - **No dotted backgrounds** anywhere. Product shots sit in solid grey frames, as on Astrix.
 - **Product UI is illustrative.** It is drawn in code with realistic names and real third-party icons (Simple Icons). Nothing is taken from the NHI codebase UI. All data is sample data.
 
@@ -14,7 +15,7 @@ The reference is astrix.security (identity security for NHIs and AI agents, acqu
 
 | Page type | Order |
 |---|---|
-| Home | H1 + two CTAs → orbit → customer band → problem (three animated scenario cards) → 25-second film → platform console (product tabs) → identity types (progress tabs) → What's new → navy "Why" accordion → industries → certifications → research → CTA |
+| Home | H1 + two CTAs → identity lanes → customer band → problem (three animated scenario cards) → "Identity Shift" explainer → platform console (product tabs) → identity types (progress tabs) → What's new → navy "Why" accordion → industries → certifications → research → CTA |
 | Product (8) | Coloured rounded hero (rotating keyword, live console) → logos → capability sections (progress tabs, text left, UI right) → navy sourced stats → getting started + integrations → related modules → research → CTA |
 | Solution (4) | Navy hero with app-network illustration → logos → challenges (sourced stats) → navy "How we help" accordion → recommended products → research → CTA |
 | Platform | "Why Deep Algorithms": Discover / Secure / Prove, differentiators, all products, deployment, certifications |
@@ -27,6 +28,14 @@ The reference is astrix.security (identity security for NHIs and AI agents, acqu
 - **ICMS Compliance Suite**: DPDPA.
 
 The NHI page deliberately does **not** claim containment or credential freezing, because the backend returns 501 for those.
+
+## Rules that keep the brand first
+
+- Our mark is the largest and only saturated brand object in any picture that shows it.
+- Third-party marks are small and one neutral tone wherever they sit near ours (integration rows use `mono`).
+- Colour: navy, brand blue and cyan for us; coral only for risk. No rainbow tiles.
+- One icon set and weight per picture. Display type Hanken Grotesk Light, text Inter.
+- The full checklist is in `qa-checklist.md`.
 
 ## Tokens
 

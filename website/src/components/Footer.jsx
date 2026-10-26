@@ -21,6 +21,10 @@ export default function Footer() {
           <div>
             <Logo />
             <p className="mt-5 max-w-[300px] text-[14px] leading-relaxed text-ink-3">Identity security for the AI era. Built in Hyderabad to secure the agentic future, today.</p>
+            <ul className="mt-5 space-y-1.5 text-[14px] text-ink-2">
+              <li><a href={`mailto:${SITE.email}`} className="hover:text-brand">{SITE.email}</a></li>
+              <li><a href={SITE.phoneHref} className="hover:text-brand">{SITE.phone}</a></li>
+            </ul>
           </div>
           <Col title="Products">
             <L to="/products">All products</L>
@@ -47,6 +51,8 @@ export default function Footer() {
           <Link to="/terms-of-use" className="hover:text-brand">Terms of use</Link>
           <Link to="/privacy-policy" className="hover:text-brand">Privacy policy</Link>
           <Link to="/cookie-policy" className="hover:text-brand">Cookie policy</Link>
+          <Link to="/accessibility" className="hover:text-brand">Accessibility</Link>
+          <Link to="/sitemap" className="hover:text-brand">Sitemap</Link>
           <span>© {new Date().getFullYear()} {SITE.legalName}</span>
           <a href={SITE.linkedin} target="_blank" rel="noreferrer" aria-label="Deep Algorithms on LinkedIn" className="hover:text-brand md:ml-auto"><Icon name="LinkedinLogo" size={22} /></a>
         </div>

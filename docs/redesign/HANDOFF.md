@@ -55,11 +55,11 @@ Deploy `dist/` to any static host. The prerender step fails the build if any pag
 
 | # | Check | Status |
 |---|---|---|
-| 1 | SSR/static for all public pages | Done: 33 pages + 404 prerendered |
+| 1 | SSR/static for all public pages | Done: 35 pages + 404 prerendered |
 | 2 | robots.txt | Done: generated, points to the sitemap |
 | 3 | sitemap.xml | Done: generated from the route list |
-| 4 | Unique title per page | Done: verified, 33/33 unique |
-| 5 | Unique meta description | Done: verified, 33/33 unique |
+| 4 | Unique title per page | Done: verified, 35/35 unique |
+| 5 | Unique meta description | Done: verified, 35/35 unique |
 | 6 | One H1 per page | Done: enforced at build |
 | 7 | Canonical tags | Done: all unique |
 | 8 | OG image and tags | Done: `public/og/default.png` (1200×630) plus Twitter card |
@@ -78,17 +78,31 @@ Deploy `dist/` to any static host. The prerender step fails the build if any pag
 
 ## QA results
 
-- **Screenshots and checks.** All 32 routes at 1440px and 390px: no console errors, no hydration errors, no horizontal overflow.
+- **Screenshots and checks.** All 35 routes at 1440px and 390px: no console errors, no hydration errors, no horizontal overflow, one H1 each. The one exception is a URL with no page (`/no-such-page`) when served by `vite preview`, which falls back to the home HTML and logs React error 418. Real hosts must serve `404.html` with a 404 status (see Hosting notes); `404.html` itself loads clean.
+- **Film.** Scrubbed across the whole timeline in quarter-second steps with no page error. Audio sync, chapter seeking, pause, resume and mute were checked with the audio playing. The audio could not be listened to here, so the voice quality needs a human ear.
 - **Accessibility.** axe-core (WCAG 2 A/AA and best practice): 0 violations at both widths.
 - **Bundle.** The main JS chunk is about 160 KB gzipped. Phosphor icons ship all six weights per icon. If page weight matters, swap to an icon set that tree-shakes per weight.
 - **Fonts.** Body and UI use Inter (the font cisco.com uses; open source). Headings use Hanken Grotesk Light as a free stand-in for Astrix's BDO Grotesk, whose licence was unclear. CiscoSans is proprietary and is not used.
 
-## Imagery (v4)
+## What changed in this round
 
-- **Research covers** (`src/components/visuals/CoverArt.jsx`) follow astrix.security's card style: flat brand-colour field, one subject from the story, two lines of big type, a category pill. They use real third-party marks (Okta, Microsoft 365, GitHub Copilot, Claude, PhonePe, Paytm, Razorpay) as editorial references to what each article discusses. Remove any mark you do not want to show.
-- **Product card images** (`public/img/products/*.webp`) are crops of an illustrative console with sample data. To regenerate them, run `npm run dev`, open `/tools/thumbs/index.html`, and screenshot each `#t-<key>` element at 2x (source: `tools/thumbs/thumbs.jsx`).
-- **Film and scenario cards** (`StoryFilm.jsx`, `Scenarios.jsx`) are live SVG/HTML and pause when off screen or under reduced motion. The film is one argument in five beats: the AI era runs on identity; most of it is not human; they hold keys nobody owns; attackers log in rather than break in; Deep Algorithms finds the risk and fixes it before it is used. All names and numbers in it are sample data.
-- **Messaging.** Home leads with "Attackers no longer break in. They log in.", a manifesto line and four sourced "why now" figures (Gartner, Deep Algorithms Research, IBM, DPDPA). Every external figure carries its source; none is an unqualified guarantee. Confirm the Deep Algorithms Research figures (15:1) with the research owner.
+- Removed the utility strip above the navigation. Phone and email moved to the footer.
+- Rebuilt the About page: split hero with facts card, product links, compact leadership and advisor cards, and uniform photo galleries sized per use (no oversized photos).
+- New hero (identity orbit) and a narrated film that shows what the product does. Floating cards and badges in the film.
+- Product pages: sticky section bar under the hero. Solution pages: own headline for the challenge section and own closing call to action. Research articles: cover beside the title instead of a full-width banner. Products page: one- and two-product groups use the space.
+- Added an Accessibility Statement and an HTML Sitemap page, both linked from the footer.
+- Home hero button: "Watch the film (1:12)".
+- Design checklist in `qa-checklist.md`; Cisco comparison in `cisco-research.md`.
+
+## Imagery (v5)
+
+- **Research and industry covers** (`public/img/covers/*.webp`, 1280x800, 12-22 KB each) are soft 3D renders made offline: glossy brand tiles, our coral agent mascot and lifted chips on a flat brand-colour field. Headlines are SVG text over the render in `CoverArt.jsx`, so they stay sharp. The category is a small text label under the card, not a pill on the image. Sources and render steps are in `website/tools/covers/README.md`.
+- **Home hero** (`OrbitHero` in `src/components/visuals/Flows.jsx`): the identity orbit. Our mark sits large in the middle and is the only brand colour. Three rings carry people, machine identities and AI agents as plain monochrome icons, with no third-party logos. A pulse leaves the mark every five seconds and each coral risk dot it reaches becomes a blue tick. Live SVG from one clock, a separate round layout for phones, a still frame under reduced motion and in the prerendered HTML.
+- **"The Identity Shift"** (`IdentityFilm` in the same file): a 72-second explainer in a video-style player, with an English voice-over (`public/audio/identity-shift.mp3`), captions (CC) and a transcript. Act one builds the orbit ring by ring (people, cloud services, AI agents) and shows an attacker logging in with a key nobody owns and no alert raised. Act two shows what Deep Algorithms does, as four product views: an inventory of every identity with owner and reach, a risk analysis that explains why an agent is risky, the recommended fixes plus a runtime check that blocks a bad action, and audit evidence with a decision record. It ends on the mark at the centre of the secured orbit. Sound starts only on a click ("Play with sound"). The picture follows the audio clock, so seeking, pausing and muting stay in step. The list beside the player is real text and seeks the player.
+- **Voice-over.** The voice is synthetic (Piper, `en_US-lessac-high`), made offline; nothing leaves the build. I could not listen to it, so please audition it: three voices are in `docs/redesign/voice-samples/`. To change the words or voice see `website/tools/voice/README.md`. A human recording is the better long-term choice for a launch film. All names and numbers in the film are illustrative; the on-page disclaimer was removed at your request, so keep that in mind if you add figures.
+- **Third-party marks** (Okta, Google, Jira, GitHub, Snowflake, Claude, PhonePe, Paytm and others) appear small, as editorial references to what each story discusses. Remove any you do not want to show.
+- **Product card images** (`public/img/products/*.webp`) are crops of an illustrative console with sample data (see `tools/thumbs`). The scenario cards (`Scenarios.jsx`) and the product console tours stay live SVG/HTML. Everything pauses off screen and under reduced motion.
+- **Tried and dropped:** a pre-rendered 3D hero loop and 3D film (third-party logos overpowered our mark), and flow-lane diagrams in the style of astrix.security (too close to their look). The orbit is our own system and is reused in the navy panels on Home, Platform and the four solution pages.
+- **Messaging.** Home leads with "Attackers no longer break in. They log in.", a manifesto line and four sourced "why now" figures. Every external figure carries its source. Confirm the Deep Algorithms Research figure (15:1) with the research owner.
 - **Cisco-style structure:** two-pane mega menu with promo cards, a `/products` page grouped by job to be done with an FAQ (FAQPage schema), and a "What's new" row. Research notes: `cisco-research.md`.
-- **Not used:** AI-generated or 3D-rendered imagery was tried and dropped because it read as abstract rather than real. No stock photography is used. Real team and event photos appear on the About page only.
-
+- **Not used:** AI-generated images or people, and stock photography. Real team and event photos appear on the About page only.

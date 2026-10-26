@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router';
-import { LINES, SOLUTIONS, CARD, SITE } from '../data/site.js';
+import { LINES, SOLUTIONS, CARD } from '../data/site.js';
 import { SOLUTION_PAGES } from '../data/solutions.js';
 import { POSTS } from '../data/posts.js';
 import { Button, Icon, cx } from './ui.jsx';
@@ -89,7 +89,7 @@ function SolutionsMenu() {
         </Col>
         <Col title="Related research"><ResearchLinks posts={posts} /></Col>
         <Link to={`/solutions/${s.slug}`} className="group block">
-          <CoverArt compact slug={posts[0]?.slug} category={posts[0]?.category} className="aspect-[16/10] rounded-[12px]" />
+          <CoverArt compact slug={posts[0]?.slug} className="aspect-[16/10] rounded-[12px]" />
           <span className="mt-3 block font-display text-[18px] leading-snug text-ink group-hover:text-brand">{page.title}</span>
           <span className="mt-2 inline-flex items-center gap-1 text-[14px] font-medium text-brand">Explore {s.short}<Icon name="CaretRight" size={12} weight="bold" /></span>
         </Link>
@@ -110,7 +110,7 @@ function CompanyMenu() {
       <div className="border-r border-line py-1 pr-4">{COMPANY.map((c) => <Link key={c.path} to={c.path} className="block py-2.5 pl-5 pr-4 text-[15px] text-ink-2 hover:text-ink">{c.name}<span className="block text-[12.5px] text-ink-3">{c.desc}</span></Link>)}</div>
       <div className="grid grid-cols-[1fr_1fr_.9fr] gap-10 pl-12">
         <Link to={`/blogs/${p.slug}`} className="group col-span-2 grid grid-cols-2 gap-6">
-          <CoverArt compact slug={p.slug} category={p.category} className="aspect-[16/10] rounded-[12px]" />
+          <CoverArt compact slug={p.slug} className="aspect-[16/10] rounded-[12px]" />
           <span className="self-center"><span className="text-[14px] font-medium text-brand">Latest research</span><span className="mt-2 block font-display text-[20px] leading-snug text-ink group-hover:text-brand">{p.title}</span><span className="mt-3 inline-flex items-center gap-1 text-[14px] font-medium text-brand">Read<Icon name="ArrowRight" size={14} /></span></span>
         </Link>
         <Link to="/request-demo" className="group block self-start rounded-[16px] bg-navy p-6 text-white">
@@ -130,19 +130,6 @@ const NAV = [
   { label: 'Research', to: '/blogs' },
   { label: 'Company', menu: CompanyMenu },
 ];
-
-function UtilityBar() {
-  return (
-    <nav aria-label="Utility" className="hidden border-b border-line bg-mist lg:block">
-      <div className="wrap flex h-9 items-center justify-end gap-6 text-[13px] text-ink-2">
-        <Link to="/blogs" className="hover:text-brand">Research</Link>
-        <Link to="/about-us#careers" className="hover:text-brand">Careers</Link>
-        <Link to="/contact" className="hover:text-brand">Contact</Link>
-        <a href={SITE.phoneHref} className="inline-flex items-center gap-1.5 hover:text-brand"><Icon name="Phone" size={14} />{SITE.phone}</a>
-      </div>
-    </nav>
-  );
-}
 
 export default function Header() {
   const [open, setOpen] = useState(null);
@@ -164,7 +151,6 @@ export default function Header() {
 
   return (
     <>
-      <UtilityBar />
       <header className="sticky top-0 z-40 border-b border-line" onMouseLeave={leave}>
         <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-50 focus:rounded-full focus:bg-navy focus:px-4 focus:py-2 focus:text-white">Skip to content</a>
         {/* blur lives on its own layer: backdrop-filter on the header would trap the fixed mobile drawer inside it */}

@@ -7,21 +7,34 @@ import { LogoBand, CtaPanel, RelatedCards, ResearchRow } from '../components/blo
 import ProductVisual from '../components/visuals/ProductVisual.jsx';
 import { Tile, useReducedMotion } from '../components/visuals/kit.jsx';
 
-/* Rotating keyword in the hero heading. Screen readers and crawlers get the
-   full list once; the visible word cycles. */
+/* Rotating keyword in the hero heading. The first word is what crawlers and
+   screen readers get; the visible word cycles once through the list and then
+   settles back on the first, so nothing moves for more than a few seconds. */
 function Rotator({ words }) {
   const [i, setI] = useState(0);
   const reduce = useReducedMotion();
   useEffect(() => {
     if (reduce) return undefined;
-    const t = setInterval(() => setI((n) => (n + 1) % words.length), 2600);
+    let n = 0;
+    const t = setInterval(() => { n += 1; setI(n % words.length); if (n >= words.length) clearInterval(t); }, 2400);
     return () => clearInterval(t);
   }, [reduce, words.length]);
+  return <span className="block text-[#9ee3ff]"><span key={i} className="rise inline-block">{words[i]}</span></span>;
+}
+
+/* Sticky section bar under the hero, as on cisco.com product pages: where am I, jump around, book a demo. */
+function SubNav({ name }) {
+  const items = [['Capabilities', '#capabilities'], ['Why it matters', '#why'], ['Getting started', '#start'], ['Research', '#research']];
   return (
-    <>
-      <span className="sr-only">{words.join(', ')}</span>
-      <span aria-hidden="true" className="block text-[#9ee3ff]"><span key={i} className="rise inline-block">{words[i]}</span></span>
-    </>
+    <div className="sticky top-[73px] z-30 border-b border-line bg-white/95 backdrop-blur-md">
+      <div className="wrap flex h-14 items-center gap-4 md:gap-6">
+        <span className="hidden shrink-0 font-display text-[18px] font-normal text-ink md:block">{name}</span>
+        <nav aria-label={`${name} sections`} className="-mx-1 flex min-w-0 flex-1 gap-1 overflow-x-auto px-1">
+          {items.map(([l, h]) => <a key={h} href={h} className="shrink-0 rounded-full px-3.5 py-2 text-[14.5px] text-ink-2 hover:bg-mist hover:text-brand">{l}</a>)}
+        </nav>
+        <Button to="/request-demo" className="h-10 shrink-0 px-5 text-[14px] lg:hidden">Book a demo</Button>
+      </div>
+    </div>
   );
 }
 
@@ -75,9 +88,11 @@ export default function Product({ id }) {
         </div>
       </section>
 
+      <SubNav name={p.name} />
+
       <LogoBand title="Trusted by banks, government and enterprises across India" />
 
-      <div id="capabilities" className="scroll-mt-20">
+      <div id="capabilities" className="scroll-mt-32">
         {p.sections.map((s, k) => (
           <Section key={s.title} tone={k % 2 ? 'mist' : undefined}>
             <Heading eyebrow={s.eyebrow} title={s.title} />
@@ -90,7 +105,7 @@ export default function Product({ id }) {
         ))}
       </div>
 
-      <section className="py-6">
+      <section id="why" className="scroll-mt-32 py-6">
         <div className="mx-auto w-full max-w-[1400px] px-3 md:px-5">
           <div className="rounded-[40px] bg-navy px-6 py-14 md:px-16 md:py-20">
             <h2 className="t-h2 mx-auto max-w-[760px] text-center text-white">Why it matters</h2>
@@ -107,7 +122,7 @@ export default function Product({ id }) {
         </div>
       </section>
 
-      <Section>
+      <Section id="start" className="scroll-mt-32">
         <Heading eyebrow="Getting started" title={p.onboarding.title} />
         <div className="mt-14 grid gap-10 md:grid-cols-3">
           {p.onboarding.items.map((it, i) => (
@@ -120,13 +135,13 @@ export default function Product({ id }) {
         </div>
         {p.onboarding.logos && (
           <Reveal as="ul" aria-label="Integrations" className="mx-auto mt-14 flex max-w-[860px] flex-wrap justify-center gap-3">
-            {p.onboarding.logos.map((l) => <li key={l}><Tile name={l} size={56} /></li>)}
+            {p.onboarding.logos.map((l) => <li key={l}><Tile name={l} size={56} mono /></li>)}
           </Reveal>
         )}
       </Section>
 
       {related.length > 0 && <RelatedCards keys={related} title={p.parent ? `More from ${p.line}` : `Inside ${p.name}`} />}
-      <ResearchRow slugs={p.research} />
+      <div id="research" className="scroll-mt-32"><ResearchRow slugs={p.research} /></div>
       <CtaPanel title={p.cta.title} body={p.cta.body} />
     </>
   );

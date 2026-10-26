@@ -40,3 +40,20 @@ Astrix is now part of Cisco, so Cisco is the right benchmark for **how a multi-p
 1. The home "Most access in your company…" block used a generic story film and plain line icons. It read as dull.
 2. Research covers were flat colour plus a thin icon, identical per category.
 3. The nav was a flat grid of links with no hierarchy or imagery.
+
+## Second review (October 2026)
+
+Re-read cisco.com (home, Security category, AI Defense product page) against our site.
+
+| Cisco has | Our answer |
+|---|---|
+| Utility strip above the header (How to buy, Partners, Log in, region) | **Removed on request.** Contact, Careers and Research live in the main menu and footer; phone and email are in the footer and on Contact. |
+| Hero with a second CTA "Watch video (01:33)" | Home hero now has "Watch the film (1:12)", which jumps to the film. |
+| Sticky bar under the product hero (Overview, Resources, Request a demo) | Added to every product page: Capabilities, Why it matters, Getting started, Research. The demo button shows on phones, where the header has none. |
+| Footer with Accessibility, Sitemap, Trademarks, Newsroom | Added an Accessibility Statement and an HTML Sitemap page. No Trademarks or Newsroom page yet: nothing to put on them. |
+| Search in the header | Skipped for now: 35 pages, and the menus reach all of them in two clicks. Revisit past about 60 pages. |
+| Announcement strip under the header | Skipped: it adds a second banner above the story, and the hero already carries the film. |
+| Chat assistant bubble, cookie banner | Skipped. We have no assistant, and we set no tracking cookies (see the Cookie Policy). |
+| Customer quotes, case studies, logo wall of 1 million customers | Skipped on purpose: we do not invent customers or quotes. Add real ones when you have written permission. |
+| Free trials, Partners, How to buy | Not offered today. Add pages only when the offer exists. |
+| Product pages: problem paragraph, three pillars, component grid with UI shots, resources, FAQ | Same order on ours (capabilities with product UI, why it matters, getting started, research, closing CTA); FAQ is on /products and /platform. |

@@ -18,6 +18,7 @@ const Article = lazy(() => import('./pages/Article.jsx'));
 const Demo = lazy(() => import('./pages/Demo.jsx'));
 const Contact = lazy(() => import('./pages/Contact.jsx'));
 const Legal = lazy(() => import('./pages/Legal.jsx'));
+const Sitemap = lazy(() => import('./pages/Sitemap.jsx'));
 const NotFound = lazy(() => import('./pages/NotFound.jsx'));
 
 /* Every public URL; scripts/prerender.mjs renders these and lists them in sitemap.xml. */
@@ -26,7 +27,7 @@ export const PATHS = [
   ...Object.values(PRODUCTS).map((p) => p.path),
   ...SOLUTIONS.map((s) => `/solutions/${s.slug}`),
   '/about-us', '/blogs', ...POSTS.map((p) => `/blogs/${p.slug}`),
-  '/request-demo', '/contact', ...Object.keys(LEGAL).map((k) => `/${k}`),
+  '/request-demo', '/contact', '/sitemap', ...Object.keys(LEGAL).map((k) => `/${k}`),
 ];
 
 /* Scroll to top on navigation, or to the #hash target. */
@@ -57,6 +58,7 @@ export default function App() {
             <Route path="/blogs/:slug" element={<Article />} />
             <Route path="/request-demo" element={<Demo />} />
             <Route path="/contact" element={<Contact />} />
+            <Route path="/sitemap" element={<Sitemap />} />
             {Object.keys(LEGAL).map((k) => <Route key={k} path={`/${k}`} element={<Legal id={k} />} />)}
             <Route path="*" element={<NotFound />} />
           </Routes>

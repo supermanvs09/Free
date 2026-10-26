@@ -34,6 +34,32 @@ export const LEGAL = {
       p('For any queries regarding this policy, contact support@deepalgorithms.in.'),
     ],
   },
+  accessibility: {
+    title: 'Accessibility Statement',
+    description: 'Deep Algorithms aims to make this website usable by everyone. How we test, what we support and how to tell us about a problem.',
+    updated: 'October 2026',
+    blocks: [
+      p('Deep Algorithms wants everyone to be able to use this website, including people who use screen readers, keyboards, voice control, magnification or captions. We aim to meet the Web Content Accessibility Guidelines (WCAG) 2.2, level AA.'),
+      h('What we do'),
+      list(
+        'Every page can be used with a keyboard alone, with a skip link, visible focus and menus that open and close with the keyboard.',
+        'Headings follow a logical order, every page has one main heading, and images carry text alternatives or are marked decorative.',
+        'Text and controls meet AA colour contrast, and the layout works from phone width up to large desktop screens without horizontal scrolling.',
+        'Animations start only when they are on screen, stop when you scroll away, have a pause control when they run for more than a few seconds, and are replaced by a still picture if your device asks for reduced motion.',
+        'The Identity Shift film has captions, a written transcript and a voice-over that starts only when you choose it.',
+      ),
+      h('How we test'),
+      p('We test with the automated engine axe-core on every page at desktop and phone widths before each release, and by hand with a keyboard. Automated tests find only part of the problems, so we also review pages manually.'),
+      h('Known limits'),
+      list(
+        'Product screens on this site are pictures of sample data. Each has a text description, but the tables inside them cannot be explored with a screen reader.',
+        'The voice-over is synthetic speech. Captions and the transcript carry the same words.',
+        'Third-party sites we link to, such as LinkedIn and Google Maps, have their own accessibility.',
+      ),
+      h('Tell us about a problem'),
+      p('If something on this site is hard to use, email info@deepalgorithms.in with the page address and what happened, and tell us how you would like to receive the information. We will read every message and work to fix the problem.'),
+    ],
+  },
   'cookie-policy': {
     title: 'Cookie Policy',
     description: 'Deep Algorithms uses only strictly necessary cookies: no tracking, no advertising and no analytics.',

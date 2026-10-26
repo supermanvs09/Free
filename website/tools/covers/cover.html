@@ -1,0 +1,18 @@
+<!doctype html><html><head><style>
+@font-face{font-family:HK;src:url(./fonts/hanken.woff2);font-weight:100 900}
+@font-face{font-family:IN;src:url(./fonts/inter.woff2);font-weight:100 900}
+body{margin:0;background:#000}</style></head><body><canvas id="c"></canvas>
+<script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/"}}</script>
+<script type="module">
+import { loadAssets, makeStage, makeCamera, makeRenderer } from './kit3d.js';
+import { SPECS, FALLBACK } from './covers3d.js';
+const q = new URLSearchParams(location.search), W = +(q.get('w') || 1600), H = Math.round(W * 0.625);
+await loadAssets();
+const r = makeRenderer(document.getElementById('c'), W, H);
+const spec = SPECS[q.get('slug')] || FALLBACK;
+const { scene } = makeStage(r, spec.bg);
+spec.build(scene);
+const cam = makeCamera(W / H);
+r.render(scene, cam);
+window.__done = true;
+</script></body></html>

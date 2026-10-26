@@ -67,7 +67,7 @@ export default function Products() {
         <div className="mt-14 grid gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
           {CAN_DO.map((c, i) => (
             <Reveal key={c.title} delay={(i % 3) * 70}>
-              <IconTile name={c.icon} size={48} tone={i % 3 === 1 ? 'coral' : 'blue'} />
+              <IconTile name={c.icon} size={48} />
               <h3 className="t-h3 mt-5">{c.title}</h3>
               <p className="mt-2 max-w-[340px] text-ink-2">{c.body}</p>
               <div className="mt-3"><LearnMore to={c.to} /></div>
@@ -79,13 +79,24 @@ export default function Products() {
       <div id="groups" className="scroll-mt-20">
         {GROUPS.map((g, gi) => (
           <Section key={g.id} id={g.id} className="!py-14 md:!py-20">
-            <div className="grid gap-4 md:grid-cols-[1fr_1.4fr] md:gap-16">
-              <h2 className="t-h2">{g.title}</h2>
-              <p className="t-lead md:pt-2">{g.lead}</p>
-            </div>
-            <div className={`mt-10 grid gap-5 ${g.keys.length === 1 ? 'max-w-[420px]' : g.keys.length === 2 ? 'max-w-[860px] sm:grid-cols-2' : 'sm:grid-cols-2 lg:grid-cols-4'}`}>
-              {g.keys.map((k, i) => <Reveal key={k} delay={i * 70}><ProductCard k={k} /></Reveal>)}
-            </div>
+            {g.keys.length <= 2 ? (
+              <div className="grid items-start gap-8 lg:grid-cols-[1fr_1.4fr] lg:gap-16">
+                <div><h2 className="t-h2">{g.title}</h2><p className="t-lead mt-5">{g.lead}</p></div>
+                <div className={`grid gap-5 ${g.keys.length === 2 ? 'sm:grid-cols-2' : 'max-w-[440px]'}`}>
+                  {g.keys.map((k, i) => <Reveal key={k} delay={i * 70}><ProductCard k={k} /></Reveal>)}
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="grid gap-4 md:grid-cols-[1fr_1.4fr] md:gap-16">
+                  <h2 className="t-h2">{g.title}</h2>
+                  <p className="t-lead md:pt-2">{g.lead}</p>
+                </div>
+                <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                  {g.keys.map((k, i) => <Reveal key={k} delay={i * 70}><ProductCard k={k} /></Reveal>)}
+                </div>
+              </>
+            )}
             {gi < GROUPS.length - 1 && <hr className="mt-14 border-line md:mt-20" />}
           </Section>
         ))}
@@ -101,7 +112,7 @@ export default function Products() {
       </Section>
 
       <ResearchRow slugs={['ai-agent-governance', 'identity-security', 'india-mule-account-crisis']} />
-      <CtaPanel />
+      <CtaPanel title="Start with the risk that worries you most." body="Tell us where your identity risk sits today and we will show you how it looks in our platform." />
     </>
   );
 }

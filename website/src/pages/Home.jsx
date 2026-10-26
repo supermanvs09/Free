@@ -2,10 +2,9 @@ import { Seo } from '../lib/head.jsx';
 import { SOLUTIONS } from '../data/site.js';
 import { POSTS } from '../data/posts.js';
 import { Button, Heading, Icon, LearnMore, ProgressTabs, Reveal, Section, Accordion } from '../components/ui.jsx';
-import { LogoBand, CtaPanel, PathArt, PostCard, CertRow, IndustryCard, WhatsNew, WhyNow } from '../components/blocks.jsx';
-import HeroOrbit from '../components/visuals/HeroOrbit.jsx';
+import { LogoBand, CtaPanel, PostCard, CertRow, IndustryCard, WhatsNew, WhyNow } from '../components/blocks.jsx';
+import { FILM_DURATION, IdentityFilm, OrbitHero, OrbitMini } from '../components/visuals/Flows.jsx';
 import ProductTour from '../components/visuals/ProductTour.jsx';
-import StoryFilm from '../components/visuals/StoryFilm.jsx';
 import { AgentScenario, MachineScenario, LoginScenario } from '../components/visuals/Scenarios.jsx';
 import IdentityDetail from '../components/visuals/IdentityDetail.jsx';
 
@@ -14,6 +13,7 @@ const PROBLEMS = [
   { Scene: MachineScenario, title: 'Machine identities outnumber people', body: 'Service accounts, roles and keys multiply with every deploy, and most are never rotated or owned.' },
   { Scene: LoginScenario, title: 'Stolen logins look legitimate', body: 'Attackers sign in rather than break in, so rules and alerts stay quiet while the damage is done.' },
 ];
+
 
 const TYPES = [
   { tab: 'AI agents', variant: 'agent', title: 'Every agent with an owner, a purpose and limits', body: 'Zenstra AI finds every agent and MCP server, scopes its access to the task and checks each action before it runs.', to: '/agentic-ai/agentic-identity', cta: 'Explore Zenstra AI' },
@@ -39,7 +39,7 @@ export default function Home() {
           <p className="t-lead rise mx-auto mt-6 max-w-[640px]" style={{ animationDelay: '80ms' }}>Autonomous agents are joining your workforce. Discover, secure and govern every human, non-human and AI agent identity, from one platform.</p>
           <div className="rise mt-9 flex flex-wrap justify-center gap-3" style={{ animationDelay: '160ms' }}>
             <Button to="/request-demo">Book a demo</Button>
-            <Button href="#platform" variant="outline">See it in action</Button>
+            <Button href="#film" variant="outline"><Icon name="Play" size={16} weight="fill" />Watch the film ({Math.floor(FILM_DURATION / 60)}:{String(Math.floor(FILM_DURATION % 60)).padStart(2, '0')})</Button>
           </div>
           <ul className="rise mx-auto mt-8 flex max-w-[760px] flex-wrap justify-center gap-x-8 gap-y-2 text-[15px] text-ink-2" style={{ animationDelay: '240ms' }}>
             {['Discover every identity', 'Fix risk before it is used', 'Prove it to every auditor'].map((t) => (
@@ -47,7 +47,7 @@ export default function Home() {
             ))}
           </ul>
         </div>
-        <div className="wrap mt-10 md:mt-6"><HeroOrbit /></div>
+        <div className="mx-auto mt-8 w-full max-w-[1240px] px-3 md:mt-10 md:px-5"><OrbitHero /></div>
       </section>
 
       <LogoBand band title="Trusted by banks, government and enterprises across India" />
@@ -67,9 +67,9 @@ export default function Home() {
 
       <WhyNow />
 
-      <Section tone="mist">
-        <Heading eyebrow="See it in 25 seconds" title="From one login to every agent, secured." lead="Watch Deep Algorithms find identity risk, and fix it before it is used." />
-        <Reveal className="mx-auto mt-12 max-w-[1040px]"><StoryFilm /></Reveal>
+      <Section tone="mist" id="film" className="scroll-mt-16">
+        <Heading eyebrow="The identity shift" title="Identity changed three times. Security has to catch up." lead="From people to cloud services to AI agents. Watch where the risk builds up, and how Deep Algorithms fixes it before it is used." />
+        <Reveal className="mx-auto mt-14 max-w-[1180px]"><IdentityFilm /></Reveal>
         <div className="mt-10 flex justify-center"><Button to="/request-demo">Book a demo</Button></div>
       </Section>
 
@@ -114,7 +114,7 @@ export default function Home() {
               <div className="mt-10"><Accordion items={WHY} /></div>
               <div className="mt-10"><Button to="/platform" variant="white">Why Deep Algorithms</Button></div>
             </div>
-            <PathArt className="hidden self-center lg:block" />
+            <OrbitMini className="hidden self-center lg:block" />
           </div>
         </div>
       </section>

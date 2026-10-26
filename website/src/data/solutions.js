@@ -2,11 +2,11 @@
 export const SOLUTION_PAGES = {
   bfsi: {
     name: 'Banking & Financial Services', short: 'BFSI',
+    who: 'BFSI', cta: { title: 'Stop the mule before the money moves.', body: 'See how banks, NBFCs and fintechs stop account takeover and mule accounts at the payee, and keep RBI and DPDPA evidence ready.' },
     seoTitle: 'Identity Security and Fraud Prevention for Banks and Financial Services',
     description: 'Stop account takeover and mule accounts, govern AI agents and machine identities, and produce DPDPA and RBI evidence, for banks, NBFCs and fintechs.',
     title: 'Identity security for banks, NBFCs and fintechs',
     sub: 'Stop mule accounts and account takeover at the payee, govern the machine identities behind every payment flow, and keep regulators’ evidence ready.',
-    net: { alert: { title: 'Payee added', body: 'Same device as 22 other accounts', action: 'Block payment' }, logos: ['aws', 'razorpay', 'phonepe', 'paytm', 'okta'] },
     stats: [
       { icon: 'Wallet', v: '26.5 lakh+', l: 'mule accounts identified by I4C as of December 2025', s: 'I4C, via Deep Algorithms Research' },
       { icon: 'Bank', v: '₹20,000 Cr', l: 'siphoned through mule networks, with under half recovered', s: 'I4C, via Deep Algorithms Research' },
@@ -23,11 +23,11 @@ export const SOLUTION_PAGES = {
   },
   healthcare: {
     name: 'Healthcare', short: 'Healthcare',
+    who: 'healthcare', cta: { title: 'Know who opened every patient record.', body: 'See how hospitals and health platforms catch privileged misuse and keep DPDPA evidence ready.' },
     seoTitle: 'Patient Data Protection and Identity Security for Healthcare',
     description: 'Know who accessed patient records and why, catch privileged misuse and keep DPDPA evidence ready, for hospitals, labs and health platforms.',
     title: 'Protect patient data from the inside out',
     sub: 'Every access to patient records tied to a person or a machine, checked against its purpose, and explained when it is not.',
-    net: { alert: { title: 'Record access', body: 'Bulk export outside care purpose', action: 'Review access' }, logos: ['aws', 'm365', 'ad', 'google', 'snowflake'] },
     stats: [
       { icon: 'Users', v: 'Shared logins', l: 'and shared workstations make it hard to know who opened a record' },
       { icon: 'Key', v: 'Machine identities', l: 'in lab systems, devices and integrations reach patient data too' },
@@ -44,11 +44,11 @@ export const SOLUTION_PAGES = {
   },
   government: {
     name: 'Government & Public Sector', short: 'Government',
+    who: 'government', cta: { title: 'Keep citizen services online and trusted.', body: 'See how public-sector teams stop bots and floods on portals and keep their data in their own environment.' },
     seoTitle: 'Identity Security and DDoS Protection for Government and Public Sector',
     description: 'Keep citizen services online, protect critical infrastructure identities and stop bots on public portals and keep your data in your own environment.',
     title: 'Keep citizen services online and trusted',
     sub: 'Inline DDoS and bot protection for public portals, and continuous identity security for the people and systems that run them.',
-    net: { alert: { title: 'Portal traffic', body: 'Application-layer flood detected', action: 'Mitigate inline' }, logos: ['cloudflare', 'aws', 'ad', 'kubernetes', 'gcp'] },
     stats: [
       { icon: 'Broadcast', v: 'L3 to L7', l: 'DDoS coverage, volumetric to application layer, without diversion', s: 'BotShield AI' },
       { icon: 'LockKey', v: 'In your VPC', l: 'the Zenstra AI gateway checks agent actions inside your own cloud' },
@@ -65,11 +65,11 @@ export const SOLUTION_PAGES = {
   },
   'digital-platforms': {
     name: 'Digital Platforms', short: 'Digital platforms',
+    who: 'digital platform', cta: { title: 'Grow fast. Keep the attack surface small.', body: 'See how SaaS, e-commerce and EdTech teams stop bots and govern the keys and agents behind their product.' },
     seoTitle: 'Bot Defence, Account Security and AI Agent Security for Digital Platforms',
     description: 'Stop credential stuffing and fake sign-ups, secure cloud and CI/CD identities and govern the AI agents your teams ship, for SaaS, e-commerce and EdTech.',
     title: 'Grow fast without growing your attack surface',
     sub: 'Stop bots at sign-up and login, secure the cloud identities behind every deploy, and ship AI features with guardrails in place.',
-    net: { alert: { title: 'API Key', body: 'Exposed in a public repository', action: 'Rotate key' }, logos: ['aws', 'github', 'gitlab', 'claude', 'kubernetes'] },
     stats: [
       { icon: 'Robot', v: 'Hours', l: 'for adversarial bots to adapt, against weeks for signature updates', s: 'Deep Algorithms Research' },
       { icon: 'Key', v: '15:1', l: 'non-human to human identities in the average enterprise', s: 'Deep Algorithms Research' },
