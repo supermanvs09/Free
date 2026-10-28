@@ -156,7 +156,7 @@ function Tour({ p, crumbs }) {
       <section id="why" className="scroll-mt-32 py-6">
         <div className="mx-auto w-full max-w-[1400px] px-3 md:px-5">
           <div className="rounded-[40px] bg-navy px-6 py-14 md:px-16 md:py-20">
-            <h2 className="t-h2 mx-auto max-w-[760px] text-center text-white">Why it <span className="accent">matters</span></h2>
+            <h2 className="t-h2 mx-auto max-w-[760px] text-center text-white">Why it matters</h2>
             <Stats p={p} dark />
           </div>
         </div>
@@ -197,7 +197,7 @@ function Hub({ p, crumbs }) {
       </section>
       <SubNav name={p.name} items={[['Capabilities', '#capabilities'], ['Why it matters', '#why'], ['Getting started', '#start'], ['Research', '#research']]} />
       <Section id="capabilities" className="scroll-mt-32">
-        <Heading eyebrow="One platform, six capabilities" title={<>From the first agent to the last <span className="accent">audit</span></>} lead="Each capability works alone and gets stronger with the others. Open one to see how it works." />
+        <Heading eyebrow="One platform, six capabilities" title={"From the first agent to the last audit"} lead="Each capability works alone and gets stronger with the others. Open one to see how it works." />
         <div className="mt-14 grid gap-6 lg:grid-cols-3">
           {phases.map(([n, sub, keys], pi) => (
             <Reveal key={n} delay={pi * 90} className="rounded-[28px] border border-line bg-white/80 p-6 backdrop-blur md:p-8">
@@ -207,7 +207,7 @@ function Hub({ p, crumbs }) {
               <ul className="mt-6 space-y-3">
                 {keys.map((k) => (
                   <li key={k}>
-                    <Link to={CARD[k].path} className="group flex items-start gap-3 rounded-[16px] border border-line p-4 transition hover:-translate-y-0.5 hover:border-brand hover:shadow-[0_16px_34px_-22px_rgba(6,47,87,.5)]">
+                    <Link to={CARD[k].path} data-tilt className="group flex items-start gap-3 rounded-[16px] border border-line p-4 transition hover:-translate-y-0.5 hover:border-brand hover:shadow-[0_16px_34px_-22px_rgba(6,47,87,.5)]">
                       <IconTile name={CARD[k].icon} size={44} />
                       <span><span className="block text-[16px] font-medium text-ink group-hover:text-brand">{CARD[k].name}</span><span className="block text-[14px] leading-snug text-ink-3">{CARD[k].body}</span></span>
                     </Link>
@@ -279,7 +279,7 @@ function Split({ p, crumbs }) {
         ))}
       </div>
       <Section id="why" tone="mist" className="scroll-mt-32">
-        <Heading align="left" eyebrow="Why it matters" title={<>The numbers behind the <span className="accent">risk</span></>} />
+        <Heading align="left" eyebrow="Why it matters" title={"The numbers behind the risk"} />
         <Stats p={p} />
       </Section>
       <Onboarding p={p} />
@@ -334,7 +334,7 @@ function Ledger({ p, crumbs }) {
       <section id="why" className="scroll-mt-32 py-6">
         <div className="wrap">
           <div className="rounded-[32px] bg-mist/80 px-6 py-12 md:px-14">
-            <h2 className="t-h2">Why it <span className="accent text-brand">matters</span></h2>
+            <h2 className="t-h2">Why it matters</h2>
             <Stats p={p} />
           </div>
         </div>
@@ -373,7 +373,7 @@ function Capability({ p, crumbs }) {
         <Heading eyebrow="How it works" title="Three steps, no agent rewrite" />
         <ol className="relative mt-14 grid gap-6 md:grid-cols-3">
           {p.steps.map(([t, b], i) => (
-            <Reveal as="li" key={t} delay={i * 90} className="relative rounded-[24px] border border-line bg-white/85 p-7 backdrop-blur">
+            <Reveal as="li" key={t} delay={i * 90} data-tilt className="relative rounded-[24px] border border-line bg-white/85 p-7 backdrop-blur">
               <span className="mono text-[13px] text-brand">STEP 0{i + 1}</span>
               <h3 className="mt-3 font-display text-[26px] font-light tracking-[-0.02em] text-ink">{t}</h3>
               <p className="mt-2 text-[16px] text-ink-2">{b}</p>
@@ -385,7 +385,7 @@ function Capability({ p, crumbs }) {
       <section className="py-6">
         <div className="mx-auto w-full max-w-[1400px] px-3 md:px-5">
           <div className="rounded-[40px] bg-navy px-6 py-14 md:px-16 md:py-20">
-            <h2 className="t-h2 mx-auto max-w-[760px] text-center text-white">What you <span className="accent">get</span></h2>
+            <h2 className="t-h2 mx-auto max-w-[760px] text-center text-white">What you get</h2>
             <dl className="mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
               {p.gains.map(([t, b], i) => (
                 <Reveal key={t} delay={i * 80} className="border-t border-white/20 pt-6">
@@ -427,7 +427,7 @@ export default function Product({ id }) {
   const cta = p.cta || { title: `See ${p.name} on your own agents`, body: 'Book a working session with a Deep Algorithms engineer.' };
 
   return (
-    <div className={`font-theme-${p.theme}`}>
+    <div>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={crumbs} schema={schema} />
       <Layout p={p} crumbs={crumbs} />
       {related.length > 0 && <RelatedCards keys={related} title={p.parent ? `More from ${p.line}` : `Inside ${p.name}`} />}

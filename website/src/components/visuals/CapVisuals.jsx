@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ArrowRight, Clock, GitDiff, Hash, Key, Lock, ShieldCheck, Pulse } from '@phosphor-icons/react/dist/ssr';
 import { Frame, WinTitle, Tile, Chip, Mark, cx } from './kit.jsx';
 
@@ -10,18 +11,22 @@ const ring = 'rounded-[12px] bg-white p-3 md:p-4';
 /* 1. Discovery: sources on the left feed one inventory with counts. */
 function Discovery() {
   const src = [['copilot', 'Copilot Studio', 14], ['claude', 'Claude', 9], ['cursor', 'Cursor', 21], ['n8n', 'n8n', 11], ['langgraph', 'LangGraph', 6]];
+  const [sel, setSel] = useState(null);
+  const cur = sel === null ? null : src[sel];
   return (
     <div className={cx(ring, 'grid items-center gap-4 md:grid-cols-[1fr_auto_1fr]')}>
       <ul className="space-y-2">
-        {src.map(([i, n, c]) => (
-          <li key={n} className="flex items-center gap-2.5 rounded-[10px] border border-line px-3 py-2"><Tile name={i} size={26} mono /><span className="flex-1 text-[13px] text-ink-2">{n}</span><span className="mono text-[12px] text-ink-3">{c}</span></li>
+        {src.map(([i, n, c], k) => (
+          <li key={n}>
+            <button type="button" onClick={() => setSel(sel === k ? null : k)} aria-pressed={sel === k} className={cx('flex w-full items-center gap-2.5 rounded-[10px] border px-3 py-2 text-left transition', sel === k ? 'border-brand bg-sky' : 'border-line hover:border-brand/50')}><Tile name={i} size={26} mono /><span className="flex-1 text-[13px] text-ink-2">{n}</span><span className="mono text-[12px] text-ink-3">{c}</span></button>
+          </li>
         ))}
       </ul>
       <ArrowRight size={22} className="mx-auto rotate-90 text-brand md:rotate-0" aria-hidden="true" />
       <div className="rounded-[14px] bg-navy p-5 text-white">
         <div className="flex items-center gap-2"><Mark size={18} /><span className="text-[13px] text-white/80">Agent inventory</span></div>
-        <div className="mt-3 font-display text-[54px] font-light leading-none">61</div>
-        <div className="mt-1 text-[13px] text-white/80">agents found in one scan</div>
+        <div className="mt-3 font-display text-[54px] font-light leading-none tabular-nums">{cur ? cur[2] : 61}</div>
+        <div className="mt-1 text-[13px] text-white/80">{cur ? `found on ${cur[1]}` : 'agents found in one scan'}</div>
         <div className="mt-4 flex flex-wrap gap-2"><Chip tone="coral">7 no owner</Chip><Chip tone="amber">12 high risk</Chip><Chip tone="green">42 reviewed</Chip></div>
       </div>
     </div>
@@ -50,21 +55,25 @@ function Identity() {
 
 /* 3. Enforcement: agent, gateway in your VPC, tool, with live verdicts beneath. */
 function Enforce() {
-  const v = [['accounts.transfer', 'Blocked', 'coral', 'Outside declared task'], ['kb.search', 'Allowed', 'green', 'Within grant'], ['payments.approve', 'Needs approval', 'amber', 'Over ₹1L, asks Meera']];
+  const v = [['accounts.transfer', 'Blocked', 'coral', 'Outside declared task', '3 ms'], ['kb.search', 'Allowed', 'green', 'Within grant', '4 ms'], ['payments.approve', 'Needs approval', 'amber', 'Over ₹1L, asks Meera', '5 ms']];
+  const [sel, setSel] = useState(0);
   return (
     <div className={ring}>
       <div className="flex items-center justify-between gap-2 md:gap-4">
         <div className="text-center"><Tile name="copilot" size={44} /><div className="mt-1 text-[12px] text-ink-3">Agent</div></div>
-        <div className="h-px flex-1 bg-line-2" />
+        <div className="relative h-px flex-1 bg-line-2"><span key={sel} className="absolute -top-[3px] left-0 h-[7px] w-[7px] rounded-full bg-brand" style={{ animation: 'dot-run 1.1s ease-out forwards' }} /></div>
         <div className="rounded-[14px] border-2 border-brand bg-sky px-4 py-3 text-center"><ShieldCheck size={26} weight="fill" className="mx-auto text-brand" aria-hidden="true" /><div className="mt-1 text-[12.5px] font-medium text-ink">Zenstra gateway</div><div className="text-[11px] text-ink-3">inside your VPC</div></div>
         <div className="h-px flex-1 bg-line-2" />
         <div className="text-center"><Tile name="aws" size={44} /><div className="mt-1 text-[12px] text-ink-3">Tools</div></div>
       </div>
       <ul className="mt-4 space-y-2">
-        {v.map(([a, o, t, why]) => (
-          <li key={a} className="grid grid-cols-[1fr_auto] items-center gap-2 rounded-[10px] border border-line px-3 py-2.5 md:grid-cols-[1.2fr_1fr_auto]"><span className="mono truncate text-[12.5px] text-ink">{a}</span><span className="hidden text-[12px] text-ink-3 md:block">{why}</span><Chip tone={t}>{o}</Chip></li>
+        {v.map(([a, o, t, why], k) => (
+          <li key={a}>
+            <button type="button" onClick={() => setSel(k)} aria-pressed={sel === k} className={cx('grid w-full grid-cols-[1fr_auto] items-center gap-2 rounded-[10px] border px-3 py-2.5 text-left transition md:grid-cols-[1.2fr_1fr_auto]', sel === k ? 'border-brand bg-sky/60' : 'border-line hover:border-brand/50')}><span className="mono truncate text-[12.5px] text-ink">{a}</span><span className="hidden text-[12px] text-ink-3 md:block">{why}</span><Chip tone={t}>{o}</Chip></button>
+          </li>
         ))}
       </ul>
+      <p className="mt-3 text-[12.5px] text-ink-2" aria-live="polite"><span className="mono text-ink">{v[sel][0]}</span> was {v[sel][1].toLowerCase()} in {v[sel][4]}: {v[sel][3].toLowerCase()}.</p>
     </div>
   );
 }
@@ -139,7 +148,7 @@ const MAP = {
 export default function CapVisual({ kind, className }) {
   const [View, title] = MAP[kind];
   return (
-    <Frame className={className} role="img" aria-label={`Illustration: ${title} with sample data.`}>
+    <Frame className={className} role={kind === 'discovery' || kind === 'enforce' ? 'group' : 'img'} aria-label={`${kind === 'discovery' || kind === 'enforce' ? 'Interactive illustration' : 'Illustration'}: ${title} with sample data.`}>
       <WinTitle>{title}</WinTitle>
       <div className="mt-2.5"><View /></div>
     </Frame>

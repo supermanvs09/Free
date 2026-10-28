@@ -1,125 +1,98 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router';
-import { LINES, SOLUTIONS, CARD } from '../data/site.js';
-import { SOLUTION_PAGES } from '../data/solutions.js';
-import { POSTS } from '../data/posts.js';
+import { LINES, SOLUTIONS } from '../data/site.js';
 import { Button, Icon, cx } from './ui.jsx';
 import Thumb from './visuals/Thumb.jsx';
 import CoverArt from './visuals/CoverArt.jsx';
+import CapVisual from './visuals/CapVisuals.jsx';
 
 export function Logo({ className = 'h-[34px]', inverse }) {
   return <img src={inverse ? '/brand/logo-lockup-inverse.webp' : '/brand/logo-lockup.webp'} alt="Deep Algorithms" width="153" height="34" className={cx('w-auto', className)} />;
 }
 
-/* Two-pane mega menu, after cisco.com: a category list on the left, and for
-   the active category its links, related research and one promo card. */
-function Pane({ label, children }) {
-  return <div key={label} className="fadein grid min-h-[340px] grid-cols-[272px_1fr] border-x border-transparent">{children}</div>;
-}
-const ListItem = ({ active, onSelect, to, children, sub }) => {
-  const cls = cx('relative block w-full py-2.5 pl-5 pr-4 text-left text-[15px] transition-colors', active ? 'font-medium text-ink' : 'text-ink-2 hover:text-ink');
-  const bar = active && <span className="absolute inset-y-2 left-0 w-[3px] rounded-full bg-brand" />;
-  return to ? (
-    <Link to={to} className={cx(cls, '!text-brand')}>{children}</Link>
-  ) : (
-    <button type="button" onMouseEnter={onSelect} onFocus={onSelect} onClick={onSelect} aria-pressed={active} className={cls}>{bar}{children}{sub && <span className="block text-[12.5px] font-normal text-ink-3">{sub}</span>}</button>
+/* Visual mega menus, after astrix.security: picture cards with a few words each.
+   Product previews are the real product pictures (or a scaled capability view). */
+const Panel = ({ label, children }) => <div key={label} className="fadein">{children}</div>;
+const CARD_GRID = 'grid grid-cols-[repeat(auto-fill,minmax(196px,1fr))] gap-x-5 gap-y-6';
+
+function Preview({ m }) {
+  return (
+    <span className="relative block aspect-[16/10] overflow-hidden rounded-[14px] bg-frame ring-1 ring-line transition-all duration-300 group-hover:-translate-y-0.5 group-hover:shadow-[0_16px_30px_-18px_rgba(6,47,87,.55)] group-hover:ring-brand/50">
+      {m.cap
+        ? <span aria-hidden="true" className="pointer-events-none absolute left-0 top-0 block w-[560px] origin-top-left scale-[.35]"><CapVisual kind={m.cap} /></span>
+        : <Thumb k={m.thumb} eager className="transition-transform duration-500 group-hover:scale-[1.04]" />}
+    </span>
   );
-};
-const Col = ({ title, children }) => (
-  <div className="min-w-0">
-    <h3 className="font-sans text-[15px] font-medium text-ink-3">{title}</h3>
-    <ul className="mt-3 space-y-3">{children}</ul>
-  </div>
+}
+const Label = ({ name, desc }) => (
+  <span className="mt-3 block"><span className="block text-[15.5px] font-medium text-ink group-hover:text-brand">{name}</span><span className="mt-0.5 block text-[13px] leading-snug text-ink-3">{desc}</span></span>
 );
-const postsFor = (match) => POSTS.filter(match).slice(0, 3);
-const ResearchLinks = ({ posts }) => posts.map((p) => (
-  <li key={p.slug}><Link to={`/blogs/${p.slug}`} className="line-clamp-2 text-[14.5px] leading-snug text-ink hover:text-brand">{p.title}</Link></li>
-));
+const SeeAll = ({ to, children }) => <Link to={to} className="inline-flex items-center gap-1 text-[14.5px] font-medium text-brand hover:text-navy">{children}<Icon name="CaretRight" size={12} weight="bold" /></Link>;
 
 function ProductsMenu() {
   const [i, setI] = useState(0);
   const l = LINES[i];
-  const paths = l.modules.map((m) => m.path);
-  const posts = postsFor((p) => paths.includes(p.product.path) || p.product.path.startsWith(l.path));
-  const promoTo = l.promo.to || l.path;
   return (
-    <Pane label={l.key}>
-      <div className="border-r border-line py-1 pr-4">
-        <ListItem to="/products">All products</ListItem>
-        <div className="mt-1">{LINES.map((x, k) => <ListItem key={x.key} active={k === i} onSelect={() => setI(k)} sub={x.summary}>{x.name}</ListItem>)}</div>
-      </div>
-      <div className="grid grid-cols-[1.1fr_1fr_.9fr] gap-10 pl-12">
-        <Col title="Products">
-          {l.modules.map((m) => (
-            <li key={m.path + m.name}>
-              <Link to={m.path} className="group block">
-                <span className="flex items-center gap-2 text-[15px] text-ink group-hover:text-brand">{m.name}</span>
-                <span className="block text-[13px] leading-snug text-ink-3">{m.desc}</span>
-              </Link>
-            </li>
+    <Panel label={l.key}>
+      <div className="grid grid-cols-[240px_1fr] gap-10">
+        <div className="border-r border-line pr-4">
+          {LINES.map((x, k) => (
+            <button key={x.key} type="button" onMouseEnter={() => setI(k)} onFocus={() => setI(k)} onClick={() => setI(k)} aria-pressed={k === i}
+              className={cx('relative flex w-full items-center gap-3 rounded-[12px] px-3 py-3 text-left transition-colors', k === i ? 'bg-sky text-ink' : 'text-ink-2 hover:bg-mist')}>
+              <span className={cx('inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]', k === i ? 'bg-brand text-white' : 'bg-mist text-brand')}><Icon name={x.icon} size={20} weight="light" /></span>
+              <span><span className="block text-[15.5px] font-medium">{x.name}</span><span className="block text-[12.5px] text-ink-3">{x.summary}</span></span>
+            </button>
           ))}
-          <li><Link to={l.path} className="inline-flex items-center gap-1 pt-1 text-[14.5px] font-medium text-brand hover:text-navy">Explore {l.name}<Icon name="CaretRight" size={12} weight="bold" /></Link></li>
-        </Col>
-        <Col title="Related research"><ResearchLinks posts={posts} /></Col>
-        <Link to={promoTo} className="group block">
-          <span className="block overflow-hidden rounded-[12px]"><Thumb k={l.promo.thumb} className="transition-transform duration-500 group-hover:scale-[1.03]" /></span>
-          <span className="mt-3 flex items-center gap-2 font-display text-[18px] leading-snug text-ink group-hover:text-brand">{l.promo.title}</span>
-          <span className="mt-1 block text-[13.5px] leading-snug text-ink-3">{l.promo.body}</span>
-          <span className="mt-2 inline-flex items-center gap-1 text-[14px] font-medium text-brand">{l.promo.cta}<Icon name="CaretRight" size={12} weight="bold" /></span>
-        </Link>
+          <div className="mt-3 px-3"><SeeAll to="/products">All products</SeeAll></div>
+        </div>
+        <div>
+          <div className={CARD_GRID}>
+            {l.modules.map((m) => <Link key={m.path} to={m.path} className="group block"><Preview m={m} /><Label name={m.name} desc={m.desc} /></Link>)}
+          </div>
+        </div>
       </div>
-    </Pane>
+    </Panel>
   );
 }
 
 function SolutionsMenu() {
-  const [i, setI] = useState(0);
-  const s = SOLUTIONS[i];
-  const page = SOLUTION_PAGES[s.slug];
-  const posts = page.research.map((slug) => POSTS.find((p) => p.slug === slug)).filter(Boolean);
   return (
-    <Pane label={s.slug}>
-      <div className="border-r border-line py-1 pr-4">
-        {SOLUTIONS.map((x, k) => <ListItem key={x.slug} active={k === i} onSelect={() => setI(k)} sub={x.desc}>{x.name}</ListItem>)}
+    <Panel label="solutions">
+      <div className={cx(CARD_GRID, '!grid-cols-4')}>
+        {SOLUTIONS.map((s) => (
+          <Link key={s.slug} to={`/solutions/${s.slug}`} className="group block">
+            <span className="block overflow-hidden rounded-[14px] ring-1 ring-line transition-all duration-300 group-hover:-translate-y-0.5 group-hover:shadow-[0_16px_30px_-18px_rgba(6,47,87,.55)] group-hover:ring-brand/50"><CoverArt eager slug={s.slug} className="aspect-[16/10]" /></span>
+            <Label name={s.name} desc={s.desc} />
+          </Link>
+        ))}
       </div>
-      <div className="grid grid-cols-[1.1fr_1fr_.9fr] gap-10 pl-12">
-        <Col title="Recommended products">
-          {page.products.map((k) => <li key={k}><Link to={CARD[k].path} className="group block"><span className="block text-[15px] text-ink group-hover:text-brand">{CARD[k].name}</span><span className="block text-[13px] leading-snug text-ink-3">{CARD[k].body}</span></Link></li>)}
-          <li><Link to={`/solutions/${s.slug}`} className="inline-flex items-center gap-1 pt-1 text-[14.5px] font-medium text-brand hover:text-navy">Explore {s.name}<Icon name="CaretRight" size={12} weight="bold" /></Link></li>
-        </Col>
-        <Col title="Related research"><ResearchLinks posts={posts} /></Col>
-        <Link to={`/solutions/${s.slug}`} className="group block">
-          <CoverArt compact slug={posts[0]?.slug} className="aspect-[16/10] rounded-[12px]" />
-          <span className="mt-3 block font-display text-[18px] leading-snug text-ink group-hover:text-brand">{page.title}</span>
-          <span className="mt-2 inline-flex items-center gap-1 text-[14px] font-medium text-brand">Explore {s.short}<Icon name="CaretRight" size={12} weight="bold" /></span>
-        </Link>
-      </div>
-    </Pane>
+    </Panel>
   );
 }
 
 const COMPANY = [
-  { name: 'About us', desc: 'Our story, leadership and advisors', path: '/about-us' },
-  { name: 'Careers', desc: 'Work on hard security problems', path: '/about-us#careers' },
-  { name: 'Contact', desc: 'Offices, phone and email', path: '/contact' },
+  { name: 'About us', desc: 'Who we are and who leads us', path: '/about-us', img: 'office-inauguration' },
+  { name: 'Careers', desc: 'Work on hard security problems', path: '/about-us#careers', img: 'nec-globis-thub' },
+  { name: 'Contact', desc: 'Offices, phone and email', path: '/contact', img: 'bharat-mandapam' },
 ];
 function CompanyMenu() {
-  const p = POSTS[0];
   return (
-    <Pane label="company">
-      <div className="border-r border-line py-1 pr-4">{COMPANY.map((c) => <Link key={c.path} to={c.path} className="block py-2.5 pl-5 pr-4 text-[15px] text-ink-2 hover:text-ink">{c.name}<span className="block text-[12.5px] text-ink-3">{c.desc}</span></Link>)}</div>
-      <div className="grid grid-cols-[1fr_1fr_.9fr] gap-10 pl-12">
-        <Link to={`/blogs/${p.slug}`} className="group col-span-2 grid grid-cols-2 gap-6">
-          <CoverArt compact slug={p.slug} className="aspect-[16/10] rounded-[12px]" />
-          <span className="self-center"><span className="text-[14px] font-medium text-brand">Latest research</span><span className="mt-2 block font-display text-[20px] leading-snug text-ink group-hover:text-brand">{p.title}</span><span className="mt-3 inline-flex items-center gap-1 text-[14px] font-medium text-brand">Read<Icon name="ArrowRight" size={14} /></span></span>
-        </Link>
-        <Link to="/request-demo" className="group block self-start rounded-[16px] bg-navy p-6 text-white">
+    <Panel label="company">
+      <div className={cx(CARD_GRID, '!grid-cols-4')}>
+        {COMPANY.map((c) => (
+          <Link key={c.path} to={c.path} className="group block">
+            <span className="block aspect-[16/10] overflow-hidden rounded-[14px] bg-frame ring-1 ring-line transition-all duration-300 group-hover:-translate-y-0.5 group-hover:shadow-[0_16px_30px_-18px_rgba(6,47,87,.55)] group-hover:ring-brand/50">
+              <img src={`/img/events/${c.img}.webp`} alt="" width="400" height="250" loading="eager" decoding="async" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" />
+            </span>
+            <Label name={c.name} desc={c.desc} />
+          </Link>
+        ))}
+        <Link to="/request-demo" className="group flex aspect-[16/10] flex-col justify-between self-start rounded-[14px] bg-navy p-5 text-white">
           <span className="font-display text-[22px] leading-snug">See it on your own identities</span>
-          <span className="mt-2 block text-[14px] text-white/80">A 30-minute live demo.</span>
-          <span className="mt-5 inline-flex h-10 items-center rounded-full bg-white px-5 text-[14px] font-medium text-navy group-hover:bg-sky">Book a demo</span>
+          <span className="inline-flex h-10 w-fit items-center rounded-full bg-white px-5 text-[14px] font-medium text-navy group-hover:bg-sky">Book a demo</span>
         </Link>
       </div>
-    </Pane>
+    </Panel>
   );
 }
 

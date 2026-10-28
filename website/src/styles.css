@@ -1,12 +1,6 @@
 @import '@fontsource-variable/hanken-grotesk/wght.css';
 @import '@fontsource-variable/inter/wght.css';
-@import '@fontsource-variable/space-grotesk/wght.css';
-@import '@fontsource-variable/plus-jakarta-sans/wght.css';
-@import '@fontsource-variable/sora/wght.css';
-@import '@fontsource-variable/source-serif-4/wght.css';
 @import '@fontsource-variable/jetbrains-mono/wght.css';
-@import '@fontsource/ibm-plex-sans/300.css';
-@import '@fontsource/ibm-plex-sans/400.css';
 @import '@fontsource/instrument-serif/400-italic.css';
 @import 'tailwindcss';
 
@@ -135,18 +129,13 @@
 
 /* One display face per kind of thing we secure: agents, people, machines, bots, compliance.
    Pages set a theme class; font-display follows it. */
-.font-theme-agents { --font-display: 'Space Grotesk Variable', 'Inter Variable', sans-serif; }
-.font-theme-human { --font-display: 'Plus Jakarta Sans Variable', 'Inter Variable', sans-serif; }
-.font-theme-machine { --font-display: 'IBM Plex Sans', 'Inter Variable', sans-serif; }
-.font-theme-bots { --font-display: 'Sora Variable', 'Inter Variable', sans-serif; }
-.font-theme-compliance { --font-display: 'Source Serif 4 Variable', Georgia, serif; }
 .mono { font-family: 'JetBrains Mono Variable', ui-monospace, monospace; }
 /* an italic serif for the one word a headline turns on */
 .accent { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-weight: 400; letter-spacing: 0; padding-right: .04em; }
 
 /* Flowing light ribbons behind the page; they drift with scroll. */
 .ribbons { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-.ribbons svg { position: absolute; left: -10%; top: -10%; width: 120%; height: 120%; transform: translate3d(0, calc(var(--sy, 0) * -0.12px), 0); will-change: transform; }
+.ribbons svg { position: absolute; left: -10%; top: -10%; width: 120%; height: 120%; transform: translate3d(calc(var(--px, 0) * 22px), calc(var(--sy, 0) * -0.12px + var(--py, 0) * 14px), 0); will-change: transform; transition: transform .6s cubic-bezier(.2,.8,.2,1); }
 .ribbons path { fill: none; stroke-linecap: round; stroke-dasharray: 1400 900; animation: ribbon-flow 26s linear infinite; }
 .ribbons path:nth-child(2n) { animation-duration: 34s; animation-direction: reverse; }
 @keyframes ribbon-flow { to { stroke-dashoffset: -2300; } }
@@ -156,3 +145,8 @@ main, footer { position: relative; z-index: 1; }
 .io .tilt-in { opacity: 0; transform: perspective(1400px) rotateX(14deg) translateY(40px) scale(.97); transform-origin: 50% 100%; transition: opacity .9s cubic-bezier(.16,1,.3,1), transform 1.1s cubic-bezier(.16,1,.3,1); }
 .io .tilt-in.in { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) { .io .tilt-in { opacity: 1; transform: none; } .ribbons path { animation: none; } }
+
+[data-tilt] { transition: transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .3s, border-color .3s; will-change: transform; }
+.io .reveal.in[data-tilt] { transition-property: opacity, transform, box-shadow, border-color; transition-duration: .8s, .3s, .3s, .3s; transition-delay: 0ms; }
+@keyframes dot-run { from { left: 0; opacity: 1; } to { left: calc(100% - 7px); opacity: .2; } }
+@media (prefers-reduced-motion: reduce) { [style*="dot-run"] { animation: none !important; } }

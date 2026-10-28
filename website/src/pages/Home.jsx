@@ -54,7 +54,7 @@ export default function Home() {
       <LogoBand band title="Trusted by banks, government and enterprises across India" />
 
       <Section>
-        <Heading eyebrow="The new perimeter" title={<>Attackers no longer break in. They <em className="accent">log in.</em></>} lead="Most access in your company no longer belongs to a person. Keys, roles and AI agents hold it now, and that is where attackers are heading." />
+        <Heading eyebrow="The new perimeter" title={<>Attackers no longer break in. They log in.</>} lead="Most access in your company no longer belongs to a person. Keys, roles and AI agents hold it now, and that is where attackers are heading." />
         <div className="mt-14 grid grid-cols-1 gap-x-6 gap-y-14 lg:grid-cols-3">
           {PROBLEMS.map(({ Scene, title, body }, i) => (
             <Reveal key={title} delay={i * 80}>
@@ -69,13 +69,13 @@ export default function Home() {
       <WhyNow />
 
       <Section tone="mist" id="film" className="scroll-mt-16">
-        <Heading eyebrow="The 20-second pitch" title={<>Most access no longer belongs to <em className="accent">a person.</em></>} lead="Watch how we find every identity, show the risk and fix it before it is used." />
+        <Heading eyebrow="The 20-second pitch" title={<>Most access no longer belongs to a person.</>} lead="Watch how we find every identity, show the risk and fix it before it is used." />
         <Reveal className="mx-auto mt-14 max-w-[1180px]"><IdentityFilm /></Reveal>
         <div className="mt-10 flex justify-center"><Button to="/request-demo">Book a demo</Button></div>
       </Section>
 
       <Section id="platform" className="scroll-mt-16">
-        <Heading eyebrow="The platform" title={<>One platform for every identity that <em className="accent">acts</em> in your enterprise.</>} lead="People, machine identities and AI agents share one inventory, one risk model and one record. Four products, built to work as one." />
+        <Heading eyebrow="The platform" title={<>One platform for every identity that acts in your enterprise.</>} lead="People, machine identities and AI agents share one inventory, one risk model and one record. Four products, built to work as one." />
         <Reveal className="tilt-in mx-auto mt-14 max-w-[1040px]"><ProductTour /></Reveal>
         <div className="mx-auto mt-10 grid max-w-[1040px] gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {[['Zenstra AI', 'AI agent security', '/agentic-ai/agentic-identity'], ['adapID AI', 'Human and machine identities', '/adapid-ai'], ['BotShield AI', 'Bots, exposure and DDoS', '/botshield-ai'], ['ICMS Compliance', 'DPDPA data protection', '/dpdpa-compliance']].map(([n, d, to]) => (

@@ -3,6 +3,7 @@ import { Routes, Route, useLocation } from 'react-router';
 import Header from './components/Header.jsx';
 import Footer from './components/Footer.jsx';
 import Ribbons from './components/Ribbons.jsx';
+import Interactions from './components/Interactions.jsx';
 import { PRODUCTS } from './data/products.js';
 import { SOLUTIONS } from './data/site.js';
 import { POSTS } from './data/posts.js';
@@ -45,6 +46,7 @@ export default function App() {
   return (
     <>
       <Ribbons />
+      <Interactions />
       <Header />
       <main id="main">
         <PageEffects />

@@ -115,3 +115,10 @@ Deploy `dist/` to any static host. The prerender step fails the build if any pag
 - Film v3 (visuals/Film.jsx): isometric 3D platform, tilted pop-up product cards, layered finish; same audio and VO cues. Hero orbit stays in Flows.jsx.
 - QA run: 42 routes at 1440 and 390, one H1 each, no overflow, film scrubbed 0 to 21.5 s with no errors. Known: React #418 on the static /no-such-page only (pre-existing); one transient axe contrast hit during a heading fade on mobile /dpdpa-compliance.
 - Not verified: audio sync of film v3 with sound playing (cues unchanged, scrub only).
+
+## Round 6 (2026-10-28): menus, About hero, one type system, interaction
+- Mega menus are picture cards (Header.jsx): Products (line rail + real product previews, Zenstra capabilities as scaled live views), Solutions (cover art), Company (photos + demo card). Module thumbnails come from `thumb`/`cap` in data/site.js.
+- Type system (one rule): Hanken Grotesk for headings, Inter for text, JetBrains Mono only for data inside product pictures, Instrument Serif italic for one emphasised word in a page's H1. The per-product font themes were removed.
+- About hero: light layout with an interactive photo deck (PhotoDeck in pages/About.jsx) and fact tiles.
+- Interaction (components/Interactions.jsx): reading-progress line, ribbons lean to the pointer, `data-tilt` cards tip toward the pointer; Zenstra Discovery and Enforcement illustrations are clickable. All off under reduced motion; tilt only on fine pointers.
+- QA: 42 routes x 2 widths clean (404 has the known #418); axe clean after switching the two interactive illustrations to role=group. Transient axe contrast hits appear only while the H1 rotator fades in.

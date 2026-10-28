@@ -103,7 +103,7 @@ export function CertRow({ dark }) {
 export function ProductCard({ k }) {
   const c = CARD[k];
   return (
-    <Link to={c.path} className="group flex h-full flex-col overflow-hidden rounded-[20px] border border-line bg-white transition-all duration-300 hover:-translate-y-1 hover:border-brand hover:shadow-[0_18px_40px_-24px_rgba(6,47,87,.45)]">
+    <Link to={c.path} data-tilt className="group flex h-full flex-col overflow-hidden rounded-[20px] border border-line bg-white transition-all duration-300 hover:-translate-y-1 hover:border-brand hover:shadow-[0_18px_40px_-24px_rgba(6,47,87,.45)]">
       <span className="block overflow-hidden"><Thumb k={k} className="transition-transform duration-500 group-hover:scale-[1.04]" /></span>
       <span className="flex flex-1 flex-col p-6">
         <span className="flex items-center gap-2"><Icon name={c.icon} size={20} weight="light" className="text-brand" /><h3 className="t-h3 group-hover:text-brand">{c.name}</h3></span>

@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { Seo } from '../lib/head.jsx';
 import { LINES, SITE } from '../data/site.js';
 import { LEADERS, ADVISORS, RECOGNITION, TEAM_PHOTOS, BELIEFS } from '../data/company.js';
 import { Breadcrumb, Button, Heading, Icon, Reveal, Section, cx } from '../components/ui.jsx';
 import { CtaPanel, LogoBand } from '../components/blocks.jsx';
+import { useInView, useReducedMotion } from '../components/visuals/kit.jsx';
 
 const Linked = ({ p }) => (
   <a href={p.linkedin} target="_blank" rel="noreferrer" aria-label={`${p.name} on LinkedIn`} className="shrink-0 text-ink-3 hover:text-brand"><Icon name="LinkedinLogo" size={20} /></a>
@@ -111,36 +112,76 @@ function PhotoRow({ items }) {
 
 const FACTS = [['Founded', '2022'], ['Headquarters', 'Hyderabad, India'], ['Offices', 'Hyderabad · Bengaluru · Maryland'], ['Focus', 'Identity security for the AI era']];
 
+/* Interactive photo deck: tap a card to bring it forward; advances by itself while in view and not hovered. */
+const DECK = ['dsci-excellence', 'business-excellence-award', 'gitex-dubai', 'cyber-bureau-training'].map((k) => RECOGNITION.find((r) => r.img === k));
+const SLOT = [
+  'z-40 translate-x-0 translate-y-0 rotate-0 scale-100',
+  'z-30 translate-x-[8%] -translate-y-[5%] rotate-[5deg] scale-[.93] opacity-90',
+  'z-20 -translate-x-[8%] -translate-y-[8%] -rotate-[5deg] scale-[.88] opacity-80',
+  'z-10 translate-y-[-12%] scale-[.83] opacity-0',
+];
+function PhotoDeck() {
+  const [front, setFront] = useState(0);
+  const [hold, setHold] = useState(false);
+  const ref = useRef(null);
+  const inView = useInView(ref);
+  const reduce = useReducedMotion();
+  useEffect(() => {
+    if (hold || reduce || !inView) return undefined;
+    const t = setInterval(() => setFront((f) => (f + 1) % DECK.length), 4200);
+    return () => clearInterval(t);
+  }, [hold, reduce, inView]);
+  const cur = DECK[front];
+  return (
+    <div ref={ref} onMouseEnter={() => setHold(true)} onMouseLeave={() => setHold(false)} onFocus={() => setHold(true)} onBlur={() => setHold(false)} className="mx-auto w-full max-w-[520px]">
+      <div className="relative aspect-[4/3] w-full [perspective:1400px]">
+        {DECK.map((d, i) => (
+          <button key={d.img} type="button" onClick={() => setFront(i)} aria-label={`${d.title}, ${d.where}, ${d.year}`} aria-pressed={i === front}
+            className={cx('absolute inset-0 overflow-hidden rounded-[24px] bg-frame shadow-[0_30px_60px_-28px_rgba(6,47,87,.55)] ring-1 ring-black/5 transition-all duration-700 ease-[cubic-bezier(.2,.8,.2,1)]', SLOT[(i - front + DECK.length) % DECK.length])}>
+            <img src={`/img/events/${d.img}.webp`} alt="" width="800" height="600" loading={i === 0 ? 'eager' : 'lazy'} decoding="async" className="h-full w-full object-cover" />
+          </button>
+        ))}
+      </div>
+      <div className="mt-6 flex items-center justify-between gap-4">
+        <p key={front} className="fadein min-w-0 text-[15px] text-ink-2"><span className="font-medium text-ink">{cur.title}</span><span className="block truncate text-ink-3">{cur.where}, {cur.year}</span></p>
+        <div className="flex gap-2" role="group" aria-label="Choose photo">
+          {DECK.map((d, i) => <button key={d.img} type="button" onClick={() => setFront(i)} aria-label={`Show ${d.title}`} aria-pressed={i === front} className="inline-flex h-6 w-6 items-center justify-center"><span className={cx('h-2 rounded-full transition-all', i === front ? 'w-6 bg-brand' : 'w-2 bg-line-2')} /></button>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function About() {
   return (
     <>
       <Seo title="About Us: The Team Behind Deep Algorithms" path="/about-us" crumbs={[{ name: 'About us', path: '/about-us' }]}
         description="Deep Algorithms is an AI-native cybersecurity company founded in 2022 and headquartered in Hyderabad. Meet the leaders and advisors building identity security for the AI era." />
 
-      <section className="pt-3 md:pt-5">
-        <div className="mx-auto w-full max-w-[1400px] px-3 md:px-5">
-          <div className="grid items-center gap-10 rounded-[40px] bg-navy px-6 py-12 md:px-14 md:py-20 lg:grid-cols-[1.3fr_.7fr] lg:gap-16">
+      <section className="overflow-x-clip pb-6 pt-8 md:pt-14">
+        <div className="wrap">
+          <Breadcrumb items={[{ name: 'About us' }]} />
+          <div className="mt-8 grid items-center gap-14 lg:grid-cols-[1fr_1fr] lg:gap-20">
             <div>
-              <Breadcrumb light items={[{ name: 'About us' }]} />
-              <p className="rise mt-8 text-[15px] font-medium text-cyan">About Deep Algorithms</p>
-              <h1 className="t-h1 rise mt-3 text-white">We build defence that thinks.</h1>
-              <p className="rise mt-6 max-w-[600px] text-[17px] leading-relaxed text-white/85 md:text-[19px]" style={{ animationDelay: '80ms' }}>
-                Deep Algorithms is an AI-native cybersecurity company, founded in Hyderabad in 2022. We secure every human, machine and AI agent identity, and stop the bots and data misuse that follow.
+              <p className="rise inline-flex items-center gap-2 rounded-full border border-line bg-white/80 px-3.5 py-1.5 text-[14px] font-medium text-brand backdrop-blur"><img src="/brand/mark.webp" alt="" width="16" height="16" className="h-4 w-4" />About Deep Algorithms</p>
+              <h1 className="t-h1 rise mt-5">We build defence that <em className="accent text-brand">thinks.</em></h1>
+              <p className="rise mt-6 max-w-[540px] text-[18px] leading-relaxed text-ink-2" style={{ animationDelay: '80ms' }}>
+                An AI-native cybersecurity company, founded in Hyderabad in 2022. We secure every human, machine and AI agent identity, and stop the bots and data misuse that follow.
               </p>
               <div className="rise mt-8 flex flex-wrap gap-3" style={{ animationDelay: '160ms' }}>
-                <Button to="/request-demo" variant="white">Book a demo</Button>
-                <Button href="#leadership" variant="ghostWhite">Meet the team</Button>
+                <Button to="/request-demo">Book a demo</Button>
+                <Button href="#leadership" variant="outline">Meet the team</Button>
               </div>
             </div>
-            <div className="rise rounded-[24px] bg-white p-7 md:p-8" style={{ animationDelay: '200ms' }}>
-              <img src="/brand/mark.webp" alt="" width="56" height="56" className="h-14 w-14" />
-              <dl className="mt-6 divide-y divide-line">
-                {FACTS.map(([k, v]) => (
-                  <div key={k} className="py-3.5 first:pt-0 last:pb-0"><dt className="text-[13px] text-ink-3">{k}</dt><dd className="mt-0.5 text-[17px] text-ink">{v}</dd></div>
-                ))}
-              </dl>
-            </div>
+            <PhotoDeck />
           </div>
+          <dl className="mt-16 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {FACTS.map(([k, v], i) => (
+              <Reveal key={k} delay={i * 70} data-tilt className="rounded-[20px] border border-line bg-white/85 p-6 backdrop-blur hover: hover:border-brand hover:shadow-[0_18px_40px_-24px_rgba(6,47,87,.45)]">
+                <dt className="text-[13.5px] text-ink-3">{k}</dt><dd className="mt-1 font-display text-[22px] font-light leading-snug text-ink">{v}</dd>
+              </Reveal>
+            ))}
+          </dl>
         </div>
       </section>
 

@@ -3,7 +3,7 @@
    describe the product design; no customer results are claimed. */
 
 const P = '/agentic-ai/agentic-identity';
-const base = { line: 'Zenstra AI', parent: P, layout: 'capability', theme: 'agents' };
+const base = { line: 'Zenstra AI', parent: P, layout: 'capability' };
 
 export const ZCAPS = {
   zdiscovery: {

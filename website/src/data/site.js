@@ -32,8 +32,8 @@ export const LINES = [
     key: 'zenstra', name: 'Zenstra AI', summary: 'AI agent security', icon: 'Sparkle',
     path: '/agentic-ai/agentic-identity',
     modules: [
-      { name: 'Zenstra AI Overview', desc: 'Discover, govern and enforce every AI agent action', path: '/agentic-ai/agentic-identity' },
-      ...Object.values(ZCAPS).map((c) => ({ name: c.name, desc: c.short, path: c.path })),
+      { name: 'Zenstra AI Overview', desc: 'All six capabilities in one view', path: '/agentic-ai/agentic-identity', thumb: 'zenstra' },
+      ...Object.values(ZCAPS).map((c) => ({ name: c.name, desc: c.short, path: c.path, cap: c.kind })),
     ],
   },
   {
@@ -41,10 +41,10 @@ export const LINES = [
     key: 'adapid', name: 'adapID AI', summary: 'Human and non-human identity security', icon: 'Fingerprint',
     path: '/adapid-ai',
     modules: [
-      { name: 'Identity Risk Management (CIRM)', desc: 'Continuous risk scoring for every human identity', path: '/adapid-ai' },
-      { name: 'NHI Security for AWS', desc: 'Discover, score and baseline machine identities', path: '/adapid-ai/nhi-security' },
-      { name: 'Identity Fraud Prevention', desc: 'Stop account takeover and mule accounts', path: '/adapid-ai/fraud-prevention' },
-      { name: 'Active Directory Security', desc: 'Map and close attack paths through AD', path: '/ad-security' },
+      { name: 'Identity Risk Management (CIRM)', desc: 'Continuous risk scoring for every human identity', path: '/adapid-ai', thumb: 'adapid' },
+      { name: 'NHI Security for AWS', desc: 'Discover, score and baseline machine identities', path: '/adapid-ai/nhi-security', thumb: 'nhi' },
+      { name: 'Identity Fraud Prevention', desc: 'Stop account takeover and mule accounts', path: '/adapid-ai/fraud-prevention', thumb: 'fraud' },
+      { name: 'Active Directory Security', desc: 'Map and close attack paths through AD', path: '/ad-security', thumb: 'ad' },
     ],
   },
   {
@@ -52,15 +52,15 @@ export const LINES = [
     key: 'botshield', name: 'BotShield AI', summary: 'Bot defence, CTEM and DDoS', icon: 'ShieldCheck',
     path: '/botshield-ai',
     modules: [
-      { name: 'Continuous Threat Exposure Management', desc: 'Find, validate and fix exploitable exposure', path: '/botshield-ai' },
-      { name: 'DDoS Protection', desc: 'Always-on L3 to L7 mitigation at the edge', path: '/botshield-ai/ddos-protection' },
+      { name: 'Continuous Threat Exposure Management', desc: 'Find, validate and fix exploitable exposure', path: '/botshield-ai', thumb: 'botshield' },
+      { name: 'DDoS Protection', desc: 'Always-on L3 to L7 mitigation at the edge', path: '/botshield-ai/ddos-protection', thumb: 'ddos' },
     ],
   },
   {
     promo: { thumb: 'icms', title: 'Audit evidence in minutes', body: 'Every access to personal data checked against purpose and consent.', cta: 'Explore ICMS' },
     key: 'icms', name: 'ICMS Compliance Suite', summary: 'DPDPA data protection', icon: 'Scales',
     path: '/dpdpa-compliance',
-    modules: [{ name: 'Data Protection & Compliance', desc: 'Automated DPDPA, RBI and SEBI evidence', path: '/dpdpa-compliance' }],
+    modules: [{ name: 'Data Protection & Compliance', desc: 'Automated DPDPA, RBI and SEBI evidence', path: '/dpdpa-compliance', thumb: 'icms' }],
   },
 ];
 

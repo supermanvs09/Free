@@ -33,11 +33,11 @@ const TEXT = {
   'ddos-mitigation-strategy-2026': <Lines a="Floods that look" b="like real users." y={262} size={52} />,
 };
 
-export default function CoverArt({ slug, className }) {
+export default function CoverArt({ slug, className, eager }) {
   const known = slug in TEXT || ['bfsi', 'healthcare', 'government', 'digital-platforms'].includes(slug);
   return (
     <div className={cx('relative overflow-hidden bg-navy', className)} aria-hidden="true">
-      <img src={`/img/covers/${known ? slug : 'default'}.webp`} alt="" width="1280" height="800" loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
+      <img src={`/img/covers/${known ? slug : 'default'}.webp`} alt="" width="1280" height="800" loading={eager ? "eager" : "lazy"} decoding="async" className="absolute inset-0 h-full w-full object-cover" />
       <svg viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 h-full w-full">{TEXT[slug]}</svg>
     </div>
   );
