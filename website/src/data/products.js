@@ -1,4 +1,5 @@
 import { T } from '../components/visuals/ProductTour.jsx';
+import { ZCAPS } from './zenstra.js';
 
 /* Product pages (one template: pages/Product.jsx). Visual types:
    tour (product console with capability tabs), panel (one capability),
@@ -11,6 +12,7 @@ const IBM = { v: '$4.88M', l: 'average global cost of a data breach in 2024, an 
 
 export const PRODUCTS = {
   zenstra: {
+    layout: 'hub', theme: 'agents',
     path: '/agentic-ai/agentic-identity', line: 'Zenstra AI', name: 'Zenstra AI',
     seoTitle: 'Zenstra AI: Runtime Security for AI Agents',
     description: 'Zenstra AI discovers every AI agent, MCP server and copilot, gives each one an owner and scoped access, and checks every action against its task before it runs.',
@@ -38,9 +40,11 @@ export const PRODUCTS = {
     ], logos: ['claude', 'gemini', 'copilot', 'cursor', 'mcp', 'n8n', 'zapier', 'langgraph', 'gcp', 'kubernetes', 'terraform', 'aws'] },
     research: ['ai-security-intelligence', 'ai-agent-governance', 'ai-security'],
     cta: { title: 'Let AI agents act. Keep every action accountable.', body: 'See Zenstra enforce a live policy against your own agent, in your own cloud.' },
+    modules: ['zdiscovery', 'zidentity', 'zenforce', 'zmcp', 'zdetect', 'zrecord'],
   },
 
   adapid: {
+    layout: 'tour', theme: 'human',
     path: '/adapid-ai', line: 'adapID AI', name: 'adapID AI',
     seoTitle: 'adapID AI: Continuous Identity Risk Management',
     description: 'adapID AI scores every human and machine identity continuously, stops identity fraud and closes Active Directory attack paths before credentials become a breach.',
@@ -72,6 +76,7 @@ export const PRODUCTS = {
   },
 
   nhi: {
+    layout: 'split', theme: 'machine',
     path: '/adapid-ai/nhi-security', line: 'adapID AI', name: 'NHI Security for AWS', parent: '/adapid-ai',
     seoTitle: 'NHI Security for AWS: Discover, Score and Baseline Machine Identities',
     description: 'adapID NHI Security discovers every IAM role, user, key and workload identity across your AWS accounts, scores its posture, maps what it can reach and learns how it behaves.',
@@ -112,6 +117,7 @@ export const PRODUCTS = {
   },
 
   fraud: {
+    layout: 'ledger', theme: 'human',
     path: '/adapid-ai/fraud-prevention', line: 'adapID AI', name: 'Identity Fraud Prevention', parent: '/adapid-ai',
     seoTitle: 'adapID Identity Fraud Prevention: Stop Account Takeover and Mule Accounts',
     description: 'adapID fuses device, behaviour, identity graph and transaction signals into one real-time decision to stop account takeover, synthetic identities and mule accounts.',
@@ -142,6 +148,7 @@ export const PRODUCTS = {
   },
 
   ad: {
+    layout: 'ledger', theme: 'human',
     path: '/ad-security', line: 'adapID AI', name: 'Active Directory Security', parent: '/adapid-ai',
     seoTitle: 'adapID Active Directory Security: Map and Close Attack Paths',
     description: 'See every account, privilege and path through Active Directory, catch the accounts being abused and close attack paths before they are taken.',
@@ -172,6 +179,7 @@ export const PRODUCTS = {
   },
 
   botshield: {
+    layout: 'split', theme: 'bots',
     path: '/botshield-ai', line: 'BotShield AI', name: 'BotShield AI',
     seoTitle: 'BotShield AI: Continuous Threat Exposure Management and Bot Defence',
     description: 'BotShield AI runs reconnaissance, red team and blue team agents in a continuous loop to find, validate and fix exploitable exposure, and stops adversarial bots by intent.',
@@ -199,6 +207,7 @@ export const PRODUCTS = {
   },
 
   ddos: {
+    layout: 'split', theme: 'bots',
     path: '/botshield-ai/ddos-protection', line: 'BotShield AI', name: 'DDoS Protection', parent: '/botshield-ai',
     seoTitle: 'BotShield DDoS Protection: Always-On L3 to L7 Mitigation',
     description: 'BotShield AI protects applications, APIs and digital services from volumetric, protocol and application-layer DDoS at the edge, inline, without traffic diversion.',
@@ -223,6 +232,7 @@ export const PRODUCTS = {
   },
 
   icms: {
+    layout: 'tour', theme: 'compliance',
     path: '/dpdpa-compliance', line: 'ICMS Compliance Suite', name: 'ICMS Compliance Suite',
     seoTitle: 'ICMS Compliance Suite: Automated DPDPA Compliance and Evidence',
     description: 'ICMS discovers personal data, checks every access against purpose and consent, and generates audit-ready evidence for DPDPA 2023, RBI and SEBI automatically.',
@@ -250,6 +260,7 @@ export const PRODUCTS = {
     research: ['ctem-dpdpa-india-2026', 'india-mule-account-crisis'],
     cta: { title: 'Regulation is real-time. So is our compliance.', body: 'Book a DPDPA gap analysis with a compliance engineer.' },
   },
+  ...ZCAPS,
 };
 
 export { CARD } from './site.js';

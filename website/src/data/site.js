@@ -1,3 +1,5 @@
+import { ZCAPS } from './zenstra.js';
+
 export const SITE = {
   name: 'Deep Algorithms',
   url: (import.meta.env.VITE_SITE_URL || 'https://deepalgorithms.io').replace(/\/$/, ''),
@@ -29,7 +31,10 @@ export const LINES = [
     promo: { thumb: 'zenstra', title: 'Check every agent action before it runs', body: 'See an allow, block or approve decision on a live tool call.', cta: 'Explore Zenstra AI' },
     key: 'zenstra', name: 'Zenstra AI', summary: 'AI agent security', icon: 'Sparkle',
     path: '/agentic-ai/agentic-identity',
-    modules: [{ name: 'AI Agent Security', desc: 'Discover, govern and enforce every AI agent action', path: '/agentic-ai/agentic-identity' }],
+    modules: [
+      { name: 'Zenstra AI Overview', desc: 'Discover, govern and enforce every AI agent action', path: '/agentic-ai/agentic-identity' },
+      ...Object.values(ZCAPS).map((c) => ({ name: c.name, desc: c.short, path: c.path })),
+    ],
   },
   {
     promo: { thumb: 'nhi', title: 'NHI Security for AWS', body: 'Connect an AWS account with one read-only role and see every machine identity.', cta: 'Explore NHI Security', to: '/adapid-ai/nhi-security' },
@@ -90,5 +95,6 @@ export const CARD = {
   ad: { name: 'Active Directory Security', body: 'Attack paths and AD threat detection', path: '/ad-security', icon: 'TreeStructure' },
   botshield: { name: 'BotShield AI', body: 'Exposure management and bot defence', path: '/botshield-ai', icon: 'ShieldCheck' },
   ddos: { name: 'DDoS Protection', body: 'Inline L3 to L7 mitigation', path: '/botshield-ai/ddos-protection', icon: 'Broadcast' },
+  ...Object.fromEntries(Object.entries(ZCAPS).map(([k, c]) => [k, { name: c.name, body: c.short, path: c.path, icon: c.icon }])),
   icms: { name: 'ICMS Compliance Suite', body: 'Automated DPDPA evidence', path: '/dpdpa-compliance', icon: 'Scales' },
 };

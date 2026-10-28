@@ -36,7 +36,7 @@ export default function Platform() {
           <div className="overflow-hidden rounded-[40px] bg-brand px-5 pb-6 pt-10 md:px-10 md:pb-10 md:pt-14">
             <div className="text-center">
               <div className="flex justify-center"><Breadcrumb light items={[{ name: 'Why Deep Algorithms' }]} /></div>
-              <h1 className="t-h1 rise mx-auto mt-8 max-w-[920px] text-white">One platform for every human, machine and AI identity</h1>
+              <h1 className="t-h1 rise mx-auto mt-8 max-w-[920px] text-white">One platform for every human, machine and <em className="accent">AI</em> identity</h1>
               <p className="rise mx-auto mt-6 max-w-[660px] text-[17px] leading-relaxed text-white/90 md:text-[19px]" style={{ animationDelay: '80ms' }}>Attackers no longer break in. They log in, with a person’s password, a forgotten key or an agent’s token. Deep Algorithms secures all three from one place, today.</p>
               <div className="rise mt-8 flex flex-wrap justify-center gap-3" style={{ animationDelay: '160ms' }}>
                 <Button to="/request-demo" variant="white">Book a demo</Button>

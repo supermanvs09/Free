@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router';
 import Header from './components/Header.jsx';
 import Footer from './components/Footer.jsx';
+import Ribbons from './components/Ribbons.jsx';
 import { PRODUCTS } from './data/products.js';
 import { SOLUTIONS } from './data/site.js';
 import { POSTS } from './data/posts.js';
@@ -43,6 +44,7 @@ function PageEffects() {
 export default function App() {
   return (
     <>
+      <Ribbons />
       <Header />
       <main id="main">
         <PageEffects />

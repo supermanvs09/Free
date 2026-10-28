@@ -44,7 +44,7 @@ export default function Products() {
             <div>
               <Breadcrumb light items={[{ name: 'Products' }]} />
               <p className="rise mt-8 text-[15px] font-medium text-cyan">Deep Algorithms platform</p>
-              <h1 className="t-h1 rise mt-3 text-white">Everything that secures an identity</h1>
+              <h1 className="t-h1 rise mt-3 text-white">Everything that secures an <em className="accent">identity</em></h1>
               <p className="rise mt-6 max-w-[540px] text-[17px] leading-relaxed text-white/90 md:text-[19px]" style={{ animationDelay: '80ms' }}>Four product lines on one platform. Start with the risk that worries you most and add the rest when you are ready.</p>
               <div className="rise mt-8 flex flex-wrap gap-3" style={{ animationDelay: '160ms' }}>
                 <Button to="/request-demo" variant="white">Book a demo</Button>

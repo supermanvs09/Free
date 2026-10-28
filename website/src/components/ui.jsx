@@ -4,7 +4,7 @@ import {
   ArrowRight, ArrowUpRight, CaretDown, CaretRight, Bank, FirstAidKit, Buildings, Browsers, Sparkle, Fingerprint, ShieldCheck,
   Scales, Robot, Key, User, Eye, Lightning, ClipboardText, Graph, Plug, Clock, LockKey, Database, Globe, Target, Crosshair,
   MagnifyingGlass, Gauge, TreeStructure, Wallet, Broadcast, Handshake, FileText, Warning, CheckCircle, EnvelopeSimple, Phone,
-  MapPin, LinkedinLogo, List, X, Cloud, HardDrives, Detective, Path, Users, Siren, CloudCheck, Certificate, Stack, Play, LinkSimple, Pause,
+  MapPin, LinkedinLogo, List, X, Cloud, HardDrives, Detective, Path, Users, Siren, CloudCheck, Certificate, Stack, Play, LinkSimple, Pause, PlugsConnected, Pulse,
 } from '@phosphor-icons/react/dist/ssr';
 import { useReducedMotion, useInView, cx } from './visuals/kit.jsx';
 
@@ -14,7 +14,7 @@ const ICONS = {
   ArrowRight, ArrowUpRight, CaretDown, CaretRight, Bank, FirstAidKit, Buildings, Browsers, Sparkle, Fingerprint, ShieldCheck,
   Scales, Robot, Key, User, Eye, Lightning, ClipboardText, Graph, Plug, Clock, LockKey, Database, Globe, Target, Crosshair,
   MagnifyingGlass, Gauge, TreeStructure, Wallet, Broadcast, Handshake, FileText, Warning, CheckCircle, EnvelopeSimple, Phone,
-  MapPin, LinkedinLogo, List, X, Cloud, HardDrives, Detective, Path, Users, Siren, CloudCheck, Certificate, Stack, Play, LinkSimple, Pause,
+  MapPin, LinkedinLogo, List, X, Cloud, HardDrives, Detective, Path, Users, Siren, CloudCheck, Certificate, Stack, Play, LinkSimple, Pause, PlugsConnected, Pulse,
 };
 export function Icon({ name, size = 20, weight = 'regular', className }) {
   const C = ICONS[name];
@@ -24,14 +24,14 @@ export function Icon({ name, size = 20, weight = 'regular', className }) {
 /* Pill buttons, as on astrix.security: filled navy, outlined, and the
    inverse pair used on blue/navy panels. */
 const BTN = {
-  primary: 'bg-navy text-white hover:bg-navy-2',
-  outline: 'border border-navy text-navy hover:bg-navy hover:text-white',
+  primary: 'bg-gradient-to-b from-[#1b8bd2] to-brand text-white shadow-[0_12px_26px_-12px_rgba(0,104,172,.8)] hover:-translate-y-px hover:brightness-110',
+  outline: 'border border-brand/40 bg-white/70 text-brand backdrop-blur hover:border-brand hover:bg-white',
   white: 'bg-white text-navy hover:bg-sky',
   ghostWhite: 'border border-white/70 text-white hover:bg-white hover:text-navy',
   brand: 'bg-brand text-white hover:bg-brand-2',
 };
 export function Button({ to, href, variant = 'primary', className, children, arrow, ...rest }) {
-  const cls = cx('group inline-flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-full px-6 text-[16px] font-medium transition-colors duration-200', BTN[variant], className);
+  const cls = cx('group inline-flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-full px-6 text-[16px] font-medium transition-all duration-200', BTN[variant], className);
   const inner = <>{children}{arrow && <ArrowRight size={16} weight="bold" className="transition-transform group-hover:translate-x-0.5" aria-hidden="true" />}</>;
   if (to) return <Link to={to} className={cls} {...rest}>{inner}</Link>;
   if (href) return <a href={href} className={cls} {...rest}>{inner}</a>;
@@ -61,7 +61,7 @@ export function Reveal({ as: As = 'div', delay = 0, className, children, ...rest
 
 export function Section({ id, className, children, tone }) {
   return (
-    <section id={id} className={cx('py-20 md:py-28', tone === 'mist' && 'bg-mist', className)}>
+    <section id={id} className={cx('py-20 md:py-28', tone === 'mist' && 'bg-mist/80', className)}>
       <div className="wrap">{children}</div>
     </section>
   );
