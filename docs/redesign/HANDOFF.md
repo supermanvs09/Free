@@ -107,3 +107,11 @@ Deploy `dist/` to any static host. The prerender step fails the build if any pag
 - **Messaging.** Home leads with "Attackers no longer break in. They log in.", a manifesto line and four sourced "why now" figures. Every external figure carries its source. Confirm the Deep Algorithms Research figure (15:1) with the research owner.
 - **Cisco-style structure:** two-pane mega menu with promo cards, a `/products` page grouped by job to be done with an FAQ (FAQPage schema), and a "What's new" row. Research notes: `cisco-research.md`.
 - **Not used:** AI-generated images or people, and stock photography. Real team and event photos appear on the About page only.
+
+## Round 5 (2026-10-28): look, Zenstra capabilities, layouts, film v3
+- Global: flowing ribbons (components/Ribbons.jsx), Instrument Serif italic accent words (`.accent`), brighter buttons, per-product display fonts (`font-theme-*`, set by `theme` in data/products.js).
+- Zenstra: six capability pages (data/zenstra.js, illustrations in visuals/CapVisuals.jsx), all listed in the Products menu.
+- Product layouts (`layout` in data/products.js): tour (adapID, ICMS), hub (Zenstra), split (NHI, BotShield, DDoS), ledger (fraud, AD), capability (Zenstra sub-pages). A hero picture that equals a row's picture is not repeated.
+- Film v3 (visuals/Film.jsx): isometric 3D platform, tilted pop-up product cards, layered finish; same audio and VO cues. Hero orbit stays in Flows.jsx.
+- QA run: 42 routes at 1440 and 390, one H1 each, no overflow, film scrubbed 0 to 21.5 s with no errors. Known: React #418 on the static /no-such-page only (pre-existing); one transient axe contrast hit during a heading fade on mobile /dpdpa-compliance.
+- Not verified: audio sync of film v3 with sound playing (cues unchanged, scrub only).
