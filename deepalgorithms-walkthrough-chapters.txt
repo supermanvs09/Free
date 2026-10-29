@@ -1,22 +1,22 @@
 0:00  Introduction
 0:03  Home — The headline types itself · graphite and white
-1:03  Zenstra AI — Security for AI agents
-1:40  adapID AI — Four identity products
-2:13  Identity Fraud Prevention — A scam caught mid-payment, on the phone
-2:49  NHI Security for AWS — adapID AI
-2:59  Active Directory Security — adapID AI
-3:25  BotShield AI — Exposure, bots and DDoS
-3:47  DDoS Protection — BotShield AI
-3:58  ICMS Compliance Suite — DPDPA compliance
-4:25  Why Deep Algorithms — How the products fit together
-4:39  All products — Filter by what you need to protect
-4:51  Solutions · Banking and financial services
-4:56  About us — Company
-5:29  Research — Search, topics and products
-5:43  A research report — Reading progress, contents and takeaways
-5:57  Book a demo — The agenda follows the product you choose
-6:08  Contact — Copy the email or phone in one click
-6:12  Search — Ctrl K or ⌘ K, from any page
-6:18  A hidden terminal — Press ` on any page
-6:26  Dark theme — Switch at any time; the choice is remembered
-6:56  Phone and tablet
+1:29  Zenstra AI — Security for AI agents
+2:06  adapID AI — Four identity products
+2:39  Identity Fraud Prevention — A scam caught mid-payment, on the phone
+3:25  NHI Security for AWS — adapID AI
+3:36  Active Directory Security — adapID AI
+4:02  BotShield AI — Exposure, bots and DDoS
+4:36  DDoS Protection — BotShield AI
+4:51  ICMS Compliance Suite — DPDPA compliance
+5:18  Why Deep Algorithms — How the products fit together
+5:32  All products — Filter by what you need to protect
+5:45  Solutions · Banking and financial services
+5:50  About us — Company
+6:23  Research — Search, topics and products
+6:37  A research report — Reading progress, contents and takeaways
+6:51  Book a demo — The agenda follows the product you choose
+7:01  Contact — Copy the email or phone in one click
+7:06  Search — Ctrl K or ⌘ K, from any page
+7:12  A hidden terminal — Press ` on any page
+7:20  Dark theme — Switch at any time; the choice is remembered
+7:49  Phone and tablet
