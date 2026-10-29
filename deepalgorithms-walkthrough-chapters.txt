@@ -1,20 +1,22 @@
 0:00  Introduction
-0:03  Home — Mixed theme · dark hero, light content
-1:02  Zenstra AI — Security for AI agents
-1:35  adapID AI — Four identity products
-2:03  Identity Fraud Prevention — adapID AI
-2:19  NHI Security for AWS — adapID AI
-2:30  Active Directory Security — adapID AI
-2:56  BotShield AI — Exposure, bots and DDoS
-3:11  DDoS Protection — BotShield AI
-3:21  ICMS Compliance Suite — DPDPA compliance
-3:44  Why Deep Algorithms — How the products fit together
-3:58  All products — Filter by what you need to protect
-4:11  Solutions · Banking and financial services
-4:16  About us — Company
-4:49  Research — Search, topics and products
-5:03  A research report — Reading progress, contents and takeaways
-5:17  Book a demo — The agenda follows the product you choose
-5:27  Contact
-5:30  Dark theme — Switch at any time; the choice is remembered
-5:58  Phone and tablet
+0:03  Home — The headline types itself · graphite and white
+1:03  Zenstra AI — Security for AI agents
+1:36  adapID AI — Four identity products
+2:04  Identity Fraud Prevention — adapID AI
+2:20  NHI Security for AWS — adapID AI
+2:32  Active Directory Security — adapID AI
+2:57  BotShield AI — Exposure, bots and DDoS
+3:12  DDoS Protection — BotShield AI
+3:23  ICMS Compliance Suite — DPDPA compliance
+3:46  Why Deep Algorithms — How the products fit together
+4:00  All products — Filter by what you need to protect
+4:12  Solutions · Banking and financial services
+4:18  About us — Company
+4:51  Research — Search, topics and products
+5:05  A research report — Reading progress, contents and takeaways
+5:19  Book a demo — The agenda follows the product you choose
+5:29  Contact — Copy the email or phone in one click
+5:34  Search — Ctrl K or ⌘ K, from any page
+5:40  A hidden terminal — Press ` on any page
+5:48  Dark theme — Switch at any time; the choice is remembered
+6:16  Phone and tablet
