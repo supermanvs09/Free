@@ -1,5 +1,5 @@
 DEEP ALGORITHMS WEBSITE: FULL SOURCE CODE
-Commit 69fd447. 135 text files below; 81 binary files (images, video, audio, fonts) are listed but not printed.
+Commit 6ec447c. 135 text files below; 81 binary files (images, video, audio, fonts) are listed but not printed.
 
 == CONTENTS ==
   .dockerignore
@@ -210,12 +210,12 @@ Commit 69fd447. 135 text files below; 81 binary files (images, video, audio, fon
   public/img/people/prakash-govindan.webp
   public/img/people/satvasheel-powar.webp
   public/img/people/yogesh-chadha.webp
-  public/img/photos/analyst.webp
   public/img/photos/bfsi.webp
   public/img/photos/digital-platforms.webp
   public/img/photos/engineering.webp
   public/img/photos/government.webp
   public/img/photos/healthcare.webp
+  public/img/photos/hero-person.webp
   public/og/default.png
   public/video/deep-algorithms-film.mp4
   public/video/deep-algorithms-film.webm
@@ -330,7 +330,7 @@ Two stages: Node 22 installs, builds and prerenders every page; nginx then serve
 | `src/components/FlowRibbons.jsx` | Fine silver ribbons behind the heroes only (canvas, pauses off screen, static under reduced motion). The film draws the same ribbons in full colour. |
 | `src/components/Backdrop.jsx` | A still, neutral graphite surface behind the dark bands. Colour lives in the product pictures and the accents, not the background; brand blue is the one accent for actions. Dense reading sits on `.calm`. |
 | `src/components/LogoOrbit.jsx` | The home page logo moment: the mark rises into a brand-blue plate with the line, then pops out and lands at the centre of the identity orbit, with the four products under it. |
-| `src/components/HeroPhoto.jsx`, `public/img/photos/` | The home hero: a real photograph (Pexels, free licence) with what adapID checks about the person. The industry cards use the same photo set. |
+| `src/components/HeroPhoto.jsx`, `public/img/photos/` | The home hero: a real photograph (Pexels, free licence) of a person confirmed as himself, then an impostor with his password stopped. The industry cards and industry page heroes use the same photo set; team pages use only our own photos. |
 | `src/components/Stage3D.jsx` | 3D frame for key pictures; `<Pop>` lifts the important part out of the frame. |
 | `src/components/ProductMark.jsx`, `public/brand/products/` | The official product logos (Zenstra AI, adapID AI, BotShield AI, ICMS), taken from the products' own artwork on deepalgorithms.io and used in the menus, heroes, cards, the company page, research and the film. |
 | `src/components/viz/` | Every product picture, as code with sample data, one file per product line, using the real tools involved (Okta, Microsoft 365, AWS services, GitHub, Claude, Salesforce, UPI…) from `kit.jsx`. Steps play while on screen; server HTML shows the final step. |
@@ -3995,20 +3995,16 @@ FILE: src/components/HeroPhoto.jsx
 ====================================================================================================
 import { useEffect, useRef, useState } from 'react';
 import { useInView, useReducedMotion, cx } from '../lib/motion.js';
-import { Logo } from './viz/kit.jsx';
+import ProductMark from './ProductMark.jsx';
 
-/* The home hero picture: a real person at work, and what adapID AI checks
-   about them, in one glance. Who they are (role, office, team) is confirmed,
-   lines run to the apps they can reach, the two they use are kept and the one
-   they have not opened in 90 days is removed. Photo: Pexels (free licence). */
+/* The home hero picture, telling the headline in one glance: a real person
+   at work, confirmed as himself; then someone else signs in with his
+   password, and adapID AI stops them. Photo: Pexels (free licence). */
 
-const FACTS = ['Finance analyst', 'Hyderabad office', 'Treasury team'];
-const APPS = [
-  { k: 'aws', name: 'AWS', ok: true },
-  { k: 'salesforce', name: 'Salesforce', ok: true },
-  { k: 'github', name: 'GitHub', ok: false },
-];
-const STEPS = 7; // 0..2 facts, 3 lines, 4..5 apps kept, 6 one removed
+const FACTS = ['Finance analyst', 'His usual laptop', 'Hyderabad office'];
+const STEPS = 5; // 0..2 confirmed, 3 the other sign-in, 4 blocked
+
+const Tick = () => <svg width="13" height="13" viewBox="0 0 14 14" aria-hidden="true"><path d="m3 7.3 2.6 2.5L11 4.3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 
 export default function HeroPhoto() {
   const ref = useRef(null);
@@ -4017,49 +4013,37 @@ export default function HeroPhoto() {
   const [k, setK] = useState(-1); // hidden until it plays; without scripts, CSS shows the finished picture
   useEffect(() => {
     if (reduce) { setK(STEPS); return undefined; }
-    if (!seen) { setK(-1); return undefined; }
-    setK(-1);
-    const ts = Array.from({ length: STEPS + 1 }, (_, i) => setTimeout(() => setK(i), 500 + i * 420));
+    if (!seen) return undefined;
+    const at = [500, 900, 1300, 2300, 3500];
+    const ts = at.map((ms, i) => setTimeout(() => setK(i), ms));
     return () => ts.forEach(clearTimeout);
   }, [seen, reduce]);
+  const blocked = k >= 4;
   return (
-    <figure ref={ref} className="hp relative mx-auto w-full max-w-[640px]" aria-label="A finance analyst at work. adapID AI confirms his role, office and team, keeps his access to AWS and Salesforce, and removes GitHub access he has not used in 90 days.">
+    <figure ref={ref} className="hp relative mx-auto w-full max-w-[600px] lg:mr-0" aria-label="A finance analyst at his laptop. adapID AI confirms it is him: his role, his usual laptop, his office. Then someone signs in with his password from a new phone in Lagos, and adapID AI blocks it.">
       <div className="relative overflow-hidden rounded-[24px] border border-white/15 shadow-[0_40px_90px_-40px_rgba(0,0,0,.8)]">
-        <img src="/img/photos/analyst.webp" alt="" width="1800" height="1200" className="aspect-[5/4] w-full object-cover object-[62%_center]" fetchPriority="high" decoding="async" />
-        <div aria-hidden="true" className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgb(4 25 58 / .55), rgb(4 25 58 / .08) 55%, transparent), linear-gradient(0deg, rgb(4 25 58 / .45), transparent 45%)' }} />
-      </div>
-      <div aria-hidden="true" className="absolute left-[-4%] top-[30%] w-[58%] max-w-[300px] max-sm:left-[3%] max-sm:w-[64%]">
-        <ul className="space-y-2.5">
+        <img src="/img/photos/hero-person.webp" alt="" width="1800" height="1440" className="aspect-[5/4] w-full object-cover object-top" fetchPriority="high" decoding="async" />
+        <div aria-hidden="true" className="absolute inset-0" style={{ background: 'linear-gradient(0deg, rgb(4 25 58 / .35), transparent 40%)' }} />
+        {/* it is him */}
+        <ul aria-hidden="true" className="absolute right-[4%] top-[7%] w-[44%] min-w-[180px] space-y-2 max-sm:bottom-[5%] max-sm:top-auto max-sm:min-w-0 max-sm:w-[52%] max-sm:space-y-1.5">
           {FACTS.map((f, i) => (
-            <li key={f} className={cx('hp-chip flex items-center gap-2.5 rounded-[10px] bg-[#0b3a8c] px-3 py-2.5 text-[15px] font-medium text-white shadow-[0_14px_30px_-14px_rgba(0,0,0,.7)] max-sm:text-[13px]', k >= i && 'on')}>
-              <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white text-[#0b3a8c]"><svg width="13" height="13" viewBox="0 0 14 14"><path d="m3 7.3 2.6 2.5L11 4.3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
-              {f}
+            <li key={f} className={cx('hp-chip flex items-center gap-2.5 rounded-[10px] bg-white/95 px-3 py-2 text-[14.5px] font-medium text-[#0e1116] shadow-[0_14px_30px_-14px_rgba(0,0,0,.55)] max-sm:gap-2 max-sm:px-2.5 max-sm:py-1.5 max-sm:text-[12.5px]', k >= i && 'on')}>
+                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#0a6dbb] text-white"><Tick /></span>{f}
             </li>
           ))}
         </ul>
-        {/* lines from the identity down to the apps it can reach */}
-        <svg viewBox="0 0 300 56" className="h-[56px] w-full overflow-visible" preserveAspectRatio="none">
-          {[50, 150, 250].map((x, i) => <path key={x} d={`M150 0 V20 Q150 28 ${x > 150 ? 158 : x < 150 ? 142 : 150} 28 H${x === 150 ? 150 : x + (x > 150 ? -8 : 8)} Q${x} 28 ${x} 36 V56`} className={cx('hp-line', k >= 3 && 'on')} style={{ transitionDelay: `${i * 90}ms` }} fill="none" stroke="#9cc8ff" strokeWidth="1.6" />)}
-        </svg>
-        <ul className="grid grid-cols-3 gap-[6%] px-[3%]">
-          {APPS.map((a, i) => {
-            const on = k >= (a.ok ? 4 + i : 6);
-            return (
-              <li key={a.k} className={cx('hp-app relative flex aspect-square items-center justify-center rounded-[14px] bg-white text-[#0e1014] shadow-[0_14px_30px_-12px_rgba(0,0,0,.6)]', k >= 3 && 'in', on && !a.ok && 'off')}>
-                <Logo k={a.k} size="54%" />
-                <span className={cx('hp-badge absolute -right-2 -top-2 grid h-6 w-6 place-items-center rounded-full border-2 border-white text-white', a.ok ? 'bg-[#0a6dbb]' : 'bg-[#e5484d]', on && 'on')}>
-                  {a.ok ? <svg width="12" height="12" viewBox="0 0 14 14"><path d="m3 7.3 2.6 2.5L11 4.3" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                    : <svg width="10" height="10" viewBox="0 0 12 12"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
       </div>
-      <figcaption className={cx('hp-note absolute left-[4%] top-[5%] max-w-[54%] max-sm:max-w-[80%] rounded-[12px] border border-white/15 bg-[#04193a]/80 px-4 py-3 text-[14px] leading-snug text-white backdrop-blur-md max-sm:text-[12.5px]', k >= STEPS && 'on')}>
-        <span className="block font-semibold">Access matches his role.</span>
-        <span className="block text-white/75">GitHub, unused for 90 days, removed by adapID AI.</span>
-      </figcaption>
+      {/* someone else, with his password */}
+      <div aria-hidden="true" className={cx('hp-note absolute bottom-[6%] left-[-5%] w-[62%] min-w-[240px] rounded-[16px] bg-white p-4 text-left text-[#0e1116] shadow-[0_28px_60px_-22px_rgba(0,0,0,.7)] max-sm:relative max-sm:inset-auto max-sm:mt-3 max-sm:w-full max-sm:min-w-0', k >= 3 && 'on')}>
+        <p className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[.08em] text-[#5c6777]"><ProductMark p="adapid" size={18} />New sign-in · 02:14</p>
+        <p className="mt-2 text-[15.5px] font-semibold leading-snug">His password, a new phone, in Lagos.</p>
+        <p className={cx('mt-3 flex items-center justify-between gap-3 rounded-[10px] px-3 py-2 text-[14px] font-semibold transition-colors duration-500', blocked ? 'bg-[#fdecec] text-[#c4302b]' : 'bg-[#f1f4f8] text-[#5c6777]')}>
+          <span>{blocked ? 'Blocked. Not him.' : 'Checking…'}</span>
+          <span className={cx('grid h-6 w-6 place-items-center rounded-full text-white transition-colors duration-500', blocked ? 'bg-[#e5484d]' : 'bg-[#9aa5b4]')}>
+            {blocked ? <svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg> : <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />}
+          </span>
+        </p>
+      </div>
     </figure>
   );
 }
@@ -9275,15 +9259,16 @@ function Login({ t }) {
     const x = ease(seg(t, at, at + 0.6));
     const flag = bad && t > wordAt(L, 9) - 0.3;
     return (
-      <div style={{ width: 560, padding: '26px 30px', borderRadius: 26, background: 'linear-gradient(180deg, #191b1f, #101216)', border: `1px solid ${flag ? 'rgb(255 107 93 / .45)' : 'rgb(160 190 230 / .16)'}`, boxShadow: '0 50px 100px -40px rgba(0,0,0,.9)', opacity: x, transform: `translateY(${(1 - x) * 40}px)` }}>
+      <div style={{ width: 640, padding: '30px 34px', borderRadius: 28, background: 'linear-gradient(180deg, #191b1f, #101216)', border: `1px solid ${flag ? 'rgb(255 107 93 / .45)' : 'rgb(160 190 230 / .16)'}`, boxShadow: '0 50px 100px -40px rgba(0,0,0,.9)', opacity: x, transform: `translateY(${(1 - x) * 40}px)` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-          <span style={{ width: 64, height: 64, borderRadius: 64, background: '#ffd27a', color: '#0e1014', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 24 }}>KR</span>
-          <span><span style={{ display: 'block', fontSize: 30, fontWeight: 600 }}>Kavya Reddy · {city}</span><span style={{ display: 'block', fontSize: 22, color: '#9ea0a4' }}>{dev}</span></span>
-          <span style={{ marginLeft: 'auto', fontFamily: 'JetBrains Mono Variable, monospace', fontSize: 22, color: '#b2b4b8' }}>{time}</span>
+          {/* the same person as the home page hero: his sign-in, then someone else with his password */}
+          <img src="/img/photos/hero-person.webp" alt="" style={{ width: 76, height: 76, borderRadius: 76, objectFit: 'cover', objectPosition: '38% 12%', border: '2px solid rgb(255 255 255 / .2)' }} />
+          <span><span style={{ display: 'block', fontSize: 34, fontWeight: 600 }}>Finance analyst</span><span style={{ display: 'block', fontSize: 25, color: '#9ea0a4' }}>{city} · {dev}</span></span>
+          <span style={{ marginLeft: 'auto', fontFamily: 'JetBrains Mono Variable, monospace', fontSize: 25, color: '#b2b4b8' }}>{time}</span>
         </div>
         <div style={{ display: 'flex', gap: 12, marginTop: 22 }}>
-          <span style={{ padding: '8px 16px', borderRadius: 99, background: 'rgb(63 217 143 / .12)', color: '#4be29a', fontSize: 20, fontWeight: 600 }}>✓ MFA passed</span>
-          <span style={{ padding: '8px 16px', borderRadius: 99, background: 'rgb(63 217 143 / .12)', color: '#4be29a', fontSize: 20, fontWeight: 600 }}>✓ Signed in</span>
+          <span style={{ padding: '9px 18px', borderRadius: 99, background: 'rgb(63 217 143 / .12)', color: '#4be29a', fontSize: 23, fontWeight: 600 }}>✓ MFA passed</span>
+          <span style={{ padding: '9px 18px', borderRadius: 99, background: 'rgb(63 217 143 / .12)', color: '#4be29a', fontSize: 23, fontWeight: 600 }}>✓ Signed in</span>
         </div>
       </div>
     );
@@ -9294,9 +9279,9 @@ function Login({ t }) {
       <div style={{ position: 'absolute', left: 0, right: 0, top: 120 }}>
         <Spoken line={C.login} t={t} size={80} width={1500} words="They don’t break in anymore. They log in." part={[0, 8 / 13]} />
       </div>
-      <div style={{ position: 'absolute', left: 0, right: 0, top: 470, display: 'flex', justifyContent: 'center', gap: 60, perspective: 1800 }}>
-        <div style={{ transform: `rotateY(${16 - t * 0.6}deg) rotateX(6deg)` }}>{card('Mumbai', 'Managed laptop', '09:12', L.start + 1.0, false)}</div>
-        <div style={{ transform: `rotateY(${-16 + t * 0.6}deg) rotateX(6deg)` }}>{card('Lagos', 'New device', '11:05', wordAt(L, 5) - 0.1, true)}</div>
+      <div style={{ position: 'absolute', left: 0, right: 0, top: 430, display: 'flex', justifyContent: 'center', gap: 56, perspective: 1800 }}>
+        <div style={{ transform: `rotateY(${12 - t * 0.5}deg) rotateX(5deg)` }}>{card('Hyderabad', 'His usual laptop', '09:12', L.start + 1.0, false)}</div>
+        <div style={{ transform: `rotateY(${-12 + t * 0.5}deg) rotateX(5deg)` }}>{card('Lagos', 'A new phone', '02:14', wordAt(L, 5) - 0.1, true)}</div>
       </div>
       <div style={{ position: 'absolute', left: 0, right: 0, top: 820, textAlign: 'center', opacity: ease(seg(t, wordAt(L, 9) - 0.3, wordAt(L, 9) + 0.3)) }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 16, padding: '16px 30px', borderRadius: 99, border: '1px solid rgb(148 170 200 / .25)', background: 'rgb(255 255 255 / .04)', fontSize: 30, color: '#d5d7db' }}>
@@ -10734,16 +10719,18 @@ export default function Home() {
       <section className="stage band-brand hero-under relative overflow-hidden" aria-labelledby="hero-h">
         <div className="wrap relative grid items-center gap-12 pb-12 pt-10 md:pt-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)] lg:gap-10 lg:pb-16 lg:pt-20">
           <div className="max-w-[600px] max-md:mx-auto max-md:text-center">
-            <Eyebrow className="rise">Identity security for the AI era</Eyebrow>
-            <h1 id="hero-h" className="t-hero rise mt-6" style={{ '--d': '60ms' }}>Secure every identity: people, machines and AI agents.</h1>
-            <p className="t-lead rise mt-6 max-w-[540px] max-md:mx-auto" style={{ '--d': '120ms' }}>Deep Algorithms learns how every person, machine identity and AI agent behaves, and stops the one that is misused before it becomes a breach.</p>
+            <h1 id="hero-h" className="t-hero rise" style={{ '--d': '40ms' }}>Stop the attacker who logs in.</h1>
+            <p className="t-lead rise mt-6 max-w-[500px] max-md:mx-auto" style={{ '--d': '110ms' }}>Deep Algorithms secures every person, machine identity and AI agent, and stops the one being misused.</p>
             <div className="rise mt-9 flex flex-wrap gap-3 max-md:flex-col max-md:[&>*]:w-full" style={{ '--d': '180ms' }}>
               <Explore label="See the platform" target="#orbit" />
               <Button href="#film" variant="ghost" size="lg"><Icon name="Play" size={15} weight="fill" />Watch the film · 1 min</Button>
             </div>
-            <ul className="rise mt-9 flex flex-wrap gap-2 max-md:justify-center" style={{ '--d': '240ms' }} aria-label="Certifications">
-              {CERTS.map((c) => <li key={c.code} className="badge-cert"><Icon name="SealCheck" size={15} />{c.name}</li>)}
-            </ul>
+            <div className="rise mt-8 flex items-center gap-2 text-[13.5px] text-ink-3 max-md:justify-center" style={{ '--d': '240ms' }}>
+              <Icon name="SealCheck" size={16} className="shrink-0 text-cyan-2" />
+              <ul aria-label="Certifications" className="flex flex-wrap gap-x-2 gap-y-1">
+                {CERTS.map((c, i) => <li key={c.code}>{i > 0 && <span aria-hidden="true" className="mr-2">·</span>}{c.name.replace('ISO/IEC ', 'ISO ')}</li>)}
+              </ul>
+            </div>
           </div>
           <div className="rise relative lg:pl-6" style={{ '--d': '200ms' }}>
             <HeroPhoto />
@@ -11145,11 +11132,19 @@ import { MoneyTrail } from '../components/scenes/money.jsx';
 import { PatientAccess } from '../components/viz/icms.jsx';
 import { BotStream } from '../components/scenes/bots.jsx';
 import { EdgeShield } from '../components/scenes/ddos.jsx';
+import ProductMark from '../components/ProductMark.jsx';
 import NotFound from './NotFound.jsx';
 
-/* Each industry opens on the scene that matters most to it. */
+/* Each industry opens on a real photograph of the people it protects, with
+   the number that matters most to it; the scene that shows the risk follows. */
 const SCENE = { bfsi: MoneyTrail, healthcare: PatientAccess, government: EdgeShield, 'digital-platforms': BotStream };
 const FRAMED = new Set(['bfsi', 'government', 'digital-platforms']);
+const SEE = {
+  bfsi: 'A stolen payment, followed to the mule.',
+  healthcare: 'Every patient record opened, with the reason.',
+  government: 'A flood at the edge, absorbed before the portal.',
+  'digital-platforms': 'Bots at sign-up, stopped by what they do.',
+};
 const KEY = { fraud: 'fraud', nhi: 'nhi', zenstra: 'zenstra', icms: 'icms', adapid: 'cirm', ad: 'ad', ddos: 'ddos', botshield: 'botshield' };
 
 export default function Solution() {
@@ -11163,8 +11158,22 @@ export default function Solution() {
     <>
       <Seo title={s.seoTitle} description={s.description} path={path} crumbs={[{ name: s.name, path }]} />
       <Hero crumbs={[{ name: 'Solutions' }, { name: s.name }]} eyebrow={`Solutions · ${s.name}`} title={s.title} lead={s.sub}>
-        <Stage3D tilt={FRAMED.has(slug) ? [4, -9] : [6, -13]}>{FRAMED.has(slug) ? <div className="scn-frame"><V /></div> : <V />}</Stage3D>
+        <figure className="relative mx-auto w-full max-w-[600px]">
+          <img src={`/img/photos/${slug}.webp`} alt="" width="1200" height="800" className="aspect-[4/3] w-full rounded-[24px] border border-white/15 object-cover shadow-[0_40px_90px_-40px_rgba(0,0,0,.8)]" fetchPriority="high" decoding="async" />
+          <figcaption className="absolute bottom-[6%] left-[-4%] w-[64%] min-w-[240px] rounded-[16px] bg-white p-4 text-left text-[#0e1116] shadow-[0_28px_60px_-22px_rgba(0,0,0,.7)] max-sm:relative max-sm:inset-auto max-sm:mt-3 max-sm:w-full max-sm:min-w-0">
+            <span className="block text-[26px] font-semibold leading-none tracking-[-0.03em] text-[#0a6dbb] num">{s.stats[0].v}</span>
+            <span className="mt-1.5 block text-[14px] leading-snug text-[#3f4a5a]">{s.stats[0].l}</span>
+            <span className="mt-3 flex items-center gap-2 border-t border-[#e3e8ee] pt-3 text-[12.5px] text-[#5c6777]">Protected by{[...new Set(products.map((x) => x.line))].map((l) => <ProductMark key={l} p={l} size={22} alt />)}</span>
+          </figcaption>
+        </figure>
       </Hero>
+
+      <section className="stage sec" aria-labelledby="see-h">
+        <div className="wrap">
+          <SectionHead id="see-h" eyebrow="What it looks like" title={SEE[slug]} />
+          <Reveal className="mx-auto mt-12 max-w-[980px]"><Stage3D tilt={FRAMED.has(slug) ? [4, -9] : [6, -13]}>{FRAMED.has(slug) ? <div className="scn-frame"><V /></div> : <V />}</Stage3D></Reveal>
+        </div>
+      </section>
 
       <Stats items={s.stats} title="Why it matters now" />
 
@@ -13505,20 +13514,12 @@ header .hdr-bg { transition: background-color 0.35s ease, border-color 0.35s eas
 .nm-card { opacity: 0; transform: translateY(12px) scale(.96); transition: opacity .45s, transform .5s cubic-bezier(.34,1.56,.64,1), background-color .5s; }
 .nm-card.on { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) { .nm-line { stroke-dashoffset: 0; } .nm-dash, .nm-tile, .nm-key, .nm-card { opacity: 1; scale: 1; transform: none; } }
-/* ---------- home hero picture: a real person and what adapID checks ---------- */
+/* ---------- home hero picture: a real person, and the impostor stopped ---------- */
 .hp-chip { opacity: 0; transform: translateX(-14px); transition: opacity .45s, transform .55s cubic-bezier(.16,1,.3,1); }
 .hp-chip.on { opacity: 1; transform: none; }
-.hp-line { stroke-dasharray: 120; stroke-dashoffset: 120; transition: stroke-dashoffset .7s ease; }
-.hp-line.on { stroke-dashoffset: 0; }
-.hp-app { opacity: 0; transform: translateY(10px) scale(.92); transition: opacity .4s, transform .5s cubic-bezier(.34,1.56,.64,1), filter .5s; }
-.hp-app.in { opacity: 1; transform: none; }
-.hp-app.off { filter: grayscale(1); opacity: .55; }
-.hp-badge { opacity: 0; transform: scale(.4); transition: opacity .3s, transform .4s cubic-bezier(.34,1.56,.64,1); }
-.hp-badge.on { opacity: 1; transform: none; }
 .hp-note { opacity: 0; transform: translateY(8px); transition: opacity .5s, transform .5s; }
 .hp-note.on { opacity: 1; transform: none; }
-html:not(.js) .hp-chip, html:not(.js) .hp-app, html:not(.js) .hp-badge, html:not(.js) .hp-note { opacity: 1; transform: none; }
-html:not(.js) .hp-line { stroke-dashoffset: 0; }
+html:not(.js) .hp-chip, html:not(.js) .hp-note { opacity: 1; transform: none; }
 /* ---------- Why Deep Algorithms: the platform picture and the team roll ---------- */
 .core-node { border-color: var(--color-line-2); transition: border-color .4s, color .4s, background .4s, box-shadow .4s, scale .4s; }
 .core-node.is-hot { border-color: #f0644d; color: #f0644d; background: color-mix(in oklab, #f0644d 12%, var(--color-bg-1)); box-shadow: 0 0 0 6px color-mix(in oklab, #f0644d 16%, transparent); scale: 1.12; }
@@ -13613,9 +13614,10 @@ test('a missing page names the address and offers search', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Search the site' }).last()).toBeVisible();
 });
 
-test('the home hero names the category and shows proof before any scroll', async ({ page, isMobile }) => {
+test('the home hero says what we stop, names who we secure and shows proof before any scroll', async ({ page, isMobile }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1, name: 'Secure every identity: people, machines and AI agents.' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Stop the attacker who logs in.' })).toBeVisible();
+  await expect(page.getByText('secures every person, machine identity and AI agent', { exact: false }).first()).toBeVisible();
   const certs = page.getByRole('list', { name: 'Certifications' }).first();
   await expect(certs.getByRole('listitem')).toHaveCount(4);
   if (!isMobile) {
