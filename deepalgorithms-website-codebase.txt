@@ -1,5 +1,5 @@
 DEEP ALGORITHMS WEBSITE: FULL SOURCE CODE
-Commit 004e2cd. 140 text files below; 85 binary files (images, video, audio, fonts) are listed but not printed.
+Commit ea91fbf. 140 text files below; 85 binary files (images, video, audio, fonts) are listed but not printed.
 
 == CONTENTS ==
   .dockerignore
@@ -60,6 +60,7 @@ Commit 004e2cd. 140 text files below; 85 binary files (images, video, audio, fon
   src/components/viz/adapid.jsx
   src/components/viz/botshield.jsx
   src/components/viz/fraud.jsx
+  src/components/viz/frauddecisions.jsx
   src/components/viz/home.jsx
   src/components/viz/icms.jsx
   src/components/viz/kit.jsx
@@ -92,7 +93,6 @@ Commit 004e2cd. 140 text files below; 85 binary files (images, video, audio, fon
   src/entry-server.jsx
   src/lib/head.jsx
   src/lib/motion.js
-  src/lib/theme.js
   src/lib/translate.js
   src/main.jsx
   src/pages/Article.jsx
@@ -414,7 +414,7 @@ FILE: index.html
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="theme-color" content="#0a0b0e" />
-    <script>(function(){var r=document.documentElement;r.classList.add('js');try{if(localStorage.getItem('da-theme')==='dark')r.setAttribute('data-theme','dark')}catch(e){}})();</script>
+    <script>(function(){var r=document.documentElement;r.classList.add('js');try{localStorage.removeItem('da-theme')}catch(e){}})();</script>
     <!--app-head-->
   </head>
   <body>
@@ -2665,16 +2665,14 @@ export default function CertSeal({ code, size = 56, className, title }) {
 ====================================================================================================
 FILE: src/components/Changes.jsx
 ====================================================================================================
-import { useEffect, useRef, useState } from 'react';
-import { Icon, Reveal } from './ui.jsx';
-import { useInView, useReducedMotion } from '../lib/motion.js';
+import { Icon, Reveal, cx } from './ui.jsx';
 
 /* "What changes with …": one comparison per product, each in the form that suits
-   its story. Zenstra flips a switch over an agent's five moments; adapID races
-   two timelines of the same stolen password; ICMS answers the auditor's
-   questions. (BotShield's queue is a scene: scenes/proof.jsx.) */
+   its story. Zenstra sets an agent's five moments side by side, before and
+   after; adapID races two timelines of the same stolen password; ICMS answers
+   the auditor's questions. (BotShield's queue is a scene: scenes/proof.jsx.) */
 
-/* ---------- Zenstra: one switch, five moments ---------- */
+/* ---------- Zenstra: five moments, before and after ---------- */
 const ZEN = [
   ['Discover', 'Agents found after an incident, one platform at a time', 'One inventory of every agent, each with a named owner'],
   ['Access', 'Standing keys and service accounts with broad scope', 'Grants scoped to the task that expire on their own'],
@@ -2683,48 +2681,35 @@ const ZEN = [
   ['Prove', 'Evidence pulled together by hand for every exam', 'A tamper-evident record, exported as evidence'],
 ];
 
-export function ZenToggle() {
-  const ref = useRef(null);
-  const [on, setOn] = useState(false);
-  const touched = useRef(false);
-  const seen = useInView(ref, { threshold: 0.45, once: true });
-  const reduce = useReducedMotion();
-  // the first time it is seen, the switch turns itself on once, so the change is shown, not described
-  useEffect(() => {
-    if (!seen || touched.current) return undefined;
-    const t = setTimeout(() => { if (!touched.current) setOn(true); }, reduce ? 0 : 1100);
-    return () => clearTimeout(t);
-  }, [seen, reduce]);
-  const flip = () => { touched.current = true; setOn((v) => !v); };
+/* Before and after, side by side, the way enterprise pages show a change:
+   the old way muted, the new way lit, the same five moments in each. */
+export function ZenCompare() {
   const acc = 'var(--color-zen)';
-  return (
-    <div ref={ref} className="card overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line px-6 py-5 md:px-8">
-        <p className="text-[15px] text-ink-2">An AI agent’s life in your enterprise, <span className="font-semibold text-ink">{on ? 'with Zenstra' : 'without Zenstra'}</span></p>
-        <button type="button" role="switch" aria-checked={on} onClick={flip} className="group inline-flex items-center gap-3 rounded-full border border-line-2 py-1.5 pl-4 pr-1.5 text-[14.5px] font-medium">
-          Zenstra
-          <span className="relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-500" style={{ background: on ? acc : 'color-mix(in oklab, var(--color-fg) 14%, transparent)' }}>
-            <span className="absolute h-5 w-5 rounded-full bg-white shadow transition-transform duration-500" style={{ transform: `translateX(${on ? 24 : 4}px)` }} />
-          </span>
-        </button>
+  const Col = ({ on }) => (
+    <div className={on ? 'chg-with' : 'chg-without'} style={{ '--acc': acc }}>
+      <div className="flex items-center justify-between gap-3 px-6 pb-4 pt-6 md:px-7">
+        <p className="text-[13px] font-semibold uppercase tracking-[.1em]" style={{ color: on ? acc : 'var(--color-crit)' }}>{on ? 'With Zenstra' : 'Without Zenstra'}</p>
+        <span className="rounded-full px-2.5 py-1 text-[12px] font-semibold" style={on ? { background: 'color-mix(in oklab, var(--color-ok) 14%, transparent)', color: 'var(--color-ok)' } : { background: 'color-mix(in oklab, var(--color-crit) 12%, transparent)', color: 'var(--color-crit)' }}>{on ? 'Decided before it runs' : 'Found after the incident'}</span>
       </div>
-      <ol>
+      <ol className="px-3 pb-3 md:px-4 md:pb-4">
         {ZEN.map(([moment, off, onText], i) => (
-          <li key={moment} className="grid items-center gap-2 border-b border-line px-6 py-4 last:border-b-0 md:grid-cols-[150px_1fr] md:gap-6 md:px-8">
-            <span className="text-[12.5px] font-semibold uppercase tracking-[.1em] text-ink-3"><span className="num mr-2">{String(i + 1).padStart(2, '0')}</span>{moment}</span>
-            <span className="relative flex min-h-[28px] items-center gap-3">
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full transition-colors duration-500" style={{ background: on ? 'color-mix(in oklab, var(--color-zen) 16%, transparent)' : 'color-mix(in oklab, var(--color-crit) 12%, transparent)', color: on ? acc : 'var(--color-crit)', transitionDelay: `${i * 70}ms` }}>
-                <Icon name={on ? 'Check' : 'X'} size={14} weight="bold" />
-              </span>
-              {/* both texts share one grid cell, so the row is as tall as the longer one */}
-              <span className="grid flex-1 text-[16px]">
-                <span className="text-ink-3 transition-all duration-500 [grid-area:1/1]" style={{ opacity: on ? 0 : 1, transform: `translateY(${on ? -6 : 0}px)`, transitionDelay: `${i * 70}ms` }} aria-hidden={on}>{off}</span>
-                <span className="font-medium text-ink transition-all duration-500 [grid-area:1/1]" style={{ opacity: on ? 1 : 0, transform: `translateY(${on ? 0 : 6}px)`, transitionDelay: `${i * 70}ms` }} aria-hidden={!on}>{onText}</span>
-              </span>
+          <Reveal as="li" key={moment} delay={(on ? 300 : 0) + i * 90} className="flex gap-3.5 rounded-[14px] px-3 py-3.5 md:px-3.5">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full" style={on ? { background: acc, color: '#fff' } : { background: 'color-mix(in oklab, var(--color-crit) 12%, transparent)', color: 'var(--color-crit)' }}>
+              <Icon name={on ? 'Check' : 'X'} size={15} weight="bold" />
             </span>
-          </li>
+            <span className="min-w-0">
+              <span className="block text-[12px] font-semibold uppercase tracking-[.1em] text-ink-3"><span className="num mr-1.5">{String(i + 1).padStart(2, '0')}</span>{moment}</span>
+              <span className={on ? 'mt-0.5 block text-[16px] font-medium leading-snug text-ink' : 'mt-0.5 block text-[15.5px] leading-snug text-ink-3'}>{on ? onText : off}</span>
+            </span>
+          </Reveal>
         ))}
       </ol>
+    </div>
+  );
+  return (
+    <div className="grid gap-4 md:grid-cols-2">
+      <Col on={false} />
+      <Col on />
     </div>
   );
 }
@@ -2746,10 +2731,10 @@ const WITH = [
 function Lane({ title, items, tone, end, delay = 0 }) {
   const col = tone === 'crit' ? 'var(--color-crit)' : 'var(--color-adap)';
   return (
-    <div className="card p-6 md:p-8">
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
+    <div className={cx('p-6 md:p-8', tone === 'crit' ? 'chg-without' : 'chg-with')} style={{ '--acc': col }}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-[13px] font-semibold uppercase tracking-[.1em]" style={{ color: col }}>{title}</p>
-        <p className="text-[14px] text-ink-3">{end[0]} · <span className="font-semibold" style={{ color: col }}>{end[1]}</span></p>
+        <p className="flex items-center gap-2 text-[14px] text-ink-2"><span className="num font-semibold text-ink">{end[0]}</span><span className="rounded-full px-2.5 py-1 text-[12.5px] font-semibold" style={{ background: tone === 'crit' ? 'color-mix(in oklab, var(--color-crit) 12%, transparent)' : 'color-mix(in oklab, var(--color-ok) 14%, transparent)', color: tone === 'crit' ? 'var(--color-crit)' : 'var(--color-ok)' }}>{end[1]}</span></p>
       </div>
       <ol className="relative mt-7 grid gap-6 md:grid-cols-4 md:gap-5">
         <span aria-hidden="true" className="absolute left-[11px] top-3 bottom-3 w-px md:left-3 md:right-3 md:top-[11px] md:bottom-auto md:h-px md:w-auto" style={{ background: `color-mix(in oklab, ${col} 35%, transparent)` }} />
@@ -2799,7 +2784,7 @@ export function AuditorQuestions() {
             <span className="flex items-center justify-between gap-3"><span className="text-[12px] font-semibold uppercase tracking-[.1em] text-ink-3">Today</span><span className="rounded-full px-2 py-0.5 text-[12px] font-semibold" style={{ background: 'color-mix(in oklab, var(--color-crit) 12%, transparent)', color: 'var(--color-crit)' }}>{t1}</span></span>
             <span className="mt-1 block text-[15px] leading-snug text-ink-3">{today}</span>
           </p>
-          <p className="rounded-[14px] p-3 md:-my-2" style={{ background: 'color-mix(in oklab, var(--color-icms) 8%, transparent)' }}>
+          <p className="rounded-[14px] border-l-[3px] bg-white p-3.5 shadow-[0_10px_24px_-16px_rgb(16_40_80/.35)] md:-my-2" style={{ borderColor: 'var(--color-icms)' }}>
             <span className="flex items-center justify-between gap-3"><span className="text-[12px] font-semibold uppercase tracking-[.1em]" style={{ color: 'var(--color-icms)' }}>With ICMS</span><span className="rounded-full px-2 py-0.5 text-[12px] font-semibold" style={{ background: 'color-mix(in oklab, var(--color-ok) 14%, transparent)', color: 'var(--color-ok)' }}>{t2}</span></span>
             <span className="mt-1 block text-[15px] font-medium leading-snug">{icms}</span>
           </p>
@@ -2820,7 +2805,6 @@ import { ZCAPS } from '../data/zenstra.js';
 import { SOLUTIONS } from '../data/site.js';
 import { POSTS } from '../data/posts.js';
 import { LEGAL } from '../data/legal.js';
-import { toggleTheme } from '../lib/theme.js';
 import { Icon, cx } from './ui.jsx';
 
 /* Two overlays, loaded only when asked for:
@@ -2940,7 +2924,7 @@ const DIRS = {
 };
 const HELP = [
   ['help', 'this list'], ['ls', 'what is here'], ['open <name>', 'go to a page, e.g. open zenstra'], ['whoami', 'who the site thinks you are'],
-  ['cat mission', 'why we exist'], ['date', 'the time at headquarters'], ['theme', 'switch light and dark'], ['history', 'what you typed'],
+  ['cat mission', 'why we exist'], ['date', 'the time at headquarters'], ['history', 'what you typed'],
   ['clear', 'clear the screen'], ['exit', 'close the terminal'],
 ];
 const hydTime = () => new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date());
@@ -2964,7 +2948,6 @@ function run(raw, { go, history }) {
       if (/^(mission|readme)/i.test(arg)) return [{ k: 'out', t: 'Identity security for the AI era.' }, { k: 'out', t: 'People, machine identities and AI agents hold the keys now. We learn how each one behaves, and stop the one that is misused before it becomes a breach.' }];
       return [{ k: 'err', t: arg ? `cat: ${arg}: no such file` : 'cat what? Try: cat mission' }];
     case 'date': case 'time': return [{ k: 'out', t: `Hyderabad · ${hydTime()} IST` }];
-    case 'theme': toggleTheme(innerWidth / 2, innerHeight / 2); return [{ k: 'ok', t: 'theme switched' }];
     case 'history': return history.map((h, i) => ({ k: 'out', t: `  ${String(i + 1).padStart(3)}  ${h}` }));
     case 'echo': return [{ k: 'out', t: arg }];
     case 'pwd': return [{ k: 'out', t: `/home/guest${location.pathname === '/' ? '' : location.pathname}` }];
@@ -2979,7 +2962,7 @@ function run(raw, { go, history }) {
     default: return [{ k: 'err', t: `command not found: ${cmd}. Type help.` }];
   }
 }
-const NAMES = ['help', 'ls', 'open', 'whoami', 'cat', 'date', 'theme', 'history', 'clear', 'exit', 'echo', 'pwd', ...Object.keys(DIRS).map((d) => `open ${d}`), 'cat mission'];
+const NAMES = ['help', 'ls', 'open', 'whoami', 'cat', 'date', 'history', 'clear', 'exit', 'echo', 'pwd', ...Object.keys(DIRS).map((d) => `open ${d}`), 'cat mission'];
 const TONE = { in: 'text-[#f2f3f5]', out: 'text-[#c9cdd3]', dim: 'text-[#7d838d]', err: 'text-[#ff8a7e]', ok: 'text-[#6be3a4]' };
 
 function Terminal({ onClose }) {
@@ -3718,7 +3701,6 @@ import { Link, useLocation } from 'react-router';
 import { SITE, SOLUTIONS } from '../data/site.js';
 import { PRODUCT_MENU, CHALLENGES } from '../data/nav.js';
 import { LANGS, getLang, setLang } from '../lib/translate.js';
-import { getTheme, onTheme, toggleTheme } from '../lib/theme.js';
 import { Button, Icon, cx } from './ui.jsx';
 import ProductMark from './ProductMark.jsx';
 
@@ -3731,22 +3713,6 @@ export function Logo({ className = 'h-[30px]', dual }) {
       <img src="/brand/logo-lockup-inverse.webp" alt="Deep Algorithms" width="153" height="34" className={cx('hdr-logo on-d w-auto', className)} />
       <img src="/brand/logo-lockup.webp" alt="" aria-hidden="true" width="153" height="34" className={cx('hdr-logo on-l w-auto', className)} />
     </span>
-  );
-}
-
-function ThemeButton() {
-  const [dark, setDark] = useState(false);
-  useEffect(() => { setDark(getTheme() === 'dark'); return onTheme((t) => setDark(t === 'dark')); }, []);
-  const onClick = (e) => {
-    const b = e.currentTarget.getBoundingClientRect();
-    toggleTheme(e.clientX || b.left + b.width / 2, e.clientY || b.top + b.height / 2);
-  };
-  return (
-    <button type="button" onClick={onClick} aria-pressed={dark} aria-label="Dark theme" title={dark ? 'Switch to the light theme' : 'Switch to the dark theme'}
-      className="theme-btn inline-flex h-10 w-10 items-center justify-center rounded-full border border-line-2 text-ink-2 transition-colors hover:border-fg/30 hover:text-ink">
-      <svg className="i-moon" width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M13 9.5A5.5 5.5 0 0 1 6.5 3a5.5 5.5 0 1 0 6.5 6.5Z" strokeLinejoin="round" /></svg>
-      <svg className="i-sun" width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true"><circle cx="8" cy="8" r="3" /><path d="M8 1.2v1.6M8 13.2v1.6M1.2 8h1.6M13.2 8h1.6M3.2 3.2l1.1 1.1M11.7 11.7l1.1 1.1M3.2 12.8l1.1-1.1M11.7 4.3l1.1-1.1" /></svg>
-    </button>
   );
 }
 
@@ -3911,10 +3877,6 @@ function MobileMenu({ onNav }) {
           <Link key={to} to={to} onClick={onNav} className={row}>{n}<Icon name="CaretRight" size={15} className="text-ink-3" /></Link>
         ))}
       </div>
-      <div className="mt-5 flex items-center justify-between">
-        <span className="text-[14px] text-ink-2">Theme</span>
-        <ThemeButton />
-      </div>
       <div className="mt-4 flex items-center justify-between text-[14.5px] text-ink-2">
         <span>Language</span>
         <LanguageMenu up className="rounded-full border border-line-2 px-3.5 py-2" />
@@ -4007,7 +3969,6 @@ export default function Header() {
             className={cx('inline-flex h-10 w-10 items-center justify-center rounded-full border border-line-2 text-ink-2 transition-colors hover:border-fg/30 hover:text-ink max-md:hidden', !scrolled && 'lg:hidden')}>
             <Icon name="MagnifyingGlass" size={17} />
           </button>
-          <ThemeButton />
           <Button to="/request-demo" size="sm" className="max-md:hidden">Book a demo</Button>
           <button type="button" className="inline-flex h-11 w-11 items-center justify-center rounded-full text-ink max-md:hidden lg:hidden" aria-label={mobile ? 'Close menu' : 'Open menu'} aria-expanded={mobile} aria-controls="mobile-menu" onClick={() => setMobile(!mobile)}>
             <Icon name={mobile ? 'X' : 'List'} size={26} />
@@ -4135,7 +4096,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { Brain, Cloud, Cpu, Database, GearSix, HardDrives, Key, Plugs, Robot, Sparkle, Terminal, User } from '@phosphor-icons/react/dist/ssr';
 import { cx, useReducedMotion } from '../lib/motion.js';
-import { getTheme, onTheme } from '../lib/theme.js';
 import ProductMark from './ProductMark.jsx';
 import { Icon } from './ui.jsx';
 
@@ -4260,16 +4220,14 @@ export default function LogoOrbit() {
   const [ta, setTa] = useState(DONE);
   const [tb, setTb] = useState(DONE);
   const [compact, setCompact] = useState(false);
-  const [dark, setDark] = useState(false);
+  const dark = false; // the site has one theme: dark bands and light sheets
   const [geo, setGeo] = useState(null); // measured: plate size, where the mark starts and where it lands
 
   useEffect(() => {
     const m = window.matchMedia('(max-width: 639px)');
     const on = () => setCompact(m.matches);
     on(); m.addEventListener('change', on);
-    setDark(getTheme() === 'dark');
-    const off = onTheme((x) => setDark(x === 'dark'));
-    return () => { m.removeEventListener('change', on); off?.(); };
+    return () => m.removeEventListener('change', on);
   }, []);
 
   // measure the plate and the orbit, relative to this block
@@ -4784,7 +4742,7 @@ export function Points({ items, acc = 'brand', cols = 3 }) {
     <div className={cx('m-rail grid gap-4', cols === 3 ? 'md:grid-cols-3' : cols === 4 ? 'sm:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-2')}>
       {items.map((x, i) => (
         <Reveal key={x.h} delay={i * 70} className="card p-6 md:p-7">
-          {x.icon && <span className="inline-flex h-11 w-11 items-center justify-center rounded-[12px]" style={{ background: `color-mix(in oklab, ${color} 14%, transparent)`, color }}><Icon name={x.icon} size={22} /></span>}
+          {x.icon && <span className="ico inline-flex h-11 w-11 items-center justify-center rounded-[12px]" style={{ '--acc': color }}><Icon name={x.icon} size={22} /></span>}
           <h3 className={cx('t-h3', x.icon && 'mt-5')}>{x.h}</h3>
           <p className="mt-2 text-[15.5px] leading-relaxed text-ink-2">{x.p}</p>
         </Reveal>
@@ -5210,13 +5168,13 @@ FILE: src/components/ThreatHero.jsx
 import { useEffect, useRef, useState } from 'react';
 import { useInView, useReducedMotion, cx } from '../lib/motion.js';
 
-/* The home hero, one frame: an attacker in a hood and a rogue AI agent at the
-   same desk, working one target together, your business, its systems on the
-   screen above them. One signs in with a stolen password, the other pulls
-   records its task does not allow. Both are read and stopped; both turn to
-   dust, and the dust gathers into the Deep Algorithms mark, inside one shield
-   with every kind of identity on it: people, machine identities, AI agents. Then it rests on that picture; the visitor can play it again.
-   Illustrations are our own (flat vector); the dust is made from their pixels. */
+/* The home hero, one frame, on a loop: an attacker in a hood and a rogue AI
+   agent at the same desk, working one target together, your business, its
+   systems on the screen above them. One signs in with a stolen password, the
+   other pulls records its task does not allow. One scan reads both; both are
+   stopped and blown away as dust; the business carries on; and the next
+   attempt sits down. Illustrations are our own (flat vector); the dust is made
+   from their own pixels. */
 
 const VW = 640, VH = 560;
 const FIGS = [
@@ -5228,30 +5186,12 @@ const place = (cx) => `translate(${cx - 300 * SCALE} ${DESK - 524 * SCALE}) scal
 /* where each laptop sits, for the data each one pulls */
 const LAP = (cx) => ({ x: cx, y: DESK - (524 - 430) * SCALE });
 const SCREEN = { x: 220, y: 30, w: 200, h: 156 };
-/* the ending: the mark inside a shield ring, the three kinds of identity on it */
-const ORB = { x: 320, y: 236, r: 150 };
-const MARK = [
-  ['#0067ab', 'M6 2.3 6.2 154.5H72.8L84 152.8 92.7 150.7 101.3 147.7 111.2 142.8 110.7 141 96.8 122.7H95.8L91.3 125 83.8 127.8 69.3 131 59 132 49.3 132.2 33.5 131.3 32.5 130.7 32.7 36.7 8.7 4.5 6.7 2.3ZM48 1.2V2.3L64.8 24.5 73.5 25 79.7 26 87.2 28 91.8 29.8 98 33 102.3 36 108 41.2 111.7 45.7 114.7 50.5 117.8 57.8 119.8 65.3 120.8 72.5 121 81.5 120 90.2 117.8 97.8 115.3 103.8 131.3 125H132L137.8 116.3 142.7 105.3 145.7 94.2 147.2 80.3V69L145.7 57.8 141.8 45.7 135.7 34.3 130.7 28 125.7 23 119.7 18.2 109.3 12 100.3 8.2 86.2 4.2 74 2.2 60.7 1.2Z'],
-  ['#00aeef', 'M6.5 1.3V2L8.8 4.5 120.8 154.5 152.5 154.7 152.2 153.3 136.5 132.8 131.2 125 114.8 103.2 112.7 101 38.7 1.7Z'],
-];
-const MARK_SIZE = 132;
-const markAt = `translate(${ORB.x - MARK_SIZE / 2} ${ORB.y - MARK_SIZE / 2}) scale(${MARK_SIZE / 160})`;
-const NODES = [
-  { k: 'people', label: 'People', a: -90 },
-  { k: 'machine', label: 'Machine identities', a: 30 },
-  { k: 'agent', label: 'AI agents', a: 150 },
-].map((n) => ({ ...n, x: ORB.x + ORB.r * Math.cos((n.a * Math.PI) / 180), y: ORB.y + ORB.r * Math.sin((n.a * Math.PI) / 180) }));
-
-/* the whole scene, in ms; it plays once and rests on the last picture */
-const T = { alert: 600, claim: 900, scan: 2400, verdict: 3600, dust: 4400, sweep: 1800, record: 8000, notes: 8900, done: 10400 };
-const FLY = 1100; // how long one grain is blown about before it turns home
-const TURN = 0.5; // how far into its flight a gathering grain turns towards the record
-const GATHER = 1300;
+/* one round, in ms; then the next attempt begins */
+const T = { alert: 700, claim: 1000, scan: 2600, verdict: 3800, dust: 4600, sweep: 1800, calm: 7200, end: 9600 };
+const FLY = 1300; // how long one grain is blown about
 
 function phaseAt(t) {
-  if (t >= T.done) return 'done';
-  if (t >= T.notes) return 'notes';
-  if (t >= T.record) return 'record';
+  if (t >= T.calm) return 'calm';
   if (t >= T.dust) return 'dust';
   if (t >= T.verdict) return 'verdict';
   if (t >= T.scan) return 'scan';
@@ -5259,7 +5199,6 @@ function phaseAt(t) {
   if (t >= T.alert) return 'alert';
   return 'in';
 }
-const AFTER = ['record', 'notes', 'done'];
 
 const RIM = { fill: 'none', stroke: '#7cc4ff', strokeWidth: 2, strokeOpacity: 0.55 };
 
@@ -5348,22 +5287,6 @@ const TILES = [
   { x: 386, d: 'M-9 5h17a4.5 4.5 0 0 0-1-9 6 6 0 0 0-11.5 1.5A3.8 3.8 0 0 0-9 5Z' },
 ];
 
-/* the mark and its ring, drawn for the dust to settle into */
-function MarkShape() {
-  return (
-    <>
-      <circle cx={ORB.x} cy={ORB.y} r="98" fill="none" stroke="#2fbaf5" strokeWidth="5" />
-      <g transform={markAt}>{MARK.map(([fill, d]) => <path key={fill} d={d} fill={fill} />)}</g>
-    </>
-  );
-}
-
-const NODE_ICON = {
-  people: <><circle cx="0" cy="-4" r="5.5" /><path d="M-10 10c1.2-5.5 5-8.5 10-8.5s8.8 3 10 8.5" /></>,
-  machine: <><rect x="-10" y="-8" width="20" height="16" rx="3" /><path d="M-5-3h10M-5 2h6" /></>,
-  agent: <><rect x="-9" y="-6" width="18" height="14" rx="4" /><path d="M0-6v-5M-4 1h.01M4 1h.01" /></>,
-};
-
 /* draw markup onto a canvas and read it back as grains of its own colours */
 function rasterise(markup, w, h, step, done) {
   const img = new Image();
@@ -5374,7 +5297,6 @@ function rasterise(markup, w, h, step, done) {
     g.drawImage(img, 0, 0);
     const px = g.getImageData(0, 0, w, h).data;
     const byColour = new Map(); // grouped by colour, so each colour is one fillStyle
-    const all = [];
     for (let y = 0; y < h; y += step) {
       for (let x = 0; x < w; x += step) {
         // the most opaque pixel of the cell stands for it, so soft edges
@@ -5388,11 +5310,10 @@ function rasterise(markup, w, h, step, done) {
         const key = `${px[o] & 0xf8},${px[o + 1] & 0xf8},${px[o + 2] & 0xf8}`;
         if (!byColour.has(key)) byColour.set(key, []);
         byColour.get(key).push(x, y, Math.random(), Math.random(), Math.random(), Math.random());
-        all.push(x, y, key);
       }
     }
     const sets = [...byColour].map(([k, list]) => ({ fill: `rgb(${k.split(',').join(' ')})`, g: new Float32Array(list) }));
-    done({ sets, picture: c, all });
+    done({ sets, picture: c });
   };
   img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${VW} ${VH}">${markup}</svg>`)}`;
 }
@@ -5401,61 +5322,34 @@ export default function ThreatHero() {
   const ref = useRef(null);
   const svg = useRef(null);
   const figs = useRef(null);
-  const shape = useRef(null);
   const canvas = useRef(null);
   const seen = useInView(ref, { threshold: 0.2 });
   const reduce = useReducedMotion();
   const [paused, setPaused] = useState(false);
-  const [run, setRun] = useState(0); // bumped to play it again
-  const [phase, setPhase] = useState('in'); // without scripts, CSS shows the resting picture instead
+  const [phase, setPhase] = useState('claim'); // without scripts and with reduced motion, the scene as the attempt is made
   const clock = useRef({ t: 0, last: 0 });
   const grains = useRef(null);
   const [ready, setReady] = useState(false);
 
-  // the two figures and the record become grains, once
+  // the two figures become grains of their own colours, once
   useEffect(() => {
     if (reduce) return undefined;
     let live = true;
     const box = svg.current.getBoundingClientRect();
     const w = Math.max(320, Math.round(box.width)), h = Math.round(w * (VH / VW));
     const step = 2;
-    const out = { w, h, step };
-    let left = 2;
-    const finish = () => {
-      left -= 1;
-      if (left || !live) return;
-      // every grain that gathers gets a place in the record; the rest blow out
-      const targets = out.shape.all;
-      const nT = targets.length / 3;
-      const A = out.figs;
-      const total = A.sets.reduce((n, s) => n + s.g.length / 6, 0);
-      const every = Math.max(1, Math.round(total / (nT * 1.2)));
-      let i = 0;
-      A.homes = A.sets.map(({ g }) => {
-        const home = new Float32Array((g.length / 6) * 3).fill(-1);
-        for (let o = 0, j = 0; o < g.length; o += 6, j += 3) {
-          i += 1;
-          if (i % every) continue;
-          const ti = Math.floor(g[o + 5] * nT) * 3;
-          home[j] = targets[ti]; home[j + 1] = targets[ti + 1];
-          const [r, gg, b] = targets[ti + 2].split(',').map(Number);
-          home[j + 2] = (r << 16) | (gg << 8) | b; // the colour of the place it lands in
-        }
-        return home;
-      });
-      grains.current = out;
+    rasterise(figs.current.innerHTML, w, h, step, (res) => {
+      if (!live) return;
+      grains.current = { ...res, w, h, step };
       setReady(true);
-    };
-    rasterise(figs.current.innerHTML, w, h, step, (res) => { out.figs = res; finish(); });
-    rasterise(shape.current.innerHTML, w, h, step, (res) => { out.shape = res; finish(); });
+    });
     return () => { live = false; };
   }, [reduce]);
 
   useEffect(() => {
-    if (reduce) { setPhase('done'); return undefined; }
-    const c = clock.current;
-    if (c.t >= T.done) { setPhase('done'); return undefined; } // it has played; rest
+    if (reduce) { setPhase('verdict'); return undefined; }
     if (!seen || paused) return undefined;
+    const c = clock.current;
     const cv = canvas.current;
     const ctx = cv.getContext('2d');
     let raf = 0;
@@ -5467,14 +5361,12 @@ export default function ThreatHero() {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     size();
-    const hex = (n) => `#${n.toString(16).padStart(6, '0')}`;
 
     const draw = (t) => {
       const r = cv.getBoundingClientRect();
       ctx.clearRect(0, 0, r.width, r.height);
       const G = grains.current;
-      if (!G || t < T.dust || t > T.record + 900) return;
-      const A = G.figs;
+      if (!G || t < T.dust || t > T.dust + T.sweep + FLY + 100) return;
       const k = r.width / G.w;
       const sx = G.w / VW, sy = G.h / VH;
       const mid = G.w / 2;
@@ -5483,96 +5375,71 @@ export default function ThreatHero() {
       // its outer side inwards, with a little scatter
       const leaves = (x0, y0, r1) => T.dust + ((1 - Math.abs(x0 - mid) / mid) * 0.62 + (y0 / G.h) * 0.28 + r1 * 0.1) * T.sweep;
       if (t < T.dust + T.sweep + 100) {
-        ctx.drawImage(A.picture, 0, 0, G.w * k, G.h * k);
+        // what is still there stays the crisp picture; cut out what has left
+        ctx.drawImage(G.picture, 0, 0, G.w * k, G.h * k);
         ctx.globalCompositeOperation = 'destination-out';
         ctx.fillStyle = '#000';
-        for (const { g } of A.sets) {
+        for (const { g } of G.sets) {
           for (let o = 0; o < g.length; o += 6) {
             if (t >= leaves(g[o], g[o + 1], g[o + 2])) ctx.fillRect((g[o] - 0.3) * k, (g[o + 1] - 0.3) * k, s0 * k, s0 * k);
           }
         }
         ctx.globalCompositeOperation = 'source-over';
       }
-      // the grains fade as the sharp record takes over
-      ctx.globalAlpha = t > T.record ? Math.max(0, 1 - (t - T.record) / 700) : 1;
-      const late = new Map();
-      A.sets.forEach(({ fill, g }, si) => {
-        const home = A.homes[si];
+      // and what has left blows away, outwards and up, shrinking as it goes
+      for (const { fill, g } of G.sets) {
         ctx.fillStyle = fill;
-        for (let o = 0, j = 0; o < g.length; o += 6, j += 3) {
+        for (let o = 0; o < g.length; o += 6) {
           const x0 = g[o], y0 = g[o + 1], r2 = g[o + 3], r3 = g[o + 4];
           const v = (t - leaves(x0, y0, g[o + 2])) / FLY;
-          if (v <= 0) continue;
-          const gathers = home[j] >= 0;
-          if (!gathers && v >= 1) continue;
-          const f = Math.min(v, 1);
-          const e = 0.3 * f + 0.7 * f * f; // a push at once, then the wind takes it
-          const out = x0 < mid ? -1 : 1; // away from the middle first
-          let x = x0 - 0.3 + out * (40 + 150 * r2) * e * sx + Math.sin(f * 6 + r3 * 6) * 6 * f;
-          let y = y0 - 0.3 - (30 + 120 * r3) * e * sy;
-          let s = s0 * (1 - f * 0.8);
-          if (gathers && v > TURN) {
-            // turn home, into the record
-            const p = Math.min(1, ((v - TURN) * FLY) / GATHER);
-            const q = p < 0.5 ? 2 * p * p : 1 - ((-2 * p + 2) ** 2) / 2;
-            x += (home[j] - x) * q; y += (home[j + 1] - y) * q;
-            s = s0 * (0.45 + 0.55 * q);
-            if (q > 0.4) {
-              const key = home[j + 2];
-              if (!late.has(key)) late.set(key, []);
-              late.get(key).push(x, y, s);
-              continue;
-            }
-          }
+          if (v <= 0 || v >= 1) continue;
+          const e = 0.3 * v + 0.7 * v * v; // a push at once, then the wind takes it
+          const out = x0 < mid ? -1 : 1;
+          const x = x0 - 0.3 + out * (60 + 220 * r2) * e * sx + Math.sin(v * 6 + r3 * 6) * 6 * v;
+          const y = y0 - 0.3 - (40 + 160 * r3) * e * sy;
+          const s = s0 * (1 - v * 0.8);
           ctx.fillRect(x * k, y * k, s * k, s * k);
         }
-      });
-      late.forEach((l, key) => {
-        ctx.fillStyle = hex(key);
-        for (let o = 0; o < l.length; o += 3) ctx.fillRect(l[o] * k, l[o + 1] * k, l[o + 2] * k, l[o + 2] * k);
-      });
-      ctx.globalAlpha = 1;
+      }
     };
 
     const loop = (now) => {
       c.t += Math.min(64, now - c.last);
       c.last = now;
+      if (c.t >= T.end) c.t = 0; // the next attempt
       setPhase(phaseAt(c.t));
       draw(c.t);
-      if (c.t >= T.done) return; // rest on the last picture; the notes keep floating in CSS
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     const vis = () => {
       if (document.hidden) cancelAnimationFrame(raf);
-      else if (c.t < T.done) { c.last = performance.now(); raf = requestAnimationFrame(loop); }
+      else { c.last = performance.now(); raf = requestAnimationFrame(loop); }
     };
     document.addEventListener('visibilitychange', vis);
     window.addEventListener('resize', size);
     return () => { cancelAnimationFrame(raf); document.removeEventListener('visibilitychange', vis); window.removeEventListener('resize', size); };
-  }, [seen, paused, reduce, run]);
+  }, [seen, paused, reduce]);
 
-  const replay = () => { clock.current.t = 0; setPaused(false); setPhase('in'); setRun((n) => n + 1); };
-  const after = AFTER.includes(phase);
-  const showFigs = !after && !(ready && phase === 'dust');
+  const gone = ready && (phase === 'dust' || phase === 'calm');
+  const showFigs = !gone && phase !== 'calm';
   const attack = ['alert', 'claim', 'scan'].includes(phase);
   const blocked = phase === 'verdict' || phase === 'dust';
-  const safe = blocked || after;
+  const safe = blocked || phase === 'calm';
   const status = (f) => (blocked ? f.verdict : phase === 'scan' ? 'Checking…' : phase === 'claim' ? f.claim : '');
   const pct = (v, of) => `${(v / of) * 100}%`;
   return (
-    <figure ref={ref} data-phase={phase} className="th relative mx-auto w-full max-w-[640px] lg:mr-0" aria-label="Animation: an attacker in a hood and a rogue AI agent sit at one desk, working against your business together. The attacker signs in with a stolen password; the agent pulls records its task does not allow. Both are checked and stopped, both turn to dust, and the dust gathers into the Deep Algorithms mark inside a shield ring that holds people, machine identities and AI agents, each checked. Two attacks stopped; business as usual.">
+    <figure ref={ref} data-phase={phase} className="th relative mx-auto w-full max-w-[640px] lg:mr-0" aria-label="Animation, on a loop: an attacker in a hood and a rogue AI agent sit at one desk, working against your business together. The attacker signs in with a stolen password; the agent pulls records its task does not allow. One scan reads both; both are stopped and blown away as dust, the business stays protected, and the next attempt begins.">
       <div className="relative">
       <svg ref={svg} viewBox={`0 0 ${VW} ${VH}`} className="relative block h-auto w-full overflow-visible" aria-hidden="true">
         <defs>
-          <radialGradient id="th-halo" cx="50%" cy="50%" r="50%"><stop offset="0" stopColor="#2fbaf5" stopOpacity=".28" /><stop offset=".55" stopColor="#0067ab" stopOpacity=".12" /><stop offset="1" stopColor="#0067ab" stopOpacity="0" /></radialGradient>
           <radialGradient id="th-floor" cx="50%" cy="50%" r="50%"><stop offset="0" stopColor="#4f9dff" stopOpacity=".22" /><stop offset="1" stopColor="#4f9dff" stopOpacity="0" /></radialGradient>
           <linearGradient id="th-beam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#4f9dff" stopOpacity="0" /><stop offset="1" stopColor="#4f9dff" stopOpacity=".28" /></linearGradient>
           <linearGradient id="th-desk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#2a3c6c" /><stop offset="1" stopColor="#17244a" /></linearGradient>
         </defs>
 
         {/* the target: your business, its systems on one screen */}
-        <g className={cx('th-target', attack && 'hit', safe && 'safe', after && 'gone')}>
+        <g className={cx('th-target', attack && 'hit', safe && 'safe')}>
           <rect x={SCREEN.x} y={SCREEN.y} width={SCREEN.w} height={SCREEN.h} rx="14" fill="#0b1a3a" stroke="rgb(124 196 255 / .35)" strokeWidth="1.5" />
           <path d={`M${SCREEN.x} ${SCREEN.y + 26}h${SCREEN.w}`} stroke="rgb(124 196 255 / .2)" />
           {[0, 1, 2].map((i) => <circle key={i} cx={SCREEN.x + 16 + i * 12} cy={SCREEN.y + 13} r="3.5" fill="rgb(124 196 255 / .35)" />)}
@@ -5596,7 +5463,7 @@ export default function ThreatHero() {
         })}
 
         {/* one desk */}
-        <g className={cx('th-desk', after && 'gone')}>
+        <g className="th-desk">
         <ellipse cx={VW / 2} cy={DESK + 12} rx="300" ry="50" fill="url(#th-floor)" />
         <rect x="40" y={DESK} width={VW - 80} height="14" rx="7" fill="url(#th-desk)" />
         <rect x="40" y={DESK} width={VW - 80} height="14" rx="7" fill="none" stroke="rgb(124 196 255 / .25)" />
@@ -5642,27 +5509,6 @@ export default function ThreatHero() {
           </g>
         ))}
 
-        {/* the ending: every kind of identity, inside one shield, around the mark */}
-        <g className={cx('th-end', after && 'on')}>
-          <circle cx={ORB.x} cy={ORB.y} r={ORB.r + 40} fill="url(#th-halo)" />
-          <circle className="th-spin" cx={ORB.x} cy={ORB.y} r={ORB.r} fill="none" stroke="rgb(124 196 255 / .38)" strokeWidth="1.5" strokeDasharray="2 9" strokeLinecap="round" />
-          <circle cx={ORB.x} cy={ORB.y} r="98" fill="rgb(10 32 72 / .55)" stroke="#2fbaf5" strokeOpacity=".75" strokeWidth="2" />
-          <circle className="th-pulse" cx={ORB.x} cy={ORB.y} r="98" fill="none" stroke="#2fbaf5" strokeWidth="2" />
-          <g transform={markAt}>{MARK.map(([fill, d]) => <path key={fill} d={d} fill={fill} />)}</g>
-          {NODES.map((n, i) => (
-            <g key={n.k} className="th-node" style={{ '--d': `${0.25 + i * 0.2}s`, transformOrigin: `${n.x}px ${n.y}px` }}>
-              <path d={`M${ORB.x + 98 * Math.cos((n.a * Math.PI) / 180)} ${ORB.y + 98 * Math.sin((n.a * Math.PI) / 180)}L${n.x} ${n.y}`} stroke="rgb(124 196 255 / .35)" strokeWidth="1.5" />
-              <circle cx={n.x} cy={n.y} r="27" fill="#0d2a5a" stroke="#4fb3ff" strokeWidth="2" />
-              <g transform={`translate(${n.x} ${n.y})`} fill="none" stroke="#cfe6ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{NODE_ICON[n.k]}</g>
-              <circle cx={n.x + 19} cy={n.y - 19} r="9" fill="#1f9d63" stroke="#071733" strokeWidth="2" />
-              <path d={`M${n.x + 15} ${n.y - 19}l2.8 2.8 5-5`} fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </g>
-          ))}
-          <circle r="4.5" fill="#7fd0ff" className="th-orbit-dot"><animateMotion dur="9s" repeatCount="indefinite" path={`M${ORB.x} ${ORB.y - ORB.r}a${ORB.r} ${ORB.r} 0 1 1 -0.1 0`} /></circle>
-        </g>
-
-        {/* the shape the dust settles into (never shown; read once as pixels) */}
-        <g ref={shape} className="th-sil"><MarkShape /></g>
       </svg>
       <canvas ref={canvas} aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full" />
 
@@ -5670,33 +5516,24 @@ export default function ThreatHero() {
       {FIGS.map((f) => {
         const s = status(f);
         return (
-          <p key={f.id} aria-hidden="true" className={cx('th-status absolute bottom-[2%] flex w-max max-w-[48%] -translate-x-1/2 items-center gap-2 rounded-full border border-white/15 bg-[#081633]/90 py-1.5 pl-2.5 pr-3 text-[13px] font-medium text-white max-sm:text-[10.5px] max-sm:pl-2 max-sm:pr-2.5', (!s || after) && 'hide')} style={{ left: pct(f.x, VW) }}>
+          <p key={f.id} aria-hidden="true" className={cx('th-status absolute bottom-[2%] flex w-max max-w-[48%] -translate-x-1/2 items-center gap-2 rounded-full border border-white/15 bg-[#081633]/90 py-1.5 pl-2.5 pr-3 text-[13px] font-medium text-white max-sm:text-[10.5px] max-sm:pl-2 max-sm:pr-2.5', !s && 'hide')} style={{ left: pct(f.x, VW) }}>
             <span className={cx('h-2 w-2 shrink-0 rounded-full', blocked ? 'bg-[#ff5d5d] shadow-[0_0_10px_#ff5d5d]' : phase === 'scan' ? 'animate-pulse bg-[#4fb3ff]' : 'bg-[#f5a524]')} />
             <span className="truncate">{s || ' '}</span>
           </p>
         );
       })}
 
-      {/* the three kinds of identity, named */}
-      {NODES.map((n, i) => (
-        <span key={n.k} aria-hidden="true" className={cx('th-label absolute -translate-x-1/2 whitespace-nowrap rounded-full border border-white/15 bg-[#0a1a3a]/90 px-3 py-1 text-[13px] font-semibold text-white max-sm:px-2 max-sm:text-[10px]', after && 'on')}
-          style={{ left: pct(n.x, VW), top: pct(n.y + (n.a < 0 ? -58 : 34), VH), '--d': `${0.45 + i * 0.2}s` }}>{n.label}</span>
-      ))}
+      {/* between attempts: what it meant */}
+      <p aria-hidden="true" className={cx('th-calm absolute bottom-[2%] left-1/2 flex w-max max-w-[94%] -translate-x-1/2 items-center gap-2 rounded-full border border-[#4be29a]/30 bg-[#08261f]/90 py-1.5 pl-2.5 pr-3.5 text-[13.5px] font-medium text-white max-sm:text-[11px]', phase === 'calm' && 'on')}>
+        <span className="h-2 w-2 shrink-0 rounded-full bg-[#4be29a] shadow-[0_0_10px_#4be29a]" />Both stopped. Nothing lost. Business as usual.
+      </p>
       </div>
 
-      {/* the line it ends on */}
-      <div aria-hidden="true" className={cx('th-claim absolute inset-x-0 bottom-[3%] text-center max-sm:static max-sm:mt-2', (phase === 'notes' || phase === 'done') && 'on')}>
-        <p className="font-semibold tracking-[-0.02em] text-white" style={{ fontSize: 'clamp(18px, 1.9vw, 26px)' }}>2 attacks stopped. <span className="text-[#7fe0ae]">Business as usual.</span></p>
-        <p className="mt-1 text-[13.5px] text-white/60 max-sm:text-[12px]">Every person, machine identity and AI agent, with every decision explained.</p>
-      </div>
-
-      {!reduce && (phase === 'done'
-        ? <button type="button" onClick={replay} className="th-ctl absolute right-0 top-0 inline-flex h-8 items-center gap-1.5 rounded-full border border-white/20 bg-[#0b1d40] px-3 text-[12.5px] font-medium text-white/80 hover:text-white" aria-label="Play the animation again">
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 8a5.5 5.5 0 1 0 1.7-4" /><path d="M2.5 2.5V6H6" /></svg>Replay
-          </button>
-        : <button type="button" onClick={() => setPaused(!paused)} className="th-ctl absolute right-0 top-0 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-[#0b1d40] text-white/80 hover:text-white" aria-label={paused ? 'Play the animation' : 'Pause the animation'}>
-            {paused ? <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5v9l7.5-4.5z" fill="currentColor" /></svg> : <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5h2v9H3zM7 1.5h2v9H7z" fill="currentColor" /></svg>}
-          </button>)}
+      {!reduce && (
+        <button type="button" onClick={() => setPaused(!paused)} className="th-ctl absolute right-0 top-0 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-[#0b1d40] text-white/80 hover:text-white" aria-label={paused ? 'Play the animation' : 'Pause the animation'}>
+          {paused ? <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5v9l7.5-4.5z" fill="currentColor" /></svg> : <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5h2v9H3zM7 1.5h2v9H7z" fill="currentColor" /></svg>}
+        </button>
+      )}
     </figure>
   );
 }
@@ -8200,6 +8037,77 @@ export function WebStepUp({ k: fk } = {}) {
 
 
 ====================================================================================================
+FILE: src/components/viz/frauddecisions.jsx
+====================================================================================================
+import { useEffect, useRef, useState } from 'react';
+import { useInView, useReducedMotion, cx } from '../../lib/motion.js';
+import { Icon } from '../ui.jsx';
+
+/* The fraud hero, in one glance: the three frauds a bank loses money to, each
+   as it arrives, what gave it away, and what happened, in milliseconds. The
+   full story of one of them (Anita) is told further down the page. Values are
+   illustrative. */
+
+const ROWS = [
+  { icon: 'UserCircle', kind: 'Account takeover', what: 'Right password, new phone, typing unlike the customer', act: 'Stepped up', tone: 'warn', ms: 41 },
+  { icon: 'Phone', kind: 'Payment scam', what: '₹2,40,000 to a new payee, customer on a call', act: 'Paused', tone: 'hold', ms: 63 },
+  { icon: 'Bank', kind: 'Mule account', what: 'Payee account flagged in shared fraud intelligence', act: 'Blocked', tone: 'crit', ms: 38 },
+];
+const TONE = {
+  warn: 'bg-[#f6b955]/15 text-[#f6c776]',
+  hold: 'bg-[#ff9a5c]/15 text-[#ffb27f]',
+  crit: 'bg-[#ff6b5d]/15 text-[#ff8a7e]',
+};
+
+export function FraudDecisions() {
+  const ref = useRef(null);
+  const seen = useInView(ref, { threshold: 0.3 });
+  const reduce = useReducedMotion();
+  const [k, setK] = useState(ROWS.length * 2); // without scripts, every row with its outcome
+  useEffect(() => {
+    if (reduce || !seen) { setK(ROWS.length * 2); return undefined; }
+    // row i arrives at step 2i, its outcome at 2i+1; then hold, and again
+    let i = 0, t;
+    const next = () => { setK(i); t = setTimeout(() => { i = i >= ROWS.length * 2 ? 0 : i + 1; next(); }, i >= ROWS.length * 2 ? 4200 : i % 2 ? 700 : 900); };
+    next();
+    return () => clearTimeout(t);
+  }, [seen, reduce]);
+  return (
+    <figure ref={ref} className="mx-auto w-full max-w-[540px] lg:mr-0" aria-label="Illustration: three sessions in a bank's app. An account takeover, with the right password but a new phone and typing unlike the customer, is stepped up in 41 ms. A payment scam, 2,40,000 rupees to a new payee while the customer is on a call, is paused in 63 ms. A payment to a mule account flagged in shared fraud intelligence is blocked in 38 ms.">
+      <div aria-hidden="true" className="overflow-hidden rounded-[20px] border border-white/12 bg-[#071733]/85 shadow-[0_40px_90px_-40px_rgba(0,0,0,.9)] backdrop-blur">
+        <div className="flex items-center gap-2.5 border-b border-white/10 px-5 py-3.5">
+          <span className="relative flex h-2 w-2"><span className="absolute inset-0 animate-ping rounded-full bg-[#3fd98f] opacity-60" /><span className="relative h-2 w-2 rounded-full bg-[#3fd98f]" /></span>
+          <span className="text-[13.5px] font-semibold text-white">Live decisions</span>
+          <span className="ml-auto text-[12.5px] text-white/55">Mobile banking · Internet banking · UPI</span>
+        </div>
+        <ul>
+          {ROWS.map((r, i) => {
+            const shown = k >= i * 2, done = k >= i * 2 + 1;
+            return (
+              <li key={r.kind} className={cx('flex items-center gap-3.5 border-b border-white/[.07] px-5 py-4 transition-all duration-500 last:border-0', shown ? 'opacity-100' : 'translate-y-1 opacity-0')}>
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-white/[.07] text-[#9fd3ff]"><Icon name={r.icon} size={20} /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[14.5px] font-semibold text-white">{r.kind}</span>
+                  <span className="mt-0.5 block text-[12.5px] leading-snug text-white/60">{r.what}</span>
+                </span>
+                <span className="w-[92px] shrink-0 text-right">
+                  <span className={cx('inline-block rounded-full px-2.5 py-1 text-[12px] font-semibold transition-all duration-300', done ? TONE[r.tone] : 'bg-white/[.06] text-white/45')}>{done ? r.act : 'Scoring…'}</span>
+                  <span className={cx('mt-1 block text-[11.5px] tabular-nums text-white/45 transition-opacity duration-300', done ? 'opacity-100' : 'opacity-0')}>{r.ms} ms</span>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+        <div className="flex items-center gap-2 border-t border-white/10 bg-white/[.03] px-5 py-3 text-[12.5px] text-white/70">
+          <Icon name="ChatCircleText" size={15} className="text-[#9fd3ff]" />Every decision comes with its reason, for the analyst and the auditor.
+        </div>
+      </div>
+    </figure>
+  );
+}
+
+
+====================================================================================================
 FILE: src/components/viz/home.jsx
 ====================================================================================================
 import Stage3D, { Pop } from '../Stage3D.jsx';
@@ -10622,45 +10530,6 @@ export const lerp = (a, b, t) => a + (b - a) * t;
 
 
 ====================================================================================================
-FILE: src/lib/theme.js
-====================================================================================================
-/* Theme: 'mixed' (default; light sheets over dark bands) or 'dark'. The
-   attribute is set before first paint by the inline script in index.html,
-   so this module only reads it, changes it and tells subscribers. */
-const KEY = 'da-theme';
-const subs = new Set();
-
-export const getTheme = () => (typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'mixed');
-
-export function onTheme(fn) { subs.add(fn); return () => subs.delete(fn); }
-
-function apply(next) {
-  const root = document.documentElement;
-  if (next === 'dark') root.setAttribute('data-theme', 'dark'); else root.removeAttribute('data-theme');
-  try { localStorage.setItem(KEY, next); } catch { /* private mode */ }
-  subs.forEach((f) => f(next));
-}
-
-/* Switch with a circular reveal from (x, y), where View Transitions exist. */
-export function toggleTheme(x, y) {
-  const next = getTheme() === 'dark' ? 'mixed' : 'dark';
-  const root = document.documentElement;
-  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (!document.startViewTransition || reduce) { apply(next); return; }
-  const r = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
-  root.classList.add('vt');
-  const vt = document.startViewTransition(() => apply(next));
-  vt.finished.finally(() => root.classList.remove('vt'));
-  vt.ready.then(() => {
-    root.animate(
-      { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${r}px at ${x}px ${y}px)`] },
-      { duration: 700, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', pseudoElement: '::view-transition-new(root)' },
-    );
-  }).catch(() => {});
-}
-
-
-====================================================================================================
 FILE: src/lib/translate.js
 ====================================================================================================
 /* The language menu. English is the source; any other choice is translated in
@@ -11293,11 +11162,10 @@ import { Seo } from '../lib/head.jsx';
 import { SOLUTIONS, CERTS, DEPLOY } from '../data/site.js';
 import { PRODUCT_MENU } from '../data/nav.js';
 import { POSTS } from '../data/posts.js';
-import { Button, CountUp, Icon, Reveal, SectionHead, Eyebrow, cx } from '../components/ui.jsx';
+import { Button, CountUp, Icon, Reveal, SectionHead, cx } from '../components/ui.jsx';
 import { CtaBand, FilmPlayer, PostCard, TrustedRow } from '../components/blocks.jsx';
 import ProductMark from '../components/ProductMark.jsx';
 import ThreatHero from '../components/ThreatHero.jsx';
-import CertSeal from '../components/CertSeal.jsx';
 import RoleCards from '../components/RoleCards.jsx';
 import { Logo, logoTitle } from '../components/viz/kit.jsx';
 import PerimeterStory from '../components/PerimeterStory.jsx';
@@ -11332,7 +11200,6 @@ const WHY_NOW = [
   { verdict: 'On the clock.', v: '72 hrs', l: 'to report a personal data breach in full to the Data Protection Board, with the facts to back it.', s: 'DPDP Rules, 2025', to: '/dpdpa-compliance', cta: 'How ICMS gets you ready' },
 ];
 
-const CONNECT = ['okta', 'entra', 'ad', 'm365', 'google', 'aws', 'github', 'atlassian', 'salesforce', 'slack'];
 
 const FAQ = [
   { title: 'What does Deep Algorithms do?', body: 'We secure the identities attackers use to get in: people, machine identities such as keys and service accounts, and AI agents. Four products cover them: adapID AI for human and machine identities and fraud, Zenstra AI for AI agents, BotShield AI for exposure, bots and DDoS, and ICMS for DPDPA compliance.' },
@@ -11491,7 +11358,7 @@ export default function Home() {
       <section className="stage band-brand hero-deep hero-under relative overflow-hidden" aria-labelledby="hero-h">
         <div className="wrap relative grid items-center gap-12 pb-12 pt-10 md:pt-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)] lg:gap-10 lg:pb-16 lg:pt-20">
           <div className="max-w-[600px] max-md:mx-auto max-md:text-center">
-            <h1 id="hero-h" className="t-hero rise" style={{ '--d': '40ms' }}>Stop identity attacks before the damage. <span className="text-[#7cc4ff]">Human, machine or AI.</span></h1>
+            <h1 id="hero-h" className="t-hero rise" style={{ '--d': '40ms' }}>Stop identity attacks before the damage.</h1>
             <p className="t-lead rise mt-6 max-w-[500px] max-md:mx-auto" style={{ '--d': '110ms' }}>Deep Algorithms learns how every person, machine identity and AI agent should behave, and stops the one that doesn’t, with the reason why.</p>
             <div className="rise mt-9 flex flex-wrap gap-3 max-md:flex-col max-md:[&>*]:w-full" style={{ '--d': '180ms' }}>
               <Explore label="See the platform" target="#orbit" />
@@ -11585,55 +11452,6 @@ export default function Home() {
               </Reveal>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* deployment, connectors and trust */}
-      <section className="sec alt" aria-labelledby="dep-h">
-        <div className="wrap">
-          <div className="grid gap-12 lg:grid-cols-[.85fr_1.15fr] lg:gap-16">
-            <Reveal>
-              <Eyebrow>Deployment and trust</Eyebrow>
-              <h2 id="dep-h" className="t-h2 mt-6">Deployed where the risk is. Your data stays put.</h2>
-              <p className="t-lead mt-5">No product asks you to move your data or rewrite your applications. Every one is certified, and every decision it makes can be explained to an auditor.</p>
-              <div className="mt-8 flex items-center gap-5 rounded-[16px] border border-line bg-bg-1 p-5">
-                <img src="/img/events/dsci-excellence.webp" alt="" className="h-14 w-20 shrink-0 rounded-[10px] object-cover" loading="lazy" />
-                <span><span className="block text-[15.5px] font-semibold">Cybersecurity Excellence, 2025</span><span className="block text-[14px] text-ink-3">Data Security Council of India</span></span>
-              </div>
-              <Link to="/trust" className="link mt-7 text-[15px]">Visit the Trust center<Icon name="ArrowRight" size={14} weight="bold" /></Link>
-            </Reveal>
-            <Reveal delay={80}>
-              <ul className="divide-y divide-line overflow-hidden rounded-[16px] border border-line bg-bg-1">
-                {DEPLOY.map(([n, , t]) => (
-                  <li key={n} className="grid gap-2 p-5 md:grid-cols-[210px_1fr] md:gap-6">
-                    <span className="flex items-center gap-2.5 text-[15.5px] font-semibold"><ProductMark p={n} size={28} />{n}</span>
-                    <span className="text-[15px] leading-relaxed text-ink-2">{t}</span>
-                  </li>
-                ))}
-              </ul>
-              <ul className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-                {CERTS.map((c) => (
-                  <li key={c.code} className="rounded-[14px] border border-line bg-bg-1 p-4">
-                    <CertSeal code={c.code} size={44} />
-                    <span className="mt-3 block text-[14.5px] font-semibold">{c.name}</span>
-                    <span className="block text-[12.5px] leading-snug text-ink-3">{c.desc}</span>
-                  </li>
-                ))}
-              </ul>
-            </Reveal>
-          </div>
-          <Reveal className="mt-20 border-t border-line pt-16">
-            <h3 className="text-center text-[clamp(26px,2.6vw,36px)] font-semibold tracking-[-0.025em]">Works with the systems you already run.</h3>
-            <p className="mx-auto mt-3 max-w-[620px] text-center text-[16px] leading-relaxed text-ink-2">Read-only, through each provider’s own API. These are the identity sources adapID AI connects to today.</p>
-            <ul className="mx-auto mt-10 grid max-w-[1040px] grid-cols-2 gap-px overflow-hidden rounded-[18px] border border-line bg-line sm:grid-cols-5">
-              {CONNECT.map((k) => (
-                <li key={k} className="group flex items-center justify-center gap-3 bg-bg-1 px-3 py-6 text-[15px] font-medium text-ink transition-colors hover:bg-bg">
-                  <span className="transition-transform duration-300 group-hover:scale-110"><Logo k={k} size="1.6em" /></span>{logoTitle(k)}
-                </li>
-              ))}
-            </ul>
-            <p className="mt-5 text-center text-[14px] text-ink-3">Zenstra AI also connects to Copilot Studio, Claude, Cursor, n8n, LangGraph and Zapier, and to your cloud accounts.</p>
-          </Reveal>
         </div>
       </section>
 
@@ -13366,11 +13184,10 @@ import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, Tabs } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import Stage3D from '../../components/Stage3D.jsx';
 import { Hero, Stats, Faq, Related, Points, LINKS, ACC } from '../../components/ProductKit.jsx';
 import { MoneyTrail } from '../../components/scenes/money.jsx';
 import { ScamCatch, CapabilityPhone, WebStepUp } from '../../components/viz/fraud.jsx';
-import { STORIES } from '../../data/stories.js';
+import { FraudDecisions } from '../../components/viz/frauddecisions.jsx';
 
 /* Identity Fraud Prevention: one platform for mobile and internet banking, from
    login to payment. The page follows the platform's own logic: three questions
@@ -13397,7 +13214,7 @@ function ThreeQuestions() {
           <span aria-hidden="true" className="flex items-center justify-center text-ink-3"><Icon name="ArrowRight" size={18} className="rotate-90 lg:rotate-0" /></span>
           <Reveal delay={i * 90} className="card flex flex-col p-6">
             <div className="flex items-center gap-3">
-              <span className="grid h-10 w-10 place-items-center rounded-[12px]" style={{ background: `color-mix(in oklab, ${A} 14%, transparent)`, color: A }}><Icon name={x.icon} size={20} /></span>
+              <span className="ico grid h-10 w-10 place-items-center rounded-[12px]" style={{ '--acc': A }}><Icon name={x.icon} size={20} /></span>
               <span className="text-[12.5px] font-semibold uppercase tracking-[.1em] text-ink-3">{x.n} · {x.area}</span>
             </div>
             <h3 className="mt-5 text-[21px] font-semibold leading-snug tracking-[-0.02em]">{x.q}</h3>
@@ -13428,17 +13245,31 @@ const GAPS = [
   ['Alerts arrive with no reason', 'Explainable scores', 'Every decision comes with its reasons, in plain words.'],
 ];
 
+const GAP_ICON = ['Fingerprint', 'DeviceMobile', 'ShieldCheck', 'ShieldWarning', 'Phone', 'Bank', 'ChatCircleText'];
+
 function GapRows() {
   return (
-    <ol className="divide-y divide-line overflow-hidden rounded-[22px] border border-line bg-bg-1">
+    <div className="grid gap-4 md:grid-cols-[.9fr_1.1fr]">
+      <div className="chg-without hidden p-6 md:block md:p-7">
+        <p className="text-[13px] font-semibold uppercase tracking-[.1em] text-crit">The gap today</p>
+      </div>
+      <div className="chg-with hidden p-6 md:block md:p-7" style={{ '--acc': A }}>
+        <p className="text-[13px] font-semibold uppercase tracking-[.1em]" style={{ color: A }}>Closed with adapID AI</p>
+      </div>
       {GAPS.map(([gap, name, how], i) => (
-        <Reveal as="li" key={name} delay={i * 50} className="grid gap-3 px-6 py-5 md:grid-cols-[1fr_auto_1.15fr] md:items-center md:gap-8 md:px-8">
-          <p className="flex items-start gap-3 text-[15.5px] text-ink-3"><span className="num w-6 shrink-0 text-[13px] font-semibold text-ink-3">{String(i + 1).padStart(2, '0')}</span><span className="line-through decoration-crit/50 decoration-1">{gap}</span></p>
-          <Icon name="ArrowRight" size={18} className="hidden text-adap md:block" />
-          <p className="pl-9 text-[15.5px] leading-relaxed md:pl-0"><span className="font-semibold text-ink">{name}.</span> <span className="text-ink-2">{how}</span></p>
+        <Reveal key={name} delay={i * 50} className="contents">
+          <p className="chg-without flex items-center gap-3 px-6 py-4 text-[15.5px] text-ink-3 md:px-7">
+            <span className="num w-6 shrink-0 text-[13px] font-semibold text-ink-3">{String(i + 1).padStart(2, '0')}</span>
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full" style={{ background: 'color-mix(in oklab, var(--color-crit) 12%, transparent)', color: 'var(--color-crit)' }}><Icon name="X" size={13} weight="bold" /></span>
+            <span>{gap}</span>
+          </p>
+          <p className="chg-with flex items-center gap-3.5 px-6 py-4 md:px-7 max-md:-mt-2 max-md:mb-2" style={{ '--acc': A }}>
+            <span className="ico grid h-9 w-9 shrink-0 place-items-center rounded-[12px]" style={{ '--acc': A }}><Icon name={GAP_ICON[i]} size={18} /></span>
+            <span className="text-[15.5px] leading-snug"><span className="font-semibold text-ink">{name}.</span> <span className="text-ink-2">{how}</span></span>
+          </p>
         </Reveal>
       ))}
-    </ol>
+    </div>
   );
 }
 
@@ -13554,10 +13385,10 @@ export default function Fraud() {
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Identity Fraud Prevention', path: p.path }]} />
       <Hero acc="adap" crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Identity Fraud Prevention' }]} eyebrow="adapID AI · Identity Fraud Prevention"
-        title={<>Catch the takeover, the scam and the mule <span style={{ color: '#7fdcff' }}>before the money moves.</span></>}
-        lead="One platform for mobile and internet banking, from login to payment. Every session answers three questions: is this the real customer, are they safe and acting freely, and is this payment normal?"
+        title={<>Stop fraud <span style={{ color: '#7fdcff' }}>before the money moves.</span></>}
+        lead="Account takeover, payment scams and mule accounts, caught at login and at payment in under 80 ms, with the reason for every decision."
         note="For mobile banking, internet banking and UPI.">
-        <Stage3D tilt={[3, -6]} range={[2, 3]}><ScamCatch /></Stage3D>
+        <FraudDecisions />
       </Hero>
 
       <section className="sec" aria-labelledby="q-h">
@@ -13567,8 +13398,16 @@ export default function Fraud() {
         </div>
       </section>
 
-      {/* one customer, early: what the three questions catch (the mule figures come later, with the mule section) */}
-      <Stats acc="adap" items={[{ v: '₹36,014 Cr', l: 'involved in bank frauds reported in India in 2024–25', s: 'RBI Annual Report, 2024–25' }, p.stats[2]]} {...STORIES.fraud} />
+      {/* one scam, caught: the detail behind the hero's second row */}
+      <section className="sec" aria-labelledby="scam-h">
+        <div className="wrap grid items-center gap-12 lg:grid-cols-[.8fr_1.2fr] lg:gap-16">
+          <SectionHead align="left" id="scam-h" acc={A} eyebrow="A scam, caught" title="Her password, her phone, her OTP. Not her decision." lead="Anita logs in as herself. But she is on a call, pasting a new payee’s account number and paying ₹2,40,000 with the remark “KYC update”. Each signal is read in plain words; the payee is on a mule list, so the payment is paused and an analyst calls her." />
+          <Reveal delay={100}><ScamCatch /></Reveal>
+        </div>
+      </section>
+
+      {/* the stakes, in figures (Anita's story is told just above; the mule figures come with the mule section) */}
+      <Stats acc="adap" items={[{ v: '₹36,014 Cr', l: 'involved in bank frauds reported in India in 2024–25', s: 'RBI Annual Report, 2024–25' }, p.stats[2], { v: '1 in 1', l: 'decisions with a reason an analyst and an auditor can read', s: 'adapID AI' }]} />
 
       <section className="sec" aria-labelledby="gap-h">
         <div className="wrap">
@@ -13591,7 +13430,7 @@ export default function Fraud() {
             <ul className="mt-10 space-y-6">
               {WEB.map((w, i) => (
                 <Reveal as="li" key={w.h} delay={i * 70} className="flex gap-4">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px]" style={{ background: `color-mix(in oklab, ${A} 14%, transparent)`, color: A }}><Icon name={w.icon} size={20} /></span>
+                  <span className="ico grid h-10 w-10 shrink-0 place-items-center rounded-[12px]" style={{ '--acc': A }}><Icon name={w.icon} size={20} /></span>
                   <span><span className="block text-[18px] font-semibold tracking-[-0.015em]">{w.h}</span><span className="mt-1 block text-[15.5px] leading-relaxed text-ink-2">{w.p}</span></span>
                 </Reveal>
               ))}
@@ -14001,7 +13840,7 @@ import Stage3D, { Pop } from '../../components/Stage3D.jsx';
 import { Hero, Stats, Faq, Compare, Related, Explorer, Explore, LINKS } from '../../components/ProductKit.jsx';
 import { ZenGateway, ZenInventory, ZenGrant, ZenMcp, ZenDetect, ZenRecord, ZenSurfaces } from '../../components/viz/zenstra.jsx';
 import { Logo, logoTitle } from '../../components/viz/kit.jsx';
-import { ZenToggle } from '../../components/Changes.jsx';
+import { ZenCompare } from '../../components/Changes.jsx';
 import { STORIES } from '../../data/stories.js';
 
 const p = PRODUCTS.zenstra;
@@ -14090,8 +13929,8 @@ export default function Zenstra() {
 
       <section className="sec" aria-labelledby="chg-h">
         <div className="wrap">
-          <SectionHead id="chg-h" acc="var(--color-zen)" eyebrow="What changes" title="What changes with Zenstra." lead="Five moments in every agent’s life, before and after. Flip the switch to compare." />
-          <Reveal className="mx-auto mt-12 max-w-[980px]"><ZenToggle /></Reveal>
+          <SectionHead id="chg-h" acc="var(--color-zen)" eyebrow="What changes" title="What changes with Zenstra." lead="Five moments in every agent’s life, before and after." />
+          <div className="mx-auto mt-12 max-w-[1120px]"><ZenCompare /></div>
         </div>
       </section>
 
@@ -14144,10 +13983,10 @@ FILE: src/styles.css
    - One type family: Inter 4 with its optical-size axis. Large sizes get the
      Display cut automatically; body text gets the Text cut. JetBrains Mono is
      used only for machine values inside product UI (IDs, hashes, timestamps).
-   - Two themes. The default mixes tones: dark `stage` bands (heroes, the film,
+   - One theme, mixing tones: dark `stage` bands (heroes, the film,
      the logo moment, calls to action, the footer) and light `sheets` for
      everything people read, which slide over the dark canvas with rounded
-     edges. The dark theme (html[data-theme=dark]) keeps every band dark.
+     edges.
      Colours are tokens, so a light sheet only redefines them; product
      pictures (.vz) and anything marked .tone-d stay dark inside a sheet.
    - Dark bands are neutral graphite, light sheets near-white; brand blue is
@@ -14263,8 +14102,8 @@ FILE: src/styles.css
   .divider { height: 1px; background: linear-gradient(90deg, transparent, var(--color-line-2), transparent); }
 
   /* section rhythm */
-  .sec { position: relative; padding-block: clamp(72px, 9vw, 136px); }
-  .sec-tight { position: relative; padding-block: clamp(48px, 6vw, 88px); }
+  .sec { position: relative; padding-block: clamp(60px, 6.6vw, 108px); }
+  .sec-tight { position: relative; padding-block: clamp(44px, 4.8vw, 72px); }
 
   /* `calm`: a quiet, near-solid surface behind dense reading (no live blur, so scrolling stays smooth) */
   .calm { position: relative; isolation: isolate; }
@@ -14337,7 +14176,8 @@ main { overflow-x: clip; }
 
 /* ==========================================================================
    Themes. Default = mixed: `.page > *` are light sheets unless marked .stage
-   (or position: fixed). html[data-theme=dark] turns every rule below off.
+   (or position: fixed). There is one theme; the :not([data-theme='dark'])
+   guard below is kept so the selectors read the same everywhere.
    The L selector is spelt out each time:
      :root:not([data-theme='dark']) :is(.page > :not(.stage, .fixed), .tone-l)
    ========================================================================== */
@@ -14347,7 +14187,7 @@ main { overflow-x: clip; }
 
 @layer base {
   :root:not([data-theme='dark']) :is(.page > :not(.stage, .fixed), .tone-l) {
-    --color-bg: #f6f7f9; --color-bg-1: #ffffff; --color-bg-2: #eceef1; --color-bg-3: #e2e5e9;
+    --color-bg: #edf2f8; --color-bg-1: #ffffff; --color-bg-2: #e2e8f0; --color-bg-3: #d6dee9;
     --color-ink: #0e1116; --color-ink-2: #434852; --color-ink-3: #626873;
     --color-line: rgb(14 17 22 / 0.1); --color-line-2: rgb(14 17 22 / 0.17);
     --color-cyan-2: #006fb9; --color-sky: #0a74c4; --color-focus: #006fb9;
@@ -14357,6 +14197,12 @@ main { overflow-x: clip; }
     --hl: 36%;
     color-scheme: light;
     color: var(--color-ink);
+  }
+  /* light sheets take turns, tinted then white, the way enterprise pages pace a
+     long read; on a white band the surfaces (bg-1) turn tinted so cards, tables
+     and panels still stand off the page */
+  :root:not([data-theme='dark']) .page > :nth-child(even of :not(.stage, .fixed)) {
+    --color-bg: #ffffff; --color-bg-1: #f3f6fb; --color-bg-2: #e6ecf4; --color-bg-3: #dae2ec;
   }
   /* dark islands inside light: product pictures, covers and anything marked .tone-d */
   :root:not([data-theme='dark']) :is(.page > :not(.stage, .fixed), .tone-l) :is(.vz, .tone-d) {
@@ -14391,7 +14237,6 @@ main { overflow-x: clip; }
   :root:not([data-theme='dark']) .page > .wash {
     background-image: radial-gradient(60% 50% at 100% 0%, rgb(0 174 239 / 0.07), transparent 70%), radial-gradient(50% 60% at 0% 100%, rgb(0 104 172 / 0.05), transparent 70%);
   }
-  :root:not([data-theme='dark']) .page > .alt { background-color: var(--color-bg-1); }
 
   /* components on light */
   :root:not([data-theme='dark']) :is(.page > :not(.stage, .fixed), .tone-l) {
@@ -14402,7 +14247,7 @@ main { overflow-x: clip; }
     & .btn-ghost:hover { background: var(--color-bg-1); border-color: rgb(12 32 64 / 0.3); }
     & .btn-white { background: var(--color-ink); color: #fff; }
     & .btn-white:hover { background: #27292d; }
-    & .card { background: #fff; border-color: var(--color-line); box-shadow: 0 1px 2px rgb(27 29 33 / 0.04), 0 14px 34px -20px rgb(27 29 33 / 0.2); }
+    & .card { background: var(--color-bg-1); border-color: var(--color-line); box-shadow: 0 1px 2px rgb(16 40 80 / 0.05), 0 18px 40px -24px rgb(16 40 80 / 0.28); }
     & .card-hover:hover { border-color: rgb(12 32 64 / 0.2); box-shadow: 0 1px 2px rgb(27 29 33 / 0.05), 0 24px 48px -22px rgb(27 29 33 / 0.3); }
     & .glass, &.glass { background: rgb(255 255 255 / 0.9); border-color: var(--color-line); box-shadow: 0 30px 80px -40px rgb(27 29 33 / 0.35); }
     & .calm::before, &.calm::before { background: var(--color-bg); }
@@ -14420,9 +14265,6 @@ main { overflow-x: clip; }
 .logo-mono:hover { opacity: 1; }
 
 /* ---------- theme switch: icons follow the attribute, so no hydration flash ---------- */
-.theme-btn .i-sun { display: none; }
-:root[data-theme='dark'] .theme-btn .i-sun { display: block; }
-:root[data-theme='dark'] .theme-btn .i-moon { display: none; }
 /* while the theme cross-fades, nothing else animates */
 :root.vt *, :root.vt *::before, :root.vt *::after { transition: none !important; }
 ::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
@@ -14588,15 +14430,6 @@ html.is-translated font { background: none !important; box-shadow: none !importa
 .rc-on-dark { display: none; }
 .rc-chip { animation: rc-in .55s cubic-bezier(.16,1,.3,1) both; }
 @keyframes rc-in { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: none; } }
-html[data-theme=dark] .rc { --rc-ink: #eef3fb; --rc-ink2: #aebbd0; }
-html[data-theme=dark] .rc-main { background: linear-gradient(118deg, #0d2244 0%, #11315f 55%, #15407c 100%); }
-html[data-theme=dark] .rc-stat { background: linear-gradient(150deg, #13224a 0%, #1b2a5e 60%, #2a2462 100%); }
-html[data-theme=dark] .rc-proof { background: linear-gradient(160deg, #0f2a4a 0%, #123a5e 100%); }
-html[data-theme=dark] .rc-num { background-image: linear-gradient(90deg, #7fb6ff, #b9a2ff); }
-html[data-theme=dark] .rc-pill { background: rgb(255 255 255 / .1); }
-html[data-theme=dark] .rc-link { color: #8cc4ff; }
-html[data-theme=dark] .rc-on-light { display: none; }
-html[data-theme=dark] .rc-on-dark { display: block; }
 
 /* certification seals (CertSeal.jsx), after the Zenstra AI site */
 .seal { --seal: #2f6fe4; --seal-soft: rgb(47 111 228 / .1); --seal-ink: #5c6777; }
@@ -14606,7 +14439,7 @@ html[data-theme=dark] .rc-on-dark { display: block; }
 .seal .ln { stroke: var(--seal); stroke-width: 1; opacity: .6; }
 .seal .t { fill: var(--seal); font: 800 13px var(--font-sans, Inter, sans-serif); letter-spacing: .02em; }
 .seal .s { fill: var(--seal-ink); font: 600 7.5px var(--font-sans, Inter, sans-serif); letter-spacing: .08em; }
-.stage .seal, html[data-theme=dark] .seal { --seal: #7cc4ff; --seal-soft: rgb(124 196 255 / .12); --seal-ink: #aab6c8; }
+.stage .seal { --seal: #7cc4ff; --seal-soft: rgb(124 196 255 / .12); --seal-ink: #aab6c8; }
 
 /* home hero: an attacker, then a rogue agent, each turned to dust that
    gathers into the mark (ThreatHero.jsx) */
@@ -14640,28 +14473,21 @@ html[data-theme=dark] .rc-on-dark { display: block; }
 .th-flow.cut { stroke: rgb(159 179 214 / .3); animation: none; }
 @keyframes th-flow { to { stroke-dashoffset: -30; } }
 .th-sil { opacity: 0; }
-.th-target, .th-desk { transition: opacity .7s; }
-.th-target.gone, .th-desk.gone { opacity: 0; }
-/* the ending: the mark in its shield, the identities on the ring */
-.th-end { opacity: 0; transition: opacity .25s; }
-.th-end.on { opacity: 1; transition: opacity .9s; }
-.th-spin { transform-box: view-box; transform-origin: 320px 236px; animation: th-spin 40s linear infinite; }
-@keyframes th-spin { to { transform: rotate(360deg); } }
-.th-pulse { transform-box: view-box; transform-origin: 320px 236px; opacity: 0; }
-.th-end.on .th-pulse { animation: th-pulse 3.2s ease-out 1s infinite; }
-@keyframes th-pulse { 0% { opacity: .7; transform: scale(1); } 100% { opacity: 0; transform: scale(1.5); } }
-.th-node { transform-box: view-box; opacity: 0; transform: scale(.6); }
-.th-end.on .th-node { opacity: 1; transform: none; transition: opacity .5s var(--d), transform .7s cubic-bezier(.34,1.56,.64,1) var(--d); }
-.th-label { opacity: 0; transform: translateY(6px); transition: opacity .25s, transform .25s; }
-.th-label.on { opacity: 1; transform: none; transition: opacity .5s var(--d), transform .7s cubic-bezier(.16,1,.3,1) var(--d); }
-.th-claim { opacity: 0; transform: translateY(10px); transition: opacity .25s, transform .25s; }
-.th-claim.on { opacity: 1; transform: none; transition: opacity .8s, transform 1s cubic-bezier(.16,1,.3,1); }
-/* without scripts: the resting picture */
-html:not(.js) .th-art, html:not(.js) .th-status, html:not(.js) .th-target, html:not(.js) .th-desk { opacity: 0; }
-html:not(.js) .th-end, html:not(.js) .th-end .th-node, html:not(.js) .th-label, html:not(.js) .th-claim { opacity: 1; transform: none; }
+.th-calm { opacity: 0; transform: translate(-50%, 6px); transition: opacity .3s, transform .3s; }
+.th-calm.on { opacity: 1; transform: translate(-50%, 0); transition: opacity .6s .2s, transform .8s cubic-bezier(.16,1,.3,1) .2s; }
+/* without scripts: the scene as the attempt is made */
+html:not(.js) .th-art { opacity: 1; }
 .th-status { transition: opacity .3s; }
 .th-status.hide { opacity: 0; }
-@media (prefers-reduced-motion: reduce) { .th-blink, .th-led, .th-tile, .th-flow, .th-spin, .th-pulse { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .th-blink, .th-led, .th-tile, .th-flow { animation: none !important; } }
+
+/* icon tiles on cards: a solid accent tile with a white icon, the way
+   enterprise pages put colour on a light page without filling it */
+.ico { background: linear-gradient(140deg, var(--acc, #0a74c4), color-mix(in oklab, var(--acc, #0a74c4) 72%, #001433)); color: #fff; box-shadow: 0 10px 22px -12px color-mix(in oklab, var(--acc, #0a74c4) 70%, transparent), inset 0 1px 0 rgb(255 255 255 / .25); }
+
+/* "What changes": the old way muted, the new way lit */
+.chg-without { border-radius: 20px; border: 1px solid color-mix(in oklab, var(--color-crit) 18%, transparent); background: color-mix(in oklab, var(--color-crit) 4%, var(--color-bg-1)); }
+.chg-with { position: relative; border-radius: 20px; border: 1.5px solid color-mix(in oklab, var(--acc) 55%, transparent); background: linear-gradient(180deg, color-mix(in oklab, var(--acc) 9%, #fff), #fff 55%); box-shadow: 0 30px 60px -34px color-mix(in oklab, var(--acc) 55%, transparent); }
 
 
 ====================================================================================================
@@ -14728,7 +14554,7 @@ test('a missing page names the address and offers search', async ({ page }) => {
 
 test('the home hero says what we stop, names who we secure and shows proof before any scroll', async ({ page, isMobile }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1, name: 'Stop identity attacks before the damage. Human, machine or AI.' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Stop identity attacks before the damage.' })).toBeVisible();
   await expect(page.getByText('learns how every person, machine identity and AI agent should behave', { exact: false }).first()).toBeVisible();
   const certs = page.getByRole('list', { name: 'Certifications' }).first();
   await expect(certs.getByRole('listitem')).toHaveCount(4);
@@ -14867,15 +14693,13 @@ test('reduced motion still shows every product card and figure', async ({ page }
   await expect(page.getByText('₹25.5 Cr').first()).toBeVisible();
 });
 
-test('zenstra: the switch turns the agent’s life from without to with', async ({ page }) => {
+test('zenstra: before and after sit side by side, five moments each', async ({ page }) => {
   await page.goto('/agentic-ai/agentic-identity');
-  await hydrated(page);
-  const sw = page.getByRole('switch', { name: 'Zenstra' });
-  await sw.scrollIntoViewIfNeeded();
-  await expect(sw).toHaveAttribute('aria-checked', 'true', { timeout: 5000 }); // turns itself on once seen
-  await sw.click();
-  await expect(sw).toHaveAttribute('aria-checked', 'false');
-  await expect(page.getByText('without Zenstra', { exact: true })).toBeVisible();
+  const sec = page.locator('section:has(#chg-h)');
+  await expect(sec.getByText('Without Zenstra', { exact: true })).toBeVisible();
+  await expect(sec.getByText('With Zenstra', { exact: true })).toBeVisible();
+  await expect(sec.locator('.chg-with li')).toHaveCount(5);
+  await expect(sec.locator('.chg-without li')).toHaveCount(5);
 });
 
 test('botshield: the red-team scene plays and names the six proven findings', async ({ page }) => {
@@ -14923,7 +14747,7 @@ test('home: the logo moment ends on the four products in a line, each linked', a
 test('home: the hero scene plays, can be paused, and tells the whole story to screen readers', async ({ page }) => {
   await page.goto('/');
   const hero = page.locator('figure.th');
-  await expect(hero).toHaveAttribute('aria-label', /attacker.*AI agent.*both turn to dust.*Deep Algorithms mark/);
+  await expect(hero).toHaveAttribute('aria-label', /attacker.*AI agent.*blown away as dust.*next attempt/);
   await expect(hero).toHaveAttribute('data-phase', /alert|claim|scan|verdict|dust/, { timeout: 8000 });
   // no product names in the hero
   await expect(page.locator('section[aria-labelledby="hero-h"]')).not.toContainText(/adapID|Zenstra|BotShield|ICMS/);
@@ -15195,18 +15019,27 @@ import { test, expect } from '@playwright/test';
 import { watch } from './helpers.js';
 
 const bg = (loc) => loc.evaluate((el) => getComputedStyle(el).backgroundColor);
-const firstSheet = (page) => page.locator('.page > :not(.stage, .fixed)').first();
+const sheets = (page) => page.locator('.page > :not(.stage, .fixed)');
 
-test('the default theme mixes dark bands and light sheets', async ({ page }) => {
+test('one theme: dark bands, and light sheets that alternate tinted and white', async ({ page }) => {
   const errors = watch(page);
   await page.goto('/');
   await expect(page.locator('html')).not.toHaveAttribute('data-theme', 'dark');
-  expect(await bg(firstSheet(page))).toBe('rgb(246, 247, 249)');
+  expect(await bg(sheets(page).nth(0))).toBe('rgb(237, 242, 248)');
+  expect(await bg(sheets(page).nth(1))).toBe('rgb(255, 255, 255)');
   // the hero is the brand band: white words on Deep Algorithms blue
   const hero = page.locator('.page > .stage').first();
   await expect(hero).toHaveClass(/band-brand/);
   expect(await hero.evaluate((el) => getComputedStyle(el).color)).toBe('rgb(255, 255, 255)');
   expect(errors).toEqual([]);
+});
+
+test('there is no theme switch, and an old saved dark choice is ignored', async ({ page }) => {
+  await page.addInitScript(() => { try { localStorage.setItem('da-theme', 'dark'); } catch (e) { /* private mode */ } });
+  await page.goto('/agentic-ai/agentic-identity');
+  await expect(page.locator('.theme-btn')).toHaveCount(0);
+  await expect(page.locator('html')).not.toHaveAttribute('data-theme', 'dark');
+  expect(await page.evaluate(() => localStorage.getItem('da-theme'))).toBeNull();
 });
 
 test('the header turns light over a light sheet', async ({ page }) => {
@@ -15216,44 +15049,11 @@ test('the header turns light over a light sheet', async ({ page }) => {
   await expect(page.locator('header')).toHaveClass(/tone-l/);
 });
 
-test('the switch turns the whole site dark and remembers it', async ({ page }) => {
-  const errors = watch(page);
-  await page.goto('/agentic-ai/agentic-identity');
-  const btn = page.locator('.theme-btn');
-  await expect(btn).toHaveAttribute('aria-pressed', 'false');
-  await btn.click();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await expect(btn).toHaveAttribute('aria-pressed', 'true');
-  expect(await bg(firstSheet(page))).not.toBe('rgb(246, 247, 249)');
-  expect(await page.evaluate(() => localStorage.getItem('da-theme'))).toBe('dark');
-
-  // set before the first paint on the next load, so there is no light flash
-  await page.reload({ waitUntil: 'commit' });
-  expect(await page.evaluate(() => document.documentElement.getAttribute('data-theme'))).toBe('dark');
-  await page.waitForLoadState('networkidle');
-
-  await page.locator('.theme-btn').click();
-  await expect(page.locator('html')).not.toHaveAttribute('data-theme', 'dark');
-  expect(await bg(firstSheet(page))).toBe('rgb(246, 247, 249)');
-  expect(errors).toEqual([]);
-});
-
 test('product pictures keep their dark tokens on a light sheet', async ({ page }) => {
   await page.goto('/');
   const ink = (sel) => page.locator(sel).first().evaluate((el) => getComputedStyle(el).getPropertyValue('--color-ink').trim().toLowerCase());
   expect(await ink('.page > :not(.stage) h2')).toBe('#0e1116');
   expect(await ink('.page > :not(.stage) .vz')).toBe('#f2f3f5');
-});
-
-test('navigating fades the next page in and keeps the theme', async ({ page }) => {
-  const errors = watch(page);
-  await page.goto('/');
-  await page.locator('.theme-btn').click();
-  await page.getByRole('link', { name: 'Why Deep Algorithms' }).first().click();
-  await expect(page).toHaveURL(/\/why-deep-algorithms$/);
-  await expect(page.locator('.page.page-in')).toHaveCount(1);
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  expect(errors).toEqual([]);
 });
 
 
