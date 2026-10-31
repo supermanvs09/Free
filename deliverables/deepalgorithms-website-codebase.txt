@@ -540,59 +540,68 @@ FILE: website/public/video/deep-algorithms-film.vtt
 ====================================================================================================
 WEBVTT
 
-00:00:00.600 --> 00:00:04.584
+00:00:03.000 --> 00:00:06.984
 Most access in your company no longer belongs to a person.
 
-00:00:04.784 --> 00:00:08.876
+00:00:07.184 --> 00:00:11.276
 Service accounts, cloud keys and AI agents hold it now.
 
-00:00:08.876 --> 00:00:10.913
+00:00:11.276 --> 00:00:13.313
 And attackers have noticed.
 
-00:00:11.413 --> 00:00:13.012
+00:00:13.813 --> 00:00:15.412
 They don’t break in anymore.
 
-00:00:13.012 --> 00:00:15.970
+00:00:15.412 --> 00:00:18.370
 They log in, and every alert stays quiet.
 
-00:00:16.370 --> 00:00:19.534
+00:00:18.770 --> 00:00:21.934
 Deep Algorithms catches them before they act.
 
-00:00:21.234 --> 00:00:24.776
+00:00:23.634 --> 00:00:27.556
+adapID Fraud Prevention sees the scam call and the new payee,
+
+00:00:27.556 --> 00:00:30.808
+and holds the payment before the money moves.
+
+00:00:32.408 --> 00:00:35.949
 Zenstra checks every AI agent’s action against its task,
 
-00:00:24.776 --> 00:00:27.537
+00:00:35.949 --> 00:00:38.710
 and blocks it before it runs.
 
-00:00:29.137 --> 00:00:32.946
-adapID knows how every person and machine identity behaves,
+00:00:40.310 --> 00:00:45.217
+adapID Identity Risk Management scores every person and machine identity,
 
-00:00:32.946 --> 00:00:35.039
-and stops the impostor.
+00:00:45.217 --> 00:00:48.070
+live, and stops the impostor.
 
-00:00:36.639 --> 00:00:39.358
+00:00:49.670 --> 00:00:52.389
 BotShield proves which holes in your apps are real,
 
-00:00:39.358 --> 00:00:42.174
+00:00:52.389 --> 00:00:55.205
 and stops bots and floods at the edge.
 
-00:00:43.774 --> 00:00:48.728
+00:00:56.805 --> 00:01:01.759
 ICMS turns every access to personal data into DPDPA evidence,
 
-00:00:48.728 --> 00:00:51.109
+00:01:01.759 --> 00:01:04.141
 before the auditor asks.
 
-00:00:51.709 --> 00:00:52.921
+00:01:04.441 --> 00:01:07.486
+One night. Five attacks. Nothing lost.
+
+00:01:07.986 --> 00:01:09.198
 Built in India.
 
-00:00:52.921 --> 00:00:57.763
+00:01:09.198 --> 00:01:14.040
 Trusted by banks, government and enterprises that cannot afford a breach.
 
-00:00:58.063 --> 00:01:01.481
+00:01:14.340 --> 00:01:17.173
 Find your riskiest identity before attackers do.
 
-00:01:01.481 --> 00:01:06.765
-The future is decided today. Book a demo at deepalgorithms.io.
+00:01:17.173 --> 00:01:20.810
+The future is decided today. Book a demo.
 
 ====================================================================================================
 FILE: website/scripts/csp.mjs
@@ -4271,7 +4280,7 @@ export function CtaBand({ title = 'Find your riskiest identity before attackers 
 }
 
 /* The product film: poster first, the real player only once asked for. */
-export function FilmPlayer({ src = '/video/deep-algorithms-film', poster = '/video/film-poster.webp', captions = '/video/deep-algorithms-film.vtt', title = 'Deep Algorithms in one minute', duration = '1:09' }) {
+export function FilmPlayer({ src = '/video/deep-algorithms-film', poster = '/video/film-poster.webp', captions = '/video/deep-algorithms-film.vtt', title = 'One bank, one night, five attacks', duration = '1:22' }) {
   const [play, setPlay] = useState(false);
   const v = useRef(null);
   const meta = <span className="inline-flex items-center gap-2 rounded-full bg-black/40 px-3 py-1.5 text-[13.5px] font-medium text-white/90 backdrop-blur"><Icon name="ClosedCaptioning" size={16} />Captions · {duration}</span>;
@@ -6470,7 +6479,7 @@ const BASE = 12;
 /* Hero: a scam caught mid-payment. The customer is real and logged in normally;
    she is being coached on a call. Evidence adds points until the score is
    Critical, and the app holds the payment with a calm question. */
-export function ScamCatch({ k: fk } = {}) {
+export function ScamCatch({ k: fk, time = '9:41' } = {}) {
   return (
     <Viz k={fk} steps={[900, 1200, 1100, 1100, 1300, 1300]} hold={5200} label="Illustration: Anita logs in to her bank app normally, so she is the real customer. While on a phone call she pastes an account number for a new payee and enters 2,40,000 rupees with the remark KYC update. The bank sees each reason in plain words; when the payee turns out to be on a mule account list the risk is Critical, the app pauses the payment and asks whether someone is asking her to pay, and an analyst calls her.">
       {(k) => {
@@ -6480,7 +6489,7 @@ export function ScamCatch({ k: fk } = {}) {
         return (
           <div className="mb-grid mb-fit">
             <div className="mb-phone-wrap">
-              <Phone call={call} time="9:41">
+              <Phone call={call} time={time}>
                 {k <= 1 ? <LoginScreen filled={k >= 1 ? 4 : 2} hot={k >= 1 ? null : '7'} />
                   : k <= 5 ? <PayScreen stage={k - 2} pressed={k === 5} />
                     : <HoldScreen />}
@@ -9210,6 +9219,7 @@ import { ZenGateway } from '../../components/viz/zenstra.jsx';
 import { AdapRiskTimeline } from '../../components/viz/adapid.jsx';
 import { CtemLoop } from '../../components/viz/botshield.jsx';
 import { IcmsEvidence } from '../../components/viz/icms.jsx';
+import { ScamCatch } from '../../components/viz/fraud.jsx';
 import ProductMark from '../../components/ProductMark.jsx';
 import { CUSTOMERS, CERTS } from '../../data/site.js';
 
@@ -9272,7 +9282,7 @@ function Finish({ t }) {
   const g = grain[Math.floor(t * FPS) % (grain.length || 1)];
   return (
     <>
-      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(120% 95% at 50% 45%, transparent 55%, rgb(0 0 0 / .55) 100%)' }} />
+      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(120% 95% at 50% 45%, transparent 60%, rgb(0 0 0 / .38) 100%)' }} />
       {g && <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${g})`, backgroundSize: '384px 384px', mixBlendMode: 'overlay', opacity: 0.11 }} />}
     </>
   );
@@ -9297,7 +9307,7 @@ function Spoken({ line, t, size = 84, color = '#fff', dim = 0.22, width = 1400, 
 }
 
 /* bottom-left scrim so type always sits on dark, whatever the shot */
-const Scrim = ({ side = 'bl', o = 0.85 }) => (
+const Scrim = ({ side = 'bl', o = 0.72 }) => (
   <div style={{ position: 'absolute', inset: 0, background: side === 'bl'
     ? `linear-gradient(20deg, rgb(3 5 8 / ${o}) 0%, rgb(3 5 8 / ${o * 0.55}) 35%, transparent 65%)`
     : side === 'l' ? `linear-gradient(90deg, rgb(3 5 8 / ${o}) 0%, rgb(3 5 8 / ${o * 0.5}) 40%, transparent 70%)`
@@ -9324,14 +9334,14 @@ function Tag({ t, at, x, y, kind, name, color }) {
 /* ---------- the four worst cases, in silence ---------- */
 
 /* a worst case: the shot, a live clock and one line; red edge light, nothing else */
-function Incident({ t, a, b, clip, kb, pan, clock, where, line, sub, counter }) {
+function Incident({ t, a, b, clip, kb, pan, clock, where, line, sub, counter, ch }) {
   const e = ease(seg(t, a + 0.1, a + 0.5));
   const blink = Math.floor(t * 2.4) % 2 === 0;
   const k = seg(t, a + 0.15, b - 0.2);
   return (
     <>
       <Shot id={clip} t={t} a={a} b={b} kb={kb} pan={pan} />
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(0deg, rgb(3 5 8 / .9) 0%, rgb(3 5 8 / .3) 50%, rgb(3 5 8 / .45) 100%)' }} />
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(0deg, rgb(3 5 8 / .82) 0%, rgb(3 5 8 / .12) 50%, rgb(3 5 8 / .3) 100%)' }} />
       <div style={{ position: 'absolute', inset: 0, boxShadow: `inset 0 0 ${180 + 60 * Math.sin(t * 7)}px rgb(255 60 50 / ${0.22 * e})` }} />
       <div style={{ position: 'absolute', left: 120, top: 96, display: 'flex', alignItems: 'center', gap: 18, opacity: e, fontFamily: MONO, fontSize: 26, letterSpacing: '.06em', color: '#ffb3ab' }}>
         <span style={{ width: 14, height: 14, borderRadius: 14, background: '#ff4d40', opacity: blink ? 1 : 0.25, boxShadow: '0 0 20px #ff4d40' }} />
@@ -9342,16 +9352,29 @@ function Incident({ t, a, b, clip, kb, pan, clock, where, line, sub, counter }) 
         <p style={{ fontSize: 78, fontWeight: 600, letterSpacing: '-0.045em', lineHeight: 1.05, color: '#fff' }}>{line}</p>
         {sub && <p style={{ marginTop: 18, fontSize: 32, color: 'rgb(255 255 255 / .62)', letterSpacing: '-0.01em' }}>{sub}</p>}
       </div>
+      {ch && <Chapter t={t} a={a} {...ch} />}
     </>
+  );
+}
+
+/* where we are in the night: attack n of 5, and the surface it hits */
+function Chapter({ t, a, n, what, acc = '#ff8b7e', side = 'r' }) {
+  const e = ease(seg(t, a + 0.1, a + 0.5));
+  return (
+    <div style={{ position: 'absolute', zIndex: 4, ...(side === 'r' ? { right: 120 } : { left: 110 }), top: 88, display: 'flex', alignItems: 'center', gap: 14, opacity: e, padding: '12px 20px', borderRadius: 99, background: 'rgb(8 11 16 / .55)', border: '1px solid rgb(255 255 255 / .14)', backdropFilter: 'blur(10px)' }}>
+      <span style={{ fontFamily: MONO, fontSize: 22, color: '#fff' }}>{String(n).padStart(2, '0')}<span style={{ color: 'rgb(255 255 255 / .4)' }}> / 05</span></span>
+      <span style={{ display: 'flex', gap: 5 }}>{[1, 2, 3, 4, 5].map((i) => <i key={i} style={{ width: 20, height: 4, borderRadius: 4, background: i <= n ? acc : 'rgb(255 255 255 / .18)' }} />)}</span>
+      <span style={{ fontSize: 21, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', color: acc }}>{what}</span>
+    </div>
   );
 }
 
 /* ---------- the products ---------- */
 
-function Stage({ lt, d, children, from = [7, -14, -100], to = [3, -5, 0], width = 1270 }) {
+function Stage({ lt, d, children, from = [6, -6, -90], to = [2, -2, 0], width = 1440 }) {
   const x = inout(seg(lt, 0, d));
   return (
-    <div style={{ perspective: 2200, perspectiveOrigin: '50% 45%' }}>
+    <div style={{ perspective: 2600, perspectiveOrigin: '50% 40%' }}>
       <div style={{ width, transformStyle: 'preserve-3d', transform: `translateZ(${lerp(from[2], to[2], x)}px) rotateX(${lerp(from[0], to[0], x)}deg) rotateY(${lerp(from[1], to[1], x)}deg)` }}>{children}</div>
     </div>
   );
@@ -9370,56 +9393,139 @@ const Verdict = ({ tone = 'bad', head, body, sub }) => (
   </div>
 );
 
-/* a product answering its worst case: the world behind, out of focus; the product in front */
-function Product({ t, a, b, bg, bgOffset = 0, acc, mark, name, role, head, steps, Pic, pop }) {
+/* frosted glass: the one surface every caption sits on */
+const glass = (acc) => ({ background: 'rgb(9 12 18 / .72)', border: '1px solid rgb(190 210 240 / .16)', backdropFilter: 'blur(22px) saturate(1.2)', boxShadow: `0 40px 90px -30px rgb(0 0 0 / .85), inset 0 1px 0 rgb(255 255 255 / .06)${acc ? `, 0 0 80px -40px ${acc}` : ''}` });
+
+/* a product answering its worst case. The product is the hero: large, centred, true to
+   the real app. The world sits behind it, out of focus. The name, the promise and the
+   result float on glass beside it, never inside it. */
+function Product({ t, a, b, bg, bgOffset = 0, acc, mark, name, role, head, steps, Pic, pic, pop, focus, outcome, ch, width = 1440, top = 152 }) {
   const lt = t - a, d = b - a;
-  const e = ease(seg(t, a, a + 0.6));
+  const e = ease(seg(t, a + 0.15, a + 0.75));
+  const u = ease(seg(t, a, a + 0.7));
   return (
     <>
-      <Shot id={bg} t={t} a={a} b={b} kb={[1.12, 1.18]} blur={16} dim={0.5} offset={bgOffset} />
-      <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(60% 70% at 72% 50%, ${acc}22, transparent 70%)` }} />
-      <Scrim side="l" o={0.8} />
-      <div style={{ position: 'absolute', left: 110, top: 0, bottom: 0, width: 540, display: 'flex', flexDirection: 'column', justifyContent: 'center', opacity: e, transform: `translateY(${(1 - e) * 26}px)` }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 22 }}>
-          <span style={{ width: 100, height: 100, borderRadius: 28, display: 'grid', placeItems: 'center', background: 'rgb(255 255 255 / .07)', border: '1px solid rgb(180 200 230 / .22)', backdropFilter: 'blur(10px)', boxShadow: `0 0 70px -14px ${acc}` }}><ProductMark p={mark} size={70} loading="eager" /></span>
-          <span><span style={{ display: 'block', fontSize: 36, fontWeight: 600, letterSpacing: '-0.02em' }}>{name}</span><span style={{ display: 'block', marginTop: 4, fontSize: 23, color: '#b9bcc2' }}>{role}</span></span>
-        </div>
-        <h2 style={{ marginTop: 40, fontSize: 58, fontWeight: 600, letterSpacing: '-0.045em', lineHeight: 1.04 }}>{head}</h2>
-      </div>
-      <div className="film-light" style={{ position: 'absolute', right: 56, top: 0, bottom: 0, display: 'flex', alignItems: 'center' }}>
-        <Stage lt={lt} d={d}>
-          <div style={{ position: 'relative' }}>
-            <Pic k={stepAt(t, steps)} />
+      <Shot id={bg} t={t} a={a} b={b} kb={[1.12, 1.18]} blur={14} dim={0.38} offset={bgOffset} />
+      <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(70% 70% at 50% 45%, ${acc}26, transparent 72%)` }} />
+      <div className="film-light" style={{ position: 'absolute', left: (W - width) / 2, top, opacity: u, transform: `translateY(${(1 - u) * 60}px)` }}>
+        <Stage lt={lt} d={d} width={width}>
+          <Focus t={t} b={b} f={focus} acc={acc}>
+            <Pic k={stepAt(t, steps)} {...pic} />
             {pop && <Pop t={t} at={pop.at} style={pop.style}>{pop.el}</Pop>}
-          </div>
+          </Focus>
         </Stage>
       </div>
+      <div style={{ position: 'absolute', zIndex: 3, left: 90, top: 56, display: 'flex', alignItems: 'center', gap: 16, padding: '12px 22px 12px 12px', borderRadius: 22, opacity: e, ...glass(acc) }}>
+        <span style={{ width: 58, height: 58, borderRadius: 16, display: 'grid', placeItems: 'center', background: 'rgb(255 255 255 / .08)' }}><ProductMark p={mark} size={44} loading="eager" /></span>
+        <span><span style={{ display: 'block', fontSize: 27, fontWeight: 600, letterSpacing: '-0.02em' }}>{name}</span><span style={{ display: 'block', marginTop: 2, fontSize: 18, color: '#b9bcc2' }}>{role}</span></span>
+      </div>
+      {ch && <Chapter t={t} a={a} acc={acc} {...ch} />}
+      <div style={{ position: 'absolute', zIndex: 3, left: 90, bottom: 52, maxWidth: 900, padding: '24px 34px', borderRadius: 28, opacity: e, transform: `translateY(${(1 - e) * 30}px)`, ...glass(acc) }}>
+        <h2 style={{ fontSize: 50, fontWeight: 600, letterSpacing: '-0.04em', lineHeight: 1.06 }}>{head}</h2>
+      </div>
+      {outcome && <Outcome t={t} acc={acc} {...outcome} />}
     </>
+  );
+}
+
+/* the camera leans into the one row that matters and the rest of the screen dims.
+   f = { at, x, y, s, ring: [left, top, width, height] in % of the picture, measured from the DOM } */
+function Focus({ t, b, f, acc, children }) {
+  const z = f ? inout(seg(t, f.at, f.at + 0.9)) * (1 - inout(seg(t, b - 0.55, b))) : 0;
+  return (
+    <div style={{ position: 'relative', transformOrigin: f ? `${f.x}% ${f.y}%` : undefined, transform: `scale(${1 + ((f?.s || 1) - 1) * z})` }}>
+      {children}
+      {f && z > 0 && (
+        <div style={{ position: 'absolute', left: `${f.ring[0]}%`, top: `${f.ring[1]}%`, width: `${f.ring[2]}%`, height: `${f.ring[3]}%`, borderRadius: 14, border: `2.5px solid ${acc}`, boxShadow: `0 0 0 4000px rgb(4 6 10 / ${0.55 * z}), 0 0 40px ${acc}`, opacity: z, pointerEvents: 'none' }} />
+      )}
+    </div>
+  );
+}
+
+/* the result, as one number, on glass, bottom right */
+function Outcome({ t, at, value, label, acc }) {
+  const e = ease(seg(t, at, at + 0.6));
+  return (
+    <div style={{ position: 'absolute', zIndex: 3, right: 90, bottom: 52, width: 500, padding: '22px 30px', borderRadius: 28, opacity: e, transform: `translateY(${(1 - e) * 30}px) scale(${0.96 + 0.04 * e})`, ...glass(acc), border: `1px solid ${acc}66` }}>
+      <p style={{ fontSize: 80, fontWeight: 600, letterSpacing: '-0.05em', lineHeight: 1, color: acc, textShadow: `0 0 50px ${acc}55` }}>{value}</p>
+      <p style={{ marginTop: 10, fontSize: 22, lineHeight: 1.3, color: 'rgb(255 255 255 / .82)' }}>{label}</p>
+    </div>
   );
 }
 
 /* ---------- the timeline ---------- */
 
-const Lg = C.login, Sh = C.shift, Tr = C.trust, Br = C.brand;
+const Lg = C.login, Sh = C.shift, Tr = C.trust, Br = C.brand, Hk = C.hook, Rc = C.recap;
 const T = {
-  hook2: 2.5,
+  hook1: Hk.start - 0.2, hook2: wordAt(Hk, 5) - 0.1,
   rack: Sh.start - 0.05, cables: wordAt(Sh, 2) + 0.2, terminal: wordAt(Sh, 5) + 0.05, attacker: wordAt(Sh, 9) - 0.15,
   typing: Lg.start - 0.1, soc: wordAt(Lg, 8) - 0.1,
-  brand: Br.start - 0.55,
-  inc1: Br.end + 0.35, zen: C.zenstra.start + 0.6,
-  inc2: C.zenstra.end + 0.25, adap: C.adapid.start + 0.6,
-  inc3: C.adapid.end + 0.25, bot: C.botshield.start + 0.6,
-  inc4: C.botshield.end + 0.25, icms: C.icms.start + 0.6,
-  mumbai: Tr.start - 0.15, skyline: wordAt(Tr, 3) - 0.1, team: wordAt(Tr, 8) - 0.1,
+  brand: Br.start - 0.55, inc1: Br.end + 0.8,
+  recap: Rc.start - 0.45, mumbai: Tr.start - 0.15, skyline: wordAt(Tr, 3) - 0.1, team: wordAt(Tr, 8) - 0.1,
   cta: C.cta.start - 0.3,
 };
 const beat = (line, next, frac) => line.start + (next - line.start) * frac;
 
+/* the five chapters of the night, in the order a bank meets them. Each: a worst case on
+   screen in silence (inc), then the product stopping it (prod). Times come from the
+   narration: the worst case starts as the line before it ends, the product takes over
+   just after its own line starts. Focus rings were measured from the rendered DOM. */
+const CHAPTERS = [
+  { id: 'fraud', n: 1, what: 'Fraud', acc: '#3cc8f6',
+    inc: { clip: 'call', kb: [1.03, 1.12], clock: '21:41:20 IST', where: 'Mumbai · mobile banking', line: <>A customer on a call, sending<br />₹2,40,000 to a new payee.</>, sub: 'The caller says he is from the bank.' },
+    prod: { bg: 'banking', mark: 'adapid', name: 'adapID Fraud Prevention', role: 'Mobile and internet banking', Pic: ScamCatch, pic: { time: '21:41' }, width: 885,
+      head: <>The real customer, being coached.<br /><span style={{ color: '#7fdcff' }}>Held before the money moves.</span></>,
+      steps: [0.1, 0.22, 0.34, 0.46, 0.58, 0.68], focus: { at: 0.7, x: 65, y: 88, s: 1.12, ring: [36, 81, 63.5, 12] },
+      outcome: { at: 0.74, value: '< 80 ms', label: 'to a risk decision on every event, with the reason in plain words' } } },
+  { id: 'zenstra', n: 2, what: 'AI agents', acc: '#93a2ff',
+    inc: { clip: 'towers', kb: [1.06, 1.14], clock: '02:14:07 IST', where: 'Mumbai · payments cloud', line: <>An AI agent starts exporting<br />your customer records.</>, sub: 'Valid token. No alert.' },
+    prod: { bg: 'code', mark: 'zenstra', name: 'Zenstra AI', role: 'Security for AI agents', Pic: ZenGateway, width: 1050,
+      head: <>Every agent action checked.<br /><span style={{ color: '#aab6ff' }}>Before it runs.</span></>,
+      steps: [0.0, 0.12, 0.26, 0.4, 0.55, 0.7], focus: { at: 0.56, x: 50, y: 66, s: 1.12, ring: [1.5, 56, 96, 20.5] },
+      outcome: { at: 0.62, value: '4 ms', label: 'to block an agent action outside its declared task' },
+      pop: { at: 0.5, style: { left: -60, bottom: -40, width: 460 }, el: <Verdict head="BLOCKED · 4 MS" body="invoice-agent → salesforce.export" sub="Outside its declared task" /> } } },
+  { id: 'cirm', n: 3, what: 'Identities', acc: '#3cc8f6',
+    inc: { clip: 'intruder', kb: [1.04, 1.12], clock: '02:31:52 IST', where: 'Mumbai · Okta sign-in', line: 'Right password. Right OTP. Wrong person.', sub: 'Every check passes.' },
+    prod: { bg: 'soc', mark: 'adapid', name: 'adapID Identity Risk Management', role: 'Every person and machine identity', Pic: AdapRiskTimeline, width: 1150,
+      head: <>A valid login. Scored live.<br /><span style={{ color: '#7fdcff' }}>Stopped anyway.</span></>,
+      steps: [0.0, 0.1, 0.24, 0.38, 0.52, 0.62, 0.72], focus: { at: 0.6, x: 90, y: 18, s: 1.12, ring: [81.5, 9, 16.5, 18] },
+      outcome: { at: 0.66, value: '1.4 s', label: 'from an impossible sign-in to every session revoked' } } },
+  { id: 'botshield', n: 4, what: 'Apps and APIs', acc: '#34e0c3',
+    inc: { clip: 'junction', kb: [1.03, 1.1], clock: '03:05:30 IST', where: 'Mumbai · login API', line: 'bot logins in sixty seconds.', counter: (k) => Math.round(18204 * ease(k)).toLocaleString('en-US') },
+    prod: { bg: 'traffic', mark: 'botshield', name: 'BotShield AI', role: 'Apps, APIs and the edge', Pic: CtemLoop, width: 1315,
+      head: <>37 findings. Six real holes.<br /><span style={{ color: '#7ff0dc' }}>All closed. Bots refused.</span></>,
+      steps: [0.0, 0.12, 0.3, 0.48, 0.66], focus: { at: 0.6, x: 47, y: 30, s: 1.12, ring: [35, 14, 26.5, 33] },
+      outcome: { at: 0.66, value: '6 of 37', label: 'exposures proven exploitable, and patched at the edge' },
+      pop: { at: 0.2, style: { right: -60, top: 150, width: 400 }, el: <Verdict tone="ok" head="AT THE EDGE" body="18,204 bot logins refused" sub="No traffic diversion" /> } } },
+  { id: 'icms', n: 5, what: 'Personal data', acc: '#f4c76c',
+    inc: { clip: 'corridor', kb: [1.02, 1.1], clock: '08:30:00 IST', where: 'Data Protection Board · inbox', line: <>Who opened customer data last night,<br />and why?</>, sub: 'The regulator wants the evidence. Today.' },
+    prod: { bg: 'ward', mark: 'icms', name: 'ICMS Compliance Suite', role: 'DPDPA compliance', Pic: IcmsEvidence, width: 1400,
+      head: <>Every access, checked and recorded.<br /><span style={{ color: '#ffd98f' }}>Evidence in one click.</span></>,
+      steps: [0.0, 0.08, 0.2, 0.3, 0.42, 0.54, 0.66], focus: { at: 0.44, x: 50, y: 55, s: 1.12, ring: [1.5, 46.5, 96, 18.5] },
+      outcome: { at: 0.7, value: '< 5 min', label: 'to an audit-ready DPDPA evidence package' } } },
+];
+const CHAPTER_SCENES = CHAPTERS.flatMap((c, i) => {
+  const line = C[c.id], prev = i ? C[CHAPTERS[i - 1].id] : Br;
+  const ia = prev.end + (i ? 0.25 : 0.8), pa = line.start + (i ? 0.6 : 0.8);
+  const pb = i < CHAPTERS.length - 1 ? line.end + 0.25 : T.recap;
+  const at = (f) => pa + (pb - pa) * f; // a fraction of the product scene
+  const P = c.prod;
+  return [
+    [ia, pa, (t) => <Incident t={t} a={ia} b={pa} {...c.inc} ch={{ n: c.n, what: c.what }} />],
+    [pa, pb, (t) => <Product t={t} a={pa} b={pb} acc={c.acc} ch={{ n: c.n, what: c.what }} {...P}
+      steps={P.steps.map((f, k) => (k === 0 ? pa - 0.1 : at(f)))}
+      focus={P.focus && { ...P.focus, at: at(P.focus.at) }}
+      outcome={P.outcome && { ...P.outcome, at: at(P.outcome.at) }}
+      pop={P.pop && { ...P.pop, at: at(P.pop.at) }} />],
+  ];
+});
+
 /* each scene: [start, end, render] */
 const SCENES = [
-  [0, T.hook2, (t) => (
+  [0, T.hook1, (t) => <ColdOpen t={t} b={T.hook1} />],
+  [T.hook1, T.hook2, (t) => (
     <>
-      <Shot id="city" t={t} a={0} b={T.hook2} kb={[1.12, 1.03]} />
+      <Shot id="city" t={t} a={T.hook1} b={T.hook2} kb={[1.12, 1.03]} />
       <Scrim />
       <div style={{ position: 'absolute', left: 120, bottom: 130, opacity: 1 - seg(t, T.hook2 - 0.15, T.hook2) }}>
         <Spoken line={C.hook} t={t} size={92} width={1250} words="Most access in your company" part={[0, 5 / 11]} />
@@ -9495,37 +9601,8 @@ const SCENES = [
   )],
   [T.brand, T.inc1, (t) => <Brand t={t} a={T.brand} b={T.inc1} />],
 
-  [T.inc1, T.zen, (t) => <Incident t={t} a={T.inc1} b={T.zen} clip="towers" kb={[1.06, 1.14]} clock="02:14:07 IST" where="payments cloud" line={<>An AI agent starts exporting<br />your customer records.</>} sub="Valid token. No alert." />],
-  [T.zen, T.inc2, (t) => {
-    const b = (f) => beat(C.zenstra, T.inc2, f);
-    return <Product t={t} a={T.zen} b={T.inc2} bg="code" acc="#93a2ff" mark="zenstra" name="Zenstra AI" role="Security for AI agents"
-      head={<>Every action checked.<br /><span style={{ color: '#aab6ff' }}>Before it runs.</span></>} Pic={ZenGateway}
-      steps={[T.zen - 0.1, b(0.12), b(0.26), b(0.4), b(0.55), b(0.7)]}
-      pop={{ at: b(0.5), style: { left: -90, bottom: -60, width: 460 }, el: <Verdict head="BLOCKED · 4 MS" body="invoice-agent → salesforce.export" sub="Outside its declared task" /> }} />;
-  }],
-  [T.inc2, T.adap, (t) => <Incident t={t} a={T.inc2} b={T.adap} clip="intruder" kb={[1.04, 1.12]} clock="02:14:52 IST" where="sign-in · new phone" line="Right password. Right OTP. Wrong person." sub="Every check passes." />],
-  [T.adap, T.inc3, (t) => {
-    const b = (f) => beat(C.adapid, T.inc3, f);
-    return <Product t={t} a={T.adap} b={T.inc3} bg="banking" acc="#3cc8f6" mark="adapid" name="adapID AI" role="People and machine identities"
-      head={<>A valid login. <span style={{ color: '#7fdcff' }}>Stopped anyway.</span></>} Pic={AdapRiskTimeline}
-      steps={[T.adap - 0.1, b(0.1), b(0.24), b(0.38), b(0.52), b(0.66), b(0.8)]} />;
-  }],
-  [T.inc3, T.bot, (t) => <Incident t={t} a={T.inc3} b={T.bot} clip="junction" kb={[1.03, 1.1]} clock="02:15:30 IST" where="login API" line="bot logins in sixty seconds." counter={(k) => Math.round(18204 * ease(k)).toLocaleString('en-US')} />],
-  [T.bot, T.inc4, (t) => {
-    const b = (f) => beat(C.botshield, T.inc4, f);
-    return <Product t={t} a={T.bot} b={T.inc4} bg="traffic" acc="#34e0c3" mark="botshield" name="BotShield AI" role="Apps, APIs and the edge"
-      head={<>37 findings. <span style={{ color: '#7ff0dc' }}>Six real holes. All closed.</span></>} Pic={CtemLoop}
-      steps={[T.bot - 0.1, b(0.12), b(0.3), b(0.48), b(0.66)]}
-      pop={{ at: b(0.2), style: { right: -70, top: -70, width: 400 }, el: <Verdict tone="ok" head="AT THE EDGE" body="18,204 bot logins refused" sub="No traffic diversion" /> }} />;
-  }],
-  [T.inc4, T.icms, (t) => <Incident t={t} a={T.inc4} b={T.icms} clip="corridor" kb={[1.02, 1.1]} clock="09:00:00 IST" where="Data Protection Board" line="A breach report, due in full." counter={(k) => { const s = 72 * 3600 - Math.round(k * 4); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60; return `${h}:${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`; }} />],
-  [T.icms, T.mumbai, (t) => {
-    const b = (f) => beat(C.icms, T.mumbai, f);
-    return <Product t={t} a={T.icms} b={T.mumbai} bg="ward" acc="#f4c76c" mark="icms" name="ICMS Compliance Suite" role="DPDPA compliance"
-      head={<>Evidence in one click.<br /><span style={{ color: '#ffd98f' }}>Not one quarter.</span></>} Pic={IcmsEvidence}
-      steps={[T.icms - 0.1, b(0.08), b(0.2), b(0.33), b(0.48), b(0.6), b(0.72)]} />;
-  }],
-
+  ...CHAPTER_SCENES,
+  [T.recap, T.mumbai, (t) => <Recap t={t} a={T.recap} b={T.mumbai} />],
   [T.mumbai, T.skyline, (t) => (
     <>
       <Shot id="mumbai" t={t} a={T.mumbai} b={T.skyline} kb={[1.03, 1.11]} origin="55% 60%" />
@@ -9562,24 +9639,89 @@ function LoginCard({ t, at }) {
   );
 }
 
+/* cold open: one bank, one night, everything green. The story the four attacks happen in. */
+function ColdOpen({ t, b }) {
+  const e = ease(seg(t, 0.5, 1.1)), e2 = ease(seg(t, 1.1, 1.7)), e3 = ease(seg(t, 2.0, 2.4));
+  const out = 1 - seg(t, b - 0.25, b);
+  const sec = Math.floor(t);
+  return (
+    <div style={{ position: 'absolute', inset: 0, opacity: out }}>
+      <Shot id="nightroad" t={t} a={0} b={b} kb={[1.18, 1.1]} offset={260} />
+      <Scrim o={0.6} />
+      <div style={{ position: 'absolute', left: 120, bottom: 130 }}>
+        <p style={{ fontFamily: MONO, fontSize: 30, letterSpacing: '.06em', color: '#cfe9ff', opacity: e }}>21:38:{String(40 + sec * 7).padStart(2, '0')} IST · MUMBAI</p>
+        <p style={{ marginTop: 18, fontSize: 92, fontWeight: 600, letterSpacing: '-0.045em', lineHeight: 1.03, opacity: e, transform: `translateY(${(1 - e) * 20}px)` }}>A private bank, tonight.</p>
+        <div style={{ marginTop: 26, display: 'flex', gap: 14, opacity: e2 }}>
+          {['Payments', 'Mobile banking', 'Login API', 'Customer data'].map((s) => (
+            <span key={s} style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '10px 18px', borderRadius: 99, background: 'rgb(8 12 18 / .55)', border: '1px solid rgb(63 217 143 / .35)', fontSize: 22, color: '#d9f7e8' }}><i style={{ width: 10, height: 10, borderRadius: 10, background: '#3fd98f', boxShadow: '0 0 12px #3fd98f' }} />{s}</span>
+          ))}
+        </div>
+        <p style={{ marginTop: 30, fontFamily: MONO, fontSize: 28, letterSpacing: '.04em', color: '#ff8b7e', opacity: e3, transform: `translateX(${(1 - e3) * -16}px)` }}>● Before morning, five attacks will begin.</p>
+      </div>
+    </div>
+  );
+}
+
+/* the morning after: the four attacks, each stopped, in one frame */
+function Recap({ t, a, b }) {
+  const e = ease(seg(t, a + 0.1, a + 0.6));
+  const done = [['adapid', 'Scam payment held', '#3cc8f6'], ['zenstra', 'Agent export blocked', '#93a2ff'], ['adapid', 'Impostor stopped', '#3cc8f6'], ['botshield', 'Bots refused', '#34e0c3'], ['icms', 'Evidence filed', '#f4c76c']];
+  return (
+    <>
+      <Shot id="morning" t={t} a={a} b={b} kb={[1.04, 1.12]} />
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(0deg, rgb(3 5 8 / .85) 0%, rgb(3 5 8 / .3) 50%, rgb(3 5 8 / .3) 80%, rgb(3 5 8 / .7) 100%)' }} />
+      <div style={{ position: 'absolute', left: 120, top: 96, display: 'flex', alignItems: 'center', gap: 18, opacity: e, fontFamily: MONO, fontSize: 26, letterSpacing: '.06em', color: '#c9f5df' }}>
+        <span style={{ width: 14, height: 14, borderRadius: 14, background: '#3fd98f', boxShadow: '0 0 20px #3fd98f' }} />
+        <span style={{ color: '#fff' }}>09:00:00 IST</span><span style={{ opacity: 0.75 }}>· Mumbai · business as usual</span>
+      </div>
+      <div style={{ position: 'absolute', left: 120, bottom: 300 }}><Spoken line={Rc} t={t} size={104} width={1600} /></div>
+      <div style={{ position: 'absolute', left: 120, right: 120, bottom: 130, display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16 }}>
+        {done.map(([k, s, c], i) => {
+          const x = ease(seg(t, a + 0.5 + i * 0.15, a + 1.0 + i * 0.15));
+          return (
+            <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '18px 20px', borderRadius: 20, background: 'rgb(8 12 18 / .6)', border: `1px solid ${c}66`, backdropFilter: 'blur(12px)', opacity: x, transform: `translateY(${(1 - x) * 20}px)` }}>
+              <ProductMark p={k} size={46} loading="eager" />
+              <span style={{ fontSize: 22, fontWeight: 600, color: '#fff', lineHeight: 1.15 }}>{s}</span>
+              <span style={{ marginLeft: 'auto', color: '#3fd98f', fontSize: 28, fontWeight: 700 }}>✓</span>
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
 const Mark = ({ size = 64, style }) => (
   <span style={{ display: 'inline-flex', width: size, height: size, borderRadius: size * 0.26, background: '#fff', padding: size * 0.16, boxShadow: '0 20px 50px -15px rgba(0,0,0,.6)', ...style }}><img src="/brand/mark.webp" alt="" style={{ width: '100%', height: '100%' }} /></span>
 );
 
-/* the brand: a blue plate opens over the city, says the line, and closes back to the mark */
+const LINE = [['adapid', 'adapID AI', 'Fraud and identity risk'], ['zenstra', 'Zenstra AI', 'AI agents'], ['botshield', 'BotShield AI', 'Apps, APIs, the edge'], ['icms', 'ICMS Suite', 'Personal data']];
+
+/* the brand: a blue plate opens over the city, says the line, shows the four products and closes back to the mark */
 function Brand({ t, a, b }) {
   const L = Br;
-  const app = ease(seg(t, a, a + 0.45)), open = inout(seg(t, L.start - 0.15, L.start + 0.6)), close = inout(seg(t, L.end + 0.05, b - 0.05));
-  const w = lerp(lerp(120, 1500, open), 120, close), h = lerp(lerp(120, 620, open), 120, close);
+  const app = ease(seg(t, a, a + 0.45)), open = inout(seg(t, L.start - 0.15, L.start + 0.6)), close = inout(seg(t, b - 0.5, b - 0.05));
+  const w = lerp(lerp(120, 1560, open), 120, close), h = lerp(lerp(120, 720, open), 120, close);
   return (
     <>
-      <Shot id="nightroad" t={t} a={a} b={b} kb={[1.15, 1.2]} blur={10} dim={0.55} />
+      <Shot id="nightroad" t={t} a={a} b={b} kb={[1.15, 1.2]} blur={10} dim={0.35} offset={120} />
       <div style={{ position: 'absolute', left: W / 2 - w / 2, top: H / 2 - h / 2 + (1 - app) * 160, width: w, height: h, borderRadius: 36, overflow: 'hidden', opacity: app * (1 - seg(t, b - 0.12, b)), background: 'linear-gradient(135deg, #0068ac 0%, #0a7fcf 55%, #169fe6 100%)', boxShadow: `0 0 ${80 + 120 * open}px rgb(0 140 220 / .35)` }}>
         <div style={{ position: 'absolute', inset: 0, opacity: 0.16, backgroundImage: 'radial-gradient(rgb(255 255 255 / .55) 1.5px, transparent 1.5px)', backgroundSize: '30px 30px' }} />
         <div style={{ position: 'absolute', left: '50%', top: lerp(h / 2, 92, open * (1 - close)), transform: 'translate(-50%, -50%)' }}><Mark size={lerp(70, 84, open)} /></div>
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: 70, opacity: open * (1 - seg(t, L.end - 0.05, L.end + 0.2)) }}>
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 170, opacity: open * (1 - seg(t, b - 0.75, b - 0.45)) }}>
           <p style={{ fontSize: 44, fontWeight: 600, letterSpacing: '-0.03em', color: 'rgb(255 255 255 / .88)' }}>Deep Algorithms</p>
-          <div style={{ marginTop: 14 }}><Spoken line={L} t={t} size={96} width={1300} align="center" words="catches them before they act." dim={0.28} part={[2 / 7, 1]} /></div>
+          <div style={{ marginTop: 14 }}><Spoken line={L} t={t} size={92} width={1300} align="center" words="catches them before they act." dim={0.28} part={[2 / 7, 1]} /></div>
+          <div style={{ position: 'absolute', left: 40, right: 40, bottom: 40, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+            {LINE.map(([k, n, r], i) => {
+              const x = ease(seg(t, wordAt(L, 2) + i * 0.12, wordAt(L, 2) + 0.5 + i * 0.12));
+              return (
+                <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 20, background: 'rgb(4 22 48 / .42)', border: '1px solid rgb(255 255 255 / .2)', opacity: x, transform: `translateY(${(1 - x) * 24}px)` }}>
+                  <span style={{ width: 62, height: 62, flexShrink: 0, borderRadius: 16, display: 'grid', placeItems: 'center', background: '#fff' }}><ProductMark p={k} size={46} loading="eager" /></span>
+                  <span style={{ textAlign: 'left' }}><span style={{ display: 'block', fontSize: 25, fontWeight: 600, letterSpacing: '-0.02em', color: '#fff' }}>{n}</span><span style={{ display: 'block', marginTop: 3, fontSize: 18, color: 'rgb(255 255 255 / .75)' }}>{r}</span></span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </>
@@ -9591,7 +9733,7 @@ function Proof({ t, a, b }) {
   const logos = ease(seg(t, a + 0.5, a + 1.1));
   return (
     <>
-      <Shot id="team" t={t} a={a} b={b} kb={[1.03, 1.12]} dim={0.25 + 0.4 * logos} />
+      <Shot id="team" t={t} a={a} b={b} kb={[1.03, 1.12]} dim={0.15 + 0.35 * logos} />
       <Scrim side="t" o={0.7} />
       <div style={{ position: 'absolute', left: 120, top: 110 }}><Spoken line={Tr} t={t} size={76} width={1700} words="and enterprises that cannot afford a breach." part={[7 / 14, 1]} /></div>
       <div style={{ position: 'absolute', left: 120, right: 120, bottom: 170, display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 20, perspective: 1600 }}>
@@ -9611,22 +9753,32 @@ function Proof({ t, a, b }) {
   );
 }
 
-/* the close: the city at night, the lockup and one ask */
+/* the close, in two moves: the ask over the city, then the lockup with the four
+   products and where to go. Something new arrives every couple of seconds. */
 function Cta({ t, a }) {
   const L = C.cta;
-  const x = ease(seg(t, a, a + 0.8));
-  const out = 1 - seg(t, LENGTH - 1.5, LENGTH - 0.15);
+  const x = ease(seg(t, a, a + 0.7));
+  const lock = ease(seg(t, wordAt(L, 7) - 0.3, wordAt(L, 7) + 0.5)); // "The future is decided today."
+  const out = 1 - seg(t, LENGTH - 0.9, LENGTH - 0.05);
   return (
     <div style={{ position: 'absolute', inset: 0, opacity: out }}>
-      <Shot id="nightroad" t={t} a={a} b={LENGTH} kb={[1.0, 1.1]} dim={0.62} offset={60} />
-      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(55% 60% at 50% 50%, rgb(3 5 8 / .55), transparent 80%)' }} />
-      <div style={{ position: 'absolute', left: 0, right: 0, top: 245, textAlign: 'center', opacity: x, transform: `translateY(${(1 - x) * 30}px)` }}>
-        <img src="/brand/logo-lockup-inverse.webp" alt="Deep Algorithms" style={{ height: 72, margin: '0 auto' }} />
-        <div style={{ marginTop: 70 }}><Spoken line={L} t={t} size={100} width={1400} align="center" words="Find your riskiest identity before attackers do." dim={0.2} part={[0, 7 / 17]} /></div>
-        <p style={{ marginTop: 34, fontSize: 40, fontWeight: 500, letterSpacing: '-0.02em', color: '#8fd2ff', opacity: ease(seg(t, wordAt(L, 7) - 0.15, wordAt(L, 7) + 0.45)) }}>The future is decided today.</p>
-        <div style={{ marginTop: 52, display: 'inline-flex', alignItems: 'center', gap: 22, opacity: ease(seg(t, wordAt(L, 12) - 0.4, wordAt(L, 12) + 0.2)) }}>
-          <span style={{ height: 76, padding: '0 38px', display: 'inline-flex', alignItems: 'center', borderRadius: 99, background: '#0a6dbb', color: '#fff', fontSize: 30, fontWeight: 600 }}>Book a demo</span>
-          <span style={{ fontSize: 34, color: '#e2e4e8', fontWeight: 500 }}>deepalgorithms.io</span>
+      <Shot id="nightroad" t={t} a={a} b={LENGTH} kb={[1.0, 1.12]} dim={0.3 + 0.25 * lock} blur={lock * 8} offset={60} />
+      <Scrim o={0.7 * (1 - lock)} />
+      <div style={{ position: 'absolute', left: 120, bottom: 130, opacity: x * (1 - lock), transform: `translateY(${(1 - x) * 26 - lock * 40}px)` }}>
+        <Spoken line={L} t={t} size={108} width={1500} words="Find your riskiest identity before attackers do." dim={0.2} part={[0, 7 / 17]} />
+      </div>
+      <div style={{ position: 'absolute', left: 0, right: 0, top: 200, textAlign: 'center', opacity: lock, transform: `translateY(${(1 - lock) * 30}px)` }}>
+        <img src="/brand/logo-lockup-inverse.webp" alt="Deep Algorithms" style={{ height: 86, margin: '0 auto' }} />
+        <p style={{ marginTop: 46, fontSize: 64, fontWeight: 600, letterSpacing: '-0.04em', color: '#fff' }}>The future is decided today.</p>
+        <div style={{ marginTop: 50, display: 'flex', justifyContent: 'center', gap: 18 }}>
+          {LINE.map(([k, n], i) => {
+            const y = ease(seg(t, wordAt(L, 9) + i * 0.12, wordAt(L, 9) + 0.5 + i * 0.12));
+            return <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 12, padding: '12px 20px 12px 14px', borderRadius: 18, background: 'rgb(10 14 20 / .55)', border: '1px solid rgb(180 200 230 / .2)', opacity: y, transform: `translateY(${(1 - y) * 16}px)` }}><ProductMark p={k} size={40} loading="eager" /><span style={{ fontSize: 24, fontWeight: 600 }}>{n}</span></span>;
+          })}
+        </div>
+        <div style={{ marginTop: 56, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 24, opacity: ease(seg(t, wordAt(L, 12) - 0.4, wordAt(L, 12) + 0.2)) }}>
+          <span style={{ height: 84, padding: '0 44px', display: 'inline-flex', alignItems: 'center', borderRadius: 99, background: '#0a6dbb', color: '#fff', fontSize: 32, fontWeight: 600, boxShadow: '0 20px 60px -15px rgb(10 109 187 / .8)' }}>Book a demo</span>
+          <span style={{ fontSize: 38, color: '#fff', fontWeight: 500, letterSpacing: '-0.01em' }}>deepalgorithms.io</span>
         </div>
       </div>
     </div>
@@ -10729,7 +10881,7 @@ export default function Home() {
       {/* the film */}
       <section id="film" className="stage sec scroll-mt-20" aria-labelledby="film-h">
         <div className="wrap">
-          <SectionHead id="film-h" eyebrow="Watch · 1 minute" title="See the platform in one minute." lead="Three identities attackers use, and how each Deep Algorithms product stops them before the damage is done." />
+          <SectionHead id="film-h" eyebrow="Watch · 82 seconds" title="One bank. One night. Five attacks." lead="A scam payment, a rogue AI agent, a stolen login, a bot flood and a regulator’s question, and how each Deep Algorithms product stops it before the damage is done." />
           <Reveal up className="mx-auto mt-14 max-w-[1000px]"><FilmPlayer /></Reveal>
         </div>
       </section>
@@ -13612,9 +13764,10 @@ Live-action shots in the product film. All are free for commercial use with no a
 | `cables` | Cloud keys | [Pexels](https://www.pexels.com/video/1085656/) |
 | `terminal` | AI agents | [Pexels](https://www.pexels.com/video/6804117/) |
 | `attacker` | Attackers have noticed | [Pexels](https://www.pexels.com/video/6962343/) |
-| `typing` | They log in | [Coverr](https://coverr.co/s?q=fast-typing-on-a-black-keyboard) |
+| `typing` | They log in | [Pexels](https://www.pexels.com/video/5240956/) |
 | `soc` | Every alert stays quiet | [Pexels](https://www.pexels.com/video/7255101/) |
 | `nightroad` | Brand moment and closing card | [Pexels](https://www.pexels.com/video/16456493/) |
+| `call` | Worst case: scam call | [Coverr](https://coverr.co/s?q=a+man+using+his+phone+at+home+late+at+night) |
 | `towers` | Worst case: rogue AI agent | [Pexels](https://www.pexels.com/video/17499154/) |
 | `code` | Zenstra background | [Pexels](https://www.pexels.com/video/853919/) |
 | `intruder` | Worst case: wrong person | [Pexels](https://www.pexels.com/video/7534265/) |
@@ -13625,6 +13778,7 @@ Live-action shots in the product film. All are free for commercial use with no a
 | `ward` | ICMS background | [Coverr](https://coverr.co/s?q=iv-in-hospital-room) |
 | `mumbai` | Built in India | [Pexels](https://www.pexels.com/video/10093263/) |
 | `skyline` | Trusted by banks, government | [Pexels](https://www.pexels.com/video/15105723/) |
+| `morning` | 09:00, the morning after | [Coverr](https://coverr.co/s?q=office+building) |
 | `team` | Enterprises that cannot afford a breach | [Pexels](https://www.pexels.com/video/7253660/) |
 
 Also by Deep Algorithms in the film: the product pictures (src/components/viz), logos, the narration (Kokoro, Apache-2.0, voice af_heart) and the score (tools/film/mix.py).
@@ -13634,20 +13788,33 @@ FILE: website/tools/film/README.md
 ====================================================================================================
 # Product film
 
-The film on the home page (`public/video/deep-algorithms-film.mp4`, 1:09). It is made from code so it can be re-cut when the products or the words change: live-action footage carries the world and the threat, and the site's own product pictures carry the answer.
+The film on the home page (`public/video/deep-algorithms-film.mp4`, 1:22). It is made from code so it can be re-cut when the products or the words change: live-action footage carries the world and the threat, and the site's own product pictures carry the answer.
 
-**Structure** (modelled on enterprise security brand films): the stakes in the real world → the threat in one line → the brand → four times over, a **worst case on screen in silence** (a rogue AI agent at 02:14, the right password in the wrong hands, 18,204 bot logins in a minute, a 72-hour breach clock) followed by the product stopping it → proof (customers, certifications) → one ask. The cuts land on the words, and the type is large, left-aligned and kept to a few words.
+**Structure.** It follows premium enterprise SaaS films: the product is the hero, shown large, simplified and true to the real app. Callouts sit on glass beside it, never inside it. There is one benefit per product, kinetic type carries the story on mute, the pacing is deliberate, and every product chapter uses the same visual system. The whole film is **one story: one bank in Mumbai, one night, five attacks**.
+1. **Cold open (silent):** 21:38 IST, a private bank, every system green, then "Before morning, five attacks will begin."
+2. **Problem:** most access now belongs to service accounts, cloud keys and AI agents. Attackers log in, and no alert fires.
+3. **Brand:** the plate opens with "catches them before they act" and shows the four product lines.
+4. **Five chapters**, each a worst case on screen in silence over a heartbeat, then the product stopping it:
+   1. **adapID Fraud Prevention.** A customer on a scam call sends ₹2,40,000 to a new payee, and the payment is held (< 80 ms).
+   2. **Zenstra AI.** An agent exports customer records, and the action is blocked (4 ms).
+   3. **adapID Identity Risk Management (CIRM).** Right password, wrong person, and every session is revoked (1.4 s).
+   4. **BotShield AI.** 18,204 bot logins hit, and 6 of 37 exposures are proven and patched.
+   5. **ICMS.** The regulator asks, and the evidence package is ready (< 5 min).
+
+   The camera leans into the one row that matters, with a spotlight, and the result lands as one number on glass. A chapter marker (01/05 … 05/05) keeps the viewer oriented.
+5. **Resolution:** 09:00, business as usual. "One night. Five attacks. Nothing lost."
+6. **Proof, then the ask:** customers and certifications, then the ask over the city, then the lockup with the products, the button and the URL. The voice ends on "Book a demo."
 
 | File | What it does |
 | --- | --- |
-| `script.json` | The narration, line by line. `text` is what appears on screen and in captions, `say` is what the voice reads (spellings that help pronunciation, such as "Adap-ID"), and `after` is the pause after each line. The long pauses after `brand`, `zenstra`, `adapid` and `botshield` are the silent worst-case beats. |
+| `script.json` | The narration, line by line. `lead` is the silence before the first line (the cold open plays in it). `text` is what appears on screen and in captions, `say` is what the voice reads (spellings that help pronunciation, such as "Adap-ID"), and `after` is the pause after each line. The long pauses after `brand`, `fraud`, `zenstra`, `cirm` and `botshield` are the silent worst-case beats. |
 | `tts.py` | Synthesises the narration with [Kokoro](https://github.com/hexgrad/kokoro) (Apache-2.0), voice `af_heart`, one line at a time. Writes `vo.wav` and `timings.json`. |
 | `footage.json` | The live-action shots: source URL, the window used (`in`, `dur`) and per-shot `lift`/`sat`. Every clip is free for commercial use without attribution (Pexels and Coverr licences). See `CREDITS.md`. |
 | `footage.py` | Downloads each shot, cuts its window and gives all shots one grade (cool shadows, muted saturation, gentle film curve), so footage from different cameras cuts together. Writes 1920×1080 JPEG frames at 30 fps. |
 | `mix.py` | Generates the score (soft pads, a pulse from the brand moment on, whooshes, a chime, a closing swell), plus an impact and riser into each worst-case beat on their own bus. Ducks the score under the voice and sets it 18 dB below speech. |
 | `captions.py` | Writes the WebVTT captions from `timings.json`. |
 | `render.mjs` | Opens `film.html` on the dev server, serves the footage frames as `/clips/…`, and captures every frame at 1920×1080. |
-| `src/dev/film/Film.jsx` | The film: each scene is a pure function of time, cut to `timings.json`. Shots get a slow camera move, grain and lens falloff. The product scenes reuse the site's product pictures, with their steps driven by the film clock. |
+| `src/dev/film/Film.jsx` | The film: each scene is a pure function of time, cut to `timings.json`. Shots get a slow camera move, grain and lens falloff. The five chapters are one table (`CHAPTERS`): worst case, product picture, focus ring (measured from the DOM), headline and outcome. The product pictures are the site's own, with their steps driven by the film clock. |
 
 ## Remake it
 
@@ -13661,7 +13828,7 @@ cp build/film/timings.json tools/film/timings.json
 python tools/film/footage.py build/film/cache build/film/clips
 
 # 3. sound
-python tools/film/mix.py build/film/vo.wav tools/film/timings.json build/film/mix.wav 68.9
+python tools/film/mix.py build/film/vo.wav tools/film/timings.json build/film/mix.wav 82.01
 
 # 4. captions
 python tools/film/captions.py tools/film/timings.json public/video/deep-algorithms-film.vtt
@@ -13677,7 +13844,7 @@ ffmpeg -framerate 30 -i build/film/frames/f%05d.jpg -i build/film/mix.wav -map 0
   public/video/deep-algorithms-film.mp4
 ffmpeg -i public/video/deep-algorithms-film.mp4 -c:v libvpx-vp9 -b:v 0 -crf 34 -row-mt 1 -c:a libopus -b:a 128k \
   public/video/deep-algorithms-film.webm
-ffmpeg -ss 30.5 -i public/video/deep-algorithms-film.mp4 -frames:v 1 -c:v libwebp -quality 86 public/video/film-poster.webp
+ffmpeg -ss 28.6 -i public/video/deep-algorithms-film.mp4 -frames:v 1 -c:v libwebp -quality 86 public/video/film-poster.webp
 ```
 
 Don't edit source files while `render.mjs` runs. The dev server reloads the page, and the renderer reopens it and redoes the frame, which costs time.
@@ -13772,10 +13939,12 @@ FILE: website/tools/film/footage.json
   },
   {
    "id": "typing",
-   "src": "https://cdn.coverr.co/videos/coverr-fast-typing-on-a-black-keyboard-1354/1080p.mp4",
-   "page": "https://coverr.co/s?q=fast+typing+on+a+black+keyboard",
-   "in": 0.5,
-   "dur": 3.0
+   "src": "https://videos.pexels.com/video-files/5240956/5240956-hd_1920_1080_30fps.mp4",
+   "page": "https://www.pexels.com/video/5240956/",
+   "in": 4.0,
+   "dur": 3.0,
+   "lift": 0.04,
+   "sat": 0.85
   },
   {
    "id": "soc",
@@ -13791,6 +13960,14 @@ FILE: website/tools/film/footage.json
    "in": 0.0,
    "dur": 14.0,
    "lift": 0.05
+  },
+  {
+   "id": "call",
+   "src": "https://cdn.coverr.co/videos/coverr-a-man-using-his-phone-at-home-late-at-night-5611/1080p.mp4",
+   "page": "https://coverr.co/s?q=a+man+using+his+phone+at+home+late+at+night",
+   "in": 1.0,
+   "dur": 3.5,
+   "lift": 0.03
   },
   {
    "id": "towers",
@@ -13871,6 +14048,15 @@ FILE: website/tools/film/footage.json
    "lift": 0.09
   },
   {
+   "id": "morning",
+   "src": "https://cdn.coverr.co/videos/coverr-office-building-1731/1080p.mp4",
+   "page": "https://coverr.co/s?q=office+building",
+   "in": 3.0,
+   "dur": 4.5,
+   "lift": -0.02,
+   "sat": 0.9
+  },
+  {
    "id": "team",
    "src": "https://videos.pexels.com/video-files/7253660/7253660-hd_2048_1080_30fps.mp4",
    "page": "https://www.pexels.com/video/7253660/",
@@ -13885,7 +14071,7 @@ FILE: website/tools/film/footage.py
 """Live-action footage for the product film: download each clip in footage.json,
 cut its window, give every shot the same grade and write 1920x1080 frames at 30 fps
 to <out>/<id>/0001.jpg... render.mjs serves them to film.html as /clips/<id>/NNNN.jpg.
-Grade: slightly crushed, cool shadows, warm-neutral highlights, muted saturation,
+Grade: open shadows, cool shadows, warm-neutral highlights, muted saturation,
 so footage from different cameras cuts together and the product colours stay the
 only saturated thing on screen.
 Usage: python footage.py <cache-dir> <out-dir>"""
@@ -13902,9 +14088,9 @@ for c in json.load(open(os.path.join(here, 'footage.json')))['clips']:
     lift = c.get('lift', 0)
     vf = ','.join([
         'fps=30', 'scale=1920:1080:force_original_aspect_ratio=increase:flags=lanczos', 'crop=1920:1080',
-        f'eq=contrast=1.07:brightness={lift - 0.015:.3f}:saturation={c.get("sat", 0.8)}:gamma=0.97',
+        f'eq=contrast=1.05:brightness={lift + 0.035:.3f}:saturation={c.get("sat", 0.82)}:gamma=1.06',
         'colorbalance=rs=-0.05:gs=-0.01:bs=0.06:rm=-0.02:bm=0.025:rh=0.02:gh=0.005:bh=-0.02',
-        'curves=all=0/0.02 0.25/0.21 0.5/0.5 0.8/0.83 1/0.97',
+        'curves=all=0/0.03 0.25/0.26 0.5/0.54 0.8/0.85 1/0.98',
     ])
     subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-ss', str(c['in']), '-t', str(c['dur']), '-i', src,
                     '-vf', vf, '-q:v', '2', os.path.join(d, '%04d.jpg')], check=True)
@@ -14055,12 +14241,30 @@ def riser(end, dur=0.9, amp=0.03):
     w = x * (tt / dur) ** 2.2 * amp
     fx_l[s:s + n] += w * 0.9; fx_r[s:s + n] += w
 
+def pulse(a, b, bpm=96, amp=0.09):
+    # a low heartbeat under a worst-case beat: tension without music
+    beat = 60 / bpm; p = a + beat
+    while p < b - 0.1:
+        for off, g in ((0, 1.0), (0.18, 0.6)):
+            n = int(0.35 * SR); s = int((p + off) * SR)
+            if s + n > N: break
+            tt = np.arange(n) / SR
+            w = np.sin(2 * np.pi * 52 * tt) * np.exp(-tt * 14) * g * amp
+            fx_l[s:s + n] += w; fx_r[s:s + n] += w
+        p += beat
+
 # worst-case beats: they start just after the line before them ends (Film.jsx: inc1..inc4)
-for at in (cue['brand']['end'] + 0.35, cue['zenstra']['end'] + 0.25, cue['adapid']['end'] + 0.25, cue['botshield']['end'] + 0.25):
+CHAP = [k for k in ('fraud', 'zenstra', 'cirm', 'botshield', 'icms') if k in cue]  # Film.jsx CHAPTERS, in order
+INC = [(cue['brand']['end'] + 0.8 if i == 0 else cue[CHAP[i - 1]]['end'] + 0.25, k) for i, k in enumerate(CHAP)]
+for a0, k in INC:
+    pulse(a0, cue[k]['start'] + 0.6)
+for at, _ in INC:
     riser(at); impact(at)
+impact(0.45, amp=0.12)  # cold open: the night begins
+if 'recap' in cue: chime(cue['recap']['start'] - 0.4, amp=0.045)  # the morning after
 for k in ('shift', 'login', 'trust'):
     whoosh(cue[k]['start'] - 0.15, amp=0.035)
-for k in ('zenstra', 'adapid', 'botshield', 'icms'):  # into each product: the answer arrives
+for k in CHAP:  # into each product: the answer arrives
     whoosh(cue[k]['start'] + 0.6, dur=0.8, amp=0.04)
 chime(cue['brand']['start'] - 0.25, amp=0.06)
 whoosh(cue['brand']['start'] - 0.3, dur=1.6, amp=0.05)
@@ -14157,21 +14361,22 @@ FILE: website/tools/film/script.json
       "after": 2.1
     },
     {
+      "id": "fraud",
+      "text": "adapID Fraud Prevention sees the scam call and the new payee, and holds the payment before the money moves.",
+      "say": "Adap-ID Fraud Prevention sees the scam call and the new payee, and holds the payment before the money moves.",
+      "after": 2.0
+    },
+    {
       "id": "zenstra",
       "text": "Zenstra checks every AI agent’s action against its task, and blocks it before it runs.",
       "say": "Zenstra, checks every AI agent's action against its task, and blocks it before it runs.",
       "after": 2.0
     },
     {
-      "id": "adapid",
-      "text": "adapID knows how every person and machine identity behaves, and stops the impostor.",
-      "say": "Adap-ID knows how every person and machine identity behaves, and stops the impostor.",
-      "after": 2.0,
-      "soften": [
-        0,
-        0.62,
-        -3.5
-      ]
+      "id": "cirm",
+      "text": "adapID Identity Risk Management scores every person and machine identity, live, and stops the impostor.",
+      "say": "Adap-ID Identity Risk Management scores every person and machine identity, live, and stops the impostor.",
+      "after": 2.0
     },
     {
       "id": "botshield",
@@ -14183,7 +14388,13 @@ FILE: website/tools/film/script.json
       "id": "icms",
       "text": "ICMS turns every access to personal data into DPDPA evidence, before the auditor asks.",
       "say": "I-C-M-S turns every access to personal data into DPDPA evidence, before the auditor asks.",
-      "after": 1.0
+      "after": 0.7
+    },
+    {
+      "id": "recap",
+      "text": "One night. Five attacks. Nothing lost.",
+      "say": "One night. Five attacks. Nothing lost.",
+      "after": 0.9
     },
     {
       "id": "trust",
@@ -14193,79 +14404,92 @@ FILE: website/tools/film/script.json
     },
     {
       "id": "cta",
-      "text": "Find your riskiest identity before attackers do. The future is decided today. Book a demo at deepalgorithms.io.",
-      "say": "Find your riskiest identity, before attackers do. The future is decided today. Book a demo at deep algorithms dot I O.",
-      "after": 2.4
+      "text": "Find your riskiest identity before attackers do. The future is decided today. Book a demo.",
+      "say": "Find your riskiest identity, before attackers do. The future is decided today. Book a demo.",
+      "after": 1.6
     }
-  ]
+  ],
+  "lead": 3.0
 }
 ====================================================================================================
 FILE: website/tools/film/timings.json
 ====================================================================================================
 {
- "duration": 68.765,
+ "duration": 82.01,
  "voice": "af_heart",
  "speed": 0.92,
  "lines": [
   {
    "id": "hook",
    "text": "Most access in your company no longer belongs to a person.",
-   "start": 0.6,
-   "end": 4.184
+   "start": 3.0,
+   "end": 6.584
   },
   {
    "id": "shift",
    "text": "Service accounts, cloud keys and AI agents hold it now. And attackers have noticed.",
-   "start": 4.784,
-   "end": 10.513
+   "start": 7.184,
+   "end": 12.913
   },
   {
    "id": "login",
    "text": "They don\u2019t break in anymore. They log in, and every alert stays quiet.",
-   "start": 11.413,
-   "end": 15.57
+   "start": 13.813,
+   "end": 17.97
   },
   {
    "id": "brand",
    "text": "Deep Algorithms catches them before they act.",
-   "start": 16.37,
-   "end": 19.134
+   "start": 18.77,
+   "end": 21.534
+  },
+  {
+   "id": "fraud",
+   "text": "adapID Fraud Prevention sees the scam call and the new payee, and holds the payment before the money moves.",
+   "start": 23.634,
+   "end": 30.408
   },
   {
    "id": "zenstra",
    "text": "Zenstra checks every AI agent\u2019s action against its task, and blocks it before it runs.",
-   "start": 21.234,
-   "end": 27.137
+   "start": 32.408,
+   "end": 38.31
   },
   {
-   "id": "adapid",
-   "text": "adapID knows how every person and machine identity behaves, and stops the impostor.",
-   "start": 29.137,
-   "end": 34.639
+   "id": "cirm",
+   "text": "adapID Identity Risk Management scores every person and machine identity, live, and stops the impostor.",
+   "start": 40.31,
+   "end": 47.67
   },
   {
    "id": "botshield",
    "text": "BotShield proves which holes in your apps are real, and stops bots and floods at the edge.",
-   "start": 36.639,
-   "end": 41.774
+   "start": 49.67,
+   "end": 54.805
   },
   {
    "id": "icms",
    "text": "ICMS turns every access to personal data into DPDPA evidence, before the auditor asks.",
-   "start": 43.774,
-   "end": 50.709
+   "start": 56.805,
+   "end": 63.741
+  },
+  {
+   "id": "recap",
+   "text": "One night. Five attacks. Nothing lost.",
+   "start": 64.441,
+   "end": 67.086
   },
   {
    "id": "trust",
    "text": "Built in India. Trusted by banks, government and enterprises that cannot afford a breach.",
-   "start": 51.709,
-   "end": 57.363
+   "start": 67.986,
+   "end": 73.64
   },
   {
    "id": "cta",
-   "text": "Find your riskiest identity before attackers do. The future is decided today. Book a demo at deepalgorithms.io.",
-   "start": 58.063,
-   "end": 66.365
+   "text": "Find your riskiest identity before attackers do. The future is decided today. Book a demo.",
+   "start": 74.34,
+   "end": 80.41
   }
  ]
 }
@@ -14293,7 +14517,7 @@ def trim(a, sr, thr=0.008):
     s, e = max(0, idx[0] - int(0.02 * sr)), min(len(a), idx[-1] + int(0.06 * sr))
     return a[s:e]
 
-lead = 0.6
+lead = spec.get('lead', 0.6)  # silence before the first line: the cold open plays here
 parts, t, cues, sr = [], lead, [], 24000
 for ln in spec['lines']:
     a, sr = k.create(ln['say'], voice=voice, speed=speed, lang='en-us')
