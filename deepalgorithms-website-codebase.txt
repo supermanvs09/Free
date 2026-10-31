@@ -1,5 +1,5 @@
 DEEP ALGORITHMS WEBSITE: FULL SOURCE CODE
-Commit d11a9f5. 142 text files below; 85 binary files (images, video, audio, fonts) are listed but not printed.
+Commit e1975c0. 141 text files below; 85 binary files (images, video, audio, fonts) are listed but not printed.
 
 == CONTENTS ==
   .dockerignore
@@ -108,7 +108,6 @@ Commit d11a9f5. 142 text files below; 85 binary files (images, video, audio, fon
   src/pages/Sitemap.jsx
   src/pages/Solution.jsx
   src/pages/Tour.jsx
-  src/pages/Trust.jsx
   src/pages/Why.jsx
   src/pages/products/AdSecurity.jsx
   src/pages/products/BotShield.jsx
@@ -2497,7 +2496,6 @@ const Home = lazy(() => import('./pages/Home.jsx'));
 const Products = lazy(() => import('./pages/Products.jsx'));
 const Solution = lazy(() => import('./pages/Solution.jsx'));
 const Why = lazy(() => import('./pages/Why.jsx'));
-const Trust = lazy(() => import('./pages/Trust.jsx'));
 const Blog = lazy(() => import('./pages/Blog.jsx'));
 const Article = lazy(() => import('./pages/Article.jsx'));
 const Demo = lazy(() => import('./pages/Demo.jsx'));
@@ -2525,7 +2523,7 @@ export const PATHS = [
   '/', '/products',
   ...Object.values(PRODUCTS).map((p) => p.path),
   ...SOLUTIONS.map((s) => `/solutions/${s.slug}`),
-  '/why-deep-algorithms', '/trust', '/blogs', ...POSTS.map((p) => `/blogs/${p.slug}`),
+  '/why-deep-algorithms', '/blogs', ...POSTS.map((p) => `/blogs/${p.slug}`),
   '/product-tour', '/request-demo', '/contact', '/sitemap', ...Object.keys(LEGAL).map((k) => `/${k}`),
 ];
 
@@ -2573,7 +2571,6 @@ export default function App() {
             {Object.entries(ZCAPS).map(([k, c]) => <Route key={k} path={c.path} element={<Capability id={k} />} />)}
             <Route path="/solutions/:slug" element={<Solution />} />
             <Route path="/why-deep-algorithms" element={<Why />} />
-            <Route path="/trust" element={<Trust />} />
             <Route path="/blogs" element={<Blog />} />
             <Route path="/blogs/:slug" element={<Article />} />
             <Route path="/product-tour" element={<Tour />} />
@@ -2810,15 +2807,14 @@ const INDEX = [
   ...Object.values(PRODUCTS).map((p) => ({ group: 'Products', title: p.name, sub: p.line === p.name ? p.description : `${p.line} · ${p.description}`, path: p.path })),
   ...Object.values(ZCAPS).map((c) => ({ group: 'Zenstra AI capabilities', title: c.name, sub: c.short, path: c.path })),
   ...SOLUTIONS.map((s) => ({ group: 'Solutions', title: s.name, sub: s.desc, path: `/solutions/${s.slug}` })),
-  ...POSTS.map((p) => ({ group: 'Research', title: p.title, sub: `${p.category} · ${p.read} min read`, path: `/blogs/${p.slug}`, more: p.excerpt })),
+  ...POSTS.map((p) => ({ group: 'Blogs', title: p.title, sub: `${p.category} · ${p.read} min read`, path: `/blogs/${p.slug}`, more: p.excerpt })),
   { group: 'Company', title: 'Why Deep Algorithms', sub: 'The company, the team and how the products work', path: '/why-deep-algorithms' },
   { group: 'Company', title: 'All products', sub: 'Filter by what you need to protect', path: '/products' },
-  { group: 'Company', title: 'All research', sub: 'Reports, field notes and analysis', path: '/blogs' },
+  { group: 'Company', title: 'All blogs', sub: 'Reports, field notes and analysis', path: '/blogs' },
   ...[
     ['Leadership', 'The team and our advisors', '/why-deep-algorithms#leadership'],
     ['Recognition', 'Awards, programmes and certifications', '/why-deep-algorithms#recognition'],
     ['Careers', 'Work on hard security problems', '/why-deep-algorithms#careers'],
-    ['Trust center', 'Certifications, deployment and data handling', '/trust'],
     ['Contact', 'Offices, phone and email', '/contact'],
   ].map(([title, sub, path]) => ({ group: 'Company', title, sub, path })),
   { group: 'Company', title: 'Book a demo', sub: '30 minutes with an engineer, on your environment', path: '/request-demo' },
@@ -2862,7 +2858,7 @@ function Search({ onClose }) {
       <div role="dialog" aria-modal="true" aria-label="Search the site" className="tone-l w-full max-w-[640px] overflow-hidden rounded-[18px] border border-line-2 bg-bg-1 text-ink shadow-[0_40px_120px_-30px_rgba(0,0,0,.7)]">
         <div className="flex items-center gap-3 border-b border-line px-5">
           <Icon name="MagnifyingGlass" size={19} className="shrink-0 text-ink-3" />
-          <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={key} placeholder="Search products, solutions and research"
+          <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={key} placeholder="Search products, solutions and blogs"
             className="h-[60px] w-full bg-transparent text-[17px] text-ink outline-none placeholder:text-ink-3" role="combobox" aria-expanded="true" aria-controls="cmd-list" aria-autocomplete="list"
             aria-activedescendant={hits[at] ? `cmd-${at}` : undefined} autoComplete="off" spellCheck="false" />
           <kbd className="hidden shrink-0 rounded-md border border-line-2 px-1.5 py-0.5 font-sans text-[12px] text-ink-3 sm:block">Esc</kbd>
@@ -2899,7 +2895,7 @@ function Search({ onClose }) {
 const DIRS = {
   zenstra: '/agentic-ai/agentic-identity', adapid: '/adapid-ai', botshield: '/botshield-ai', icms: '/dpdpa-compliance',
   nhi: '/adapid-ai/nhi-security', fraud: '/adapid-ai/fraud-prevention', ad: '/ad-security', ddos: '/botshield-ai/ddos-protection',
-  research: '/blogs', company: '/why-deep-algorithms', platform: '/why-deep-algorithms', products: '/products', demo: '/request-demo', contact: '/contact', home: '/',
+  blogs: '/blogs', research: '/blogs', company: '/why-deep-algorithms', platform: '/why-deep-algorithms', products: '/products', demo: '/request-demo', contact: '/contact', home: '/',
 };
 const HELP = [
   ['help', 'this list'], ['ls', 'what is here'], ['open <name>', 'go to a page, e.g. open zenstra'], ['whoami', 'who the site thinks you are'],
@@ -3551,7 +3547,7 @@ export default function Footer() {
               <L to="/why-deep-algorithms">Why Deep Algorithms</L>
             </Col>
             <Col title="Resources">
-              <L to="/blogs">All research</L>
+              <L to="/blogs">All blogs</L>
               <L to="/blogs/india-mule-account-crisis">Mule account crisis</L>
               <L to="/blogs/ai-agent-governance">AI agent governance</L>
               <L to="/blogs/ddos-mitigation-strategy-2026">DDoS in 2026</L>
@@ -3560,7 +3556,6 @@ export default function Footer() {
             <Col title="Company">
               <L to="/why-deep-algorithms#leadership">Leadership</L>
               <L to="/why-deep-algorithms#careers">Careers</L>
-              <L to="/trust">Trust center</L>
               <L to="/contact">Contact</L>
               <L to="/product-tour">Product tour</L>
               <L to="/request-demo">Book a demo</L>
@@ -3813,8 +3808,7 @@ function UtilityBar({ away }) {
 const NAV = [
   { label: 'Products', menu: ProductsMenu },
   { label: 'Solutions', menu: SolutionsMenu },
-  { label: 'Research', to: '/blogs' },
-  { label: 'Trust center', to: '/trust' },
+  { label: 'Blogs', to: '/blogs' },
   { label: 'Why Deep Algorithms', to: '/why-deep-algorithms' },
 ];
 
@@ -3846,7 +3840,7 @@ function MobileMenu({ onNav }) {
         {SOLUTIONS.map((x) => <Link key={x.slug} to={`/solutions/${x.slug}`} onClick={onNav} className="rounded-full border border-line-2 px-3.5 py-2 text-[14px] text-ink-2">{x.name}</Link>)}
       </div>
       <div className="mt-5">
-        {[['Research', '/blogs'], ['Trust center', '/trust'], ['Why Deep Algorithms', '/why-deep-algorithms'], ['Careers', '/why-deep-algorithms#careers'], ['Contact', '/contact']].map(([n, to]) => (
+        {[['Blogs', '/blogs'], ['Why Deep Algorithms', '/why-deep-algorithms'], ['Careers', '/why-deep-algorithms#careers'], ['Contact', '/contact']].map(([n, to]) => (
           <Link key={to} to={to} onClick={onNav} className={row}>{n}<Icon name="CaretRight" size={15} className="text-ink-3" /></Link>
         ))}
       </div>
@@ -4855,7 +4849,7 @@ const ROLES = [
     products: ['adapid', 'zenstra', 'botshield', 'icms'],
     id: 'ciso', tab: 'CISO', h: 'One view of identity risk, and evidence the board can read.',
     points: ['People, machine identities and AI agents, ranked by risk', 'Every decision explained, for the board and regulators', 'One vendor for identity, agents, bots and DPDPA'],
-    photo: '/img/photos/hero-person.webp', pos: '62% 20%', chips: ['Finance analyst', 'Hyderabad office', 'His usual laptop'],
+    photo: '/img/photos/hero-person.webp', pos: '62% 20%', chips: ['Finance analyst', 'Hyderabad office', 'Usual laptop'],
     apps: [['m365', 1], ['salesforce', 1], ['slack', 1], ['aws', 0]],
     to: '/why-deep-algorithms', cta: 'Why Deep Algorithms',
     stat: { v: '₹25.5 Cr', l: 'average cost of a data breach in India in 2026, the highest on record.', s: 'IBM Cost of a Data Breach Report, 2026' },
@@ -5052,7 +5046,6 @@ export function Proof({ kind }) {
       <ul className="mt-4 space-y-3">
         {CERTS.map((c) => <li key={c.code} className="flex items-center gap-3 text-[14.5px] font-medium text-[var(--rc-ink)]"><CertSeal code={c.code} size={36} /><span>{c.name}<span className="block text-[12px] font-normal text-[var(--rc-ink2)]">{c.desc}</span></span></li>)}
       </ul>
-      <Link to="/trust" className="rc-link mt-auto pt-4">Trust center<Icon name="ArrowRight" size={13} weight="bold" /></Link>
     </div>
   );
 }
@@ -5660,15 +5653,15 @@ export function PostCard({ post, big }) {
   );
 }
 
-export function ResearchRow({ slugs, title = 'Related research' }) {
+export function ResearchRow({ slugs, title = 'Related blogs' }) {
   const posts = slugs.map((s) => POSTS.find((p) => p.slug === s)).filter(Boolean);
   if (!posts.length) return null;
   return (
     <section data-rr className="sec">
       <div className="wrap">
         <div className="flex flex-wrap items-end justify-between gap-6">
-          <Reveal><p className="eyebrow mb-5">Research</p><h2 className="t-h2">{title}</h2></Reveal>
-          <Link to="/blogs" className="link">All research<Icon name="ArrowRight" size={14} weight="bold" /></Link>
+          <Reveal><p className="eyebrow mb-5">Blogs</p><h2 className="t-h2">{title}</h2></Reveal>
+          <Link to="/blogs" className="link">All blogs<Icon name="ArrowRight" size={14} weight="bold" /></Link>
         </div>
         <div className="m-rail mt-12 grid gap-10 md:grid-cols-3">{posts.map((p, i) => <Reveal key={p.slug} delay={i * 80}><PostCard post={p} /></Reveal>)}</div>
       </div>
@@ -9851,7 +9844,7 @@ export const CHALLENGES = [
 ====================================================================================================
 FILE: src/data/posts.js
 ====================================================================================================
-/* Research library. Bodies live in src/content/posts/<slug>.json. Dates are
+/* Blog library. Bodies live in src/content/posts/<slug>.json. Dates are
    the original publication dates; month-only originals show month and year. */
 export const POSTS = [
   { slug: 'identity-security', title: 'The Attack That Never Triggers an Alert', category: 'Identity Security', date: '2026-08-01', monthOnly: true, read: 13,
@@ -9894,7 +9887,7 @@ export function formatDate(p) {
   const [y, m, d] = p.date.split('-').map(Number);
   return p.monthOnly ? `${MONTHS[m - 1]} ${y}` : `${d} ${MONTHS[m - 1].slice(0, 3)} ${y}`;
 }
-export const authorOf = (p) => p.author || 'Deep Algorithms Research';
+export const authorOf = (p) => p.author || 'Deep Algorithms';
 
 ====================================================================================================
 FILE: src/data/products.js
@@ -9915,7 +9908,7 @@ export const PRODUCTS = {
     path: '/agentic-ai/agentic-identity', line: 'Zenstra AI', name: 'Zenstra AI',
     seoTitle: 'Zenstra AI: Runtime Security for AI Agents',
     description: 'Zenstra AI discovers every AI agent, MCP server and copilot, gives each one an owner and scoped access, and checks every action against its task before it runs.',
-    stats: [GARTNER, NHI, { v: '0', l: 'alerts raised when an authorised agent misuses legitimate access', s: 'Deep Algorithms Research' }],
+    stats: [GARTNER, NHI, { v: '0', l: 'alerts raised when an authorised agent misuses legitimate access', s: 'Deep Algorithms Blogs' }],
     research: ['ai-security-intelligence', 'ai-agent-governance', 'ai-security'],
     cta: { title: 'Let AI agents act. Keep every action accountable.', body: 'See Zenstra enforce a live policy against your own agent, in your own cloud.' },
   },
@@ -9923,7 +9916,7 @@ export const PRODUCTS = {
     path: '/adapid-ai', line: 'adapID AI', name: 'adapID AI',
     seoTitle: 'adapID AI: Continuous Identity Risk Management',
     description: 'adapID AI scores every human and machine identity continuously, stops identity fraud and closes Active Directory attack paths before credentials become a breach.',
-    stats: [IBM, { v: '94%', l: 'success rate of identity-centric attacks in our analysis', s: 'Deep Algorithms Research, 2026' }, { v: '0', l: 'average alerts generated while those attacks ran', s: 'Deep Algorithms Research, 2026' }],
+    stats: [IBM, { v: '94%', l: 'success rate of identity-centric attacks in our analysis', s: 'Deep Algorithms Blogs, 2026' }, { v: '0', l: 'average alerts generated while those attacks ran', s: 'Deep Algorithms Blogs, 2026' }],
     research: ['identity-security', 'threat-intelligence', 'confessions-entry-01'],
     cta: { title: 'Stop the breach that starts with a login.', body: 'Run CIRM on your own identity data with a Deep Algorithms engineer.' },
   },
@@ -9939,7 +9932,7 @@ export const PRODUCTS = {
     path: '/adapid-ai/fraud-prevention', line: 'adapID AI', name: 'Identity Fraud Prevention', parent: '/adapid-ai',
     seoTitle: 'adapID Identity Fraud Prevention: Stop Account Takeover, Scams and Mule Accounts',
     description: 'Fraud prevention for mobile and internet banking: behavioural biometrics, silent TOTP, device security, scam signals and transaction intelligence stop account takeover, payment scams and mule accounts, with a reason for every decision.',
-    stats: [{ v: '26.5 lakh+', l: 'mule accounts identified by I4C as of December 2025', s: 'I4C, via Deep Algorithms Research' }, { v: '₹20,000 Cr', l: 'siphoned through mule networks, with under half recovered', s: 'I4C, via Deep Algorithms Research' }, { v: '< 80 ms', l: 'risk decision at every event', s: 'Deep Algorithms benchmark' }],
+    stats: [{ v: '26.5 lakh+', l: 'mule accounts identified by I4C as of December 2025', s: 'I4C, via Deep Algorithms Blogs' }, { v: '₹20,000 Cr', l: 'siphoned through mule networks, with under half recovered', s: 'I4C, via Deep Algorithms Blogs' }, { v: '< 80 ms', l: 'risk decision at every event', s: 'Deep Algorithms benchmark' }],
     research: ['india-mule-account-crisis', 'mythos-ai-banking-threat', 'ctem-bot-defence-fintech'],
     cta: { title: 'See your own fraud signals, explained.', body: 'Live risk decisions on a sample of your sessions, with the reason behind every one.' },
   },
@@ -9947,7 +9940,7 @@ export const PRODUCTS = {
     path: '/ad-security', line: 'adapID AI', name: 'Active Directory Security', parent: '/adapid-ai',
     seoTitle: 'adapID Active Directory Security: Map and Close Attack Paths',
     description: 'See every account, privilege and path through Active Directory, catch the accounts being abused and close attack paths before they are taken.',
-    stats: [{ v: '6', l: 'hops from one compromised user to Domain Admins in a typical path', s: 'Deep Algorithms Research' }, { v: '10', l: 'core AD techniques covered, from Kerberoasting to DCSync', s: 'adapID AD Security' }, IBM],
+    stats: [{ v: '6', l: 'hops from one compromised user to Domain Admins in a typical path', s: 'Deep Algorithms Blogs' }, { v: '10', l: 'core AD techniques covered, from Kerberoasting to DCSync', s: 'adapID AD Security' }, IBM],
     research: ['confessions-entry-01', 'identity-security', 'threat-intelligence'],
     cta: { title: 'See the path before it is taken.', body: 'Run an attack path assessment on your directory with our engineers.' },
   },
@@ -9955,7 +9948,7 @@ export const PRODUCTS = {
     path: '/botshield-ai', line: 'BotShield AI', name: 'BotShield AI',
     seoTitle: 'BotShield AI: Continuous Threat Exposure Management and Bot Defence',
     description: 'BotShield AI runs reconnaissance, red team and blue team agents in a continuous loop to find, validate and fix exploitable exposure, and stops adversarial bots by intent.',
-    stats: [{ v: '₹24 lakh Cr+', l: 'moved through UPI in a single month in early 2026', s: 'NPCI, via Deep Algorithms Research' }, { v: 'Hours', l: 'for adversarial bots to adapt, against weeks for signature updates', s: 'Deep Algorithms Research' }, IBM],
+    stats: [{ v: '₹24 lakh Cr+', l: 'moved through UPI in a single month in early 2026', s: 'NPCI, via Deep Algorithms Blogs' }, { v: 'Hours', l: 'for adversarial bots to adapt, against weeks for signature updates', s: 'Deep Algorithms Blogs' }, IBM],
     research: ['ctem-bot-defence-fintech', 'ddos-mitigation-strategy-2026', 'ctem-dpdpa-india-2026'],
     cta: { title: 'The attack is autonomous. Your defence has to be too.', body: 'Watch the agent loop discover, validate and fix exposures in a 30-minute session.' },
   },
@@ -10025,7 +10018,7 @@ export const CERTS = [
   { code: 'ISO 27701', name: 'ISO/IEC 27701', desc: 'Privacy information management' },
 ];
 
-/* Where each product runs. Shared by the home page, Why Deep Algorithms and the Trust center. */
+/* Where each product runs. Shared by the home page and Why Deep Algorithms. */
 export const DEPLOY = [
   ['Zenstra AI', 'var(--color-zen)', 'A gateway inside your VPC, plus read-only connections to agent platforms'],
   ['adapID AI', 'var(--color-adap)', 'Read-only connectors to your IdP, IAM, HR and SaaS; one read-only role per AWS account'],
@@ -10047,8 +10040,8 @@ export const SOLUTION_PAGES = {
     helpTitle: 'Where we stop it: from login to ledger.',
     sub: 'Stop mule accounts and account takeover at the payee, govern the machine identities behind every payment flow, and keep regulators’ evidence ready.',
     stats: [
-      { icon: 'Wallet', v: '26.5 lakh+', l: 'mule accounts identified by I4C as of December 2025', s: 'I4C, via Deep Algorithms Research' },
-      { icon: 'Bank', v: '₹20,000 Cr', l: 'siphoned through mule networks, with under half recovered', s: 'I4C, via Deep Algorithms Research' },
+      { icon: 'Wallet', v: '26.5 lakh+', l: 'mule accounts identified by I4C as of December 2025', s: 'I4C, via Deep Algorithms Blogs' },
+      { icon: 'Bank', v: '₹20,000 Cr', l: 'siphoned through mule networks, with under half recovered', s: 'I4C, via Deep Algorithms Blogs' },
       { icon: 'Scales', v: '₹250 Cr', l: 'maximum DPDPA penalty for failing to safeguard personal data', s: 'DPDPA 2023' },
     ],
     help: [
@@ -10113,7 +10106,7 @@ export const SOLUTION_PAGES = {
     helpTitle: 'Where we stop it: from sign-up to deploy.',
     sub: 'Stop bots at sign-up and login, secure the cloud identities behind every deploy, and ship AI features with guardrails in place.',
     stats: [
-      { icon: 'Robot', v: 'Hours', l: 'for adversarial bots to adapt, against weeks for signature updates', s: 'Deep Algorithms Research' },
+      { icon: 'Robot', v: 'Hours', l: 'for adversarial bots to adapt, against weeks for signature updates', s: 'Deep Algorithms Blogs' },
       { icon: 'Key', v: '82:1', l: 'machine identities for every human identity in the average organisation', s: 'CyberArk Identity Security Landscape, 2025' },
       { icon: 'Sparkle', v: '40%+', l: 'of agentic AI projects will be cancelled by 2027, often for weak risk controls', s: 'Gartner, June 2025' },
     ],
@@ -11212,12 +11205,12 @@ export default function Article() {
 
   return (
     <>
-      <Seo title={post.title} description={post.excerpt} path={path} type="article" schema={schema} crumbs={[{ name: 'Research', path: '/blogs' }, { name: post.title, path }]} />
+      <Seo title={post.title} description={post.excerpt} path={path} type="article" schema={schema} crumbs={[{ name: 'Blogs', path: '/blogs' }, { name: post.title, path }]} />
       <ReadBar h={h} />
 
       <article>
         <header className="wrap pt-10 md:pt-14">
-          <Breadcrumb items={[{ name: 'Research', path: '/blogs' }, { name: post.category }]} className="rise" />
+          <Breadcrumb items={[{ name: 'Blogs', path: '/blogs' }, { name: post.category }]} className="rise" />
           <div className="mx-auto mt-10 max-w-[900px] text-center">
             <p className="rise inline-flex items-center gap-2 rounded-full border border-line-2 px-3.5 py-1.5 text-[13px] font-semibold" style={{ color: `hsl(${h} 100% var(--hl))` }}>{post.category}{post.fiction && <span className="font-normal text-ink-3">· Dramatised account</span>}</p>
             <h1 className="rise mt-6 font-semibold tracking-[-0.04em]" style={{ fontSize: 'clamp(32px, 4.4vw, 60px)', lineHeight: 1.06, '--d': '80ms' }}>{post.title}</h1>
@@ -11251,7 +11244,7 @@ export default function Article() {
                 <div className="mt-6 border-t border-line pt-6"><p className="mb-3 text-[14px] text-ink-2">Share this report</p><Share post={post} path={path} /></div>
               </div>
 
-              <nav aria-label="More research" className="noprint mt-10 grid gap-4 sm:grid-cols-2">
+              <nav aria-label="More blogs" className="noprint mt-10 grid gap-4 sm:grid-cols-2">
                 {older && <Link to={`/blogs/${older.slug}`} className="card card-hover p-5"><span className="flex items-center gap-1.5 text-[13px] text-ink-3"><Icon name="ArrowLeft" size={13} />Previous</span><span className="mt-2 block text-[16px] font-semibold leading-snug">{older.title}</span></Link>}
                 {newer && <Link to={`/blogs/${newer.slug}`} className="card card-hover p-5 sm:col-start-2 sm:text-right"><span className="flex items-center gap-1.5 text-[13px] text-ink-3 sm:justify-end">Next<Icon name="ArrowRight" size={13} /></span><span className="mt-2 block text-[16px] font-semibold leading-snug">{newer.title}</span></Link>}
               </nav>
@@ -11271,7 +11264,7 @@ export default function Article() {
       </article>
 
       <ResearchRow slugs={related.map((p) => p.slug)} title="Keep reading" />
-      <CtaBand title={`Put ${post.product.name} to work in your environment.`} body="Book a demo and we will show you what this research looks like where you work." />
+      <CtaBand title={`Put ${post.product.name} to work in your environment.`} body="Book a demo and we will show you what this looks like where you work." />
     </>
   );
 }
@@ -11308,20 +11301,20 @@ export default function Blog() {
 
   return (
     <>
-      <Seo title="Research: Identity, AI Agent, Fraud and Bot Security" path="/blogs" description="Field notes and analysis from Deep Algorithms Research on identity attacks, AI agent security, financial crime, bot defence, DDoS and DPDPA compliance." crumbs={[{ name: 'Research', path: '/blogs' }]} />
+      <Seo title="Blogs: Identity, AI Agent, Fraud and Bot Security" path="/blogs" description="Field notes and analysis from Deep Algorithms on identity attacks, AI agent security, financial crime, bot defence, DDoS and DPDPA compliance." crumbs={[{ name: 'Research', path: '/blogs' }]} />
 
       <section className="stage band-brand hero-under relative overflow-hidden">
         <FlowRibbons preset="band" intensity={0.55} />
         <div className="wrap relative pb-14 pt-12 md:pt-16">
-          <Breadcrumb items={[{ name: 'Research' }]} className="rise" />
+          <Breadcrumb items={[{ name: 'Blogs' }]} className="rise" />
           <div className="mt-10 grid items-end gap-10 lg:grid-cols-[1.3fr_1fr]">
             <div>
-              <p className="eyebrow rise">Deep Algorithms Research</p>
+              <p className="eyebrow rise">Deep Algorithms Blogs</p>
               <h1 className="t-h1 rise mt-6" style={{ '--d': '80ms' }}>How identities get attacked, and how to stop it.</h1>
-              <p className="t-lead rise mt-6 max-w-[620px]" style={{ '--d': '160ms' }}>Field notes and analysis on identity attacks, AI agents, financial crime, bots and the regulation that shapes them. {POSTS.length} reports across {TOPICS.length} topics.</p>
+              <p className="t-lead rise mt-6 max-w-[620px]" style={{ '--d': '160ms' }}>Field notes and analysis on identity attacks, AI agents, financial crime, bots and the regulation that shapes them. {POSTS.length} posts across {TOPICS.length} topics.</p>
             </div>
             <div className="rise" style={{ '--d': '240ms' }}>
-              <label htmlFor="rs" className="mb-2 block text-[14px] text-ink-3">Search the research</label>
+              <label htmlFor="rs" className="mb-2 block text-[14px] text-ink-3">Search the blogs</label>
               <div className="flex h-14 items-center gap-3 rounded-full border border-line-2 bg-[#090b0f]/80 px-5 backdrop-blur focus-within:border-cyan/60">
                 <Icon name="MagnifyingGlass" size={20} className="text-ink-3" />
                 <input id="rs" type="search" value={q} onChange={(e) => set('q', e.target.value)} placeholder="Mule accounts, MCP, DDoS…" className="h-full w-full bg-transparent text-[16px] text-ink outline-none placeholder:text-ink-3" />
@@ -11335,7 +11328,7 @@ export default function Blog() {
         <div className="wrap">
           <div className="flex flex-col gap-5 border-b border-line pb-6">
             <div className="flex flex-wrap items-baseline justify-between gap-3">
-              <h2 id="all-h" className="text-[24px] font-semibold tracking-[-0.02em]">{filtering ? `${list.length} ${list.length === 1 ? 'result' : 'results'}` : 'All research'}</h2>
+              <h2 id="all-h" className="text-[24px] font-semibold tracking-[-0.02em]">{filtering ? `${list.length} ${list.length === 1 ? 'result' : 'results'}` : 'All blogs'}</h2>
               {filtering && <button type="button" onClick={() => setParams(new URLSearchParams(), { replace: true, preventScrollReset: true })} className="text-[14px] text-cyan-2 hover:text-fg">Clear filters</button>}
             </div>
             <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter by topic">
@@ -11380,14 +11373,14 @@ export default function Blog() {
               </button>
             ))}
             <a href={SITE.linkedin} target="_blank" rel="noreferrer" className="card card-hover flex items-center justify-between p-5">
-              <span><span className="block text-[16px] font-semibold">New research first</span><span className="mt-1 block text-[13.5px] text-ink-3">Follow us on LinkedIn</span></span>
+              <span><span className="block text-[16px] font-semibold">New blogs first</span><span className="mt-1 block text-[13.5px] text-ink-3">Follow us on LinkedIn</span></span>
               <Icon name="LinkedinLogo" size={20} className="text-ink-3" />
             </a>
           </div>
         </div>
       </section>
 
-      <CtaBand title="Put the research to work." body="See how what we write about looks in your own environment, with a Deep Algorithms engineer." />
+      <CtaBand title="Put what you read to work." body="See how what we write about looks in your own environment, with a Deep Algorithms engineer." />
     </>
   );
 }
@@ -11605,7 +11598,7 @@ const FAQ = [
   { title: 'What does Deep Algorithms do?', body: 'We secure the identities attackers use to get in: people, machine identities such as keys and service accounts, and AI agents. Four products cover them: adapID AI for human and machine identities and fraud, Zenstra AI for AI agents, BotShield AI for exposure, bots and DDoS, and ICMS for DPDPA compliance.' },
   { title: 'Which product should we start with?', body: 'Start with the risk that costs you most today. Each product runs on its own and adds to the others when you add it. Agents acting on your systems: Zenstra. Logins, cloud keys or fraud: adapID. Public apps, bots or DDoS: BotShield. Personal data and DPDPA: ICMS.' },
   { title: 'Do we have to move our data?', body: 'No. adapID uses read-only connectors and one read-only role per AWS account, Zenstra runs as a gateway inside your VPC, BotShield works inline at the edge without diverting traffic, and ICMS connects to the stores that already hold personal data.' },
-  { title: 'Which certifications do you hold?', body: 'ISO/IEC 27001, SOC 2 Type II, ISO/IEC 42001 for AI management and ISO/IEC 27701 for privacy. Compliance documentation is available on request from the Trust center.' },
+  { title: 'Which certifications do you hold?', body: 'ISO/IEC 27001, SOC 2 Type II, ISO/IEC 42001 for AI management and ISO/IEC 27701 for privacy. Compliance documentation is available on request.' },
   { title: 'Do you map to Indian regulation?', body: 'Yes. Evidence is mapped to the DPDP Act 2023 and the DPDP Rules 2025, and to RBI and SEBI expectations, from the start rather than added for an audit.' },
   { title: 'What happens in a demo?', body: 'A 30-minute session with a Deep Algorithms engineer, on your own environment where you want it, with your own questions. For AWS, you can connect a sandbox account with a read-only role and walk through the results together.' },
 ];
@@ -11855,12 +11848,12 @@ export default function Home() {
         </div>
       </section>
 
-      {/* research */}
+      {/* blogs */}
       <section className="sec" aria-labelledby="res-h">
         <div className="wrap">
           <div className="flex flex-wrap items-end justify-between gap-6">
-            <SectionHead align="left" id="res-h" eyebrow="Resources" title="What attackers are doing now, and what stops them." />
-            <Link to="/blogs" className="link">All research<Icon name="ArrowRight" size={14} weight="bold" /></Link>
+            <SectionHead align="left" id="res-h" eyebrow="Blogs" title="What attackers are doing now, and what stops them." />
+            <Link to="/blogs" className="link">All blogs<Icon name="ArrowRight" size={14} weight="bold" /></Link>
           </div>
           <div className="m-rail mt-12 grid gap-10 md:grid-cols-3">{POSTS.slice(0, 3).map((p, i) => <Reveal key={p.slug} delay={i * 80}><PostCard post={p} /></Reveal>)}</div>
         </div>
@@ -11921,7 +11914,7 @@ import FlowRibbons from '../components/FlowRibbons.jsx';
 
 const POPULAR = [
   ['Zenstra AI', '/agentic-ai/agentic-identity'], ['adapID AI', '/adapid-ai'], ['NHI Security for AWS', '/adapid-ai/nhi-security'],
-  ['BotShield AI', '/botshield-ai'], ['ICMS Compliance Suite', '/dpdpa-compliance'], ['Research', '/blogs'],
+  ['BotShield AI', '/botshield-ai'], ['ICMS Compliance Suite', '/dpdpa-compliance'], ['Blogs', '/blogs'],
 ];
 
 export default function NotFound() {
@@ -12064,18 +12057,18 @@ import { LEGAL } from '../data/legal.js';
 import { Breadcrumb } from '../components/ui.jsx';
 
 const GROUPS = [
-  { title: 'Company', links: [['Home', '/'], ['Why Deep Algorithms', '/why-deep-algorithms'], ['Leadership', '/why-deep-algorithms#leadership'], ['Careers', '/why-deep-algorithms#careers'], ['Trust center', '/trust'], ['Contact', '/contact'], ['Book a demo', '/request-demo']] },
+  { title: 'Company', links: [['Home', '/'], ['Why Deep Algorithms', '/why-deep-algorithms'], ['Leadership', '/why-deep-algorithms#leadership'], ['Careers', '/why-deep-algorithms#careers'], ['Contact', '/contact'], ['Book a demo', '/request-demo']] },
   { title: 'Products', links: [['All products', '/products'], ...PRODUCT_MENU.flatMap((l) => (l.kind === 'products' ? [[l.name, l.path], ...l.items.filter((m) => m.path !== l.path).map((m) => [m.name, m.path])] : [[l.name, l.path]])), ['DDoS Protection', '/botshield-ai/ddos-protection']] },
   { title: 'Zenstra AI capabilities', links: Object.values(ZCAPS).map((c) => [c.name, c.path]) },
   { title: 'Solutions', links: SOLUTIONS.map((s) => [s.name, `/solutions/${s.slug}`]) },
-  { title: 'Research', links: [['All research', '/blogs'], ...POSTS.map((p) => [p.title, `/blogs/${p.slug}`])] },
+  { title: 'Blogs', links: [['All blogs', '/blogs'], ...POSTS.map((p) => [p.title, `/blogs/${p.slug}`])] },
   { title: 'Legal and accessibility', links: Object.entries(LEGAL).map(([k, l]) => [l.title, `/${k}`]) },
 ];
 
 export default function Sitemap() {
   return (
     <>
-      <Seo title="Sitemap" path="/sitemap" description="Every page on the Deep Algorithms website, grouped by company, products, solutions, research and legal." crumbs={[{ name: 'Sitemap', path: '/sitemap' }]} />
+      <Seo title="Sitemap" path="/sitemap" description="Every page on the Deep Algorithms website, grouped by company, products, solutions, blogs and legal." crumbs={[{ name: 'Sitemap', path: '/sitemap' }]} />
       <div className="wrap py-14 md:py-20">
         <Breadcrumb items={[{ name: 'Sitemap' }]} />
         <h1 className="t-h1 mt-10">Sitemap</h1>
@@ -12382,121 +12375,6 @@ export default function Tour() {
           </div>
         </div>
       </section>
-    </>
-  );
-}
-
-====================================================================================================
-FILE: src/pages/Trust.jsx
-====================================================================================================
-import { Link } from 'react-router';
-import { Seo } from '../lib/head.jsx';
-import { CERTS, DEPLOY } from '../data/site.js';
-import { RECOGNITION } from '../data/company.js';
-import { Button, Icon, Reveal, SectionHead } from '../components/ui.jsx';
-import { CtaBand } from '../components/blocks.jsx';
-import { Hero, Points } from '../components/ProductKit.jsx';
-import ProductMark from '../components/ProductMark.jsx';
-import CertSeal, { SEAL_KIND } from '../components/CertSeal.jsx';
-
-/* The page a security reviewer looks for before procurement: what is
-   certified, where each product runs, how data is handled, and how to get
-   the documents. Every statement here is one the products already make. */
-
-const STANDARD = {
-  'ISO 27001': 'The international standard for an information security management system: how risks are assessed, controls chosen and kept working.',
-  'SOC 2': 'An independent audit of how controls for security, availability and confidentiality operated over a period of time, not on a single day.',
-  'ISO 42001': 'The international standard for managing AI systems responsibly: risk, transparency and oversight across the AI life cycle.',
-  'ISO 27701': 'The privacy extension to ISO 27001: how personal data is governed, processed and protected.',
-};
-
-const HANDLING = [
-  { icon: 'Eye', h: 'Read-only by default', p: 'adapID reads from your identity provider, IAM, HR and SaaS through read-only connectors, and from AWS through one read-only role per account.' },
-  { icon: 'HardDrives', h: 'Your data stays where it is', p: 'Zenstra runs as a gateway inside your VPC. BotShield works inline at the edge with no traffic diversion. ICMS connects to the stores that already hold personal data.' },
-  { icon: 'ClipboardText', h: 'Every decision on record', p: 'Scores, holds and blocks are stored with the reasons behind them, so an analyst, an auditor or a regulator can follow each one.' },
-];
-
-const REGULATION = [
-  { icon: 'Scales', h: 'DPDP Act 2023 and DPDP Rules 2025', p: 'Personal data discovered, every access checked against purpose and consent, and breach facts ready for the 72-hour report to the Data Protection Board.' },
-  { icon: 'Bank', h: 'RBI', p: 'Identity, fraud and access evidence mapped to the expectations banks and payment providers report against.' },
-  { icon: 'Certificate', h: 'SEBI', p: 'Evidence for regulated market entities, generated as systems are used rather than assembled before an inspection.' },
-];
-
-export default function Trust() {
-  return (
-    <>
-      <Seo title="Trust Center: Certifications, Deployment and Data Handling" path="/trust" description="Deep Algorithms is certified to ISO/IEC 27001, SOC 2 Type II, ISO/IEC 42001 and ISO/IEC 27701. How each product is deployed, how data is handled, and how to request compliance documentation." crumbs={[{ name: 'Trust center', path: '/trust' }]} />
-      <Hero layout="stack" ribbons="band" crumbs={[{ name: 'Trust center' }]} eyebrow="Trust center"
-        title="Security you can verify before you sign."
-        lead="What Deep Algorithms is certified for, where each product runs, and how your data is handled. Compliance documentation is available on request."
-        ctas={<><Button to="/contact" size="lg" arrow>Request compliance documents</Button><Button to="/request-demo" variant="ghost" size="lg">Talk to an engineer</Button></>} />
-
-      <section className="sec" aria-labelledby="cert-h">
-        <div className="wrap">
-          <SectionHead align="left" id="cert-h" eyebrow="Certifications" title="Independent standards, held across the company." />
-          <ul className="m-rail mt-12 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {CERTS.map((c, i) => (
-              <Reveal as="li" key={c.code} delay={i * 60} className="card flex flex-col p-6">
-                <span className="flex items-center justify-between gap-3"><CertSeal code={c.code} size={64} /><span className="rounded-full bg-cyan-2/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[.08em] text-cyan-2">{SEAL_KIND[c.code]}</span></span>
-                <h3 className="mt-5 text-[19px] font-semibold tracking-[-0.015em]">{c.name}</h3>
-                <p className="mt-1 text-[12.5px] font-semibold uppercase tracking-[.09em] text-ink-3">{c.desc}</p>
-                <p className="mt-4 text-[15px] leading-relaxed text-ink-2">{STANDARD[c.code]}</p>
-              </Reveal>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      <section className="sec alt" aria-labelledby="dep-h">
-        <div className="wrap grid gap-12 lg:grid-cols-[.8fr_1.2fr] lg:gap-16">
-          <Reveal>
-            <p className="eyebrow">Deployment</p>
-            <h2 id="dep-h" className="t-h2 mt-6">Where each product runs.</h2>
-            <p className="t-lead mt-5">No product asks you to move your data or rewrite your applications.</p>
-          </Reveal>
-          <Reveal delay={80}>
-            <ul className="divide-y divide-line overflow-hidden rounded-[16px] border border-line bg-bg-1">
-              {DEPLOY.map(([n, , t]) => (
-                <li key={n} className="grid gap-2 p-6 md:grid-cols-[220px_1fr] md:gap-6">
-                  <span className="flex items-center gap-2.5 text-[16px] font-semibold"><ProductMark p={n} size={30} />{n}</span>
-                  <span className="text-[15.5px] leading-relaxed text-ink-2">{t}</span>
-                </li>
-              ))}
-            </ul>
-          </Reveal>
-        </div>
-      </section>
-
-      <section className="sec" aria-labelledby="data-h">
-        <div className="wrap">
-          <SectionHead align="left" id="data-h" eyebrow="Data handling" title="Least access in, every decision out." lead="The principles every product is built on, so a security review has fewer questions to ask." />
-          <div className="mt-12"><Points items={HANDLING} /></div>
-        </div>
-      </section>
-
-      <section className="sec alt" aria-labelledby="reg-h">
-        <div className="wrap">
-          <SectionHead align="left" id="reg-h" eyebrow="Indian regulation" title="Mapped from the start, not bolted on for an audit." />
-          <div className="mt-12"><Points items={REGULATION} /></div>
-          <Reveal className="mt-8"><Link to="/dpdpa-compliance" className="link">How ICMS produces DPDPA evidence<Icon name="ArrowRight" size={14} weight="bold" /></Link></Reveal>
-        </div>
-      </section>
-
-      <section className="sec" aria-labelledby="rec-h">
-        <div className="wrap">
-          <SectionHead align="left" id="rec-h" eyebrow="Recognition" title="Recognised by India’s security community." />
-          <ul className="m-rail mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {RECOGNITION.slice(0, 4).map((r, i) => (
-              <Reveal as="li" key={r.title} delay={i * 60} className="card overflow-hidden">
-                <img src={`/img/events/${r.img}.webp`} alt="" className="aspect-[16/10] w-full object-cover" loading="lazy" decoding="async" />
-                <span className="block p-4"><span className="block text-[15px] font-semibold">{r.title}</span><span className="block text-[13px] text-ink-3">{r.where} · {r.year}</span></span>
-              </Reveal>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      <CtaBand title="Need our compliance documentation?" body="Certificates, audit reports and answers to your security questionnaire, shared on request. Write to info@deepalgorithms.in or ask an engineer." primary={{ label: 'Request documents', to: '/contact' }} />
     </>
   );
 }
@@ -13333,7 +13211,7 @@ export default function Cirm() {
       <Stats acc="adap" items={p.stats} title="The cost of a login nobody questioned" {...STORIES.cirm} />
       <Faq items={FAQ} />
       <Related items={[LINKS.zenstra, LINKS.icms, LINKS.botshield]} title="Other Deep Algorithms products" />
-      <ResearchRow slugs={p.research} title="Research on identity attacks" />
+      <ResearchRow slugs={p.research} title="Blogs on identity attacks" />
       <CtaBand accent="adap" title={p.cta.title} body={p.cta.body} />
     </>
   );
@@ -13724,7 +13602,7 @@ export default function Fraud() {
                   </div>
                 ))}
               </div>
-              <Link to="/blogs/india-mule-account-crisis" className="link mt-8" style={{ '--acc': A }}>Read the research<Icon name="ArrowRight" size={14} weight="bold" /></Link>
+              <Link to="/blogs/india-mule-account-crisis" className="link mt-8" style={{ '--acc': A }}>Read the blog<Icon name="ArrowRight" size={14} weight="bold" /></Link>
             </Reveal>
             <Reveal delay={120}><div className="scn-frame"><MoneyTrail /></div></Reveal>
           </div>
@@ -14235,7 +14113,7 @@ export default function Zenstra() {
       <Stats acc="zen" items={p.stats} title="Why it matters now" {...STORIES.zenstra} />
       <Faq items={FAQ} />
       <Related items={[LINKS.cirm, LINKS.nhi, LINKS.icms]} />
-      <ResearchRow slugs={p.research} title="Research on AI agent security" />
+      <ResearchRow slugs={p.research} title="Blogs on AI agent security" />
       <CtaBand accent="zen" title={p.cta.title} body={p.cta.body} />
     </>
   );
@@ -14867,19 +14745,12 @@ test('a picture that leaves and comes straight back still plays its steps', asyn
   await expect(vz).toHaveClass(/\bk2\b/, { timeout: 5000 });
 });
 
-test('the Trust center lists the certifications and how to get the documents', async ({ page }) => {
+test('there is no Trust center page, and nothing links to one', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('a[href="/trust"]')).toHaveCount(0);
+  await expect(page.getByText('Trust center')).toHaveCount(0);
   await page.goto('/trust');
-  await expect(page.getByRole('heading', { level: 1, name: 'Security you can verify before you sign.' })).toBeVisible();
-  for (const c of ['ISO/IEC 27001', 'SOC 2 Type II', 'ISO/IEC 42001', 'ISO/IEC 27701']) await expect(page.getByRole('heading', { level: 3, name: c })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Request compliance documents/ })).toHaveAttribute('href', '/contact');
-});
-
-test('trust center: each certification carries its seal and what kind of evidence it is', async ({ page }) => {
-  await page.goto('/trust');
-  const certs = page.locator('section[aria-labelledby="cert-h"] li');
-  await expect(certs).toHaveCount(4);
-  await expect(certs.locator('svg.seal')).toHaveCount(4);
-  await expect(certs.filter({ hasText: 'SOC 2 Type II' })).toContainText('Audit report');
+  await expect(page.getByRole('heading', { level: 1, name: 'Security you can verify before you sign.' })).toHaveCount(0);
 });
 
 ====================================================================================================
@@ -15162,7 +15033,7 @@ test('only Products and Solutions open a menu, with no arrows; the rest are plai
   await nav.getByRole('button', { name: 'Solutions' }).hover();
   await expect(page.locator('#mega')).toBeVisible();
   await expect(page.locator('#mega img')).toHaveCount(0);
-  for (const [name, href] of [['Why Deep Algorithms', '/why-deep-algorithms'], ['Research', '/blogs'], ['Trust center', '/trust']]) await expect(nav.getByRole('link', { name })).toHaveAttribute('href', href);
+  for (const [name, href] of [['Why Deep Algorithms', '/why-deep-algorithms'], ['Blogs', '/blogs']]) await expect(nav.getByRole('link', { name })).toHaveAttribute('href', href);
 });
 
 test('the phone menu rises from the bottom bar, navigates and closes', async ({ page, isMobile }) => {
@@ -15177,12 +15048,12 @@ test('the phone menu rises from the bottom bar, navigates and closes', async ({ 
   await expect(menu).toBeHidden();
 });
 
-test('research topics in the menu land on a filtered list', async ({ page }) => {
+test('blog topics in the menu land on a filtered list', async ({ page }) => {
   await page.goto('/blogs?topic=bot-defence');
   await expect(page.getByRole('heading', { name: '2 results' })).toBeVisible();
-  await page.getByLabel('Search the research').fill('mule');
+  await page.getByLabel('Search the blogs').fill('mule');
   await page.getByRole('button', { name: 'Clear filters' }).click();
-  await expect(page.getByRole('heading', { name: 'All research' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'All blogs' })).toBeVisible();
 });
 
 test('the old company and Why addresses lead to Why Deep Algorithms', async ({ page }) => {
@@ -15217,7 +15088,7 @@ import { test, expect } from '@playwright/test';
 import { ROUTES, PRODUCT_PAGES, watch, scrollThrough } from './helpers.js';
 
 test('the sitemap lists every page', () => {
-  expect(ROUTES.length).toBe(42);
+  expect(ROUTES.length).toBe(41);
 });
 
 for (const route of ROUTES) {
