@@ -1,5 +1,5 @@
 DEEP ALGORITHMS WEBSITE: FULL SOURCE CODE
-Commit c54f493. 142 text files below; 85 binary files (images, video, audio, fonts) are listed but not printed.
+Commit d11a9f5. 142 text files below; 85 binary files (images, video, audio, fonts) are listed but not printed.
 
 == CONTENTS ==
   .dockerignore
@@ -10093,7 +10093,7 @@ export const SOLUTION_PAGES = {
     stats: [
       { icon: 'Broadcast', v: 'L3 to L7', l: 'DDoS coverage, volumetric to application layer, without diversion', s: 'BotShield AI' },
       { icon: 'LockKey', v: 'In your VPC', l: 'the Zenstra AI gateway checks agent actions inside your own cloud' },
-      { icon: 'Certificate', v: '4', l: 'certifications: ISO 27001, SOC 2, ISO 42001 and ISO 27701', s: 'Deep Algorithms' },
+      { icon: 'Certificate', v: 'Certified', l: 'ISO 27001, SOC 2 Type II, ISO 42001 and ISO 27701', s: 'Deep Algorithms' },
     ],
     help: [
       { title: 'Keep portals available under attack', body: 'BotShield mitigates volumetric, protocol and application-layer floods close to users, with no traffic detour.' },
@@ -12433,7 +12433,7 @@ export default function Trust() {
 
       <section className="sec" aria-labelledby="cert-h">
         <div className="wrap">
-          <SectionHead align="left" id="cert-h" eyebrow="Certifications" title="Four independent standards, held across the company." />
+          <SectionHead align="left" id="cert-h" eyebrow="Certifications" title="Independent standards, held across the company." />
           <ul className="m-rail mt-12 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {CERTS.map((c, i) => (
               <Reveal as="li" key={c.code} delay={i * 60} className="card flex flex-col p-6">
@@ -12508,7 +12508,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { useInView, useReducedMotion } from '../lib/motion.js';
 import { Seo } from '../lib/head.jsx';
-import { SITE, CERTS } from '../data/site.js';
+import { SITE } from '../data/site.js';
 import { LEADERS, ADVISORS, RECOGNITION, TEAM_PHOTOS, BELIEFS } from '../data/company.js';
 import { Breadcrumb, Button, Icon, Reveal, SectionHead, cx } from '../components/ui.jsx';
 import { CertStrip, CtaBand, LogoMarquee } from '../components/blocks.jsx';
@@ -12518,7 +12518,7 @@ import ProductMark from '../components/ProductMark.jsx';
 
 /* Why Deep Algorithms: the company and the case for it, on one page.
    What enterprise "why us" and company pages carry, in this order: the claim,
-   how the platform works, the story, the difference, the people, the proof,
+   the story, the difference, the people, the proof,
    then careers and offices. */
 
 const img = (k) => `/img/events/${k}.webp`;
@@ -12590,106 +12590,6 @@ function ProductPanel() {
         ))}
       </div>
     </div>
-  );
-}
-
-/* ---------- inside the platform: one picture that changes as you read ---------- */
-const STEPS = [
-  { k: 'See', h: 'See every identity', p: 'People, service accounts, cloud keys and AI agents, found across your identity provider, cloud and SaaS, each with an owner.' },
-  { k: 'Learn', h: 'Learn what normal looks like', p: 'Every identity gets its own baseline: where it signs in from, what it reaches, when it works and how much it moves.' },
-  { k: 'Decide', h: 'Decide before the action runs', p: 'When an identity steps outside its normal, the login, payment, API call or agent action is held before it completes.' },
-  { k: 'Explain', h: 'Explain every decision', p: 'Each hold comes with its reasons in plain language, so an analyst can act in seconds and a customer is not left guessing.' },
-  { k: 'Prove', h: 'Prove it to the regulator', p: 'Every decision is kept on a tamper-evident record, mapped to DPDPA, RBI and SEBI, ready before the auditor asks.' },
-];
-const RINGS = [
-  { r: 104, label: 'People', nodes: [[-60, 'User'], [60, 'User'], [180, 'User'], [250, 'User']] },
-  { r: 168, label: 'Machine identities', nodes: [[-20, 'Key'], [40, 'Cloud'], [110, 'Database'], [160, 'HardDrives'], [215, 'Key'], [300, 'Cloud']] },
-  { r: 232, label: 'AI agents', nodes: [[10, 'Robot'], [75, 'Sparkle'], [135, 'Robot'], [195, 'Cpu'], [270, 'Robot'], [325, 'Sparkle']] },
-];
-const HOT = [1, 0]; // the identity that steps outside its normal: ring 1, node 0 (a cloud key)
-
-function CorePicture({ step }) {
-  const pos = (r, a) => [50 + (r / 5.2) * Math.cos((a * Math.PI) / 180), 50 + (r / 5.2) * Math.sin((a * Math.PI) / 180)];
-  const [hx, hy] = pos(RINGS[HOT[0]].r, RINGS[HOT[0]].nodes[HOT[1]][0]);
-  return (
-    <div className="relative mx-auto aspect-square w-full max-w-[520px]" aria-hidden="true">
-      <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full">
-        <defs><radialGradient id="core-halo"><stop offset="0" stopColor="#3cc8f6" stopOpacity=".35" /><stop offset="1" stopColor="#3cc8f6" stopOpacity="0" /></radialGradient></defs>
-        <circle cx="50" cy="50" r="22" fill="url(#core-halo)" />
-        {RINGS.map((g) => <circle key={g.r} cx="50" cy="50" r={g.r / 5.2} fill="none" stroke="var(--color-line-2)" strokeWidth=".25" strokeDasharray={step >= 1 ? '0.8 1.2' : 'none'} />)}
-        {step >= 2 && <line x1="50" y1="50" x2={hx} y2={hy} stroke="#f0644d" strokeWidth=".5" strokeDasharray="1.4 1" className="core-line" />}
-      </svg>
-      {RINGS.map((g, i) => g.nodes.map(([a, ic], j) => {
-        const [x, y] = pos(g.r, a);
-        const hot = step >= 2 && i === HOT[0] && j === HOT[1];
-        return (
-          <span key={`${i}-${j}`} className={cx('core-node absolute flex h-[9%] w-[9%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border bg-bg-1 text-ink-2', hot && 'is-hot')}
-            style={{ left: `${x}%`, top: `${y}%`, transitionDelay: `${(i * 6 + j) * 30}ms` }}>
-            <Icon name={ic} size={16} />
-            {step >= 1 && !hot && <span className="core-base" />}
-          </span>
-        );
-      }))}
-      <span className="absolute left-1/2 top-1/2 flex h-[19%] w-[19%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[24%] border border-[#e3e8ee] bg-white shadow-[0_18px_40px_-16px_rgb(6_47_87/.5)]">
-        <img src="/brand/mark.webp" alt="" className="h-[58%] w-[58%]" />
-      </span>
-      {/* what the step adds, beside the picture */}
-      <div className={cx('core-card absolute left-[56%] top-[6%] w-[52%] max-w-[250px]', step === 2 && 'on')}>
-        <p className="text-[12px] font-semibold uppercase tracking-[.08em] text-[#f0644d]">Held before it ran</p>
-        <p className="mt-1 text-[14px] font-semibold text-ink">svc-payments key</p>
-        <p className="mt-1 text-[13px] leading-snug text-ink-3">Tried to read a customer table it has never touched.</p>
-      </div>
-      <div className={cx('core-card absolute left-[56%] top-[6%] w-[52%] max-w-[250px]', step === 3 && 'on')}>
-        <p className="text-[12px] font-semibold uppercase tracking-[.08em] text-cyan-2">Why it was held</p>
-        <ul className="mt-2 space-y-1.5 text-[13px] text-ink-2">
-          {['First read of this table in 90 days', 'Called from a new network', 'Outside its usual hours'].map((t) => <li key={t} className="flex gap-2"><Icon name="CheckCircle" size={15} weight="fill" className="mt-px shrink-0 text-cyan-2" />{t}</li>)}
-        </ul>
-      </div>
-      <div className={cx('core-card absolute bottom-[2%] left-1/2 w-[86%] max-w-[380px] -translate-x-1/2', step === 4 && 'on')}>
-        <p className="flex items-center justify-between text-[12px] font-semibold uppercase tracking-[.08em] text-ink-3"><span>Decision record</span><span className="text-[#4be29a]">Sealed</span></p>
-        <ul className="mt-2 divide-y divide-line text-[13px]">
-          {[['#4821', 'svc-payments key held', 'DPDPA §8'], ['#4820', 'Agent export refused', 'RBI'], ['#4819', 'Login stepped up', 'SEBI']].map(([n, t, m]) => (
-            <li key={n} className="flex items-center gap-3 py-1.5"><span className="num text-ink-3">{n}</span><span className="flex-1 text-ink-2">{t}</span><span className="text-[12px] text-ink-3">{m}</span></li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
-}
-
-function InsideCore() {
-  const ref = useRef(null);
-  const p = useScrollProgress(ref, { start: 0.45, end: 0.55 });
-  const reduce = useReducedMotion();
-  const [step, setStep] = useState(4);
-  const [wide, setWide] = useState(false);
-  useEffect(() => {
-    const m = window.matchMedia('(min-width: 1024px)');
-    const on = () => setWide(m.matches);
-    on(); m.addEventListener('change', on);
-    return () => m.removeEventListener('change', on);
-  }, []);
-  useEffect(() => { if (wide && !reduce) setStep(Math.min(STEPS.length - 1, Math.floor(p * STEPS.length))); else setStep(4); }, [p, wide, reduce]);
-  return (
-    <section ref={ref} className="sec relative" aria-labelledby="core-h" style={wide && !reduce ? { height: `${STEPS.length * 70 + 40}vh` } : undefined}>
-      <div className={cx('wrap', wide && !reduce && 'sticky top-[calc(var(--hdr)+24px)]')}>
-        <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,.9fr)_minmax(0,1.1fr)] lg:gap-16">
-          <div>
-            <p className="eyebrow">Inside the platform</p>
-            <h2 id="core-h" className="t-h2 mt-6">One intelligence behind every product.</h2>
-            <ol className="mt-10 space-y-1">
-              {STEPS.map((s, i) => (
-                <li key={s.k} className={cx('core-step border-l-2 py-3 pl-5 transition-colors duration-300', i === step ? 'border-cyan-2' : 'border-line')}>
-                  <p className={cx('flex items-baseline gap-3 text-[19px] font-semibold tracking-[-0.015em] transition-colors', i === step ? 'text-ink' : 'text-ink-3')}><span className="num text-[13px] text-cyan-2">{String(i + 1).padStart(2, '0')}</span>{s.h}</p>
-                  <p className={cx('core-p text-[15.5px] leading-relaxed text-ink-2', (i === step || !wide || reduce) && 'on')}>{s.p}</p>
-                </li>
-              ))}
-            </ol>
-          </div>
-          <CorePicture step={step} />
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -12833,8 +12733,8 @@ export default function Why() {
             <p className="eyebrow rise">Why Deep Algorithms</p>
             <h1 className="t-hero rise mt-7" style={{ '--d': '80ms' }}>The defence has to be as intelligent as the attack.</h1>
             <p className="t-lead rise mt-7 max-w-[560px] max-md:mx-auto" style={{ '--d': '160ms' }}>Attackers adopted AI, automation and stolen identities. We build products that learn your environment, decide in the moment and explain every decision, for organisations that cannot afford a breach.</p>
-            <dl className="rise mt-10 grid max-w-[480px] grid-cols-3 gap-x-8 max-md:mx-auto" style={{ '--d': '240ms' }}>
-              {[['Founded', SITE.founded], ['Headquarters', 'Hyderabad'], ['Certifications', CERTS.length]].map(([k, v]) => (
+            <dl className="rise mt-10 grid max-w-[320px] grid-cols-2 gap-x-8 max-md:mx-auto" style={{ '--d': '240ms' }}>
+              {[['Founded', SITE.founded], ['Headquarters', 'Hyderabad']].map(([k, v]) => (
                 <div key={k}><dt className="text-[13px] text-ink-3">{k}</dt><dd className="mt-1 text-[24px] font-semibold tracking-[-0.03em] num">{v}</dd></div>
               ))}
             </dl>
@@ -12843,7 +12743,6 @@ export default function Why() {
         </div>
       </section>
 
-      <InsideCore />
 
       <section className="sec" aria-labelledby="story-h">
         <div className="wrap">
@@ -14765,8 +14664,6 @@ header .hdr-bg { transition: background-color 0.35s ease, border-color 0.35s eas
 @keyframes core-dash { to { stroke-dashoffset: -4.8; } }
 .core-card { opacity: 0; transform: translateY(10px); pointer-events: none; transition: opacity .45s, transform .45s; border-radius: 16px; border: 1px solid var(--color-line-2); background: var(--color-bg); padding: 14px 16px; box-shadow: 0 24px 50px -24px rgb(6 25 55 / .45); }
 .core-card.on { opacity: 1; transform: none; }
-.core-p { max-height: 0; opacity: 0; overflow: hidden; transition: max-height .4s, opacity .4s, margin .4s; }
-.core-p.on { max-height: 160px; opacity: 1; margin-top: 6px; }
 .roll-team { animation-duration: 70s; }
 .roll-team.rev { animation-direction: reverse; }
 @media (prefers-reduced-motion: reduce) { .roll-team { animation: none; } .core-line { animation: none; } }
@@ -14970,7 +14867,7 @@ test('a picture that leaves and comes straight back still plays its steps', asyn
   await expect(vz).toHaveClass(/\bk2\b/, { timeout: 5000 });
 });
 
-test('the Trust center lists the four certifications and how to get the documents', async ({ page }) => {
+test('the Trust center lists the certifications and how to get the documents', async ({ page }) => {
   await page.goto('/trust');
   await expect(page.getByRole('heading', { level: 1, name: 'Security you can verify before you sign.' })).toBeVisible();
   for (const c of ['ISO/IEC 27001', 'SOC 2 Type II', 'ISO/IEC 42001', 'ISO/IEC 27701']) await expect(page.getByRole('heading', { level: 3, name: c })).toBeVisible();
