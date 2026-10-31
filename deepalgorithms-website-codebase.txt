@@ -1,5 +1,5 @@
 DEEP ALGORITHMS WEBSITE: FULL SOURCE CODE
-Commit 6fa0726. 140 text files below; 85 binary files (images, video, audio, fonts) are listed but not printed.
+Commit 857585c. 141 text files below; 85 binary files (images, video, audio, fonts) are listed but not printed.
 
 == CONTENTS ==
   .dockerignore
@@ -60,6 +60,7 @@ Commit 6fa0726. 140 text files below; 85 binary files (images, video, audio, fon
   src/components/viz/botshield.jsx
   src/components/viz/fraud.jsx
   src/components/viz/frauddecisions.jsx
+  src/components/viz/fraudgate.jsx
   src/components/viz/home.jsx
   src/components/viz/icms.jsx
   src/components/viz/kit.jsx
@@ -5805,7 +5806,7 @@ import { TAU, seg, ease, inout, lerp, hash, glow, ring, rgba } from './engine.js
 const LOOP = 12;
 const T = { pull: 0.9, pullEnd: 5.2, svc: 1.5, key: 2.5, agent: 3.5, wave: 5.6, waveEnd: 7.6 };
 const KINDS = { svc: [169, 193, 222], key: [255, 210, 122], agent: [180, 191, 255] };
-const COLS = 46, ROWS = 28;
+const COLS = 24, ROWS = 14; // a crowd, not a starfield: about 330 points
 const DOTS = [];
 for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
   const i = r * COLS + c;
@@ -5817,10 +5818,15 @@ for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
   DOTS.push({ i, x, y, z: 0.85 + hash(i, 3) * 0.3, d, over: hash(i, 4) < 0.78, tw: hash(i, 5) * TAU, s: 0.7 + hash(i, 6) * 0.6, kind: h < 0.46 ? 'svc' : h < 0.82 ? 'key' : 'agent' });
 }
 // one named point of each kind, near the person; and the few attackers have found
-const near = (kind, x, y) => DOTS.filter((p) => p.kind === kind).reduce((m, p) => (Math.hypot(p.x - x, p.y - y) < Math.hypot(m.x - x, m.y - y) ? p : m));
+// the nearest point of that kind is moved to the exact spot, so it is in frame at the zoom it is named at
+const near = (kind, x, y) => {
+  const p = DOTS.filter((q) => q.kind === kind).reduce((m, q) => (Math.hypot(q.x - x, q.y - y) < Math.hypot(m.x - x, m.y - y) ? q : m));
+  Object.assign(p, { x, y, d: Math.hypot(x, y * 1.3) });
+  return p;
+};
 // picked so each is on screen at the zoom it is named at
 const NAMED = [['svc', near('svc', 0.079, -0.047), 'svc-payments'], ['key', near('key', -0.047, 0.044), 'AKIA••7Q2F'], ['agent', near('agent', 0.116, 0.042), 'invoice-agent']];
-const FOUND = DOTS.filter((p) => p.d > 0.12 && p.d < 0.6 && hash(p.i, 9) < 0.02).slice(0, 7);
+const FOUND = DOTS.filter((p) => p.d > 0.12 && p.d < 0.6 && hash(p.i, 9) < 0.08).slice(0, 7);
 const BLUE = '#4fd2ff', WHITE = [223, 230, 239], AMBER = [246, 185, 85], RED = [255, 107, 93], REDHEX = '#ff6b5d';
 
 function draw(ctx, w, h, t, { narrow, mx, my, film }) {
@@ -5831,7 +5837,7 @@ function draw(ctx, w, h, t, { narrow, mx, my, film }) {
   // the pull-back: from right beside the person to the whole field
   const zoom = lerp(9, 1, inout(seg(t, T.pull, T.pullEnd))) * (1 + 0.025 * Math.sin(t * 0.35));
   const px = mx * 10, py = my * 8;
-  const size = narrow ? 0.85 : film ? 1.9 : 1;
+  const size = (narrow ? 0.85 : film ? 1.9 : 1) * 1.2;
   const where = (p) => { const k = (unit * zoom) / p.z; return [cx + p.x * k + px * (1.1 - p.z), cy + p.y * k + py * (1.1 - p.z)]; };
 
   ctx.globalCompositeOperation = 'lighter';
@@ -7805,6 +7811,141 @@ export function FraudDecisions() {
           <Icon name="ChatCircleText" size={15} className="text-[#9fd3ff]" />Every decision comes with its reason, for the analyst and the auditor.
         </div>
       </div>
+    </figure>
+  );
+}
+
+====================================================================================================
+FILE: src/components/viz/fraudgate.jsx
+====================================================================================================
+import { useEffect, useRef, useState } from 'react';
+import { useInView, useReducedMotion, cx } from '../../lib/motion.js';
+
+/* Three checks, one decision, as a single dial. Each ring is one check and
+   sweeps as it reads its signals: a clean check closes its ring, a check that
+   finds something stops where it found it. The middle holds the decision. Four
+   real sessions take turns and can be picked. Values are illustrative; the
+   times match the live decisions in the hero. */
+
+const RINGS = [
+  { k: 'id', name: 'Identity', asks: 'Is this the real customer?' },
+  { k: 'pr', name: 'Protection', asks: 'Is the customer safe and acting freely?' },
+  { k: 'pay', name: 'Payment', asks: 'Is this payment normal?' },
+];
+
+// per session, per ring: [state, what the check found, how far round it got]
+const SESSIONS = [
+  {
+    k: 'genuine', tab: 'Genuine customer', who: 'Anita', ctx: 'Mobile banking · ₹3,200',
+    reads: [['ok', 'Her typing, her phone', 1], ['ok', 'No call, no remote access', 1], ['ok', 'A payee she pays often', 1]],
+    verdict: 'Allow', tone: 'ok', ms: 34, why: 'Everything matches how Anita normally pays. No OTP, no step-up, no friction.',
+  },
+  {
+    k: 'ato', tab: 'Account takeover', who: 'Rohan', ctx: 'Internet banking · login',
+    reads: [['crit', 'Right password, wrong hands', 0.42], ['idle', 'Not reached', 0], ['idle', 'Not reached', 0]],
+    verdict: 'Step up', tone: 'warn', ms: 41, why: 'The password is correct, but the typing and the device are not his. A face check before anything moves.',
+  },
+  {
+    k: 'scam', tab: 'Payment scam', who: 'Anita', ctx: 'Mobile banking · ₹2,40,000',
+    reads: [['ok', 'Her typing, her phone', 1], ['crit', 'On a call for six minutes', 0.55], ['warn', 'New payee, 18× her usual', 0.78]],
+    verdict: 'Hold', tone: 'hold', ms: 63, why: 'It is really her, and that is the point: she is being talked through it. An analyst calls her before the money moves.',
+  },
+  {
+    k: 'mule', tab: 'Mule payment', who: 'Imran', ctx: 'UPI · ₹45,000',
+    reads: [['ok', 'His typing, his phone', 1], ['ok', 'No call, no remote access', 1], ['crit', 'Payee is a known mule account', 0.88]],
+    verdict: 'Block', tone: 'crit', ms: 38, why: 'The payee is flagged as a mule in shared fraud intelligence. The money never leaves the account.',
+  },
+];
+
+const TONE = { ok: 'var(--color-ok)', warn: 'var(--color-warn)', hold: 'var(--color-hold)', crit: 'var(--color-crit)', idle: 'var(--color-line-2)' };
+const R = [168, 132, 96];
+const C = R.map((r) => 2 * Math.PI * r);
+const SWEEP = 1150; // one ring, ms
+const STEP = 820; // one ring starts after the one outside it, ms
+
+export function FraudGate() {
+  const ref = useRef(null);
+  const seen = useInView(ref, { threshold: 0.3 });
+  const reduce = useReducedMotion();
+  const [s, setS] = useState(2); // without scripts, the payment scam, decided
+  const [k, setK] = useState(9);
+  const [held, setHeld] = useState(false);
+  useEffect(() => {
+    if (reduce || !seen || held) return undefined;
+    setK(0);
+    const at = [60, STEP, STEP * 2, STEP * 3, STEP * 3 + SWEEP, STEP * 3 + SWEEP + 4200];
+    const ids = at.map((ms, i) => setTimeout(() => (i === 5 ? (setS((v) => (v + 1) % SESSIONS.length), setK(0)) : setK(i + 1)), ms));
+    return () => ids.forEach(clearTimeout);
+  }, [seen, reduce, held, s]);
+  const pick = (i) => { setHeld(true); setS(i); setK(9); };
+  const S = SESSIONS[s];
+  const decided = k >= 5;
+
+  return (
+    <figure ref={ref} className="fg" aria-label={`Illustration: three checks on one dial. ${SESSIONS.map((x) => `${x.tab}: ${x.reads.map((r, i) => `${RINGS[i].name}, ${r[1]}`).join('; ')}. ${x.verdict} in ${x.ms} milliseconds. ${x.why}`).join(' ')}`}>
+      {/* the sessions, as words rather than buttons in boxes */}
+      <div className="fg-pick" role="tablist" aria-label="Example sessions">
+        {SESSIONS.map((x, i) => (
+          <button key={x.k} type="button" role="tab" aria-selected={i === s} onClick={() => pick(i)} className={cx('fg-tab', i === s && 'on')}>{x.tab}</button>
+        ))}
+      </div>
+
+      <div className="fg-stage" key={S.k}>
+        <div className="fg-left">
+        <div className="fg-dial" aria-hidden="true">
+          <svg viewBox="0 0 440 440">
+            <defs>
+              <filter id="fg-soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6" /></filter>
+            </defs>
+            {RINGS.map((ring, i) => {
+              const [state, , frac] = S.reads[i];
+              const live = k >= i + 1;
+              const go = live ? frac : 0;
+              const col = state === 'idle' ? TONE.idle : TONE[state];
+              return (
+                <g key={ring.k}>
+                  <circle className="fg-track" cx="220" cy="220" r={R[i]} />
+                  <circle className="fg-arc" cx="220" cy="220" r={R[i]} stroke={col}
+                    strokeDasharray={C[i]} strokeDashoffset={C[i] * (1 - go)}
+                    style={{ transitionDuration: `${SWEEP}ms`, opacity: live ? 1 : 0.0001 }} />
+                  {/* the reading head: it rides the end of the arc */}
+                  <g className="fg-head" style={{ transitionDuration: `${SWEEP}ms`, transform: `rotate(${go * 360}deg)`, opacity: live && go > 0 && go < 1 ? 1 : 0 }}>
+                    <circle cx="220" cy={220 - R[i]} r="9" fill={col} filter="url(#fg-soft)" opacity=".5" />
+                    <circle cx="220" cy={220 - R[i]} r="4.5" fill={col} />
+                  </g>
+                </g>
+              );
+            })}
+          </svg>
+          <div className={cx('fg-mid', decided && 'on')}>
+            <span className="fg-who">{S.who}</span>
+            {decided
+              ? <strong className="fg-verdict" style={{ color: TONE[S.tone] }}>{S.verdict}</strong>
+              : <span className="fg-wait"><i /><i /><i /></span>}
+            <span className="fg-ms">{decided ? `${S.ms} ms` : 'reading'}</span>
+          </div>
+        </div>
+        <p className="fg-ctx">{S.ctx}</p>
+        </div>
+
+        {/* what each check found: three lines, no boxes */}
+        <ol className="fg-reads">
+          {RINGS.map((ring, i) => {
+            const [state, read] = S.reads[i];
+            const on = k >= i + 2 || decided;
+            return (
+              <li key={ring.k} className={cx('fg-read', on && 'on', state === 'idle' && 'idle')} style={{ '--c': TONE[state] }}>
+                <span className="fg-dot" />
+                <span className="fg-name">{ring.name}</span>
+                <span className="fg-ask">{ring.asks}</span>
+                <span className="fg-found">{read}</span>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+
+      <p className={cx('fg-why', decided && 'on')}>{S.why}</p>
     </figure>
   );
 }
@@ -10168,8 +10309,11 @@ import { CUSTOMERS, CERTS } from '../../data/site.js';
    animations in virtual time and captures 1920x1080 frames. */
 
 export const W = 1920, H = 1080, FPS = 30;
-export const LENGTH = 62.5;
 const C = Object.fromEntries(TIM.lines.map((l) => [l.id, l]));
+export const LENGTH = Math.ceil((TIM.duration + 0.1) * 10) / 10; // the film runs as long as its narration
+/* a product scene's beats were timed on its first cut; they scale with the
+   time its line now holds the screen, so a faster read keeps every beat */
+const beats = (id, next, first) => { const s = C[id].start, k = (C[next].start - s) / first; return (o) => s + o * k; };
 
 const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
 const seg = (t, a, b) => clamp((t - a) / (b - a));
@@ -10325,7 +10469,7 @@ function Login({ t }) {
         <Spoken line={C.login} t={t} size={80} width={1500} words="They don’t break in anymore. They log in." part={[0, 8 / 13]} />
       </div>
       <div style={{ position: 'absolute', left: 0, right: 0, top: 430, display: 'flex', justifyContent: 'center', gap: 56, perspective: 1800 }}>
-        <div style={{ transform: `rotateY(${12 - t * 0.5}deg) rotateX(5deg)` }}>{card('Hyderabad', 'His usual laptop', '09:12', L.start + 1.0, false)}</div>
+        <div style={{ transform: `rotateY(${12 - t * 0.5}deg) rotateX(5deg)` }}>{card('Hyderabad', 'Usual laptop', '09:12', L.start + 1.0, false)}</div>
         <div style={{ transform: `rotateY(${-12 + t * 0.5}deg) rotateX(5deg)` }}>{card('Lagos', 'A new phone', '02:14', wordAt(L, 5) - 0.1, true)}</div>
       </div>
       <div style={{ position: 'absolute', left: 0, right: 0, top: 820, textAlign: 'center', opacity: ease(seg(t, wordAt(L, 9) - 0.3, wordAt(L, 9) + 0.3)) }}>
@@ -10390,12 +10534,12 @@ function Product({ t, d, line, acc, accent, mark, name, head, children, popAt, p
 }
 
 function Zen({ t, lt, d }) {
-  const s = C.zenstra.start;
+  const s = C.zenstra.start, b = beats('zenstra', 'adapid', 5.643);
   return (
     <Product t={t} d={d} line={C.zenstra} acc="#93a2ff" accent="zen" mark="zenstra" name={['Zenstra AI', 'Security for AI agents']} head={<>Give every agent a job, <span style={{ color: '#aab6ff' }}>not the keys.</span></>}>
-      <Stage t={t} lt={lt} d={d} width={1180} from={[8, -16, -120]} to={[3, -5, 0]} steps={[s - 0.2, s + 0.6, s + 1.6, s + 2.6, s + 3.6, s + 4.8]}>
+      <Stage t={t} lt={lt} d={d} width={1180} from={[8, -16, -120]} to={[3, -5, 0]} steps={[s - 0.2, b(0.6), b(1.6), b(2.6), b(3.6), b(4.8)]}>
         {(k) => <div style={{ position: 'relative' }}><ZenGateway k={k} />
-          <Pop t={t} at={s + 2.8} z={120} style={{ left: -90, bottom: -60, width: 440 }}>
+          <Pop t={t} at={b(2.8)} z={120} style={{ left: -90, bottom: -60, width: 440 }}>
             <div className="vz-pop" style={{ padding: '20px 24px', '--glow': 'rgb(255 107 93 / .55)' }}>
               <p style={{ fontSize: 17, fontWeight: 700, letterSpacing: '.08em', color: '#ff7d70' }}>BLOCKED · 4 MS</p>
               <p style={{ marginTop: 6, fontSize: 22, fontWeight: 600 }}>invoice-agent → salesforce.export</p>
@@ -10408,30 +10552,30 @@ function Zen({ t, lt, d }) {
   );
 }
 function Adap({ t, lt, d }) {
-  const s = C.adapid.start;
+  const s = C.adapid.start, b = beats('adapid', 'botshield', 6.102);
   return (
     <Product t={t} d={d} line={C.adapid} acc="#3cc8f6" accent="adap" mark="adapid" name={['adapID AI', 'People and machine identities']} head={<>A valid login. <span style={{ color: '#7fdcff' }}>The wrong person.</span></>}>
-      <Stage t={t} lt={lt} d={d} width={1180} from={[9, -15, -140]} to={[3, -5, 0]} steps={[s - 0.3, s + 0.5, s + 1.5, s + 2.5, s + 3.5, s + 4.5, s + 5.4]}>
+      <Stage t={t} lt={lt} d={d} width={1180} from={[9, -15, -140]} to={[3, -5, 0]} steps={[s - 0.3, b(0.5), b(1.5), b(2.5), b(3.5), b(4.5), b(5.4)]}>
         {(k) => <AdapRiskTimeline k={k} />}
       </Stage>
     </Product>
   );
 }
 function Bot({ t, lt, d }) {
-  const s = C.botshield.start;
+  const s = C.botshield.start, b = beats('botshield', 'icms', 5.735);
   return (
     <Product t={t} d={d} line={C.botshield} acc="#34e0c3" accent="bot" mark="botshield" name={['BotShield AI', 'Apps, APIs and the edge']} head={<>37 findings.<br /><span style={{ color: '#7ff0dc' }}>Six real holes.</span></>}>
-      <Stage t={t} lt={lt} d={d} width={1180} from={[10, -15, -120]} to={[3, -5, 0]} steps={[s - 0.3, s + 0.5, s + 1.4, s + 2.4, s + 3.4]}>
+      <Stage t={t} lt={lt} d={d} width={1180} from={[10, -15, -120]} to={[3, -5, 0]} steps={[s - 0.3, b(0.5), b(1.4), b(2.4), b(3.4)]}>
         {(k) => <CtemLoop k={k} />}
       </Stage>
     </Product>
   );
 }
 function Icms({ t, lt, d }) {
-  const s = C.icms.start;
+  const s = C.icms.start, b = beats('icms', 'trust', 7.735);
   return (
     <Product t={t} d={d} line={C.icms} acc="#f4c76c" accent="icms" mark="icms" name={['ICMS Compliance Suite', 'DPDPA compliance']} head={<>Evidence in one click. <span style={{ color: '#ffd98f' }}>Not one quarter.</span></>}>
-      <Stage t={t} lt={lt} d={d} width={1180} from={[9, -15, -120]} to={[3, -5, 0]} steps={[s - 0.3, s + 0.5, s + 1.3, s + 2.2, s + 3.4, s + 4.3, s + 5.2]}>
+      <Stage t={t} lt={lt} d={d} width={1180} from={[9, -15, -120]} to={[3, -5, 0]} steps={[s - 0.3, b(0.5), b(1.3), b(2.2), b(3.4), b(4.3), b(5.2)]}>
         {(k) => <IcmsEvidence k={k} />}
       </Stage>
     </Product>
@@ -11425,9 +11569,8 @@ import { Link } from 'react-router';
 import { Seo } from '../lib/head.jsx';
 import { SOLUTIONS, CERTS, DEPLOY } from '../data/site.js';
 import { PRODUCT_MENU } from '../data/nav.js';
-import { POSTS } from '../data/posts.js';
 import { Button, CountUp, Icon, Reveal, SectionHead, cx } from '../components/ui.jsx';
-import { CtaBand, FilmPlayer, PostCard, TrustedRow } from '../components/blocks.jsx';
+import { CtaBand, FilmPlayer, TrustedRow } from '../components/blocks.jsx';
 import ProductMark from '../components/ProductMark.jsx';
 import ThreatHero from '../components/ThreatHero.jsx';
 import RoleCards from '../components/RoleCards.jsx';
@@ -11713,16 +11856,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* blogs */}
-      <section className="sec" aria-labelledby="res-h">
-        <div className="wrap">
-          <div className="flex flex-wrap items-end justify-between gap-6">
-            <SectionHead align="left" id="res-h" eyebrow="Blogs" title="What attackers are doing now, and what stops them." />
-            <Link to="/blogs" className="link">All blogs<Icon name="ArrowRight" size={14} weight="bold" /></Link>
-          </div>
-          <div className="m-rail mt-12 grid gap-10 md:grid-cols-3">{POSTS.slice(0, 3).map((p, i) => <Reveal key={p.slug} delay={i * 80}><PostCard post={p} /></Reveal>)}</div>
-        </div>
-      </section>
 
       <div className="alt"><Faq items={FAQ} title="What teams ask before a first call" /></div>
 
@@ -13211,6 +13344,7 @@ import { Hero, Stats, Faq, Related, Points, LINKS, ACC } from '../../components/
 import { MoneyTrail } from '../../components/scenes/money.jsx';
 import { ScamCatch, CapabilityPhone, WebStepUp } from '../../components/viz/fraud.jsx';
 import { FraudDecisions } from '../../components/viz/frauddecisions.jsx';
+import { FraudGate } from '../../components/viz/fraudgate.jsx';
 
 /* Identity Fraud Prevention: one platform for mobile and internet banking, from
    login to payment. The page follows the platform's own logic: three questions
@@ -13219,43 +13353,6 @@ import { FraudDecisions } from '../../components/viz/frauddecisions.jsx';
 
 const p = PRODUCTS.fraud;
 const A = ACC.adap;
-
-const QUESTIONS = [
-  { n: 1, area: 'Identity', icon: 'Fingerprint', q: 'Is this the real customer?', stops: 'Account takeover', caps: ['Behavioural biometrics', 'Silent TOTP', 'Face verification'] },
-  { n: 2, area: 'Protection', icon: 'ShieldCheck', q: 'Is the customer safe and acting freely?', stops: 'Malware, remote access and payment scams', caps: ['Device security (RASP)', 'Scam signals'] },
-  { n: 3, area: 'Payment', icon: 'Wallet', q: 'Is this payment normal?', stops: 'Mule accounts and unusual payments', caps: ['Transaction intelligence', 'Beneficiary profiling'] },
-];
-
-function ThreeQuestions() {
-  return (
-    <div className="grid items-stretch gap-3 lg:grid-cols-[auto_auto_1fr_auto_1fr_auto_1fr_auto_auto]">
-      <Reveal className="flex items-center justify-center lg:justify-start">
-        <span className="inline-flex items-center gap-2 rounded-full border border-line-2 px-4 py-2 text-[14px] font-medium text-ink-2"><Icon name="DeviceMobile" size={16} />Login</span>
-      </Reveal>
-      {QUESTIONS.map((x, i) => (
-        <div key={x.n} className="contents">
-          <span aria-hidden="true" className="flex items-center justify-center text-ink-3"><Icon name="ArrowRight" size={18} className="rotate-90 lg:rotate-0" /></span>
-          <Reveal delay={i * 90} className="card flex flex-col p-6">
-            <div className="flex items-center gap-3">
-              <span className="ico grid h-10 w-10 place-items-center rounded-[12px]" style={{ '--acc': A }}><Icon name={x.icon} size={20} /></span>
-              <span className="text-[12.5px] font-semibold uppercase tracking-[.1em] text-ink-3">{x.n} · {x.area}</span>
-            </div>
-            <h3 className="mt-5 text-[21px] font-semibold leading-snug tracking-[-0.02em]">{x.q}</h3>
-            <p className="mt-3 flex items-start gap-2 text-[14.5px] text-ink-2"><Icon name="Prohibit" size={16} className="mt-[3px] shrink-0 text-crit" />Stops {x.stops.toLowerCase()}</p>
-            <ul className="mt-auto flex flex-wrap gap-1.5 pt-5">{x.caps.map((c) => <li key={c} className="rounded-full border border-line px-2.5 py-1 text-[12.5px] text-ink-2">{c}</li>)}</ul>
-          </Reveal>
-        </div>
-      ))}
-      <span aria-hidden="true" className="flex items-center justify-center text-ink-3"><Icon name="ArrowRight" size={18} className="rotate-90 lg:rotate-0" /></span>
-      <Reveal delay={300} className="flex items-center justify-center">
-        <span className="rounded-[16px] border border-line-2 px-4 py-3 text-center">
-          <span className="block text-[12.5px] font-semibold uppercase tracking-[.1em] text-ink-3">Decision</span>
-          <span className="mt-1 block text-[15px] font-semibold">Allow · Step-up · Hold</span>
-        </span>
-      </Reveal>
-    </div>
-  );
-}
 
 /* how we differ from the fraud tools a bank already runs: four things a buyer
    checks, side by side */
@@ -13403,8 +13500,8 @@ export default function Fraud() {
 
       <section className="sec" aria-labelledby="q-h">
         <div className="wrap">
-          <SectionHead id="q-h" acc={A} eyebrow="Unified fraud prevention" title="Three questions, in every session." lead="Each answered by its own signals, together in one decision, so a fraudster has to beat all three at once." />
-          <div className="mt-14"><ThreeQuestions /></div>
+          <SectionHead id="q-h" acc={A} eyebrow="Unified fraud prevention" title="Three checks. One decision." lead="Every session is read three times over. A fraudster has to get past all three; a genuine customer never feels any of them." />
+          <Reveal className="mx-auto mt-16 max-w-[1000px]"><FraudGate /></Reveal>
         </div>
       </section>
 
@@ -14512,6 +14609,63 @@ html:not(.js) .th-art { opacity: 1; }
 @keyframes ps-fill { from { width: 0; } to { width: 100%; } }
 @media (prefers-reduced-motion: reduce) { .ps-in, .ps-bob, .ps-ring { animation: none; } }
 
+/* ---------- the fraud decision dial: three checks, one decision ----------
+   One object on the page, no card and no window: the rings read, the middle
+   decides, and three lines say what each check found. */
+.fg { display: block; }
+.fg-pick { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 2px; }
+.fg-tab { position: relative; padding: 8px 14px; font-size: 14.5px; font-weight: 550; color: var(--color-ink-3); border-radius: 999px; transition: color .25s; }
+.fg-tab::after { content: ''; position: absolute; left: 14px; right: 14px; bottom: 2px; height: 2px; border-radius: 2px; background: var(--color-adap); transform: scaleX(0); transition: transform .35s cubic-bezier(.16,1,.3,1); }
+.fg-tab:hover { color: var(--color-ink); }
+.fg-tab.on { color: var(--color-ink); }
+.fg-tab.on::after { transform: scaleX(1); }
+
+.fg-stage { display: grid; justify-items: center; gap: 40px; margin-top: 44px; }
+@media (min-width: 900px) { .fg-stage { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 64px; justify-items: start; } .fg-stage > :first-child { justify-self: center; } }
+
+.fg-left { display: grid; justify-items: center; }
+.fg-dial { position: relative; width: min(380px, 78vw); aspect-ratio: 1; }
+.fg-dial svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.fg-track { fill: none; stroke: var(--color-line); stroke-width: 11; }
+.fg-arc { fill: none; stroke-width: 11; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 220px 220px;
+  transition: stroke-dashoffset cubic-bezier(.33,0,.1,1), stroke .4s, opacity .3s; }
+.fg-head { transform-origin: 220px 220px; transition: transform cubic-bezier(.33,0,.1,1), opacity .3s; }
+
+.fg-mid { position: absolute; inset: 31%; display: grid; align-content: center; justify-items: center; text-align: center; gap: 2px; }
+.fg-who { font-size: 13px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--color-ink-3); }
+.fg-verdict { font-size: clamp(26px, 4.4vw, 38px); font-weight: 650; letter-spacing: -0.035em; line-height: 1.05; color: var(--color-ink-3);
+  transition: color .45s; }
+.fg-mid.on .fg-verdict { animation: fg-land .5s cubic-bezier(.16,1,.3,1) both; }
+@keyframes fg-land { from { opacity: 0; transform: scale(.94); } }
+.fg-ms { font-size: 13.5px; color: var(--color-ink-3); font-variant-numeric: tabular-nums; }
+.fg-wait { display: flex; gap: 6px; height: 38px; align-items: center; }
+.fg-wait i { width: 7px; height: 7px; border-radius: 50%; background: var(--color-ink-3); animation: fg-wait 1.1s ease-in-out infinite; }
+.fg-wait i:nth-child(2) { animation-delay: .16s; } .fg-wait i:nth-child(3) { animation-delay: .32s; }
+@keyframes fg-wait { 0%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+.fg-ctx { margin-top: 18px; text-align: center; font-size: 14.5px; color: var(--color-ink-3); }
+
+.fg-reads { display: grid; gap: 2px; width: 100%; max-width: 560px; }
+.fg-read { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 0 14px; align-items: baseline; padding: 16px 0; border-top: 1px solid var(--color-line);
+  opacity: 0; transform: translateY(6px); transition: opacity .5s, transform .6s cubic-bezier(.16,1,.3,1); }
+.fg-read.on { opacity: 1; transform: none; }
+.fg-read.idle { opacity: .45; }
+.fg-read.idle.on { opacity: .45; }
+.fg-read:last-child { border-bottom: 1px solid var(--color-line); }
+.fg-dot { width: 10px; height: 10px; margin-top: 7px; border-radius: 50%; background: var(--c); align-self: start; }
+.fg-name { font-size: 16.5px; font-weight: 650; letter-spacing: -0.01em; }
+.fg-ask { grid-column: 2; font-size: 14.5px; color: var(--color-ink-3); }
+.fg-found { grid-column: 2; margin-top: 7px; font-size: 17px; font-weight: 600; letter-spacing: -0.015em; color: var(--c); }
+
+.fg-why { max-width: 70ch; margin: 36px auto 0; text-align: center; font-size: clamp(17px, 1.7vw, 20px); line-height: 1.55; color: var(--color-ink-2);
+  opacity: 0; transition: opacity .6s; }
+.fg-why.on { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fg-arc, .fg-head, .fg-read, .fg-why { transition: none !important; }
+  .fg-wait i { animation: none; }
+  .fg-mid.on .fg-verdict { animation: none; }
+}
+
 ====================================================================================================
 FILE: tests/details.spec.js
 ====================================================================================================
@@ -14810,12 +14964,32 @@ test('on a phone the attack path reads as a chain, one step under the other', as
   await expect(bench.getByText('Remediated, and checked again')).toBeVisible({ timeout: 8000 });
 });
 
+test('fraud: three checks on one dial, each session with its own decision', async ({ page }) => {
+  await page.goto('/adapid-ai/fraud-prevention');
+  await hydrated(page);
+  const gate = page.locator('figure.fg');
+  await gate.scrollIntoViewIfNeeded();
+  await expect(page.getByRole('heading', { name: 'Three checks. One decision.' })).toBeVisible();
+  await expect(gate.locator('.fg-dial')).toBeVisible();
+  for (const [tab, verdict, found] of [['Genuine customer', 'Allow', 'Her typing, her phone'], ['Mule payment', 'Block', 'Payee is a known mule account'], ['Account takeover', 'Step up', 'Right password, wrong hands']]) {
+    await gate.getByRole('tab', { name: tab }).click();
+    await expect(gate.locator('.fg-verdict')).toHaveText(verdict);
+    await expect(gate.getByText(found)).toBeVisible();
+  }
+  // the three checks are named, and nothing is wrapped in a card
+  for (const n of ['Identity', 'Protection', 'Payment']) await expect(gate.locator('.fg-name', { hasText: n })).toBeVisible();
+  await expect(gate.locator('.card')).toHaveCount(0);
+});
+
 test('home goes from the numbers straight to the platform, with no empty logo moment', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#orbit')).toHaveCount(0);
   await hydrated(page);
   await page.getByRole('button', { name: /See the platform/ }).first().click();
   await expect(page.locator('#platform-h')).toBeInViewport({ timeout: 5000 });
+  // the blogs section is gone from home; blogs stay one click away in the menu
+  await expect(page.locator('#res-h')).toHaveCount(0);
+  await expect(page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Blogs' })).toHaveAttribute('href', '/blogs');
 });
 
 ====================================================================================================
