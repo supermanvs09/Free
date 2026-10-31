@@ -1,5 +1,5 @@
 DEEP ALGORITHMS WEBSITE: FULL SOURCE CODE
-Commit e1975c0. 141 text files below; 85 binary files (images, video, audio, fonts) are listed but not printed.
+Commit 6fa0726. 140 text files below; 85 binary files (images, video, audio, fonts) are listed but not printed.
 
 == CONTENTS ==
   .dockerignore
@@ -33,7 +33,6 @@ Commit e1975c0. 141 text files below; 85 binary files (images, video, audio, fon
   src/components/Form.jsx
   src/components/Header.jsx
   src/components/JumpBar.jsx
-  src/components/LogoOrbit.jsx
   src/components/MobileBar.jsx
   src/components/PerimeterStory.jsx
   src/components/ProductKit.jsx
@@ -407,7 +406,7 @@ FILE: index.html
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
-    <meta name="theme-color" content="#0a0b0e" />
+    <meta name="theme-color" content="#051530" />
     <script>(function(){var r=document.documentElement;r.classList.add('js');try{localStorage.removeItem('da-theme')}catch(e){}})();</script>
     <!--app-head-->
   </head>
@@ -2538,6 +2537,19 @@ function PageEffects() {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     return undefined;
   }, [pathname, hash]);
+  // anything that scrolls sideways (the swipe rails on a phone, wide code) can
+  // be reached and scrolled with the keyboard too
+  useEffect(() => {
+    const mark = () => document.querySelectorAll('main .m-rail, main pre, main .overflow-x-auto, main .vz-exact').forEach((el) => {
+      const scrolls = el.scrollWidth > el.clientWidth + 1;
+      if (scrolls && el.classList.contains('vz-exact') && !el.dataset.kb) el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2; // wide diagrams open on their centre
+      if (scrolls && !el.hasAttribute('tabindex')) { el.tabIndex = 0; el.dataset.kb = '1'; if (!el.getAttribute('aria-label')) { if (!/^(UL|OL)$/.test(el.tagName) && !el.getAttribute('role')) el.setAttribute('role', 'region'); el.setAttribute('aria-label', 'Scrolls sideways'); } }
+      else if (!scrolls && el.dataset.kb) { el.removeAttribute('tabindex'); delete el.dataset.kb; }
+    });
+    const t = setTimeout(mark, 900);
+    window.addEventListener('resize', mark);
+    return () => { clearTimeout(t); window.removeEventListener('resize', mark); };
+  }, [pathname]);
   return null;
 }
 
@@ -3518,7 +3530,7 @@ const L = ({ to, children }) => <li><Link to={to} className="text-ink-2 transiti
 
 export default function Footer() {
   return (
-    <footer className="site-foot noprint relative border-t border-line bg-[#08090b]">
+    <footer className="site-foot noprint relative border-t border-line bg-[#04122a]">
       <div className="wrap pb-10 pt-16 md:pt-20">
         <div className="grid gap-12 lg:grid-cols-[1.25fr_2.6fr]">
           <div>
@@ -3909,8 +3921,8 @@ export default function Header() {
 
   return (
     <header className={cx('noprint fixed inset-x-0 top-0 z-50 transition-transform duration-300', light && 'tone-l', tucked && !mobile && 'max-md:-translate-y-full')} onMouseLeave={leave}>
-      <a href="#main" className="sr-only-focusable absolute left-4 top-3 z-50 rounded-full bg-white px-4 py-2 text-[#0e1014]">Skip to content</a>
-      <div aria-hidden="true" className={cx('hdr-bg absolute inset-0 -z-10 border-b', solid ? 'solid border-line bg-[#08090b]/80 backdrop-blur-xl' : 'border-transparent bg-transparent')} />
+      <a href="#main" className="sr-only-focusable absolute left-4 top-3 z-50 rounded-full bg-white px-4 py-2 text-[#081c39]">Skip to content</a>
+      <div aria-hidden="true" className={cx('hdr-bg absolute inset-0 -z-10 border-b', solid ? 'solid border-line bg-[#04122a]/80 backdrop-blur-xl' : 'border-transparent bg-transparent')} />
       <UtilityBar away={scrolled || !!open} />
       <div className="wrap flex h-[72px] items-center gap-6">
         <Link to="/" aria-label="Deep Algorithms home" className="shrink-0"><Logo dual /></Link>
@@ -4058,268 +4070,6 @@ export default function JumpBar() {
 }
 
 ====================================================================================================
-FILE: src/components/LogoOrbit.jsx
-====================================================================================================
-import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router';
-import { Brain, Cloud, Cpu, Database, GearSix, HardDrives, Key, Plugs, Robot, Sparkle, Terminal, User } from '@phosphor-icons/react/dist/ssr';
-import { cx, useReducedMotion } from '../lib/motion.js';
-import ProductMark from './ProductMark.jsx';
-import { Icon } from './ui.jsx';
-
-/* The logo moment. Two parts on the page, one mark travelling between them.
-   1. The plate: our mark rises in from below, a brand-blue plate opens around
-      it and our line arrives word by word. The plate stays.
-   2. The orbit: when the reader reaches it, the mark pops out of the plate,
-      arcs down and lands at the centre of the identity orbit from the original
-      site; the rings open out of it and people, machine identities and AI
-      agents take their places. Then the calm loop: a pulse leaves the mark
-      every five seconds and each risk dot it reaches becomes a fix.
-   No scroll lock. The prerendered HTML and reduced motion show the finished
-   state: the plate with its words, the mark in the orbit. Names are
-   illustrative. */
-
-const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
-const P = (t, a, b) => clamp((t - a) / (b - a));
-const ss = (x) => x * x * (3 - 2 * x);
-const eo = (x) => 1 - (1 - x) ** 3;
-const eio = (x) => (x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2);
-const eb = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : 1 + 2.70158 * (x - 1) ** 3 + 1.70158 * (x - 1) ** 2);
-const f2 = (n) => (Math.round(n * 100) / 100).toFixed(2);
-const BLUE = '#0068ac', CYAN = '#00aeef', CORAL = '#f0644d';
-
-const RINGS = [
-  { label: 'People', icons: [User, User, User, User], risky: [0, 2] },
-  { label: 'Machine identities', icons: [Key, Cloud, Database, GearSix, Plugs, HardDrives, Terminal], risky: [0, 3, 4] },
-  { label: 'AI agents', icons: [Robot, Sparkle, Robot, Brain, Robot, Sparkle, Cpu, Robot], risky: [0, 3, 6] },
-];
-const angles = (n, gap = 56) => Array.from({ length: n }, (_, i) => ((-90 + gap / 2 + ((i + 0.5) * (360 - gap)) / n) * Math.PI) / 180);
-
-const GEO = {
-  wide: { W: 1200, H: 500, cx: 600, cy: 250, rings: [[200, 104], [350, 152], [495, 200]], r: 26, half: 68 },
-  compact: { W: 560, H: 560, cx: 280, cy: 280, rings: [[105, 105], [175, 175], [245, 245]], r: 22, half: 52 },
-};
-// the plate, in seconds from when it comes into view
-const A = { rise: 0, riseEnd: 0.8, open: 0.9, openEnd: 1.6, words: 1.5, tag: 2.45, done: 3.2 };
-// the orbit, in seconds from when the mark pops out of the plate
-const T = { pop: 0, popEnd: 0.3, fly: 0.3, flyEnd: 1.15, landEnd: 1.45, rings: 1.3, nodes: 1.8, labels: 2.95, loop: 3.85 };
-const CYCLE = 5, REACH = 2.2, DONE = 60;
-const LINE = ['Identity', 'security', 'for', 'the', 'AI', 'era.'];
-const TAG = 'The future is decided today.';
-
-function Disc({ x, y, Icon: I, r, o = 1, s = 1, dark, warn = 0, ok = 0, glow = 0 }) {
-  if (o <= 0.01) return null;
-  return (
-    <g transform={`translate(${f2(x)} ${f2(y)}) scale(${f2(s)})`} opacity={f2(o)}>
-      {glow > 0.01 && <circle r={r + 9} fill="none" stroke={dark ? '#5cc2ff' : BLUE} strokeOpacity={f2(glow * 0.85)} strokeWidth="2" />}
-      <circle r={r} fill={dark ? '#151a22' : '#fff'} stroke={dark ? 'rgba(255,255,255,.22)' : '#dbe3ec'} strokeWidth="1.5" filter="url(#lo-sh)" />
-      <g transform={`translate(${f2(-r * 0.5)} ${f2(-r * 0.5)})`}><I size={r} color={dark ? '#dfe6ef' : '#3f4a5a'} weight="regular" /></g>
-      {warn > 0.01 && <circle cx={f2(r * 0.74)} cy={f2(-r * 0.74)} r={f2(Math.max(0.01, 7.5 * warn))} fill={CORAL} stroke={dark ? '#0a0b0e' : '#fff'} strokeWidth="2.5" />}
-      {ok > 0.01 && <g transform={`translate(${f2(r * 0.74)} ${f2(-r * 0.74)}) scale(${f2(ok)})`}><circle r="10" fill={dark ? CYAN : BLUE} stroke={dark ? '#0a0b0e' : '#fff'} strokeWidth="2.5" /><path d="M-4.5 0.5 l3 3.2 6-6.7" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></g>}
-    </g>
-  );
-}
-
-function Scene({ t, compact, dark }) {
-  const g = compact ? GEO.compact : GEO.wide, { W, H, cx, cy, r } = g;
-  const rx3 = g.rings[2][0], ry3 = g.rings[2][1], r0 = g.half * 1.1;
-  const live = t >= T.loop, tau = live ? (t - T.loop) % CYCLE : -1, s = tau / REACH;
-  const landed = ss(P(t, T.flyEnd, T.landEnd));
-  const nodes = [];
-  RINGS.forEach((ring, i) => {
-    const [rx, ry] = g.rings[i], ang = angles(ring.icons.length), ratio = (rx - r0) / (rx3 - r0);
-    ring.icons.forEach((Ic, k) => {
-      const at = T.nodes + i * 0.28 + k * 0.06, pop = P(t, at, at + 0.55);
-      const tx = cx + rx * Math.cos(ang[k]), ty = cy + ry * Math.sin(ang[k]) + (live ? Math.sin(t * 0.9 + k * 1.7 + i) * 2.5 : 0);
-      // each identity pops out of the mark and travels to its place on the ring
-      const x = cx + (tx - cx) * eo(pop), y = cy + (ty - cy) * eo(pop);
-      const risky = ring.risky.includes(k), flip = (ratio + 0.03 * k) * REACH, back = 3.5 + 0.12 * k;
-      const okOn = live && risky && tau >= flip && tau < back;
-      const warn = risky && !okOn ? (live && tau >= back ? eb(P(tau, back, back + 0.4)) : eb(P(t, at + 0.45, at + 0.8))) : 0;
-      const ok = okOn ? eb(P(tau, flip, flip + 0.4)) : 0;
-      const glow = live ? Math.sin(Math.PI * P(tau, flip - 0.2, flip + 0.55)) : 0;
-      nodes.push(<Disc key={`${i}${k}`} x={x} y={y} Icon={Ic} r={r} o={ss(P(pop, 0, 0.3))} s={0.4 + 0.6 * eb(pop)} warn={warn} ok={ok} glow={glow} dark={dark} />);
-    });
-  });
-  const lab = ss(P(t, T.labels, T.labels + 0.6));
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="h-full w-full font-sans" role="img"
-      aria-label="Animation: the Deep Algorithms mark lands at the centre, three rings open out of it, and people, machine identities and AI agents take their places on them. A pulse then leaves the mark every few seconds, and each identity it reaches changes from a risk marker to a fix.">
-      <defs>
-        <filter id="lo-sh" x="-40%" y="-40%" width="180%" height="190%"><feDropShadow dx="0" dy="5" stdDeviation="6" floodColor="#062f57" floodOpacity={dark ? '.45' : '.12'} /></filter>
-        <radialGradient id="lo-halo"><stop offset="0" stopColor={dark ? '#5cc2ff' : CYAN} stopOpacity={dark ? '.3' : '.2'} /><stop offset="1" stopColor={CYAN} stopOpacity="0" /></radialGradient>
-      </defs>
-      {g.rings.map(([rx, ry], i) => {
-        const open = eo(P(t, T.rings + i * 0.16, T.rings + 0.7 + i * 0.16));
-        return (
-          <g key={i} opacity={f2(ss(P(t, T.rings + i * 0.16, T.rings + 0.3 + i * 0.16)))}>
-            <ellipse cx={cx} cy={cy} rx={f2(r0 + (rx - r0) * open)} ry={f2(r0 + (ry - r0) * open)} fill="none" stroke={dark ? 'rgba(255,255,255,.18)' : '#dbe3ec'} strokeWidth="1.5" />
-            {lab > 0.01 && <text x={cx} y={cy - ry + 5} textAnchor="middle" opacity={f2(lab)} fontSize={compact ? 13 : 14} fontWeight="500" fill={dark ? '#a8b0bb' : '#5c6777'} stroke={dark ? '#0f1114' : '#f6f7f9'} strokeWidth="7" paintOrder="stroke">{RINGS[i].label}</text>}
-          </g>
-        );
-      })}
-      {live && tau < REACH + 0.4 && <ellipse cx={cx} cy={cy} rx={f2(r0 + s * (rx3 - r0))} ry={f2(r0 + s * (ry3 - r0))} fill="none" stroke={dark ? '#5cc2ff' : BLUE} strokeWidth="2" strokeOpacity={f2(0.5 * (1 - ss(P(s, 0.9, 1.15))))} />}
-      {nodes}
-      {/* the halo the mark sits in once it lands; the mark itself is drawn on top as an image */}
-      <circle cx={cx} cy={cy} r={f2(g.half * 2.3 * (1 + 0.015 * Math.sin(t * 1.3)))} fill="url(#lo-halo)" opacity={f2(0.9 * landed)} />
-    </svg>
-  );
-}
-
-
-const MarkTile = ({ size, className, style }) => (
-  <span className={cx('lm-mark absolute flex items-center justify-center rounded-[23%] border border-[#e3e8ee] bg-white', className)} style={{ width: size, height: size, ...style }}>
-    <img src="/brand/mark.webp" alt="" className="h-[58%] w-[58%]" />
-  </span>
-);
-
-const PRODUCTS = [
-  { key: 'zenstra', name: 'Zenstra AI', what: 'AI agents', to: '/agentic-ai/agentic-identity' },
-  { key: 'adapid', name: 'adapID AI', what: 'People and machine identities', to: '/adapid-ai' },
-  { key: 'botshield', name: 'BotShield AI', what: 'Apps, APIs and the edge', to: '/botshield-ai' },
-  { key: 'icms', name: 'ICMS Compliance Suite', what: 'Personal data and DPDPA', to: '/dpdpa-compliance' },
-];
-
-export default function LogoOrbit() {
-  const root = useRef(null);
-  const plate = useRef(null);
-  const frame = useRef(null);
-  const reduce = useReducedMotion();
-  const [ta, setTa] = useState(DONE);
-  const [tb, setTb] = useState(DONE);
-  const [compact, setCompact] = useState(false);
-  const dark = false; // the site has one theme: dark bands and light sheets
-  const [geo, setGeo] = useState(null); // measured: plate size, where the mark starts and where it lands
-
-  useEffect(() => {
-    const m = window.matchMedia('(max-width: 639px)');
-    const on = () => setCompact(m.matches);
-    on(); m.addEventListener('change', on);
-    return () => m.removeEventListener('change', on);
-  }, []);
-
-  // measure the plate and the orbit, relative to this block
-  useEffect(() => {
-    const r0 = root.current, pl = plate.current, fr = frame.current;
-    const measure = () => {
-      const R = r0.getBoundingClientRect(), Pp = pl.getBoundingClientRect(), F = fr.getBoundingClientRect();
-      const g = window.matchMedia('(max-width: 639px)').matches ? GEO.compact : GEO.wide;
-      const small = Pp.width < 640;
-      setGeo({
-        pw: Pp.width, ph: Pp.height, s0: small ? 76 : 104,
-        sx: Pp.left - R.left + Pp.width / 2, sy: Pp.top - R.top + Pp.height / 2,
-        ex: F.left - R.left + (g.cx / g.W) * F.width, ey: F.top - R.top + (g.cy / g.H) * F.height,
-        s1: ((g.half * 2) / g.W) * F.width,
-      });
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(r0);
-    return () => ro.disconnect();
-  }, [compact]);
-
-  // two clocks: the plate plays when it is seen; the orbit plays when it is seen and the plate is done
-  useEffect(() => {
-    if (reduce) { setTa(DONE); setTb(DONE); return undefined; }
-    let raf = 0, last = 0, a = -1, b = -1, acc = 0, seeP = false, seeF = false;
-    setTa(0); setTb(-1);
-    const tick = (now) => {
-      const dt = Math.min(0.1, (now - last) / 1000); last = now; acc += dt;
-      if (a < 0 && seeP) a = 0;
-      if (a < 0 && seeF) a = A.done; // reached the orbit without seeing the plate play
-      if (a >= 0 && a < DONE) a += dt;
-      if (b < 0 && seeF && a >= A.done) b = 0;
-      if (b >= 0 && (seeF || b < T.landEnd)) b += dt;
-      if (acc >= 1 / 50) { acc = 0; setTa(Math.max(0, a)); setTb(b); }
-      raf = (seeP || seeF || (b >= 0 && b < T.landEnd)) ? requestAnimationFrame(tick) : 0;
-    };
-    const wake = () => { if (!raf) { last = performance.now(); raf = requestAnimationFrame(tick); } };
-    const io = new IntersectionObserver((es) => {
-      for (const e of es) {
-        if (e.target === plate.current) seeP = e.intersectionRatio >= 0.5;
-        if (e.target === frame.current) seeF = e.intersectionRatio >= 0.4;
-      }
-      wake();
-    }, { threshold: [0, 0.4, 0.5, 0.75] });
-    io.observe(plate.current); io.observe(frame.current);
-    return () => { io.disconnect(); cancelAnimationFrame(raf); };
-  }, [reduce]);
-
-  /* --- the plate --- */
-  const open = eo(P(ta, A.open, A.openEnd));
-  const pw = geo?.pw || 1000, ph = geo?.ph || 380, s0 = geo?.s0 || 104;
-  const small = pw < 640;
-  const fs = small ? Math.max(24, pw * 0.074) : Math.min(60, Math.max(30, pw * 0.046));
-  const tsz = small ? 16 : Math.min(22, Math.max(17, pw * 0.019));
-  const word = (i) => { const q = P(ta, A.words + i * 0.11, A.words + 0.55 + i * 0.11); return { opacity: ss(q), transform: `translateY(${f2((1 - eo(q)) * 0.45 * fs)}px)`, filter: `blur(${f2((1 - q) * 6)}px)` }; };
-  const tag = P(ta, A.tag, A.tag + 0.7);
-
-  /* --- the mark: in the plate, in flight, or landed --- */
-  const flying = tb >= 0 && tb < T.landEnd && geo;
-  const inPlate = tb < 0;
-  const rise = P(ta, A.rise, A.riseEnd);
-  const plateMark = { transform: `translate(-50%, -50%) translateY(${f2((1 - eo(rise)) * 90)}px) scale(${f2(0.82 + 0.18 * eb(rise))})`, opacity: f2(ss(P(ta, 0, 0.3))) };
-  let flyStyle = null;
-  if (flying) {
-    const { sx, sy, ex, ey, s1 } = geo;
-    const pop = eb(P(tb, T.pop, T.popEnd));
-    const q = eio(P(tb, T.fly, T.flyEnd));
-    const cxp = sx + (ex - sx) * 0.2, cyp = Math.min(sy, ey) - 110; // the arc's control point: up and out of the plate first
-    const x = (1 - q) ** 2 * sx + 2 * (1 - q) * q * cxp + q * q * ex;
-    const y = (1 - q) ** 2 * sy + 2 * (1 - q) * q * cyp + q * q * ey;
-    const land = Math.sin(Math.PI * P(tb, T.flyEnd, T.landEnd));
-    const sc = (1 + 0.14 * pop * (1 - q)) * (1 + (s1 / s0 - 1) * q) * (1 - 0.07 * land);
-    flyStyle = { left: x, top: y, transform: `translate(-50%, -50%) scale(${f2(sc)})`, zIndex: 30 };
-  }
-  const gone = ss(P(tb, T.popEnd, T.popEnd + 0.4)); // the empty place the mark left in the plate
-
-  const g = compact ? GEO.compact : GEO.wide;
-  const row = (i) => ({ opacity: ss(P(tb, T.labels + 0.1 + i * 0.12, T.labels + 0.6 + i * 0.12)), transform: `translateY(${f2((1 - eo(P(tb, T.labels + 0.1 + i * 0.12, T.labels + 0.7 + i * 0.12))) * 18)}px)` });
-  return (
-    <div ref={root} className="relative">
-      {/* 1. the plate */}
-      <div ref={plate} className="relative mx-auto h-[300px] w-full sm:h-[360px] lg:h-[380px]">
-        <div aria-hidden="true" className="plate absolute left-1/2 top-1/2" style={{ width: f2(s0 + (pw - s0) * open) + 'px', height: f2(s0 + (ph - s0) * open) + 'px', borderRadius: f2(s0 * 0.23 + (28 - s0 * 0.23) * open) + 'px', transform: 'translate(-50%, -50%)', opacity: open > 0.002 ? 1 : 0 }} />
-        <h2 id="orbit-h" className="absolute inset-x-0 flex flex-wrap justify-center gap-x-[.26em] px-6 text-center font-semibold text-white" style={{ bottom: `calc(50% + ${f2(s0 / 2 + s0 * 0.22)}px)`, fontSize: f2(fs) + 'px', lineHeight: 1.06, letterSpacing: '-0.03em' }}>
-          {LINE.map((x, i) => [<span key={x + i} className="inline-block" style={word(i)}>{x}</span>, small && i === 1 && <span key="br" className="basis-full" />])}
-        </h2>
-        <p className="absolute inset-x-0 px-6 text-center font-medium text-white/90" style={{ top: `calc(50% + ${f2(s0 / 2 + s0 * 0.22)}px)`, fontSize: f2(tsz) + 'px', opacity: f2(ss(tag)), transform: `translateY(${f2((1 - eo(tag)) * 10)}px)` }}>{TAG}</p>
-        {/* the place the mark leaves behind */}
-        <span aria-hidden="true" className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-[23%] border-2 border-dashed border-white/35" style={{ width: s0, height: s0, opacity: f2(gone) }} />
-        {inPlate && <MarkTile size={s0} className="left-1/2 top-1/2 shadow-[0_18px_40px_-14px_rgb(6_47_87/.55)]" style={plateMark} />}
-      </div>
-
-      {/* the mark in flight, between the two */}
-      {flying && <MarkTile size={s0} className="shadow-[0_26px_50px_-18px_rgb(6_47_87/.6)]" style={flyStyle} />}
-
-      {/* 2. the orbit, smaller than before, with the four products under it */}
-      <div ref={frame} className={cx('relative mx-auto mt-16 w-full md:mt-20', compact ? 'aspect-square max-w-[460px]' : 'aspect-[1200/500] max-w-[980px]')}>
-        <Scene t={Math.max(0, tb)} compact={compact} dark={dark} />
-        {tb >= T.landEnd && <MarkTile size={`${f2(((g.half * 2) / g.W) * 100)}%`} className="left-1/2 shadow-[0_14px_34px_-12px_rgb(6_47_87/.45)]" style={{ top: `${f2((g.cy / g.H) * 100)}%`, transform: 'translate(-50%, -50%)', height: 'auto', aspectRatio: '1' }} />}
-      </div>
-      <ul className="mx-auto mt-6 flex max-w-[860px] flex-wrap justify-center gap-x-8 gap-y-3 text-[15.5px] font-medium text-ink-2">
-        {['Discover every identity', 'Fix risk before it is used', 'Prove it to every auditor'].map((x) => (
-          <li key={x} className="inline-flex items-center gap-2"><Icon name="CheckCircle" size={20} weight="fill" className="text-[#0a6dbb]" />{x}</li>
-        ))}
-      </ul>
-      <ul className="mx-auto mt-8 grid max-w-[1000px] grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-        {PRODUCTS.map((p, i) => (
-          <li key={p.key} style={row(i)}>
-            <Link to={p.to} className="card card-hover group flex h-full items-center gap-3.5 p-4 max-md:flex-col max-md:text-center md:p-5">
-              <ProductMark p={p.key} size={40} className="transition-transform duration-300 group-hover:scale-[1.06]" />
-              <span className="min-w-0">
-                <span className="block text-[15.5px] font-semibold leading-tight">{p.name}</span>
-                <span className="mt-0.5 block text-[13px] leading-snug text-ink-3">{p.what}</span>
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-====================================================================================================
 FILE: src/components/MobileBar.jsx
 ====================================================================================================
 import { useEffect, useState } from 'react';
@@ -4409,8 +4159,8 @@ const STEPS = [
 
 function Copy({ s, i, dim }) {
   return (
-    <div className={cx('transition-opacity duration-500', dim && 'lg:opacity-30')}>
-      <p className="kicker" style={{ '--acc': s.acc }}><span className="num mr-2 opacity-60">{String(i + 1).padStart(2, '0')}</span>{s.kicker}</p>
+    <div className={cx('transition-opacity duration-500', dim && 'lg:opacity-[.9]')}>
+      <p className="kicker" style={{ '--acc': s.acc }}><span className="num mr-2">{String(i + 1).padStart(2, '0')}</span>{s.kicker}</p>
       <p className="mt-5 text-[clamp(30px,3.2vw,44px)] font-semibold leading-[1.05] tracking-[-0.035em]" style={{ color: s.acc }}>{s.stat}</p>
       <h3 className="t-h3 mt-4 max-w-[30ch]">{s.title}</h3>
       <p className="mt-3 max-w-[46ch] text-[16.5px] leading-relaxed text-ink-2">{s.body}</p>
@@ -4520,7 +4270,7 @@ export function Explore({ label = 'See how it works', target, size = 'lg' }) {
    desktop, a rolling strip on phones and tablets. */
 /* Product hero frame: ribbons tinted by the product, crumbs, and two layouts:
    `split` (copy left, picture right) and `stack` (copy centred, picture below). */
-export function Hero({ acc = 'brand', crumbs, eyebrow, title, lead, ctas, explore, children, layout = 'split', ribbons = 'product', note, proof = true }) {
+export function Hero({ acc = 'brand', crumbs, eyebrow, title, lead, ctas, explore, children, layout = 'split', ribbons = 'product', note, proof = true, glance }) {
   const color = ACC[acc] || ACC.brand;
   const stack = layout === 'stack';
   const mark = { zen: 'zenstra', adap: 'adapid', bot: 'botshield', icms: 'icms' }[acc];
@@ -4541,6 +4291,17 @@ export function Hero({ acc = 'brand', crumbs, eyebrow, title, lead, ctas, explor
         </div>
         {children && <div className={cx('relative', stack ? 'mx-auto mt-16 max-w-[1080px]' : 'lg:-mr-6')}>{children}</div>}
       </div>
+      {/* the product at a glance: what it protects, stops, needs and shows */}
+      {glance && (
+        <dl className="rise wrap relative grid grid-cols-2 gap-x-4 gap-y-1 overflow-hidden pb-10 lg:grid-cols-4 md:pb-14" style={{ '--d': '320ms' }}>
+          {glance.map(([k, v]) => (
+            <div key={k} className="border-t border-white/15 pt-4 pb-3 lg:pr-6">
+              <dt className="text-[12.5px] font-semibold uppercase tracking-[.1em]" style={{ color: 'color-mix(in oklab, var(--acc) 55%, #fff)' }}>{k}</dt>
+              <dd className="mt-1.5 text-[14px] leading-snug text-white/85 md:text-[15px]">{v}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
       {proof && <TrustedRow />}
     </section>
   );
@@ -5025,7 +4786,7 @@ export function Proof({ kind }) {
   );
   if (kind === 'deploy') return (
     <div className="flex h-full flex-col">
-      <span className="grid h-11 w-11 place-items-center rounded-[12px] bg-white text-[#0e1014] shadow-sm"><Logo k="aws" size="62%" /></span>
+      <span className="grid h-11 w-11 place-items-center rounded-[12px] bg-white text-[#081c39] shadow-sm"><Logo k="aws" size="62%" /></span>
       <p className="mt-4 text-[16px] font-semibold text-[var(--rc-ink)]">Read-only, from the first day.</p>
       <p className="mt-1 text-[14px] leading-snug text-[var(--rc-ink2)]">One read-only role per AWS account. Nothing installed on your workloads.</p>
       <Link to="/adapid-ai/nhi-security" className="rc-link mt-auto pt-4">How it connects<Icon name="ArrowRight" size={13} weight="bold" /></Link>
@@ -5088,7 +4849,7 @@ export function StoryCard({ story: R }) {
         {R.apps?.length > 0 && (
           <ul aria-hidden="true" className="absolute bottom-4 left-4 flex gap-2.5 md:left-[-22px]">
             {R.apps.map(([k, ok], i) => (
-              <li key={k} title={logoTitle(k)} className="rc-chip relative grid h-11 w-11 place-items-center rounded-[11px] bg-white text-[#0e1014] shadow-[0_12px_28px_-12px_rgba(10,40,90,.45)]" style={{ animationDelay: `${500 + i * 90}ms` }}>
+              <li key={k} title={logoTitle(k)} className="rc-chip relative grid h-11 w-11 place-items-center rounded-[11px] bg-white text-[#081c39] shadow-[0_12px_28px_-12px_rgba(10,40,90,.45)]" style={{ animationDelay: `${500 + i * 90}ms` }}>
                 <Logo k={k} size="56%" /><Tick on={ok} />
               </li>
             ))}
@@ -5509,7 +5270,7 @@ export default function WorksWith() {
   return (
     <ul className="mt-6 grid grid-cols-4 gap-3">
       {KEYS.map((k) => (
-        <li key={k} title={logoTitle(k)} className="flex aspect-square items-center justify-center rounded-[12px] border border-line bg-white text-[#0e1014] shadow-[0_2px_6px_-3px_rgba(6,25,55,.18)]">
+        <li key={k} title={logoTitle(k)} className="flex aspect-square items-center justify-center rounded-[12px] border border-line bg-white text-[#081c39] shadow-[0_2px_6px_-3px_rgba(6,25,55,.18)]">
           <Logo k={k} size={24} />
           <span className="sr-only">{logoTitle(k)}</span>
         </li>
@@ -5626,8 +5387,8 @@ export function FilmPlayer({ src = '/video/deep-algorithms-film', poster = '/vid
         ) : (
           <button type="button" onClick={() => setPlay(true)} className="group absolute inset-0 block h-full w-full text-left" aria-label={`Play the film: ${title}, ${duration}`}>
             <img src={poster} alt="" className="absolute inset-0 h-full w-full object-cover transition-transform duration-[1.2s] group-hover:scale-[1.02]" loading="lazy" decoding="async" />
-            <span aria-hidden="true" className="absolute inset-0" style={{ background: 'radial-gradient(60% 60% at 50% 50%, rgb(10 11 14 / .15), rgb(10 11 14 / .55)), linear-gradient(180deg, transparent 55%, rgb(10 11 14 / .85))' }} />
-            <span className="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#0e1014] shadow-[0_0_0_10px_rgba(255,255,255,.12),0_30px_60px_-20px_rgba(0,0,0,.8)] transition-transform duration-500 group-hover:scale-[1.07] md:h-[104px] md:w-[104px]">
+            <span aria-hidden="true" className="absolute inset-0" style={{ background: 'radial-gradient(60% 60% at 50% 50%, rgb(5 21 48 / .15), rgb(5 21 48 / .55)), linear-gradient(180deg, transparent 55%, rgb(5 21 48 / .85))' }} />
+            <span className="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#081c39] shadow-[0_0_0_10px_rgba(255,255,255,.12),0_30px_60px_-20px_rgba(0,0,0,.8)] transition-transform duration-500 group-hover:scale-[1.07] md:h-[104px] md:w-[104px]">
               <svg viewBox="0 0 24 24" className="ml-1 h-6 w-6 md:h-9 md:w-9" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="currentColor" /></svg>
             </span>
             <span className="absolute inset-x-9 bottom-8 hidden items-end justify-between gap-2 md:flex">
@@ -6018,7 +5779,7 @@ export const BOTS = { draw, loop: LOOP, still: 6, ratio: 1.75, narrowRatio: 0.9 
 export function BotStream({ t }) {
   const labels = {
     gate: <span className="scn-tag" style={{ color: '#5ff0d6' }}>POST /login · BotShield</span>,
-    signin: <span className="scn-card" style={{ width: '11.5em', padding: '.9em 1em', background: 'rgb(16 18 22 / .9)' }}><b>Sign in · bank.in</b><span style={{ marginTop: '.6em', height: '1.6em', borderRadius: '.4em', background: 'rgb(255 255 255 / .07)' }} /><span style={{ marginTop: '.4em', height: '1.6em', borderRadius: '.4em', background: 'rgb(255 255 255 / .07)' }} /><span style={{ marginTop: '.6em', height: '1.8em', borderRadius: '.4em', background: '#0a6dbb', color: '#fff', textAlign: 'center', lineHeight: '1.8em', fontWeight: 600 }}>Continue</span></span>,
+    signin: <span className="scn-card" style={{ width: '11.5em', padding: '.9em 1em', background: 'rgb(11 32 63 / .9)' }}><b>Sign in · bank.in</b><span style={{ marginTop: '.6em', height: '1.6em', borderRadius: '.4em', background: 'rgb(255 255 255 / .07)' }} /><span style={{ marginTop: '.4em', height: '1.6em', borderRadius: '.4em', background: 'rgb(255 255 255 / .07)' }} /><span style={{ marginTop: '.6em', height: '1.8em', borderRadius: '.4em', background: '#0a6dbb', color: '#fff', textAlign: 'center', lineHeight: '1.8em', fontWeight: 600 }}>Continue</span></span>,
     foot: <span className="scn-card text-center"><b>6,410 rotating IPs, one intent</b><span>Caught by typing cadence, header order and retry timing</span></span>,
   };
   WAVES.forEach((wv, i) => { const [k, n] = KINDS[wv.kind]; labels[`w${i}`] = <span className="scn-tag" style={{ color: '#ffb1a8' }}><Logo k={k} size="1.1em" />{n}</span>; });
@@ -7151,7 +6912,7 @@ export function AdapRiskTimeline({ k: fk } = {}) {
                 {DAY.map((d, i) => (
                   <div key={d[1]} className={cx(`s${i + 1}`, 'flex items-center gap-[.6em] rounded-[.7em] px-[.6em] py-[.5em]')} style={{ background: d[5] === 'crit' ? 'rgb(255 107 93 / .07)' : 'rgb(255 255 255 / .03)', border: `1px solid ${d[5] === 'crit' ? 'rgb(255 107 93 / .22)' : 'rgb(160 190 230 / .08)'}` }}>
                     <App k={d[0]} />
-                    <span className="min-w-0 flex-1"><span className="block truncate vz-t" style={{ fontSize: '.92em' }}>{d[2]}</span><span className="block truncate vz-m" style={{ fontSize: '.8em' }}>{d[1]} · {d[3]}</span></span>
+                    <span className="min-w-0 flex-1"><span className="block truncate vz-t" style={{ fontSize: 'max(var(--vz-min), .92em)' }}>{d[2]}</span><span className="block truncate vz-m" style={{ fontSize: 'max(var(--vz-min), .8em)' }}>{d[1]} · {d[3]}</span></span>
                     <span className="shrink-0 text-right"><span className="block vz-mono num" style={{ color: d[5] === 'ok' ? 'var(--vz-green)' : d[5] === 'warn' ? 'var(--vz-amber)' : 'var(--vz-red)' }}>+{i ? d[4] - DAY[i - 1][4] : d[4]}</span></span>
                   </div>
                 ))}
@@ -7167,10 +6928,10 @@ export function AdapRiskTimeline({ k: fk } = {}) {
                     <path d={line} fill="none" stroke={col} strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" style={{ transition: 'stroke .4s' }} />
                     {pts.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r="1.6" fill={i === pts.length - 1 ? col : '#8fa3bd'} />)}
                   </svg>
-                  <span className="absolute right-0 top-[2%] vz-m" style={{ fontSize: '.72em', color: 'var(--vz-red)' }}>Hold · 80</span>
-                  <span className="absolute right-0 top-[38%] vz-m" style={{ fontSize: '.72em', color: 'var(--vz-amber)' }}>Step-up · 50</span>
+                  <span className="absolute right-0 top-[2%] vz-m" style={{ fontSize: 'max(var(--vz-min), .72em)', color: 'var(--vz-red)' }}>Hold · 80</span>
+                  <span className="absolute right-0 top-[38%] vz-m" style={{ fontSize: 'max(var(--vz-min), .72em)', color: 'var(--vz-amber)' }}>Step-up · 50</span>
                 </div>
-                <span className="vz-m" style={{ fontSize: '.75em' }}>Baseline from day one · peer group: Treasury</span>
+                <span className="vz-m" style={{ fontSize: 'max(var(--vz-min), .75em)' }}>Baseline from day one · peer group: Treasury</span>
               </div>
             </div>
 
@@ -7180,7 +6941,7 @@ export function AdapRiskTimeline({ k: fk } = {}) {
                 {RESPOND.map(([app, n, t], i) => (
                   <span key={n} className={cx(i < 2 ? 's5' : 's6', 'flex items-center gap-[.5em] rounded-[.6em] px-[.5em] py-[.45em]')} style={{ background: 'rgb(255 255 255 / .04)' }}>
                     <Logo k={app} size="1.15em" />
-                    <span className="min-w-0"><span className="block truncate vz-t" style={{ fontSize: '.8em' }}>{n}</span><span className="block truncate vz-m" style={{ fontSize: '.72em', color: 'var(--vz-green)' }}>{t}</span></span>
+                    <span className="min-w-0"><span className="block truncate vz-t" style={{ fontSize: 'max(var(--vz-min), .8em)' }}>{n}</span><span className="block truncate vz-m" style={{ fontSize: 'max(var(--vz-min), .72em)', color: 'var(--vz-green)' }}>{t}</span></span>
                   </span>
                 ))}
               </div>
@@ -7223,7 +6984,7 @@ export function NhiGraph({ k: fk } = {}) {
                   <span className="vz-ic relative" style={{ color: n.hot && k >= 3 ? '#ff8b7e' : n.c, width: '2em', height: '2em', borderColor: n.hot && k >= 3 ? 'rgb(255 107 93 / .55)' : undefined }}>
                     <Logo k={n.g} size={n.g === 'aws' ? '1.6em' : '1.45em'} />{n.hot && k >= 3 && <span className="ping-h" style={{ color: 'rgb(255 107 93 / .6)' }} />}
                   </span>
-                  <span className="mt-[.25em] whitespace-nowrap vz-mono" style={{ fontSize: '.7em' }}>{n.l}</span>
+                  <span className="mt-[.25em] whitespace-nowrap vz-mono" style={{ fontSize: 'max(var(--vz-min), .7em)' }}>{n.l}</span>
                 </span>
               ))}
             </div>
@@ -7231,7 +6992,7 @@ export function NhiGraph({ k: fk } = {}) {
               <div className="vz-panel" style={{ padding: '.8em .9em' }}>
                 <span className="block vz-mono" style={{ color: 'var(--vz-red)' }}>lambda-kyc-sync</span>
                 <span className="mt-[.5em] block vz-m">Posture score</span>
-                <span className="block text-[1.9em] font-semibold num" style={{ color: '#ff7d70' }}>38<span className="vz-m" style={{ fontSize: '.45em' }}> / 100</span></span>
+                <span className="block text-[1.9em] font-semibold num" style={{ color: '#ff7d70' }}>38<span className="vz-m" style={{ fontSize: 'max(var(--vz-min), .45em)' }}> / 100</span></span>
               </div>
               <div className="vz-panel" style={{ padding: '.8em .9em' }}>
                 <span className="block vz-m">Permissions in 90 days</span>
@@ -7262,12 +7023,12 @@ export function RiskScoreCard({ k: fk } = {}) {
             <div className="flex items-center gap-[1em]">
               <Ring v={v} color={col} size="4.6em" />
               <span className="min-w-0"><span className="block vz-t" style={{ fontSize: '1.15em' }}>Kavya Reddy</span><span className="block vz-m">Treasury · baseline from day one</span></span>
-              <span className="ml-auto text-right"><span className="block vz-m">Policy</span><span className="block vz-t">Above 80 → hold</span></span>
+              <span className="vz-wide ml-auto text-right"><span className="block vz-m">Policy</span><span className="block vz-t">Above 80 → hold</span></span>
             </div>
             <div className="mt-[.9em] space-y-[.5em]">
               {REASONS.map(([app, t, pts], i) => (
                 <div key={t} className={cx(`s${i + 1}`, 'flex items-center gap-[.7em] rounded-[.7em] px-[.8em] py-[.6em]')} style={{ background: 'rgb(255 255 255 / .035)', border: '1px solid rgb(160 190 230 / .09)' }}>
-                  <Logo k={app} size="1.2em" /><span className="truncate vz-t" style={{ fontSize: '.92em' }}>{t}</span><span className="ml-auto font-semibold num" style={{ color: i ? 'var(--vz-red)' : 'var(--vz-amber)' }}>+{pts}</span>
+                  <Logo k={app} size="1.2em" /><span className="truncate vz-t" style={{ fontSize: 'max(var(--vz-min), .92em)' }}>{t}</span><span className="ml-auto font-semibold num" style={{ color: i ? 'var(--vz-red)' : 'var(--vz-amber)' }}>+{pts}</span>
                 </div>
               ))}
             </div>
@@ -7310,14 +7071,14 @@ export function AdPath({ k: fk } = {}) {
               {EDGES.map(([a, b, t], i) => {
                 const A = at(a), B = at(b), live = hop > i, dead = cut && i >= 2;
                 return (
-                  <span key={t} className="absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full px-[.55em] py-[.15em]" style={{ left: `${(A.x + B.x) / 2}%`, top: `${(A.y + B.y) / 2}%`, fontSize: '.72em', fontWeight: 600, transition: 'all .5s', opacity: live || cut ? 1 : 0.35, background: dead ? 'var(--vz-solid)' : live ? 'rgb(255 107 93 / .16)' : 'var(--vz-solid)', color: dead ? '#7a7c80' : live ? 'var(--vz-red)' : '#94969a', border: `1px solid ${live && !dead ? 'rgb(255 107 93 / .4)' : 'rgb(160 190 230 / .14)'}`, textDecoration: dead ? 'line-through' : 'none' }}>{t}</span>
+                  <span key={t} className="absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full px-[.55em] py-[.15em]" style={{ left: `${(A.x + B.x) / 2}%`, top: `${(A.y + B.y) / 2}%`, fontSize: 'max(var(--vz-min), .72em)', fontWeight: 600, transition: 'all .5s', opacity: live || cut ? 1 : 0.35, background: dead ? 'var(--vz-solid)' : live ? 'rgb(255 107 93 / .16)' : 'var(--vz-solid)', color: dead ? '#7a7c80' : live ? 'var(--vz-red)' : '#94969a', border: `1px solid ${live && !dead ? 'rgb(255 107 93 / .4)' : 'rgb(160 190 230 / .14)'}`, textDecoration: dead ? 'line-through' : 'none' }}>{t}</span>
                 );
               })}
               {cut && <span className="absolute -translate-x-1/2 -translate-y-1/2 vz-chip c-ok" style={{ left: '61.5%', top: '50%', marginTop: '1.7em' }}>Right removed</span>}
               {NODES.map((n, i) => {
                 const reached = !cut ? hop >= i : i <= 2, tier0 = n.id === 'd', top = n.y < 50;
                 // names sit on the outer side of each node, so edges never cross them
-                const name = <><span className="block w-full truncate vz-t" style={{ fontSize: '.82em' }}>{n.l}</span><span className="block w-full truncate vz-m" style={{ fontSize: '.7em' }}>{n.s}</span></>;
+                const name = <><span className="block w-full truncate vz-t" style={{ fontSize: 'max(var(--vz-min), .82em)' }}>{n.l}</span><span className="block w-full truncate vz-m" style={{ fontSize: 'max(var(--vz-min), .7em)' }}>{n.s}</span></>;
                 return (
                   <span key={n.id} className="absolute flex w-[8.6em] flex-col items-center text-center" style={{ left: `${n.x}%`, top: `${n.y}%`, transform: `translate(-50%, ${top ? 'calc(-100% + 1.25em)' : '-1.25em'})` }}>
                     {top && <span className="mb-[.35em] block w-full">{name}</span>}
@@ -7336,7 +7097,7 @@ export function AdPath({ k: fk } = {}) {
             </div>
             <div className="s7 mt-[.6em] flex items-center gap-[.8em] rounded-[.8em] px-[.9em] py-[.6em]" style={{ background: 'rgb(255 255 255 / .03)', border: '1px solid rgb(160 190 230 / .1)' }}>
               <span className="vz-mono shrink-0" style={{ color: '#94969a' }}>14:22:07</span>
-              <span className="min-w-0 flex-1 truncate vz-t" style={{ fontSize: '.9em' }}>DCSync attempt from WKS-2140</span>
+              <span className="min-w-0 flex-1 truncate vz-t" style={{ fontSize: 'max(var(--vz-min), .9em)' }}>DCSync attempt from WKS-2140</span>
               <Chip tone="crit">Blocked</Chip><span className="s8"><Chip tone="ok">Host isolated</Chip></span>
             </div>
           </Win>
@@ -7388,7 +7149,7 @@ export function IdentityGraph({ k: fk } = {}) {
         return (
           <Win title={<span className="inline-flex items-center gap-[.5em]">Identity graph · blast radius</span>}
             right={held ? <Chip tone="ok">Contained · 0 systems exposed</Chip> : spread ? <Chip tone="crit">6 systems · 12 resources exposed</Chip> : <Chip tone="info">Mapped</Chip>} glow="rgb(0 174 239 / .45)">
-            <div className="relative overflow-hidden rounded-[.9em]" style={{ aspectRatio: '1000 / 620', background: 'radial-gradient(60% 70% at 50% 50%, rgb(0 174 239 / .08), transparent 70%), #0b0d11' }}>
+            <div className="relative overflow-hidden rounded-[.9em]" style={{ aspectRatio: '1000 / 620', background: 'radial-gradient(60% 70% at 50% 50%, rgb(0 174 239 / .08), transparent 70%), #061833' }}>
               <div aria-hidden="true" className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(rgb(160 190 230 / .12) 1px, transparent 1px)', backgroundSize: '2.2em 2.2em', maskImage: 'radial-gradient(closest-side, #000, transparent)', WebkitMaskImage: 'radial-gradient(closest-side, #000, transparent)' }} />
               <svg viewBox="0 0 1000 620" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" aria-hidden="true">
                 <defs>
@@ -7437,7 +7198,7 @@ export function IdentityGraph({ k: fk } = {}) {
                 <span key={a.k} className="s1 absolute -translate-x-1/2 -translate-y-1/2" style={{ ...pct(a.p), transitionDelay: `${i * 70}ms` }}>
                   <span className="flex items-center gap-[.45em] rounded-full py-[.3em] pl-[.3em] pr-[.75em]" style={{ background: 'var(--vz-solid)', border: `1px solid ${held ? 'rgb(63 217 143 / .45)' : spread ? 'rgb(255 107 93 / .5)' : 'rgb(160 190 230 / .2)'}`, boxShadow: '0 .6em 1.4em -.6em rgb(0 0 0 / .8)', transition: 'border-color .6s' }}>
                     <App k={a.k} />
-                    <span className="whitespace-nowrap text-[.88em] font-semibold">{a.n}</span>
+                    <span className="whitespace-nowrap text-[max(var(--vz-min),.88em)] font-semibold">{a.n}</span>
                     {held && <Gl g="lock" className="h-[1em] w-[1em]" style={{ color: '#4be29a' }} />}
                   </span>
                 </span>
@@ -7445,20 +7206,20 @@ export function IdentityGraph({ k: fk } = {}) {
 
               {/* resources */}
               {apps.flatMap((a) => a.res).map((r, i) => (
-                <span key={r.n} className="s2 absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full px-[.6em] py-[.18em] text-[.74em] font-medium" style={{ ...pct(r.p), transitionDelay: `${i * 40}ms`, background: '#101216', color: held ? '#7a7c80' : crit && r.crit ? '#ffd0ca' : spread ? 'var(--vz-red)' : '#b2b4b8', border: `1px solid ${crit && r.crit && !held ? 'rgb(255 107 93 / .7)' : 'rgb(160 190 230 / .14)'}`, boxShadow: crit && r.crit && !held ? '0 0 1.2em rgb(255 107 93 / .45)' : 'none', transition: 'all .6s' }}>{r.n}</span>
+                <span key={r.n} className="s2 absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full px-[.6em] py-[.18em] text-[max(var(--vz-min),.74em)] font-medium" style={{ ...pct(r.p), transitionDelay: `${i * 40}ms`, background: '#0b203f', color: held ? '#7a7c80' : crit && r.crit ? '#ffd0ca' : spread ? 'var(--vz-red)' : '#b2b4b8', border: `1px solid ${crit && r.crit && !held ? 'rgb(255 107 93 / .7)' : 'rgb(160 190 230 / .14)'}`, boxShadow: crit && r.crit && !held ? '0 0 1.2em rgb(255 107 93 / .45)' : 'none', transition: 'all .6s' }}>{r.n}</span>
               ))}
 
               {/* reach counter */}
-              <span className="s3 absolute left-[2.5%] top-[4%] rounded-[.7em] px-[.8em] py-[.5em]" style={{ background: 'rgb(16 18 22 / .9)', border: '1px solid rgb(160 190 230 / .14)' }}>
+              <span className="s3 absolute left-[2.5%] top-[4%] rounded-[.7em] px-[.8em] py-[.5em]" style={{ background: 'rgb(11 32 63 / .9)', border: '1px solid rgb(160 190 230 / .14)' }}>
                 <span className="block vz-h">Blast radius</span>
-                <span className="block text-[1.6em] font-semibold tracking-[-0.03em] num" style={{ color: held ? '#4be29a' : spread ? '#ff7d70' : '#edeff3' }}>{reach}<span className="vz-m" style={{ fontSize: '.5em' }}> of 12 resources</span></span>
+                <span className="block text-[1.6em] font-semibold tracking-[-0.03em] num" style={{ color: held ? '#4be29a' : spread ? '#ff7d70' : '#edeff3' }}>{reach}<span className="vz-m" style={{ fontSize: 'max(var(--vz-min), .5em)' }}> of 12 resources</span></span>
               </span>
             </div>
             <div className="mt-[.7em] grid grid-cols-3 gap-[.5em]">
               {[['okta', 'Okta', 'Sessions revoked', 'Admin console'], ['aws', 'AWS', 'prod-admin suspended', 'prod-admin role'], ['github', 'GitHub', 'Token rotated', 'Actions secrets']].map(([app, n, done, risk]) => (
                 <span key={n} className="s3 flex items-center gap-[.55em] rounded-[.7em] px-[.6em] py-[.5em]" style={{ background: held ? 'rgb(63 217 143 / .08)' : crit ? 'rgb(255 107 93 / .09)' : 'rgb(255 255 255 / .03)', border: `1px solid ${held ? 'rgb(63 217 143 / .3)' : crit ? 'rgb(255 107 93 / .3)' : 'rgb(160 190 230 / .1)'}`, transition: 'all .6s' }}>
                   <App k={app} />
-                  <span className="min-w-0"><span className="block truncate vz-t" style={{ fontSize: '.85em' }}>{n}</span><span className="block truncate vz-m" style={{ fontSize: '.74em', color: held ? 'var(--vz-green)' : crit ? 'var(--vz-red)' : undefined }}>{held ? done : crit ? `Path to admin · ${risk}` : 'Watching'}</span></span>
+                  <span className="min-w-0"><span className="block truncate vz-t" style={{ fontSize: 'max(var(--vz-min), .85em)' }}>{n}</span><span className="block truncate vz-m" style={{ fontSize: 'max(var(--vz-min), .74em)', color: held ? 'var(--vz-green)' : crit ? 'var(--vz-red)' : undefined }}>{held ? done : crit ? `Path to admin · ${risk}` : 'Watching'}</span></span>
                 </span>
               ))}
             </div>
@@ -7512,7 +7273,7 @@ export function AdTierGraph({ k: fk } = {}) {
         return (
           <Win title={<span className="inline-flex items-center gap-[.5em]"><Logo k="windows" size="1em" />corp.local · paths to Tier 0</span>}
             right={cut ? <Chip tone="ok">{paths} paths left · was 57</Chip> : all ? <Chip tone="crit">57 paths to Tier 0</Chip> : <Chip tone="info">Mapping…</Chip>} glow="rgb(0 174 239 / .45)">
-            <div className="relative overflow-hidden rounded-[.9em]" style={{ aspectRatio: '1000 / 640', background: '#0b0d11' }}>
+            <div className="relative overflow-hidden rounded-[.9em]" style={{ aspectRatio: '1000 / 640', background: '#061833' }}>
               <svg viewBox="0 0 1000 640" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" aria-hidden="true">
                 <defs>
                   {TIERS.map((t, i) => <linearGradient key={i} id={`tg${i}`} x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor={`rgb(${t.c})`} stopOpacity=".1" /><stop offset="1" stopColor={`rgb(${t.c})`} stopOpacity=".025" /></linearGradient>)}
@@ -7529,8 +7290,8 @@ export function AdTierGraph({ k: fk } = {}) {
 
               {TIERS.map((t, i) => (
                 <span key={t.l} className="s1 absolute" style={{ ...tp(30, t.y + 14) }}>
-                  <span className="block text-[.72em] font-bold uppercase tracking-[.12em]" style={{ color: `rgb(${t.c})` }}>{t.l}</span>
-                  <span className="block whitespace-nowrap vz-m" style={{ fontSize: '.7em' }}>{t.s}</span>
+                  <span className="block text-[max(var(--vz-min),.72em)] font-bold uppercase tracking-[.12em]" style={{ color: `rgb(${t.c})` }}>{t.l}</span>
+                  <span className="block whitespace-nowrap vz-m" style={{ fontSize: 'max(var(--vz-min), .7em)' }}>{t.s}</span>
                 </span>
               ))}
 
@@ -7541,7 +7302,7 @@ export function AdTierGraph({ k: fk } = {}) {
                   <span key={id} className="s1 absolute -translate-x-1/2 -translate-y-1/2" style={tp(n.x, n.y)}>
                     <span className="flex items-center gap-[.4em] whitespace-nowrap rounded-full py-[.25em] pl-[.28em] pr-[.65em]" style={{ background: 'var(--vz-solid)', border: `1px solid ${chokeNode && !cut ? 'rgb(255 107 93 / .9)' : hotNode ? 'rgb(255 107 93 / .6)' : tier0 ? 'rgb(255 210 122 / .45)' : 'rgb(160 190 230 / .18)'}`, boxShadow: chokeNode && !cut ? '0 0 1.4em rgb(255 107 93 / .6)' : hotNode ? '0 0 1em rgb(255 107 93 / .35)' : '0 .5em 1.2em -.6em rgb(0 0 0 / .8)', transition: 'border-color .6s, box-shadow .6s' }}>
                       <span className="vz-ic" style={{ width: '1.7em', height: '1.7em', borderRadius: '50%', color: hotNode ? '#ffb3aa' : tier0 ? '#ffd27a' : '#dddfe3' }}>{n.g === 'dc' ? <Logo k="dc" size="1.2em" /> : <Gl g={n.g} />}</span>
-                      <span className="text-[.78em] font-semibold">{n.l}</span>
+                      <span className="text-[max(var(--vz-min),.78em)] font-semibold">{n.l}</span>
                     </span>
                   </span>
                 );
@@ -7551,7 +7312,7 @@ export function AdTierGraph({ k: fk } = {}) {
               {trace && !cut && TE.filter((e) => e[3]).map(([a, b, , t]) => {
                 const A = TN[a], B = TN[b];
                 const off = { dc: [0, -40], s4: [-52, 0], s1: [0, -36], w1: [-60, 0], u1: [-48, 0] }[a] || [0, 0];
-                return <span key={t} className="fadein absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full px-[.55em] py-[.12em] text-[.68em] font-semibold" style={{ ...tp((A.x + B.x) / 2 + off[0], (A.y + B.y) / 2 + off[1]), background: 'rgb(255 107 93 / .18)', color: 'var(--vz-red)', border: '1px solid rgb(255 107 93 / .45)' }}>{t}</span>;
+                return <span key={t} className="fadein absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full px-[.55em] py-[.12em] text-[max(var(--vz-min),.68em)] font-semibold" style={{ ...tp((A.x + B.x) / 2 + off[0], (A.y + B.y) / 2 + off[1]), background: 'rgb(255 107 93 / .18)', color: 'var(--vz-red)', border: '1px solid rgb(255 107 93 / .45)' }}>{t}</span>;
               })}
               {cut && <span className="fadein absolute -translate-x-1/2 -translate-y-1/2 vz-chip c-ok" style={tp(530, 205)}>Admin rights removed</span>}
 
@@ -7680,11 +7441,11 @@ function PayScreen({ stage, pressed }) {
       <Bank right={<span className="mb-sub">Send money</span>} />
       <p className="mb-h mt-[1em]">Pay a new payee</p>
       <div className="mb-card mt-[.8em] flex items-center gap-[.7em]">
-        <span className="grid h-[2.4em] w-[2.4em] shrink-0 place-items-center rounded-full text-[.85em] font-bold" style={{ background: '#fde7d9', color: '#b4531f' }}>KU</span>
+        <span className="grid h-[2.4em] w-[2.4em] shrink-0 place-items-center rounded-full text-[max(var(--vz-min),.85em)] font-bold" style={{ background: '#fde7d9', color: '#b4531f' }}>KU</span>
         <span className="min-w-0"><span className="block mb-val truncate">KYC Update Desk</span><span className="block mb-sub">Added 2 minutes ago</span></span>
       </div>
       <div className="mt-[.6em] space-y-[.5em]">
-        <div className="mb-field"><span className="block mb-label">Account number</span><span className="block mb-val" style={{ fontFamily: 'var(--font-mono)', fontSize: '.85em' }}>{stage >= 1 ? '5021 0044 7310 4410' : ' '}</span></div>
+        <div className="mb-field"><span className="block mb-label">Account number</span><span className="block mb-val" style={{ fontFamily: 'var(--font-mono)', fontSize: 'max(var(--vz-min), .85em)' }}>{stage >= 1 ? '5021 0044 7310 4410' : ' '}</span></div>
         <div className="mb-field"><span className="block mb-label">Amount</span><span className="block mb-val text-[1.15em]">{stage >= 2 ? '₹2,40,000' : '₹'}</span></div>
         <div className="mb-field"><span className="block mb-label">Remark</span><span className="block mb-val">{stage >= 2 ? 'KYC update' : ' '}</span></div>
       </div>
@@ -7702,12 +7463,12 @@ function HoldScreen() {
         <span className="mx-auto grid h-[3.4em] w-[3.4em] place-items-center rounded-full" style={{ background: '#fff4e0', color: '#b45309' }}><Gl g="shield" style={{ width: '1.8em', height: '1.8em' }} /></span>
         <p className="mb-h mt-[.7em]">We’ve paused this payment</p>
         <p className="mb-sub mt-[.5em]">Your bank will never ask you to send money to update your KYC.</p>
-        <p className="mt-[.8em] text-[.9em] font-semibold" style={{ color: '#0b0d12' }}>Is someone on a call asking you to pay?</p>
+        <p className="mt-[.8em] text-[max(var(--vz-min),.9em)] font-semibold" style={{ color: '#0b0d12' }}>Is someone on a call asking you to pay?</p>
       </div>
       <div className="mt-auto space-y-[.5em]">
         <div className="mb-btn">Yes, someone asked me</div>
         <div className="mb-btn ghost">No, call me back</div>
-        <p className="text-center mb-sub" style={{ fontSize: '.72em' }}>We’ll call your registered number in 2 minutes.</p>
+        <p className="text-center mb-sub" style={{ fontSize: 'max(var(--vz-min), .72em)' }}>We’ll call your registered number in 2 minutes.</p>
       </div>
     </>
   );
@@ -7761,12 +7522,13 @@ const BANDS = [['Low', 0, 29, '#3fd98f', 'Allow'], ['Medium', 30, 54, '#f6b955',
 const band = (v) => BANDS.find(([, a, b]) => v >= a && v <= b);
 
 function ScoreBar({ v }) {
-  const [name, , , col, act] = band(v);
+  const [name, , , , act] = band(v);
+  const col = { Low: 'var(--vz-green)', Medium: 'var(--vz-amber)', High: 'var(--vz-coral)', Critical: 'var(--vz-red)' }[name]; // text tones that hold contrast on light and dark
   return (
     <div>
       <div className="flex items-end justify-between">
         <span><span className="block vz-m">Scam risk</span><span className="block text-[1.9em] font-semibold leading-none tracking-[-0.03em]" style={{ color: col, transition: 'color .4s' }}>{name}</span></span>
-        <span className="text-right"><span className="block vz-m">What happens</span><span className="mt-[.3em] block vz-t" style={{ fontSize: '.92em' }}>{act}</span></span>
+        <span className="text-right"><span className="block vz-m">What happens</span><span className="mt-[.3em] block vz-t" style={{ fontSize: 'max(var(--vz-min), .92em)' }}>{act}</span></span>
       </div>
       <div className="relative mt-[.7em] flex h-[.55em] gap-[2px] overflow-hidden rounded-full">
         {BANDS.map(([n, a, b, c]) => <i key={n} style={{ flex: b - a + 1, background: c, opacity: v >= a ? 0.9 : 0.18, transition: 'opacity .5s' }} />)}
@@ -7783,10 +7545,10 @@ function Questions({ state }) {
     <div className="grid grid-cols-3 gap-[.4em]">
       {Q.map(([n, q], i) => {
         const s = state[i];
-        const col = s === 'ok' ? '#4be29a' : s === 'crit' ? '#ff8b7e' : '#9a9ea6';
+        const col = s === 'ok' ? 'var(--vz-green)' : s === 'crit' ? 'var(--vz-red)' : undefined;
         return (
           <span key={n} className="rounded-[.6em] px-[.55em] py-[.45em]" style={{ background: s ? `${s === 'ok' ? 'rgb(63 217 143 / .1)' : 'rgb(255 107 93 / .12)'}` : 'rgb(255 255 255 / .04)', border: `1px solid ${s === 'ok' ? 'rgb(63 217 143 / .3)' : s === 'crit' ? 'rgb(255 107 93 / .4)' : 'rgb(255 255 255 / .08)'}`, transition: 'all .5s' }}>
-            <span className="flex items-center gap-[.3em] text-[.72em] font-semibold" style={{ color: col }}>{s === 'ok' ? '✓' : s === 'crit' ? '!' : n}<span className="text-[#c9ccd2]">{q}</span></span>
+            <span className="flex items-center gap-[.3em] text-[max(var(--vz-min),.72em)] font-semibold" style={{ color: col }}>{s === 'ok' ? '✓' : s === 'crit' ? '!' : n}<span className="vz-m">{q}</span></span>
           </span>
         );
       })}
@@ -7830,17 +7592,17 @@ export function ScamCatch({ k: fk } = {}) {
               <div className="mt-[.4em] space-y-[.4em]">
                 <div className={cx('flex items-center gap-[.6em] rounded-[.6em] px-[.7em] py-[.5em] s1')} style={{ background: 'rgb(63 217 143 / .07)' }}>
                   <Gl g="check" style={{ width: '1.1em', height: '1.1em', color: '#4be29a' }} />
-                  <span className="min-w-0 flex-1 truncate vz-t" style={{ fontSize: '.9em' }}>It is Anita: her phone, her typing, her usual login</span>
+                  <span className="min-w-0 flex-1 truncate vz-t" style={{ fontSize: 'max(var(--vz-min), .9em)' }}>It is Anita: her phone, her typing, her usual login</span>
                 </div>
                 {EVIDENCE.map(([s, what, src, pts]) => (
                   <div key={what} className={cx('flex items-center gap-[.6em] rounded-[.6em] px-[.7em] py-[.45em]', `s${s}`)} style={{ background: 'rgb(255 255 255 / .035)' }}>
                     <span aria-hidden="true" className="h-[.55em] w-[.55em] shrink-0 rounded-full" style={{ background: pts >= 14 ? '#ff8b7e' : '#ffc566' }} />
-                    <span className="min-w-0 flex-1"><span className="block truncate vz-t" style={{ fontSize: '.9em' }}>{what}</span><span className="block vz-m" style={{ fontSize: '.78em' }}>{src}</span></span>
+                    <span className="min-w-0 flex-1"><span className="block truncate vz-t" style={{ fontSize: 'max(var(--vz-min), .9em)' }}>{what}</span><span className="block vz-m" style={{ fontSize: 'max(var(--vz-min), .78em)' }}>{src}</span></span>
                   </div>
                 ))}
               </div>
               <div className="s6 mt-[.7em] flex items-center gap-[.6em] rounded-[.7em] px-[.8em] py-[.6em]" style={{ background: 'rgb(255 107 93 / .1)', border: '1px solid rgb(255 107 93 / .35)' }}>
-                <Chip tone="crit">Held</Chip><span className="min-w-0 flex-1 truncate vz-t" style={{ fontSize: '.9em' }}>₹2,40,000 kept safe · Anita warned · an analyst is calling her</span>
+                <Chip tone="crit">Held</Chip><span className="min-w-0 flex-1 truncate vz-t" style={{ fontSize: 'max(var(--vz-min), .9em)' }}>₹2,40,000 kept safe · Anita warned · an analyst is calling her</span>
               </div>
             </Win>
           </div>
@@ -7898,7 +7660,7 @@ const CAPS = {
         <span className="block vz-h">Device checks, live</span>
         <div className="mt-[.5em] space-y-[.35em]">
           {[['Remote control', 'Detected', 'crit'], ['Malware', 'Clear', 'ok'], ['Tampering', 'Clear', 'ok'], ['Fake device', 'Clear', 'ok']].map(([n, s, t]) => (
-            <div key={n} className="flex items-center justify-between gap-[1em]"><span className="vz-t" style={{ fontSize: '.9em' }}>{n}</span><Chip tone={t}>{s}</Chip></div>
+            <div key={n} className="flex items-center justify-between gap-[1em]"><span className="vz-t" style={{ fontSize: 'max(var(--vz-min), .9em)' }}>{n}</span><Chip tone={t}>{s}</Chip></div>
           ))}
         </div>
       </Note>,
@@ -7913,7 +7675,7 @@ const CAPS = {
         <div className="mt-[.5em] space-y-[.3em]">
           {BANDS.map(([n, a, b, c, act]) => (
             <div key={n} className="flex items-center gap-[.6em]" style={{ opacity: n === 'Critical' ? 1 : 0.55 }}>
-              <i className="h-[.6em] w-[.6em] rounded-full" style={{ background: c }} /><span className="w-[4.6em] vz-t" style={{ fontSize: '.85em' }}>{n}</span><span className="vz-m">{act}</span>
+              <i className="h-[.6em] w-[.6em] rounded-full" style={{ background: c }} /><span className="w-[4.6em] vz-t" style={{ fontSize: 'max(var(--vz-min), .85em)' }}>{n}</span><span className="vz-m">{act}</span>
             </div>
           ))}
         </div>
@@ -8168,7 +7930,7 @@ export function IcmsEvidence({ k: fk } = {}) {
             <div className="hd" style={{ gridTemplateColumns: '1.2fr 1.3fr 1.1fr 1fr' }}><span>Who</span><span>Data</span><span>Purpose</span><span>Check</span></div>
             {ACCESS.map((a, i) => (
               <div key={a[0]} className={cx(`s${i + 1}`, a[3] === 'crit' && k >= 4 && 'hot')} style={{ gridTemplateColumns: '1.2fr 1.3fr 1.1fr 1fr' }}>
-                <span className="truncate vz-mono">{a[0]}</span><span className="flex min-w-0 items-center gap-[.4em]"><Logo k={a[5]} size="1.05em" /><span className="truncate vz-t" style={{ fontWeight: 450 }}>{a[1]}</span></span><span className="truncate vz-m">{a[2]}</span>
+                <span className="min-w-0 vz-mono">{a[0]}</span><span className="flex min-w-0 items-center gap-[.4em]"><Logo k={a[5]} size="1.05em" /><span className="truncate vz-t" style={{ fontWeight: 450 }}>{a[1]}</span></span><span className="truncate vz-m">{a[2]}</span>
                 <span>{k >= (a[3] === 'crit' ? 4 : i + 2) ? <Chip tone={a[3]}>{a[3] === 'ok' ? 'Consent ✓' : 'Flagged'}</Chip> : <Chip tone="mute">Checking</Chip>}</span>
               </div>
             ))}
@@ -8220,7 +7982,7 @@ export function BreachClock({ k: fk } = {}) {
         <Win title="Breach response" right={<Chip tone="warn">72-hour window</Chip>} glow="rgb(244 199 108 / .3)">
           <div className="relative h-[.6em] rounded-full" style={{ background: 'rgb(255 255 255 / .08)' }}>
             <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-1000" style={{ width: `${[0, 6, 9, 17, 22, 22][k] || 22}%`, background: `linear-gradient(90deg, ${ICMS}, #ffdf9b)` }} />
-            {[0, 33, 66, 100].map((x) => <span key={x} className="absolute top-full mt-[.4em] -translate-x-1/2 vz-mono" style={{ left: `${x}%`, fontSize: '.72em' }}>{Math.round((x / 100) * 72)} h</span>)}
+            {[0, 33, 66, 100].map((x) => <span key={x} className="absolute top-full mt-[.4em] -translate-x-1/2 vz-mono" style={{ left: `${x}%`, fontSize: 'max(var(--vz-min), .72em)' }}>{Math.round((x / 100) * 72)} h</span>)}
           </div>
           <ul className="mt-[2.2em] space-y-[.55em]">
             {tasks.map((t, i) => (
@@ -8369,7 +8131,7 @@ export function Cursor({ x, y, click, hidden }) {
   if (hidden) return null;
   return (
     <svg className={cx('vz-cursor', click && 'click')} style={{ left: `${x}%`, top: `${y}%` }} viewBox="0 0 22 24" aria-hidden="true">
-      <path d="M2 2 L20 9.5 L11.5 12 L8 21 Z" fill="#fff" stroke="#0e1014" strokeWidth="1.4" strokeLinejoin="round" />
+      <path d="M2 2 L20 9.5 L11.5 12 L8 21 Z" fill="#fff" stroke="#081c39" strokeWidth="1.4" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -8553,12 +8315,12 @@ export function NhiMap() {
 
       {TILES.map((t, i) => (
         <span key={t.k} className={cx('nm-tile absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center', k >= 0 && 'on')} style={{ left: `${t.x}%`, top: `${t.y}%`, transitionDelay: `${i * 90}ms` }}>
-          <span className="grid h-[52px] w-[52px] place-items-center rounded-[14px] bg-white text-[#0e1014] shadow-[0_14px_30px_-12px_rgba(0,0,0,.6)] max-sm:h-11 max-sm:w-11"><Logo k={t.k} size="58%" /></span>
+          <span className="grid h-[52px] w-[52px] place-items-center rounded-[14px] bg-white text-[#081c39] shadow-[0_14px_30px_-12px_rgba(0,0,0,.6)] max-sm:h-11 max-sm:w-11"><Logo k={t.k} size="58%" /></span>
           <span className="mt-1.5 text-[12px] font-medium text-white/80">{t.label}</span>
         </span>
       ))}
 
-      <span className="absolute grid h-[84px] w-[84px] -translate-x-1/2 -translate-y-1/2 place-items-center rounded-[22px] bg-white text-[#0e1014] shadow-[0_22px_50px_-16px_rgba(0,0,0,.7)] max-sm:h-16 max-sm:w-16" style={{ left: `${C.x}%`, top: `${C.y}%` }}>
+      <span className="absolute grid h-[84px] w-[84px] -translate-x-1/2 -translate-y-1/2 place-items-center rounded-[22px] bg-white text-[#081c39] shadow-[0_22px_50px_-16px_rgba(0,0,0,.7)] max-sm:h-16 max-sm:w-16" style={{ left: `${C.x}%`, top: `${C.y}%` }}>
         <Logo k="aws" size="62%" />
       </span>
 
@@ -8583,7 +8345,9 @@ FILE: src/components/viz/viz.css
    a phone to a 4K screen. Steps: the root carries k0..kN (cumulative); an
    element with .sN appears at step N. Server HTML carries every step. */
 .vzw { container-type: inline-size; width: 100%; }
-.vz { --vz-red: #ffaaa1; --vz-coral: #ff8b7e; --vz-amber: #ffd28a; --vz-green: #7fe3b2; --vz-blue: #6fd4ff; --vz-solid: #15171b; --u: calc(100cqw / 52); font-size: max(7.2px, var(--u)); position: relative; color: #e4e6ea; line-height: 1.35; font-family: var(--font-sans); }
+/* the smallest text in a picture: 10px, so labels stay readable on a phone */
+.vz { --vz-min: 10px; }
+.vz { --vz-red: #ffaaa1; --vz-coral: #ff8b7e; --vz-amber: #ffd28a; --vz-green: #7fe3b2; --vz-blue: #6fd4ff; --vz-solid: #10274a; --u: calc(100cqw / 52); font-size: max(10.5px, var(--u)); position: relative; color: #e4e6ea; line-height: 1.35; font-family: var(--font-sans); }
 .vz * { box-sizing: border-box; }
 
 .vz .s1, .vz .s2, .vz .s3, .vz .s4, .vz .s5, .vz .s6, .vz .s7, .vz .s8 { transition: opacity .55s cubic-bezier(.16,1,.3,1), transform .7s cubic-bezier(.16,1,.3,1), filter .55s; }
@@ -8591,7 +8355,7 @@ FILE: src/components/viz/viz.css
 .vz .s-in-x:not(.on) { opacity: 0; transform: translateX(-1em); }
 
 /* window */
-.vz-win { position: relative; border-radius: 1.15em; background: linear-gradient(180deg, #15171b 0%, #0e1014 100%); border: 1px solid rgb(160 190 230 / .14);
+.vz-win { position: relative; border-radius: 1.15em; background: linear-gradient(180deg, #10274a 0%, #081c39 100%); border: 1px solid rgb(160 190 230 / .14);
   box-shadow: 0 0 0 1px rgb(0 0 0 / .5), 0 3em 6em -2.4em rgb(0 0 0 / .8); overflow: hidden; }
 .vz-bar { display: flex; align-items: center; gap: .55em; height: 2.7em; padding: 0 1.1em; border-bottom: 1px solid rgb(160 190 230 / .1); background: rgb(255 255 255 / .02); }
 .vz-bar i { width: .62em; height: .62em; border-radius: 50%; background: rgb(255 255 255 / .14); }
@@ -8600,14 +8364,14 @@ FILE: src/components/viz/viz.css
 .vz-body { padding: 1.1em; }
 .vz-panel { border-radius: .85em; background: rgb(255 255 255 / .035); border: 1px solid rgb(160 190 230 / .1); }
 
-.vz-h { font-size: .82em; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: #9a9ca0; }
+.vz-h { font-size: max(var(--vz-min), .82em); font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: #9a9ca0; }
 .vz-t { font-size: 1em; color: #edeff3; font-weight: 500; }
-.vz-m { font-size: .86em; color: #9ea0a4; }
-.vz-mono { font-family: var(--font-mono); font-size: .84em; color: #b2b4b8; }
+.vz-m { font-size: max(var(--vz-min), .86em); color: #9ea0a4; }
+.vz-mono { font-family: var(--font-mono); font-size: max(var(--vz-min), .84em); color: #b2b4b8; }
 .vz-big { font-size: 2.6em; font-weight: 650; letter-spacing: -0.04em; line-height: 1; color: #fff; font-variant-numeric: tabular-nums; }
 
 /* chips */
-.vz-chip { display: inline-flex; align-items: center; gap: .4em; height: 1.75em; padding: 0 .65em; border-radius: 99em; font-size: .8em; font-weight: 600; white-space: nowrap; border: 1px solid transparent; }
+.vz-chip { display: inline-flex; align-items: center; gap: .4em; height: 1.75em; padding: 0 .65em; border-radius: 99em; font-size: max(var(--vz-min), .8em); font-weight: 600; white-space: nowrap; border: 1px solid transparent; }
 .vz-chip::before { content: ''; width: .5em; height: .5em; border-radius: 50%; background: currentColor; }
 .vz-chip.plain::before { display: none; }
 .c-ok { color: #4be29a; background: rgb(63 217 143 / .1); border-color: rgb(63 217 143 / .25); }
@@ -8620,12 +8384,12 @@ FILE: src/components/viz/viz.css
 /* table rows */
 .vz-rows > div { display: grid; align-items: center; gap: .8em; padding: .72em .9em; border-top: 1px solid rgb(160 190 230 / .08); }
 .vz-rows > div:first-child { border-top: 0; }
-.vz-rows .hd { padding-block: .5em; font-size: .78em; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #8a8c90; }
+.vz-rows .hd { padding-block: .5em; font-size: max(var(--vz-min), .78em); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #8a8c90; }
 .vz-rows .hot { background: linear-gradient(90deg, rgb(255 107 93 / .1), transparent 70%); }
 .vz-rows .sel { background: linear-gradient(90deg, rgb(0 174 239 / .12), transparent 75%); }
 
 /* avatars and icons */
-.vz-av { display: inline-flex; align-items: center; justify-content: center; width: 2em; height: 2em; border-radius: 50%; font-size: .8em; font-weight: 700; color: #0e1014; flex-shrink: 0; }
+.vz-av { display: inline-flex; align-items: center; justify-content: center; width: 2em; height: 2em; border-radius: 50%; font-size: max(var(--vz-min), .8em); font-weight: 700; color: #081c39; flex-shrink: 0; }
 .vz-ic { display: inline-flex; align-items: center; justify-content: center; width: 2.1em; height: 2.1em; border-radius: .6em; background: rgb(255 255 255 / .06); border: 1px solid rgb(255 255 255 / .1); flex-shrink: 0; }
 .vz-ic svg { width: 1.15em; height: 1.15em; }
 
@@ -8669,35 +8433,43 @@ FILE: src/components/viz/viz.css
 /* dense graphs scale exactly like an image on small screens, instead of
    holding a minimum text size that would make their labels collide */
 .vz-exact .vz { font-size: var(--u); }
+/* on a phone they keep their full design size and pan sideways, the way docs
+   show wide diagrams, so every label stays readable */
+@media (max-width: 640px) {
+  .vzw.vz-exact { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; padding-bottom: 2.2em; position: relative; }
+  .vzw.vz-exact::-webkit-scrollbar { display: none; }
+  .vzw.vz-exact > .vz { width: 640px; --u: calc(640px / 52); }
+  .vzw.vz-exact::after { content: 'Swipe to explore  →'; position: sticky; left: 0; display: block; width: calc(100vw - 40px); margin-top: .8em; font: 600 12.5px/1 var(--font-sans); letter-spacing: .02em; color: var(--color-ink-3); text-align: center; }
+}
 
 /* ---------- mobile banking: a phone running the bank's own app (light, as banking apps are) ---------- */
-.mb-phone { position: relative; width: 100%; aspect-ratio: 9 / 19; border-radius: 2.6em; padding: .55em; background: linear-gradient(160deg, #2a2d33, #121418 60%);
+.mb-phone { position: relative; width: 100%; aspect-ratio: 9 / 19; border-radius: 2.6em; padding: .55em; background: linear-gradient(160deg, #2a2d33, #0d2243 60%);
   box-shadow: 0 0 0 1px rgb(255 255 255 / .12) inset, 0 0 0 1px rgb(0 0 0 / .6), 0 3em 5em -2em rgb(0 0 0 / .8); }
 .mb-screen { position: relative; height: 100%; overflow: hidden; border-radius: 2.1em; background: #f4f5f7; color: #101318; display: flex; flex-direction: column; }
-.mb-status { display: flex; align-items: center; justify-content: space-between; height: 2.6em; padding: 0 1.5em; font-size: .78em; font-weight: 600; color: #101318; flex-shrink: 0; }
+.mb-status { display: flex; align-items: center; justify-content: space-between; height: 2.6em; padding: 0 1.5em; font-size: max(var(--vz-min), .78em); font-weight: 600; color: #101318; flex-shrink: 0; }
 .mb-island { position: absolute; left: 50%; top: .55em; width: 32%; height: 1.55em; transform: translateX(-50%); border-radius: 99em; background: #000; }
-.mb-call { display: inline-flex; align-items: center; gap: .3em; padding: .15em .55em; border-radius: 99em; background: #28c840; color: #fff; font-variant-numeric: tabular-nums; }
+.mb-call { display: inline-flex; align-items: center; gap: .3em; padding: .15em .55em; border-radius: 99em; background: #1a7f37; color: #fff; font-variant-numeric: tabular-nums; }
 .mb-sys { display: inline-flex; align-items: center; gap: .35em; }
 .mb-sys i { display: inline-block; width: 1.5em; height: .7em; border-radius: .2em; border: 1.5px solid #101318; position: relative; }
 .mb-sys i::after { content: ''; position: absolute; inset: 1px; right: 30%; background: #101318; border-radius: 1px; }
 .mb-app { flex: 1; display: flex; flex-direction: column; padding: .4em 1.1em 1.1em; min-height: 0; }
-.mb-top { display: flex; align-items: center; gap: .6em; font-size: .9em; font-weight: 600; }
-.mb-logo { width: 1.9em; height: 1.9em; border-radius: .55em; background: linear-gradient(135deg, #1e40af, #3b82f6); display: grid; place-items: center; color: #fff; font-size: .8em; font-weight: 800; letter-spacing: -.02em; }
+.mb-top { display: flex; align-items: center; gap: .6em; font-size: max(var(--vz-min), .9em); font-weight: 600; }
+.mb-logo { width: 1.9em; height: 1.9em; border-radius: .55em; background: linear-gradient(135deg, #1e40af, #3b82f6); display: grid; place-items: center; color: #fff; font-size: max(var(--vz-min), .8em); font-weight: 800; letter-spacing: -.02em; }
 .mb-h { font-size: 1.35em; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; color: #0b0d12; }
-.mb-sub { font-size: .82em; color: #5b616c; line-height: 1.35; }
+.mb-sub { font-size: max(var(--vz-min), .82em); color: #5b616c; line-height: 1.35; }
 .mb-card { border-radius: 1em; background: #fff; box-shadow: 0 1px 2px rgb(16 24 40 / .06), 0 .4em 1em -.4em rgb(16 24 40 / .12); padding: .8em .9em; }
 .mb-field { border-radius: .8em; background: #fff; border: 1px solid #e3e6eb; padding: .55em .8em; }
-.mb-label { font-size: .7em; color: #6b717c; font-weight: 600; letter-spacing: .02em; }
+.mb-label { font-size: max(var(--vz-min), .7em); color: #6b717c; font-weight: 600; letter-spacing: .02em; }
 .mb-val { font-size: .95em; font-weight: 600; color: #0b0d12; }
-.mb-btn { display: flex; align-items: center; justify-content: center; height: 2.9em; border-radius: .9em; background: #1e40af; color: #fff; font-weight: 700; font-size: .92em; transition: transform .2s, background-color .3s; }
+.mb-btn { display: flex; align-items: center; justify-content: center; height: 2.9em; border-radius: .9em; background: #1e40af; color: #fff; font-weight: 700; font-size: max(var(--vz-min), .92em); transition: transform .2s, background-color .3s; }
 .mb-btn.pressed { transform: scale(.97); background: #1a3793; }
 .mb-btn.ghost { background: #e8ecf4; color: #1e40af; }
-.mb-toast { position: absolute; left: 50%; bottom: 5.4em; transform: translateX(-50%); white-space: nowrap; padding: .45em .9em; border-radius: 99em; background: rgb(16 19 24 / .88); color: #fff; font-size: .72em; }
+.mb-toast { position: absolute; left: 50%; bottom: 5.4em; transform: translateX(-50%); white-space: nowrap; padding: .45em .9em; border-radius: 99em; background: rgb(16 19 24 / .88); color: #fff; font-size: max(var(--vz-min), .72em); }
 .mb-key { display: grid; place-items: center; height: 2.35em; border-radius: .7em; font-size: 1.05em; font-weight: 600; color: #0b0d12; background: #fff; box-shadow: 0 1px 1px rgb(16 24 40 / .06); }
 .mb-key.on { background: #dbe4ff; }
 .mb-dot { width: .7em; height: .7em; border-radius: 50%; border: 1.5px solid #1e40af; }
 .mb-dot.on { background: #1e40af; }
-.mb-pill { display: inline-flex; align-items: center; gap: .3em; padding: .15em .55em; border-radius: 99em; font-size: .7em; font-weight: 700; }
+.mb-pill { display: inline-flex; align-items: center; gap: .3em; padding: .15em .55em; border-radius: 99em; font-size: max(var(--vz-min), .7em); font-weight: 700; }
 @keyframes mb-scan { 0%, 100% { top: 12%; } 50% { top: 82%; } }
 .vz .mb-scan { position: absolute; left: 8%; right: 8%; height: 2px; border-radius: 2px; background: #3b82f6; box-shadow: 0 0 .8em #3b82f6; animation: mb-scan 2.4s ease-in-out infinite; }
 @keyframes mb-spin { to { transform: rotate(360deg); } }
@@ -8724,16 +8496,16 @@ FILE: src/components/viz/viz.css
 .scn-film .scn-ov { font-size: 25px; } /* the film draws scenes at 1080p */
 @container (max-width: 559px) { .scn-ov { --u: calc(100cqw / 30); } }
 .scn-l { position: absolute; left: 0; top: 0; visibility: hidden; opacity: 0; will-change: transform, opacity; white-space: nowrap; }
-.scn-card { display: block; border-radius: .8em; padding: .55em .8em; background: rgb(16 18 22 / .82); border: 1px solid rgb(170 200 240 / .18); box-shadow: 0 1.2em 2.4em -1em rgb(0 0 0 / .9); backdrop-filter: blur(6px); }
+.scn-card { display: block; border-radius: .8em; padding: .55em .8em; background: rgb(8 30 66 / .86); border: 1px solid rgb(170 200 240 / .18); box-shadow: 0 1.2em 2.4em -1em rgb(0 0 0 / .9); backdrop-filter: blur(6px); }
 .scn-card b { display: block; font-weight: 600; color: #f1f2f4; }
-.scn-card span { display: block; color: #a4a7ad; font-size: .86em; }
-.scn-tag { display: inline-flex; align-items: center; gap: .45em; border-radius: 99em; padding: .3em .75em; font-size: .86em; font-weight: 600; background: rgb(16 18 22 / .78); border: 1px solid currentColor; }
+.scn-card span { display: block; color: #a4a7ad; font-size: max(var(--vz-min), .86em); }
+.scn-tag { display: inline-flex; align-items: center; gap: .45em; border-radius: 99em; padding: .3em .75em; font-size: max(var(--vz-min), .86em); font-weight: 600; background: rgb(8 30 66 / .82); border: 1px solid currentColor; }
 
 .pf-item { display: flex; align-items: center; gap: .6em; white-space: normal; max-width: 21em; }
-.pf-item .pf-sub { display: block; font-size: .8em; }
-@container (max-width: 559px) { .pf-item { max-width: 45cqw; font-size: .9em; padding: .45em .6em; } .pf-item .pf-sub { display: none; } }
+.pf-item .pf-sub { display: block; font-size: max(var(--vz-min), .8em); }
+@container (max-width: 559px) { .pf-item { max-width: 45cqw; font-size: max(var(--vz-min), .9em); padding: .45em .6em; } .pf-item .pf-sub { display: none; } }
 .scn-frame { position: relative; border-radius: 24px; overflow: hidden; color: #e8eaee; border: 1px solid rgb(160 190 230 / .14);
-  background: radial-gradient(120% 90% at 50% 0%, #15181d 0%, #0b0d11 70%); box-shadow: 0 40px 90px -45px rgb(0 0 0 / .85); }
+  background: radial-gradient(90% 70% at 78% 0%, rgb(38 128 230 / .42), transparent 65%), linear-gradient(180deg, #0a2b5e 0%, #072250 55%, #061b40 100%); box-shadow: 0 40px 90px -45px rgb(4 25 58 / .7); }
 .scn-swap { animation: scn-in .6s cubic-bezier(.16, 1, .3, 1) both; }
 @keyframes scn-in { from { opacity: 0; transform: translateY(10px); } }
 @media (prefers-reduced-motion: reduce) { .scn-swap { animation: none; } }
@@ -8752,7 +8524,7 @@ FILE: src/components/viz/viz.css
    stay dark. The accent variables switch with them. */
 .page > :not(.stage, .fixed) .vz:not(.tone-d .vz) {
   color: #1b2430;
-  --vz-red: #c4352a; --vz-coral: #d9442c; --vz-amber: #9a5f00; --vz-green: #11804f; --vz-blue: #0a64ad; --vz-solid: #fff;
+  --vz-red: #b02a20; --vz-coral: #c23a24; --vz-amber: #8a5400; --vz-green: #0c7546; --vz-blue: #0a64ad; --vz-solid: #fff;
   & .vz-win { background: #fff; border: 1px solid rgb(16 40 80 / .1); box-shadow: 0 1px 2px rgb(16 40 80 / .05), 0 2.6em 4.6em -2.6em rgb(16 40 80 / .38); }
   & .vz-bar { background: #f2f6fb; border-bottom-color: rgb(16 40 80 / .08); }
   & .vz-bar i { background: #d3dce8; }
@@ -8763,9 +8535,9 @@ FILE: src/components/viz/viz.css
   & .vz-m { color: #5c6777; }
   & .vz-mono { color: #3f4a5a; }
   & .vz-big { color: #0e1116; }
-  & .c-ok { color: #11804f; background: rgb(17 134 82 / .09); border-color: rgb(17 134 82 / .22); }
-  & .c-warn { color: #915a00; background: rgb(214 140 20 / .1); border-color: rgb(214 140 20 / .28); }
-  & .c-crit { color: #c4352a; background: rgb(196 53 42 / .08); border-color: rgb(196 53 42 / .24); }
+  & .c-ok { color: #0c7546; background: rgb(17 134 82 / .09); border-color: rgb(17 134 82 / .22); }
+  & .c-warn { color: #855200; background: rgb(214 140 20 / .1); border-color: rgb(214 140 20 / .28); }
+  & .c-crit { color: #b02a20; background: rgb(196 53 42 / .08); border-color: rgb(196 53 42 / .24); }
   & .c-info { color: #0a64ad; background: rgb(10 116 196 / .08); border-color: rgb(10 116 196 / .24); }
   & .c-mute { color: #5c6777; background: rgb(16 40 80 / .04); border-color: rgb(16 40 80 / .1); }
   & .c-zen { color: #4650c4; background: rgb(80 96 216 / .09); border-color: rgb(80 96 216 / .25); }
@@ -8800,6 +8572,35 @@ FILE: src/components/viz/viz.css
 .wb-sel { box-shadow: inset 0 0 0 1.5px #2f6fe4; }
 @media (prefers-reduced-motion: reduce) { .wb-spin { animation: none; } }
 
+/* phones: secondary details step aside so the main ones stay readable */
+@container (max-width: 440px) { .vz .vz-wide { display: none !important; } }
+
+/* workbench on a narrow screen: the path as a vertical chain */
+.wb-chain { position: relative; }
+.wb-link { position: relative; height: 1.5em; margin-left: 1.55em; width: 2px; background: rgb(120 140 170 / .45); transition: background .4s, opacity .4s; }
+.wb-link.hot { background: #e0604a; }
+.wb-link.hot::after { content: ''; position: absolute; left: -1px; top: 0; width: 4px; height: .5em; border-radius: 2px; background: #ffb4a6; animation: wb-drip 1.1s linear infinite; }
+.wb-link.cut { background: repeating-linear-gradient(180deg, rgb(120 140 170 / .55) 0 3px, transparent 3px 6px); }
+.wb-link .wb-cut { left: 50%; top: 50%; }
+@keyframes wb-drip { from { transform: translateY(0); opacity: 1; } to { transform: translateY(1em); opacity: 0; } }
+.wb-row { opacity: 0; transform: translateY(.5em); transition: opacity .45s, transform .55s cubic-bezier(.16,1,.3,1); }
+.wb-row.on { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { .wb-link.hot::after { animation: none; } .wb-row { opacity: 1; transform: none; } }
+
+/* chips used on a light sheet outside a product window keep light-sheet contrast */
+.page > :not(.stage, .fixed) .vz-chip:not(.vz .vz-chip, .tone-d .vz-chip) {
+  &.c-ok { color: #0c7546; background: rgb(17 134 82 / .09); border-color: rgb(17 134 82 / .24); }
+  &.c-warn { color: #855200; background: rgb(214 140 20 / .1); border-color: rgb(214 140 20 / .3); }
+  &.c-crit { color: #b02a20; background: rgb(196 53 42 / .08); border-color: rgb(196 53 42 / .26); }
+  &.c-info { color: #005f9f; background: rgb(10 116 196 / .08); border-color: rgb(10 116 196 / .24); }
+  &.c-mute { color: #4f5966; background: rgb(16 40 80 / .05); border-color: rgb(16 40 80 / .12); }
+}
+
+/* phones: a cell wraps rather than cutting a name short */
+@container (max-width: 440px) {
+  .vz .truncate:not(.font-mono, .vz-mono, .mono) { white-space: normal; text-overflow: clip; }
+}
+
 ====================================================================================================
 FILE: src/components/viz/workbench.jsx
 ====================================================================================================
@@ -8814,26 +8615,26 @@ import { Logo } from './kit.jsx';
 
 const RISK = { Critical: 'crit', High: 'crit', Medium: 'warn', Low: 'ok' };
 const Risk = ({ v }) => (
-  <span className={cx('vz-chip plain', `c-${RISK[v]}`)} style={{ fontSize: '.74em', height: '1.6em' }}>
+  <span className={cx('vz-chip plain', `c-${RISK[v]}`)} style={{ fontSize: 'max(var(--vz-min), .74em)', height: '1.6em' }}>
     <svg viewBox="0 0 12 10" width="1em" height=".9em" aria-hidden="true"><path d="M1 9h2V6H1zM5 9h2V3H5zM9 9h2V0H9z" fill="currentColor" opacity=".9" /></svg>{v}
   </span>
 );
 const Usage = ({ n }) => (
   <span className="inline-flex gap-[.2em]" aria-hidden="true">{[0, 1, 2].map((i) => <i key={i} className="block h-[.32em] w-[.9em] rounded-full" style={{ background: i < n ? '#3f6ea8' : 'rgb(120 140 170 / .25)' }} />)}</span>
 );
-const Who = ({ n }) => <span className="inline-flex items-center gap-[.35em] rounded-full border px-[.5em] py-[.15em] vz-m" style={{ fontSize: '.74em', borderColor: 'rgb(120 140 170 / .3)' }}><span className="grid h-[1.3em] w-[1.3em] place-items-center rounded-full text-[.8em] font-semibold" style={{ background: '#dbe7f6', color: '#24456f' }}>{n.split(' ').map((w) => w[0]).join('')}</span>{n}</span>;
+const Who = ({ n }) => <span className="inline-flex items-center gap-[.35em] rounded-full border px-[.5em] py-[.15em] vz-m" style={{ fontSize: 'max(var(--vz-min), .74em)', borderColor: 'rgb(120 140 170 / .3)' }}><span className="grid h-[1.3em] w-[1.3em] place-items-center rounded-full text-[max(var(--vz-min),.8em)] font-semibold" style={{ background: '#dbe7f6', color: '#24456f' }}>{n.split(' ').map((w) => w[0]).join('')}</span>{n}</span>;
 
 /* a node on the graph: a small card with a label on its top edge */
 function Node({ x, y, w = 21, tag, tagTone = 'info', logo, title, sub, risk, alert, hot, ok, gone, show = true, children }) {
   return (
     <div className={cx('wb-node absolute', show && 'on', gone && 'gone')} style={{ left: `${x}%`, top: `${y}%`, width: `${w}%` }}>
-      {tag && <span className={cx('vz-chip plain absolute -top-[1.05em] left-[.6em]', `c-${tagTone}`)} style={{ fontSize: '.62em', height: '1.55em', borderRadius: '.35em' }}>{tag}</span>}
+      {tag && <span className={cx('vz-chip plain absolute -top-[1.05em] left-[.6em]', `c-${tagTone}`)} style={{ fontSize: 'max(var(--vz-min), .62em)', height: '1.55em', borderRadius: '.35em' }}>{tag}</span>}
       <div className={cx('vz-panel relative flex items-center gap-[.5em] px-[.6em] py-[.55em] transition-colors duration-500', hot && 'wb-hot')} style={ok ? { borderColor: 'rgb(17 134 82 / .55)', background: 'color-mix(in oklab, var(--vz-solid) 92%, #1f9d63)' } : hot ? { borderColor: 'rgb(217 68 44 / .55)', background: 'color-mix(in oklab, var(--vz-solid) 93%, #d9442c)' } : { background: 'color-mix(in oklab, var(--vz-solid) 96%, #3f6ea8)' }}>
-        {alert && <span className="absolute -left-[.55em] -top-[.55em] grid h-[1.2em] w-[1.2em] place-items-center rounded-full text-[.72em] font-bold text-white" style={{ background: '#e5484d' }}>!</span>}
+        {alert && <span className="absolute -left-[.55em] -top-[.55em] grid h-[1.2em] w-[1.2em] place-items-center rounded-full text-[max(var(--vz-min),.72em)] font-bold text-white" style={{ background: '#e5484d' }}>!</span>}
         {logo && <span className="grid h-[1.9em] w-[1.9em] shrink-0 place-items-center rounded-[.45em] bg-white" style={{ boxShadow: '0 0 0 1px rgb(16 40 80 / .1)' }}><Logo k={logo} size="1.2em" /></span>}
         <span className="min-w-0 leading-tight">
-          <span className={cx('block truncate vz-t', gone && 'line-through')} style={{ fontSize: '.8em', fontWeight: 600 }}>{title}</span>
-          {sub && <span className="block truncate vz-m" style={{ fontSize: '.66em' }}>{sub}</span>}
+          <span className={cx('block truncate vz-t', gone && 'line-through')} style={{ fontSize: 'max(var(--vz-min), .8em)', fontWeight: 600 }}>{title}</span>
+          {sub && <span className="block truncate vz-m" style={{ fontSize: 'max(var(--vz-min), .66em)' }}>{sub}</span>}
           {risk && <span className="mt-[.25em] block"><Risk v={risk} /></span>}
           {children}
         </span>
@@ -8867,6 +8668,34 @@ const Cut = ({ x, y, on }) => (
     <svg viewBox="0 0 12 12" width=".8em" height=".8em" aria-hidden="true"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>
   </span>
 );
+/* the same path for a narrow screen: one node under the other, each link
+   marked hot or cut; items are [node props, link-below props] */
+function Chain({ items, t, fix }) {
+  return (
+    <div className="wb-chain">
+      {items.map(([n, l = {}], i) => (
+        <div key={n.title}>
+          <div className={cx('wb-row', (fix || t >= (n.at ?? i)) && 'on')}>
+            <div className={cx('vz-panel relative flex items-center gap-[.6em] px-[.7em] py-[.55em] transition-colors duration-500', n.hot && 'wb-hot')} style={n.ok ? { borderColor: 'rgb(17 134 82 / .55)', background: 'color-mix(in oklab, var(--vz-solid) 92%, #1f9d63)' } : n.hot ? { borderColor: 'rgb(217 68 44 / .55)', background: 'color-mix(in oklab, var(--vz-solid) 93%, #d9442c)' } : { background: 'color-mix(in oklab, var(--vz-solid) 96%, #3f6ea8)' }}>
+              <span className="grid h-[2em] w-[2em] shrink-0 place-items-center rounded-[.45em] bg-white" style={{ boxShadow: '0 0 0 1px rgb(16 40 80 / .1)' }}>{n.logo ? <Logo k={n.logo} size="1.25em" /> : <span className="vz-t" style={{ fontSize: 'max(var(--vz-min), .8em)', fontWeight: 700, color: '#24456f' }}>{n.title.slice(0, 2).toUpperCase()}</span>}</span>
+              <span className="min-w-0 flex-1 leading-tight">
+                <span className={cx('block truncate vz-t', n.gone && 'line-through opacity-60')} style={{ fontWeight: 600 }}>{n.title}</span>
+                {n.sub && <span className="block truncate vz-m">{n.sub}</span>}
+              </span>
+              {n.tag && <span className={cx('vz-chip plain shrink-0', `c-${n.tagTone || 'info'}`)} style={{ borderRadius: '.35em' }}>{n.tag}</span>}
+            </div>
+          </div>
+          {i < items.length - 1 && (
+            <div className={cx('wb-link', l.cut ? 'cut' : l.hot && 'hot')} style={{ opacity: fix || t >= (items[i + 1][0].at ?? i + 1) ? 1 : 0 }}>
+              {l.cut !== undefined && <Cut x={50} y={50} on={!!l.cut} />}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* a counter that runs from one value to another once shown */
 function Count({ from, to, run }) {
   const [v, setV] = useState(run ? to : from);
@@ -8885,19 +8714,19 @@ function Findings({ summary, rows, fixed, fixLabel, done }) {
     <div>
       <div className="flex gap-[.8em] rounded-[.7em] p-[.9em]" style={{ background: 'rgb(10 116 196 / .07)' }}>
         <svg viewBox="0 0 24 24" width="1.7em" height="1.7em" aria-hidden="true" className="shrink-0" style={{ color: '#2f6fe4' }}><path d="M10 2l1.8 5.2L17 9l-5.2 1.8L10 16l-1.8-5.2L3 9l5.2-1.8zM18 13l.9 2.6 2.6.9-2.6.9L18 20l-.9-2.6-2.6-.9 2.6-.9z" fill="currentColor" /></svg>
-        <span><span className="block vz-t" style={{ fontWeight: 650 }}>Summary</span><span className="mt-[.2em] block vz-m" style={{ fontSize: '.86em' }}>{summary}</span></span>
+        <span><span className="block vz-t" style={{ fontWeight: 650 }}>Summary</span><span className="mt-[.2em] block vz-m" style={{ fontSize: 'max(var(--vz-min), .86em)' }}>{summary}</span></span>
       </div>
-      <p className="mt-[.9em] border-b pb-[.4em] vz-t" style={{ borderColor: 'rgb(120 140 170 / .3)', fontSize: '.9em' }}>Supporting findings</p>
+      <p className="mt-[.9em] border-b pb-[.4em] vz-t" style={{ borderColor: 'rgb(120 140 170 / .3)', fontSize: 'max(var(--vz-min), .9em)' }}>Supporting findings</p>
       <div className="mt-[.4em]">
         {rows.map(([k, r, logo, what]) => (
           <div key={k} className="grid grid-cols-[8em_4.6em_1fr] items-center gap-[.7em] py-[.45em]">
-            <span className="vz-m" style={{ fontSize: '.8em' }}>{k}</span><Risk v={r} />
-            <span className="flex min-w-0 items-center gap-[.4em] vz-m" style={{ fontSize: '.78em' }}><Logo k={logo} size="1.1em" /><span className="truncate">{what}</span></span>
+            <span className="vz-m" style={{ fontSize: 'max(var(--vz-min), .8em)' }}>{k}</span><Risk v={r} />
+            <span className="flex min-w-0 items-center gap-[.4em] vz-m" style={{ fontSize: 'max(var(--vz-min), .78em)' }}><Logo k={logo} size="1.1em" /><span className="truncate">{what}</span></span>
           </div>
         ))}
       </div>
       <div className="mt-[.6em] flex justify-end">
-        <span data-cursor-target="" className={cx('rounded-[.5em] border px-[1em] py-[.35em] font-semibold', fixed && 'wb-press')} style={{ fontSize: '.86em', color: done ? '#11804f' : '#2f6fe4', borderColor: done ? 'rgb(17 134 82 / .4)' : 'rgb(47 111 228 / .55)', background: fixed ? 'rgb(47 111 228 / .1)' : 'transparent', transition: 'all .3s' }}>{done ? 'Remediated' : fixLabel}</span>
+        <span data-cursor-target="" className={cx('rounded-[.5em] border px-[1em] py-[.35em] font-semibold', fixed && 'wb-press')} style={{ fontSize: 'max(var(--vz-min), .86em)', color: done ? '#11804f' : '#2f6fe4', borderColor: done ? 'rgb(17 134 82 / .4)' : 'rgb(47 111 228 / .55)', background: fixed ? 'rgb(47 111 228 / .1)' : 'transparent', transition: 'all .3s' }}>{done ? 'Remediated' : fixLabel}</span>
       </div>
     </div>
   );
@@ -8914,6 +8743,13 @@ function Bench({ label, head, tabs, render, dwell = 5700 }) {
   const [tab, setTab] = useState(0);
   const [t, setT] = useState(9); // time within the tab, in steps; the server shows each view complete
   const [held, setHeld] = useState(false);
+  const [narrow, setNarrow] = useState(false); // a phone, or a small card: the graph becomes a chain
+  useEffect(() => {
+    const el = ref.current; if (!el) return undefined;
+    const ro = new ResizeObserver(([e]) => setNarrow(e.contentRect.width < 600));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   useEffect(() => {
     if (reduce || !seen || held) return undefined;
     setT(0);
@@ -8948,23 +8784,23 @@ function Bench({ label, head, tabs, render, dwell = 5700 }) {
             <span className="grid h-[2.6em] w-[2.6em] place-items-center rounded-[.7em] bg-white" style={{ boxShadow: '0 0 0 1px rgb(16 40 80 / .1)' }}><Logo k={head.logo} size="1.6em" /></span>
             <span className="min-w-0 flex-1">
               <span className="block vz-t" style={{ fontWeight: 650, fontSize: '1.05em' }}>{head.name}</span>
-              <span className="mt-[.3em] flex flex-wrap gap-[.35em]">{head.chips.map((c) => <span key={c} className="vz-chip plain c-mute" style={{ fontSize: '.7em', borderRadius: '.4em' }}>{c}</span>)}</span>
+              <span className="mt-[.3em] flex flex-wrap gap-[.35em]">{(narrow ? head.chips.slice(0, 1) : head.chips).map((c) => <span key={c} className="vz-chip plain c-mute" style={{ fontSize: 'max(var(--vz-min), .7em)', borderRadius: '.4em' }}>{c}</span>)}</span>
             </span>
-            <span className={cx('vz-chip plain', head.done && tab === tabs.length - 1 ? 'c-ok' : 'c-warn')} style={{ fontSize: '.72em', borderRadius: '.4em' }}>{head.done && tab === tabs.length - 1 ? 'Resolved' : 'Pending review'}</span>
+            <span className={cx('vz-chip plain', head.done && tab === tabs.length - 1 ? 'c-ok' : 'c-warn')} style={{ fontSize: 'max(var(--vz-min), .72em)', borderRadius: '.4em' }}>{head.done && tab === tabs.length - 1 ? 'Resolved' : 'Pending review'}</span>
           </div>
           <div className="flex items-center gap-[1em] px-[1.1em] pb-[.8em]">
-            <Risk v={head.done && tab === tabs.length - 1 ? 'Low' : head.risk} /><span className="flex items-center gap-[.5em] vz-m" style={{ fontSize: '.74em', letterSpacing: '.06em' }}>USAGE <Usage n={head.usage} /></span>
+            <Risk v={head.done && tab === tabs.length - 1 ? 'Low' : head.risk} /><span className="flex items-center gap-[.5em] vz-m" style={{ fontSize: 'max(var(--vz-min), .74em)', letterSpacing: '.06em' }}>USAGE <Usage n={head.usage} /></span>
           </div>
           <div className="grid gap-[.4em] px-[1.1em] pb-[.8em]" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }} role="tablist" aria-label="Views">
             {tabs.map((x, i) => (
               <button key={x} ref={(el) => { tabRefs.current[i] = el; }} type="button" role="tab" aria-selected={i === tab} onClick={() => pick(i)}
-                className="truncate rounded-[.5em] px-[.4em] py-[.5em] transition-colors" style={{ fontSize: '.76em', background: i === tab ? '#0b2a57' : 'rgb(120 140 170 / .12)', color: i === tab ? '#fff' : undefined }}>
+                className="truncate rounded-[.5em] px-[.4em] py-[.5em] transition-colors" style={{ fontSize: 'max(var(--vz-min), .76em)', background: i === tab ? '#0b2a57' : 'rgb(120 140 170 / .12)', color: i === tab ? '#fff' : undefined }}>
                 <span className={i === tab ? '' : 'vz-m'}>{x}</span>
               </button>
             ))}
           </div>
           <div className="mx-[.8em] mb-[.8em] rounded-[.8em] p-[.9em]" style={{ background: 'var(--vz-solid)', boxShadow: '0 0 0 1px rgb(120 140 170 / .18)' }}>
-            <div key={tab} ref={panel} className="fadein">{render(tab, t)}</div>
+            <div key={tab} ref={panel} className="fadein">{render(tab, t, narrow)}</div>
           </div>
         </div>
         {cur && !held && (
@@ -8992,12 +8828,12 @@ function Remedy({ label, from, to, t, start, items, children }) {
             : <svg viewBox="0 0 12 12" width=".8em" height=".8em" aria-hidden="true"><path d="M6 1.5a4.5 4.5 0 1 0 4.5 4.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>}
         </span>
         <span className="min-w-0 flex-1 leading-tight">
-          <span className="block vz-t" style={{ fontWeight: 650, fontSize: '.92em' }}>{done ? 'Remediated, and checked again' : 'Remediating, with approval'}</span>
-          <span className="block vz-m" style={{ fontSize: '.74em' }}>{label}</span>
+          <span className="block vz-t" style={{ fontWeight: 650, fontSize: 'max(var(--vz-min), .92em)' }}>{done ? 'Remediated, and checked again' : 'Remediating, with approval'}</span>
+          <span className="block vz-m" style={{ fontSize: 'max(var(--vz-min), .74em)' }}>{label}</span>
         </span>
         <span className="vz-t text-right" style={{ fontWeight: 750, fontSize: '1.45em', lineHeight: 1 }}>
           <span style={{ color: done ? '#11804f' : undefined }}><Count from={from} to={to} run={run} /></span>
-          <span className="vz-m" style={{ fontSize: '.5em', fontWeight: 500 }}> / {from}</span>
+          <span className="vz-m" style={{ fontSize: 'max(var(--vz-min), .5em)', fontWeight: 500 }}> / {from}</span>
         </span>
       </div>
       {children}
@@ -9005,7 +8841,7 @@ function Remedy({ label, from, to, t, start, items, children }) {
         {items.map((x, i) => {
           const on = t >= start + i + 1;
           return (
-            <span key={x} className="inline-flex items-center gap-[.4em] rounded-full border px-[.6em] py-[.2em] transition-all duration-500" style={{ fontSize: '.72em', opacity: on ? 1 : 0.35, borderColor: on ? 'rgb(17 134 82 / .4)' : 'rgb(120 140 170 / .3)', background: on ? 'rgb(17 134 82 / .07)' : 'transparent' }}>
+            <span key={x} className="inline-flex items-center gap-[.4em] rounded-full border px-[.6em] py-[.2em] transition-all duration-500" style={{ fontSize: 'max(var(--vz-min), .72em)', opacity: on ? 1 : 0.35, borderColor: on ? 'rgb(17 134 82 / .4)' : 'rgb(120 140 170 / .3)', background: on ? 'rgb(17 134 82 / .07)' : 'transparent' }}>
               <span className="grid h-[1.2em] w-[1.2em] place-items-center rounded-full text-white transition-colors duration-500" style={{ background: on ? '#1f9d63' : 'rgb(120 140 170 / .45)' }}><svg viewBox="0 0 12 12" width=".7em" height=".7em" aria-hidden="true"><path d="m2.5 6.3 2.3 2.2L9.5 3.8" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
               <span className="vz-t" style={{ fontWeight: 550 }}>{x}</span>
             </span>
@@ -9018,7 +8854,7 @@ function Remedy({ label, from, to, t, start, items, children }) {
 
 /* a small count in the corner of a graph */
 const Tally = ({ on, tone = 'crit', children }) => (
-  <span className={cx('vz-chip plain absolute right-0 top-0 transition-opacity duration-500', `c-${tone}`, on ? 'opacity-100' : 'opacity-0')} style={{ fontSize: '.68em', borderRadius: '.4em' }}>{children}</span>
+  <span className={cx('vz-chip plain absolute right-0 top-0 transition-opacity duration-500', `c-${tone}`, on ? 'opacity-100' : 'opacity-0')} style={{ fontSize: 'max(var(--vz-min), .68em)', borderRadius: '.4em' }}>{children}</span>
 );
 
 /* ---------------- NHI Security for AWS ---------------- */
@@ -9032,8 +8868,19 @@ const INV = [
 
 /* the role's graph; with fix, the steps of the fix at t: the open trust
    policy is cut, the delete right is removed, and the role turns safe */
-function NhiGraph({ t, fix }) {
+function NhiGraph({ t, fix, narrow }) {
   const trustCut = fix && t >= 3, delCut = fix && t >= 4, safe = fix && t >= 6;
+  if (narrow) return (
+    <div>
+      {!fix && <p className={cx('mb-[.6em] vz-chip plain c-crit transition-opacity duration-500', t >= 5 ? 'opacity-100' : 'opacity-0')} style={{ borderRadius: '.4em' }}>205 of 214 permissions never used</p>}
+      <Chain t={t} fix={fix} items={[
+        [{ at: 1, title: trustCut ? 'Two named accounts' : 'Any account in the org', sub: trustCut ? 'Trust policy, scoped' : 'Trust policy: can assume the role', tag: trustCut ? 'Scoped' : 'Open', tagTone: trustCut ? 'ok' : 'crit', ok: trustCut }, { hot: !trustCut, cut: fix ? trustCut : undefined }],
+        [{ at: 2, logo: 'iam', title: 'ecs-notify-svc', sub: safe ? 'Owner: Platform team' : 'Owner: Priya Nair, left in June', tag: safe ? 'Low' : 'Critical', tagTone: safe ? 'ok' : 'crit', hot: !safe, ok: safe }, { hot: !safe }],
+        [{ at: 3, logo: 'rds', title: 'ledger-db', sub: 'RDS · PostgreSQL', tag: safe ? 'Low' : 'Medium', tagTone: safe ? 'ok' : 'warn' }, { hot: !delCut, cut: fix ? delCut : undefined }],
+        [{ at: 4, title: 'rds:DeleteDB*', sub: delCut ? 'Removed with 204 others' : 'Granted, never used', tag: delCut ? 'Removed' : 'Never used', tagTone: delCut ? 'mute' : 'crit', hot: !delCut, gone: delCut }],
+      ]} />
+    </div>
+  );
   const show = (n) => fix || t >= n;
   const links = [
     [[13, 25], [36, 52], false, 2], [[13, 80], [36, 52], !trustCut, 2],
@@ -9064,14 +8911,26 @@ export function NhiWorkbench() {
       head={{ logo: 'aws', name: 'ecs-notify-svc', chips: ['IAM role', 'prod-payments', 'arn:…:role/ecs-notify'], risk: 'Critical', usage: 1, done: true }}
       tabs={['Inventory', 'Identity graph', 'Risk analysis', 'Remediation']}
       dwell={6300}
-      render={(tab, t) => {
+      render={(tab, t, narrow) => {
+        if (tab === 0 && narrow) return (
+          <div>
+            <div className="grid grid-cols-[1.4fr_1fr_1fr] gap-[.5em] rounded-[.45em] px-[.7em] py-[.5em]" style={{ background: '#0b2a57', color: '#fff', fontSize: 'max(var(--vz-min), .66em)', fontWeight: 600 }}><span>Identity</span><span>Risk</span><span>Owner</span></div>
+            {INV.map((r, i) => (
+              <div key={r[0]} className="mt-[.35em] grid grid-cols-[1.4fr_1fr_1fr] items-center gap-[.5em] rounded-[.45em] px-[.7em] py-[.5em] transition-all duration-500" style={{ background: i < 3 ? 'rgb(217 68 44 / .06)' : 'transparent', opacity: t >= i ? 1 : 0 }}>
+                <span className="flex min-w-0 items-center gap-[.4em]"><Logo k={r[1]} size="1.1em" /><span className="truncate vz-t" style={{ fontWeight: 600 }}>{r[0]}</span></span>
+                <span><Risk v={r[4]} /></span>
+                <span className="truncate vz-m">{r[7]}</span>
+              </div>
+            ))}
+          </div>
+        );
         if (tab === 0) return (
           <div>
-            <div className="grid grid-cols-[1.25fr_.8fr_.85fr_.85fr_.9fr_.55fr_1fr] gap-[.5em] rounded-[.45em] px-[.7em] py-[.5em]" style={{ background: '#0b2a57', color: '#fff', fontSize: '.66em', fontWeight: 600 }}>
+            <div className="grid grid-cols-[1.25fr_.8fr_.85fr_.85fr_.9fr_.55fr_1fr] gap-[.5em] rounded-[.45em] px-[.7em] py-[.5em]" style={{ background: '#0b2a57', color: '#fff', fontSize: 'max(var(--vz-min), .66em)', fontWeight: 600 }}>
               <span>Identity</span><span>Source</span><span>Type</span><span>Risk</span><span>Permissions</span><span>Usage</span><span>Owner</span>
             </div>
             {INV.map((r, i) => (
-              <div key={r[0]} className={cx('mt-[.35em] grid grid-cols-[1.25fr_.8fr_.85fr_.85fr_.9fr_.55fr_1fr] items-center gap-[.5em] rounded-[.45em] px-[.7em] py-[.45em] transition-all duration-500', i === 0 && t >= 7 && 'wb-sel')} style={{ fontSize: '.74em', background: i < 3 ? 'rgb(217 68 44 / .06)' : 'transparent', opacity: t >= i ? 1 : 0, transform: t >= i ? 'none' : 'translateY(.4em)' }}>
+              <div key={r[0]} className={cx('mt-[.35em] grid grid-cols-[1.25fr_.8fr_.85fr_.85fr_.9fr_.55fr_1fr] items-center gap-[.5em] rounded-[.45em] px-[.7em] py-[.45em] transition-all duration-500', i === 0 && t >= 7 && 'wb-sel')} style={{ fontSize: 'max(var(--vz-min), .74em)', background: i < 3 ? 'rgb(217 68 44 / .06)' : 'transparent', opacity: t >= i ? 1 : 0, transform: t >= i ? 'none' : 'translateY(.4em)' }}>
                 <span className="truncate vz-t" style={{ fontSize: '1em', fontWeight: 600 }}>{r[0]}</span>
                 <span className="flex items-center gap-[.3em] vz-m" style={{ fontSize: '1em' }}><Logo k={r[1]} size="1.1em" />{r[2]}</span>
                 <span className="truncate vz-m" style={{ fontSize: '1em' }}>{r[3]}</span>
@@ -9081,12 +8940,12 @@ export function NhiWorkbench() {
                 <span className="truncate" style={{ fontSize: '1.15em' }}><Who n={r[7]} /></span>
               </div>
             ))}
-            <p className="mt-[.7em] flex items-center gap-[.5em] vz-m transition-opacity duration-500" style={{ fontSize: '.72em', opacity: t >= 5 ? 1 : 0 }}>
+            <p className="mt-[.7em] flex items-center gap-[.5em] vz-m transition-opacity duration-500" style={{ fontSize: 'max(var(--vz-min), .72em)', opacity: t >= 5 ? 1 : 0 }}>
               <span className="h-[.5em] w-[.5em] rounded-full" style={{ background: 'var(--vz-red)' }} />3 of 5 need action · sorted by risk · found in AWS, GitHub and Slack
             </p>
           </div>
         );
-        if (tab === 1) return <NhiGraph t={t} />;
+        if (tab === 1) return <NhiGraph t={t} narrow={narrow} />;
         if (tab === 2) return (
           <Findings summary="This role can use 214 permissions and has used 9 in the last 90 days. Its trust policy lets any account in the organisation assume it, and it can delete the ledger database."
             rows={[['Permission risk', 'Critical', 'iam', '205 permissions never used in 90 days'], ['Configuration risk', 'High', 'iam', 'Trust policy: any account in the org'], ['Ownership', 'Medium', 'aws', 'Owner on record left the team in June']]}
@@ -9094,7 +8953,7 @@ export function NhiWorkbench() {
         );
         return (
           <Remedy label="Permissions this role can use" from={214} to={9} t={t} start={2} items={['Trust policy scoped', '205 unused removed', 'Owner reassigned', 'Evidence from CloudTrail']}>
-            <NhiGraph t={t} fix />
+            <NhiGraph t={t} fix narrow={narrow} />
           </Remedy>
         );
       }}
@@ -9104,8 +8963,20 @@ export function NhiWorkbench() {
 
 /* ---------------- Active Directory Security ---------------- */
 /* the attack path; with fix, the GenericAll right is cut and the path dies */
-function AdGraph({ t, fix }) {
+function AdGraph({ t, fix, narrow }) {
   const cut = fix && t >= 3, rotated = fix && t >= 4, safe = fix && t >= 6;
+  if (narrow) return (
+    <div>
+      {!fix && <p className={cx('mb-[.6em] vz-chip plain c-crit transition-opacity duration-500', t >= 5 ? 'opacity-100' : 'opacity-0')} style={{ borderRadius: '.4em' }}>41 of 57 paths cross one right</p>}
+      <Chain t={t} fix={fix} items={[
+        [{ at: 0, title: 'j.mehta', sub: 'Finance user', tag: 'Phished', tagTone: 'crit' }, { hot: !cut }],
+        [{ at: 1, logo: 'windows', title: 'WKS-0412', sub: 'Logged on, workstation', tag: 'Session', tagTone: 'info' }, { hot: !cut }],
+        [{ at: 2, logo: 'ad', title: 'svc-sql', sub: rotated ? 'Password rotated, AES only' : 'Service account', tag: rotated ? 'Fixed' : 'Kerberoastable', tagTone: rotated ? 'ok' : 'crit', hot: !rotated, ok: rotated }, { hot: !cut, cut: fix ? cut : undefined }],
+        [{ at: 3, title: 'Server Admins', sub: cut ? 'GenericAll removed' : 'GenericAll from svc-sql', tag: cut ? 'Closed' : 'GenericAll', tagTone: cut ? 'ok' : 'crit', hot: !cut }, { hot: !cut }],
+        [{ at: 4, title: 'Domain Admins', sub: safe ? 'Path closed' : 'Tier 0 group', tag: 'Tier 0', tagTone: safe ? 'ok' : 'crit', ok: safe }],
+      ]} />
+    </div>
+  );
   const hot = !cut;
   const show = (n) => fix || t >= n;
   const links = [
@@ -9138,8 +9009,8 @@ export function AdWorkbench() {
       head={{ logo: 'ad', name: 'svc-sql', chips: ['Service account', 'corp.local', 'SPN: MSSQLSvc/db01'], risk: 'Critical', usage: 2, done: true }}
       tabs={['Attack paths', 'Risk analysis', 'Remediation']}
       dwell={6300}
-      render={(tab, t) => {
-        if (tab === 0) return <AdGraph t={t} />;
+      render={(tab, t, narrow) => {
+        if (tab === 0) return <AdGraph t={t} narrow={narrow} />;
         if (tab === 1) return (
           <Findings summary="One over-broad right lets svc-sql control Server Admins. 41 of the 57 paths to Domain Admins cross it, and the account's ticket can be cracked offline."
             rows={[['Privilege risk', 'Critical', 'ad', 'GenericAll on Server Admins'], ['Credential risk', 'High', 'ad', 'Kerberoastable SPN, RC4 allowed'], ['Exposure', 'High', 'windows', 'Logged on to 23 workstations']]}
@@ -9147,7 +9018,7 @@ export function AdWorkbench() {
         );
         return (
           <Remedy label="Paths to Domain Admins" from={57} to={16} t={t} start={2} items={['GenericAll removed', 'Password rotated, AES only', 'Path checked again', 'Recorded for the audit']}>
-            <AdGraph t={t} fix />
+            <AdGraph t={t} fix narrow={narrow} />
           </Remedy>
         );
       }}
@@ -9265,7 +9136,7 @@ export function ZenGateway({ compact, k: fk }) {
                 <div key={c.tool} className={cx(`s${at}`, 'relative grid items-center gap-[.6em] rounded-[.8em] px-[.7em] py-[.7em]')} style={{ gridTemplateColumns: '1.15fr .9fr 1.05fr', background: decided && c.tone === 'crit' ? 'rgb(255 107 93 / .07)' : 'rgb(255 255 255 / .03)', border: '1px solid rgb(160 190 230 / .09)' }}>
                   <span className="min-w-0">
                     <span className="flex items-center gap-[.45em]"><App k={c.plat} /><span className="truncate vz-t">{c.agent}</span></span>
-                    <span className="mt-[.35em] block truncate vz-mono" style={{ color: '#c9d6ff' }}>{c.tool}()</span>
+                    <span className="mt-[.35em] block truncate vz-mono" style={{ color: '#c9d6ff' }}>{c.tool}<span className="vz-wide">()</span></span>
                   </span>
                   <span className="relative flex h-full items-center justify-center">
                     <svg viewBox="0 0 100 20" preserveAspectRatio="none" className="absolute inset-x-0 top-1/2 h-[1.2em] w-full -translate-y-1/2" aria-hidden="true">
@@ -9445,15 +9316,15 @@ export function ZenRecord({ k: fk } = {}) {
                     <span className="relative z-[1] inline-flex h-[2.1em] w-[2.1em] shrink-0 items-center justify-center rounded-full" style={{ background: 'var(--vz-solid)', border: `1px solid ${bad || broken ? 'rgb(255 107 93 / .7)' : ok ? 'rgb(63 217 143 / .6)' : 'rgb(147 162 255 / .5)'}`, color: bad || broken ? '#ff7d70' : ok ? '#4be29a' : ZEN }}><Gl g={bad || broken ? 'x' : ok ? 'check' : 'lock'} className="h-[1em] w-[1em]" /></span>
                     <span className="grid min-w-0 flex-1 items-center gap-[.6em] rounded-[.7em] px-[.8em] py-[.55em]" style={{ gridTemplateColumns: '.7fr 1.6fr .75fr .9fr', background: bad ? 'rgb(255 107 93 / .09)' : 'rgb(255 255 255 / .03)', border: `1px solid ${bad ? 'rgb(255 107 93 / .4)' : 'rgb(160 190 230 / .09)'}` }}>
                       <span className="vz-mono">{r[0]}</span>
-                      <span className="min-w-0"><span className="flex items-center gap-[.4em]"><Logo k={r[2]} size="1.05em" /><span className="truncate vz-t" style={{ fontSize: '.92em' }}>{r[1]}</span></span><span className="block truncate vz-mono" style={{ fontSize: '.74em', color: '#c9d6ff' }}>{r[3]}()</span></span>
-                      <span>{bad ? <span className="flex flex-col items-start gap-[.2em]"><span className="vz-m line-through" style={{ fontSize: '.72em' }}>Block</span><Chip tone="ok">Allow</Chip></span> : <Chip tone={r[5]}>{r[4]}</Chip>}</span>
+                      <span className="min-w-0"><span className="flex items-center gap-[.4em]"><Logo k={r[2]} size="1.05em" /><span className="truncate vz-t" style={{ fontSize: 'max(var(--vz-min), .92em)' }}>{r[1]}</span></span><span className="block truncate vz-mono" style={{ fontSize: 'max(var(--vz-min), .74em)', color: '#c9d6ff' }}>{r[3]}<span className="vz-wide">()</span></span></span>
+                      <span>{bad ? <span className="flex flex-col items-start gap-[.2em]"><span className="vz-m line-through" style={{ fontSize: 'max(var(--vz-min), .72em)' }}>Block</span><Chip tone="ok">Allow</Chip></span> : <Chip tone={r[5]}>{r[4]}</Chip>}</span>
                       <span className="truncate text-right vz-mono" style={{ color: bad ? 'var(--vz-red)' : undefined }}>{bad ? '19c2…e0' : r[6]}</span>
                     </span>
                   </div>
                 );
               })}
             </div>
-            <div className="s4 mt-[1em] grid grid-cols-3 gap-[.5em] vz-m" style={{ fontSize: '.8em' }}>
+            <div className="s4 mt-[1em] grid grid-cols-3 gap-[.5em] vz-m" style={{ fontSize: 'max(var(--vz-min), .8em)' }}>
               {['Agent and task', 'Policy version 14', 'Outcome and approver'].map((t) => <span key={t} className="rounded-[.6em] px-[.6em] py-[.45em] text-center" style={{ background: 'rgb(255 255 255 / .04)' }}>{t}</span>)}
             </div>
             <div className="s5 mt-[.8em] flex items-center justify-between gap-[.6em] rounded-[.8em] px-[.9em] py-[.65em]" style={{ background: 'rgb(147 162 255 / .1)', border: '1px solid rgb(147 162 255 / .3)' }}>
@@ -9482,8 +9353,8 @@ export function ZenApproval({ k: fk } = {}) {
           <div className="s1 space-y-[.35em]">
             {ROUTINE.map(([ag, plat, tool, d, tone, ms]) => (
               <div key={tool} className="flex items-center gap-[.6em] rounded-[.6em] px-[.7em] py-[.4em]" style={{ background: 'rgb(255 255 255 / .03)' }}>
-                <App k={plat} /><span className="truncate vz-t" style={{ fontSize: '.88em', width: '9.5em' }}>{ag}</span><span className="truncate vz-mono" style={{ color: '#c9d6ff' }}>{tool}()</span>
-                <span className="ml-auto flex items-center gap-[.5em]"><span className="vz-mono" style={{ fontSize: '.74em' }}>{ms}</span><Chip tone={tone}>{d}</Chip></span>
+                <App k={plat} /><span className="truncate vz-t" style={{ fontSize: 'max(var(--vz-min), .88em)', width: '9.5em' }}>{ag}</span><span className="truncate vz-mono" style={{ color: '#c9d6ff' }}>{tool}<span className="vz-wide">()</span></span>
+                <span className="ml-auto flex items-center gap-[.5em]"><span className="vz-mono" style={{ fontSize: 'max(var(--vz-min), .74em)' }}>{ms}</span><Chip tone={tone}>{d}</Chip></span>
               </div>
             ))}
           </div>
@@ -9495,12 +9366,12 @@ export function ZenApproval({ k: fk } = {}) {
             <div className="s3 mt-[.6em] flex flex-wrap gap-[.4em]"><Chip tone="ok" plain>Within task: pay approved invoices</Chip><Chip tone="warn" plain>Above ₹10 lakh needs a person</Chip></div>
           </div>
           <div className="s4 relative mt-[.8em] ml-[8%] rounded-[.9em] px-[.9em] py-[.75em]" style={{ background: 'var(--vz-solid)', border: '1px solid rgb(170 200 240 / .18)', boxShadow: '0 1.4em 3em -1em rgb(0 0 0 / .8)' }}>
-            <div className="flex items-center gap-[.5em] vz-m"><Logo k="slack" size="1.1em" /><span className="vz-t" style={{ fontSize: '.9em' }}>Zenstra</span><span>in #treasury-approvals</span><span className="ml-auto vz-mono" style={{ fontSize: '.74em' }}>14:06</span></div>
-            <p className="mt-[.5em] vz-t" style={{ fontSize: '.92em' }}>payments-agent wants to pay vendor 4471 ₹18,40,000</p>
+            <div className="flex items-center gap-[.5em] vz-m"><Logo k="slack" size="1.1em" /><span className="vz-t" style={{ fontSize: 'max(var(--vz-min), .9em)' }}>Zenstra</span><span>in #treasury-approvals</span><span className="ml-auto vz-mono" style={{ fontSize: 'max(var(--vz-min), .74em)' }}>14:06</span></div>
+            <p className="mt-[.5em] vz-t" style={{ fontSize: 'max(var(--vz-min), .92em)' }}>payments-agent wants to pay vendor 4471 ₹18,40,000</p>
             <p className="vz-m">Invoice INV-2207, approved in SAP · policy version 14</p>
             <div className="mt-[.6em] flex items-center gap-[.5em]">
               {k >= 5 ? <span className="inline-flex items-center gap-[.5em] vz-m"><Av name="Ravi Shah" i={1} /><span><b className="text-white">Ravi Shah</b> approved</span></span>
-                : <><span className="rounded-[.5em] px-[.8em] py-[.3em] vz-t" style={{ fontSize: '.85em', background: '#2eb67d', color: '#0b1f15' }}>Approve</span><span className="rounded-[.5em] px-[.8em] py-[.3em] vz-t" style={{ fontSize: '.85em', border: '1px solid rgb(255 255 255 / .2)' }}>Deny</span></>}
+                : <><span className="rounded-[.5em] px-[.8em] py-[.3em] vz-t" style={{ fontSize: 'max(var(--vz-min), .85em)', background: '#2eb67d', color: '#0b1f15' }}>Approve</span><span className="rounded-[.5em] px-[.8em] py-[.3em] vz-t" style={{ fontSize: 'max(var(--vz-min), .85em)', border: '1px solid rgb(255 255 255 / .2)' }}>Deny</span></>}
             </div>
           </div>
           <div className="s6 mt-[.8em] flex items-center justify-between vz-m"><span>Request, approver and outcome written to the record</span><span className="vz-mono">#48231 ✓ chained</span></div>
@@ -11562,7 +11433,6 @@ import ThreatHero from '../components/ThreatHero.jsx';
 import RoleCards from '../components/RoleCards.jsx';
 import { Logo, logoTitle } from '../components/viz/kit.jsx';
 import PerimeterStory from '../components/PerimeterStory.jsx';
-import LogoOrbit from '../components/LogoOrbit.jsx';
 import { Explore, Faq } from '../components/ProductKit.jsx';
 
 /* The home page reads the way a security buyer scans a vendor: what it is,
@@ -11595,8 +11465,8 @@ const WHY_NOW = [
 
 
 const FAQ = [
-  { title: 'What does Deep Algorithms do?', body: 'We secure the identities attackers use to get in: people, machine identities such as keys and service accounts, and AI agents. Four products cover them: adapID AI for human and machine identities and fraud, Zenstra AI for AI agents, BotShield AI for exposure, bots and DDoS, and ICMS for DPDPA compliance.' },
-  { title: 'Which product should we start with?', body: 'Start with the risk that costs you most today. Each product runs on its own and adds to the others when you add it. Agents acting on your systems: Zenstra. Logins, cloud keys or fraud: adapID. Public apps, bots or DDoS: BotShield. Personal data and DPDPA: ICMS.' },
+  { title: 'What does Deep Algorithms do?', body: 'We secure the identities attackers use to get in: people, machine identities and AI agents. adapID AI covers people, keys, service accounts and fraud. Zenstra AI covers AI agents. BotShield AI covers exposure, bots and DDoS. ICMS covers DPDPA compliance.' },
+  { title: 'Which product should we start with?', body: 'Start with the risk that costs you most today; each product runs on its own. Agents acting on your systems: Zenstra. Logins, cloud keys or fraud: adapID. Public apps, bots or DDoS: BotShield. Personal data and DPDPA: ICMS.' },
   { title: 'Do we have to move our data?', body: 'No. adapID uses read-only connectors and one read-only role per AWS account, Zenstra runs as a gateway inside your VPC, BotShield works inline at the edge without diverting traffic, and ICMS connects to the stores that already hold personal data.' },
   { title: 'Which certifications do you hold?', body: 'ISO/IEC 27001, SOC 2 Type II, ISO/IEC 42001 for AI management and ISO/IEC 27701 for privacy. Compliance documentation is available on request.' },
   { title: 'Do you map to Indian regulation?', body: 'Yes. Evidence is mapped to the DPDP Act 2023 and the DPDP Rules 2025, and to RBI and SEBI expectations, from the start rather than added for an audit.' },
@@ -11695,7 +11565,7 @@ function PlatformExplorer() {
               <div>
                 <p className="text-[12px] font-semibold uppercase tracking-[.1em] text-ink-3">{WORKS[L.key].label}</p>
                 <ul className="mt-3 flex flex-wrap gap-2">
-                  {WORKS[L.key].logos.map((k) => <li key={k} title={logoTitle(k)} className="flex h-11 w-11 items-center justify-center rounded-[11px] border border-line bg-white text-[#0e1014]"><Logo k={k} size={22} /><span className="sr-only">{logoTitle(k)}</span></li>)}
+                  {WORKS[L.key].logos.map((k) => <li key={k} title={logoTitle(k)} className="flex h-11 w-11 items-center justify-center rounded-[11px] border border-line bg-white text-[#081c39]"><Logo k={k} size={22} /><span className="sr-only">{logoTitle(k)}</span></li>)}
                 </ul>
               </div>
             ) : (
@@ -11754,7 +11624,7 @@ export default function Home() {
             <h1 id="hero-h" className="t-hero rise" style={{ '--d': '40ms' }}>Stop identity attacks before the damage.</h1>
             <p className="t-lead rise mt-6 max-w-[500px] max-md:mx-auto" style={{ '--d': '110ms' }}>Deep Algorithms learns how every person, machine identity and AI agent should behave, and stops the one that doesn’t, with the reason why.</p>
             <div className="rise mt-9 flex flex-wrap gap-3 max-md:flex-col max-md:[&>*]:w-full" style={{ '--d': '180ms' }}>
-              <Explore label="See the platform" target="#orbit" />
+              <Explore label="See the platform" target="#platform" />
               <Button to="/product-tour" variant="ghost" size="lg"><Icon name="CursorClick" size={16} />Take the product tour</Button>
             </div>
             <div className="rise mt-8 flex items-center gap-2 text-[13.5px] text-ink-3 max-md:justify-center" style={{ '--d': '240ms' }}>
@@ -11772,11 +11642,6 @@ export default function Home() {
       </section>
 
       <WhyNow />
-
-      {/* the logo moment: the mark rises into the plate with our line, then pops out and lands in the identity orbit, then the four products */}
-      <section id="orbit" className="sec scroll-mt-20" aria-labelledby="orbit-h">
-        <div className="wrap"><LogoOrbit /></div>
-      </section>
 
       {/* the platform: four products, one standard */}
       <section id="platform" className="sec scroll-mt-20" aria-labelledby="platform-h">
@@ -12790,7 +12655,7 @@ export default function AdSecurity() {
   return (
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Active Directory Security', path: p.path }]} />
-      <Hero layout="stack" acc="adap" crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Active Directory Security' }]} eyebrow="adapID AI · Active Directory Security"
+      <Hero glance={[['Protects', 'Active Directory: users, groups, service accounts and trusts'], ['Stops', 'Paths to Domain Admins, Kerberoasting and DCSync'], ['Deploys', 'Read-only access to your directory'], ['Shows', 'The one change that closes the most paths']]} layout="stack" acc="adap" crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Active Directory Security' }]} eyebrow="adapID AI · Active Directory Security"
         title={<>Close the path to Domain Admins <span style={{ color: '#7fdcff' }}>before anyone takes it.</span></>}
         lead="See every account, privilege and path through Active Directory, cut the routes attackers would use, and catch the account that starts behaving unlike itself.">
         <Stage3D tilt={[10, 0]} range={[2, 4]} className="mx-auto max-w-[1060px]"><AdTierGraph /></Stage3D>
@@ -12886,7 +12751,7 @@ export default function BotShield() {
   return (
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'BotShield AI', path: p.path }]} />
-      <Hero layout="stack" acc="bot" ribbons="band" crumbs={[{ name: 'Products', path: '/products' }, { name: 'BotShield AI' }]} eyebrow="BotShield AI · Exposure, bots and DDoS"
+      <Hero glance={[['Protects', 'Public apps, APIs, sign-up and login flows'], ['Stops', 'Bots, scraping, OTP abuse and DDoS from L3 to L7'], ['Deploys', 'Inline at the edge, with no traffic diversion'], ['Shows', 'Exposures proved exploitable, with the evidence']]} layout="stack" acc="bot" ribbons="band" crumbs={[{ name: 'Products', path: '/products' }, { name: 'BotShield AI' }]} eyebrow="BotShield AI · Exposure, bots and DDoS"
         title={<>The attack is autonomous. <span style={{ color: '#7ff0dc' }}>Your defence has to be too.</span></>}
         lead="Agents map your attack surface, prove which exposures are exploitable and deploy protection while the fix reaches its owner. Bot defence stops automation by intent, and DDoS protection keeps you online."
         note="One platform for web apps, APIs, login flows and payment journeys.">
@@ -13101,7 +12966,7 @@ function RiskPolicy() {
         <div className="flex h-3 overflow-hidden rounded-full">
           {ZONES.map((x, i) => <span key={x.label} style={{ flex: (x.to - (i ? ZONES[i - 1].to : 0)), background: x.tone, opacity: x === z ? 1 : 0.35 }} />)}
         </div>
-        <input type="range" min="0" max="100" value={v} onChange={(e) => setV(+e.target.value)} aria-label="Drag to set a risk score" className="absolute inset-x-0 -top-2 h-7 w-full cursor-pointer appearance-none bg-transparent [&::-webkit-slider-thumb]:h-7 [&::-webkit-slider-thumb]:w-7 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-4 [&::-webkit-slider-thumb]:border-[#0a0b0e] [&::-webkit-slider-thumb]:bg-white [&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:w-6 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white" />
+        <input type="range" min="0" max="100" value={v} onChange={(e) => setV(+e.target.value)} aria-label="Drag to set a risk score" className="absolute inset-x-0 -top-2 h-7 w-full cursor-pointer appearance-none bg-transparent [&::-webkit-slider-thumb]:h-7 [&::-webkit-slider-thumb]:w-7 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-4 [&::-webkit-slider-thumb]:border-[#051530] [&::-webkit-slider-thumb]:bg-white [&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:w-6 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white" />
         <div className="mt-4 grid grid-cols-4 text-[12.5px] text-ink-3">{ZONES.map((x) => <span key={x.label}>{x.label}</span>)}</div>
       </div>
       <p className="mt-6 text-[13.5px] text-ink-3">Drag the score. Thresholds and responses are your policy; these are an example.</p>
@@ -13121,7 +12986,7 @@ export default function Cirm() {
   return (
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'adapID AI', path: p.path }]} />
-      <Hero layout="stack" acc="adap" crumbs={[{ name: 'Products', path: '/products' }, { name: 'adapID AI' }]} eyebrow="adapID AI · Identity risk management"
+      <Hero glance={[['Protects', 'People and machine identities across your IdP, cloud and SaaS'], ['Stops', 'Account takeover, insider misuse and over-privileged keys'], ['Deploys', 'Read-only connectors; one read-only role per AWS account'], ['Shows', 'A live risk score with the reason for every point']]} layout="stack" acc="adap" crumbs={[{ name: 'Products', path: '/products' }, { name: 'adapID AI' }]} eyebrow="adapID AI · Identity risk management"
         title={<>A live risk score for every identity. <span style={{ color: '#7fdcff' }}>Acted on the moment it changes.</span></>}
         lead="adapID AI learns how each person normally works across your identity provider, cloud and SaaS, and acts when that changes, before a stolen login becomes a breach.">
         <Stage3D tilt={[12, 0]} range={[3, 5]} className="mx-auto max-w-[860px]"><AdapRiskTimeline /></Stage3D>
@@ -13247,7 +13112,7 @@ function Lanes() {
   const lane = (title, steps, bad) => (
     <div className="card p-6 md:p-8" style={bad ? undefined : { borderColor: 'rgb(52 224 195 / .4)' }}>
       <p className="text-[13px] font-semibold uppercase tracking-[.08em]" style={{ color: bad ? 'var(--color-ink-3)' : A }}>{title}</p>
-      <div className="mt-6 flex items-center gap-2 overflow-x-auto pb-1">
+      <div tabIndex={0} role="group" aria-label="The five patterns" className="mt-6 flex items-center gap-2 overflow-x-auto pb-1">
         {steps.map(([g, t], i) => (
           <span key={t} className="flex items-center gap-2">
             <span className="flex min-w-[92px] flex-col items-center rounded-[14px] border border-line bg-fg/[.03] px-3 py-3 text-center">
@@ -13499,7 +13364,7 @@ function CaseFlow() {
 
 function Explanation() {
   return (
-    <div className="tone-d overflow-hidden rounded-[24px] border border-line-2 p-7 md:p-9" style={{ background: 'linear-gradient(180deg, #15171b, #0e1014)' }}>
+    <div className="tone-d overflow-hidden rounded-[24px] border border-line-2 p-7 md:p-9" style={{ background: 'linear-gradient(180deg, #10274a, #081c39)' }}>
       <p className="text-[12.5px] font-semibold uppercase tracking-[.1em] text-ink-3">One reason, as the analyst sees it</p>
       <div className="mt-6 flex items-start justify-between gap-6">
         <p className="text-[22px] font-semibold leading-snug tracking-[-0.02em] text-ink md:text-[26px]">Phone call during the payment</p>
@@ -13529,7 +13394,7 @@ export default function Fraud() {
   return (
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Identity Fraud Prevention', path: p.path }]} />
-      <Hero acc="adap" crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Identity Fraud Prevention' }]} eyebrow="adapID AI · Identity Fraud Prevention"
+      <Hero glance={[['Protects', 'Mobile banking, internet banking and UPI'], ['Stops', 'Account takeover, payment scams and mule accounts'], ['Deploys', 'An SDK in your app and on your web channel'], ['Shows', 'Every decision in under 80 ms, with its reason']]} acc="adap" crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Identity Fraud Prevention' }]} eyebrow="adapID AI · Identity Fraud Prevention"
         title={<>Stop fraud <span style={{ color: '#7fdcff' }}>before the money moves.</span></>}
         lead="Account takeover, payment scams and mule accounts, caught at login and at payment in under 80 ms, with the reason for every decision."
         note="For mobile banking, internet banking and UPI.">
@@ -13546,7 +13411,7 @@ export default function Fraud() {
       {/* one scam, caught: the detail behind the hero's second row */}
       <section className="sec" aria-labelledby="scam-h">
         <div className="wrap grid items-center gap-12 lg:grid-cols-[.8fr_1.2fr] lg:gap-16">
-          <SectionHead align="left" id="scam-h" acc={A} eyebrow="A scam, caught" title="Her password, her phone, her OTP. Not her decision." lead="Anita logs in as herself. But she is on a call, pasting a new payee’s account number and paying ₹2,40,000 with the remark “KYC update”. Each signal is read in plain words; the payee is on a mule list, so the payment is paused and an analyst calls her." />
+          <SectionHead align="left" id="scam-h" acc={A} eyebrow="A scam, caught" title="Her password, her phone, her OTP. Not her decision." lead="Anita logs in as herself, but she is on a call, paying ₹2,40,000 to a new payee with the remark “KYC update”. The payee is on a mule list, so the payment is paused and an analyst calls her." />
           <Reveal delay={100}><ScamCatch /></Reveal>
         </div>
       </section>
@@ -13689,7 +13554,7 @@ export default function Icms() {
   return (
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'ICMS Compliance Suite', path: p.path }]} />
-      <Hero acc="icms" crumbs={[{ name: 'Products', path: '/products' }, { name: 'ICMS Compliance Suite' }]} eyebrow="ICMS Compliance Suite · DPDPA"
+      <Hero glance={[['Protects', 'Personal data in the stores that already hold it'], ['Stops', 'Access without consent or a lawful purpose'], ['Deploys', 'Connected to your data stores and identity sources'], ['Shows', 'DPDPA evidence, ready for the 72-hour breach report']]} acc="icms" crumbs={[{ name: 'Products', path: '/products' }, { name: 'ICMS Compliance Suite' }]} eyebrow="ICMS Compliance Suite · DPDPA"
         title={<>DPDPA compliance you can prove, <span style={{ color: '#ffd98f' }}>not just claim.</span></>}
         lead="Every access to personal data checked against purpose and consent, and the evidence an auditor asks for, generated as it happens."
         note="For customer data, patient records and employee data.">
@@ -13802,7 +13667,7 @@ function Table({ cols, rows, caption }) {
         <thead><tr className="border-b border-line">{cols.map((c) => <th key={c} scope="col" className="px-5 py-4 text-[12px] font-semibold uppercase tracking-[.08em] text-ink-3">{c}</th>)}</tr></thead>
         <tbody>{rows.map((r) => (
           <tr key={r[0]} className="border-b border-line last:border-0">
-            <td className="px-5 py-4 font-mono text-[13.5px] text-ink"><span className="flex items-center gap-3">{r[5] && <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border border-line bg-white text-[#0e1014]"><Logo k={r[5]} size={18} /></span>}{r[0]}</span></td><td className="px-5 py-4 text-ink-2">{r[1]}</td><td className="px-5 py-4 text-ink-3">{r[2]}</td>
+            <td className="px-5 py-4 font-mono text-[13.5px] text-ink"><span className="flex items-center gap-3">{r[5] && <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border border-line bg-white text-[#081c39]"><Logo k={r[5]} size={18} /></span>}{r[0]}</span></td><td className="px-5 py-4 text-ink-2">{r[1]}</td><td className="px-5 py-4 text-ink-3">{r[2]}</td>
             <td className="px-5 py-4"><span className={cx('vz-chip', TONE[r[4]])} style={{ fontSize: 12.5 }}>{r[3]}</span></td>
           </tr>
         ))}</tbody>
@@ -13838,7 +13703,7 @@ function LeakedKey() {
         <pre className="overflow-x-auto py-3 font-mono text-[13.5px] leading-[1.9]" aria-label="config.yml, lines 11 to 16; lines 14 and 15 hold an AWS access key and its secret">
           {CODE.map(([n, t, hot]) => (
             <span key={n} className={cx('block px-5 transition-colors duration-700', hot && on && 'bg-[#e5484d]/18')} style={{ transitionDelay: hot ? '500ms' : undefined }}>
-              <span className="mr-5 inline-block w-6 select-none text-right text-[#6e7681]">{n}</span>{t}
+              <span className="mr-5 inline-block w-6 select-none text-right text-[#8b949e]">{n}</span>{t}
             </span>
           ))}
         </pre>
@@ -13856,7 +13721,7 @@ function LeakedKey() {
       <ul className="divide-y divide-line overflow-hidden rounded-[16px] border border-line bg-bg-1" aria-label="Other findings from the same scan">
         {SECRETS.slice(1).map((r) => (
           <li key={r[0]} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3.5 text-[14px]">
-            <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[7px] border border-line bg-white text-[#0e1014]"><Logo k={r[5]} size={16} /></span>
+            <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[7px] border border-line bg-white text-[#081c39]"><Logo k={r[5]} size={16} /></span>
             <span className="font-mono text-[13.5px] text-ink">{r[0]}</span>
             <span className="text-ink-3">{r[1]}</span>
             <span className={cx('vz-chip ml-auto', TONE[r[4]])} style={{ fontSize: 12.5 }}>{r[3]}</span>
@@ -13879,8 +13744,8 @@ function GrantBars() {
       {[['ecs-notify-svc', 214, 9, 'ecs'], ['lambda-kyc-sync', 88, 31, 'lambda'], ['glue-ledger-etl', 61, 44, 'glue']].map(([n, g, u, logo], i) => (
         <div key={n} className="border-b border-line py-5 first:pt-0 last:border-0 last:pb-0">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="flex items-center gap-3 font-mono text-[14px] text-ink"><span className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] border border-line bg-white text-[#0e1014]"><Logo k={logo} size={18} /></span>{n}</span>
-            <span className="text-[14px] text-ink-3"><b className="text-ink num">{u}</b> used of <b className="text-ink num">{g}</b> granted · <b className="num" style={{ color: '#e5484d', opacity: done ? 1 : 0, transition: 'opacity .5s 1.2s' }}>{g - u} to remove</b></span>
+            <span className="flex items-center gap-3 font-mono text-[14px] text-ink"><span className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] border border-line bg-white text-[#081c39]"><Logo k={logo} size={18} /></span>{n}</span>
+            <span className="text-[14px] text-ink-3"><b className="text-ink num">{u}</b> used of <b className="text-ink num">{g}</b> granted · <b className="num" style={{ color: 'var(--color-crit)', opacity: done ? 1 : 0, transition: 'opacity .5s 1.2s' }}>{g - u} to remove</b></span>
           </div>
           <div className="relative mt-3 h-3 overflow-hidden rounded-full" style={{ background: 'repeating-linear-gradient(135deg, rgb(229 72 77 / .22) 0 6px, rgb(229 72 77 / .08) 6px 12px)' }}>
             <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: done ? `${(u / g) * 100}%` : '100%', background: A, transition: `width 1.4s cubic-bezier(.65,0,.35,1) ${i * 150}ms` }} />
@@ -13903,7 +13768,7 @@ export default function Nhi() {
   return (
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'NHI Security for AWS', path: p.path }]} />
-      <Hero acc="adap" crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'NHI Security for AWS' }]} eyebrow="adapID AI · NHI Security for AWS"
+      <Hero glance={[['Protects', 'IAM roles, keys and workload identities in AWS'], ['Stops', 'Unused permissions, open trust policies, leaked secrets'], ['Deploys', 'One read-only role per AWS account'], ['Shows', 'The least-privilege fix, checked against CloudTrail']]} acc="adap" crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'NHI Security for AWS' }]} eyebrow="adapID AI · NHI Security for AWS"
         title={<>Every machine identity in your AWS accounts. <span style={{ color: '#7fdcff' }}>Found, scored, watched.</span></>}
         lead="Machine identities far outnumber people, and most were created by a deploy, not by a decision. adapID finds each role, key and workload identity, shows what it can reach and what it actually uses, and catches the one that starts behaving differently."
         note="Agentless. One read-only role per account.">
@@ -13927,7 +13792,7 @@ export default function Nhi() {
           <Reveal delay={120} className="self-center">
             <div className="tone-d overflow-hidden rounded-[20px] border border-line bg-[#080a0e]">
               <div className="flex items-center justify-between border-b border-line px-5 py-3"><span className="font-mono text-[13px] text-ink-2">adapid-readonly · trust policy</span><span className="vz-chip c-ok" style={{ fontSize: 12 }}>Read-only</span></div>
-              <pre className="overflow-x-auto p-5 font-mono text-[13px] leading-[1.75] text-[#bcd6f2]"><code>{TRUST}</code></pre>
+              <pre tabIndex={0} aria-label="config/notify.env, with the leaked key on line 14" className="overflow-x-auto p-5 font-mono text-[13px] leading-[1.75] text-[#bcd6f2]"><code>{TRUST}</code></pre>
             </div>
           </Reveal>
         </div>
@@ -14031,7 +13896,7 @@ function Deployment() {
             <span className="mt-1 block text-[15px] leading-relaxed text-ink-2">{w.p}</span>
             {w.logos && (
               <span className="mt-3 flex flex-wrap gap-2">
-                {w.logos.map((k) => <span key={k} title={logoTitle(k)} className="inline-flex h-9 w-9 items-center justify-center rounded-[9px] border border-line bg-white text-[#0e1014]"><Logo k={k} size={19} color={k === 'azure' ? '#0078d4' : undefined} /><span className="sr-only">{logoTitle(k)}</span></span>)}
+                {w.logos.map((k) => <span key={k} title={logoTitle(k)} className="inline-flex h-9 w-9 items-center justify-center rounded-[9px] border border-line bg-white text-[#081c39]"><Logo k={k} size={19} color={k === 'azure' ? '#0078d4' : undefined} /><span className="sr-only">{logoTitle(k)}</span></span>)}
               </span>
             )}
             {w.code && <code className="mono mt-3 inline-block rounded-[8px] border border-line bg-fg/[.04] px-2.5 py-1.5 text-[13px] text-ink-2">{w.code}</code>}
@@ -14046,7 +13911,7 @@ export default function Zenstra() {
   return (
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'Zenstra AI', path: p.path }]} />
-      <Hero acc="zen" crumbs={[{ name: 'Products', path: '/products' }, { name: 'Zenstra AI' }]} eyebrow="Zenstra AI · Security for AI agents"
+      <Hero glance={[['Protects', 'AI agents you build and the ones you buy'], ['Stops', 'Any action outside an agent’s task, before it runs'], ['Deploys', 'A gateway inside your VPC'], ['Shows', 'A tamper-evident record of every decision']]} acc="zen" crumbs={[{ name: 'Products', path: '/products' }, { name: 'Zenstra AI' }]} eyebrow="Zenstra AI · Security for AI agents"
         title={<>Let AI agents act. <span style={{ color: '#aab6ff' }}>Check every action first.</span></>}
         lead="Zenstra finds every AI agent and MCP server in your enterprise, gives each one an owner and access sized to its task, and decides every tool call before it runs."
         ctas={<><Explore label="See it check an agent" /><Button href="https://www.zenstra.ai" target="_blank" rel="noopener" variant="ghost" size="lg">Visit zenstra.ai<Icon name="ArrowUpRight" size={16} /></Button></>}
@@ -14149,17 +14014,17 @@ FILE: src/styles.css
   --font-display: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SFMono-Regular', monospace;
 
-  --color-bg: #0a0b0e;
-  --color-bg-1: #0f1114;
-  --color-bg-2: #15171b;
-  --color-bg-3: #1c1f24;
+  --color-bg: #051530;
+  --color-bg-1: #0a1e3c;
+  --color-bg-2: #10274a;
+  --color-bg-3: #173156;
   --color-ink: #f2f3f5;
-  --color-ink-2: #b8bcc3;
-  --color-ink-3: #8b9099;
+  --color-ink-2: #bcc8da;
+  --color-ink-3: #8f9eb5;
   --color-line: rgb(255 255 255 / 0.09);
   --color-line-2: rgb(255 255 255 / 0.16);
   --color-fg: #ffffff;          /* strongest foreground: white on dark, ink on light */
-  --color-on-acc: #0e1014;      /* text on an accent fill */
+  --color-on-acc: #081c39;      /* text on an accent fill */
   --color-sky: #5fd0ff;         /* the default accent */
 
   --color-brand: #0068ac;
@@ -14256,7 +14121,7 @@ FILE: src/styles.css
 
   /* `calm`: a quiet, near-solid surface behind dense reading (no live blur, so scrolling stays smooth) */
   .calm { position: relative; isolation: isolate; }
-  .calm::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgb(10 11 14 / .92); }
+  .calm::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgb(5 21 48 / .92); }
 
   /* long-form reading */
   .prose-da { color: var(--color-ink-2); font-size: 18.5px; line-height: 1.78; }
@@ -14270,7 +14135,7 @@ FILE: src/styles.css
 /* ---------- backgrounds ---------- */
 /* A still, neutral graphite surface behind the dark bands, lit faintly from above.
    Colour lives in the product pictures and the accents, not in the background. */
-.backdrop { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; background: radial-gradient(110% 70% at 50% -20%, #16181d 0%, #0a0b0e 60%); }
+.backdrop { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; background: radial-gradient(110% 70% at 50% -20%, #16181d 0%, #051530 60%); }
 .backdrop i { display: none; }
 main, footer { position: relative; z-index: 1; }
 /* glows may bleed past the page edge; never let them scroll it sideways */
@@ -14339,11 +14204,11 @@ main { overflow-x: clip; }
     --color-bg: #edf2f8; --color-bg-1: #ffffff; --color-bg-2: #e2e8f0; --color-bg-3: #d6dee9;
     --color-ink: #0e1116; --color-ink-2: #434852; --color-ink-3: #626873;
     --color-line: rgb(14 17 22 / 0.1); --color-line-2: rgb(14 17 22 / 0.17);
-    --color-cyan-2: #006fb9; --color-sky: #0a74c4; --color-focus: #006fb9;
-    --color-zen: #5060d8; --color-adap: #087fb6; --color-bot: #05836d; --color-icms: #94600b;
-    --color-ok: #118652; --color-warn: #9a5f00; --color-crit: #c4352a; --color-hold: #bf5612;
-    --color-fg: #121418; --color-on-acc: #ffffff;
-    --hl: 36%;
+    --color-cyan-2: #005f9f; --color-sky: #0064a8; --color-focus: #005f9f;
+    --color-zen: #4050c8; --color-adap: #00658f; --color-bot: #04705d; --color-icms: #8a5600;
+    --color-ok: #0c7546; --color-warn: #8a5400; --color-crit: #b02a20; --color-hold: #bf5612;
+    --color-fg: #0d2243; --color-on-acc: #ffffff;
+    --hl: 23%;
     color-scheme: light;
     color: var(--color-ink);
   }
@@ -14355,13 +14220,13 @@ main { overflow-x: clip; }
   }
   /* dark islands inside light: product pictures, covers and anything marked .tone-d */
   :root:not([data-theme='dark']) :is(.page > :not(.stage, .fixed), .tone-l) .tone-d {
-    --color-bg: #0a0b0e; --color-bg-1: #0f1114; --color-bg-2: #15171b; --color-bg-3: #1c1f24;
-    --color-ink: #f2f3f5; --color-ink-2: #b8bcc3; --color-ink-3: #8b9099;
+    --color-bg: #051530; --color-bg-1: #0a1e3c; --color-bg-2: #10274a; --color-bg-3: #173156;
+    --color-ink: #f2f3f5; --color-ink-2: #bcc8da; --color-ink-3: #8f9eb5;
     --color-line: rgb(255 255 255 / 0.09); --color-line-2: rgb(255 255 255 / 0.16);
     --color-cyan-2: #62d2ff; --color-sky: #5fd0ff; --color-focus: #00aeef;
     --color-zen: #93a2ff; --color-adap: #3cc8f6; --color-bot: #34e0c3; --color-icms: #f4c76c;
     --color-ok: #3fd98f; --color-warn: #f6b955; --color-crit: #ff6b5d; --color-hold: #ff9a5c;
-    --color-fg: #ffffff; --color-on-acc: #0e1014;
+    --color-fg: #ffffff; --color-on-acc: #081c39;
     --hl: 74%;
     color-scheme: dark;
   }
@@ -14410,7 +14275,7 @@ main { overflow-x: clip; }
 }
 .logo-mono { opacity: 0.7; transition: opacity 0.3s; }
 /* a dark screen for pictures that have no window of their own */
-.screen { border-radius: 16px; border: 1px solid rgb(160 190 230 / 0.12); background: radial-gradient(120% 90% at 50% 0%, #17191d, #0b0d11 70%); }
+.screen { border-radius: 16px; border: 1px solid rgb(160 190 230 / 0.12); background: radial-gradient(120% 90% at 50% 0%, #122a4e, #061833 70%); }
 .logo-mono:hover { opacity: 1; }
 
 /* ---------- theme switch: icons follow the attribute, so no hydration flash ---------- */
@@ -14879,18 +14744,6 @@ test('home: the pinned picture follows the story as you scroll', async ({ page, 
   await expect(page.getByRole('link', { name: 'How adapID catches it' }).first()).toBeVisible();
 });
 
-test('home: the logo moment ends on the four products in a line, each linked', async ({ page }) => {
-  await page.goto('/');
-  await hydrated(page);
-  const orbit = page.locator('#orbit');
-  await orbit.scrollIntoViewIfNeeded();
-  await expect(orbit.getByRole('heading', { name: 'Identity security for the AI era.' })).toBeVisible();
-  await expect(orbit.getByRole('img', { name: /mark lands at the centre/ })).toBeVisible();
-  for (const [name, href] of [['Zenstra AI', '/agentic-ai/agentic-identity'], ['adapID AI', '/adapid-ai'], ['BotShield AI', '/botshield-ai'], ['ICMS Compliance Suite', '/dpdpa-compliance']]) {
-    await expect(orbit.getByRole('link', { name: new RegExp(name) })).toHaveAttribute('href', href);
-  }
-});
-
 test('home: the hero scene plays, can be paused, and tells the whole story to screen readers', async ({ page }) => {
   await page.goto('/');
   const hero = page.locator('figure.th');
@@ -14925,6 +14778,44 @@ test('product tour: steps by button, keyboard and link, and ends on a demo', asy
   await expect(page).toHaveURL(/#step-3$/);
   await page.goto('/product-tour#step-12');
   await expect(frame.getByRole('link', { name: 'Book a demo' })).toBeVisible();
+});
+
+test('product pictures keep their smallest text readable, phone or desktop', async ({ page }) => {
+  for (const path of ['/adapid-ai', '/ad-security', '/dpdpa-compliance']) {
+    await page.goto(path);
+    await hydrated(page);
+    const smallest = await page.evaluate(() => {
+      let min = 99;
+      for (const v of document.querySelectorAll('.vz')) for (const e of v.querySelectorAll('*')) {
+        if (!e.getBoundingClientRect().width || ![...e.childNodes].some((c) => c.nodeType === 3 && c.textContent.trim().length > 1)) continue;
+        min = Math.min(min, parseFloat(getComputedStyle(e).fontSize));
+      }
+      return min;
+    });
+    expect(smallest, path).toBeGreaterThanOrEqual(9.5);
+  }
+});
+
+test('on a phone the attack path reads as a chain, one step under the other', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'phone layout');
+  await page.goto('/ad-security');
+  await hydrated(page);
+  const bench = page.locator('figure:has([role=tablist])').first();
+  await bench.scrollIntoViewIfNeeded();
+  await bench.getByRole('tab', { name: 'Attack paths' }).click();
+  const chain = bench.locator('.wb-chain');
+  await expect(chain).toBeVisible();
+  for (const n of ['j.mehta', 'WKS-0412', 'svc-sql', 'Server Admins', 'Domain Admins']) await expect(chain.getByText(n, { exact: true })).toBeVisible();
+  await bench.getByRole('tab', { name: 'Remediation' }).click();
+  await expect(bench.getByText('Remediated, and checked again')).toBeVisible({ timeout: 8000 });
+});
+
+test('home goes from the numbers straight to the platform, with no empty logo moment', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#orbit')).toHaveCount(0);
+  await hydrated(page);
+  await page.getByRole('button', { name: /See the platform/ }).first().click();
+  await expect(page.locator('#platform-h')).toBeInViewport({ timeout: 5000 });
 });
 
 ====================================================================================================
