@@ -597,10 +597,10 @@ Built in India.
 00:01:02.663 --> 00:01:06.941
 Trusted by banks, government and enterprises that cannot afford a breach.
 
-00:01:07.241 --> 00:01:09.723
+00:01:07.241 --> 00:01:10.261
 Find your riskiest identity before attackers do.
 
-00:01:09.723 --> 00:01:12.959
+00:01:10.961 --> 00:01:13.552
 The future is decided today. Book a demo.
 
 ====================================================================================================
@@ -4280,7 +4280,7 @@ export function CtaBand({ title = 'Find your riskiest identity before attackers 
 }
 
 /* The product film: poster first, the real player only once asked for. */
-export function FilmPlayer({ src = '/video/deep-algorithms-film', poster = '/video/film-poster.webp', captions = '/video/deep-algorithms-film.vtt', title = 'One bank, one night, five attacks', duration = '1:14' }) {
+export function FilmPlayer({ src = '/video/deep-algorithms-film', poster = '/video/film-poster.webp', captions = '/video/deep-algorithms-film.vtt', title = 'One bank, one night, five attacks', duration = '1:15' }) {
   const [play, setPlay] = useState(false);
   const v = useRef(null);
   const meta = <span className="inline-flex items-center gap-2 rounded-full bg-black/40 px-3 py-1.5 text-[13.5px] font-medium text-white/90 backdrop-blur"><Icon name="ClosedCaptioning" size={16} />Captions · {duration}</span>;
@@ -9461,7 +9461,7 @@ const T = {
   rack: Sh.start - 0.05, cables: wordAt(Sh, 2) + 0.2, terminal: wordAt(Sh, 5) + 0.05, attacker: wordAt(Sh, 9) - 0.15,
   typing: Lg.start - 0.1, soc: wordAt(Lg, 8) - 0.1,
   brand: Br.start - 0.55, inc1: Br.end + 0.8,
-  recap: Rc.start - 0.45, mumbai: Tr.start - 0.15, skyline: wordAt(Tr, 3) - 0.1, team: wordAt(Tr, 8) - 0.1,
+  recap: Rc.start - 0.45, mumbai: Tr.start - 0.15, skyline: wordAt(Tr, 3) - 0.1, gov: wordAt(Tr, 5) + 0.05, team: wordAt(Tr, 8) - 0.1,
   cta: C.cta.start - 0.3,
 };
 const beat = (line, next, frac) => line.start + (next - line.start) * frac;
@@ -9605,14 +9605,21 @@ const SCENES = [
   [T.recap, T.mumbai, (t) => <Recap t={t} a={T.recap} b={T.mumbai} />],
   [T.mumbai, T.skyline, (t) => (
     <>
-      <Shot id="mumbai" t={t} a={T.mumbai} b={T.skyline} kb={[1.03, 1.11]} origin="55% 60%" />
+      <Shot id="charminar" t={t} a={T.mumbai} b={T.skyline} kb={[1.02, 1.1]} origin="50% 70%" />
       <Scrim o={0.95} />
       <div style={{ position: 'absolute', left: 120, bottom: 130 }}><Spoken line={Tr} t={t} size={104} words="Built in India." part={[0, 3 / 14]} /></div>
     </>
   )],
-  [T.skyline, T.team, (t) => (
+  [T.skyline, T.gov, (t) => (
     <>
-      <Shot id="skyline" t={t} a={T.skyline} b={T.team} kb={[1.02, 1.09]} />
+      <Shot id="payment" t={t} a={T.skyline} b={T.gov} kb={[1.04, 1.12]} />
+      <Scrim o={0.85} />
+      <div style={{ position: 'absolute', left: 120, bottom: 130 }}><Spoken line={Tr} t={t} size={88} words="Trusted by banks, government" part={[3 / 14, 7 / 14]} /></div>
+    </>
+  )],
+  [T.gov, T.team, (t) => (
+    <>
+      <Shot id="delhi" t={t} a={T.gov} b={T.team} kb={[1.03, 1.1]} origin="50% 55%" />
       <Scrim o={0.95} />
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(0deg, rgb(3 5 8 / .55), transparent 40%)' }} />
       <div style={{ position: 'absolute', left: 120, bottom: 130 }}><Spoken line={Tr} t={t} size={88} words="Trusted by banks, government" part={[3 / 14, 7 / 14]} /></div>
@@ -9734,7 +9741,7 @@ function Proof({ t, a, b }) {
   const logos = ease(seg(t, a + 0.5, a + 1.1));
   return (
     <>
-      <Shot id="team" t={t} a={a} b={b} kb={[1.03, 1.12]} dim={0.15 + 0.35 * logos} />
+      <Shot id="office" t={t} a={a} b={b} kb={[1.03, 1.12]} dim={0.15 + 0.35 * logos} />
       <Scrim side="t" o={0.7} />
       <div style={{ position: 'absolute', left: 120, top: 110 }}><Spoken line={Tr} t={t} size={76} width={1700} words="and enterprises that cannot afford a breach." part={[7 / 14, 1]} /></div>
       <div style={{ position: 'absolute', left: 120, right: 120, bottom: 170, display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 20, perspective: 1600 }}>
@@ -9759,25 +9766,26 @@ function Proof({ t, a, b }) {
 function Cta({ t, a }) {
   const L = C.cta;
   const x = ease(seg(t, a, a + 0.7));
-  const lock = ease(seg(t, wordAt(L, 7) - 0.3, wordAt(L, 7) + 0.5)); // "The future is decided today."
+  const L2 = C.cta2;
+  const lock = ease(seg(t, L2.start - 0.35, L2.start + 0.45)); // "The future is decided today.", after a beat
   const out = 1 - seg(t, LENGTH - 0.9, LENGTH - 0.05);
   return (
     <div style={{ position: 'absolute', inset: 0, opacity: out }}>
       <Shot id="nightroad" t={t} a={a} b={LENGTH} kb={[1.0, 1.12]} dim={0.3 + 0.25 * lock} blur={lock * 8} offset={60} />
       <Scrim o={0.7 * (1 - lock)} />
       <div style={{ position: 'absolute', left: 120, bottom: 130, opacity: x * (1 - lock), transform: `translateY(${(1 - x) * 26 - lock * 40}px)` }}>
-        <Spoken line={L} t={t} size={108} width={1500} words="Find your riskiest identity before attackers do." dim={0.2} part={[0, 7 / 17]} />
+        <Spoken line={L} t={t} size={108} width={1500} dim={0.2} />
       </div>
       <div style={{ position: 'absolute', left: 0, right: 0, top: 150, textAlign: 'center', opacity: lock, transform: `translateY(${(1 - lock) * 30}px)` }}>
         <img src="/brand/logo-lockup-inverse.webp" alt="Deep Algorithms" style={{ height: 110, margin: '0 auto' }} />
         <p style={{ marginTop: 50, fontSize: 80, fontWeight: 600, letterSpacing: '-0.045em', color: '#fff' }}>The future is decided today.</p>
         <div style={{ marginTop: 50, display: 'flex', justifyContent: 'center', gap: 18 }}>
           {LINE.map(([k, n], i) => {
-            const y = ease(seg(t, wordAt(L, 9) + i * 0.12, wordAt(L, 9) + 0.5 + i * 0.12));
+            const y = ease(seg(t, wordAt(L2, 2) + i * 0.12, wordAt(L2, 2) + 0.5 + i * 0.12));
             return <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 12, padding: '12px 20px 12px 14px', borderRadius: 18, background: 'rgb(10 14 20 / .55)', border: '1px solid rgb(180 200 230 / .2)', opacity: y, transform: `translateY(${(1 - y) * 16}px)` }}><ProductMark p={k} size={48} loading="eager" /><span style={{ fontSize: 28, fontWeight: 600 }}>{n}</span></span>;
           })}
         </div>
-        <div style={{ marginTop: 56, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 24, opacity: ease(seg(t, wordAt(L, 12) - 0.4, wordAt(L, 12) + 0.2)) }}>
+        <div style={{ marginTop: 56, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 24, opacity: ease(seg(t, wordAt(L2, 5) - 0.4, wordAt(L2, 5) + 0.2)) }}>
           <span style={{ height: 96, padding: '0 52px', display: 'inline-flex', alignItems: 'center', borderRadius: 99, background: '#0a6dbb', color: '#fff', fontSize: 36, fontWeight: 600, boxShadow: '0 20px 60px -15px rgb(10 109 187 / .8)' }}>Book a demo</span>
           <span style={{ fontSize: 44, color: '#fff', fontWeight: 500, letterSpacing: '-0.01em' }}>deepalgorithms.io</span>
         </div>
@@ -10882,7 +10890,7 @@ export default function Home() {
       {/* the film */}
       <section id="film" className="stage sec scroll-mt-20" aria-labelledby="film-h">
         <div className="wrap">
-          <SectionHead id="film-h" eyebrow="Watch · 74 seconds" title="One bank. One night. Five attacks." lead="A scam payment, a rogue AI agent, a stolen login, a bot flood and a regulator’s question, and how each Deep Algorithms product stops it before the damage is done." />
+          <SectionHead id="film-h" eyebrow="Watch · 75 seconds" title="One bank. One night. Five attacks." lead="A scam payment, a rogue AI agent, a stolen login, a bot flood and a regulator’s question, and how each Deep Algorithms product stops it before the damage is done." />
           <Reveal up className="mx-auto mt-14 max-w-[1000px]"><FilmPlayer /></Reveal>
         </div>
       </section>
@@ -13777,10 +13785,11 @@ Live-action shots in the product film. All are free for commercial use with no a
 | `traffic` | BotShield background | [Coverr](https://coverr.co/s?q=cars-driving-at-night) |
 | `corridor` | Worst case: breach clock | [Pexels](https://www.pexels.com/video/3192916/) |
 | `ward` | ICMS background | [Coverr](https://coverr.co/s?q=iv-in-hospital-room) |
-| `mumbai` | Built in India | [Pexels](https://www.pexels.com/video/10053214/) |
-| `skyline` | Trusted by banks, government | [Pexels](https://www.pexels.com/video/20613234/) |
+| `charminar` | Built in India (Charminar, Hyderabad) | [Pexels](https://www.pexels.com/video/14590277/) |
+| `payment` | Trusted by banks | [Pexels](https://www.pexels.com/video/6602062/) |
+| `delhi` | Government (Rashtrapati Bhavan, New Delhi) | [Pexels](https://www.pexels.com/video/20794145/) |
+| `office` | Enterprises that cannot afford a breach | [Pexels](https://www.pexels.com/video/7581202/) |
 | `morning` | 09:00, the morning after | [Coverr](https://coverr.co/s?q=office+building) |
-| `team` | Enterprises that cannot afford a breach | [Pexels](https://www.pexels.com/video/7253660/) |
 
 Also by Deep Algorithms in the film: the product pictures (src/components/viz), logos, the narration (Kokoro, Apache-2.0, voice af_heart) and the score (tools/film/mix.py).
 
@@ -13789,7 +13798,7 @@ FILE: website/tools/film/README.md
 ====================================================================================================
 # Product film
 
-The film on the home page (`public/video/deep-algorithms-film.mp4`, 1:14). It is made from code so it can be re-cut when the products or the words change: live-action footage carries the world and the threat, and the site's own product pictures carry the answer.
+The film on the home page (`public/video/deep-algorithms-film.mp4`, 1:15). It is made from code so it can be re-cut when the products or the words change: live-action footage carries the world and the threat, and the site's own product pictures carry the answer.
 
 **Structure.** It follows premium enterprise SaaS films: the product is the hero, shown large, simplified and true to the real app. Callouts sit on glass beside it, never inside it. There is one benefit per product, kinetic type carries the story on mute, the pacing is deliberate, and every product chapter uses the same visual system. The whole film is **one story: one bank in Mumbai, one night, five attacks**.
 1. **Cold open (silent):** 21:38 IST, a private bank, every system green, then "Before morning, five attacks will begin."
@@ -13804,7 +13813,7 @@ The film on the home page (`public/video/deep-algorithms-film.mp4`, 1:14). It is
 
    The camera leans into the one row that matters, with a spotlight, and the result lands as one number on glass. A chapter marker (01/05 … 05/05) keeps the viewer oriented.
 5. **Resolution:** 09:00, business as usual. "One night. Five attacks. Nothing lost."
-6. **Proof, then the ask:** customers and certifications, then the ask over the city, then the lockup with the products, the button and the URL. The voice ends on "Book a demo."
+6. **Proof, then the ask:** each phrase gets a shot that says it literally: "Built in India" over Charminar (Hyderabad), "banks" over a payment at the counter, "government" over Rashtrapati Bhavan, and "enterprises" over an Indian office team under the customer logos and certifications. Then the ask plays over the city, a one-second beat follows, and the lockup appears with the products, the button and the URL. The voice ends on "Book a demo."
 
 | File | What it does |
 | --- | --- |
@@ -13829,7 +13838,7 @@ cp build/film/timings.json tools/film/timings.json
 python tools/film/footage.py build/film/cache build/film/clips
 
 # 3. sound
-python tools/film/mix.py build/film/vo.wav tools/film/timings.json build/film/mix.wav 74.16
+python tools/film/mix.py build/film/vo.wav tools/film/timings.json build/film/mix.wav 74.75
 
 # 4. captions
 python tools/film/captions.py tools/film/timings.json public/video/deep-algorithms-film.vtt
@@ -14033,24 +14042,6 @@ FILE: website/tools/film/footage.json
    "lift": 0.03
   },
   {
-   "id": "mumbai",
-   "src": "https://videos.pexels.com/video-files/10053214/10053214-hd_1920_1080_30fps.mp4",
-   "page": "https://www.pexels.com/video/10053214/",
-   "in": 3.0,
-   "dur": 3.5,
-   "lift": -0.05,
-   "sat": 0.9
-  },
-  {
-   "id": "skyline",
-   "src": "https://videos.pexels.com/video-files/20613234/20613234-hd_1920_1080_30fps.mp4",
-   "page": "https://www.pexels.com/video/20613234/",
-   "in": 2.0,
-   "dur": 3.5,
-   "lift": -0.05,
-   "sat": 0.88
-  },
-  {
    "id": "morning",
    "src": "https://cdn.coverr.co/videos/coverr-office-building-1731/1080p.mp4",
    "page": "https://coverr.co/s?q=office+building",
@@ -14060,11 +14051,40 @@ FILE: website/tools/film/footage.json
    "sat": 0.9
   },
   {
-   "id": "team",
-   "src": "https://videos.pexels.com/video-files/7253660/7253660-hd_2048_1080_30fps.mp4",
-   "page": "https://www.pexels.com/video/7253660/",
+   "id": "charminar",
+   "src": "https://videos.pexels.com/video-files/14590277/14590277-hd_1920_1080_25fps.mp4",
+   "page": "https://www.pexels.com/video/14590277/",
+   "in": 2.0,
+   "dur": 3.0,
+   "lift": -0.03,
+   "sat": 0.9
+  },
+  {
+   "id": "payment",
+   "src": "https://videos.pexels.com/video-files/6602062/6602062-hd_1920_1080_30fps.mp4",
+   "page": "https://www.pexels.com/video/6602062/",
    "in": 1.0,
-   "dur": 4.5
+   "dur": 3.0,
+   "lift": 0.02,
+   "sat": 0.85
+  },
+  {
+   "id": "delhi",
+   "src": "https://videos.pexels.com/video-files/20794145/20794145-hd_1920_1080_30fps.mp4",
+   "page": "https://www.pexels.com/video/20794145/",
+   "in": 4.0,
+   "dur": 3.0,
+   "lift": -0.04,
+   "sat": 0.9
+  },
+  {
+   "id": "office",
+   "src": "https://videos.pexels.com/video-files/7581202/7581202-hd_1920_1080_30fps.mp4",
+   "page": "https://www.pexels.com/video/7581202/",
+   "in": 2.0,
+   "dur": 5.0,
+   "lift": -0.05,
+   "sat": 0.85
   }
  ]
 }
@@ -14437,8 +14457,14 @@ FILE: website/tools/film/script.json
     },
     {
       "id": "cta",
-      "text": "Find your riskiest identity before attackers do. The future is decided today. Book a demo.",
-      "say": "Find your riskiest identity, before attackers do. The future is decided today. Book a demo.",
+      "text": "Find your riskiest identity before attackers do.",
+      "say": "Find your riskiest identity, before attackers do.",
+      "after": 1.1
+    },
+    {
+      "id": "cta2",
+      "text": "The future is decided today. Book a demo.",
+      "say": "The future is decided today. Book a demo.",
       "after": 1.6
     }
   ],
@@ -14448,7 +14474,7 @@ FILE: website/tools/film/script.json
 FILE: website/tools/film/timings.json
 ====================================================================================================
 {
- "duration": 74.159,
+ "duration": 74.752,
  "voice": "am_fenrir",
  "speed": 1.15,
  "lines": [
@@ -14520,9 +14546,15 @@ FILE: website/tools/film/timings.json
   },
   {
    "id": "cta",
-   "text": "Find your riskiest identity before attackers do. The future is decided today. Book a demo.",
+   "text": "Find your riskiest identity before attackers do.",
    "start": 67.241,
-   "end": 72.559
+   "end": 69.861
+  },
+  {
+   "id": "cta2",
+   "text": "The future is decided today. Book a demo.",
+   "start": 70.961,
+   "end": 73.152
   }
  ]
 }
