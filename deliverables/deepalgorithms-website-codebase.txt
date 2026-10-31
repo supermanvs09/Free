@@ -2,8 +2,6 @@ deepalgorithms.io website: full source as text
 Omitted: node_modules, build output, binary assets (images, video, fonts), package-lock.json, src/components/scenes/land.json (generated map data).
 
 FILES
-  website/.dockerignore
-  website/.gitignore
   website/Dockerfile
   website/README.md
   website/docker-compose.yml
@@ -38,6 +36,7 @@ FILES
   website/src/components/Header.jsx
   website/src/components/JumpBar.jsx
   website/src/components/MobileBar.jsx
+  website/src/components/NormalForm.jsx
   website/src/components/PerimeterStory.jsx
   website/src/components/ProductKit.jsx
   website/src/components/ProductMark.jsx
@@ -45,7 +44,6 @@ FILES
   website/src/components/RoleCards.jsx
   website/src/components/Stage3D.jsx
   website/src/components/Story.jsx
-  website/src/components/ThreatHero.jsx
   website/src/components/WorksWith.jsx
   website/src/components/blocks.jsx
   website/src/components/ui.jsx
@@ -145,41 +143,6 @@ FILES
   website/tools/walkthrough/record.mjs
   website/tools/walkthrough/script.mjs
 
-
-====================================================================================================
-FILE: website/.dockerignore
-====================================================================================================
-# Only what the build needs goes to Docker: package files, index.html, vite.config.js,
-# src/, public/, scripts/ and nginx/.
-node_modules
-dist
-dist-ssr
-csp.conf
-test-results
-playwright-report
-tests
-playwright.config.js
-tools
-.git
-.gitignore
-.impeccable
-*.log
-Dockerfile
-docker-compose.yml
-.dockerignore
-README.md
-
-====================================================================================================
-FILE: website/.gitignore
-====================================================================================================
-node_modules
-dist
-dist-ssr
-test-results
-playwright-report
-.env
-.impeccable
-csp.conf
 
 ====================================================================================================
 FILE: website/Dockerfile
@@ -1369,7 +1332,6 @@ html.is-translated font { background: none !important; box-shadow: none !importa
 .ubar { position: relative; z-index: 2; height: 36px; transition: height .3s cubic-bezier(.16, 1, .3, 1), opacity .3s; }
 .ubar.away { height: 0; opacity: 0; overflow: hidden; }
 
-
 /* home "By role": coloured cards (RoleCards.jsx). Light pastels in the light
    theme, deep blues in the dark one; the ink follows. */
 .rc { --rc-ink: #0b1b33; --rc-ink2: #44546b; }
@@ -1395,45 +1357,19 @@ html.is-translated font { background: none !important; box-shadow: none !importa
 .seal .s { fill: var(--seal-ink); font: 600 7.5px var(--font-sans, Inter, sans-serif); letter-spacing: .08em; }
 .stage .seal { --seal: #7cc4ff; --seal-soft: rgb(124 196 255 / .12); --seal-ink: #aab6c8; }
 
-/* home hero: an attacker, then a rogue agent, each turned to dust that
-   gathers into the mark (ThreatHero.jsx) */
-.th-pop, .th-scan { transform-box: view-box; }
-.th-blink { transform-box: fill-box; transform-origin: center; animation: th-blink 4.2s infinite; }
-@keyframes th-blink { 0%, 90%, 100% { transform: scaleY(1); } 94% { transform: scaleY(.1); } }
-.th-led { animation: th-led 1.2s ease-in-out infinite; }
-@keyframes th-led { 50% { opacity: .35; } }
-.th-art { opacity: 0; transition: opacity .9s ease; }
-.th-art.on { opacity: 1; }
-.th[data-phase="dust"] .th-art { transition: none; }
-.th-pop { opacity: 0; transform: scale(.55); transition: opacity .3s, transform .55s cubic-bezier(.34,1.56,.64,1); }
-.th-pop.on { opacity: 1; transform: none; }
-.th-scan { opacity: 0; }
-.th-scan.on { opacity: 1; animation: th-scan 1.1s cubic-bezier(.45,0,.55,1) both; }
-@keyframes th-scan { from { transform: translateY(0); } to { transform: translateY(250px); } }
-/* the target screen: under attack, then protected */
-.th-tile { fill: #16305f; }
-.th-target.hit .th-tile { animation: th-hit .9s ease-in-out infinite alternate; }
-@keyframes th-hit { to { fill: #6b1f2a; } }
-.th-target.safe .th-tile { fill: #0f3d32; transition: fill .6s; }
-.th-state { fill: rgb(124 196 255 / .15); transition: fill .4s; }
-.th-state-t { fill: #cfe0ff; transition: fill .4s; }
-.th-target.hit .th-state { fill: rgb(229 72 77 / .25); }
-.th-target.hit .th-state-t { fill: #ff8a85; }
-.th-target.safe .th-state { fill: rgb(31 157 99 / .28); }
-.th-target.safe .th-state-t { fill: #7fe0ae; }
-/* what each of them pulls, and the cut when they are stopped */
-.th-flow { stroke: rgb(255 93 93 / 0); stroke-dasharray: 6 9; transition: stroke .4s; }
-.th-flow.on { stroke: #ff6b6b; animation: th-flow 1s linear infinite; }
-.th-flow.cut { stroke: rgb(159 179 214 / .3); animation: none; }
-@keyframes th-flow { to { stroke-dashoffset: -30; } }
-.th-sil { opacity: 0; }
-.th-calm { opacity: 0; transform: translate(-50%, 6px); transition: opacity .3s, transform .3s; }
-.th-calm.on { opacity: 1; transform: translate(-50%, 0); transition: opacity .6s .2s, transform .8s cubic-bezier(.16,1,.3,1) .2s; }
-/* without scripts: the scene as the attempt is made */
-html:not(.js) .th-art { opacity: 1; }
-.th-status { transition: opacity .3s; }
-.th-status.hide { opacity: 0; }
-@media (prefers-reduced-motion: reduce) { .th-blink, .th-led, .th-tile, .th-flow { animation: none !important; } }
+/* home hero: the shape of normal (NormalForm.jsx) */
+.sn-under { opacity: 0; }
+.sn-ring { opacity: 0; transition: opacity .35s ease; will-change: transform; }
+.sn-ring.on { opacity: 1; }
+.sn-dot { position: absolute; left: -34px; top: -34px; width: 68px; height: 68px; border-radius: 50%; border: 2px solid #ff6b5d; box-shadow: 0 0 30px rgb(255 93 79 / .55), inset 0 0 18px rgb(255 93 79 / .25); transform: scale(1.6); transition: transform .5s cubic-bezier(.16,1,.3,1), border-color .4s, box-shadow .4s; }
+.sn-ring.on .sn-dot { transform: scale(1); }
+.sn-ring.held .sn-dot { border-color: #7fd3ff; box-shadow: 0 0 30px rgb(127 211 255 / .6), inset 0 0 18px rgb(127 211 255 / .25); }
+.sn-tag { position: absolute; left: 46px; top: -22px; display: flex; flex-direction: column; gap: 2px; white-space: nowrap; padding: 8px 14px; border-radius: 14px; background: rgb(6 16 36 / .78); border: 1px solid rgb(255 255 255 / .16); backdrop-filter: blur(12px); font-size: 13px; line-height: 1.25; color: rgb(255 255 255 / .75); opacity: 0; transform: translateX(-6px); transition: opacity .35s .15s, transform .45s .15s; }
+.sn-tag b { color: #fff; font-weight: 600; font-size: 14px; }
+.sn-ring.held .sn-tag { opacity: 1; transform: none; }
+.sn-ring.flip .sn-tag { left: auto; right: 46px; align-items: flex-end; transform: translateX(6px); }
+.sn-ring.flip.held .sn-tag { transform: none; }
+@media (max-width: 640px) { .sn-dot { left: -24px; top: -24px; width: 48px; height: 48px; } .sn-tag { left: 32px; font-size: 11.5px; } .sn-ring.flip .sn-tag { right: 32px; } .sn-tag b { font-size: 12.5px; } }
 
 /* icon tiles on cards: a solid accent tile with a white icon, the way
    enterprise pages put colour on a light page without filling it */
@@ -3030,6 +2966,195 @@ export default function MobileBar() {
 }
 
 ====================================================================================================
+FILE: website/src/components/NormalForm.jsx
+====================================================================================================
+import { useEffect, useRef, useState } from 'react';
+import { useInView, useReducedMotion, cx } from '../lib/motion.js';
+
+/* The home hero: "the shape of normal". Thousands of points flow along the ridges
+   of one living, fingerprint-like form, the behavioural baseline Deep Algorithms
+   learns for every identity. Every few seconds a patch of it drifts off pattern
+   and turns red, a ring locks on, it is held and dissolves, and the form heals.
+   One idea, no product screens: the product pages carry those.
+
+   Rendering: one WebGL2 draw call. Every point is computed in the vertex shader
+   from (ridge, position along it, seed) and the clock, so the main thread only
+   sets a few uniforms per frame. Without WebGL2, or under reduced motion, the
+   still render underneath stays. The animation stops while off screen. */
+
+const POSTER = '/img/hero/shape-of-normal.webp';
+const RIDGES = 60;
+
+/* the five worst cases of the film, in its order: what the ring says when it locks on */
+const CAUGHT = [
+  ['Scam payment', 'held in < 80 ms'],
+  ['Agent outside its task', 'blocked in 4 ms'],
+  ['Impossible sign-in', 'contained in 1.4 s'],
+  ['Bot login wave', 'refused at the edge'],
+  ['Read without consent', 'stopped, on record'],
+];
+const CYCLE = 6.2; // seconds between deviations
+const SPAN = 2.6; // how long one deviation lasts, in seconds (phase 0 → 1.4)
+
+const VS = `#version 300 es
+precision highp float;
+in vec3 a; // ridge 0..1, position along it 0..1, seed 0..1
+uniform float uT, uAspect, uDpr, uPh, uAR, uAU, uScale;
+uniform vec2 uMouse;
+out vec4 vC;
+float h(float x) { return fract(sin(x * 127.1) * 43758.5453); }
+float n1(float x) { float i = floor(x), f = fract(x); f = f * f * (3. - 2. * f); return mix(h(i), h(i + 1.), f); }
+vec3 form(float r, float th, float t) {
+  float R = r * (1. + .20 * sin(th + r * 4.) + .11 * sin(2. * th + r * 7.) + .035 * sin(6. * th - t * .3 + r * 11.)) * (1. + .015 * sin(t * .9 + r * 6.));
+  vec2 p = vec2(cos(th) * .80, sin(th) * 1.08) * R;
+  p += vec2(.07 * sin(r * 9.), .15 * r * r - .05);
+  return vec3(p, .28 * cos(min(R, 1.4) * 1.6) - .06);
+}
+void main() {
+  float r = .07 + a.x;
+  float flow = (.03 + .05 * a.z) * (a.x > .5 ? -1. : 1.);
+  float th = a.y * 6.2831853 + uT * flow;
+  vec3 p = form(r, th, uT);
+  float gap = step(.22, n1(th * 3.6 + a.x * 61.)); // ridge endings and forks
+  float dr = abs(a.x - uAR), du = abs(fract(a.y - uAU + .5) - .5);
+  float inA = (1. - smoothstep(.06, .11, dr)) * (1. - smoothstep(.05, .1, du)) * step(0., uPh);
+  float ph = uPh, live = step(ph, 1.);
+  vec2 dir = normalize(p.xy + 1e-4);
+  p.xy += dir * inA * live * (smoothstep(0., .35, ph) * .16 + (n1(a.z * 40. + uT * 2.) - .5) * .07 * ph);
+  p.z += inA * live * smoothstep(0., .35, ph) * .12;
+  p += inA * live * smoothstep(.72, 1., ph) * vec3(h(a.z * 9.) - .5, h(a.z * 13.) - .5, h(a.z * 17.) - .3) * .9;
+  float ry = .24 * sin(uT * .11), rx = -.2 + .05 * sin(uT * .07);
+  p = vec3(p.x * cos(ry) + p.z * sin(ry), p.y, -p.x * sin(ry) + p.z * cos(ry));
+  p = vec3(p.x, p.y * cos(rx) - p.z * sin(rx), p.y * sin(rx) + p.z * cos(rx));
+  float w = 2.6 - p.z;
+  vec2 s = p.xy * uScale / w;
+  s.x /= uAspect;
+  vec2 dm = s - uMouse;
+  float md = length(dm * vec2(uAspect, 1.));
+  s += normalize(dm + 1e-5) * .05 * exp(-md * md * 40.);
+  gl_Position = vec4(s, 0., 1.);
+  float depth = clamp((1.4 - p.z) / 1.6, .3, 1.);
+  gl_PointSize = (1.5 + 2.3 * a.z * a.z) * uDpr * (2.2 / w);
+  vec3 c = mix(vec3(.30, .62, 1.), vec3(.68, .94, 1.), h(a.z * 7.));
+  c = mix(c, vec3(1.6, .42, .34), inA * live * smoothstep(0., .25, ph));
+  float fade = 1. - inA * (smoothstep(.75, 1., ph) - smoothstep(1.05, 1.4, ph));
+  float edge = 1. - .65 * smoothstep(.55, 1., a.x); // outer ridges thin out, the core stays bright
+  vC = vec4(c, gap * depth * edge * (.6 + .4 * h(a.z * 3.)) * fade * (1. + inA * live * .8));
+}`;
+const FS = `#version 300 es
+precision mediump float;
+in vec4 vC; out vec4 o;
+void main() { float k = smoothstep(.5, 0., length(gl_PointCoord - .5)); o = vec4(vC.rgb * vC.a * k, vC.a * k); }`;
+
+/* the same form on the CPU, for where the ring goes */
+function project(ar, au, t, aspect, scale) {
+  const r = 0.07 + ar, th = au * Math.PI * 2 + t * 0.055 * (ar > 0.5 ? -1 : 1);
+  const R = r * (1 + 0.2 * Math.sin(th + r * 4) + 0.11 * Math.sin(2 * th + r * 7) + 0.035 * Math.sin(6 * th - t * 0.3 + r * 11)) * (1 + 0.015 * Math.sin(t * 0.9 + r * 6));
+  let x = Math.cos(th) * 0.8 * R + 0.07 * Math.sin(r * 9), y = Math.sin(th) * 1.08 * R + 0.15 * r * r - 0.05, z = 0.28 * Math.cos(Math.min(R, 1.4) * 1.6) - 0.06;
+  const ry = 0.24 * Math.sin(t * 0.11), rx = -0.2 + 0.05 * Math.sin(t * 0.07);
+  [x, z] = [x * Math.cos(ry) + z * Math.sin(ry), -x * Math.sin(ry) + z * Math.cos(ry)];
+  [y, z] = [y * Math.cos(rx) - z * Math.sin(rx), y * Math.sin(rx) + z * Math.cos(rx)];
+  const w = 2.6 - z;
+  return [((x * scale) / w / aspect + 1) / 2, (1 - (y * scale) / w) / 2];
+}
+
+export default function NormalForm() {
+  const box = useRef(null), cv = useRef(null), ring = useRef(null);
+  const reduce = useReducedMotion();
+  const seen = useInView(box, { threshold: 0.05 });
+  const [paused, setPaused] = useState(false);
+  const [gl2, setGl2] = useState(true);
+  const [state, setState] = useState({ phase: 'normal', i: 0 });
+  const live = useRef({ paused: false, seen: false });
+  live.current.paused = paused || reduce;
+  live.current.seen = seen;
+
+  useEffect(() => {
+    const c = cv.current;
+    const gl = c.getContext('webgl2', { premultipliedAlpha: true, antialias: false, alpha: true });
+    if (!gl) { setGl2(false); return undefined; }
+    const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; };
+    const prog = gl.createProgram();
+    gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { setGl2(false); return undefined; }
+    gl.useProgram(prog);
+    const small = c.clientWidth < 520;
+    const n = small ? 12000 : 24000;
+    // points spread over the ridges in proportion to each ridge's length
+    const data = new Float32Array(n * 3);
+    let seed = 11;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < n; i++) {
+      const ridge = Math.floor(Math.sqrt(rnd()) * RIDGES) / RIDGES;
+      data.set([ridge, rnd(), rnd()], i * 3);
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(prog, 'a');
+    gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 3, gl.FLOAT, false, 0, 0);
+    const U = Object.fromEntries(['uT', 'uAspect', 'uDpr', 'uPh', 'uAR', 'uAU', 'uScale', 'uMouse'].map((k) => [k, gl.getUniformLocation(prog, k)]));
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+    gl.clearColor(0, 0, 0, 0);
+
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    let W = 0, H = 0;
+    const size = () => { W = c.clientWidth; H = c.clientHeight; c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); gl.viewport(0, 0, c.width, c.height); };
+    size();
+    const ro = new ResizeObserver(size); ro.observe(c);
+    const mouse = [9, 9], target = [9, 9];
+    const onMove = (e) => { const b = c.getBoundingClientRect(); target[0] = ((e.clientX - b.left) / b.width) * 2 - 1; target[1] = 1 - ((e.clientY - b.top) / b.height) * 2; };
+    const onLeave = () => { target[0] = 9; target[1] = 9; };
+    c.addEventListener('pointermove', onMove); c.addEventListener('pointerleave', onLeave);
+
+    let t = 4, last = performance.now(), raf = 0, k = -1, phaseName = 'normal', ar = 0.5, au = 0;
+    const frame = (now) => {
+      raf = requestAnimationFrame(frame);
+      const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      const { paused: p, seen: s } = live.current;
+      if (!s || document.hidden) return;
+      if (!p) t += dt;
+      // which deviation, and how far through it
+      const cyc = Math.floor(t / CYCLE), ct = t - cyc * CYCLE;
+      if (cyc !== k) { k = cyc; ar = 0.42 + 0.4 * ((cyc * 0.618) % 1); au = (cyc * 0.381) % 1; }
+      const ph = ct < SPAN ? (ct / SPAN) * 1.4 : -1;
+      const name = ph < 0 ? 'normal' : ph < 0.35 ? 'deviation' : ph < 1 ? 'held' : 'healed';
+      if (name !== phaseName) { phaseName = name; setState({ phase: name, i: ((cyc % CAUGHT.length) + CAUGHT.length) % CAUGHT.length }); }
+      mouse[0] += (target[0] - mouse[0]) * 0.12; mouse[1] += (target[1] - mouse[1]) * 0.12;
+      const aspect = W / H, scale = small ? 1.85 : 2.0;
+      gl.uniform1f(U.uT, t); gl.uniform1f(U.uAspect, aspect); gl.uniform1f(U.uDpr, dpr); gl.uniform1f(U.uPh, ph);
+      gl.uniform1f(U.uAR, ar); gl.uniform1f(U.uAU, au); gl.uniform1f(U.uScale, scale); gl.uniform2f(U.uMouse, mouse[0], mouse[1]);
+      gl.clear(gl.COLOR_BUFFER_BIT); gl.drawArrays(gl.POINTS, 0, n);
+      if (ring.current) {
+        const [x, y] = project(ar, au, t, aspect, scale);
+        ring.current.style.transform = `translate(${x * W}px, ${y * H}px)`;
+        ring.current.classList.toggle('flip', x > 0.58); // keep the label inside the picture
+      }
+    };
+    raf = requestAnimationFrame(frame);
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); c.removeEventListener('pointermove', onMove); c.removeEventListener('pointerleave', onLeave); };
+  }, []);
+
+  const [what, how] = CAUGHT[state.i];
+  const showRing = gl2 && !reduce && (state.phase === 'deviation' || state.phase === 'held');
+  return (
+    <figure ref={box} className="sn relative mx-auto aspect-square w-full max-w-[640px]" data-phase={reduce || !gl2 ? 'still' : state.phase}
+      aria-label="Illustration: thousands of points flow along the ridges of one living, fingerprint-like form, the behaviour Deep Algorithms learns for every identity. Every few seconds one patch drifts off pattern and turns red; a ring locks on, the patch is held and dissolves, and the form heals.">
+      <img src={POSTER} alt="" aria-hidden="true" className={cx('absolute inset-0 h-full w-full object-contain transition-opacity duration-700', gl2 && !reduce && 'sn-under')} />
+      <canvas ref={cv} aria-hidden="true" className={cx('absolute inset-0 h-full w-full', (!gl2 || reduce) && 'hidden')} />
+      <div ref={ring} aria-hidden="true" className={cx('sn-ring pointer-events-none absolute left-0 top-0', showRing && 'on', state.phase === 'held' && 'held')}>
+        <span className="sn-dot" />
+        <span className="sn-tag"><b>{what}</b><span>{how}</span></span>
+      </div>
+      {!reduce && gl2 && (
+        <button type="button" onClick={() => setPaused(!paused)} className="absolute right-0 top-0 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-[#0b1d40] text-white/80 hover:text-white" aria-label={paused ? 'Play the animation' : 'Pause the animation'}>
+          {paused ? <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5v9l7.5-4.5z" fill="currentColor" /></svg> : <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5h2v9H3zM7 1.5h2v9H7z" fill="currentColor" /></svg>}
+        </button>
+      )}
+    </figure>
+  );
+}
+
+====================================================================================================
 FILE: website/src/components/PerimeterStory.jsx
 ====================================================================================================
 import { useEffect, useRef, useState } from 'react';
@@ -3792,382 +3917,6 @@ export function StatCard({ items, className }) {
 }
 
 ====================================================================================================
-FILE: website/src/components/ThreatHero.jsx
-====================================================================================================
-import { useEffect, useRef, useState } from 'react';
-import { useInView, useReducedMotion, cx } from '../lib/motion.js';
-
-/* The home hero, one frame, on a loop: an attacker in a hood and a rogue AI
-   agent at the same desk, working one target together, your business, its
-   systems on the screen above them. One signs in with a stolen password, the
-   other pulls records its task does not allow. One scan reads both; both are
-   stopped and blown away as dust; the business carries on; and the next
-   attempt sits down. Illustrations are our own (flat vector); the dust is made
-   from their own pixels. */
-
-const VW = 640, VH = 560;
-const FIGS = [
-  { id: 'person', x: 186, claim: 'Right password. Wrong person.', verdict: 'Blocked before the first click.' },
-  { id: 'agent', x: 454, claim: 'Approved agent. Wrong action.', verdict: 'Stopped before it ran.' },
-];
-const SCALE = 0.56, DESK = 470;
-const place = (cx) => `translate(${cx - 300 * SCALE} ${DESK - 524 * SCALE}) scale(${SCALE})`;
-/* where each laptop sits, for the data each one pulls */
-const LAP = (cx) => ({ x: cx, y: DESK - (524 - 430) * SCALE });
-const SCREEN = { x: 220, y: 30, w: 200, h: 156 };
-/* one round, in ms; then the next attempt begins */
-const T = { alert: 700, claim: 1000, scan: 2600, verdict: 3800, dust: 4600, sweep: 1800, calm: 7200, end: 9600 };
-const FLY = 1300; // how long one grain is blown about
-
-function phaseAt(t) {
-  if (t >= T.calm) return 'calm';
-  if (t >= T.dust) return 'dust';
-  if (t >= T.verdict) return 'verdict';
-  if (t >= T.scan) return 'scan';
-  if (t >= T.claim) return 'claim';
-  if (t >= T.alert) return 'alert';
-  return 'in';
-}
-
-const RIM = { fill: 'none', stroke: '#7cc4ff', strokeWidth: 2, strokeOpacity: 0.55 };
-
-/* the laptop both of them work at; the lid carries what they are after */
-function Laptop({ children }) {
-  return (
-    <>
-      <rect x="188" y="372" width="224" height="146" rx="14" fill="#e6ecf5" />
-      <rect x="188" y="372" width="224" height="146" rx="14" fill="none" stroke="#c3cfe2" strokeWidth="2" />
-      <g transform="translate(300 446)">{children}</g>
-      <rect x="156" y="512" width="288" height="12" rx="6" fill="#b8c5da" />
-    </>
-  );
-}
-
-/* Plain fills (no classes) so the same markup can be drawn onto a canvas. */
-function Attacker() {
-  return (
-    <>
-      <path d="M150 468C158 390 214 350 300 348c86 2 142 42 150 120Z" fill="#24345f" />
-      <path d="M300 348c-30 1-56 6-78 15l20 105h116l20-105c-22-9-48-14-78-15Z" fill="#2b3d6e" />
-      <path d="M150 468C158 390 214 350 300 348c86 2 142 42 150 120" {...RIM} />
-      <path d="M300 116c-66 0-108 54-112 122-3 46 4 78 16 102h192c12-24 19-56 16-102-4-68-46-122-112-122Z" fill="#2c3f72" />
-      <path d="M300 116c-66 0-108 54-112 122-1 20 0 37 2 52 10-74 50-128 110-128s100 54 110 128c2-15 3-32 2-52-4-68-46-122-112-122Z" fill="#3a5291" />
-      <path d="M204 340c-12-24-19-56-16-102 4-68 46-122 112-122s108 54 112 122c3 46-4 78-16 102" {...RIM} />
-      <path d="M300 166c-42 0-70 36-72 82-1 36 16 70 40 86h64c24-16 41-50 40-86-2-46-30-82-72-82Z" fill="#060a16" />
-      <path d="M300 194c-32 0-50 26-50 60 0 38 22 66 50 66s50-28 50-66c0-34-18-60-50-60Z" fill="#d39a76" />
-      <path d="M250 254c0-34 18-60 50-60s50 26 50 60c-16-22-32-30-50-30s-34 8-50 30Z" fill="#060a16" opacity=".88" />
-      <path d="M252 240c30-9 66-9 96 0l2 24c-32 9-68 9-100 0Z" fill="#05070f" />
-      <g className="th-blink">
-        <path d="M266 249l25 5-2 8-21-3Z" fill="#fff" />
-        <path d="M334 249l-25 5 2 8 21-3Z" fill="#fff" />
-      </g>
-      <path d="M283 336l-4 52M317 336l4 52" stroke="#9fb1d1" strokeWidth="3.5" strokeLinecap="round" />
-      <circle cx="279" cy="391" r="4.5" fill="#9fb1d1" />
-      <circle cx="321" cy="391" r="4.5" fill="#9fb1d1" />
-      <Laptop>
-        <path d="M-38-30 38 30M38-30-38 30" stroke="#1b2747" strokeWidth="10" strokeLinecap="round" />
-        {[[-41, -33], [-33, -41], [41, -33], [33, -41], [-41, 33], [-33, 41], [41, 33], [33, 41]].map(([x, y]) => <circle key={`${x}${y}`} cx={x} cy={y} r="7" fill="#1b2747" />)}
-        <path d="M0-30c-18 0-28 12-28 27 0 9 4 15 10 19v9h36v-9c6-4 10-10 10-19 0-15-10-27-28-27Z" fill="#1b2747" />
-        <circle cx="-10" cy="-4" r="7" fill="#e6ecf5" /><circle cx="10" cy="-4" r="7" fill="#e6ecf5" />
-        <path d="M0 5l-4 7h8Z" fill="#e6ecf5" />
-        <path d="M-8 18v7M0 18v7M8 18v7" stroke="#e6ecf5" strokeWidth="2.4" />
-      </Laptop>
-    </>
-  );
-}
-
-function Agent() {
-  return (
-    <>
-      <path d="M156 468C164 396 220 360 300 358c80 2 136 38 144 110Z" fill="#24345f" />
-      <path d="M156 468C164 396 220 360 300 358c80 2 136 38 144 110" {...RIM} />
-      <rect x="282" y="312" width="36" height="52" rx="8" fill="#3a5291" />
-      <path d="M300 122v36" stroke="#8fa3c4" strokeWidth="6" strokeLinecap="round" />
-      <circle className="th-led" cx="300" cy="114" r="11" fill="#ff5d5d" />
-      <rect x="198" y="210" width="22" height="56" rx="9" fill="#8fa3c4" />
-      <rect x="380" y="210" width="22" height="56" rx="9" fill="#8fa3c4" />
-      <rect x="212" y="154" width="176" height="164" rx="44" fill="#c7d3e6" />
-      <path d="M256 154h88c24 0 44 20 44 44v6c-26-22-62-30-88-30s-62 8-88 30v-6c0-24 20-44 44-44Z" fill="#e1e8f3" />
-      <rect x="212" y="154" width="176" height="164" rx="44" {...RIM} />
-      <rect x="234" y="196" width="132" height="64" rx="32" fill="#070b18" />
-      <rect x="250" y="212" width="42" height="30" rx="15" fill="#ff5d5d" opacity=".28" />
-      <rect x="308" y="212" width="42" height="30" rx="15" fill="#ff5d5d" opacity=".28" />
-      <g className="th-blink">
-        <rect x="258" y="218" width="26" height="18" rx="9" fill="#ff6b6b" />
-        <rect x="316" y="218" width="26" height="18" rx="9" fill="#ff6b6b" />
-      </g>
-      <rect x="268" y="282" width="64" height="12" rx="6" fill="#8fa3c4" />
-      <path d="M284 282v12M300 282v12M316 282v12" stroke="#c7d3e6" strokeWidth="2.5" />
-      <Laptop>
-        {/* records leaving */}
-        <path d="M-40-30h30l12 12v40h-42Z" fill="#1b2747" />
-        <path d="M-30-12h22M-30-2h22M-30 8h16" stroke="#e6ecf5" strokeWidth="3.5" strokeLinecap="round" />
-        <path d="M8 2h30M28-10l12 12-12 12" fill="none" stroke="#e5484d" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
-      </Laptop>
-    </>
-  );
-}
-
-/* the four systems on the target screen: mail, payments, records, cloud */
-const TILES = [
-  { x: 254, d: 'M-8-5h16v11h-16Z M-8-5 0 1 8-5' },
-  { x: 298, d: 'M-9-6h18v12h-18Z M-9-2h18 M-5 3h4' },
-  { x: 342, d: 'M-8-7c0-2 16-2 16 0v13c0 2-16 2-16 0Z M-8-7c0 2 16 2 16 0 M-8-1c0 2 16 2 16 0' },
-  { x: 386, d: 'M-9 5h17a4.5 4.5 0 0 0-1-9 6 6 0 0 0-11.5 1.5A3.8 3.8 0 0 0-9 5Z' },
-];
-
-/* draw markup onto a canvas and read it back as grains of its own colours */
-function rasterise(markup, w, h, step, done) {
-  const img = new Image();
-  img.onload = () => {
-    const c = document.createElement('canvas');
-    c.width = w; c.height = h;
-    const g = c.getContext('2d');
-    g.drawImage(img, 0, 0);
-    const px = g.getImageData(0, 0, w, h).data;
-    const byColour = new Map(); // grouped by colour, so each colour is one fillStyle
-    for (let y = 0; y < h; y += step) {
-      for (let x = 0; x < w; x += step) {
-        // the most opaque pixel of the cell stands for it, so soft edges
-        // become grains too and no outline stays behind
-        let o = (y * w + x) * 4;
-        for (const [dx, dy] of [[1, 0], [0, 1], [1, 1]]) {
-          const q = (Math.min(h - 1, y + dy) * w + Math.min(w - 1, x + dx)) * 4;
-          if (px[q + 3] > px[o + 3]) o = q;
-        }
-        if (px[o + 3] < 8) continue;
-        const key = `${px[o] & 0xf8},${px[o + 1] & 0xf8},${px[o + 2] & 0xf8}`;
-        if (!byColour.has(key)) byColour.set(key, []);
-        byColour.get(key).push(x, y, Math.random(), Math.random(), Math.random(), Math.random());
-      }
-    }
-    const sets = [...byColour].map(([k, list]) => ({ fill: `rgb(${k.split(',').join(' ')})`, g: new Float32Array(list) }));
-    done({ sets, picture: c });
-  };
-  img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${VW} ${VH}">${markup}</svg>`)}`;
-}
-
-export default function ThreatHero() {
-  const ref = useRef(null);
-  const svg = useRef(null);
-  const figs = useRef(null);
-  const canvas = useRef(null);
-  const seen = useInView(ref, { threshold: 0.2 });
-  const reduce = useReducedMotion();
-  const [paused, setPaused] = useState(false);
-  const [phase, setPhase] = useState('claim'); // without scripts and with reduced motion, the scene as the attempt is made
-  const clock = useRef({ t: 0, last: 0 });
-  const grains = useRef(null);
-  const [ready, setReady] = useState(false);
-
-  // the two figures become grains of their own colours, once
-  useEffect(() => {
-    if (reduce) return undefined;
-    let live = true;
-    const box = svg.current.getBoundingClientRect();
-    const w = Math.max(320, Math.round(box.width)), h = Math.round(w * (VH / VW));
-    const step = 2;
-    rasterise(figs.current.innerHTML, w, h, step, (res) => {
-      if (!live) return;
-      grains.current = { ...res, w, h, step };
-      setReady(true);
-    });
-    return () => { live = false; };
-  }, [reduce]);
-
-  useEffect(() => {
-    if (reduce) { setPhase('verdict'); return undefined; }
-    if (!seen || paused) return undefined;
-    const c = clock.current;
-    const cv = canvas.current;
-    const ctx = cv.getContext('2d');
-    let raf = 0;
-    c.last = performance.now();
-    const size = () => {
-      const r = cv.getBoundingClientRect();
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    };
-    size();
-
-    const draw = (t) => {
-      const r = cv.getBoundingClientRect();
-      ctx.clearRect(0, 0, r.width, r.height);
-      const G = grains.current;
-      if (!G || t < T.dust || t > T.dust + T.sweep + FLY + 100) return;
-      const k = r.width / G.w;
-      const sx = G.w / VW, sy = G.h / VH;
-      const mid = G.w / 2;
-      const s0 = G.step * 1.6;
-      // a grain leaves when the wave reaches it: each figure comes apart from
-      // its outer side inwards, with a little scatter
-      const leaves = (x0, y0, r1) => T.dust + ((1 - Math.abs(x0 - mid) / mid) * 0.62 + (y0 / G.h) * 0.28 + r1 * 0.1) * T.sweep;
-      if (t < T.dust + T.sweep + 100) {
-        // what is still there stays the crisp picture; cut out what has left
-        ctx.drawImage(G.picture, 0, 0, G.w * k, G.h * k);
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.fillStyle = '#000';
-        for (const { g } of G.sets) {
-          for (let o = 0; o < g.length; o += 6) {
-            if (t >= leaves(g[o], g[o + 1], g[o + 2])) ctx.fillRect((g[o] - 0.3) * k, (g[o + 1] - 0.3) * k, s0 * k, s0 * k);
-          }
-        }
-        ctx.globalCompositeOperation = 'source-over';
-      }
-      // and what has left blows away, outwards and up, shrinking as it goes
-      for (const { fill, g } of G.sets) {
-        ctx.fillStyle = fill;
-        for (let o = 0; o < g.length; o += 6) {
-          const x0 = g[o], y0 = g[o + 1], r2 = g[o + 3], r3 = g[o + 4];
-          const v = (t - leaves(x0, y0, g[o + 2])) / FLY;
-          if (v <= 0 || v >= 1) continue;
-          const e = 0.3 * v + 0.7 * v * v; // a push at once, then the wind takes it
-          const out = x0 < mid ? -1 : 1;
-          const x = x0 - 0.3 + out * (60 + 220 * r2) * e * sx + Math.sin(v * 6 + r3 * 6) * 6 * v;
-          const y = y0 - 0.3 - (40 + 160 * r3) * e * sy;
-          const s = s0 * (1 - v * 0.8);
-          ctx.fillRect(x * k, y * k, s * k, s * k);
-        }
-      }
-    };
-
-    const loop = (now) => {
-      c.t += Math.min(64, now - c.last);
-      c.last = now;
-      if (c.t >= T.end) c.t = 0; // the next attempt
-      setPhase(phaseAt(c.t));
-      draw(c.t);
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    const vis = () => {
-      if (document.hidden) cancelAnimationFrame(raf);
-      else { c.last = performance.now(); raf = requestAnimationFrame(loop); }
-    };
-    document.addEventListener('visibilitychange', vis);
-    window.addEventListener('resize', size);
-    return () => { cancelAnimationFrame(raf); document.removeEventListener('visibilitychange', vis); window.removeEventListener('resize', size); };
-  }, [seen, paused, reduce]);
-
-  const gone = ready && (phase === 'dust' || phase === 'calm');
-  const showFigs = !gone && phase !== 'calm';
-  const attack = ['alert', 'claim', 'scan'].includes(phase);
-  const blocked = phase === 'verdict' || phase === 'dust';
-  const safe = blocked || phase === 'calm';
-  const status = (f) => (blocked ? f.verdict : phase === 'scan' ? 'Checking…' : phase === 'claim' ? f.claim : '');
-  const pct = (v, of) => `${(v / of) * 100}%`;
-  return (
-    <figure ref={ref} data-phase={phase} className="th relative mx-auto w-full max-w-[640px] lg:mr-0" aria-label="Animation, on a loop: an attacker in a hood and a rogue AI agent sit at one desk, working against your business together. The attacker signs in with a stolen password; the agent pulls records its task does not allow. One scan reads both; both are stopped and blown away as dust, the business stays protected, and the next attempt begins.">
-      <div className="relative">
-      <svg ref={svg} viewBox={`0 0 ${VW} ${VH}`} className="relative block h-auto w-full overflow-visible" aria-hidden="true">
-        <defs>
-          <radialGradient id="th-floor" cx="50%" cy="50%" r="50%"><stop offset="0" stopColor="#4f9dff" stopOpacity=".22" /><stop offset="1" stopColor="#4f9dff" stopOpacity="0" /></radialGradient>
-          <linearGradient id="th-beam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#4f9dff" stopOpacity="0" /><stop offset="1" stopColor="#4f9dff" stopOpacity=".28" /></linearGradient>
-          <linearGradient id="th-desk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#2a3c6c" /><stop offset="1" stopColor="#17244a" /></linearGradient>
-        </defs>
-
-        {/* the target: your business, its systems on one screen */}
-        <g className={cx('th-target', attack && 'hit', safe && 'safe')}>
-          <rect x={SCREEN.x} y={SCREEN.y} width={SCREEN.w} height={SCREEN.h} rx="14" fill="#0b1a3a" stroke="rgb(124 196 255 / .35)" strokeWidth="1.5" />
-          <path d={`M${SCREEN.x} ${SCREEN.y + 26}h${SCREEN.w}`} stroke="rgb(124 196 255 / .2)" />
-          {[0, 1, 2].map((i) => <circle key={i} cx={SCREEN.x + 16 + i * 12} cy={SCREEN.y + 13} r="3.5" fill="rgb(124 196 255 / .35)" />)}
-          <text x={SCREEN.x + SCREEN.w - 14} y={SCREEN.y + 17.5} textAnchor="end" fill="#9fb3d6" fontSize="11" fontWeight="600" letterSpacing=".06em">YOUR BUSINESS</text>
-          {TILES.map((tl, i) => (
-            <g key={i} transform={`translate(${tl.x} ${SCREEN.y + 66})`}>
-              <rect x="-20" y="-20" width="40" height="40" rx="11" className="th-tile" style={{ animationDelay: `${i * 0.18}s` }} />
-              <path d={tl.d} fill="none" stroke="#dbe6f7" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </g>
-          ))}
-          <g transform={`translate(${SCREEN.x + SCREEN.w / 2} ${SCREEN.y + 122})`}>
-            <rect x="-62" y="-14" width="124" height="28" rx="14" className="th-state" />
-            <text y="4.5" textAnchor="middle" fontSize="12.5" fontWeight="600" className="th-state-t">{safe ? 'Protected' : attack ? 'Under attack' : 'Online'}</text>
-          </g>
-        </g>
-
-        {/* what each of them pulls from it */}
-        {FIGS.map((f) => {
-          const l = LAP(f.x);
-          return <path key={f.id} d={`M${SCREEN.x + SCREEN.w / 2} ${SCREEN.y + SCREEN.h} C${SCREEN.x + SCREEN.w / 2} ${SCREEN.y + SCREEN.h + 70}, ${l.x} ${l.y - 150}, ${l.x} ${l.y - 64}`} className={cx('th-flow', attack && 'on', blocked && 'cut')} fill="none" strokeWidth="2.5" strokeLinecap="round" />;
-        })}
-
-        {/* one desk */}
-        <g className="th-desk">
-        <ellipse cx={VW / 2} cy={DESK + 12} rx="300" ry="50" fill="url(#th-floor)" />
-        <rect x="40" y={DESK} width={VW - 80} height="14" rx="7" fill="url(#th-desk)" />
-        <rect x="40" y={DESK} width={VW - 80} height="14" rx="7" fill="none" stroke="rgb(124 196 255 / .25)" />
-        <path d={`M86 ${DESK + 14}v42M${VW - 86} ${DESK + 14}v42`} stroke="#17244a" strokeWidth="8" strokeLinecap="round" />
-        </g>
-
-        {/* the two of them, side by side */}
-        <g ref={figs} className={cx('th-art', showFigs && 'on')}>
-          <g transform={place(FIGS[0].x)}><Attacker /></g>
-          <g transform={place(FIGS[1].x)}><Agent /></g>
-        </g>
-
-        {/* what each one is after */}
-        <g className={cx('th-pop', attack && 'on')} style={{ transformOrigin: '84px 262px' }}>
-          <path d="M60 240a34 34 0 1 1 22 61l-19 12 4-18a34 34 0 0 1-7-55Z" fill="#e5484d" />
-          <g transform="translate(84 267) scale(.74)" fill="#fff">
-            <path d="M0-24c-14 0-22 10-22 21 0 7 3 12 8 15v7h28v-7c5-3 8-8 8-15 0-11-8-21-22-21Z" />
-            <circle cx="-8" cy="-3" r="5.5" fill="#e5484d" /><circle cx="8" cy="-3" r="5.5" fill="#e5484d" />
-            <path d="M-30 26 30 40M30 26-30 40" stroke="#fff" strokeWidth="6" strokeLinecap="round" />
-          </g>
-        </g>
-        <g className={cx('th-pop', attack && 'on')} style={{ transformOrigin: '556px 262px', transitionDelay: attack ? '.15s' : '0s' }}>
-          <path d="M580 240a34 34 0 1 0-22 61l19 12-4-18a34 34 0 0 0 7-55Z" fill="#e5484d" />
-          <g transform="translate(554 266) scale(.8)">
-            <path d="M-22-26h22l10 10v36h-32Z" fill="#fff" />
-            <path d="M-15-10h16M-15-1h16M-15 8h10" stroke="#e5484d" strokeWidth="3" strokeLinecap="round" />
-            <path d="M14 0h14M21-8l8 8-8 8" fill="none" stroke="#fff" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
-          </g>
-        </g>
-
-        {/* the check runs over both */}
-        <g className={cx('th-scan', phase === 'scan' && 'on')}>
-          <rect x="60" y="208" width="520" height="28" fill="url(#th-beam)" />
-          <rect x="60" y="234" width="520" height="3" rx="1.5" fill="#7fd0ff" />
-        </g>
-
-        {/* both stopped */}
-        {FIGS.map((f, i) => (
-          <g key={f.id} className={cx('th-pop', blocked && 'on')} style={{ transformOrigin: `${f.x + 62}px 262px`, transitionDelay: blocked ? `${i * 0.18}s` : '0s' }}>
-            <circle cx={f.x + 62} cy="262" r="22" fill="#1a0b14" />
-            <circle cx={f.x + 62} cy="262" r="22" fill="none" stroke="#ff5d5d" strokeWidth="3" />
-            <path d={`M${f.x + 54} 254l16 16M${f.x + 70} 254l-16 16`} stroke="#ff5d5d" strokeWidth="5" strokeLinecap="round" />
-          </g>
-        ))}
-
-      </svg>
-      <canvas ref={canvas} aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full" />
-
-      {/* under each figure, what is happening to it */}
-      {FIGS.map((f) => {
-        const s = status(f);
-        return (
-          <p key={f.id} aria-hidden="true" className={cx('th-status absolute bottom-[2%] flex w-max max-w-[48%] -translate-x-1/2 items-center gap-2 rounded-full border border-white/15 bg-[#081633]/90 py-1.5 pl-2.5 pr-3 text-[13px] font-medium text-white max-sm:text-[10.5px] max-sm:pl-2 max-sm:pr-2.5', !s && 'hide')} style={{ left: pct(f.x, VW) }}>
-            <span className={cx('h-2 w-2 shrink-0 rounded-full', blocked ? 'bg-[#ff5d5d] shadow-[0_0_10px_#ff5d5d]' : phase === 'scan' ? 'animate-pulse bg-[#4fb3ff]' : 'bg-[#f5a524]')} />
-            <span className="truncate">{s || ' '}</span>
-          </p>
-        );
-      })}
-
-      {/* between attempts: what it meant */}
-      <p aria-hidden="true" className={cx('th-calm absolute bottom-[2%] left-1/2 flex w-max max-w-[94%] -translate-x-1/2 items-center gap-2 rounded-full border border-[#4be29a]/30 bg-[#08261f]/90 py-1.5 pl-2.5 pr-3.5 text-[13.5px] font-medium text-white max-sm:text-[11px]', phase === 'calm' && 'on')}>
-        <span className="h-2 w-2 shrink-0 rounded-full bg-[#4be29a] shadow-[0_0_10px_#4be29a]" />Both stopped. Nothing lost. Business as usual.
-      </p>
-      </div>
-
-      {!reduce && (
-        <button type="button" onClick={() => setPaused(!paused)} className="th-ctl absolute right-0 top-0 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-[#0b1d40] text-white/80 hover:text-white" aria-label={paused ? 'Play the animation' : 'Pause the animation'}>
-          {paused ? <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5v9l7.5-4.5z" fill="currentColor" /></svg> : <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5h2v9H3zM7 1.5h2v9H7z" fill="currentColor" /></svg>}
-        </button>
-      )}
-    </figure>
-  );
-}
-
-====================================================================================================
 FILE: website/src/components/WorksWith.jsx
 ====================================================================================================
 import { Logo, logoTitle } from './viz/kit.jsx';
@@ -4191,7 +3940,7 @@ export default function WorksWith() {
 ====================================================================================================
 FILE: website/src/components/blocks.jsx
 ====================================================================================================
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { CUSTOMERS, CERTS } from '../data/site.js';
 import { POSTS, formatDate } from '../data/posts.js';
@@ -4283,6 +4032,11 @@ export function CtaBand({ title = 'Find your riskiest identity before attackers 
 export function FilmPlayer({ src = '/video/deep-algorithms-film', poster = '/video/film-poster.webp', captions = '/video/deep-algorithms-film.vtt', title = 'One bank, one night, five attacks', duration = '1:15' }) {
   const [play, setPlay] = useState(false);
   const v = useRef(null);
+  useEffect(() => { // the home hero's "Watch the film" starts it
+    const on = () => setPlay(true);
+    window.addEventListener('da:play-film', on);
+    return () => window.removeEventListener('da:play-film', on);
+  }, []);
   const meta = <span className="inline-flex items-center gap-2 rounded-full bg-black/40 px-3 py-1.5 text-[13.5px] font-medium text-white/90 backdrop-blur"><Icon name="ClosedCaptioning" size={16} />Captions · {duration}</span>;
   return (
     <div>
@@ -10647,7 +10401,7 @@ import { PRODUCT_MENU } from '../data/nav.js';
 import { Button, CountUp, Icon, Reveal, SectionHead, cx } from '../components/ui.jsx';
 import { CtaBand, FilmPlayer, TrustedRow } from '../components/blocks.jsx';
 import ProductMark from '../components/ProductMark.jsx';
-import ThreatHero from '../components/ThreatHero.jsx';
+import NormalForm from '../components/NormalForm.jsx';
 import RoleCards from '../components/RoleCards.jsx';
 import { Logo, logoTitle } from '../components/viz/kit.jsx';
 import PerimeterStory from '../components/PerimeterStory.jsx';
@@ -10830,6 +10584,23 @@ function PlatformAccordion() {
   );
 }
 
+/* the hero's proof strip: every figure is already stated elsewhere on the site */
+const PROOF = [
+  ['< 80 ms', 'risk decision on every event'],
+  ['DSCI 2025', 'Cybersecurity Excellence award'],
+  ['SOC 2 Type II', 'with ISO 27001, 42001 and 27701'],
+  ['Built in India', 'Hyderabad · Bengaluru · Texas'],
+];
+
+/* "Watch the film": scroll to it and start it */
+const playFilm = (e) => {
+  const film = document.getElementById('film');
+  if (!film) return;
+  e.preventDefault();
+  film.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  window.dispatchEvent(new Event('da:play-film'));
+};
+
 export default function Home() {
   return (
     <>
@@ -10843,17 +10614,24 @@ export default function Home() {
             <p className="t-lead rise mt-6 max-w-[500px] max-md:mx-auto" style={{ '--d': '110ms' }}>Deep Algorithms learns how every person, machine identity and AI agent should behave, and stops the one that doesn’t, with the reason why.</p>
             <div className="rise mt-9 flex flex-wrap gap-3 max-md:flex-col max-md:[&>*]:w-full" style={{ '--d': '180ms' }}>
               <Explore label="See the platform" target="#platform" />
-              <Button to="/product-tour" variant="ghost" size="lg"><Icon name="CursorClick" size={16} />Take the product tour</Button>
+              <a href="#film" onClick={playFilm} className="inline-flex h-[52px] items-center justify-center gap-3 rounded-full border border-white/25 px-6 text-[16px] font-semibold text-white transition-colors hover:border-white/50 hover:bg-white/5">
+                <span aria-hidden="true" className="grid h-7 w-7 place-items-center rounded-full bg-white text-[#081c39]"><svg viewBox="0 0 24 24" className="ml-0.5 h-3.5 w-3.5"><path d="M7 4.5v15l13-7.5z" fill="currentColor" /></svg></span>
+                Watch the film<span className="font-normal text-white/60">1:15</span>
+              </a>
             </div>
-            <div className="rise mt-8 flex items-center gap-2 text-[13.5px] text-ink-3 max-md:justify-center" style={{ '--d': '240ms' }}>
-              <Icon name="SealCheck" size={16} className="shrink-0 text-cyan-2" />
-              <ul aria-label="Certifications" className="flex flex-wrap gap-x-2 gap-y-1">
-                {CERTS.map((c, i) => <li key={c.code}>{i > 0 && <span aria-hidden="true" className="mr-2">·</span>}{c.name.replace('ISO/IEC ', 'ISO ')}</li>)}
-              </ul>
-            </div>
+            <p className="rise mt-4 text-[14px] text-ink-3 max-md:text-center" style={{ '--d': '210ms' }}>
+              or <Link to="/product-tour" className="font-medium text-white underline decoration-white/30 underline-offset-4 hover:decoration-white">Take the product tour</Link>, in eleven steps
+            </p>
+            {/* proof before the scroll: what we do in numbers, who recognised it, what we are certified for, where we build */}
+            <ul aria-label="Proof" className="rise mt-10 grid max-w-[520px] grid-cols-2 gap-x-10 gap-y-6 border-t border-white/12 pt-7 max-md:mx-auto max-md:text-left" style={{ '--d': '240ms' }}>
+              {PROOF.map(([v, l]) => (
+                <li key={v}><span className="block whitespace-nowrap text-[26px] font-semibold leading-none tracking-[-0.03em] text-white num">{v}</span><span className="mt-2 block text-[13px] leading-snug text-ink-3">{l}</span></li>
+              ))}
+            </ul>
+            <ul aria-label="Certifications" className="sr-only">{CERTS.map((c) => <li key={c.code}>{c.name}</li>)}</ul>
           </div>
           <div className="rise relative lg:pl-6" style={{ '--d': '200ms' }}>
-            <ThreatHero />
+            <NormalForm />
           </div>
         </div>
         <TrustedRow />
@@ -13222,10 +13000,12 @@ test('the home hero says what we stop, names who we secure and shows proof befor
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1, name: 'Stop identity attacks before the damage.' })).toBeVisible();
   await expect(page.getByText('learns how every person, machine identity and AI agent should behave', { exact: false }).first()).toBeVisible();
-  const certs = page.getByRole('list', { name: 'Certifications' }).first();
-  await expect(certs.getByRole('listitem')).toHaveCount(4);
+  const proof = page.getByRole('list', { name: 'Proof' }).first();
+  await expect(proof.getByRole('listitem')).toHaveCount(4);
+  await expect(proof).toContainText('SOC 2 Type II');
+  await expect(page.getByRole('list', { name: 'Certifications' }).first().getByRole('listitem')).toHaveCount(4);
   if (!isMobile) {
-    await expect(certs).toBeInViewport();
+    await expect(proof).toBeInViewport();
     await expect(page.getByRole('img', { name: 'Canara Bank' }).first()).toBeInViewport();
   }
 });
@@ -13388,15 +13168,27 @@ test('home: the pinned picture follows the story as you scroll', async ({ page, 
   await expect(page.getByRole('link', { name: 'How adapID catches it' }).first()).toBeVisible();
 });
 
-test('home: the hero scene plays, can be paused, and tells the whole story to screen readers', async ({ page }) => {
+test('home: the hero form lives, catches a deviation, can be paused, and is described for screen readers', async ({ page }) => {
   await page.goto('/');
-  const hero = page.locator('figure.th');
-  await expect(hero).toHaveAttribute('aria-label', /attacker.*AI agent.*blown away as dust.*next attempt/);
-  await expect(hero).toHaveAttribute('data-phase', /alert|claim|scan|verdict|dust/, { timeout: 8000 });
+  const hero = page.locator('figure.sn');
+  await expect(hero).toHaveAttribute('aria-label', /fingerprint-like form.*drifts off pattern.*ring locks on.*heals/);
+  // a still picture is there before any script runs, for reduced motion and browsers without WebGL2
+  await expect(hero.locator('img')).toHaveAttribute('src', '/img/hero/shape-of-normal.webp');
+  await expect(hero).toHaveAttribute('data-phase', /deviation|held|still/, { timeout: 12000 });
   // no product names in the hero
   await expect(page.locator('section[aria-labelledby="hero-h"]')).not.toContainText(/adapID|Zenstra|BotShield|ICMS/);
-  await hero.getByRole('button', { name: 'Pause the animation' }).click();
-  await expect(hero.getByRole('button', { name: 'Play the animation' })).toBeVisible();
+  if ((await hero.getAttribute('data-phase')) !== 'still') {
+    await hero.getByRole('button', { name: 'Pause the animation' }).click();
+    await expect(hero.getByRole('button', { name: 'Play the animation' })).toBeVisible();
+  }
+});
+
+test('home: "Watch the film" in the hero scrolls to the film and starts it', async ({ page }) => {
+  await page.goto('/');
+  await hydrated(page);
+  await page.locator('section[aria-labelledby="hero-h"]').getByRole('link', { name: /Watch the film/ }).click();
+  await expect(page.locator('#film video')).toBeVisible();
+  await expect(page.locator('#film')).toBeInViewport();
 });
 
 test('every hero rolls the customer logos, with a pause control', async ({ page }) => {
