@@ -61,10 +61,10 @@ FILES
   website/src/components/viz/adapid.jsx
   website/src/components/viz/botshield.jsx
   website/src/components/viz/fraud.jsx
-  website/src/components/viz/frauddecisions.jsx
   website/src/components/viz/fraudgate.jsx
   website/src/components/viz/home.jsx
   website/src/components/viz/icms.jsx
+  website/src/components/viz/journey.jsx
   website/src/components/viz/kit.jsx
   website/src/components/viz/light.jsx
   website/src/components/viz/nhimap.jsx
@@ -219,6 +219,7 @@ Two stages: Node 22 installs, builds and prerenders every page; nginx then serve
 | `src/components/Backdrop.jsx` | A still, neutral graphite surface behind the dark bands. Colour lives in the product pictures and the accents, not the background; brand blue is the one accent for actions. Dense reading sits on `.calm`. |
 | `src/components/LogoOrbit.jsx` | The home page logo moment: the mark rises into a brand-blue plate with the line, then pops out and lands at the centre of the identity orbit, with the four products under it. |
 | `src/components/HeroPhoto.jsx`, `public/img/photos/` | The home hero: a real photograph (Pexels, free licence) of a person confirmed as himself, then an impostor with his password stopped. The industry cards and industry page heroes use the same photo set; team pages use only our own photos. |
+| `public/img/zenstra/agent.webp` | The Zenstra agent console: a robot hand reaching into a data network, photographed by Tara Winstead (Pexels photo 8386437, Pexels licence, free for commercial use), cropped square. |
 | `src/components/Stage3D.jsx` | 3D frame for key pictures; `<Pop>` lifts the important part out of the frame. |
 | `src/components/ProductMark.jsx`, `public/brand/products/` | The official product logos (Zenstra AI, adapID AI, BotShield AI, ICMS), taken from the products' own artwork on deepalgorithms.io and used in the menus, heroes, cards, the company page, research and the film. |
 | `src/components/viz/` | Every product picture, as code with sample data, one file per product line, using the real tools involved (Okta, Microsoft 365, AWS services, GitHub, Claude, Salesforce, UPI…) from `kit.jsx`. Steps play while on screen; server HTML shows the final step. |
@@ -1564,26 +1565,28 @@ html.is-translated font { background: none !important; box-shadow: none !importa
 .kl-verdict b { color: #0e1116; }
 .kl-dot { width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; background: #e5484d; flex-shrink: 0; box-shadow: 0 0 0 4px rgb(229 72 77 / .15); }
 
-.po-ring { fill: none; stroke: rgb(10 58 107 / .18); stroke-dasharray: 3 6; }
-.po-ring.b { stroke: rgb(10 109 187 / .28); }
-.po-coin { position: absolute; display: grid; place-items: center; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; background: #fff; border: 1px solid rgb(14 17 22 / .1); box-shadow: 0 5px 0 #d3dce8, 0 14px 22px -12px rgb(11 42 82 / .4); color: #12171f; animation: po-bob 4.2s ease-in-out infinite; }
-.po-coin.ai { background: #f1edff; border-color: #d9d0ff; box-shadow: 0 5px 0 #cfc5f5, 0 14px 22px -12px rgb(76 52 180 / .4); }
+.po-ring { fill: none; stroke: rgb(255 255 255 / .12); stroke-dasharray: 3 7; }
+.po-coin { position: absolute; display: grid; place-items: center; width: clamp(34px, 6.2%, 54px); aspect-ratio: 1.25 / 1; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle at 50% 35%, #2a313c, #0d1116 70%); box-shadow: 0 5px 0 #e9edf2, 0 6px 0 1px rgb(14 17 22 / .5), 0 16px 22px -10px rgb(0 0 0 / .55); color: #fff; animation: po-bob 4.4s ease-in-out infinite; }
+.po-coin.ai { background: radial-gradient(circle at 50% 35%, #c9bdf0, #9d8fd6 75%); box-shadow: 0 5px 0 #e9edf2, 0 6px 0 1px rgb(60 40 120 / .45), 0 16px 22px -10px rgb(60 40 120 / .5); }
+.po-coin svg { width: 46%; height: auto; }
 @keyframes po-bob { 50% { translate: 0 -5px; } }
 
-.ac { border: 1px solid rgb(14 17 22 / .1); border-radius: 22px; overflow: hidden; background: linear-gradient(160deg, #f7f5ff, #f3f6fc 55%, #fff); box-shadow: 0 40px 90px -60px rgb(60 40 160 / .35); }
+.ac { border: 1px solid rgb(14 17 22 / .1); border-radius: 22px; overflow: hidden; background: linear-gradient(160deg, #eef6fe, #f4f8fc 55%, #fff); box-shadow: 0 40px 90px -60px rgb(11 42 82 / .4); }
 .ac-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 18px; border-bottom: 1px solid rgb(14 17 22 / .07); font-size: 13.5px; background: rgb(255 255 255 / .7); }
-.ac-pill { padding: 3px 10px; border-radius: 999px; background: #efeaff; color: #5b47c9; font-size: 12px; font-weight: 600; }
+.ac-pill { padding: 3px 10px; border-radius: 999px; background: #e3f0fc; color: #0a5ea3; font-size: 12px; font-weight: 600; }
 .ac-avatar { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #12171f; color: #fff; font-size: 11px; font-weight: 600; }
 .ac-hero { display: grid; gap: 28px; align-items: center; padding: 34px 26px 10px; }
 @media (min-width: 768px) { .ac-hero { grid-template-columns: 300px 1fr; padding: 40px 48px 16px; } }
 .ac-orb { position: relative; width: 240px; height: 240px; margin: 0 auto; }
-.ac-halo { position: absolute; inset: -22px; border-radius: 50%; background: radial-gradient(circle, rgb(167 139 250 / .28), rgb(167 139 250 / .08) 60%, transparent 70%); }
-.ac-core { position: absolute; inset: 20px; display: grid; place-items: center; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff, #e9e3ff 60%, #d6ccff); box-shadow: inset 0 -10px 30px rgb(109 91 208 / .18), 0 30px 50px -30px rgb(76 52 180 / .5); }
-.ac-core svg { width: 92px; height: 92px; }
+.ac-halo { position: absolute; inset: -26px; border-radius: 50%; background: radial-gradient(circle, rgb(10 109 187 / .30), rgb(0 174 239 / .10) 60%, transparent 70%); animation: ac-breathe 4s ease-in-out infinite; }
+@keyframes ac-breathe { 50% { transform: scale(1.05); opacity: .8; } }
+.ac-core { position: absolute; inset: 20px; overflow: hidden; border-radius: 50%; background: #0a4f8f; box-shadow: 0 0 0 6px rgb(255 255 255 / .9), 0 0 0 7px rgb(10 109 187 / .25), 0 30px 50px -25px rgb(11 42 82 / .6); }
+.ac-core img { width: 100%; height: 100%; object-fit: cover; }
+.ac-core::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle at 50% 50%, transparent 55%, rgb(10 79 143 / .35)); }
 .ac-chip { position: absolute; display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 10px; background: #fff; border: 1px solid rgb(14 17 22 / .08); box-shadow: 0 12px 24px -14px rgb(11 42 82 / .45); font-size: 11.5px; font-weight: 600; color: #12171f; white-space: nowrap; }
-.ac-chip i { width: 7px; height: 7px; border-radius: 50%; background: #7c6cf2; }
+.ac-chip i { width: 7px; height: 7px; border-radius: 50%; background: #0a6dbb; }
 .ac-chip i.g { background: #1f9d63; }
-.ac-chip.c1 { left: -26px; bottom: 34px; }
+.ac-chip.c1 { left: -34px; top: 22px; }
 .ac-chip.c2 { right: -38px; bottom: -2px; }
 .ac-spark { position: absolute; right: 18px; top: 10px; }
 .ac-h { font-size: clamp(22px, 2.2vw, 30px); font-weight: 600; letter-spacing: -.025em; line-height: 1.15; color: #12171f; max-width: 20ch; }
@@ -1605,8 +1608,177 @@ html.is-translated font { background: none !important; box-shadow: none !importa
 .itf-c { font-size: 15px; font-weight: 700; fill: #fff; }
 .itf-line { fill: none; stroke: #0a5ea3; stroke-width: 2; }
 .itf-box { fill: #fff; stroke: #1d4fbf; stroke-width: 1.6; stroke-dasharray: 4 4; }
-@media (prefers-reduced-motion: reduce) { .po-coin { animation: none; } .kl-link path { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .ac-halo { animation: none; } .po-coin { animation: none; } .kl-link path { transition: none; } }
 @media (max-width: 640px) { .wf-grid { width: 230%; } .wf-floor { height: 260px; } }
+
+/* fraud: one session read end to end (viz/journey.jsx) */
+.jy { max-width: 1000px; margin-inline: auto; border: 1px solid rgb(14 17 22 / .1); border-radius: 22px; background: #fff; box-shadow: 0 60px 120px -70px rgb(11 42 82 / .45); overflow: hidden; color: #0e1116; text-align: left; }
+.jy-bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 12px 16px; border-bottom: 1px solid rgb(14 17 22 / .08); background: linear-gradient(180deg, #fbfcfe, #f5f8fb); }
+.jy-seg { display: inline-flex; padding: 3px; border-radius: 999px; background: #e9eef5; }
+.jy-seg button { padding: 7px 14px; border-radius: 999px; font-size: 13.5px; font-weight: 600; color: #434852; transition: background .25s, color .25s, box-shadow .25s; }
+.jy-seg button.on { background: #fff; color: #0a6dbb; box-shadow: 0 2px 8px -2px rgb(11 42 82 / .25); }
+.jy-who { font-size: 13px; color: #626873; }
+.jy-status-pill { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px; font-size: 12.5px; font-weight: 600; }
+.jy-status-pill i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.jy-status-pill.ok { background: #e8f6ef; color: #0c7546; } .jy-status-pill.warn { background: #fff4e0; color: #a35c00; } .jy-status-pill.crit { background: #fdecec; color: #c4352a; }
+.jy-steps { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; padding: 10px 14px; border-bottom: 1px solid rgb(14 17 22 / .06); }
+@media (max-width: 767px) { .jy-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.jy-steps button { position: relative; display: flex; width: 100%; align-items: center; gap: 7px; padding: 6px 8px; border: 1px solid rgb(14 17 22 / .08); border-radius: 12px; background: #fff; text-align: left; overflow: hidden; transition: border-color .3s, background .3s; }
+.jy-si { display: grid; place-items: center; width: 26px; height: 26px; flex-shrink: 0; border-radius: 8px; background: #f1f4f8; color: #626873; transition: background .3s, color .3s; }
+.jy-sl { font-size: 12.5px; font-weight: 600; line-height: 1.2; color: #434852; }
+.jy-steps button.past .jy-si { background: #eaf3fc; color: #0a6dbb; }
+.jy-steps button.past.t-warn .jy-si { background: #fff4e0; color: #a35c00; } .jy-steps button.past.t-crit .jy-si { background: #fdecec; color: #c4352a; }
+.jy-steps button.on { border-color: #0a6dbb; background: #f4f9fe; }
+.jy-steps button.on .jy-si { background: #0a6dbb; color: #fff; }
+.jy-steps button.on .jy-sl { color: #0e1116; }
+.jy-prog { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: #0a6dbb; transform-origin: 0 50%; }
+.jy-body { display: grid; gap: 0; }
+@media (min-width: 900px) { .jy-body { grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr); } }
+.jy-device { display: grid; place-items: center; padding: 20px 16px; min-height: 500px; background: radial-gradient(rgb(10 58 107 / .1) 1px, transparent 1px) 0 0 / 14px 14px, linear-gradient(160deg, #f4f8fd, #e6eff9); }
+.jy-panel { padding: 16px; display: grid; gap: 10px; align-content: start; border-left: 1px solid rgb(14 17 22 / .06); }
+/* phone */
+.jy-phone { width: 204px; aspect-ratio: 9 / 19; padding: 8px; border-radius: 38px; background: linear-gradient(160deg, #2a2d33, #161a21); box-shadow: 0 60px 90px -45px rgb(11 42 82 / .6), 0 0 0 1px rgb(14 17 22 / .1); font-size: 12px; }
+.jy-ps { position: relative; height: 100%; border-radius: 31px; overflow: hidden; background: #f4f5f7; color: #101318; display: flex; flex-direction: column; }
+.jy-status { display: flex; justify-content: space-between; align-items: center; height: 30px; padding: 0 18px; font-size: 11px; font-weight: 600; }
+.jy-call { padding: 2px 8px; border-radius: 999px; background: #1a7f37; color: #fff; font-variant-numeric: tabular-nums; }
+.jy-app { flex: 1; display: flex; flex-direction: column; padding: 4px 13px 14px; min-height: 0; }
+.jy-top { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; }
+.jy-logo { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 7px; background: linear-gradient(135deg, #1e40af, #3b82f6); color: #fff; font-size: 9.5px; font-weight: 800; }
+.jy-logo.big { width: 56px; height: 56px; border-radius: 16px; font-size: 20px; }
+.jy-splash { flex: 1; display: grid; place-items: center; align-content: center; gap: 10px; font-size: 14px; }
+.jy-splash.small { min-height: 140px; }
+.jy-spin { width: 22px; height: 22px; border-radius: 50%; border: 2.5px solid #dbe4ff; border-top-color: #1e40af; animation: mb-spin .9s linear infinite; }
+.jy-av { display: inline-grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: #e0e7ff; color: #1e40af; font-weight: 700; }
+.jy-h { font-size: 15px; font-weight: 700; letter-spacing: -.02em; }
+.jy-sub { font-size: 11px; color: #5b616c; }
+.jy-dot { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid #1e40af; transition: background .15s; }
+.jy-dot.on { background: #1e40af; }
+.jy-pad { margin-top: auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.jy-pad span.k { display: grid; place-items: center; height: 34px; border-radius: 10px; background: #fff; font-weight: 600; font-size: 14px; box-shadow: 0 1px 1px rgb(16 24 40 / .06); transition: background .12s, transform .12s; }
+.jy-pad span.on { background: #c7d6ff; transform: scale(.94); }
+.jy-card { padding: 11px 12px; border-radius: 13px; background: linear-gradient(135deg, #1e40af, #3b82f6); color: #fff; }
+.jy-card .jy-sub { color: rgb(255 255 255 / .8); }
+.jy-tile { display: grid; place-items: center; min-height: 46px; padding: 6px; border-radius: 11px; background: #fff; font-size: 10.5px; font-weight: 600; text-align: center; box-shadow: 0 1px 1px rgb(16 24 40 / .06); transition: background .2s, box-shadow .2s; }
+.jy-tile.tap { background: #dbe6ff; box-shadow: 0 0 0 2px #93b2ff; }
+.jy-field { position: relative; margin-top: 7px; padding: 6px 10px; border: 1px solid #e3e6eb; border-radius: 10px; background: #fff; }
+.jy-field span { display: block; font-size: 9.5px; font-weight: 600; color: #6b717c; }
+.jy-field b { display: block; min-height: 1.3em; font-size: 12.5px; font-weight: 600; }
+.jy-field.typing { border-color: #3b82f6; box-shadow: 0 0 0 3px rgb(59 130 246 / .15); }
+.jy-field.paste { border-color: #e5484d; box-shadow: 0 0 0 3px rgb(229 72 77 / .14); }
+.jy-field em { position: absolute; right: 8px; top: 6px; padding: 1px 7px; border-radius: 999px; background: #fdecec; color: #c4352a; font-size: 9.5px; font-style: normal; font-weight: 700; }
+.jy-btn { display: grid; place-items: center; height: 36px; margin-top: auto; border-radius: 11px; background: #1e40af; color: #fff; font-weight: 700; font-size: 12.5px; transition: transform .15s; }
+.jy-btn.press { transform: scale(.96); background: #18348f; }
+.jy-held { margin-top: auto; display: grid; justify-items: center; gap: 4px; padding: 14px 10px; border-radius: 14px; background: #fff; border: 1px solid #f3c4c2; text-align: center; animation: mb-v .5s cubic-bezier(.16,1,.3,1) both; }
+.jy-held span { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: #fdecec; color: #c4352a; font-size: 16px; }
+.jy-held.amber { border-color: #f5d9a8; } .jy-held.amber span { background: #fff4e0; color: #a35c00; }
+.jy-held b { font-size: 13.5px; } .jy-held small { font-size: 10.5px; color: #5b616c; }
+/* browser */
+.jy-web { width: 100%; max-width: 360px; aspect-ratio: 4 / 3.3; border-radius: 14px; background: #fff; border: 1px solid rgb(14 17 22 / .12); box-shadow: 0 50px 80px -45px rgb(11 42 82 / .55); overflow: hidden; display: flex; flex-direction: column; font-size: 12px; }
+.jy-url { display: flex; align-items: center; gap: 5px; padding: 8px 10px; background: #f1f3f6; border-bottom: 1px solid #e3e6eb; }
+.jy-url i { width: 8px; height: 8px; border-radius: 50%; background: #d4d8de; }
+.jy-url span { margin-left: 8px; flex: 1; padding: 3px 10px; border-radius: 6px; background: #fff; font-size: 10.5px; color: #434852; }
+.jy-page { flex: 1; display: flex; flex-direction: column; padding: 14px 16px; background: #f7f8fa; }
+.jy-form { flex: 1; display: flex; flex-direction: column; max-width: 300px; width: 100%; margin: 10px auto 0; }
+.jy-form .jy-btn { margin-top: 12px; }
+.jy-mpath { fill: none; stroke: #e5484d; stroke-width: .8; stroke-dasharray: 1; vector-effect: non-scaling-stroke; stroke-width: 2; }
+/* panel */
+.jy-risk { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; padding: 10px 14px; border: 1px solid rgb(14 17 22 / .08); border-radius: 16px; background: #fafbfd; }
+.jy-rl { display: block; font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: #8a909b; }
+.jy-rv { display: block; font-size: 34px; font-weight: 600; letter-spacing: -.04em; line-height: 1; font-variant-numeric: tabular-nums; transition: color .3s; }
+.jy-rv.t-ok { color: #0c7546; } .jy-rv.t-warn { color: #b45309; } .jy-rv.t-crit { color: #c4352a; }
+.jy-meter { position: relative; height: 10px; margin-bottom: 14px; border-radius: 999px; background: linear-gradient(90deg, #d7f0e3 0 40%, #fdf0d8 40% 80%, #fde0de 80%); }
+.jy-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: linear-gradient(90deg, #1f9d63, #d97706 55%, #e5484d); }
+.jy-meter i { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #12171f; opacity: .5; }
+.jy-meter small { position: absolute; top: 14px; transform: translateX(-50%); font-size: 10.5px; color: #626873; white-space: nowrap; }
+.jy-focus { min-height: 290px; padding: 12px 14px; border: 1px solid rgb(14 17 22 / .08); border-radius: 16px; animation: mb-v .45s cubic-bezier(.16,1,.3,1) both; }
+.jy-fh { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; }
+.jy-match { padding: 2px 9px; border-radius: 999px; background: #e8f6ef; color: #0c7546; font-size: 12px; font-weight: 600; }
+.jy-match.bad { background: #fdecec; color: #c4352a; }
+.jy-note { margin-top: 8px; font-size: 12.5px; line-height: 1.5; color: #434852; }
+.jy-keys { margin-top: 12px; display: grid; gap: 12px; }
+.jy-krow { display: grid; grid-template-columns: 62px 1fr; gap: 10px; align-items: end; }
+.jy-kl { font-size: 12px; font-weight: 600; color: #434852; line-height: 1.2; }
+.jy-kl small { display: block; font-weight: 400; color: #8a909b; font-size: 10.5px; }
+.jy-kbars { display: flex; gap: 8px; height: 70px; align-items: flex-end; }
+.jy-kcol { position: relative; flex: 1; height: 50px; display: flex; justify-content: center; margin-bottom: 20px; }
+.jy-kcol b { position: absolute; bottom: -20px; font: 600 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: #434852; }
+.jy-band { position: absolute; left: 0; right: 0; border-radius: 4px; background: rgb(10 109 187 / .12); border: 1px dashed rgb(10 109 187 / .35); }
+.jy-kb { position: absolute; bottom: 0; width: 46%; border-radius: 4px 4px 0 0; background: #0a6dbb; transition: height .35s cubic-bezier(.16,1,.3,1); }
+.jy-kb.off { background: #e5484d; }
+.jy-gaps { display: grid; gap: 5px; }
+.jy-gcol { position: relative; display: flex; align-items: center; gap: 8px; height: 12px; }
+.jy-gp { position: absolute; left: 0; height: 12px; border-radius: 3px; background: rgb(10 109 187 / .12); border: 1px dashed rgb(10 109 187 / .35); }
+.jy-g { position: relative; height: 6px; margin-left: 0; border-radius: 3px; background: #0a6dbb; transition: width .35s cubic-bezier(.16,1,.3,1); }
+.jy-g.off { background: #e5484d; }
+.jy-gcol small { position: relative; font: 600 10.5px ui-monospace, SFMono-Regular, Menlo, monospace; color: #434852; white-space: nowrap; }
+.jy-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: 11px; color: #626873; }
+.jy-legend i { display: inline-block; width: 12px; height: 8px; border-radius: 2px; margin-right: -8px; }
+.jy-legend i.p { background: rgb(10 109 187 / .15); border: 1px dashed rgb(10 109 187 / .5); } .jy-legend i.s { background: #0a6dbb; } .jy-legend i.x { background: #e5484d; }
+.jy-checks, .jy-nav { margin-top: 10px; display: grid; gap: 6px; }
+.jy-checks li { display: flex; align-items: center; gap: 10px; font-size: 13.5px; opacity: .25; transition: opacity .35s; }
+.jy-checks li.on { opacity: 1; }
+.jy-checks i { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font-style: normal; font-size: 11px; font-weight: 800; }
+.jy-checks li.ok i { background: #e8f6ef; color: #0c7546; } .jy-checks li.bad i { background: #fdecec; color: #c4352a; }
+.jy-nav li { display: grid; grid-template-columns: 1fr auto; gap: 0 10px; padding: 8px 10px; border-radius: 10px; background: #fafbfd; opacity: .25; transition: opacity .35s; font-size: 13px; }
+.jy-nav li.on { opacity: 1; }
+.jy-nav b { color: #b45309; } .jy-nav small { grid-column: 1 / -1; font-size: 11.5px; color: #8a909b; }
+.jy-big { margin-top: 8px; font-size: 26px; font-weight: 600; letter-spacing: -.025em; color: #c4352a; }
+.jy-paste dl { margin-top: 10px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.jy-paste dl div { padding: 8px 10px; border-radius: 10px; background: #fafbfd; opacity: .25; transition: opacity .35s; }
+.jy-paste dl div.on { opacity: 1; }
+.jy-paste dt { font-size: 10.5px; color: #8a909b; } .jy-paste dd { font-size: 13px; font-weight: 600; }
+.jy-paste dl div.bad dd { color: #c4352a; }
+.jy-mouse { margin-top: 8px; width: 100%; height: auto; background: radial-gradient(rgb(10 58 107 / .1) 1px, transparent 1px) 0 0 / 12px 12px; border-radius: 10px; }
+.jy-mouse .hum { fill: none; stroke: #0a6dbb; stroke-width: 2; stroke-dasharray: 4 4; opacity: .7; }
+.jy-mouse .bot { fill: none; stroke: #e5484d; stroke-width: 2.4; stroke-dasharray: 1; }
+.jy-mouse .jump { fill: #e5484d; }
+.jy-mouse .lbl { font-size: 10.5px; fill: #0a6dbb; font-weight: 600; } .jy-mouse .lbl.red { fill: #c4352a; }
+.jy-dec { margin-top: 10px; padding: 12px 14px; border-radius: 12px; background: #fdecec; }
+.jy-dh { font-size: 16px; font-weight: 600; color: #a32a21; }
+.jy-dec ul { margin-top: 8px; display: grid; gap: 5px; }
+.jy-dec li { position: relative; padding-left: 18px; font-size: 13px; color: #5b2a26; opacity: .2; transition: opacity .35s; }
+.jy-dec li.on { opacity: 1; }
+.jy-dec li::before { content: '✓'; position: absolute; left: 0; color: #c4352a; font-weight: 700; }
+.jy-feed { padding: 10px 14px; border: 1px solid rgb(14 17 22 / .08); border-radius: 16px; background: #fafbfd; }
+.jy-fl { font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: #8a909b; }
+.jy-feed ul { margin-top: 6px; display: grid; gap: 3px; min-height: 100px; align-content: start; }
+.jy-feed li { display: flex; align-items: center; gap: 9px; font-size: 13px; animation: mb-v .4s cubic-bezier(.16,1,.3,1) both; }
+.jy-feed li i { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.jy-feed li b { margin-left: auto; font-variant-numeric: tabular-nums; font-size: 12.5px; }
+.jy-feed li.t-ok i { background: #1f9d63; } .jy-feed li.t-ok b { color: #0c7546; }
+.jy-feed li.t-warn i { background: #d97706; } .jy-feed li.t-warn b { color: #b45309; }
+.jy-feed li.t-crit i { background: #e5484d; } .jy-feed li.t-crit b { color: #c4352a; }
+.jy-cap { padding: 10px 16px; border-top: 1px solid rgb(14 17 22 / .07); font-size: 12px; color: #8a909b; }
+@keyframes mb-spin { to { transform: rotate(360deg); } }
+@keyframes mb-v { from { opacity: 0; transform: translateY(8px); } }
+@media (prefers-reduced-motion: reduce) { .jy-spin, .jy-focus, .jy-feed li, .jy-held { animation: none; } }
+.jy-cursor { position: absolute; width: 18px; height: 20px; transition: left .22s linear, top .22s linear; filter: drop-shadow(0 2px 3px rgb(0 0 0 / .3)); }
+
+/* every section rises in as it scrolls into view; grid cards follow one by one.
+   Native scroll-driven animation: no script, nothing on reduced motion, and
+   browsers without it simply show the page. Elements that already reveal
+   themselves (Reveal) are left alone. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    :is(.sec, .sec-tight) > .wrap > :not(.reveal, .reveal-up, .rise),
+    :is(.sec, .sec-tight) :is(.grid, .m-rail) > :not(.reveal, .reveal-up, .rise) {
+      animation: sec-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 40%;
+    }
+  }
+}
+@keyframes sec-rise { from { opacity: 0; transform: translateY(28px); } }
+
+.po-core { position: absolute; left: 50%; top: 49%; z-index: 300; width: clamp(64px, 13%, 112px); aspect-ratio: 1; transform: translate(-50%, -50%); }
+.po-tile { position: absolute; inset: 0; display: grid; place-items: center; border-radius: 28%; background: linear-gradient(160deg, #ffffff, #e9f1fa); border: 1px solid rgb(255 255 255 / .95);
+  box-shadow: 0 0 0 1px rgb(10 109 187 / .18), 0 22px 44px -14px rgb(0 174 239 / .7), 0 8px 18px -8px rgb(0 0 0 / .45), inset 0 -6px 14px rgb(10 58 107 / .1); }
+.po-tile img { width: 58%; height: auto; }
+.po-glow { position: absolute; inset: -55%; border-radius: 50%; background: radial-gradient(circle, rgb(0 174 239 / .45), rgb(0 174 239 / .12) 45%, transparent 70%); animation: po-glow 4s ease-in-out infinite; }
+.po-halo { position: absolute; inset: -16%; border-radius: 34%; border: 1px solid rgb(127 214 255 / .45); animation: po-halo 3.2s ease-out infinite; }
+@keyframes po-glow { 50% { opacity: .65; transform: scale(.94); } }
+@keyframes po-halo { from { opacity: .9; transform: scale(.92); } to { opacity: 0; transform: scale(1.35); } }
+@media (prefers-reduced-motion: reduce) { .po-glow, .po-halo { animation: none; } }
 
 
 ====================================================================================================
@@ -6683,77 +6855,6 @@ export function WebStepUp({ k: fk } = {}) {
 
 
 ====================================================================================================
-FILE: website/src/components/viz/frauddecisions.jsx
-====================================================================================================
-import { useEffect, useRef, useState } from 'react';
-import { useInView, useReducedMotion, cx } from '../../lib/motion.js';
-import { Icon } from '../ui.jsx';
-
-/* The fraud hero, in one glance: the three frauds a bank loses money to, each
-   as it arrives, what gave it away, and what happened, in milliseconds. The
-   full story of one of them (Anita) is told further down the page. Values are
-   illustrative. */
-
-const ROWS = [
-  { icon: 'UserCircle', kind: 'Account takeover', what: 'Right password, new phone, typing unlike the customer', act: 'Stepped up', tone: 'warn', ms: 41 },
-  { icon: 'Phone', kind: 'Payment scam', what: '₹2,40,000 to a new payee, customer on a call', act: 'Paused', tone: 'hold', ms: 63 },
-  { icon: 'Bank', kind: 'Mule account', what: 'Payee account flagged in shared fraud intelligence', act: 'Blocked', tone: 'crit', ms: 38 },
-];
-const TONE = {
-  warn: 'bg-[#f6b955]/15 text-[#f6c776]',
-  hold: 'bg-[#ff9a5c]/15 text-[#ffb27f]',
-  crit: 'bg-[#ff6b5d]/15 text-[#ff8a7e]',
-};
-
-export function FraudDecisions() {
-  const ref = useRef(null);
-  const seen = useInView(ref, { threshold: 0.3 });
-  const reduce = useReducedMotion();
-  const [k, setK] = useState(ROWS.length * 2); // without scripts, every row with its outcome
-  useEffect(() => {
-    if (reduce || !seen) { setK(ROWS.length * 2); return undefined; }
-    // row i arrives at step 2i, its outcome at 2i+1; then hold, and again
-    let i = 0, t;
-    const next = () => { setK(i); t = setTimeout(() => { i = i >= ROWS.length * 2 ? 0 : i + 1; next(); }, i >= ROWS.length * 2 ? 4200 : i % 2 ? 700 : 900); };
-    next();
-    return () => clearTimeout(t);
-  }, [seen, reduce]);
-  return (
-    <figure ref={ref} className="mx-auto w-full max-w-[540px] lg:mr-0" aria-label="Illustration: three sessions in a bank's app. An account takeover, with the right password but a new phone and typing unlike the customer, is stepped up in 41 ms. A payment scam, 2,40,000 rupees to a new payee while the customer is on a call, is paused in 63 ms. A payment to a mule account flagged in shared fraud intelligence is blocked in 38 ms.">
-      <div aria-hidden="true" className="overflow-hidden rounded-[20px] border border-white/12 bg-[#071733]/85 shadow-[0_40px_90px_-40px_rgba(0,0,0,.9)] backdrop-blur">
-        <div className="flex items-center gap-2.5 border-b border-white/10 px-5 py-3.5">
-          <span className="relative flex h-2 w-2"><span className="absolute inset-0 animate-ping rounded-full bg-[#3fd98f] opacity-60" /><span className="relative h-2 w-2 rounded-full bg-[#3fd98f]" /></span>
-          <span className="text-[13.5px] font-semibold text-white">Live decisions</span>
-          <span className="ml-auto text-[12.5px] text-white/55">Mobile banking · Internet banking · UPI</span>
-        </div>
-        <ul>
-          {ROWS.map((r, i) => {
-            const shown = k >= i * 2, done = k >= i * 2 + 1;
-            return (
-              <li key={r.kind} className={cx('flex items-center gap-3.5 border-b border-white/[.07] px-5 py-4 transition-all duration-500 last:border-0', shown ? 'opacity-100' : 'translate-y-1 opacity-0')}>
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-white/[.07] text-[#9fd3ff]"><Icon name={r.icon} size={20} /></span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[14.5px] font-semibold text-white">{r.kind}</span>
-                  <span className="mt-0.5 block text-[12.5px] leading-snug text-white/60">{r.what}</span>
-                </span>
-                <span className="w-[92px] shrink-0 text-right">
-                  <span className={cx('inline-block rounded-full px-2.5 py-1 text-[12px] font-semibold transition-all duration-300', done ? TONE[r.tone] : 'bg-white/[.06] text-white/45')}>{done ? r.act : 'Scoring…'}</span>
-                  <span className={cx('mt-1 block text-[11.5px] tabular-nums text-white/45 transition-opacity duration-300', done ? 'opacity-100' : 'opacity-0')}>{r.ms} ms</span>
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-        <div className="flex items-center gap-2 border-t border-white/10 bg-white/[.03] px-5 py-3 text-[12.5px] text-white/70">
-          <Icon name="ChatCircleText" size={15} className="text-[#9fd3ff]" />Every decision comes with its reason, for the analyst and the auditor.
-        </div>
-      </div>
-    </figure>
-  );
-}
-
-
-====================================================================================================
 FILE: website/src/components/viz/fraudgate.jsx
 ====================================================================================================
 import { useEffect, useRef, useState } from 'react';
@@ -7143,6 +7244,325 @@ export function PatientAccess({ k: fk } = {}) {
         </Win>
       )}
     </Viz>
+  );
+}
+
+
+====================================================================================================
+FILE: website/src/components/viz/journey.jsx
+====================================================================================================
+import { useEffect, useRef, useState } from 'react';
+import { useInView, useReducedMotion, cx } from '../../lib/motion.js';
+
+/* One banking session, read end to end, the way adapID reads it: from opening
+   the app (or the bank's website) to sending money. Each step shows the screen
+   the customer sees and what the bank's SDK measures underneath: keystroke
+   rhythm (how long each key is held, the gap to the next), touch and grip,
+   paste events, navigation, an active call, mouse movement. Risk builds with
+   every signal and the decision lands before the money moves.
+   Mobile: a real customer coached by a scammer. Internet banking: a fraudster
+   with stolen credentials. Names, numbers and scores are sample data. */
+
+const STEP_MS = 3800;
+
+/* ── the two sessions ─────────────────────────────────────────────────────── */
+const MOBILE = {
+  who: 'Anita Sharma · Savings ••4821',
+  verdict: ['Payment held', 'crit'],
+  steps: [
+    { k: 'open', label: 'Opens the app', risk: 4,
+      focus: { kind: 'checks', title: 'Device and app, before the first tap', rows: [['Her registered phone, 14 months', true], ['App untampered, no screen overlay', true], ['Not rooted, no remote-access app', true], ['Pune, where she usually is', true]] },
+      sig: [['Known device and app, baseline risk', 4, 'ok']] },
+    { k: 'login', label: 'Enters MPIN', risk: 6,
+      focus: { kind: 'keys', title: 'Keystroke rhythm · MPIN', keys: ['•', '•', '•', '•'], hold: [92, 88, 97, 90], holdP: [90, 86, 95, 92], gap: [210, 185, 240], gapP: [205, 190, 230], match: 94, note: 'Hold time and gaps match her last 212 logins. Thumb pressure and grip angle too.' },
+      sig: [['Typing rhythm matches her', 0, 'ok'], ['Grip and touch pressure match', 2, 'ok']] },
+    { k: 'nav', label: 'Goes to Pay', risk: 24, call: '04:12',
+      focus: { kind: 'nav', title: 'Navigation', rows: [['Time on home screen', '6.4 s', 'usually 1.2 s'], ['Taps before Pay', '7', 'usually 2'], ['Phone call', 'active, 04:12', 'unknown number']] },
+      sig: [['On a call with an unknown number', 12, 'warn'], ['Hesitating, searching the menu', 6, 'warn']] },
+    { k: 'payee', label: 'Adds a payee', risk: 52, call: '05:03',
+      focus: { kind: 'paste', title: 'Account number field', big: '16 digits, 1 event', sub: 'Pasted, not typed. Zero keystrokes. She types every payee she has added before.', extra: [['Payee', 'KYC Update Desk'], ['Account', 'New, 9 days old'], ['Mule list', 'Match, 3 reports']] },
+      sig: [['Account number pasted', 14, 'crit'], ['Payee on a mule list', 14, 'crit']] },
+    { k: 'amount', label: 'Types the amount', risk: 78, call: '05:41',
+      focus: { kind: 'keys', title: 'Keystroke rhythm · amount', keys: ['2', '4', '0', '0', '0', '0'], hold: [96, 140, 88, 92, 94, 90], holdP: [90, 92, 86, 88, 90, 88], gap: [2800, 420, 190, 1900, 200], gapP: [220, 200, 190, 210, 200], match: 31, note: 'Long pauses mid-number: 2.8 s before “4”, 1.9 s before the last zeros. The pattern of someone being told what to type.' },
+      sig: [['Pauses like dictation while typing', 16, 'crit'], ['Amount 6× her largest payment', 10, 'warn']] },
+    { k: 'pay', label: 'Taps Pay', risk: 91, call: '06:02',
+      focus: { kind: 'decision', title: 'Decision · 38 ms', tone: 'crit', head: 'Hold the payment and call Anita', rows: ['Risk 91, above the hold line of 80', 'Every reason listed, with its weight', 'Money never left the account', 'Case opened for the fraud desk'] },
+      sig: [['Pay tapped mid-call, six minutes in', 13, 'crit']] },
+  ],
+};
+const WEB = {
+  who: 'Kiran Patil · Current ••7710',
+  verdict: ['Session ended', 'crit'],
+  steps: [
+    { k: 'open', label: 'Opens net banking', risk: 18,
+      focus: { kind: 'checks', title: 'Browser and network', rows: [['New browser, never seen for Kiran', false], ['Time zone says Asia/Dubai', false], ['Network: a hosting provider, not a home ISP', false], ['No screen-share tool running', true]] },
+      sig: [['Unknown browser and network', 18, 'warn']] },
+    { k: 'login', label: 'Logs in', risk: 46,
+      focus: { kind: 'keys', title: 'Keystroke rhythm · customer ID', keys: ['k', 'p', 'a', 't', 'i', 'l'], hold: [62, 60, 61, 60, 62, 61], holdP: [104, 96, 110, 98, 102, 100], gap: [80, 79, 80, 81, 80], gapP: [180, 240, 160, 210, 190], match: 22, note: 'Every key held 60 ms, every gap 80 ms: machine-even. Kiran types slower and uneven. The password was pasted.' },
+      sig: [['Typing unlike Kiran, machine-even', 16, 'crit'], ['Password pasted', 12, 'warn']] },
+    { k: 'nav', label: 'Moves the mouse', risk: 64,
+      focus: { kind: 'mouse', title: 'Mouse movement', note: 'Straight lines and jumps, no drift or overshoot. The signature of a script or a remote-control tool, not a hand.' },
+      sig: [['Mouse moves in straight lines and jumps', 18, 'crit']] },
+    { k: 'payee', label: 'Adds a beneficiary', risk: 76,
+      focus: { kind: 'paste', title: 'Beneficiary account field', big: '38 s after login', sub: 'Beneficiary added within a minute of logging in, account number pasted. Kiran has never added one this fast.', extra: [['Beneficiary', 'R. Traders'], ['Account', 'New'], ['Limit', 'Set to maximum']] },
+      sig: [['Beneficiary added 38 s after login', 12, 'crit']] },
+    { k: 'amount', label: 'Enters the amount', risk: 84,
+      focus: { kind: 'checks', title: 'Payment', rows: [['₹4,90,000: the full daily limit', false], ['Typed in 0.4 s, no corrections', false], ['First transfer to this beneficiary', false], ['Login and payment on the same new browser', false]] },
+      sig: [['Full daily limit, typed in 0.4 s', 8, 'warn']] },
+    { k: 'pay', label: 'Confirms', risk: 96,
+      focus: { kind: 'decision', title: 'Decision · 41 ms', tone: 'crit', head: 'Step-up failed, session ended', rows: ['Risk 84 asked for a step-up on Kiran’s phone', 'Step-up not completed in 60 s', 'Session ended, beneficiary blocked', 'Kiran told by SMS and call'] },
+      sig: [['Step-up failed, session ended', 12, 'crit']] },
+  ],
+};
+
+const ICONS = {
+  open: 'M7 3h10v18H7zM11 18h2', login: 'M7 11V8a5 5 0 0 1 10 0v3M5 11h14v9H5z', nav: 'M4 6h16M4 12h10M4 18h7',
+  payee: 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 19c.6-3 3-4.6 6-4.6M17 13v6M14 16h6', amount: 'M7 5h10M7 9h10M9 5c4 0 4 8 0 8H7l7 6', pay: 'M5 12l4 4 10-10',
+};
+const I = ({ d, s = 15 }) => <svg viewBox="0 0 24 24" width={s} height={s} aria-hidden="true"><path d={d} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+const tone = (r) => (r >= 80 ? 'crit' : r >= 40 ? 'warn' : 'ok');
+
+/* ── what the customer sees ───────────────────────────────────────────────── */
+function PhoneScreen({ s, f, call }) {
+  const typed = (str) => str.slice(0, Math.max(0, Math.round(f * (str.length + 1)) - 1) + 1);
+  return (
+    <div className="jy-phone">
+      <div className="jy-ps">
+        <div className="jy-status">{call ? <span className="jy-call">● {call}</span> : <span>9:41</span>}<span>▮▮▮</span></div>
+        <div className="jy-app">
+          {s === 0 && (
+            <div className="jy-splash"><span className="jy-logo big">YB</span><b>Your Bank</b><i className="jy-spin" /></div>
+          )}
+          {s === 1 && (
+            <>
+              <div className="jy-top"><span className="jy-logo">YB</span>Your Bank</div>
+              <div className="mt-[14%] text-center">
+                <span className="jy-av">AS</span>
+                <p className="jy-h mt-2">Good evening, Anita</p>
+                <p className="jy-sub">Enter your 4-digit MPIN</p>
+                <div className="mt-3 flex justify-center gap-2">{[0, 1, 2, 3].map((i) => <span key={i} className={cx('jy-dot', f > (i + 1) / 5 && 'on')} />)}</div>
+              </div>
+              <div className="jy-pad">{['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'].map((n, i) => <span key={i} className={cx(n && 'k', i === [6, 1, 8, 3][Math.floor(f * 5) - 1] && 'on')}>{n}</span>)}</div>
+            </>
+          )}
+          {s === 2 && (
+            <>
+              <div className="jy-top"><span className="jy-logo">YB</span>Your Bank</div>
+              <div className="jy-card mt-3"><span className="jy-sub">Savings ••4821</span><b className="block text-[1.35em] tracking-[-.02em]">₹3,12,480</b></div>
+              <div className="mt-3 grid grid-cols-3 gap-2">{['Pay', 'Add payee', 'Cards', 'UPI', 'Loans', 'More'].map((n, i) => <span key={n} className={cx('jy-tile', i === Math.min(5, Math.floor(f * 7)) && 'tap', n === 'Pay' && f > 0.8 && 'tap')}>{n}</span>)}</div>
+            </>
+          )}
+          {(s === 3 || s === 4 || s === 5) && (
+            <>
+              <div className="jy-top"><span className="jy-logo">YB</span>Send money</div>
+              <p className="jy-h mt-3">Pay a new payee</p>
+              <div className="jy-field mt-2"><span>Payee</span><b>KYC Update Desk</b></div>
+              <div className={cx('jy-field', s === 3 && f > 0.35 && 'paste')}><span>Account number</span><b className="font-mono">{s > 3 || f > 0.35 ? '5021 0044 7310 4410' : ' '}</b>{s === 3 && f > 0.35 && <em>Pasted</em>}</div>
+              <div className={cx('jy-field', s === 4 && 'typing')}><span>Amount</span><b>{s === 3 ? '₹' : s === 4 ? `₹${typed('2,40,000')}` : '₹2,40,000'}</b></div>
+              <div className="jy-field"><span>Remark</span><b>{s >= 4 && f > 0.6 || s === 5 ? 'KYC update' : ' '}</b></div>
+              {s === 5 && f > 0.35
+                ? <div className="jy-held"><span>⛉</span><b>We’ve paused this payment</b><small>Your bank will call you in a moment.</small></div>
+                : <span className={cx('jy-btn', s === 5 && 'press')}>Pay ₹2,40,000</span>}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WebScreen({ s, f }) {
+  const typed = (str) => str.slice(0, Math.round(f * str.length));
+  return (
+    <div className="jy-web">
+      <div className="jy-url"><i /><i /><i /><span>🔒 netbanking.yourbank.in</span></div>
+      <div className="jy-page">
+        <div className="jy-top"><span className="jy-logo">YB</span>Your Bank · Net banking</div>
+        {s === 0 && <div className="jy-splash small"><i className="jy-spin" /><span className="jy-sub">Loading secure login…</span></div>}
+        {s === 1 && (
+          <div className="jy-form">
+            <div className="jy-field typing"><span>Customer ID</span><b>{typed('kpatil')}</b></div>
+            <div className={cx('jy-field', f > 0.6 && 'paste')}><span>Password</span><b>{f > 0.6 ? '••••••••••' : ' '}</b>{f > 0.6 && <em>Pasted</em>}</div>
+            <span className="jy-btn">Log in</span>
+          </div>
+        )}
+        {s === 2 && (
+          <div className="relative mt-2 h-[78%]">
+            <div className="grid grid-cols-3 gap-2">{['Accounts', 'Transfers', 'Beneficiaries', 'Cards', 'Deposits', 'Statements'].map((n) => <span key={n} className={cx('jy-tile', n === 'Beneficiaries' && f > 0.7 && 'tap')}>{n}</span>)}</div>
+            {/* the cursor moves in straight hops, the way a script does */}
+            <svg viewBox="0 0 22 24" className="jy-cursor" style={{ left: `${[12, 12, 50, 50, 84][Math.min(4, Math.floor(f * 5))]}%`, top: `${[80, 80, 80, 22, 22][Math.min(4, Math.floor(f * 5))]}%` }} aria-hidden="true"><path d="M2 2 L20 9.5 L11.5 12 L8 21 Z" fill="#fff" stroke="#12171f" strokeWidth="1.4" strokeLinejoin="round" /></svg>
+          </div>
+        )}
+        {(s === 3 || s === 4) && (
+          <div className="jy-form">
+            <div className="jy-field"><span>Beneficiary name</span><b>R. Traders</b></div>
+            <div className={cx('jy-field', s === 3 && f > 0.3 && 'paste')}><span>Account number</span><b className="font-mono">{s === 4 || f > 0.3 ? '9100 2231 0087 1265' : ' '}</b>{s === 3 && f > 0.3 && <em>Pasted</em>}</div>
+            <div className={cx('jy-field', s === 4 && 'typing')}><span>Amount</span><b>{s === 4 ? (f > 0.15 ? '₹4,90,000' : '₹') : '₹'}</b></div>
+            <span className="jy-btn">Continue</span>
+          </div>
+        )}
+        {s === 5 && (f < 0.4
+          ? <div className="jy-form"><div className="jy-held amber"><span>⚿</span><b>Confirm it’s you</b><small>We sent a request to Kiran’s registered phone.</small></div></div>
+          : <div className="jy-form"><div className="jy-held"><span>⛉</span><b>Session ended</b><small>The beneficiary is blocked and Kiran has been told.</small></div></div>)}
+      </div>
+    </div>
+  );
+}
+
+/* ── what the bank sees ───────────────────────────────────────────────────── */
+function Keys({ x, f }) {
+  const max = Math.max(...x.gap, ...x.gapP, 400);
+  const H = 50;
+  return (
+    <div className="jy-keys">
+      <div className="jy-krow">
+        <span className="jy-kl">Hold<small>ms</small></span>
+        <div className="jy-kbars">
+          {x.keys.map((k, i) => {
+            const on = f > (i + 0.5) / (x.keys.length + 1);
+            return (
+              <span key={i} className="jy-kcol">
+                <span className="jy-band" style={{ bottom: `${(x.holdP[i] * 0.8 / 160) * H}px`, height: `${(x.holdP[i] * 0.4 / 160) * H}px` }} />
+                <span className={cx('jy-kb', on && 'on', Math.abs(x.hold[i] - x.holdP[i]) > 30 && 'off')} style={{ height: on ? `${(x.hold[i] / 160) * H}px` : 0 }} />
+                <b>{k}</b>
+              </span>
+            );
+          })}
+        </div>
+      </div>
+      <div className="jy-krow">
+        <span className="jy-kl">Gap<small>to next key</small></span>
+        <div className="jy-gaps">
+          {x.gap.map((g, i) => {
+            const on = f > (i + 1) / (x.keys.length + 1);
+            const bad = g > x.gapP[i] * 2.5 || g < x.gapP[i] * 0.55;
+            return (
+              <span key={i} className="jy-gcol">
+                <span className="jy-gp" style={{ width: `${(x.gapP[i] / max) * 100}%` }} />
+                <span className={cx('jy-g', on && 'on', bad && 'off')} style={{ width: on ? `${Math.max(4, (g / max) * 100)}%` : 0 }} />
+                <small>{on ? `${g >= 1000 ? `${(g / 1000).toFixed(1)} s` : `${g} ms`}` : ''}</small>
+              </span>
+            );
+          })}
+        </div>
+      </div>
+      <div className="jy-legend"><i className="p" />Her usual range<i className="s" />This session<i className="x" />Out of range</div>
+    </div>
+  );
+}
+
+function Focus({ x, f }) {
+  return (
+    <div className="jy-focus" key={x.title}>
+      <div className="jy-fh"><b>{x.title}</b>{x.kind === 'keys' && <span className={cx('jy-match', x.match < 60 && 'bad')}>{x.match}% match</span>}</div>
+      {x.kind === 'keys' && <><Keys x={x} f={f} /><p className="jy-note">{x.note}</p></>}
+      {x.kind === 'checks' && <ul className="jy-checks">{x.rows.map(([t, ok], i) => <li key={t} className={cx(f > (i + 0.3) / x.rows.length && 'on', ok ? 'ok' : 'bad')}><i>{ok ? '✓' : '!'}</i>{t}</li>)}</ul>}
+      {x.kind === 'nav' && <ul className="jy-nav">{x.rows.map(([a, b, c], i) => <li key={a} className={cx(f > (i + 0.3) / x.rows.length && 'on')}><span>{a}</span><b>{b}</b><small>{c}</small></li>)}</ul>}
+      {x.kind === 'paste' && (
+        <div className="jy-paste">
+          <p className="jy-big">{x.big}</p><p className="jy-note">{x.sub}</p>
+          <dl>{x.extra.map(([a, b], i) => <div key={a} className={cx(f > 0.3 + i * 0.15 && 'on', /mule|New|maximum/i.test(b) && 'bad')}><dt>{a}</dt><dd>{b}</dd></div>)}</dl>
+        </div>
+      )}
+      {x.kind === 'mouse' && (
+        <div>
+          <svg viewBox="0 0 320 130" className="jy-mouse">
+            <path d="M14 112 C60 96 70 60 120 58 S190 92 214 60 S260 20 306 24" className="hum" />
+            <path d="M14 112 L130 112 L130 34 L210 34 M246 70 L306 24" className="bot" pathLength="1" style={{ strokeDashoffset: 1 - f }} />
+            <circle cx="210" cy="34" r="3" className="jump" /><circle cx="246" cy="70" r="3" className="jump" />
+            <text x="14" y="18" className="lbl">Kiran’s hand: curves, drift</text>
+            <text x="136" y="126" className="lbl red">This session: straight lines, a jump</text>
+          </svg>
+          <p className="jy-note">{x.note}</p>
+        </div>
+      )}
+      {x.kind === 'decision' && (
+        <div className={cx('jy-dec', x.tone)}>
+          <p className="jy-dh">{x.head}</p>
+          <ul>{x.rows.map((r, i) => <li key={r} className={cx(f > 0.15 + i * 0.15 && 'on')}>{r}</li>)}</ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function SessionJourney() {
+  const ref = useRef(null);
+  const seen = useInView(ref, { threshold: 0.25 });
+  const reduce = useReducedMotion();
+  const [mode, setMode] = useState('mobile');
+  const [step, setStep] = useState(5);
+  const [f, setF] = useState(1);
+  const [hold, setHold] = useState(false);
+  const D = mode === 'mobile' ? MOBILE : WEB;
+
+  useEffect(() => { if (!reduce) { setStep(0); setF(0); } }, [reduce, mode]);
+  useEffect(() => {
+    if (reduce || !seen) return undefined;
+    let t0 = performance.now(), raf;
+    const tick = (now) => {
+      raf = requestAnimationFrame(tick);
+      const p = Math.min(1, Math.max(0, (now - t0) / STEP_MS));
+      setF(p);
+      if (p >= 1 && !hold) { t0 = now; setStep((s) => (s + 1) % D.steps.length); setF(0); }
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [seen, reduce, hold, mode, step, D.steps.length]);
+
+  const S = D.steps[step];
+  const prev = step ? D.steps[step - 1].risk : 0;
+  const risk = Math.round(prev + (S.risk - prev) * Math.min(1, f * 1.6));
+  const signals = D.steps.slice(0, step + 1).flatMap((x, i) => x.sig.map((g) => [...g, i])).filter((g) => g[3] < step || f > 0.35).reverse().slice(0, 6);
+  const pick = (i) => { setStep(i); setF(0); setHold(true); };
+  const status = step === 5 && f > 0.35 ? D.verdict : risk >= 40 ? ['Risk rising', 'warn'] : ['Watching', 'ok'];
+
+  return (
+    <figure ref={ref} className="jy" onMouseLeave={() => setHold(false)}
+      aria-label={mode === 'mobile'
+        ? 'Illustration: Anita opens her bank app, enters her MPIN, goes to Pay, adds a payee and types an amount while on a call. Her typing at login matches her profile, but she hesitates, pastes the account number of a payee on a mule list and pauses mid-number as if being dictated to. Risk climbs to 91 and the payment is held before the money moves.'
+        : 'Illustration: someone logs in to Kiran’s internet banking from a new browser on a hosting network, typing with machine-even rhythm and pasting the password, moving the mouse in straight lines, adding a beneficiary 38 seconds after login and sending the full daily limit. Risk passes 84, the step-up on Kiran’s phone is not completed and the session is ended.'}>
+      <div className="jy-bar">
+        <div className="jy-seg" role="tablist" aria-label="Channel">
+          {[['mobile', 'Mobile banking'], ['web', 'Internet banking']].map(([k, n]) => (
+            <button key={k} type="button" role="tab" aria-selected={mode === k} className={cx(mode === k && 'on')} onClick={() => { setMode(k); setHold(false); }}>{n}</button>
+          ))}
+        </div>
+        <span className="jy-who" aria-hidden="true">Live session · {D.who}</span>
+        <span className={cx('jy-status-pill', status[1])} aria-hidden="true"><i />{status[0]}</span>
+      </div>
+
+      <ol className="jy-steps">
+        {D.steps.map((x, i) => (
+          <li key={x.k}>
+            <button type="button" onClick={() => pick(i)} aria-pressed={i === step} className={cx(i === step && 'on', i < step && 'past', `t-${tone(x.risk)}`)}>
+              <span className="jy-si"><I d={ICONS[x.k]} /></span><span className="jy-sl">{x.label}</span>
+              {i === step && <span className="jy-prog" style={{ transform: `scaleX(${f})` }} />}
+            </button>
+          </li>
+        ))}
+      </ol>
+
+      <div className="jy-body" aria-hidden="true">
+        <div className="jy-device">{mode === 'mobile' ? <PhoneScreen s={step} f={f} call={S.call} /> : <WebScreen s={step} f={f} />}</div>
+        <div className="jy-panel">
+          <div className="jy-risk">
+            <div><span className="jy-rl">Session risk</span><b className={cx('jy-rv', `t-${tone(risk)}`)}>{risk}</b></div>
+            <div className="jy-meter">
+              <span className="jy-fill" style={{ width: `${risk}%` }} />
+              <i style={{ left: '40%' }} /><i style={{ left: '80%' }} />
+              <small style={{ left: '40%' }}>Step-up 40</small><small style={{ left: '80%' }}>Hold 80</small>
+            </div>
+          </div>
+          <Focus x={S.focus} f={f} />
+          <div className="jy-feed">
+            <p className="jy-fl">Signals so far</p>
+            <ul>{signals.map(([t, p, tn]) => <li key={t} className={`t-${tn}`}><i />{t}<b>{p ? `+${p}` : '0'}</b></li>)}</ul>
+          </div>
+        </div>
+      </div>
+      <figcaption className="jy-cap">Sample sessions. The SDK measures how a customer types, taps, holds the phone and moves the mouse, never what they type.</figcaption>
+    </figure>
   );
 }
 
@@ -7641,41 +8061,36 @@ export function KeyLineage() {
 }
 
 /* ── Home: the platform at the centre of what you already run ─────────────── */
-const RING = [
-  ['okta', 0], ['entra', 0], ['ad', 0], ['m365', 0], ['google', 0], ['salesforce', 0],
-  ['aws', 1], ['azure', 1], ['gcp', 1], ['kubernetes', 1], ['github', 1], ['vault', 1], ['snowflake', 1],
-  ['claude', 2], ['copilot', 2], ['gemini', 2], ['slack', 1], ['databricks', 1],
+/* [logo, ring (0 inner on the disc, 1 outer), angle in degrees, AI tool] */
+const COINS = [
+  ['okta', 0, 200], ['entra', 0, 245], ['ad', 0, 295], ['m365', 0, 340], ['github', 0, 25], ['aws', 0, 70], ['salesforce', 0, 115], ['slack', 0, 160],
+  ['gcp', 1, 185], ['azure', 1, 215], ['google', 1, 250], ['kubernetes', 1, 290], ['vault', 1, 325], ['snowflake', 1, 355],
+  ['databricks', 1, 30], ['claude', 1, 62, true], ['copilot', 1, 98, true], ['gemini', 1, 130, true], ['mcp', 1, 158, true],
 ];
 export function PlatformOrbit() {
-  const n = RING.length;
   return (
-    <figure className="po" aria-label="Illustration: Deep Algorithms at the centre, surrounded by the identity providers, clouds, apps and AI tools it connects to, including Okta, Microsoft Entra ID, Active Directory, AWS, Azure, Google Cloud, GitHub, Salesforce, Slack and AI assistants.">
-      <div aria-hidden="true" className="relative mx-auto aspect-[16/10] w-full max-w-[640px]">
-        <svg viewBox="0 0 640 400" className="absolute inset-0 h-full w-full">
+    <figure className="po" aria-label="Illustration: Deep Algorithms at the centre of a dark platform, surrounded by the identity providers, clouds, apps and AI tools it connects to: Okta, Microsoft Entra ID, Active Directory, Microsoft 365, GitHub, AWS, Salesforce, Slack, Google Cloud, Azure, Kubernetes, HashiCorp Vault, Snowflake, Databricks and AI assistants.">
+      <div aria-hidden="true" className="relative mx-auto aspect-[16/9.4] w-full max-w-[880px]">
+        <svg viewBox="0 0 800 470" className="absolute inset-0 h-full w-full">
           <defs>
-            <radialGradient id="po-disc" cx="50%" cy="45%"><stop offset="0" stopColor="#dbe9f8" /><stop offset=".7" stopColor="#eef4fb" /><stop offset="1" stopColor="#eef4fb" stopOpacity="0" /></radialGradient>
-            <linearGradient id="po-core" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#6fd0ff" /><stop offset="1" stopColor="#0a6dbb" /></linearGradient>
+            <radialGradient id="po-disc" cx="50%" cy="50%" r="50%"><stop offset="0" stopColor="#1a212b" /><stop offset=".55" stopColor="#11161d" /><stop offset=".8" stopColor="#11161d" stopOpacity=".85" /><stop offset="1" stopColor="#11161d" stopOpacity="0" /></radialGradient>
+            <radialGradient id="po-spot" cx="50%" cy="42%" r="50%"><stop offset="0" stopColor="#00aeef" stopOpacity=".35" /><stop offset="1" stopColor="#00aeef" stopOpacity="0" /></radialGradient>
+            <filter id="po-grain"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" /><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .06 0" /><feComposite in2="SourceGraphic" operator="in" /></filter>
           </defs>
-          <ellipse cx="320" cy="215" rx="300" ry="170" fill="url(#po-disc)" />
-          <ellipse cx="320" cy="215" rx="250" ry="132" className="po-ring" />
-          <ellipse cx="320" cy="215" rx="150" ry="78" className="po-ring b" />
-          <ellipse cx="320" cy="232" rx="78" ry="30" fill="#0a6dbb" opacity=".22" style={{ filter: 'blur(12px)' }} />
-          <g transform="translate(320 200)">
-            <polygon points="-58,0 0,29 0,46 -58,17" fill="#0a4f8f" />
-            <polygon points="58,0 0,29 0,46 58,17" fill="#0862a6" />
-            <polygon points="0,-29 58,0 0,29 -58,0" fill="url(#po-core)" />
-            <polygon points="0,-29 58,0 0,29 -58,0" fill="none" stroke="#fff" strokeOpacity=".55" />
-            <image href="/brand/mark.webp" x="-14" y="-14" width="28" height="28" />
-          </g>
+          <ellipse cx="400" cy="250" rx="300" ry="168" fill="url(#po-disc)" />
+          <ellipse cx="400" cy="250" rx="300" ry="168" fill="#fff" filter="url(#po-grain)" opacity=".9" />
+          <ellipse cx="400" cy="232" rx="170" ry="96" fill="url(#po-spot)" />
+          <ellipse cx="400" cy="250" rx="205" ry="114" className="po-ring" />
         </svg>
-        {RING.map(([k, g], i) => {
-          const outer = i % 2 === 0;
-          const a = (i / n) * Math.PI * 2 - Math.PI / 2;
-          const rx = outer ? 250 : 168, ry = outer ? 132 : 92;
-          const x = 320 + Math.cos(a) * rx, y = 215 + Math.sin(a) * ry;
+        {/* the core: the Deep Algorithms mark on a clean white tile */}
+        <div className="po-core"><span className="po-glow" /><span className="po-halo" /><span className="po-tile"><img src="/brand/mark.webp" alt="" width="64" height="64" /></span></div>
+        {COINS.map(([k, ring, deg, ai], i) => {
+          const a = (deg * Math.PI) / 180;
+          const rx = ring ? 352 : 205, ry = ring ? 196 : 114;
+          const x = 400 + Math.cos(a) * rx, y = 250 + Math.sin(a) * ry;
           return (
-            <span key={k} className={cx('po-coin', g === 2 && 'ai')} style={{ left: `${(x / 640) * 100}%`, top: `${(y / 400) * 100}%`, animationDelay: `${(i % 6) * -0.7}s` }} title={k}>
-              <Logo k={k} size="20px" />
+            <span key={k} className={cx('po-coin', ai && 'ai', ring && 'out')} style={{ left: `${(x / 800) * 100}%`, top: `${(y / 470) * 100}%`, animationDelay: `${(i % 7) * -0.6}s`, zIndex: Math.round(y) }}>
+              <Logo k={k} size="46%" color={ai ? '#2b2440' : '#fff'} />
             </span>
           );
         })}
@@ -7703,12 +8118,10 @@ export function AgentConsole() {
         <div className="ac-hero">
           <div className="ac-orb">
             <span className="ac-halo" />
-            <span className="ac-core">
-              <svg viewBox="0 0 64 64" width="64" height="64"><rect x="12" y="18" width="40" height="32" rx="10" fill="#fff" stroke="#6d5bd0" strokeWidth="2.4" /><path d="M32 10v8" stroke="#6d5bd0" strokeWidth="2.4" strokeLinecap="round" /><circle cx="32" cy="9" r="3" fill="#6d5bd0" /><circle cx="24" cy="33" r="3.2" fill="#6d5bd0" /><circle cx="40" cy="33" r="3.2" fill="#6d5bd0" /><path d="M25 41h14" stroke="#6d5bd0" strokeWidth="2.4" strokeLinecap="round" /></svg>
-            </span>
+            <span className="ac-core"><img src="/img/zenstra/agent.webp" alt="" width="520" height="520" loading="lazy" decoding="async" /></span>
             <span className="ac-chip c1"><i />invoice-agent · owner: Finance</span>
             <span className="ac-chip c2"><i className="g" />Scope: pay approved invoices</span>
-            <svg className="ac-spark" viewBox="0 0 24 24" width="22" height="22"><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8z" fill="#8b7cf6" /></svg>
+            <svg className="ac-spark" viewBox="0 0 24 24" width="22" height="22"><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8z" fill="#4fb3f6" /></svg>
           </div>
           <div className="ac-copy">
             <p className="ac-h">Every AI agent, with an identity and an owner.</p>
@@ -11392,10 +11805,8 @@ export default function Home() {
       {/* the platform: four products, one standard */}
       <section id="platform" className="sec scroll-mt-20" aria-labelledby="platform-h">
         <div className="wrap">
-          <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
-            <SectionHead align="left" id="platform-h" eyebrow="The platform" title="One platform. Four products. Every identity, human or machine." lead="Start with the risk that costs you most today. Each product runs on its own, connects to the identity providers, clouds, apps and AI tools you already run, and explains every decision it makes." />
-            <Reveal className="max-lg:hidden"><PlatformOrbit /></Reveal>
-          </div>
+          <SectionHead id="platform-h" eyebrow="The platform" title="One platform. Four products. Every identity, human or machine." lead="Start with the risk that costs you most today. Each product runs on its own, connects to the identity providers, clouds, apps and AI tools you already run, and explains every decision it makes." />
+          <Reveal up className="mx-auto mt-6 max-w-[900px] md:mt-2"><PlatformOrbit /></Reveal>
           <PlatformAccordion />
           <PlatformExplorer />
           <Reveal className="mt-6 grid gap-px overflow-hidden rounded-[16px] border border-line bg-line sm:grid-cols-2 xl:grid-cols-4">
@@ -12967,8 +13378,8 @@ import { Icon, Reveal, SectionHead, Tabs } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
 import { Hero, Stats, Faq, Related, Points, LINKS, ACC } from '../../components/ProductKit.jsx';
 import { MoneyTrail } from '../../components/scenes/money.jsx';
-import { ScamCatch, CapabilityPhone, WebStepUp } from '../../components/viz/fraud.jsx';
-import { FraudDecisions } from '../../components/viz/frauddecisions.jsx';
+import { CapabilityPhone, WebStepUp } from '../../components/viz/fraud.jsx';
+import SessionJourney from '../../components/viz/journey.jsx';
 import { FraudGate } from '../../components/viz/fraudgate.jsx';
 
 /* Identity Fraud Prevention: one platform for mobile and internet banking, from
@@ -13038,7 +13449,7 @@ function MobileCaps() {
           <ol className="mt-3 space-y-3">{m.how.map((h, k) => <li key={k} className="flex gap-3 text-[15.5px] leading-relaxed text-ink-2"><span className="num mt-[2px] grid h-6 w-6 shrink-0 place-items-center rounded-full border border-line-2 text-[12px] font-semibold">{k + 1}</span>{h}</li>)}</ol>
           <p className="mt-7 flex items-start gap-3 rounded-[16px] border border-line p-4 text-[15.5px] leading-relaxed"><Icon name="CheckCircle" size={20} className="mt-[2px] shrink-0 text-ok" /><span><span className="font-semibold">Result. </span><span className="text-ink-2">{m.result}</span></span></p>
         </div>
-        <div className="mx-auto w-full max-w-[640px]"><CapabilityPhone cap={m.key} /></div>
+        <div className="mx-auto w-full max-w-[560px]"><CapabilityPhone cap={m.key} /></div>
       </div>
     </div>
   );
@@ -13118,23 +13529,16 @@ export default function Fraud() {
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Identity Fraud Prevention', path: p.path }]} />
       <Hero glance={[['Protects', 'Mobile banking, internet banking and UPI'], ['Stops', 'Account takeover, payment scams and mule accounts'], ['Deploys', 'An SDK in your app and on your web channel'], ['Shows', 'Every decision in under 80 ms, with its reason']]} acc="adap" crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Identity Fraud Prevention' }]} eyebrow="adapID AI · Identity Fraud Prevention"
         title={<>Stop fraud <span style={{ color: 'var(--acc)' }}>before the money moves.</span></>}
-        lead="Account takeover, payment scams and mule accounts, caught at login and at payment in under 80 ms, with the reason for every decision."
-        note="For mobile banking, internet banking and UPI.">
-        <FraudDecisions />
+        layout="stack"
+        lead="adapID reads how each customer types, taps, holds the phone and moves the mouse, from the moment they open the app to the moment they pay. When the session is not them, or not their decision, the money stays put."
+        note="Mobile banking, internet banking and UPI. One SDK, decisions in under 80 ms.">
+        <SessionJourney />
       </Hero>
 
       <section className="sec" aria-labelledby="q-h">
         <div className="wrap">
           <SectionHead id="q-h" acc={A} eyebrow="Unified fraud prevention" title="Three checks. One decision." lead="Every session is read three times over. A fraudster has to get past all three; a genuine customer never feels any of them." />
-          <Reveal className="mx-auto mt-16 max-w-[1000px]"><FraudGate /></Reveal>
-        </div>
-      </section>
-
-      {/* one scam, caught: the detail behind the hero's second row */}
-      <section className="sec" aria-labelledby="scam-h">
-        <div className="wrap grid items-center gap-12 lg:grid-cols-[.8fr_1.2fr] lg:gap-16">
-          <SectionHead align="left" id="scam-h" acc={A} eyebrow="A scam, caught" title="Her password, her phone, her OTP. Not her decision." lead="Anita logs in as herself, but she is on a call, paying ₹2,40,000 to a new payee with the remark “KYC update”. The payee is on a mule list, so the payment is paused and an analyst calls her." />
-          <Reveal delay={100}><ScamCatch /></Reveal>
+          <Reveal className="mx-auto mt-14 max-w-[840px]"><FraudGate /></Reveal>
         </div>
       </section>
 
@@ -13168,7 +13572,7 @@ export default function Fraud() {
               ))}
             </ul>
           </div>
-          <Reveal up><WebStepUp /></Reveal>
+          <Reveal up className="mx-auto w-full max-w-[540px]"><WebStepUp /></Reveal>
         </div>
       </section>
 
@@ -14056,6 +14460,19 @@ test('home has no blogs section, and the platform is one scroll away', async ({ 
   // the blogs section is gone from home; blogs stay one click away in the menu
   await expect(page.locator('#res-h')).toHaveCount(0);
   await expect(page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Blogs' })).toHaveAttribute('href', '/blogs');
+});
+
+test('fraud: one session is read from opening the app to paying, on mobile and on the web', async ({ page }) => {
+  await page.goto('/adapid-ai/fraud-prevention');
+  const jy = page.locator('figure.jy');
+  await jy.scrollIntoViewIfNeeded();
+  await jy.getByRole('button', { name: /Types the amount/ }).click();
+  await expect(jy.locator('.jy-fh')).toContainText('Keystroke rhythm · amount');
+  await jy.getByRole('button', { name: /Taps Pay/ }).click();
+  await expect(jy.locator('.jy-dh')).toHaveText('Hold the payment and call Anita');
+  await jy.getByRole('tab', { name: 'Internet banking' }).click();
+  await jy.getByRole('button', { name: /Moves the mouse/ }).click();
+  await expect(jy.locator('.jy-fh')).toContainText('Mouse movement');
 });
 
 
@@ -15238,13 +15655,13 @@ const pages = {
   intro: `<div style="position:absolute;left:160px;top:50%;transform:translateY(-50%)">
     <img src="${base}/brand/logo-lockup-inverse.webp" style="height:56px">
     <p class="k" style="margin-top:90px">Website walkthrough</p>
-    <h1 style="margin-top:22px;font-size:92px;line-height:1.02;letter-spacing:-.045em;font-weight:600;max-width:15ch">Every page, every interaction, both themes.</h1>
-    <p style="margin-top:34px;font-size:26px;color:#b4c0d0">Desktop at 1920 × 1080, then phone and tablet · For review</p></div>`,
+    <h1 style="margin-top:22px;font-size:92px;line-height:1.02;letter-spacing:-.045em;font-weight:600;max-width:15ch">Every page, every interaction, one light theme.</h1>
+    <p style="margin-top:34px;font-size:26px;color:#b4c0d0">Desktop at 1920 × 1080, then phone and tablet · November 2026</p></div>`,
   devices: `<p class="k" style="position:absolute;left:0;right:0;top:44px;text-align:center">Responsive · same pages, same build</p>
     <p style="position:absolute;left:300px;bottom:30px;width:444px;text-align:center;font-size:22px;font-weight:600">Phone <span style="color:#8a97aa;font-weight:500">· 390 px</span></p>
     <p style="position:absolute;left:880px;bottom:30px;width:740px;text-align:center;font-size:22px;font-weight:600">Tablet <span style="color:#8a97aa;font-weight:500">· 820 px</span></p>`,
 };
-const b = await chromium.launch();
+const b = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
 const p = await b.newPage({ viewport: { width: 1920, height: 1080 } });
 await p.goto(base + '/sitemap', { waitUntil: 'networkidle' }); // for the site's fonts
 for (const [k, html] of Object.entries(pages)) {
@@ -15417,7 +15834,7 @@ const OVERLAY = `(() => {
   document.documentElement.append(c, r, l);
 })()`;
 
-const b = await chromium.launch();
+const b = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
 const ctx = await b.newContext({ viewport: { width: +W, height: +H }, deviceScaleFactor: +dpr, isMobile: +W < 900, hasTouch: +W < 900, reducedMotion: 'no-preference' });
 await ctx.addInitScript(clock);
 const p = await ctx.newPage();
@@ -15520,10 +15937,9 @@ FILE: website/tools/walkthrough/script.mjs
 /* The walkthrough, as segments. Each starts from a fresh page load so it can be
    recorded (and re-recorded) on its own; make-video.sh joins them in ORDER.
    `phone` and `tablet` are recorded at their own sizes and shown side by side. */
-export const ORDER = ['home', 'zenstra', 'adapid', 'botshield', 'icms', 'company', 'research', 'contact', 'dark', 'devices'];
+export const ORDER = ['home', 'cirm', 'fraud', 'nhi', 'zenstra', 'ad', 'more', 'devices'];
 
 const NAV = 'nav[aria-label="Primary"]';
-const tab = (list, n) => `[role=tablist][aria-label="${list}"] [role=tab]:nth-of-type(${n})`;
 
 /* Scroll through a page, stopping at each selector for `hold` seconds. */
 async function tour(R, stops) {
@@ -15542,209 +15958,116 @@ async function tour(R, stops) {
 export const SEGMENTS = {
   async home(R) {
     await R.open('/');
-    R.label('Home', 'Platform, proof and roles · brand blue and white');
-    await R.wait(3.6);
-    await R.move(`text:${NAV}>>Products`, 1.1); await R.wait(2.6);
-    await R.move(`text:${NAV}>>Solutions`, 0.6); await R.wait(1.6);
-    await R.move(`text:${NAV}>>Resources`, 0.6); await R.wait(1.4);
-    await R.move(`text:${NAV}>>Company`, 0.5); await R.wait(1.4);
-    await R.move({ x: 1500, y: 960 }, 0.8);
-    await tour(R, [['#perimeter-h', 1.4, 140], ['[data-i="0"]', 8.6, 160], ['[data-i="1"]', 7.6, 160], ['[data-i="2"]', 8.4, 160], ['#film-h', 1.2, 120]]);
-    await R.move('#film button[aria-label^="Play"]', 1); await R.wait(1.6);
-    await R.move({ x: 1700, y: 980 }, 0.6);
-    // the platform, the roles and how it deploys
-    await tour(R, [['#platform-h', 3.2, 120], ['#roles-h', 1.4, 120]]);
-    await R.move('[role=tablist][aria-label="Roles"] [role=tab]:nth-child(4)', 0.9); await R.click(2.4);
+    R.label('Home', 'Identity security for the AI era');
+    await R.wait(3.4);
+    await R.move(`text:${NAV}>>Products`, 1.0); await R.wait(2.4);
+    await R.move(`text:${NAV}>>Solutions`, 0.6); await R.wait(1.4);
+    await R.move({ x: 1500, y: 960 }, 0.7);
+    // the CIRM platform view: pick two stages
+    await tour(R, [['#how-h', 1.2, 120], ['#how .pl', 2.6, 130]]);
+    await R.move('#how button[aria-label="Stage 5: Step up · Hold"]', 0.8); await R.click(2.2);
+    await R.move('#how button[aria-label="Stage 6: Contain"]', 0.5); await R.click(2.2);
+    await R.move({ x: 1700, y: 1000 }, 0.6);
+    // why now: people turning into machine identities
+    await tour(R, [['#now-h', 6.0, 260]]);
+    // the platform and what it connects to
+    await tour(R, [['#platform-h', 3.4, 120], ['#perimeter-h', 1.2, 140], ['[data-i="0"]', 6.5, 160], ['[data-i="1"]', 6.5, 160], ['[data-i="2"]', 6.5, 160]]);
+    await tour(R, [['#roles-h', 1.2, 120]]);
+    await R.move('[role=tablist][aria-label="Roles"] [role=tab]:nth-child(2)', 0.9); await R.click(2.6);
     await R.move({ x: 1780, y: 1000 }, 0.6);
-    await tour(R, [['#ind-h', 1.8, 140], ['#dep-h', 2.6, 140], ['#res-h', 1.8, 140], ['bottom', 2.2]]);
+    await tour(R, [['#ind-h', 1.8, 140], ['bottom', 2.0]]);
+  },
+
+  async cirm(R) {
+    await R.open('/adapid-ai');
+    R.label('adapID AI · CIRM', 'Continuous identity risk management');
+    await R.wait(4.2);
+    await R.move({ x: 1600, y: 980 }, 0.6);
+    await tour(R, [['#pipe-h', 1.0, 120], ['section:has(#pipe-h) .pl', 5.0, 130], ['#itdr-h', 2.4, 120]]);
+    await R.scrollBy(1100, 2.2); await R.wait(4.2);
+    await R.scrollBy(1100, 2.2); await R.wait(3.6);
+    await tour(R, [['#fam-h', 2.6, 120]]);
+    await R.scrollBy(1200, 2.4); await R.wait(2.8);
+  },
+
+  async fraud(R) {
+    await R.open('/adapid-ai/fraud-prevention');
+    R.label('Identity Fraud Prevention', 'One session, from opening the app to paying');
+    await R.wait(2.4);
+    await tour(R, [['figure.jy', 23.5, 100]]);   // the mobile session plays through all six steps
+    await R.move('figure.jy [role=tab]:nth-of-type(2)', 0.9); await R.click(0.4);
+    R.label('Internet banking', 'Stolen credentials, a script on the keyboard and mouse');
+    await R.wait(23);
+    await R.move({ x: 1700, y: 1000 }, 0.6);
+    await tour(R, [['#mob-h', 1.2, 120]]);
+    await R.scrollBy(500, 1.2); await R.wait(2.4);
+    await R.move('text:Scam signals', 0.8); await R.click(4.0);
+    await tour(R, [['#web-h', 3.6, 120], ['bottom', 1.6]]);
+  },
+
+  async nhi(R) {
+    await R.open('/adapid-ai/nhi-security');
+    R.label('NHI Security for AWS', 'Every machine identity, found and scored');
+    await R.wait(3.6);
+    await tour(R, [['#lin-h', 1.0, 120], ['section:has(#lin-h) figure', 6.0, 130], ['#wb-h', 3.6, 120], ['#gu-h', 3.0, 120]]);
   },
 
   async zenstra(R) {
-    await R.open('/');
-    await R.move(`text:${NAV}>>Products`, 0.9); await R.wait(1.2);
-    await R.move('text:#mega>>Explore Zenstra AI', 0.9); await R.click(0);
-    await R.afterClickNav();
+    await R.open('/agentic-ai/agentic-identity');
     R.label('Zenstra AI', 'Security for AI agents');
-    await R.wait(3);
-    await R.move({ x: 1500, y: 980 }, 0.6);
-    await tour(R, [['#where-h', 2.2, 140], ['#caps-h', 1.2, 120]]);
-    for (const n of [2, 3, 4]) { await R.move(`[aria-label="Zenstra capabilities"] [role=tab]:nth-of-type(${n})`, 0.7); await R.click(2.2); }
+    await R.wait(3.6);
+    await tour(R, [['#where-h', 2.2, 140], ['#con-h', 1.0, 120], ['section:has(#con-h) figure', 4.2, 130], ['#caps-h', 1.2, 120]]);
+    for (const n of [2, 3]) { await R.move(`[aria-label="Zenstra capabilities"] [role=tab]:nth-of-type(${n})`, 0.7); await R.click(2.4); }
     await R.move({ x: 1600, y: 1000 }, 0.5);
-    await tour(R, [['#chg-h', 3.4, 120], ['#dep-h', 2.2, 140], ['#cmp-h', 2.0, 140], ['#faq-h', 0.6, 140]]);
-    await R.move('text:Where does Zenstra run?', 0.8); await R.click(2.2);
-    await R.move({ x: 1700, y: 1000 }, 0.5);
-    await tour(R, [['bottom', 1.6]]);
+    await tour(R, [['#chg-h', 3.0, 120]]);
   },
 
-  async adapid(R) {
-    await R.open('/adapid-ai');
-    R.label('adapID AI', 'Four identity products');
-    await R.wait(3);
-    await tour(R, [['#itdr-h', 2.0, 120], ['#blast-h', 9.5, 90], ['#chg-h', 3.6, 120], ['#fam-h', 2.2, 120], ['#pol-h', 0.8, 140]]);
-    // drag the risk score
-    const box = await R.page.evaluate(() => { const r = document.querySelector('input[type=range]').getBoundingClientRect(); return { x: r.left, y: r.top + r.height / 2, w: r.width }; });
-    const v = await R.page.evaluate(() => +document.querySelector('input[type=range]').value);
-    await R.move({ x: box.x + box.w * (v / 100), y: box.y }, 0.8);
-    await R.page.mouse.down();
-    for (const t of [0.35, 0.62, 0.95]) await R.move({ x: box.x + box.w * t, y: box.y }, 0.9);
-    await R.page.mouse.up(); await R.wait(1);
-    await R.move({ x: 1700, y: 1000 }, 0.5);
-    await R.nav('/adapid-ai/fraud-prevention');
-    R.label('Identity Fraud Prevention', 'A scam caught mid-payment, on the phone');
-    await R.wait(8.4);
-    await tour(R, [['#q-h', 2.2, 120], ['#gap-h', 2.0, 120], ['#mob-h', 1.0, 120]]);
-    for (const n of [2, 4, 5]) { await R.move(tab('Mobile banking capabilities', n), 0.7); await R.click(2.0); }
-    await R.move({ x: 1700, y: 1000 }, 0.5);
-    await tour(R, [['#web-h', 4.2, 120], ['#txn-h', 1.2, 120], ['section:has(#txn-h) .scn-frame', 10.5, 150], ['#case-h', 2.0, 120]]);
-    await R.nav('/adapid-ai/nhi-security');
-    R.label('NHI Security for AWS', 'adapID AI');
-    await R.wait(2.6);
-    await tour(R, [['#on-h', 1.8, 140], ['#gu-h', 1.8, 140], ['#gen-h', 1.8, 140]]);
-    await R.nav('/ad-security');
-    R.label('Active Directory Security', 'adapID AI');
-    await R.wait(2.2);
-    await R.scrollTo(560, 1.4); await R.wait(9);
-    await tour(R, [['#tech-h', 1.6, 140], ['#fix-h', 1.6, 140], ['#as-h', 7.5, 110]]);
+  async ad(R) {
+    await R.open('/ad-security');
+    R.label('Active Directory Security', 'Between every identity and Tier 0');
+    await R.wait(3.2);
+    await tour(R, [['#how-h', 1.0, 120], ['section:has(#how-h) figure', 4.0, 130], ['#tech-h', 2.4, 120], ['#fix-h', 2.6, 120]]);
   },
 
-  async botshield(R) {
+  async more(R) {
     await R.open('/botshield-ai');
     R.label('BotShield AI', 'Exposure, bots and DDoS');
-    await R.wait(3);
-    await tour(R, [['#loop-h', 2.0, 140], ['#chg-h', 0.8, 120], ['section:has(#chg-h) .scn-frame', 8.6, 130]]);
-    await tour(R, [['#bots-h', 6.4, 140], ['#upi-h', 1.8, 160], ['#dd-h', 6.5, 140]]);
-    await R.nav('/botshield-ai/ddos-protection');
-    R.label('DDoS Protection', 'BotShield AI');
-    await R.wait(6.5);
-    await tour(R, [['#ln-h', 2.2, 140], ['#pt-h', 2.0, 140], ['#ops-h', 1.6, 140]]);
-  },
-
-  async icms(R) {
-    await R.open('/dpdpa-compliance');
+    await R.wait(3.2);
+    await R.scrollBy(1400, 2.6); await R.wait(2.6);
+    await R.nav('/dpdpa-compliance');
     R.label('ICMS Compliance Suite', 'DPDPA compliance');
-    await R.wait(3);
-    await tour(R, [['#duty-h', 1.0, 140]]);
-    for (const n of [3, 5]) { await R.move(`section:has(#duty-h) .rounded-\\[22px\\] > div:nth-child(${n}) button[aria-expanded]`, 0.8); await R.click(2.0); }
-    await R.move({ x: 1700, y: 1000 }, 0.5);
-    await tour(R, [['#discover', 2.0, 40], ['#consent', 2.2, 40], ['#breach', 2.0, 40], ['#chg-h', 3.2, 120], ['#ev-h', 1.8, 140]]);
-    await R.nav('/platform');
-    R.label('Why Deep Algorithms', 'How the products fit together');
-    await R.wait(3);
-    await tour(R, [['section[aria-label="How the products fit together"]', 2.6, 90], ['#dep-h', 2.0, 140], ['#trust-h', 1.8, 140]]);
+    await R.wait(3.2);
+    await R.scrollBy(1400, 2.6); await R.wait(2.6);
     await R.nav('/products');
     R.label('All products', 'Filter by what you need to protect');
-    await R.wait(2.2);
-    await tour(R, [['#dir-h', 1.0, 140]]);
-    for (const t of ['AI agents', 'Payments', 'Personal data', 'Everything']) { await R.move(`text:${t}`, 0.6); await R.click(1.3); }
-    await R.nav('/solutions/bfsi');
-    R.label('Solutions · Banking and financial services');
-    await R.wait(2.6);
-    await tour(R, [['#help-h', 2.2, 140]]);
-  },
-
-  async company(R) {
-    await R.open('/about-us');
-    R.label('About us', 'Company');
-    await R.wait(3);
-    await tour(R, [['#story-h', 2.0, 140], ['#tl-h', 1.0, 140]]);
-    for (const n of [1, 2, 3, 4]) { await R.move(tab('Years', n), 0.6); await R.click(1.5); }
-    await R.move({ x: 1700, y: 1000 }, 0.5);
-    await tour(R, [['#lead-h', 2.2, 140], ['#bel-h', 1.6, 140], ['#rec-h', 2.0, 140], ['#life-h', 2.0, 140], ['#car-h', 1.4, 140], ['#off-h', 1.6, 140]]);
-  },
-
-  async research(R) {
-    await R.open('/blogs');
-    R.label('Research', 'Search, topics and products');
-    await R.wait(2.6);
-    await R.move('#rs', 0.9); await R.click(0.3);
-    await R.type('mule', 6); await R.wait(1.6);
-    for (let i = 0; i < 4; i++) await R.key('Backspace', 0.08);
-    await R.wait(0.6);
-    await R.move({ x: 1700, y: 1000 }, 0.5);
-    await tour(R, [['#all-h', 1.2, 140]]);
-    await R.move('section:has(#all-h) button[aria-pressed]:nth-of-type(3)', 0.7).catch(() => {});
-    await R.click(1.6);
-    await R.move('section:has(#all-h) button[aria-pressed]:nth-of-type(1)', 0.7).catch(() => {});
-    await R.click(1.2);
-    await R.nav('/blogs/ai-agent-governance');
-    R.label('A research report', 'Reading progress, contents and takeaways');
-    await R.wait(2.6);
-    const h = await R.page.evaluate(() => document.documentElement.scrollHeight);
-    await R.scrollTo(Math.round(h * 0.18), 2.2); await R.wait(1.4);
-    await R.scrollTo(Math.round(h * 0.42), 3.2); await R.wait(1.2);
-    await R.scrollTo(Math.round(h * 0.66), 3.0); await R.wait(1.2);
-  },
-
-  async contact(R) {
-    await R.open('/request-demo');
+    await R.wait(3.0);
+    await R.scrollBy(1000, 2.2); await R.wait(2.0);
+    await R.nav('/request-demo');
     R.label('Book a demo', 'The agenda follows the product you choose');
-    await R.wait(2.6);
-    await R.move('select', 0.9); await R.click(0.2);
-    for (let i = 0; i < 3; i++) await R.key('ArrowDown', 1.1);
-    await R.key('Escape', 0.6);
-    await R.move('input[autocomplete="name"]', 0.8); await R.click(0.2); await R.type('Asha Rao', 14);
-    await R.wait(1.2);
-    await R.nav('/contact');
-    R.label('Contact', 'Copy the email or phone in one click');
-    await R.wait(2.4);
-    await R.move('button[aria-label^="Copy email"]', 0.8); await R.click(1.2);
-    R.label('Search', 'Ctrl K or ⌘ K, from any page');
-    await R.move('header button[aria-label="Search the site"]', 0.9); await R.click(0.8);
-    await R.type('mule', 8); await R.wait(1.4);
-    await R.key('ArrowDown', 0.6); await R.key('ArrowDown', 0.6); await R.key('ArrowUp', 0.8);
-    await R.key('Escape', 0.6);
-    R.label('A hidden terminal', 'Press ` on any page');
-    await R.move({ x: 1500, y: 980 }, 0.5);
-    await R.key('Backquote', 1.0);
-    await R.type('help', 9); await R.key('Enter', 2.4);
-    await R.type('whoami', 9); await R.key('Enter', 2.0);
-    await R.type('exit', 9); await R.key('Enter', 1.0);
-  },
-
-  async dark(R) {
-    await R.open('/');
-    R.label('Dark theme', 'Switch at any time; the choice is remembered');
-    await R.wait(1.8);
-    await R.move('.theme-btn', 1.0); await R.click(2.2);
-    await R.move({ x: 1600, y: 980 }, 0.6);
-    await tour(R, [['#platform-h', 2.0, 140], ['#perimeter-h', 2.0, 140], ['#dep-h', 1.6, 160]]);
-    await R.nav('/agentic-ai/agentic-identity');
-    await R.wait(2.4);
-    await tour(R, [['#where-h', 1.8, 140], ['#dep-h', 1.6, 140]]);
-    await R.scrollTo(0, 1.6);
-    await R.move('.theme-btn', 0.9); await R.click(2.2);
-    await R.page.evaluate(() => { try { localStorage.removeItem('da-theme'); } catch {} });
+    await R.wait(3.6);
   },
 
   async phone(R) {
     await R.open('/');
     await R.wait(2.5);
-    await tour(R, [['#perimeter-h', 1.2, 90], ['#perimeter .space-y-16 .scn-frame', 6.5, 120]]);
-    // the bottom bar: menu as a sheet
+    await tour(R, [['#how-h', 1.0, 90], ['#how .pl', 4.0, 100], ['#now-h', 4.5, 520]]);
     await R.move('nav[aria-label="Quick actions"] button', 0.6); await R.click(2.6);
     await R.move('#mobile-menu button[aria-label="Close menu"]', 0.5); await R.click(1.0);
-    // a rail you swipe
-    await tour(R, [['#platform-h', 1.0, 90]]);
-    await R.page.evaluate(() => { const r = [...document.querySelectorAll('.m-rail')].find((el) => el.getBoundingClientRect().top > 0); r?.scrollBy({ left: r.clientWidth * 0.85, behavior: 'smooth' }); });
+    await R.nav('/adapid-ai/fraud-prevention');
     await R.wait(1.6);
-    await R.nav('/botshield-ai');
-    await R.wait(2.2);
-    await R.scrollBy(1500, 2.6); await R.wait(1.4);
-    await tour(R, [['section:has(#chg-h) .scn-frame', 6.5, 140]]);
+    await tour(R, [['figure.jy', 10, 80]]);
   },
   async tablet(R) {
     await R.open('/');
     await R.wait(2.5);
-    await tour(R, [['#perimeter-h', 1.6, 110], ['#film-h', 1.2, 110]]);
-    await R.scrollBy(1500, 2.6); await R.wait(0.8);
-    await R.scrollBy(1400, 2.4); await R.wait(1.0);
+    await tour(R, [['#how-h', 1.6, 110], ['#platform-h', 2.4, 110]]);
+    await R.scrollBy(1500, 2.6); await R.wait(1.0);
     await R.scrollTo(0, 1.6); await R.wait(0.6);
     await R.move('button[aria-controls="mobile-menu"]', 0.6); await R.click(2.4);
-    await R.scrollBy(0, 0.1);
     await R.move('button[aria-controls="mobile-menu"]', 0.4); await R.click(1.0);
     await R.nav('/agentic-ai/agentic-identity');
     await R.wait(2.2);
-    await R.scrollBy(1400, 2.6); await R.wait(1.0);
+    await R.scrollBy(1400, 2.6); await R.wait(1.2);
     await R.scrollBy(1600, 2.6); await R.wait(1.2);
   },
 };
