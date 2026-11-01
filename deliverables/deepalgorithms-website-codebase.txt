@@ -1789,6 +1789,23 @@ html.is-translated font { background: none !important; box-shadow: none !importa
 @keyframes ds-march { to { transform: translateX(16px); } }
 @media (prefers-reduced-motion: reduce) { .ds-slow, .ds-cost, .ds-blink, .ds-march { animation: none; } }
 
+/* Product heroes: a deep navy field, the way enterprise identity sites mark a
+   product page (the home, blog and company pages stay light). The product's own
+   colour lights one corner; white product pictures sit on it like cards. */
+.hero-navy {
+  /* the strip under the fixed header stays white, so the bar reads as one white header above the band */
+  background:
+    linear-gradient(#fff, #fff) top / 100% var(--hdr) no-repeat,
+    radial-gradient(50% 60% at 85% 30%, color-mix(in oklab, var(--acc) 34%, transparent), transparent 70%),
+    radial-gradient(45% 55% at 0% 100%, rgb(0 174 239 / .16), transparent 70%),
+    linear-gradient(160deg, #0a2a52 0%, #071d3c 55%, #05152c 100%);
+  color: #fff;
+}
+.hero-navy .t-h1 span { color: color-mix(in oklab, var(--acc) 55%, white) !important; }
+.hero-navy .t-lead { color: rgb(255 255 255 / .78); }
+/* dark product windows on the navy field: a lit edge and a blue halo so they lift off it */
+.hero-navy .vz-win { box-shadow: 0 0 0 1px rgb(140 200 255 / .28), 0 40px 80px -30px rgb(0 0 0 / .65), 0 0 70px -12px rgb(30 136 216 / .45) !important; }
+
 ===== website/src/components/Backdrop.jsx =====
 /* The site-wide `aurora`: three soft beams of the logo blues, blurred and
    drifting slowly behind every page. Dense reading areas sit on `.calm`,
@@ -3112,8 +3129,8 @@ function UtilityBar({ away }) {
   return (
     <div className={cx('ubar hidden border-b border-line lg:block', away && 'away')} aria-hidden={away || undefined}>
       <div className="wrap flex h-full items-center justify-between gap-6 text-[13px] text-ink-3">
-        <p className="truncate"><span className="font-semibold text-ink-2">Cybersecurity Excellence 2025</span> · recognised by the Data Security Council of India
-          <Link to="/why-deep-algorithms#recognition" tabIndex={t} className="ml-2 font-medium text-cyan-2 hover:text-fg">Read more<span aria-hidden="true"> →</span></Link></p>
+        <p className="truncate"><span className="mr-2 rounded-[5px] bg-[#0a6dbb] px-1.5 py-0.5 text-[10.5px] font-bold uppercase tracking-[.08em] text-white">New</span><span className="font-semibold text-ink-2">Patent granted</span> · for multi-domain fraud detection, investigation and resolution
+          <Link to="/why-deep-algorithms#news" tabIndex={t} className="ml-2 font-medium text-cyan-2 hover:text-fg">Read more<span aria-hidden="true"> →</span></Link></p>
         <ul className="flex shrink-0 items-center gap-6">
           <li><a href={SITE.phoneHref} tabIndex={t} className="inline-flex items-center gap-1.5 hover:text-ink"><Icon name="Phone" size={13} />{SITE.phone}</a></li>
           <li><button type="button" tabIndex={t} onClick={() => window.dispatchEvent(new CustomEvent('da:command', { detail: 'search' }))} title="Search (Ctrl K or ⌘ K)" className="inline-flex items-center gap-1.5 hover:text-ink"><Icon name="MagnifyingGlass" size={14} />Search</button></li>
@@ -3200,7 +3217,10 @@ export default function Header() {
       else if (y > lastY.current + 2) setTucked(true);
       lastY.current = y;
       let light = false;
-      for (const el of document.querySelectorAll('.page > :not(.dark, .fixed)')) {
+      // product heroes start below the bar and keep it white, as enterprise sites do
+      const navy = document.querySelector('.page > .hero-navy');
+      if (navy && navy.getBoundingClientRect().bottom >= 32) light = true;
+      if (!light) for (const el of document.querySelectorAll('.page > :not(.dark, .fixed)')) {
         const r = el.getBoundingClientRect();
         if (r.top <= 40 && r.bottom >= 32) { light = true; break; }
       }
@@ -3570,7 +3590,7 @@ export function Hero({ acc = 'brand', crumbs, eyebrow, title, lead, ctas, explor
   const stack = layout === 'stack';
   const mark = { zen: 'zenstra', adap: 'adapid', bot: 'botshield', icms: 'icms' }[acc];
   return (
-    <section className="stage band-brand hero-under relative overflow-hidden" style={{ '--acc': color }} data-page-name={eyebrow ? eyebrow.split(' · ')[0] : undefined}>
+    <section className={cx('stage hero-under relative overflow-hidden', mark ? 'dark hero-navy' : 'band-brand')} style={{ '--acc': color }} data-page-name={eyebrow ? eyebrow.split(' · ')[0] : undefined}>
       <div className={cx('hero-drift wrap relative pb-12 pt-6 md:pb-24 md:pt-14', !stack && 'grid items-center gap-12 lg:min-h-[min(88svh,900px)] lg:grid-cols-[1fr_1.1fr] lg:gap-8')}>
         <div className={cx(stack ? 'mx-auto max-w-[900px] text-center' : 'max-w-[620px] max-md:mx-auto max-md:text-center')}>
           {crumbs && <Breadcrumb items={crumbs} className={cx('rise mb-8 max-md:hidden', stack && 'flex justify-center')} />}
@@ -3582,14 +3602,14 @@ export function Hero({ acc = 'brand', crumbs, eyebrow, title, lead, ctas, explor
           </div>
           {note && <p className={cx('rise mt-7 text-[14px] text-ink-3 max-md:text-center', stack && 'text-center')} style={{ '--d': '300ms' }}>{note}</p>}
         </div>
-        {children && <div className={cx('relative', stack ? 'mx-auto mt-16 max-w-[1080px]' : 'lg:-mr-6')}>{children}</div>}
+        {children && <div className={cx('relative', mark && 'tone-l', stack ? 'mx-auto mt-16 max-w-[1080px]' : 'lg:-mr-6')}>{children}</div>}
       </div>
       {/* the product at a glance: what it protects, stops, needs and shows */}
       {glance && (
         <dl className="rise wrap relative grid grid-cols-2 gap-x-4 gap-y-1 overflow-hidden pb-10 lg:grid-cols-4 md:pb-14" style={{ '--d': '320ms' }}>
           {glance.map(([k, v]) => (
             <div key={k} className="border-t border-line pt-4 pb-3 lg:pr-6">
-              <dt className="text-[12.5px] font-semibold uppercase tracking-[.1em]" style={{ color: 'color-mix(in oklab, var(--acc) 70%, #0b1220)' }}>{k}</dt>
+              <dt className="text-[12.5px] font-semibold uppercase tracking-[.1em]" style={{ color: mark ? 'color-mix(in oklab, var(--acc) 45%, white)' : 'color-mix(in oklab, var(--acc) 70%, #0b1220)' }}>{k}</dt>
               <dd className="mt-1.5 text-[14px] leading-snug text-ink-2 md:text-[15px]">{v}</dd>
             </div>
           ))}
@@ -4588,6 +4608,77 @@ export function FormTrust({ reply = 'A reply within one business day' }) {
         {CERTS.map((c) => <li key={c.code} title={`${c.name}: ${c.desc}`}><CertSeal code={c.code} size={40} /></li>)}
         <li className="text-[12.5px] leading-snug text-ink-3">Certified for information security,<br />privacy and AI management</li>
       </ul>
+    </div>
+  );
+}
+
+/* News cards. Each kind gets its own small drawing (no stock photos, no logos
+   we do not own): a granted patent, a newspaper column, an agent stopped at a
+   bank, an event badge, three towns on a map. */
+const NEWS_ART = {
+  Patent: (n) => (
+    <div className="relative mx-auto w-[78%] rounded-[10px] border border-[#c9a54a]/40 bg-[#fffdf6] p-4 shadow-[0_16px_30px_-18px_rgb(120_90_20/.5)]">
+      <p className="text-center text-[11px] uppercase tracking-[.2em] text-[#8a6a1c]">Patent granted</p>
+      <div className="mx-auto mt-2 h-px w-2/3 bg-[#c9a54a]/40" />
+      <div className="mt-3 space-y-1.5">{[90, 76, 84, 60].map((w, i) => <div key={i} className="mx-auto h-1.5 rounded-full bg-[#e8dcb8]" style={{ width: `${w}%` }} />)}</div>
+      <p className="mono mt-3 text-center text-[12px] font-semibold text-[#5c4510]">{n.meta}</p>
+      <span className="absolute -bottom-3 -right-3 grid h-12 w-12 place-items-center rounded-full bg-gradient-to-br from-[#e8c766] to-[#b8902f] text-white shadow-md ring-4 ring-white"><Icon name="SealCheck" size={24} weight="fill" /></span>
+    </div>
+  ),
+  Press: () => (
+    <div className="mx-auto w-[80%] rounded-[8px] bg-white p-4 shadow-[0_16px_30px_-18px_rgb(11_42_82/.4)]">
+      <p className="border-b-2 border-[#0e1116] pb-1 text-[22px] font-bold leading-none tracking-[-0.02em] text-[#0e1116]">Mint</p>
+      <p className="mt-2 text-[12.5px] font-semibold leading-snug text-[#0e1116]">Proving, not just promising</p>
+      <div className="mt-2 grid grid-cols-2 gap-2">{[0, 1].map((c) => <div key={c} className="space-y-1">{[100, 92, 96, 70, 88].map((w, i) => <div key={i} className="h-1 rounded-full bg-[#dfe3e8]" style={{ width: `${w}%` }} />)}</div>)}</div>
+    </div>
+  ),
+  Perspective: () => (
+    <div className="mx-auto flex w-[86%] items-center justify-between gap-2">
+      <span className="grid h-14 w-14 place-items-center rounded-[14px] bg-white text-[#4050c8] shadow-[0_12px_24px_-12px_rgb(64_80_200/.6)]"><Icon name="Robot" size={28} /></span>
+      <span className="relative h-0.5 flex-1 bg-gradient-to-r from-[#4050c8] to-[#e5484d]"><span className="absolute left-1/2 top-1/2 grid h-7 w-7 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-[#e5484d] text-white ring-4 ring-white"><Icon name="Prohibit" size={14} weight="bold" /></span></span>
+      <span className="grid h-14 w-14 place-items-center rounded-[14px] bg-white text-[#0a6dbb] shadow-[0_12px_24px_-12px_rgb(10_109_187/.6)]"><Icon name="Bank" size={28} /></span>
+    </div>
+  ),
+  Event: (n) => (
+    <div className="mx-auto w-[64%] rounded-[14px] bg-white p-3 text-center shadow-[0_16px_30px_-16px_rgb(10_94_163/.5)]">
+      <span className="mx-auto block h-2 w-10 rounded-full bg-[#dbe6f3]" />
+      <span className="mt-2 block rounded-[10px] bg-gradient-to-br from-[#0a5ea3] to-[#1e88d8] px-2 py-3 text-white"><span className="block text-[10.5px] uppercase tracking-[.16em] text-white/75">{n.kind === 'Event' && n.title.includes('Partner') ? 'Silver Partner' : 'Participant'}</span><span className="mt-1 block text-[13px] font-semibold leading-tight">{n.title.replace('Silver Partner, ', '')}</span></span>
+      <span className="mt-2 block text-[11.5px] font-medium text-[#5b6472]">{n.meta}</span>
+    </div>
+  ),
+  Interview: (n) => (
+    <div className="mx-auto flex w-[82%] items-center gap-3 rounded-[14px] bg-white p-3.5 shadow-[0_16px_30px_-16px_rgb(10_94_163/.5)]">
+      <img src="/img/people/jp-mishra.webp" alt="" className="h-12 w-12 shrink-0 rounded-full object-cover" loading="lazy" decoding="async" />
+      <span className="min-w-0"><span className="block text-[26px] font-bold leading-[.6] text-[#0a6dbb]">“</span><span className="block text-[12.5px] font-semibold text-[#0e1116]">JP Mishra</span><span className="block text-[11.5px] text-[#5b6472]">Interview · {n.meta}</span></span>
+    </div>
+  ),
+  Field: () => (
+    <svg viewBox="0 0 200 110" className="mx-auto w-[86%]" aria-hidden="true">
+      <path d="M20 90 C50 40, 90 70, 120 30 S180 40, 190 20" fill="none" stroke="#c9d8ea" strokeWidth="1.5" strokeDasharray="4 4" />
+      {[[45, 62, 'Kolhapur'], [112, 38, 'Sangli'], [170, 26, 'Karad']].map(([x, y, t]) => (
+        <g key={t}><circle cx={x} cy={y} r="11" fill="#0a6dbb" fillOpacity=".12" /><circle cx={x} cy={y} r="5" fill="#0a6dbb" /><text x={x} y={y + 22} textAnchor="middle" fontSize="10" fontWeight="600" fill="#2b313b">{t}</text></g>
+      ))}
+    </svg>
+  ),
+};
+export function NewsCards({ items, cols = 3 }) {
+  return (
+    <div className={cx('m-rail grid gap-5', cols === 3 ? 'md:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-2')}>
+      {items.map((n, i) => (
+        <Reveal key={n.title} delay={(i % 3) * 70} className="h-full">
+          <a href={n.href} target="_blank" rel="noreferrer" className="card card-hover group flex h-full flex-col overflow-hidden">
+            <span className="grid h-[176px] place-items-center bg-[radial-gradient(70%_90%_at_50%_100%,rgb(30_136_216/.16),transparent_70%),linear-gradient(180deg,#f6f9fd,#eaf2fb)] px-4 transition-transform">
+              <span className="w-full transition-transform duration-500 group-hover:-translate-y-1">{NEWS_ART[n.kind](n)}</span>
+            </span>
+            <span className="flex flex-1 flex-col p-6">
+              <span className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[.1em] text-[#0a6dbb]">{n.kind === 'Field' ? 'In the field' : n.kind}<span className="font-normal normal-case tracking-normal text-ink-3">· {n.date}</span></span>
+              <span className="mt-2 text-[18px] font-semibold leading-snug tracking-[-0.015em]">{n.title}</span>
+              <span className="mt-2 flex-1 text-[14.5px] leading-relaxed text-ink-2">{n.body}</span>
+              <span className="link mt-5 text-[14px]">{n.cta}<Icon name="ArrowUpRight" size={13} weight="bold" /></span>
+            </span>
+          </a>
+        </Reveal>
+      ))}
     </div>
   );
 }
@@ -9633,6 +9724,24 @@ export const BELIEFS = [
   { icon: 'Stack', title: 'Platform over product', body: 'Separate tools leave gaps between them. One intelligence layer across identity, traffic and compliance leaves nowhere to hide.' },
 ];
 
+/* News, from the company's own LinkedIn page (read November 2026) and the
+   articles it links to. Dates are approximate where LinkedIn shows "1w"/"1mo".
+   Every item links to where it was published. */
+const LI = 'https://www.linkedin.com/company/deepalgorithms.in/';
+export const NEWS = [
+  { kind: 'Patent', date: 'October 2026', title: 'Patent granted for multi-domain fraud detection', body: '“Intelligent Centralized Middleware System and Method for Multi-Domain Fraud Detection, Investigation, and Resolution.”', meta: 'Patent No. 602726', href: LI, cta: 'See the announcement' },
+  { kind: 'Press', date: 'October 2026', title: 'Featured in Mint', body: 'The new enterprise security test for cybersecurity startups: proving, not just promising.', meta: 'Mint', href: 'https://www.livemint.com/companies/start-ups/cybersecurity-startups-enterprise-security-checks-11791263076605.html', cta: 'Read in Mint' },
+  { kind: 'Event', date: 'October 2026', title: 'CISO Conclave 2026 by UBS', body: 'Cybersecurity and DPDPA compliance: one conversation, two priorities, with security leaders from banking and government.', meta: 'CISO Conclave', href: LI, cta: 'See the post' },
+  { kind: 'Field', date: 'October 2026', title: 'DPDPA readiness with co-operative banks', body: 'With the Kolhapur Urban Co-operative Banking Association: banks from Kolhapur, Sangli and Karad on the DPDP Act, 2023, and a live look at the compliance platform.', meta: 'Kolhapur · Sangli · Karad', href: LI, cta: 'See the post' },
+  { kind: 'Perspective', date: 'September 2026', title: 'When the agent becomes the attacker: securing agentic AI in banking', body: 'JP Mishra, Founder and CEO, sets out the controls a bank needs before an AI agent is allowed to act.', meta: 'TechStoriess', href: 'https://www.techstoriess.com/when-the-agent-becomes-the-attacker-securing-agentic-ai-in-banking/', cta: 'Read the article' },
+  { kind: 'Interview', date: 'August 2026', title: 'AI agent security must assess behaviour, context and intent', body: '“Having a valid credential does not mean that the actions performed by an AI agent are safe.” JP Mishra to CIOL.', meta: 'CIOL', href: 'https://www.ciol.com/founders/ai-agent-security-must-assess-behaviour-context-and-intent-says-deep-algorithms-ceo-12402890', cta: 'Read the interview' },
+  { kind: 'Interview', date: 'July 2026', title: 'Securing the agentic future: human and AI identity', body: '“Today our average enterprise customer sees a 0.2% end user step up rate.” JP Mishra to CXOToday.', meta: 'CXOToday', href: 'https://cxotoday.com/corner-office/securing-the-agentic-future-how-deep-algorithms-tackles-human-and-ai-identity/', cta: 'Read the interview' },
+  { kind: 'Event', date: 'September 2026', title: 'Silver Partner, BFSI AI Kumbh 2026', body: 'Identity and data security for banks, shown at the booth in Nashik, 26 to 28 September 2026.', meta: 'Nashik · 26–28 Sep', href: LI, cta: 'See the post' },
+];
+
+/* the founder, in his own published words (CXOToday, 24 July 2026) */
+export const FOUNDER_QUOTE = { text: 'Our mission is to make trust dynamic, invisible, and resilient across every human and machine identity in the enterprise.', name: 'JP Mishra', role: 'Founder & CEO', img: 'jp-mishra', source: 'CXOToday, July 2026', href: 'https://cxotoday.com/corner-office/securing-the-agentic-future-how-deep-algorithms-tackles-human-and-ai-identity/' };
+
 ===== website/src/data/legal.js =====
 /* Legal pages, carried over verbatim from the previous site (March 2026).
    Same block format as research articles, so one renderer serves both. */
@@ -11769,7 +11878,8 @@ import { Seo } from '../lib/head.jsx';
 import { SITE } from '../data/site.js';
 import { POSTS, formatDate } from '../data/posts.js';
 import { Icon, Breadcrumb, cx } from '../components/ui.jsx';
-import { PostCard, CtaBand } from '../components/blocks.jsx';
+import { PostCard, CtaBand, NewsCards } from '../components/blocks.jsx';
+import { NEWS } from '../data/company.js';
 import Cover, { TOPIC } from '../components/Cover.jsx';
 import { topicSlug } from '../components/Header.jsx';
 
@@ -11872,6 +11982,16 @@ export default function Blog() {
               )}
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="sec-tight" aria-labelledby="news-h">
+        <div className="wrap">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div><p className="kicker">Newsroom</p><h2 id="news-h" className="t-h2 mt-4">In the news</h2></div>
+            <Link to="/why-deep-algorithms#news" className="link">All news<Icon name="ArrowRight" size={14} weight="bold" /></Link>
+          </div>
+          <div className="mt-10"><NewsCards items={NEWS.slice(0, 3)} /></div>
         </div>
       </section>
 
@@ -12877,9 +12997,9 @@ import { Link } from 'react-router';
 import { useInView, useReducedMotion } from '../lib/motion.js';
 import { Seo } from '../lib/head.jsx';
 import { SITE } from '../data/site.js';
-import { LEADERS, ADVISORS, RECOGNITION, TEAM_PHOTOS, BELIEFS } from '../data/company.js';
+import { LEADERS, ADVISORS, RECOGNITION, TEAM_PHOTOS, BELIEFS, NEWS, FOUNDER_QUOTE } from '../data/company.js';
 import { Breadcrumb, Button, Icon, Reveal, SectionHead, cx } from '../components/ui.jsx';
-import { CertStrip, CtaBand, LogoMarquee } from '../components/blocks.jsx';
+import { CertStrip, CtaBand, LogoMarquee, NewsCards } from '../components/blocks.jsx';
 import { Compare } from '../components/ProductKit.jsx';
 import ProductMark from '../components/ProductMark.jsx';
 import { loadGsap } from '../lib/nullmotion.jsx';
@@ -13218,6 +13338,26 @@ export default function Why() {
           <h3 className="mt-20 text-[24px] font-semibold tracking-[-0.02em]">Advisors and mentors</h3>
           <p className="mt-2 text-[16px] text-ink-2">Leaders from banking regulation, investment, technology and research who guide our work.</p>
           <div className="m-rail m-rail-sm mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{ADVISORS.map((p, i) => <Reveal key={p.name} delay={(i % 4) * 60} className="h-full"><Advisor p={p} /></Reveal>)}</div>
+        </div>
+      </section>
+
+      {/* the founder, in his own published words */}
+      <section className="sec-tight" aria-label="From our founder">
+        <div className="wrap">
+          <figure className="island island-blue tone-d relative grid items-center gap-8 overflow-hidden p-8 md:grid-cols-[auto_1fr] md:gap-12 md:p-14">
+            <img src={`/img/people/${FOUNDER_QUOTE.img}.webp`} alt="" width="200" height="200" className="relative h-[150px] w-[150px] rounded-[28px] object-cover shadow-[0_24px_50px_-20px_rgb(0_0_0/.6)] ring-4 ring-white/15 md:h-[200px] md:w-[200px]" loading="lazy" decoding="async" />
+            <div className="relative">
+              <blockquote className="text-[clamp(22px,2.4vw,32px)] font-semibold leading-[1.25] tracking-[-0.02em] text-white">“{FOUNDER_QUOTE.text}”</blockquote>
+              <figcaption className="mt-6 text-[15px] text-white/80"><b className="font-semibold text-white">{FOUNDER_QUOTE.name}</b>, {FOUNDER_QUOTE.role} · <a href={FOUNDER_QUOTE.href} target="_blank" rel="noreferrer" className="underline decoration-white/40 underline-offset-4 hover:text-white">{FOUNDER_QUOTE.source}</a></figcaption>
+            </div>
+          </figure>
+        </div>
+      </section>
+
+      <section id="news" className="sec scroll-mt-20" aria-labelledby="news-h">
+        <div className="wrap">
+          <SectionHead align="left" id="news-h" eyebrow="In the news" title="Patented, published and in the room with banks." lead="What we have been doing lately, each with a link to where it was published. Backed by Unicorn India Ventures." />
+          <div className="mt-12"><NewsCards items={NEWS} /></div>
         </div>
       </section>
 
