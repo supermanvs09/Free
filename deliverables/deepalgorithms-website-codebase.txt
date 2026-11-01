@@ -44,6 +44,7 @@ FILES
   website/src/components/RoleCards.jsx
   website/src/components/Stage3D.jsx
   website/src/components/Story.jsx
+  website/src/components/Workforce.jsx
   website/src/components/WorksWith.jsx
   website/src/components/blocks.jsx
   website/src/components/ui.jsx
@@ -1508,26 +1509,33 @@ html.is-translated font { background: none !important; box-shadow: none !importa
 .pl-cap { padding: 10px 18px; border-top: 1px solid rgb(14 17 22 / .07); font-size: 12px; color: #8a909b; }
 @media (prefers-reduced-motion: reduce) { .pl-pulse { animation: none; } }
 
-/* home: the workforce, one person to 82 machine identities (Home.jsx) */
-.wf { border: 1px solid rgb(14 17 22 / .1); border-radius: 22px; background: linear-gradient(180deg, #fff, #f7fafd); padding: clamp(22px, 2.6vw, 34px); box-shadow: 0 40px 90px -60px rgb(11 42 82 / .35); }
-.wf-k { font-size: 13.5px; font-weight: 600; color: #434852; }
-.wf-big { margin-top: 6px; font-size: clamp(48px, 5vw, 72px); font-weight: 600; letter-spacing: -.045em; line-height: 1; color: #0e1116; }
-.wf-big span { font-size: 16px; letter-spacing: -.01em; font-weight: 500; color: #434852; margin-left: 6px; }
-.wf-legend { display: grid; gap: 6px; font-size: 12.5px; color: #434852; }
-.wf-legend li { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
-.wf-legend i, .wf-grid i { display: block; border-radius: 4px; }
-.wf-legend i { width: 11px; height: 11px; }
-.wf-grid { display: grid; grid-template-columns: repeat(14, 1fr); gap: 6px; margin-top: 26px; }
-@media (max-width: 520px) { .wf-grid { grid-template-columns: repeat(10, 1fr); } .wf-legend { display: none; } }
-.wf-grid i { aspect-ratio: 1; }
-.wf-grid i.wf-m, .wf-legend i.wf-m { background: #dfe7f0; }
-.wf-grid i.wf-a, .wf-legend i.wf-a { background: #7c6cf2; }
-.wf-grid i.wf-p, .wf-legend i.wf-p { background: #0a6dbb; box-shadow: 0 0 0 3px rgb(10 109 187 / .18); }
-.io .wf-grid i { opacity: 0; transform: scale(.6); }
-.io .rv.in .wf-grid i, .io .in .wf-grid i { animation: wf-in .5s cubic-bezier(.16,1,.3,1) both; animation-delay: calc(var(--i) * 12ms); }
-@keyframes wf-in { to { opacity: 1; transform: none; } }
-.wf-src { margin-top: 22px; padding-top: 14px; border-top: 1px solid rgb(14 17 22 / .08); font-size: 12.5px; color: #626873; }
-@media (prefers-reduced-motion: reduce) { .io .wf-grid i { opacity: 1; transform: none; animation: none; } }
+/* home: the workforce, people turning into machine identities (Workforce.jsx) */
+.wf { position: relative; overflow: hidden; border-radius: 22px; color: #e6e9ee; border: 1px solid rgb(255 255 255 / .06);
+  background: radial-gradient(60% 50% at 72% 0%, rgb(170 190 215 / .16), transparent 70%), radial-gradient(40% 60% at 85% 30%, rgb(120 150 190 / .1), transparent 70%), linear-gradient(180deg, #11151b, #0b0e12);
+  box-shadow: 0 50px 100px -60px rgb(11 42 82 / .6); }
+.wf-head { position: relative; z-index: 2; padding: clamp(22px, 2.6vw, 32px) clamp(22px, 2.6vw, 32px) 0; }
+.wf-k { font-size: 13.5px; font-weight: 600; color: #a6adb8; }
+.wf-big { margin-top: 6px; font-size: clamp(48px, 5vw, 70px); font-weight: 600; letter-spacing: -.045em; line-height: 1; color: #fff; }
+.wf-big span { font-size: 17px; letter-spacing: -.01em; font-weight: 500; color: #a6adb8; margin-left: 8px; white-space: nowrap; }
+.wf-count { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 16px; font-size: 12.5px; color: #a6adb8; }
+.wf-count li { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.wf-count svg { width: 15px; height: 15px; }
+.wf-count b { min-width: 2.4ch; font-size: 13px; font-weight: 600; color: #fff; font-variant-numeric: tabular-nums; }
+.wf-floor { position: relative; height: clamp(250px, 26vw, 330px); margin-top: 6px; perspective: 900px; perspective-origin: 50% -10%;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 22%, #000 70%, transparent 100%), linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(180deg, transparent 0, #000 22%, #000 70%, transparent 100%), linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); mask-composite: intersect; }
+.wf-grid { position: absolute; left: 50%; top: 4%; width: 150%; display: grid; gap: 1.1%; transform: translateX(-50%) rotateX(52deg); transform-origin: 50% 0; }
+.wf-grid i { display: grid; place-items: center; aspect-ratio: 1.15; border-radius: 18%; background: linear-gradient(180deg, #1a2029, #141920); border: 1px solid rgb(255 255 255 / .06); box-shadow: 0 6px 0 #0a0d11; }
+.wf-grid svg { width: 46%; height: 46%; }
+.k-person { color: #8fb0cf; }
+.k-key { color: #e3b75c; }
+.k-service { color: #5fb6f0; }
+.k-agent { color: #ab9eff; }
+.wf-grid i.turned { animation: wf-flip .5s cubic-bezier(.16,1,.3,1) both; }
+@keyframes wf-flip { from { transform: rotateY(90deg) scale(.9); filter: brightness(2); } }
+.wf.done .wf-grid i.keep { color: #fff; background: linear-gradient(180deg, #1d6fb8, #0a4f8f); border-color: #4fb3f6; box-shadow: 0 6px 0 #073763, 0 0 30px rgb(79 179 246 / .55); }
+.wf-src { position: relative; z-index: 2; padding: 0 clamp(22px, 2.6vw, 32px) clamp(18px, 2vw, 24px); font-size: 12.5px; color: #8a919c; }
+@media (prefers-reduced-motion: reduce) { .wf-grid i.turned { animation: none; } }
 
 /* reference-style pictures (viz/refs.jsx) */
 .kl { border: 1px solid rgb(14 17 22 / .1); border-radius: 22px; background: #fff; box-shadow: 0 40px 90px -60px rgb(11 42 82 / .35); overflow: hidden; }
@@ -1598,6 +1606,7 @@ html.is-translated font { background: none !important; box-shadow: none !importa
 .itf-line { fill: none; stroke: #0a5ea3; stroke-width: 2; }
 .itf-box { fill: #fff; stroke: #1d4fbf; stroke-width: 1.6; stroke-dasharray: 4 4; }
 @media (prefers-reduced-motion: reduce) { .po-coin { animation: none; } .kl-link path { transition: none; } }
+@media (max-width: 640px) { .wf-grid { width: 230%; } .wf-floor { height: 260px; } }
 
 
 ====================================================================================================
@@ -4044,6 +4053,102 @@ export function StatCard({ items, className }) {
         </ul>
       )}
     </div>
+  );
+}
+
+
+====================================================================================================
+FILE: website/src/components/Workforce.jsx
+====================================================================================================
+import { useEffect, useRef, useState } from 'react';
+import { useInView, useReducedMotion, cx } from '../lib/motion.js';
+
+/* The workforce, as it really is now: a floor of identity tiles that starts as
+   people and turns, tile by tile, into keys, service accounts and AI agents,
+   until two people are left. 160 tiles, 2 people: about 1 to 80, close to the
+   sourced 1 to 82. The server render is the end state, so the picture is
+   right without script and for reduced motion. */
+
+const COLS = 16, ROWS = 10, N = COLS * ROWS;
+const KEEP = [69, 106]; // the people who remain
+const ICO = {
+  person: 'M12 12a3.6 3.6 0 1 0 0-7.2 3.6 3.6 0 0 0 0 7.2zM5 20c.8-3.6 3.6-5.6 7-5.6s6.2 2 7 5.6',
+  key: 'M8 15.6a3.6 3.6 0 1 0 0-7.2 3.6 3.6 0 0 0 0 7.2zM11.6 12H20m-3 0v3m-2.4-3v2.2',
+  service: 'M5 4.5h14v6H5zM5 13.5h14v6H5zM8.5 7.5h.01M8.5 16.5h.01M12 7.5h4M12 16.5h4',
+  agent: 'M6 8h12v10H6zM12 4.5V8M9.5 12.5h.01M14.5 12.5h.01M10 15.5h4M4 12v3M20 12v3',
+};
+const LABEL = { person: 'People', key: 'Keys and secrets', service: 'Service accounts', agent: 'AI agents' };
+
+/* a fixed, even spread of what each tile becomes, and the order they turn */
+const rnd = (seed) => { let s = seed; return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }; };
+const { END, ORDER } = (() => {
+  const r = rnd(11);
+  const end = Array.from({ length: N }, (_, i) => {
+    if (KEEP.includes(i)) return 'person';
+    const x = r();
+    return x < 0.46 ? 'key' : x < 0.86 ? 'service' : 'agent';
+  });
+  const order = Array.from({ length: N }, (_, i) => i).filter((i) => !KEEP.includes(i));
+  for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+  return { END: end, ORDER: order };
+})();
+const count = (t) => t.reduce((m, k) => ((m[k] = (m[k] || 0) + 1), m), {});
+
+function Ico({ k }) {
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d={ICO[k]} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+}
+
+export default function Workforce() {
+  const ref = useRef(null);
+  const seen = useInView(ref, { threshold: 0.35 });
+  const reduce = useReducedMotion();
+  const [tiles, setTiles] = useState(END);
+  const [done, setDone] = useState(true);
+  const played = useRef(false);
+
+  // before it is seen, everyone is a person
+  useEffect(() => { if (!reduce && !played.current) { setTiles(Array(N).fill('person')); setDone(false); } }, [reduce]);
+  useEffect(() => {
+    if (reduce || !seen || played.current) return undefined;
+    played.current = true;
+    let i = 0, t;
+    const step = () => {
+      const n = 2 + Math.floor(i / 26); // slow at first, then the flood
+      const batch = ORDER.slice(i, i + n);
+      i += n;
+      setTiles((cur) => { const next = cur.slice(); batch.forEach((b) => { next[b] = END[b]; }); return next; });
+      if (i < ORDER.length) t = setTimeout(step, 85);
+      else t = setTimeout(() => setDone(true), 300);
+    };
+    t = setTimeout(step, 600);
+    return () => clearTimeout(t);
+  }, [seen, reduce]);
+
+  const c = count(tiles);
+  return (
+    <figure ref={ref} className={cx('wf', done && 'done')} aria-label="Illustration: a floor of 160 identity tiles that starts as people and turns into keys, service accounts and AI agents until two people remain. For every person in an average organisation there are 82 machine identities.">
+      <div aria-hidden="true">
+        <div className="wf-head">
+          <div>
+            <p className="wf-k">For every person in your company</p>
+            <p className="wf-big">82<span> machine identities</span></p>
+          </div>
+          <ul className="wf-count">
+            {['person', 'key', 'service', 'agent'].map((k) => (
+              <li key={k} className={`k-${k}`}><Ico k={k} /><b>{c[k] || 0}</b><span>{LABEL[k]}</span></li>
+            ))}
+          </ul>
+        </div>
+        <div className="wf-floor">
+          <div className="wf-grid" style={{ gridTemplateColumns: `repeat(${COLS}, 1fr)` }}>
+            {tiles.map((k, i) => (
+              <i key={`${i}-${k}`} className={cx(`k-${k}`, KEEP.includes(i) && 'keep', k !== 'person' && 'turned')}><Ico k={k} /></i>
+            ))}
+          </div>
+        </div>
+      </div>
+      <figcaption className="wf-src">Source: CyberArk Identity Security Landscape, 2025. Most were created by a deploy, not a decision. Tiles are illustrative.</figcaption>
+    </figure>
   );
 }
 
@@ -11047,6 +11152,7 @@ import { Button, CountUp, Icon, Reveal, SectionHead, cx } from '../components/ui
 import { CtaBand, FilmPlayer, TrustedRow } from '../components/blocks.jsx';
 import ProductMark from '../components/ProductMark.jsx';
 import CirmPipeline from '../components/CirmPipeline.jsx';
+import Workforce from '../components/Workforce.jsx';
 import { PlatformOrbit } from '../components/viz/refs.jsx';
 import RoleCards from '../components/RoleCards.jsx';
 import { Logo, logoTitle } from '../components/viz/kit.jsx';
@@ -11097,30 +11203,6 @@ const FAQ = [
 
 const INDUSTRY_ICON = { bfsi: 'Bank', healthcare: 'FirstAidKit', government: 'Buildings', 'digital-platforms': 'Browsers' };
 const INDUSTRY_LINE = { bfsi: 'Mule accounts, account takeover, RBI and DPDPA', healthcare: 'Who opened which patient record, and why', government: 'Portals that stay online under attack', 'digital-platforms': 'Bots at sign-up, keys in code, AI in the product' };
-
-/* one person, 82 machine identities: the ratio drawn as tiles */
-const AGENTS = new Set([9, 23, 31, 46, 58, 70, 77]);
-function Workforce() {
-  return (
-    <figure className="wf" aria-label="Illustration: for every person in an average organisation there are 82 machine identities, a growing number of them AI agents.">
-      <div aria-hidden="true">
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <p className="wf-k">For every person in your company</p>
-            <p className="wf-big">82<span> machine identities</span></p>
-          </div>
-          <ul className="wf-legend">
-            <li><i className="wf-p" />Person</li><li><i className="wf-m" />Key or service account</li><li><i className="wf-a" />AI agent</li>
-          </ul>
-        </div>
-        <div className="wf-grid">
-          {Array.from({ length: 83 }, (_, i) => <i key={i} className={i === 0 ? 'wf-p' : AGENTS.has(i) ? 'wf-a' : 'wf-m'} style={{ '--i': i }} />)}
-        </div>
-      </div>
-      <figcaption className="wf-src">Source: CyberArk Identity Security Landscape, 2025. Most were created by a deploy, not a decision.</figcaption>
-    </figure>
-  );
-}
 
 function WhyNow() {
   return (
