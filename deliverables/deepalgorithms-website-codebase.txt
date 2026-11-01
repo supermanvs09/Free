@@ -2,8 +2,6 @@ deepalgorithms.io website: full source as text
 Omitted: node_modules, build output, binary assets (images, video, fonts), package-lock.json, src/components/scenes/land.json (generated map data).
 
 FILES
-  website/.dockerignore
-  website/.gitignore
   website/Dockerfile
   website/README.md
   website/docker-compose.yml
@@ -29,6 +27,7 @@ FILES
   website/src/components/Backdrop.jsx
   website/src/components/CertSeal.jsx
   website/src/components/Changes.jsx
+  website/src/components/CirmPipeline.jsx
   website/src/components/Command.jsx
   website/src/components/CommandLauncher.jsx
   website/src/components/Cover.jsx
@@ -36,7 +35,6 @@ FILES
   website/src/components/Footer.jsx
   website/src/components/Form.jsx
   website/src/components/Header.jsx
-  website/src/components/HeroStack.jsx
   website/src/components/JumpBar.jsx
   website/src/components/MobileBar.jsx
   website/src/components/PerimeterStory.jsx
@@ -69,6 +67,7 @@ FILES
   website/src/components/viz/kit.jsx
   website/src/components/viz/light.jsx
   website/src/components/viz/nhimap.jsx
+  website/src/components/viz/refs.jsx
   website/src/components/viz/viz.css
   website/src/components/viz/workbench.jsx
   website/src/components/viz/zendecide.jsx
@@ -145,43 +144,6 @@ FILES
   website/tools/walkthrough/make-video.sh
   website/tools/walkthrough/record.mjs
   website/tools/walkthrough/script.mjs
-
-
-====================================================================================================
-FILE: website/.dockerignore
-====================================================================================================
-# Only what the build needs goes to Docker: package files, index.html, vite.config.js,
-# src/, public/, scripts/ and nginx/.
-node_modules
-dist
-dist-ssr
-csp.conf
-test-results
-playwright-report
-tests
-playwright.config.js
-tools
-.git
-.gitignore
-.impeccable
-*.log
-Dockerfile
-docker-compose.yml
-.dockerignore
-README.md
-
-
-====================================================================================================
-FILE: website/.gitignore
-====================================================================================================
-node_modules
-dist
-dist-ssr
-test-results
-playwright-report
-.env
-.impeccable
-csp.conf
 
 
 ====================================================================================================
@@ -1164,7 +1126,7 @@ main { overflow-x: clip; }
    ========================================================================== */
 /* sections meet edge to edge, as enterprise pages do; --hdr is the fixed header's height (a utility bar sits above the menu from 1024px) */
 :root { --hl: 74%; --sheet-r: 0px; --sheet-x: 0px; --hdr: 72px; }
-@media (min-width: 1024px) { :root { --hdr: 108px; } }
+@media (min-width: 1024px) { :root { --hdr: 120px; } }
 
 @layer base {
   :root:not([data-theme='dark']) :is(.page > :not(.dark, .fixed), .tone-l) {
@@ -1384,9 +1346,12 @@ html.is-translated font { background: none !important; box-shadow: none !importa
 /* home "By role": coloured cards (RoleCards.jsx). Light pastels in the light
    theme, deep blues in the dark one; the ink follows. */
 .rc { --rc-ink: #151b24; --rc-ink2: #44546b; }
-.rc-main { background: linear-gradient(118deg, #f1f7ff 0%, #dceaff 52%, #c6ddff 100%); }
-.rc-stat { background: linear-gradient(150deg, #eef2ff 0%, #dfe5ff 55%, #e9dcff 100%); }
-.rc-proof { background: linear-gradient(160deg, #edf8ff 0%, #d9eefc 100%); }
+.rc-main { background: #fff; border: 1px solid rgb(14 17 22 / .09); box-shadow: 0 30px 70px -55px rgb(11 42 82 / .35); }
+.rc-side { background: radial-gradient(rgb(10 58 107 / .12) 1px, transparent 1px) 0 0 / 14px 14px, linear-gradient(160deg, #f4f8fd, #e9f1fa); }
+.rc-rec { border: 1px solid rgb(14 17 22 / .08); box-shadow: 0 30px 60px -30px rgb(11 42 82 / .35); }
+.rc-stat { background: #fff; border: 1px solid rgb(14 17 22 / .09); }
+.rc-stat .rc-num { color: #0a6dbb; }
+.rc-proof { background: #f7f9fc; border: 1px solid rgb(14 17 22 / .09); }
 .rc-num { background: linear-gradient(90deg, #2f6fe4, #7a4fe0); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .rc-pill { background: rgb(255 255 255 / .75); color: var(--rc-ink); transition: background .2s; }
 .rc-pill:hover { background: #fff; }
@@ -1406,54 +1371,7 @@ html.is-translated font { background: none !important; box-shadow: none !importa
 .seal .s { fill: var(--seal-ink); font: 600 7.5px var(--font-sans, Inter, sans-serif); letter-spacing: .08em; }
 .stage .seal { --seal: #7cc4ff; --seal-soft: rgb(124 196 255 / .12); --seal-ink: #aab6c8; }
 
-/* home hero: three planes (HeroStack.jsx) */
-.hs-rail { stroke: rgb(14 17 22 / .2); stroke-width: 1; fill: none; }
-.hs-side-l { fill: #d9e3ee; }
-.hs-side-r { fill: #c6d4e3; }
-.hs-grid { stroke: rgb(10 58 107 / .07); stroke-width: 1; fill: none; }
-.hs-edge { fill: none; stroke: rgb(10 58 107 / .16); stroke-width: 1; }
-.hs-gside-l { fill: #2f8fd6; opacity: .7; }
-.hs-gside-r { fill: #0a6dbb; opacity: .78; }
-.hs-ggrid { stroke: rgb(255 255 255 / .55); stroke-width: 1; fill: none; }
-.hs-gedge { fill: none; stroke: #0a6dbb; stroke-width: 1.4; transition: stroke-width .3s, filter .3s; }
-.hs-plane.gate.hit .hs-gedge { stroke-width: 2.6; filter: drop-shadow(0 0 10px rgb(0 174 239 / .7)); }
-.hs-trace { stroke: rgb(255 255 255 / .9); stroke-width: 1.4; fill: none; stroke-dasharray: 3 7; animation: hs-dash 1.2s linear infinite; }
-.hs-wave { fill: none; stroke: #fff; stroke-width: 1.4; transform-box: fill-box; transform-origin: center; animation: hs-wave 4.8s cubic-bezier(.2,.6,.3,1) infinite; }
-@keyframes hs-wave { 0% { scale: .6; opacity: 0; } 15% { opacity: .9; } 100% { scale: 2.9; opacity: 0; } }
-.hs-label { font-size: 15.5px; font-weight: 600; fill: #0e1116; letter-spacing: -.01em; }
-.hs-num { font: 600 10.5px ui-monospace, SFMono-Regular, Menlo, monospace; fill: rgb(14 17 22 / .4); letter-spacing: .08em; }
-.hs-sub { font-size: 11.5px; fill: #5b6270; }
-.hs-note-dot { fill: #fff; stroke: rgb(14 17 22 / .4); stroke-width: 1.2; }
-.hs-note.gate .hs-note-dot { fill: #0a6dbb; stroke: #0a6dbb; }
-.hs-note.gate .hs-label, .hs-note.gate .hs-num { fill: #0a6dbb; }
-.hs-tok-sh { fill: rgb(11 42 82 / .16); filter: blur(2px); }
-.hs-tile { fill: #fff; stroke: rgb(10 58 107 / .14); stroke-width: 1; filter: drop-shadow(0 8px 10px rgb(11 42 82 / .14)); transition: stroke .3s; }
-.hs-ic { color: #0a6dbb; transition: color .3s; }
-.hs-tok.hot .hs-ic { color: #d1342b; }
-.hs-tok.hot .hs-tile { stroke: #e5484d; stroke-width: 1.6; filter: drop-shadow(0 0 12px rgb(229 72 77 / .5)); }
-.hs-beam path { stroke-width: 1.8; fill: none; transition: opacity .3s; }
-.hs-beam.off path { opacity: 0; }
-.hs-pulse { fill: #00aeef; filter: drop-shadow(0 0 4px #00aeef); opacity: 0; animation: hs-flow 2.6s cubic-bezier(.45,0,.55,1) infinite; }
-.hs-beam.off .hs-pulse { display: none; }
-@keyframes hs-flow { 0% { transform: translateY(0); opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } 100% { transform: translateY(var(--len)); opacity: 0; } }
-.hs-attack { fill: none; stroke: #e5484d; stroke-width: 2.2; stroke-dasharray: 4 5; opacity: 0; transition: opacity .3s; }
-.hs-attack.on { opacity: 1; animation: hs-dash .6s linear infinite; }
-.hs-attack.cut { opacity: .35; stroke: #b9c3d1; }
-@keyframes hs-dash { to { stroke-dashoffset: -18; } }
-.hs-stop circle { fill: #fff; stroke: #0a6dbb; stroke-width: 2; }
-.hs-stop path { stroke: #0a6dbb; stroke-width: 2.4; stroke-linecap: round; }
-.hs-stop { animation: hs-pop .45s cubic-bezier(.34,1.56,.64,1) both; transform-box: fill-box; transform-origin: center; }
-@keyframes hs-pop { from { scale: .3; opacity: 0; } }
-.hs-name { position: absolute; transform: translate(-50%, 0); white-space: nowrap; font-size: 11.5px; font-weight: 500; color: #434852; pointer-events: none; }
-.hs-pop { position: absolute; z-index: 3; display: flex; align-items: center; gap: 8px; max-width: 290px; padding: 6px 12px 6px 6px; border-radius: 12px; background: #fff; border: 1px solid rgb(229 72 77 / .55); box-shadow: 0 16px 34px -14px rgb(16 40 80 / .35), 0 0 0 4px rgb(229 72 77 / .08); color: #0e1116; font-size: 12.5px; font-weight: 600; white-space: nowrap; opacity: 0; transform: translate(-50%, -150%) scale(.92); transition: left 1.5s cubic-bezier(.45,0,.55,1), top 1.5s cubic-bezier(.45,0,.55,1), opacity .35s, transform .5s cubic-bezier(.16,1,.3,1), border-color .35s, box-shadow .35s; pointer-events: none; }
-.hs-pop.on { opacity: 1; transform: translate(-50%, -165%) scale(1); }
-.hs-pop.done { border-color: rgb(10 109 187 / .5); box-shadow: 0 16px 34px -14px rgb(16 40 80 / .35), 0 0 0 4px rgb(10 109 187 / .08); }
-.hs-pop.on.done { transform: translate(-50%, 70%) scale(1); }
-.hs-pop.on.done.away { opacity: 0; transform: translate(-50%, 30%) scale(.96); }
-.hs-pop-ic { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 7px; background: #e5484d; color: #fff; flex-shrink: 0; transition: background .35s; }
-.hs-pop.done .hs-pop-ic { background: #0a6dbb; }
-@media (max-width: 640px) { .hs-name { font-size: 9.5px; } .hs-label { font-size: 17px; } .hs-pop { font-size: 11px; white-space: normal; max-width: 220px; } }
-@media (prefers-reduced-motion: reduce) { .hs-trace, .hs-wave, .hs-pulse, .hs-attack { animation: none; } }
+
 
 /* icon tiles on cards: a solid accent tile with a white icon, the way
    enterprise pages put colour on a light page without filling it */
@@ -1530,6 +1448,156 @@ html.is-translated font { background: none !important; box-shadow: none !importa
   .fg-wait i { animation: none; }
   .fg-mid.on .fg-verdict { animation: none; }
 }
+
+/* adapID CIRM platform view (CirmPipeline.jsx) */
+.pl { border: 1px solid rgb(14 17 22 / .1); border-radius: 22px; background: #fff; box-shadow: 0 50px 100px -60px rgb(11 42 82 / .35), 0 2px 6px rgb(11 42 82 / .04); overflow: hidden; color: #0e1116; }
+.pl-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 18px; border-bottom: 1px solid rgb(14 17 22 / .08); font-size: 13.5px; color: #434852; background: linear-gradient(180deg, #fbfcfe, #f6f8fb); }
+.pl-bar b { color: #0e1116; font-weight: 600; }
+.pl-search { display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 12px; border: 1px solid rgb(14 17 22 / .1); border-radius: 8px; background: #fff; color: #8a909b; font-size: 12.5px; min-width: 190px; }
+.pl-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: #0c7546; font-weight: 500; }
+.pl-status i { width: 7px; height: 7px; border-radius: 50%; background: #18a058; box-shadow: 0 0 0 3px rgb(24 160 88 / .18); }
+.pl-body { display: grid; gap: 0; }
+@media (min-width: 768px) { .pl-body { grid-template-columns: 170px minmax(0, 1fr) 220px; } }
+@media (min-width: 1200px) { .pl-body { grid-template-columns: 190px minmax(0, 1fr) 240px; } }
+.pl-cover { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 18px; border-bottom: 1px solid rgb(14 17 22 / .07); }
+@media (min-width: 768px) { .pl-cover { display: flex; flex-direction: column; justify-content: center; gap: 44px; padding: 24px 0 24px 24px; border: 0; } }
+.pl-cover li { display: flex; align-items: flex-start; gap: 10px; }
+.pl-cover b { display: block; font-size: clamp(19px, 1.7vw, 24px); font-weight: 600; letter-spacing: -.02em; line-height: 1.1; }
+.pl-cover li > span:last-child > span { display: block; margin-top: 3px; font-size: 12.5px; color: #626873; line-height: 1.3; }
+.pl-ic { display: grid; place-items: center; width: 30px; height: 30px; flex-shrink: 0; border-radius: 9px; background: #eef5fc; color: #0a6dbb; }
+.pl-mid { padding: 22px 18px; }
+@media (min-width: 768px) { .pl-mid { padding: 26px 8px 22px; } }
+.pl-head { min-height: 118px; text-align: center; max-width: 460px; margin: 0 auto; }
+.pl-step { font: 600 11px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; color: #0a6dbb; text-transform: uppercase; }
+.pl-title { margin-top: 6px; font-size: clamp(22px, 2vw, 28px); font-weight: 600; letter-spacing: -.025em; }
+.pl-desc { margin-top: 6px; font-size: 14.5px; line-height: 1.5; color: #434852; }
+.pl-chev { margin-top: 10px; }
+.pl-c polygon { fill: #fff; stroke: rgb(10 58 107 / .3); stroke-width: 1.1; transition: fill .45s, stroke .45s; }
+.pl-c.past polygon { fill: #f1f7fd; stroke: rgb(10 109 187 / .45); }
+.pl-c.on polygon { fill: url(#pl-on); stroke: #0a5ea3; filter: drop-shadow(0 10px 16px rgb(10 94 163 / .35)); }
+.pl-cl { font-size: 13px; font-weight: 600; fill: #1c2633; letter-spacing: -.005em; transition: fill .45s; }
+.pl-cn { font: 600 10px ui-monospace, SFMono-Regular, Menlo, monospace; fill: rgb(14 17 22 / .4); transition: fill .45s; }
+.pl-c.on .pl-cl, .pl-c.on .pl-cn { fill: #fff; }
+.pl-fan { fill: none; stroke: rgb(10 109 187 / .45); stroke-width: 1; stroke-dasharray: 2 4; }
+.pl-fanbg { mask: linear-gradient(90deg, #000, transparent); -webkit-mask: linear-gradient(90deg, #000, transparent); opacity: .7; }
+.pl-fanbg.r { mask: linear-gradient(270deg, #000, transparent); -webkit-mask: linear-gradient(270deg, #000, transparent); }
+.pl-axis { stroke: rgb(10 109 187 / .18); stroke-width: 1; }
+.pl-pulse { fill: #00aeef; filter: drop-shadow(0 0 5px #00aeef); animation: pl-pulse 3.6s cubic-bezier(.45,0,.55,1) infinite; }
+@keyframes pl-pulse { 0% { transform: translateX(0); opacity: 0; } 8% { opacity: 1; } 92% { opacity: 1; } 100% { transform: translateX(var(--to)); opacity: 0; } }
+.pl-hit { position: absolute; top: 0; bottom: 0; background: transparent; border-radius: 6px; cursor: pointer; }
+.pl-hit:focus-visible { outline: 2px solid #0a6dbb; outline-offset: 2px; }
+.pl-list { display: grid; gap: 6px; margin-top: 14px; }
+@media (min-width: 768px) { .pl-list { display: none; } }
+.pl-list button { display: flex; width: 100%; align-items: center; gap: 12px; padding: 11px 14px; border: 1px solid rgb(14 17 22 / .1); border-radius: 12px; font-size: 15px; font-weight: 600; text-align: left; background: #fff; transition: background .3s, color .3s, border-color .3s; }
+.pl-list button span { font: 600 11px ui-monospace, SFMono-Regular, Menlo, monospace; color: #8a909b; }
+.pl-list button.on { background: linear-gradient(135deg, #1e88d8, #0a5ea3); color: #fff; border-color: #0a5ea3; }
+.pl-list button.on span { color: rgb(255 255 255 / .75); }
+.pl-kpi { display: grid; grid-template-columns: repeat(3, 1fr); margin: 18px auto 0; max-width: 520px; border: 1px solid rgb(14 17 22 / .08); border-radius: 14px; background: #f8fafc; }
+.pl-kpi > div { padding: 12px 10px; text-align: center; display: flex; flex-direction: column-reverse; }
+.pl-kpi > div + div { border-left: 1px solid rgb(14 17 22 / .08); }
+.pl-kpi dd { font-size: clamp(18px, 1.7vw, 23px); font-weight: 600; letter-spacing: -.02em; color: #0a6dbb; }
+.pl-kpi dt { margin-top: 2px; font-size: 11.5px; color: #626873; line-height: 1.3; }
+.pl-src { padding: 18px; border-top: 1px solid rgb(14 17 22 / .07); background: #fafbfd; display: grid; gap: 14px; }
+@media (max-width: 767px) { .pl-src { grid-template-columns: 1fr 1fr; } .pl-src > div:last-child { grid-column: span 2; } }
+@media (min-width: 768px) { .pl-src { border-top: 0; border-left: 1px solid rgb(14 17 22 / .07); padding: 20px; align-content: center; } }
+.pl-g { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .1em; color: #8a909b; padding-bottom: 6px; border-bottom: 1px solid rgb(14 17 22 / .07); }
+.pl-src ul { display: grid; gap: 2px; margin-top: 6px; }
+.pl-src li { display: flex; align-items: center; gap: 9px; padding: 4px 0; font-size: 13px; color: #1c2633; }
+.pl-src li i { margin-left: auto; width: 6px; height: 6px; border-radius: 50%; background: #18a058; }
+.pl-logo { display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid rgb(14 17 22 / .08); border-radius: 7px; background: #fff; flex-shrink: 0; }
+.pl-cap { padding: 10px 18px; border-top: 1px solid rgb(14 17 22 / .07); font-size: 12px; color: #8a909b; }
+@media (prefers-reduced-motion: reduce) { .pl-pulse { animation: none; } }
+
+/* home: the workforce, one person to 82 machine identities (Home.jsx) */
+.wf { border: 1px solid rgb(14 17 22 / .1); border-radius: 22px; background: linear-gradient(180deg, #fff, #f7fafd); padding: clamp(22px, 2.6vw, 34px); box-shadow: 0 40px 90px -60px rgb(11 42 82 / .35); }
+.wf-k { font-size: 13.5px; font-weight: 600; color: #434852; }
+.wf-big { margin-top: 6px; font-size: clamp(48px, 5vw, 72px); font-weight: 600; letter-spacing: -.045em; line-height: 1; color: #0e1116; }
+.wf-big span { font-size: 16px; letter-spacing: -.01em; font-weight: 500; color: #434852; margin-left: 6px; }
+.wf-legend { display: grid; gap: 6px; font-size: 12.5px; color: #434852; }
+.wf-legend li { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.wf-legend i, .wf-grid i { display: block; border-radius: 4px; }
+.wf-legend i { width: 11px; height: 11px; }
+.wf-grid { display: grid; grid-template-columns: repeat(14, 1fr); gap: 6px; margin-top: 26px; }
+@media (max-width: 520px) { .wf-grid { grid-template-columns: repeat(10, 1fr); } .wf-legend { display: none; } }
+.wf-grid i { aspect-ratio: 1; }
+.wf-grid i.wf-m, .wf-legend i.wf-m { background: #dfe7f0; }
+.wf-grid i.wf-a, .wf-legend i.wf-a { background: #7c6cf2; }
+.wf-grid i.wf-p, .wf-legend i.wf-p { background: #0a6dbb; box-shadow: 0 0 0 3px rgb(10 109 187 / .18); }
+.io .wf-grid i { opacity: 0; transform: scale(.6); }
+.io .rv.in .wf-grid i, .io .in .wf-grid i { animation: wf-in .5s cubic-bezier(.16,1,.3,1) both; animation-delay: calc(var(--i) * 12ms); }
+@keyframes wf-in { to { opacity: 1; transform: none; } }
+.wf-src { margin-top: 22px; padding-top: 14px; border-top: 1px solid rgb(14 17 22 / .08); font-size: 12.5px; color: #626873; }
+@media (prefers-reduced-motion: reduce) { .io .wf-grid i { opacity: 1; transform: none; animation: none; } }
+
+/* reference-style pictures (viz/refs.jsx) */
+.kl { border: 1px solid rgb(14 17 22 / .1); border-radius: 22px; background: #fff; box-shadow: 0 40px 90px -60px rgb(11 42 82 / .35); overflow: hidden; }
+.kl-scroll { overflow-x: auto; }
+.kl-inner { min-width: 760px; padding: 18px 18px 6px; background: linear-gradient(180deg, #fff 40%, #f6f9fc); }
+.kl-cols { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+.kl-col { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 34px; border: 1.5px solid #12171f; border-radius: 8px; background: #fff; box-shadow: 2px 3px 0 #12171f; font-size: 13.5px; font-weight: 600; color: #12171f; }
+.kl-rule { position: absolute; top: -8px; bottom: 0; width: 0; border-left: 1px dashed rgb(14 17 22 / .14); }
+.kl-link path { fill: none; stroke: #a78bfa; stroke-width: 1.6; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset .9s cubic-bezier(.16,1,.3,1); }
+.kl-link.on path { stroke-dashoffset: 0; }
+.kl-link.bad path { stroke: #e5484d; }
+.kl-tag { display: inline-block; padding: 1px 8px; border: 1px solid #12171f; border-radius: 999px; background: #e9ddff; font-size: 10.5px; font-weight: 600; color: #12171f; opacity: 0; transition: opacity .4s .5s; white-space: nowrap; }
+.kl-link.bad .kl-tag { background: #fde2e1; }
+.kl-link.on .kl-tag { opacity: 1; }
+.kl-node { position: absolute; transform: translate(-50%, -30px); display: flex; flex-direction: column; align-items: center; text-align: center; width: 140px; opacity: .35; transition: opacity .5s; }
+.kl-node.on { opacity: 1; }
+.kl-ic { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 14px; background: #fff; border: 2px solid #12171f; box-shadow: 0 4px 0 #12171f; color: #12171f; }
+.kl-node.brand .kl-ic { border-color: #2f55d4; box-shadow: 0 4px 0 #2f55d4; }
+.kl-node.crit .kl-ic { border-color: #e5484d; box-shadow: 0 4px 0 #e5484d; color: #c4352a; }
+.kl-node b { margin-top: 10px; font-size: 12.5px; font-weight: 600; color: #12171f; }
+.kl-node.brand b { color: #2f55d4; }
+.kl-node.crit b { color: #c4352a; }
+.kl-node small { font-size: 11px; color: #626873; }
+.kl-verdict { display: flex; gap: 10px; align-items: flex-start; margin: 0; padding: 14px 18px; border-top: 1px solid rgb(14 17 22 / .08); font-size: 13.5px; color: #434852; opacity: .4; transition: opacity .5s; }
+.kl-verdict.on { opacity: 1; }
+.kl-verdict b { color: #0e1116; }
+.kl-dot { width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; background: #e5484d; flex-shrink: 0; box-shadow: 0 0 0 4px rgb(229 72 77 / .15); }
+
+.po-ring { fill: none; stroke: rgb(10 58 107 / .18); stroke-dasharray: 3 6; }
+.po-ring.b { stroke: rgb(10 109 187 / .28); }
+.po-coin { position: absolute; display: grid; place-items: center; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; background: #fff; border: 1px solid rgb(14 17 22 / .1); box-shadow: 0 5px 0 #d3dce8, 0 14px 22px -12px rgb(11 42 82 / .4); color: #12171f; animation: po-bob 4.2s ease-in-out infinite; }
+.po-coin.ai { background: #f1edff; border-color: #d9d0ff; box-shadow: 0 5px 0 #cfc5f5, 0 14px 22px -12px rgb(76 52 180 / .4); }
+@keyframes po-bob { 50% { translate: 0 -5px; } }
+
+.ac { border: 1px solid rgb(14 17 22 / .1); border-radius: 22px; overflow: hidden; background: linear-gradient(160deg, #f7f5ff, #f3f6fc 55%, #fff); box-shadow: 0 40px 90px -60px rgb(60 40 160 / .35); }
+.ac-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 18px; border-bottom: 1px solid rgb(14 17 22 / .07); font-size: 13.5px; background: rgb(255 255 255 / .7); }
+.ac-pill { padding: 3px 10px; border-radius: 999px; background: #efeaff; color: #5b47c9; font-size: 12px; font-weight: 600; }
+.ac-avatar { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #12171f; color: #fff; font-size: 11px; font-weight: 600; }
+.ac-hero { display: grid; gap: 28px; align-items: center; padding: 34px 26px 10px; }
+@media (min-width: 768px) { .ac-hero { grid-template-columns: 300px 1fr; padding: 40px 48px 16px; } }
+.ac-orb { position: relative; width: 240px; height: 240px; margin: 0 auto; }
+.ac-halo { position: absolute; inset: -22px; border-radius: 50%; background: radial-gradient(circle, rgb(167 139 250 / .28), rgb(167 139 250 / .08) 60%, transparent 70%); }
+.ac-core { position: absolute; inset: 20px; display: grid; place-items: center; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff, #e9e3ff 60%, #d6ccff); box-shadow: inset 0 -10px 30px rgb(109 91 208 / .18), 0 30px 50px -30px rgb(76 52 180 / .5); }
+.ac-core svg { width: 92px; height: 92px; }
+.ac-chip { position: absolute; display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 10px; background: #fff; border: 1px solid rgb(14 17 22 / .08); box-shadow: 0 12px 24px -14px rgb(11 42 82 / .45); font-size: 11.5px; font-weight: 600; color: #12171f; white-space: nowrap; }
+.ac-chip i { width: 7px; height: 7px; border-radius: 50%; background: #7c6cf2; }
+.ac-chip i.g { background: #1f9d63; }
+.ac-chip.c1 { left: -26px; bottom: 34px; }
+.ac-chip.c2 { right: -38px; bottom: -2px; }
+.ac-spark { position: absolute; right: 18px; top: 10px; }
+.ac-h { font-size: clamp(22px, 2.2vw, 30px); font-weight: 600; letter-spacing: -.025em; line-height: 1.15; color: #12171f; max-width: 20ch; }
+.ac-p { margin-top: 12px; font-size: 15px; line-height: 1.55; color: #434852; max-width: 46ch; }
+.ac-btn { display: inline-flex; align-items: center; gap: 8px; margin-top: 18px; padding: 7px 14px; border: 1px solid #12171f; border-radius: 9px; font-size: 13px; font-weight: 600; color: #12171f; background: #fff; }
+.ac-caps { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px 22px; padding: 24px 26px 30px; }
+@media (min-width: 768px) { .ac-caps { grid-template-columns: repeat(5, 1fr); padding: 26px 48px 36px; } }
+.ac-caps li { display: flex; flex-direction: column; gap: 6px; padding-top: 2px; }
+.ac-caps b { font-size: 14px; font-weight: 600; color: #12171f; margin-top: 6px; }
+.ac-caps li > span:last-child { font-size: 12.5px; line-height: 1.45; color: #626873; padding-bottom: 10px; border-bottom: 1px solid rgb(14 17 22 / .1); }
+.ac-ic { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; }
+
+.itf { border: 1px solid rgb(14 17 22 / .1); border-radius: 22px; background: #fff; padding: 22px; box-shadow: 0 40px 90px -60px rgb(11 42 82 / .3); }
+.itf-scroll { overflow-x: auto; }
+.itf-h { font-size: 12.5px; font-weight: 700; fill: #1d4fbf; letter-spacing: .02em; }
+.itf-l { font-size: 11.5px; fill: #2a2f38; }
+.itf-k { font-size: 12px; font-weight: 700; fill: #1d4fbf; letter-spacing: .02em; }
+.itf-n { font-size: 13px; font-weight: 600; fill: #12171f; }
+.itf-c { font-size: 15px; font-weight: 700; fill: #fff; }
+.itf-line { fill: none; stroke: #0a5ea3; stroke-width: 2; }
+.itf-box { fill: #fff; stroke: #1d4fbf; stroke-width: 1.6; stroke-dasharray: 4 4; }
+@media (prefers-reduced-motion: reduce) { .po-coin { animation: none; } .kl-link path { transition: none; } }
 
 
 ====================================================================================================
@@ -1712,6 +1780,147 @@ export function AuditorQuestions() {
         </Reveal>
       ))}
     </ol>
+  );
+}
+
+
+====================================================================================================
+FILE: website/src/components/CirmPipeline.jsx
+====================================================================================================
+import { useEffect, useRef, useState } from 'react';
+import { useInView, useReducedMotion, cx } from '../lib/motion.js';
+import { Logo } from './viz/kit.jsx';
+
+/* adapID CIRM as one platform view, the way identity platforms draw their
+   console: who is covered on the left, what happens to every identity in the
+   middle (seven stages, one after another), what it connects to on the right.
+   The stages are what CIRM does, nothing borrowed. Numbers are illustrative. */
+
+export const STAGES = [
+  { n: 'Discover', d: 'Finds every person, key, service account and AI agent across your identity provider, cloud and SaaS.' },
+  { n: 'Baseline', d: 'Learns how each identity normally works: when, where, from which device, touching which data.' },
+  { n: 'Score', d: 'Scores every session from 0 to 100 while it happens, not in a nightly report.' },
+  { n: 'Explain', d: 'Every point of the score carries its reason, in words an analyst or auditor can follow.' },
+  { n: 'Step up · Hold', d: 'Your policy asks for proof, or holds the session, through the identity provider you already run.' },
+  { n: 'Contain', d: 'Revokes sessions, removes rogue rules and disables keys across every connected system.' },
+  { n: 'Record', d: 'Keeps each decision with its reason, ready for the SOC, the auditor and the regulator.' },
+];
+const COVER = [
+  ['person', '3,412', 'People'],
+  ['machine', '12,708', 'Machine identities'],
+  ['agent', '64', 'AI agents'],
+];
+const SOURCES = [
+  ['Identity providers', [['okta', 'Okta'], ['entra', 'Microsoft Entra ID'], ['ad', 'Active Directory'], ['google', 'Google Workspace']]],
+  ['Cloud', [['aws', 'AWS'], ['azure', 'Microsoft Azure'], ['gcp', 'Google Cloud']]],
+  ['Apps', [['m365', 'Microsoft 365'], ['salesforce', 'Salesforce'], ['github', 'GitHub'], ['slack', 'Slack']]],
+];
+const KPI = [['48,210', 'sessions scored today'], ['38 ms', 'median decision'], ['23', 'sessions held, all explained']];
+
+const ICON = {
+  person: 'M12 12a3.6 3.6 0 1 0 0-7.2 3.6 3.6 0 0 0 0 7.2zM5 20c.8-3.6 3.6-5.6 7-5.6s6.2 2 7 5.6',
+  machine: 'M4 5h16v6H4zM4 13h16v6H4zM8 8h.01M8 16h.01',
+  agent: 'M5 7h14v11H5zM12 4v3M9.5 12h.01M14.5 12h.01',
+};
+const Ico = ({ k }) => <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d={ICON[k]} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+
+/* chevron geometry, in svg units */
+const W = 46, D = 36, H = 236, STEP = 70, FAN = 70;
+const VBW = FAN * 2 + 6 * STEP + W + D; // seven stages
+const chev = (x) => `${x},0 ${x + W},0 ${x + W + D},${H / 2} ${x + W},${H} ${x},${H} ${x + D},${H / 2}`;
+
+export default function CirmPipeline({ caption = true }) {
+  const ref = useRef(null);
+  const seen = useInView(ref, { threshold: 0.25 });
+  const reduce = useReducedMotion();
+  const [at, setAt] = useState(0);
+  const [hold, setHold] = useState(false);
+  useEffect(() => {
+    if (reduce || hold || !seen) return undefined;
+    const t = setInterval(() => setAt((i) => (i + 1) % STAGES.length), 2200);
+    return () => clearInterval(t);
+  }, [reduce, hold, seen]);
+  const pick = (i) => { setAt(i); setHold(true); };
+  const x0 = FAN, xEnd = FAN + (STAGES.length - 1) * STEP + W + D;
+
+  return (
+    <figure ref={ref} className="pl" onMouseLeave={() => setHold(false)}>
+      <div className="pl-bar">
+        <span className="flex items-center gap-2.5"><img src="/brand/mark.webp" alt="" width="20" height="20" className="h-5 w-5" /><b>adapID CIRM</b><span className="max-sm:hidden">· Continuous identity risk management</span></span>
+        <span className="flex items-center gap-3">
+          <span className="pl-search max-md:hidden" aria-hidden="true"><svg viewBox="0 0 24 24" width="13" height="13"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>Search identities</span>
+          <span className="pl-status"><i />Operational</span>
+        </span>
+      </div>
+
+      <div className="pl-body">
+        {/* who is covered */}
+        <ul className="pl-cover" aria-label="Identities covered">
+          {COVER.map(([k, v, l]) => <li key={l}><span className="pl-ic"><Ico k={k} /></span><span><b>{v}</b><span>{l}</span></span></li>)}
+        </ul>
+
+        {/* what happens to every identity */}
+        <div className="pl-mid">
+          <div className="pl-head" aria-live="polite">
+            <p className="pl-step mono">Stage {String(at + 1).padStart(2, '0')} of 07</p>
+            <p className="pl-title">{STAGES[at].n}</p>
+            <p className="pl-desc">{STAGES[at].d}</p>
+          </div>
+
+          <div className="pl-chev relative max-md:hidden">
+            <svg viewBox={`0 0 ${VBW} ${H}`} className="block h-auto w-full" aria-hidden="true">
+              <defs>
+                <linearGradient id="pl-on" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#1e88d8" /><stop offset="1" stopColor="#0a5ea3" /></linearGradient>
+                <pattern id="pl-dots" width="7" height="7" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r=".9" fill="#0a3a6b" fillOpacity=".22" /></pattern>
+              </defs>
+              {/* fans in and out */}
+              <rect x="0" y="0" width={FAN - 6} height={H} fill="url(#pl-dots)" className="pl-fanbg" />
+              <rect x={xEnd + 6} y="0" width={FAN - 6} height={H} fill="url(#pl-dots)" className="pl-fanbg r" />
+              {[0.16, 0.5, 0.84].map((f) => <path key={f} d={`M0 ${H * f} C${FAN * 0.6} ${H * f} ${FAN * 0.5} ${H / 2} ${x0 + D} ${H / 2}`} className="pl-fan" />)}
+              {[0.16, 0.5, 0.84].map((f) => <path key={`r${f}`} d={`M${xEnd} ${H / 2} C${xEnd + FAN * 0.5} ${H / 2} ${xEnd + FAN * 0.4} ${H * f} ${VBW} ${H * f}`} className="pl-fan" />)}
+              <line x1="0" y1={H / 2} x2={VBW} y2={H / 2} className="pl-axis" />
+              {STAGES.map((s, i) => {
+                const x = x0 + i * STEP, on = i === at, past = i < at;
+                return (
+                  <g key={s.n} className={cx('pl-c', on && 'on', past && 'past')}>
+                    <polygon points={chev(x)} />
+                    <text transform={`translate(${x + W / 2 + 3} 20) rotate(72.6)`} className="pl-cl">{s.n}</text>
+                    <text x={x + W / 2 + D * 0.42} y={H - 16} textAnchor="middle" className="pl-cn">{String(i + 1).padStart(2, '0')}</text>
+                  </g>
+                );
+              })}
+              {!reduce && <circle r="4" cy={H / 2} cx="0" className="pl-pulse" style={{ '--to': `${VBW}px` }} />}
+            </svg>
+            {STAGES.map((s, i) => (
+              <button key={s.n} type="button" onClick={() => pick(i)} onFocus={() => pick(i)} aria-pressed={i === at} aria-label={`Stage ${i + 1}: ${s.n}`}
+                className="pl-hit" style={{ left: `${((x0 + i * STEP) / VBW) * 100}%`, width: `${((W + D) / VBW) * 100}%` }} />
+            ))}
+          </div>
+
+          {/* phones: the same seven stages as a list */}
+          <ol className="pl-list md:hidden">
+            {STAGES.map((s, i) => (
+              <li key={s.n}><button type="button" onClick={() => pick(i)} aria-pressed={i === at} className={cx(i === at && 'on')}><span>{String(i + 1).padStart(2, '0')}</span>{s.n}</button></li>
+            ))}
+          </ol>
+
+          <dl className="pl-kpi">
+            {KPI.map(([v, l]) => <div key={l}><dt>{l}</dt><dd>{v}</dd></div>)}
+          </dl>
+        </div>
+
+        {/* what it connects to */}
+        <div className="pl-src">
+          {SOURCES.map(([g, items]) => (
+            <div key={g}>
+              <p className="pl-g">{g}</p>
+              <ul>{items.map(([k, n]) => <li key={k}><span className="pl-logo"><Logo k={k} size="15px" /></span>{n}<i aria-label="connected" /></li>)}</ul>
+            </div>
+          ))}
+        </div>
+      </div>
+      {caption && <figcaption className="pl-cap">An adapID CIRM workspace. Names and numbers are examples.</figcaption>}
+    </figure>
   );
 }
 
@@ -2865,20 +3074,20 @@ export default function Header() {
       <a href="#main" className="sr-only-focusable absolute left-4 top-3 z-50 rounded-full bg-white px-4 py-2 text-[#12171f]">Skip to content</a>
       <div aria-hidden="true" className={cx('hdr-bg absolute inset-0 -z-10 border-b', solid ? 'solid border-line bg-[#0b0e13]/80 backdrop-blur-xl' : 'border-transparent bg-transparent')} />
       <UtilityBar away={scrolled || !!open} />
-      <div className="wrap flex h-[72px] items-center gap-6">
-        <Link to="/" aria-label="Deep Algorithms home" className="shrink-0"><Logo dual /></Link>
+      <div className="wrap flex h-[72px] items-center gap-6 lg:h-[84px]">
+        <Link to="/" aria-label="Deep Algorithms home" className="shrink-0"><Logo dual className="h-[30px] lg:h-[36px]" /></Link>
         <nav aria-label="Primary" className="hidden flex-1 lg:block">
           <ul className="flex items-center justify-center gap-0.5 xl:gap-1.5">
             {NAV.map((n) => (
               <li key={n.label}>
                 {n.menu ? (
                   <button type="button" aria-expanded={open === n.label} aria-controls="mega" onMouseEnter={() => enter(n.label)} onClick={() => setOpen(open === n.label ? null : n.label)}
-                    className={cx('inline-flex h-10 items-center rounded-full px-3.5 text-[15px] font-medium transition-colors', open === n.label ? 'bg-fg/[.07] text-ink' : 'text-ink-2 hover:text-ink')}>
+                    className={cx('inline-flex h-10 items-center rounded-full px-3.5 text-[15px] font-medium xl:px-4 xl:text-[16px] transition-colors', open === n.label ? 'bg-fg/[.07] text-ink' : 'text-ink-2 hover:text-ink')}>
                     {n.label}
                   </button>
                 ) : (
                   <Link to={n.to} onMouseEnter={() => { clearTimeout(timer.current); setOpen(null); }} aria-current={pathname === n.to ? 'page' : undefined}
-                    className={cx('inline-flex h-10 items-center rounded-full px-3.5 text-[15px] font-medium transition-colors hover:text-ink', pathname === n.to ? 'text-ink' : 'text-ink-2')}>{n.label}</Link>
+                    className={cx('inline-flex h-10 items-center rounded-full px-3.5 text-[15px] font-medium xl:px-4 xl:text-[16px] transition-colors hover:text-ink', pathname === n.to ? 'text-ink' : 'text-ink-2')}>{n.label}</Link>
                 )}
               </li>
             ))}
@@ -2889,7 +3098,7 @@ export default function Header() {
             className={cx('inline-flex h-10 w-10 items-center justify-center rounded-full border border-line-2 text-ink-2 transition-colors hover:border-fg/30 hover:text-ink max-md:hidden', !scrolled && 'lg:hidden')}>
             <Icon name="MagnifyingGlass" size={17} />
           </button>
-          <Button to="/request-demo" size="sm" className="max-md:hidden">Book a demo</Button>
+          <Button to="/request-demo" size="sm" className="max-md:hidden lg:h-11 lg:px-6 lg:text-[15.5px]">Book a demo</Button>
           <button type="button" className="inline-flex h-11 w-11 items-center justify-center rounded-full text-ink max-md:hidden lg:hidden" aria-label={mobile ? 'Close menu' : 'Open menu'} aria-expanded={mobile} aria-controls="mobile-menu" onClick={() => setMobile(!mobile)}>
             <Icon name={mobile ? 'X' : 'List'} size={26} />
           </button>
@@ -2920,247 +3129,6 @@ export default function Header() {
         </div>
       )}
     </header>
-  );
-}
-
-
-====================================================================================================
-FILE: website/src/components/HeroStack.jsx
-====================================================================================================
-import { useEffect, useRef, useState } from 'react';
-import { useInView, useReducedMotion, cx } from '../lib/motion.js';
-
-/* The home hero: three planes, the way identity platforms draw themselves.
-   Every identity at the bottom (people, service accounts, keys, AI agents),
-   every resource on top (payments, customer data, email, cloud), and between
-   them the plane where every access is checked, with Deep Algorithms at its
-   core. Light flows up through the core. Every few seconds an attacker card
-   floats up from one identity, is stopped at the checked plane, says how, and
-   vanishes. Plain SVG and HTML, so the server render is already the picture. */
-
-const W = 640, H = 600;
-const CX = 252, PW = 190, PH = 95, T = 14; // centre, half-width, half-height and thickness of a plate
-const LIFT = 182; // distance between plates
-const PLANES = [
-  { y: 118, label: ['Every', 'resource'], sub: 'Apps, data, payments', n: '03', id: 'res' },
-  { y: 300, label: ['Every access,', 'checked'], sub: 'Decided in < 80 ms', n: '02', id: 'gate' },
-  { y: 482, label: ['Every', 'identity'], sub: 'People, machines, AI', n: '01', id: 'ids' },
-];
-const diamond = (y, w = PW, h = PH) => `${CX},${y - h} ${CX + w},${y} ${CX},${y + h} ${CX - w},${y}`;
-const sideL = (y) => `${CX - PW},${y} ${CX},${y + PH} ${CX},${y + PH + T} ${CX - PW},${y + T}`;
-const sideR = (y) => `${CX + PW},${y} ${CX},${y + PH} ${CX},${y + PH + T} ${CX + PW},${y + T}`;
-/* fine iso grid etched into a plate's top face */
-const grid = (y, n = 6) => {
-  const L = [CX - PW, y], Tp = [CX, y - PH], B = [CX, y + PH];
-  let d = '';
-  for (let k = 1; k < n; k++) {
-    const u = k / n;
-    const a = [L[0] + u * (Tp[0] - L[0]), L[1] + u * (Tp[1] - L[1])];
-    d += `M${a[0]} ${a[1]}l${B[0] - L[0]} ${B[1] - L[1]}`;
-    const b = [L[0] + u * (B[0] - L[0]), L[1] + u * (B[1] - L[1])];
-    d += `M${b[0]} ${b[1]}l${Tp[0] - L[0]} ${Tp[1] - L[1]}`;
-  }
-  return d;
-};
-/* what sits on each plane, as offsets from its centre (iso: x right, y down) */
-const IDS = [
-  { id: 'person', label: 'Customer', dx: -114, dy: 0 },
-  { id: 'staff', label: 'Employee', dx: -48, dy: 42 },
-  { id: 'machine', label: 'Service account', dx: 50, dy: 42 },
-  { id: 'key', label: 'Cloud key', dx: 114, dy: 0 },
-  { id: 'agent', label: 'AI agent', dx: 0, dy: -20 },
-];
-const RES = [
-  { id: 'pay', label: 'Payments', dx: -108, dy: 0 },
-  { id: 'data', label: 'Customer data', dx: 0, dy: 44 },
-  { id: 'mail', label: 'Email', dx: 108, dy: 0 },
-  { id: 'cloud', label: 'Cloud', dx: 0, dy: -44 },
-];
-/* the attacks, in the film's order where they fit */
-const ATTACKS = [
-  { from: 'person', what: 'Scam call · ₹2,40,000 to a new payee', done: 'Payment held · < 80 ms' },
-  { from: 'agent', what: 'AI agent exporting 40,000 records', done: 'Action blocked · 4 ms' },
-  { from: 'staff', what: 'Right password · new device, Lagos', done: 'Sessions revoked · 1.4 s' },
-  { from: 'key', what: 'Cloud key used from an unknown network', done: 'Key disabled · owner told' },
-];
-const CYCLE = 6400;
-
-function Ico({ id }) {
-  const p = {
-    person: 'M12 12a3.6 3.6 0 1 0 0-7.2 3.6 3.6 0 0 0 0 7.2zM5 20c.8-3.6 3.6-5.6 7-5.6s6.2 2 7 5.6',
-    staff: 'M12 11.4a3.3 3.3 0 1 0 0-6.6 3.3 3.3 0 0 0 0 6.6zM5 20c.8-3.4 3.6-5.4 7-5.4s6.2 2 7 5.4M10 15l2 2 2-2',
-    machine: 'M4 5h16v6H4zM4 13h16v6H4zM8 8h.01M8 16h.01',
-    key: 'M8 15.6a3.6 3.6 0 1 0 0-7.2 3.6 3.6 0 0 0 0 7.2zM11.6 12H20m-3 0v3m-2.4-3v2.2',
-    agent: 'M5 7h14v11H5zM12 4v3M9.5 12h.01M14.5 12h.01',
-    pay: 'M4 7h16v10H4zM4 10.5h16M8 14.5h3',
-    data: 'M5 6c0-1.5 3-2.5 7-2.5s7 1 7 2.5v12c0 1.5-3 2.5-7 2.5S5 19.5 5 18zM5 6c0 1.5 3 2.5 7 2.5s7-1 7-2.5M5 12c0 1.5 3 2.5 7 2.5s7-1 7-2.5',
-    mail: 'M4 6h16v12H4zM4 7l8 6 8-6',
-    cloud: 'M7 18h10a4 4 0 0 0 .6-8 6 6 0 0 0-11.4 1.6A3.3 3.3 0 0 0 7 18z',
-  }[id];
-  return <path d={p} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />;
-}
-
-/* a token standing on a plate: an upright icon tile with its shadow */
-function Token({ x, y, id, hot }) {
-  return (
-    <g className={cx('hs-tok', hot && 'hot')} transform={`translate(${x} ${y})`}>
-      <ellipse cx="0" cy="2" rx="19" ry="8" className="hs-tok-sh" />
-      <rect x="-18" y="-40" width="36" height="36" rx="10" className="hs-tile" />
-      <rect x="-18" y="-40" width="36" height="36" rx="10" fill="url(#hs-tile-hi)" />
-      <g transform="translate(-10 -32) scale(.84)" className="hs-ic"><Ico id={id} /></g>
-    </g>
-  );
-}
-
-/* a solid plate: white top with an etched grid, two shaded edges, a soft shadow */
-function Plate({ y }) {
-  return (
-    <g className="hs-plane">
-      <ellipse cx={CX} cy={y + 40} rx="200" ry="70" fill="#0b2a52" opacity=".12" filter="url(#hs-soft)" />
-      <polygon points={sideL(y)} className="hs-side-l" />
-      <polygon points={sideR(y)} className="hs-side-r" />
-      <polygon points={diamond(y)} fill="url(#hs-top)" className="hs-top" />
-      <path d={grid(y)} className="hs-grid" />
-      <polygon points={diamond(y)} className="hs-edge" />
-    </g>
-  );
-}
-
-/* a thin beam of light between two plates, with a pulse running up it */
-function Beam({ x, y0, y1, i, reduce, off }) {
-  return (
-    <g className={cx('hs-beam', off && 'off')}>
-      <path d={`M${x} ${y0}V${y1}`} stroke="url(#hs-beam)" />
-      {!reduce && <circle cx={x} cy={y0} r="2.6" className="hs-pulse" style={{ '--len': `${y1 - y0}px`, animationDelay: `${(i * -0.53) % 2.6}s` }} />}
-    </g>
-  );
-}
-
-export default function HeroStack() {
-  const box = useRef(null);
-  const reduce = useReducedMotion();
-  const seen = useInView(box, { threshold: 0.1 });
-  const [paused, setPaused] = useState(false);
-  const [st, setSt] = useState({ i: 0, phase: 'calm' });
-
-  useEffect(() => {
-    if (reduce || paused || !seen) return undefined;
-    let t0 = performance.now() - (st.i * CYCLE), raf = 0, prev = '';
-    const tick = (now) => {
-      raf = requestAnimationFrame(tick);
-      // rAF's frame time can sit just before t0 on a slow first frame; never go negative
-      const t = Math.max(0, now - t0), k = Math.floor(t / CYCLE), ct = t - k * CYCLE;
-      // 0.3 s the attacker appears; climbs to the checked plane by 1.9 s; stopped; 4.1 s floats away; calm
-      const phase = ct < 300 ? 'calm' : ct < 1900 ? 'climb' : ct < 4100 ? 'stopped' : ct < 4800 ? 'gone' : 'calm';
-      const key = `${k}:${phase}`;
-      if (key !== prev) { prev = key; setSt({ i: k % ATTACKS.length, phase }); }
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [reduce, paused, seen]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const A = ATTACKS[st.i];
-  const src = IDS.find((d) => d.id === A.from);
-  const sx = CX + src.dx, sy = PLANES[2].y + src.dy;
-  const live = !reduce && st.phase !== 'calm';
-  const at = st.phase === 'climb' ? [sx, sy - LIFT + 40] : st.phase === 'calm' ? [sx, sy - 44] : [sx, sy - LIFT + T + 4];
-  const pct = (v, of) => `${(v / of) * 100}%`;
-  const done = st.phase === 'stopped' || st.phase === 'gone';
-
-  return (
-    <figure ref={box} className="hs relative mx-auto aspect-[640/600] w-full max-w-[600px] select-none" data-phase={reduce ? 'still' : st.phase}
-      aria-label="Illustration: three planes. People, service accounts, cloud keys and AI agents on the bottom plane; payments, customer data, email and cloud on the top plane; between them the plane where every access is checked, with Deep Algorithms at its core. An attacker card floats up from one identity, is stopped at the checked plane, and vanishes.">
-      <svg viewBox={`0 0 ${W} ${H}`} className="h-full w-full overflow-visible" aria-hidden="true">
-        <defs>
-          <linearGradient id="hs-core" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#6fd0ff" /><stop offset="1" stopColor="#0a6dbb" /></linearGradient>
-          <linearGradient id="hs-top" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#ffffff" /><stop offset="1" stopColor="#e9f0f8" /></linearGradient>
-          <linearGradient id="hs-glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#dff1ff" stopOpacity=".62" /><stop offset=".55" stopColor="#bfe2fb" stopOpacity=".55" /><stop offset="1" stopColor="#8fc8f2" stopOpacity=".66" /></linearGradient>
-          <linearGradient id="hs-tile-hi" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fff" stopOpacity=".9" /><stop offset=".5" stopColor="#fff" stopOpacity="0" /></linearGradient>
-          <linearGradient id="hs-beam" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stopColor="#0a6dbb" stopOpacity="0" /><stop offset=".5" stopColor="#0a6dbb" stopOpacity=".5" /><stop offset="1" stopColor="#00aeef" stopOpacity=".9" /></linearGradient>
-          <radialGradient id="hs-glow"><stop offset="0" stopColor="#00aeef" stopOpacity=".28" /><stop offset="1" stopColor="#00aeef" stopOpacity="0" /></radialGradient>
-          <radialGradient id="hs-floor-m"><stop offset="0" stopColor="#fff" /><stop offset="1" stopColor="#fff" stopOpacity="0" /></radialGradient>
-          <mask id="hs-floor"><rect x="0" y="0" width={W} height={H} fill="url(#hs-floor-m)" /></mask>
-          <pattern id="hs-dots" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" fill="#0a3a6b" fillOpacity=".16" /></pattern>
-          <filter id="hs-soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="14" /></filter>
-        </defs>
-
-        {/* the field: a dotted floor and a soft light behind the checked plate */}
-        <rect x="0" y="0" width={W} height={H} fill="url(#hs-dots)" mask="url(#hs-floor)" />
-        <ellipse cx={CX} cy={PLANES[1].y} rx="270" ry="200" fill="url(#hs-glow)" />
-
-        {/* the rail and its annotations, as in a spec drawing */}
-        <path d={`M${CX + PW + 28} ${PLANES[0].y} V${PLANES[2].y}`} className="hs-rail" />
-        {PLANES.map((p) => (
-          <g key={p.id} className={cx('hs-note', p.id === 'gate' && 'gate')}>
-            <path d={`M${CX + PW + 6} ${p.y} H${CX + PW + 40}`} className="hs-rail" />
-            <circle cx={CX + PW + 28} cy={p.y} r="3.5" className="hs-note-dot" />
-            <text x={CX + PW + 48} y={p.y - 22} className="hs-num">{p.n}</text>
-            <text x={CX + PW + 48} y={p.y} className="hs-label">{p.label[0]}<tspan x={CX + PW + 48} dy="19">{p.label[1]}</tspan></text>
-            <text x={CX + PW + 48} y={p.y + 38} className="hs-sub">{p.sub}</text>
-          </g>
-        ))}
-
-        {/* the identity plate */}
-        <Plate y={PLANES[2].y} />
-        {IDS.map((d) => <Token key={d.id} id={d.id} x={CX + d.dx} y={PLANES[2].y + d.dy} hot={live && d.id === A.from} />)}
-        {/* light rising from every identity to the checked plate */}
-        {IDS.map((d, i) => <Beam key={d.id} x={CX + d.dx} y0={PLANES[2].y + d.dy - 42} y1={PLANES[2].y + d.dy - LIFT + T} i={i} reduce={reduce} off={live && d.id === A.from} />)}
-
-        {/* the checked plate: glass, with Deep Algorithms at its core */}
-        <g className={cx('hs-plane gate', live && done && 'hit')}>
-          <ellipse cx={CX} cy={PLANES[1].y + 30} rx="190" ry="70" fill="#0a6dbb" opacity=".16" filter="url(#hs-soft)" />
-          <polygon points={sideL(PLANES[1].y)} className="hs-gside-l" />
-          <polygon points={sideR(PLANES[1].y)} className="hs-gside-r" />
-          <polygon points={diamond(PLANES[1].y)} fill="url(#hs-glass)" className="hs-gtop" />
-          <path d={grid(PLANES[1].y, 8)} className="hs-ggrid" />
-          {!reduce && [0, 1, 2].map((k) => <polygon key={k} points={diamond(PLANES[1].y, 60, 30)} className="hs-wave" style={{ animationDelay: `${k * -1.6}s` }} />)}
-          <polygon points={diamond(PLANES[1].y)} className="hs-gedge" />
-          <path d={`M${CX} ${PLANES[1].y}L${CX - PW + 20} ${PLANES[1].y}M${CX} ${PLANES[1].y}L${CX + PW - 20} ${PLANES[1].y}M${CX} ${PLANES[1].y}L${CX} ${PLANES[1].y - PH + 10}M${CX} ${PLANES[1].y}L${CX} ${PLANES[1].y + PH - 10}`} className="hs-trace" />
-        </g>
-        <g transform={`translate(${CX} ${PLANES[1].y})`} className="hs-badge">
-          <ellipse cx="0" cy="16" rx="64" ry="26" fill="#00aeef" opacity=".35" filter="url(#hs-soft)" />
-          <polygon points="-48,-4 0,20 0,34 -48,10" fill="#0a4f8f" />
-          <polygon points="48,-4 0,20 0,34 48,10" fill="#0862a6" />
-          <polygon points="0,-28 48,-4 0,20 -48,-4" fill="url(#hs-core)" />
-          <polygon points="0,-28 48,-4 0,20 -48,-4" fill="none" stroke="#fff" strokeOpacity=".55" strokeWidth="1" />
-          <image href="/brand/mark.webp" x="-12" y="-16" width="24" height="24" />
-        </g>
-
-        {/* checked access rising on to every resource */}
-        {RES.map((r, i) => <Beam key={r.id} x={CX + r.dx} y0={PLANES[0].y + r.dy + LIFT - 6} y1={PLANES[0].y + r.dy + T + 2} i={i + 5} reduce={reduce} />)}
-
-        {/* the resource plate */}
-        <Plate y={PLANES[0].y} />
-        {RES.map((r) => <Token key={r.id} id={r.id} x={CX + r.dx} y={PLANES[0].y + r.dy} />)}
-
-        {/* the attacker's path up to the checked plane, and where it is stopped */}
-        {live && <path d={`M${sx} ${sy - 44} V${sy - LIFT + T + 4}`} className={cx('hs-attack', st.phase === 'climb' && 'on', done && 'cut')} />}
-        {live && done && (
-          <g transform={`translate(${sx} ${sy - LIFT + T + 4})`} className="hs-stop">
-            <circle r="13" /><path d="M-5 -5 5 5M5 -5 -5 5" />
-          </g>
-        )}
-      </svg>
-
-      {/* names under the tokens */}
-      {IDS.map((d) => <span key={d.id} aria-hidden="true" className="hs-name" style={{ left: pct(CX + d.dx, W), top: pct(PLANES[2].y + d.dy + 8, H) }}>{d.label}</span>)}
-      {RES.map((r) => <span key={r.id} aria-hidden="true" className="hs-name" style={{ left: pct(CX + r.dx, W), top: pct(PLANES[0].y + r.dy + 8, H) }}>{r.label}</span>)}
-
-      {/* the attacker card */}
-      <div aria-hidden="true" className={cx('hs-pop', live && 'on', done && 'done', st.phase === 'gone' && 'away')} style={{ left: pct(at[0], W), top: pct(at[1], H) }}>
-        <span className="hs-pop-ic">
-          {done ? <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.2 4.2L19 7" /></svg>
-            : <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 3c-4 0-7 3-7 7v4l-1.5 3h17L19 14v-4c0-4-3-7-7-7zm-3 9.5c1.6-1 4.4-1 6 0-.4 1-1.6 1.6-3 1.6s-2.6-.6-3-1.6z" /></svg>}
-        </span>
-        <span>{done ? A.done : A.what}</span>
-      </div>
-
-      {!reduce && (
-        <button type="button" onClick={() => setPaused(!paused)} className="absolute right-0 top-0 inline-flex h-8 w-8 items-center justify-center rounded-full border border-line-2 bg-bg-1 text-ink-3 hover:text-ink" aria-label={paused ? 'Play the animation' : 'Pause the animation'}>
-          {paused ? <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5v9l7.5-4.5z" fill="currentColor" /></svg> : <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5h2v9H3zM7 1.5h2v9H7z" fill="currentColor" /></svg>}
-        </button>
-      )}
-    </figure>
   );
 }
 
@@ -3440,14 +3408,14 @@ function ProductLockup({ p, text, center }) {
 
 /* The hero's own action: take the reader into the page, rather than repeat the
    header's "Book a demo". Scrolls to the section after the hero. */
-export function Explore({ label = 'See how it works', target, size = 'lg' }) {
+export function Explore({ label = 'See how it works', target, size = 'lg', variant }) {
   const go = (e) => {
     const el = target ? document.querySelector(target) : e.currentTarget.closest('section')?.nextElementSibling;
     if (!el) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 76, behavior: reduce ? 'auto' : 'smooth' });
+    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 96, behavior: reduce ? 'auto' : 'smooth' });
   };
-  return <Button type="button" size={size} onClick={go}>{label}<Icon name="ArrowDown" size={16} weight="bold" className="transition-transform duration-300 group-hover:translate-y-0.5" /></Button>;
+  return <Button type="button" size={size} variant={variant} onClick={go}>{label}<Icon name="ArrowDown" size={16} weight="bold" className="transition-transform duration-300 group-hover:translate-y-0.5" /></Button>;
 }
 
 /* The base of every hero: who trusts us, before the first scroll. A row on
@@ -3805,7 +3773,7 @@ const ROLES = [
     products: ['adapid', 'zenstra'],
     id: 'soc', tab: 'Security operations', h: 'Fewer alerts, each with a reason and an action already taken.',
     points: ['Risk scores with the signals that raised them', 'Step-up, hold or block by policy, in seconds', 'Every AI agent action recorded with its task and outcome'],
-    photo: '/img/roles/soc.webp', pos: '30% 30%', chips: ['Developer', 'Bengaluru', 'New phone, 02:14'],
+    photo: '/img/roles/soc.webp', pos: '30% 30%', chips: ['Developer', 'Bengaluru', 'New phone, 02:14'], alert: 2,
     apps: [['github', 1], ['okta', 1], ['aws', 0], ['slack', 1]],
     to: '/adapid-ai', cta: 'See adapID AI',
     stat: { v: '22%', l: 'of breaches began with stolen or misused credentials, the most common way in.', s: 'Verizon Data Breach Investigations Report, 2025' },
@@ -3815,7 +3783,7 @@ const ROLES = [
     products: ['adapid'],
     id: 'iam', tab: 'Identity and cloud', h: 'Every role, key and service account, with what it can reach and what it uses.',
     points: ['Unused access found and ready to remove', 'Leaked secrets in GitHub and CodeCommit triaged', 'Active Directory attack paths closed before they are taken'],
-    photo: '/img/roles/iam.webp', pos: '60% 30%', chips: ['Platform engineer', 'Owns 14 service accounts', '3 keys unused for 90 days'],
+    photo: '/img/roles/iam.webp', pos: '60% 30%', chips: ['Platform engineer', 'Owns 14 service accounts', '3 keys unused for 90 days'], alert: 2,
     apps: [['aws', 1], ['github', 1], ['entra', 1], ['ad', 0]],
     to: '/adapid-ai/nhi-security', cta: 'See NHI Security for AWS',
     stat: { v: '82:1', l: 'machine identities for every person in the average organisation.', s: 'CyberArk Identity Security Landscape, 2025' },
@@ -3835,7 +3803,7 @@ const ROLES = [
     products: ['adapid', 'botshield'],
     id: 'fraud', tab: 'Fraud and digital banking', h: 'Account takeover, scams and mule accounts, stopped at login and at payment.',
     points: ['A risk decision at every login and payment, in under 80 ms', 'Mule accounts and payment scams flagged with reasons', 'Bots stopped by intent, with no puzzles for customers'],
-    photo: '/img/photos/bfsi.webp', pos: '40% 50%', chips: ['Bank customer', 'New payee, new phone', 'Payment paused, customer called'],
+    photo: '/img/photos/bfsi.webp', pos: '40% 50%', chips: ['Bank customer', 'New payee, new phone', 'Payment paused, customer called'], alert: 1,
     apps: [['upi', 1]],
     to: '/adapid-ai/fraud-prevention', cta: 'See Identity Fraud Prevention',
     stat: { v: '₹36,014 Cr', l: 'involved in bank frauds reported in India in 2024–25.', s: 'RBI Annual Report, 2024–25' },
@@ -3928,7 +3896,7 @@ import { Logo, logoTitle } from './viz/kit.jsx';
    illustrations, and every page that shows them says so. */
 
 const Tick = ({ on }) => (
-  <span className={cx('absolute -right-1.5 -top-1.5 grid h-[18px] w-[18px] place-items-center rounded-full text-white ring-2 ring-white', on ? 'bg-[#1f9d63]' : 'bg-[#e5484d]')}>
+  <span className={cx('absolute -right-1.5 -top-1.5 grid h-[16px] w-[16px] place-items-center rounded-full text-white ring-2 ring-white', on ? 'bg-[#1f9d63]' : 'bg-[#e5484d]')}>
     {on ? <svg width="9" height="9" viewBox="0 0 12 12" aria-hidden="true"><path d="m2.5 6.4 2.3 2.2L9.5 3.8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
       : <svg width="8" height="8" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>}
   </span>
@@ -4002,6 +3970,7 @@ export function Proof({ kind }) {
 const CHIP_ICONS = ['User', 'MapPin', 'DeviceMobile'];
 
 export function StoryCard({ story: R }) {
+  const alert = R.alert !== undefined && R.alert !== null && R.alert >= 0;
   const products = PRODUCT_MENU.filter((m) => (R.products || []).includes(m.key));
   return (
     <div className="rc-main grid overflow-hidden rounded-[22px] md:grid-cols-[1.05fr_.95fr]">
@@ -4022,26 +3991,35 @@ export function StoryCard({ story: R }) {
         )}
         {R.to && <Link to={R.to} className="rc-link mt-auto pt-7">{R.cta}<Icon name="ArrowRight" size={14} weight="bold" /></Link>}
       </div>
-      <div className="relative min-h-[320px] md:min-h-[400px]">
-        <img src={R.photo} alt="" className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: R.pos || '50% 30%' }} loading="lazy" decoding="async" />
-        <div aria-hidden="true" className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgb(195 220 255 / .35), transparent 30%)' }} />
-        {/* what we know about this identity, and what it can reach */}
-        <ul aria-hidden="true" className="absolute bottom-[22%] left-4 space-y-2 md:left-[-22px]">
-          {R.chips.map((c, i) => (
-            <li key={c} className="rc-chip flex items-center gap-2 rounded-[10px] bg-white/95 px-3 py-2 text-[13.5px] font-medium text-[#0e1116] shadow-[0_12px_28px_-12px_rgba(10,40,90,.45)]" style={{ animationDelay: `${150 + i * 120}ms` }}>
-              <span className={cx('grid h-5 w-5 shrink-0 place-items-center rounded-full text-white', R.alert === i ? 'bg-[#e5484d]' : 'bg-[#2f6fe4]')}><Icon name={(R.icons || CHIP_ICONS)[i]} size={11} weight="bold" /></span>{c}
-            </li>
-          ))}
-        </ul>
-        {R.apps?.length > 0 && (
-          <ul aria-hidden="true" className="absolute bottom-4 left-4 flex gap-2.5 md:left-[-22px]">
-            {R.apps.map(([k, ok], i) => (
-              <li key={k} title={logoTitle(k)} className="rc-chip relative grid h-11 w-11 place-items-center rounded-[11px] bg-white text-[#12171f] shadow-[0_12px_28px_-12px_rgba(10,40,90,.45)]" style={{ animationDelay: `${500 + i * 90}ms` }}>
-                <Logo k={k} size="56%" /><Tick on={ok} />
+      {/* the identity as the product sees it: a profile record, not a poster */}
+      <div className="rc-side relative flex items-center justify-center p-5 md:p-8">
+        <div aria-hidden="true" className="rc-rec w-full max-w-[380px] overflow-hidden rounded-[18px] bg-white">
+          <div className="relative h-[150px] md:h-[170px]">
+            <img src={R.photo} alt="" className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: R.pos || '50% 30%' }} loading="lazy" decoding="async" />
+            <span className={cx('absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold shadow-sm', alert ? 'bg-[#fdecec] text-[#c4352a]' : 'bg-[#e8f6ef] text-[#0c7546]')}>
+              <i className={cx('h-1.5 w-1.5 rounded-full', alert ? 'bg-[#e5484d]' : 'bg-[#1f9d63]')} />{alert ? 'Flagged' : 'Verified'}
+            </span>
+          </div>
+          <ul className="divide-y divide-[#0e1116]/[.07] px-4">
+            {R.chips.map((c, i) => (
+              <li key={c} className={cx('rc-chip flex items-center gap-3 py-2.5 text-[13.5px]', i === 0 ? 'font-semibold text-[#0e1116]' : 'text-[#434852]', R.alert === i && 'font-medium !text-[#c4352a]')} style={{ animationDelay: `${150 + i * 120}ms` }}>
+                <span className={cx('grid h-6 w-6 shrink-0 place-items-center rounded-[7px]', R.alert === i ? 'bg-[#fdecec] text-[#c4352a]' : 'bg-[#eef5fc] text-[#0a6dbb]')}><Icon name={(R.icons || CHIP_ICONS)[i]} size={13} weight="bold" /></span>{c}
               </li>
             ))}
           </ul>
-        )}
+          {R.apps?.length > 0 && (
+            <div className="flex items-center justify-between gap-3 border-t border-[#0e1116]/[.07] bg-[#f8fafc] px-4 py-3">
+              <span className="text-[11.5px] font-semibold uppercase tracking-[.08em] text-[#8a909b]">Access</span>
+              <ul className="flex gap-2">
+                {R.apps.map(([k, ok], i) => (
+                  <li key={k} title={logoTitle(k)} className="rc-chip relative grid h-8 w-8 place-items-center rounded-[8px] border border-[#0e1116]/[.08] bg-white text-[#12171f]" style={{ animationDelay: `${500 + i * 90}ms` }}>
+                    <Logo k={k} size="55%" /><Tick on={ok} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -4095,6 +4073,7 @@ export default function WorksWith() {
 ====================================================================================================
 FILE: website/src/components/blocks.jsx
 ====================================================================================================
+import { useReducedMotion } from '../lib/motion.js';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { CUSTOMERS, CERTS } from '../data/site.js';
@@ -4184,9 +4163,10 @@ export function CtaBand({ title = 'Find your riskiest identity before attackers 
 }
 
 /* The product film: poster first, the real player only once asked for. */
-export function FilmPlayer({ src = '/video/deep-algorithms-film', poster = '/video/film-poster.webp', captions = '/video/deep-algorithms-film.vtt', title = 'One bank, one night, five attacks', duration = '1:15' }) {
+export function FilmPlayer({ src = '/video/deep-algorithms-film', poster = '/video/film-poster.webp', captions = '/video/deep-algorithms-film.vtt', title = 'One bank, one night, five attacks', duration = '1:15', teaser, compact }) {
   const [play, setPlay] = useState(false);
   const v = useRef(null);
+  const reduce = useReducedMotion();
   useEffect(() => { // the home hero's "Watch the film" starts it
     const on = () => setPlay(true);
     window.addEventListener('da:play-film', on);
@@ -4195,7 +4175,7 @@ export function FilmPlayer({ src = '/video/deep-algorithms-film', poster = '/vid
   const meta = <span className="inline-flex items-center gap-2 rounded-full bg-black/40 px-3 py-1.5 text-[13.5px] font-medium text-white/90 backdrop-blur"><Icon name="ClosedCaptioning" size={16} />Captions · {duration}</span>;
   return (
     <div>
-      <div className="relative aspect-video w-full overflow-hidden rounded-[18px] border border-line-2 bg-black shadow-[0_60px_120px_-50px_rgba(0,0,0,.85)] md:rounded-[28px]">
+      <div className={cx('relative aspect-video w-full overflow-hidden rounded-[18px] border border-line-2 bg-black md:rounded-[28px]', compact ? 'shadow-[0_40px_80px_-40px_rgb(11_42_82/.45)] md:rounded-[22px]' : 'shadow-[0_60px_120px_-50px_rgba(0,0,0,.85)]')}>
         {play ? (
           <video ref={v} className="absolute inset-0 h-full w-full" poster={poster} controls autoPlay playsInline preload="auto">
             <source src={`${src}.webm`} type="video/webm" />
@@ -4204,18 +4184,22 @@ export function FilmPlayer({ src = '/video/deep-algorithms-film', poster = '/vid
           </video>
         ) : (
           <button type="button" onClick={() => setPlay(true)} className="group absolute inset-0 block h-full w-full text-left" aria-label={`Play the film: ${title}, ${duration}`}>
-            <img src={poster} alt="" className="absolute inset-0 h-full w-full object-cover transition-transform duration-[1.2s] group-hover:scale-[1.02]" loading="lazy" decoding="async" />
-            <span aria-hidden="true" className="absolute inset-0" style={{ background: 'radial-gradient(60% 60% at 50% 50%, rgb(5 21 48 / .15), rgb(5 21 48 / .55)), linear-gradient(180deg, transparent 55%, rgb(5 21 48 / .85))' }} />
-            <span className="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#12171f] shadow-[0_0_0_10px_rgba(255,255,255,.12),0_30px_60px_-20px_rgba(0,0,0,.8)] transition-transform duration-500 group-hover:scale-[1.07] md:h-[104px] md:w-[104px]">
+            {teaser && !reduce
+              ? <video className="absolute inset-0 h-full w-full object-cover" poster={teaser.poster} autoPlay muted loop playsInline preload="metadata" aria-hidden="true" tabIndex={-1}>
+                  <source src={`${teaser.src}.webm`} type="video/webm" /><source src={`${teaser.src}.mp4`} type="video/mp4" />
+                </video>
+              : <img src={poster} alt="" className="absolute inset-0 h-full w-full object-cover transition-transform duration-[1.2s] group-hover:scale-[1.02]" loading="lazy" decoding="async" />}
+            <span aria-hidden="true" className="absolute inset-0" style={{ background: 'radial-gradient(60% 60% at 50% 50%, rgb(8 12 18 / .1), rgb(8 12 18 / .45)), linear-gradient(180deg, transparent 50%, rgb(8 12 18 / .85))' }} />
+            <span className={cx('absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#12171f] shadow-[0_0_0_10px_rgba(255,255,255,.12),0_30px_60px_-20px_rgba(0,0,0,.8)] transition-transform duration-500 group-hover:scale-[1.07]', compact ? 'md:h-[76px] md:w-[76px]' : 'md:h-[104px] md:w-[104px]')}>
               <svg viewBox="0 0 24 24" className="ml-1 h-6 w-6 md:h-9 md:w-9" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="currentColor" /></svg>
             </span>
-            <span className="absolute inset-x-9 bottom-8 hidden items-end justify-between gap-2 md:flex">
+            {!compact && <span className="absolute inset-x-9 bottom-8 hidden items-end justify-between gap-2 md:flex">
               <span className="text-[26px] font-semibold tracking-[-0.02em] text-white">{title}</span>{meta}
-            </span>
+            </span>}
           </button>
         )}
       </div>
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 md:hidden"><span className="text-[17px] font-semibold tracking-[-0.015em]">{title}</span>{meta}</div>
+      <div className={cx('mt-4 flex flex-wrap items-center justify-between gap-3', !compact && 'md:hidden')}><span className="text-[17px] font-semibold tracking-[-0.015em]">{title}</span>{compact ? <span className="inline-flex items-center gap-2 text-[14px] text-ink-3"><Icon name="ClosedCaptioning" size={16} />Captions · {duration}</span> : meta}</div>
     </div>
   );
 }
@@ -6517,8 +6501,29 @@ const CAPS = {
   },
 };
 
+/* what the bank's system decided, under the phone */
+const VERDICT = {
+  biometrics: ['ok', 'Risk 12 · allowed', 'Typing, taps and grip match Anita. No extra step.'],
+  totp: ['ok', 'Device verified · no SMS sent', 'A silent code proved this is her registered phone.'],
+  face: ['ok', 'Face matched · payment continues', 'A two-second check, only because the payee is new and the amount is large.'],
+  rasp: ['warn', 'Screen sharing detected · banking paused', 'Banking resumes the moment the share ends.'],
+  scam: ['crit', 'Scam risk critical · payment held', 'The bank calls Anita before any money moves.'],
+};
 export function CapabilityPhone({ cap }) {
   const c = CAPS[cap];
+  const v = VERDICT[cap];
+  return (
+    <div className="mb-stage">
+      <CapabilityPhoneInner cap={cap} c={c} />
+      {v && (
+        <p key={cap} className={cx('mb-verdict', `t-${v[0]}`)}>
+          <i /><span><b>{v[1]}</b><span>{v[2]}</span></span>
+        </p>
+      )}
+    </div>
+  );
+}
+function CapabilityPhoneInner({ cap, c }) {
   return (
     <Viz key={cap} steps={[500, 600]} hold={8000} loop={false} label={`Illustration: the bank app on a phone, showing ${cap === 'biometrics' ? 'a login where typing rhythm matches the customer' : cap === 'totp' ? 'a phone verified by a silent code with no SMS' : cap === 'face' ? 'face verification for a large payment to a new payee' : cap === 'rasp' ? 'banking paused because the screen is being shared' : 'a payment paused because the scam risk is critical'}.`}>
       {() => (
@@ -6544,9 +6549,9 @@ export function WebStepUp({ k: fk } = {}) {
           <div className="space-y-[.9em]">
             {rows.map((r, i) => {
               const on = k >= 1 + i * 2, done = k >= 2 + i * 2;
-              const col = r.v >= 60 ? '#ff9a5c' : '#3fd98f';
+              const col = r.v >= 60 ? '#c2410c' : '#0c7546';
               return (
-                <div key={i} className={cx('rounded-[.8em] p-[.9em]', `s${1 + i * 2}`)} style={{ background: 'rgb(255 255 255 / .035)', border: '1px solid rgb(255 255 255 / .08)' }}>
+                <div key={i} className={cx('rounded-[.8em] p-[.9em]', `s${1 + i * 2}`)} style={{ background: 'rgb(14 17 22 / .025)', border: '1px solid rgb(14 17 22 / .08)' }}>
                   <div className="flex items-center gap-[.7em]">
                     <span className="vz-ic"><Gl g="laptop" /></span>
                     <span className="min-w-0 flex-1"><span className="block vz-t">{r.who}</span><span className="block vz-m">{r.dev}</span></span>
@@ -6554,7 +6559,7 @@ export function WebStepUp({ k: fk } = {}) {
                   </div>
                   <div className="relative mt-[.7em]">
                     <div className="vz-meter"><i style={{ '--w': `${on ? r.v : 0}%`, '--mc': col }} /></div>
-                    <span className="absolute -top-[.3em] h-[1.05em] w-[2px] bg-white/70" style={{ left: '60%' }} />
+                    <span className="absolute -top-[.3em] h-[1.05em] w-[2px] bg-[#12171f]/60" style={{ left: '60%' }} />
                   </div>
                   <div className={cx('mt-[.7em] flex items-center gap-[.6em]', `s${2 + i * 2}`)}>
                     <Chip tone={r.res[1]}>{r.res[0]}</Chip><span className="min-w-0 flex-1 truncate vz-m">{r.why}</span>
@@ -7241,7 +7246,7 @@ import LAND from '../scenes/land.json';
 
 /* how far a picture has played: 0 → n while on screen, the last frame for the
    server render and reduced motion */
-function useBeat(ref, n, ms = 650) {
+export function useBeat(ref, n, ms = 650) {
   const seen = useInView(ref, { threshold: 0.3 });
   const reduce = useReducedMotion();
   const [k, setK] = useState(n);
@@ -7427,6 +7432,263 @@ export function NhiMap() {
         </p>
         <p className="mt-1.5 text-[13.5px] leading-snug text-white/90">{fixed ? '205 permissions it never used are gone. Nothing it needs was touched.' : 'Can use 214 permissions. Used 9 in the last 90 days.'}</p>
         <span className={cx('mt-3 block rounded-[9px] bg-white px-3 py-2 text-center text-[13.5px] font-semibold transition-transform', fixed ? 'text-[#14a06a]' : 'text-[#d9442c]', k === 4 && 'scale-95')}>{fixed ? 'Evidence saved from CloudTrail' : 'Remove 205 unused permissions'}</span>
+      </div>
+    </figure>
+  );
+}
+
+
+====================================================================================================
+FILE: website/src/components/viz/refs.jsx
+====================================================================================================
+import { useRef } from 'react';
+import { cx } from '../../lib/motion.js';
+import { Logo } from './kit.jsx';
+import ProductMark from '../ProductMark.jsx';
+import { useBeat } from './light.jsx';
+
+/* Four light product pictures, drawn the way identity vendors draw theirs:
+   a key's lineage (NHI), the platform and what it connects to (home), the AI
+   agent console (Zenstra) and the ITDR flow (AD Security). Names and numbers
+   are illustrative. */
+
+const ICO = {
+  person: 'M12 12a3.6 3.6 0 1 0 0-7.2 3.6 3.6 0 0 0 0 7.2zM5 20c.8-3.6 3.6-5.6 7-5.6s6.2 2 7 5.6',
+  key: 'M8 15.6a3.6 3.6 0 1 0 0-7.2 3.6 3.6 0 0 0 0 7.2zM11.6 12H20m-3 0v3m-2.4-3v2.2',
+  origin: 'M4 12h11m-4-4 4 4-4 4M15 5h4v14h-4',
+  people: 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 19c.6-3 3-4.6 6-4.6s5.4 1.6 6 4.6M16 11a2.6 2.6 0 1 0 0-5.2M17.5 14.6c1.8.5 3 1.9 3.5 4.4',
+  storage: 'M4 6h16v5H4zM4 13h16v5H4zM8 8.5h.01M8 15.5h.01',
+  consumers: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1',
+  resources: 'M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12 4 7.5',
+  users: 'M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 19c.6-3 3-4.6 6-4.6s5.4 1.6 6 4.6M16 11a2.6 2.6 0 1 0 0-5.2M17.5 14.6c1.8.5 3 1.9 3.5 4.4',
+};
+const I = ({ k, s = 16 }) => <svg viewBox="0 0 24 24" width={s} height={s} aria-hidden="true"><path d={ICO[k]} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+
+/* ── NHI: one key, from where it was made to everything it reaches ───────── */
+const LCOLS = [['origin', 'Origin'], ['people', 'People'], ['storage', 'Storage'], ['consumers', 'Consumers'], ['resources', 'Resources']];
+const LX = [10, 30, 50, 70, 90], LY = [22, 52, 82];
+const LNODES = [
+  { c: 0, r: 1, logo: 'aws', n: 'AKIA••••7Q2F', sub: 'access key · prod', brand: true },
+  { c: 1, r: 0, person: true, n: 'Asha Nair', sub: 'can read it' },
+  { c: 1, r: 1, person: true, n: 'Ravi Menon', sub: 'can read it' },
+  { c: 1, r: 2, person: true, n: 'Kiran Rao', sub: 'created it · left in May', crit: true },
+  { c: 2, r: 0, logo: 'aws', n: 'Secrets Manager', sub: 'stored', brand: true },
+  { c: 2, r: 1, logo: 'vault', n: 'HashiCorp Vault', sub: 'stored', brand: true },
+  { c: 2, r: 2, file: true, n: 'config/notify.env', sub: 'pasted in a repo', crit: true },
+  { c: 3, r: 1, logo: 'actions', n: 'Deploy pipeline', sub: 'reads it nightly', brand: true },
+  { c: 4, r: 0, logo: 'kubernetes', n: 'payments-service', sub: 'production', brand: true },
+  { c: 4, r: 2, logo: 'aws', n: 's3://kyc-docs', sub: 'customer KYC files', brand: true },
+];
+/* links: from node, to node, label, step it appears, risky */
+const LLINKS = [
+  [0, 3, 'Created by', 1], [3, 4, 'Stored', 2], [3, 5, 'Stored', 2], [3, 6, 'Leaked', 3, true],
+  [4, 7, 'Read by', 4], [7, 8, 'Deploys', 4], [7, 9, 'Reaches', 4],
+];
+const at = (i) => [LX[LNODES[i].c] * 10, LY[LNODES[i].r] * 3.2];
+const lpath = (a, b) => {
+  const [x1, y1] = at(a), [x2, y2] = at(b);
+  const s = x1 + 34, e = x2 - 34, m = (s + e) / 2;
+  if (y1 === y2) return `M${s} ${y1}H${e}`;
+  const d = y2 > y1 ? 1 : -1, r = 10;
+  return `M${s} ${y1}H${m - r}Q${m} ${y1} ${m} ${y1 + d * r}V${y2 - d * r}Q${m} ${y2} ${m + r} ${y2}H${e}`;
+};
+
+export function KeyLineage() {
+  const ref = useRef(null);
+  const k = useBeat(ref, 5, 900);
+  return (
+    <figure ref={ref} className="kl" aria-label="Illustration: the lineage of one AWS access key. It was created by Kiran Rao, who left in May, stored in AWS Secrets Manager and HashiCorp Vault, and also pasted into a config file in a repository. A deploy pipeline reads it nightly and through it reaches the payments service and the customer KYC bucket. adapID recommends rotating it in Secrets Manager and assigning a new owner.">
+      <div aria-hidden="true" className="kl-scroll">
+        <div className="kl-inner">
+          <div className="kl-cols">
+            {LCOLS.map(([ic, n]) => <span key={n} className="kl-col"><I k={ic} s={14} />{n}</span>)}
+          </div>
+          <div className="relative" style={{ height: 320 }}>
+            {LX.slice(1).map((x) => <span key={x} className="kl-rule" style={{ left: `${x - 10}%` }} />)}
+            <svg viewBox="0 0 1000 320" className="absolute inset-0 h-full w-full overflow-visible">
+              {LLINKS.map(([a, b, l, s, bad]) => {
+                const [x1, y1] = at(a), [x2, y2] = at(b), m = (x1 + 34 + x2 - 34) / 2;
+                return (
+                  <g key={`${a}-${b}`} className={cx('kl-link', k >= s && 'on', bad && 'bad')}>
+                    <path d={lpath(a, b)} pathLength="1" />
+                    <foreignObject x={m - 34} y={(y1 + y2) / 2 - 10} width="68" height="20"><span className="kl-tag">{l}</span></foreignObject>
+                  </g>
+                );
+              })}
+            </svg>
+            {LNODES.map((n, i) => {
+              const lit = i === 0 || LLINKS.some(([, b, , s]) => b === i && k >= s);
+              return (
+                <div key={n.n} className={cx('kl-node', lit && 'on', n.crit && 'crit', n.brand && 'brand')} style={{ left: `${LX[n.c]}%`, top: `${LY[n.r]}%` }}>
+                  <span className="kl-ic">{n.logo ? <Logo k={n.logo} size="22px" /> : n.file ? <I k="storage" s={20} /> : <I k="person" s={20} />}</span>
+                  <b>{n.n}</b><small>{n.sub}</small>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+      <div className={cx('kl-verdict', k >= 5 && 'on')} aria-hidden="true">
+        <span className="kl-dot" /><span><b>Orphaned key, reaching customer data.</b> Rotate it in Secrets Manager, remove it from config/notify.env and assign a new owner. The pipeline picks up the new key on its next run.</span>
+      </div>
+    </figure>
+  );
+}
+
+/* ── Home: the platform at the centre of what you already run ─────────────── */
+const RING = [
+  ['okta', 0], ['entra', 0], ['ad', 0], ['m365', 0], ['google', 0], ['salesforce', 0],
+  ['aws', 1], ['azure', 1], ['gcp', 1], ['kubernetes', 1], ['github', 1], ['vault', 1], ['snowflake', 1],
+  ['claude', 2], ['copilot', 2], ['gemini', 2], ['slack', 1], ['databricks', 1],
+];
+export function PlatformOrbit() {
+  const n = RING.length;
+  return (
+    <figure className="po" aria-label="Illustration: Deep Algorithms at the centre, surrounded by the identity providers, clouds, apps and AI tools it connects to, including Okta, Microsoft Entra ID, Active Directory, AWS, Azure, Google Cloud, GitHub, Salesforce, Slack and AI assistants.">
+      <div aria-hidden="true" className="relative mx-auto aspect-[16/10] w-full max-w-[640px]">
+        <svg viewBox="0 0 640 400" className="absolute inset-0 h-full w-full">
+          <defs>
+            <radialGradient id="po-disc" cx="50%" cy="45%"><stop offset="0" stopColor="#dbe9f8" /><stop offset=".7" stopColor="#eef4fb" /><stop offset="1" stopColor="#eef4fb" stopOpacity="0" /></radialGradient>
+            <linearGradient id="po-core" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#6fd0ff" /><stop offset="1" stopColor="#0a6dbb" /></linearGradient>
+          </defs>
+          <ellipse cx="320" cy="215" rx="300" ry="170" fill="url(#po-disc)" />
+          <ellipse cx="320" cy="215" rx="250" ry="132" className="po-ring" />
+          <ellipse cx="320" cy="215" rx="150" ry="78" className="po-ring b" />
+          <ellipse cx="320" cy="232" rx="78" ry="30" fill="#0a6dbb" opacity=".22" style={{ filter: 'blur(12px)' }} />
+          <g transform="translate(320 200)">
+            <polygon points="-58,0 0,29 0,46 -58,17" fill="#0a4f8f" />
+            <polygon points="58,0 0,29 0,46 58,17" fill="#0862a6" />
+            <polygon points="0,-29 58,0 0,29 -58,0" fill="url(#po-core)" />
+            <polygon points="0,-29 58,0 0,29 -58,0" fill="none" stroke="#fff" strokeOpacity=".55" />
+            <image href="/brand/mark.webp" x="-14" y="-14" width="28" height="28" />
+          </g>
+        </svg>
+        {RING.map(([k, g], i) => {
+          const outer = i % 2 === 0;
+          const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+          const rx = outer ? 250 : 168, ry = outer ? 132 : 92;
+          const x = 320 + Math.cos(a) * rx, y = 215 + Math.sin(a) * ry;
+          return (
+            <span key={k} className={cx('po-coin', g === 2 && 'ai')} style={{ left: `${(x / 640) * 100}%`, top: `${(y / 400) * 100}%`, animationDelay: `${(i % 6) * -0.7}s` }} title={k}>
+              <Logo k={k} size="20px" />
+            </span>
+          );
+        })}
+      </div>
+    </figure>
+  );
+}
+
+/* ── Zenstra: the agent console ──────────────────────────────────────────── */
+const AGENT_CAPS = [
+  ['Discovery', 'Every agent, built or bought, with its owner', '#f3e8ff', '#7c3aed', 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4'],
+  ['Scoped access', 'Only the tools and data its task needs', '#fff3e0', '#c2410c', 'M7 11V8a5 5 0 0 1 10 0v3M5 11h14v9H5z'],
+  ['Action checks', 'Every action checked before it runs', '#e7f7ef', '#0c7546', 'M12 3l7 3v6c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6zM9 12l2 2 4-4'],
+  ['Lifecycle', 'Created, reviewed, retired on schedule', '#e8efff', '#3346c8', 'M20 12a8 8 0 1 1-2.3-5.7M20 4v4h-4'],
+  ['Audit record', 'A tamper-evident trail for every decision', '#f2ecff', '#6d28d9', 'M7 3h7l4 4v14H7zM14 3v4h4M9.5 12h5M9.5 16h5'],
+];
+export function AgentConsole() {
+  return (
+    <figure className="ac" aria-label="Illustration: the Zenstra AI agent console. Every AI agent gets an identity, an owner and a scope. Five capabilities: discovery, scoped access, action checks, lifecycle and audit record.">
+      <div aria-hidden="true">
+        <div className="ac-bar">
+          <span className="flex items-center gap-2"><ProductMark p="zenstra" size={18} /><b>Zenstra AI</b><span className="text-[#8a909b]">· Agents</span></span>
+          <span className="flex items-center gap-3"><span className="ac-pill">142 agents · 9 owners</span><span className="ac-avatar">PS</span></span>
+        </div>
+        <div className="ac-hero">
+          <div className="ac-orb">
+            <span className="ac-halo" />
+            <span className="ac-core">
+              <svg viewBox="0 0 64 64" width="64" height="64"><rect x="12" y="18" width="40" height="32" rx="10" fill="#fff" stroke="#6d5bd0" strokeWidth="2.4" /><path d="M32 10v8" stroke="#6d5bd0" strokeWidth="2.4" strokeLinecap="round" /><circle cx="32" cy="9" r="3" fill="#6d5bd0" /><circle cx="24" cy="33" r="3.2" fill="#6d5bd0" /><circle cx="40" cy="33" r="3.2" fill="#6d5bd0" /><path d="M25 41h14" stroke="#6d5bd0" strokeWidth="2.4" strokeLinecap="round" /></svg>
+            </span>
+            <span className="ac-chip c1"><i />invoice-agent · owner: Finance</span>
+            <span className="ac-chip c2"><i className="g" />Scope: pay approved invoices</span>
+            <svg className="ac-spark" viewBox="0 0 24 24" width="22" height="22"><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8z" fill="#8b7cf6" /></svg>
+          </div>
+          <div className="ac-copy">
+            <p className="ac-h">Every AI agent, with an identity and an owner.</p>
+            <p className="ac-p">Zenstra gives each agent a scope, checks every action against its task before it runs, and keeps the record that proves it.</p>
+            <span className="ac-btn">Register an agent<svg viewBox="0 0 24 24" width="13" height="13"><path d="M5 12h14m-5-5 5 5-5 5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
+          </div>
+        </div>
+        <ul className="ac-caps">
+          {AGENT_CAPS.map(([h, p, bg, fg, d]) => (
+            <li key={h}>
+              <span className="ac-ic" style={{ background: bg, color: fg }}><svg viewBox="0 0 24 24" width="16" height="16"><path d={d} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
+              <b>{h}</b><span>{p}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </figure>
+  );
+}
+
+/* ── AD Security: how ITDR sits between identities and Tier 0 ─────────────── */
+const ITDR_LEFT = [
+  ['Attack path visibility', ['Every path to Tier 0, ranked', 'Risky delegations and ACLs', 'MITRE ATT&CK mapping']],
+  ['Directory hygiene', ['Stale admins and weak service accounts', 'New misconfigurations, as they appear', 'The one change that closes each path']],
+  ['Live attack detection', ['Kerberoasting, DCSync, pass-the-hash', 'Baselines for Kerberos, NTLM and LDAP', 'Contained by policy, in seconds']],
+];
+export function ItdrFlow() {
+  return (
+    <figure className="itf" aria-label="Diagram: attack path visibility, directory hygiene and live attack detection feed adapID AD Security, which sits between users and service accounts and your directory. Abuse is contained before it reaches Tier 0, the domain controllers, or your applications and file servers.">
+      <div aria-hidden="true" className="itf-scroll">
+        <svg viewBox="0 0 1000 420" className="block h-auto w-full min-w-[760px]">
+          <defs>
+            <marker id="itf-a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#0a5ea3" /></marker>
+            <linearGradient id="itf-core" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#2b94e0" /><stop offset="1" stopColor="#0a5ea3" /></linearGradient>
+          </defs>
+          {/* the three capabilities, bracketed */}
+          {ITDR_LEFT.map(([h, lines], i) => {
+            const y = 58 + i * 132;
+            return (
+              <g key={h}>
+                <text x="250" y={y} textAnchor="end" className="itf-h">{h.toUpperCase()}</text>
+                {lines.map((l, j) => <text key={l} x="250" y={y + 22 + j * 19} textAnchor="end" className="itf-l">{l} –</text>)}
+                <circle cx="268" cy={y + 30} r="3.5" fill="#0a5ea3" />
+                <path d={`M268 ${y + 30}H290`} className="itf-line" />
+              </g>
+            );
+          })}
+          <path d="M290 88V352" className="itf-line" />
+          <path d="M290 220H350" className="itf-line" />
+          {/* identities */}
+          <g transform="translate(395 220)">
+            <rect x="-40" y="-32" width="80" height="56" rx="10" fill="#fff" stroke="#0a5ea3" strokeWidth="2" />
+            <g transform="translate(-14 -18)" color="#0a5ea3"><svg width="28" height="28" viewBox="0 0 24 24"><path d={ICO.users} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg></g>
+            <text y="50" textAnchor="middle" className="itf-n">Users and service accounts</text>
+          </g>
+          <text x="395" y="120" textAnchor="middle" className="itf-k">READ-ONLY DIRECTORY ACCESS</text>
+          <text x="395" y="140" textAnchor="middle" className="itf-l">Nothing installed on domain controllers</text>
+          <path d="M395 150V182" className="itf-line" />
+          <path d="M440 220H540" className="itf-line" markerEnd="url(#itf-a)" />
+          {/* the core */}
+          <g transform="translate(615 220)">
+            <rect x="-70" y="-36" width="140" height="72" rx="36" fill="url(#itf-core)" />
+            <text y="-3" textAnchor="middle" className="itf-c">adapID</text>
+            <text y="17" textAnchor="middle" className="itf-c">AD Security</text>
+          </g>
+          {/* contain */}
+          <text x="740" y="120" textAnchor="middle" className="itf-k">CONTAIN · DISABLE · RESET · ALERT</text>
+          <text x="740" y="140" textAnchor="middle" className="itf-l">By your policy, with the reason attached</text>
+          <path d="M740 150V198" className="itf-line" />
+          <path d="M685 220H722" className="itf-line" />
+          <g transform="translate(740 220)"><circle r="16" fill="#e5484d" /><path d="M-6 -6 6 6M6 -6-6 6" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" /></g>
+          <path d="M756 220C820 220 830 200 840 120" className="itf-line" markerEnd="url(#itf-a)" />
+          <path d="M756 220C820 220 830 240 840 320" className="itf-line" markerEnd="url(#itf-a)" />
+          {/* what it protects */}
+          <g transform="translate(900 70)">
+            <rect x="-90" y="-40" width="180" height="70" rx="12" className="itf-box" />
+            <text y="-8" textAnchor="middle" className="itf-n">Tier 0</text>
+            <text y="12" textAnchor="middle" className="itf-l">Domain controllers, admins</text>
+          </g>
+          <g transform="translate(900 370)">
+            <rect x="-90" y="-40" width="180" height="70" rx="12" className="itf-box" />
+            <text y="-8" textAnchor="middle" className="itf-n">Apps and servers</text>
+            <text y="12" textAnchor="middle" className="itf-l">File shares, SQL, line-of-business</text>
+          </g>
+        </svg>
       </div>
     </figure>
   );
@@ -7738,6 +8000,22 @@ FILE: website/src/components/viz/viz.css
 .lp-verdict b { color: #0e1116; } .lp-verdict.on { opacity: 1; }
 .lp-dot { flex-shrink: 0; margin-top: 5px; width: 8px; height: 8px; border-radius: 50%; background: #0a6dbb; }
 @media (prefers-reduced-motion: reduce) { .lp-float.on, .lp-pin.hit { animation: none; } }
+
+/* fraud: the phone on a stage, notes floating over its edge, the decision under it */
+.mb-stage { position: relative; padding: 14px; border: 1px solid rgb(14 17 22 / .08); border-radius: 24px; background: radial-gradient(rgb(10 58 107 / .1) 1px, transparent 1px) 0 0 / 14px 14px, linear-gradient(160deg, #f4f8fd, #e6eff9); }
+@container (min-width: 561px) {
+  .mb-stage .mb-grid.wide { grid-template-columns: 42% 1fr; gap: 0; }
+  .mb-stage .mb-grid.wide > .s2 { position: relative; z-index: 2; margin-left: -4%; }
+}
+.mb-stage .mb-phone { box-shadow: 0 60px 90px -45px rgb(11 42 82 / .6), 0 0 0 1px rgb(14 17 22 / .08); }
+.mb-stage .vz-pop { background: #fff; border: 1px solid rgb(14 17 22 / .09); box-shadow: 0 22px 40px -22px rgb(11 42 82 / .45); }
+.mb-verdict { display: flex; gap: 12px; align-items: flex-start; margin-top: 14px; padding: 13px 16px; border-radius: 14px; background: #fff; border: 1px solid rgb(14 17 22 / .09); font-size: 14px; line-height: 1.45; color: #434852; animation: mb-v .6s .9s cubic-bezier(.16,1,.3,1) both; }
+.mb-verdict b { display: block; color: #0e1116; font-weight: 600; }
+.mb-verdict i { width: 10px; height: 10px; margin-top: 5px; border-radius: 50%; flex-shrink: 0; background: #1f9d63; box-shadow: 0 0 0 4px rgb(31 157 99 / .15); }
+.mb-verdict.t-warn i { background: #d97706; box-shadow: 0 0 0 4px rgb(217 119 6 / .15); }
+.mb-verdict.t-crit i { background: #e5484d; box-shadow: 0 0 0 4px rgb(229 72 77 / .15); }
+@keyframes mb-v { from { opacity: 0; transform: translateY(8px); } }
+@media (prefers-reduced-motion: reduce) { .mb-verdict { animation: none; } }
 
 
 ====================================================================================================
@@ -10768,7 +11046,8 @@ import { PRODUCT_MENU } from '../data/nav.js';
 import { Button, CountUp, Icon, Reveal, SectionHead, cx } from '../components/ui.jsx';
 import { CtaBand, FilmPlayer, TrustedRow } from '../components/blocks.jsx';
 import ProductMark from '../components/ProductMark.jsx';
-import HeroStack from '../components/HeroStack.jsx';
+import CirmPipeline from '../components/CirmPipeline.jsx';
+import { PlatformOrbit } from '../components/viz/refs.jsx';
 import RoleCards from '../components/RoleCards.jsx';
 import { Logo, logoTitle } from '../components/viz/kit.jsx';
 import PerimeterStory from '../components/PerimeterStory.jsx';
@@ -10794,14 +11073,18 @@ const SHARED = [
   { icon: 'Scales', h: 'Built for Indian regulation', p: 'Evidence mapped to DPDPA 2023, RBI and SEBI from the start.' },
 ];
 
-/* Why now, the way established vendors set it: a verdict, the number, what it
-   means, where it comes from, and what we do about it. Every figure is sourced. */
-const WHY_NOW = [
-  { verdict: 'Outnumbered.', v: '82:1', l: 'machine identities for every person in the average organisation. Most were created by a deploy, not by a decision.', s: 'CyberArk Identity Security Landscape, 2025', to: '/adapid-ai/nhi-security', cta: 'How adapID finds every one' },
-  { verdict: 'Costlier than ever.', v: '₹25.5 Cr', l: 'average cost of a data breach in India in 2026, up 16% in a year and the highest on record.', s: 'IBM Cost of a Data Breach Report, 2026', to: '/adapid-ai', cta: 'How we stop it before it lands' },
-  { verdict: 'On the clock.', v: '72 hrs', l: 'to report a personal data breach in full to the Data Protection Board, with the facts to back it.', s: 'DPDP Rules, 2025', to: '/dpdpa-compliance', cta: 'How ICMS gets you ready' },
+/* Why now: the workforce changed. People are the smallest part of it; keys,
+   service accounts and AI agents act on your systems around the clock. Every
+   figure is sourced. */
+const ADAPT = [
+  { icon: 'Pulse', h: 'Catch risk as it starts.', p: 'Every identity is watched for the change in behaviour that comes before misuse, not the alert that comes after it.' },
+  { icon: 'LockKey', h: 'Change access in the moment.', p: 'Ask for proof, narrow a permission or hold a session, decided by risk and context while it happens.' },
+  { icon: 'Users', h: 'Cover every kind of identity.', p: 'Employees, customers, partners, keys, service accounts and AI agents, on-premises and in the cloud.' },
 ];
-
+const NOW_STATS = [
+  { v: '₹25.5 Cr', l: 'average cost of a data breach in India, the highest on record', s: 'IBM Cost of a Data Breach Report, 2026' },
+  { v: '72 hrs', l: 'to report a personal data breach in full to the Data Protection Board', s: 'DPDP Rules, 2025' },
+];
 
 const FAQ = [
   { title: 'What does Deep Algorithms do?', body: 'We secure the identities attackers use to get in: people, machine identities and AI agents. adapID AI covers people, keys, service accounts and fraud. Zenstra AI covers AI agents. BotShield AI covers exposure, bots and DDoS. ICMS covers DPDPA compliance.' },
@@ -10815,20 +11098,56 @@ const FAQ = [
 const INDUSTRY_ICON = { bfsi: 'Bank', healthcare: 'FirstAidKit', government: 'Buildings', 'digital-platforms': 'Browsers' };
 const INDUSTRY_LINE = { bfsi: 'Mule accounts, account takeover, RBI and DPDPA', healthcare: 'Who opened which patient record, and why', government: 'Portals that stay online under attack', 'digital-platforms': 'Bots at sign-up, keys in code, AI in the product' };
 
+/* one person, 82 machine identities: the ratio drawn as tiles */
+const AGENTS = new Set([9, 23, 31, 46, 58, 70, 77]);
+function Workforce() {
+  return (
+    <figure className="wf" aria-label="Illustration: for every person in an average organisation there are 82 machine identities, a growing number of them AI agents.">
+      <div aria-hidden="true">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <p className="wf-k">For every person in your company</p>
+            <p className="wf-big">82<span> machine identities</span></p>
+          </div>
+          <ul className="wf-legend">
+            <li><i className="wf-p" />Person</li><li><i className="wf-m" />Key or service account</li><li><i className="wf-a" />AI agent</li>
+          </ul>
+        </div>
+        <div className="wf-grid">
+          {Array.from({ length: 83 }, (_, i) => <i key={i} className={i === 0 ? 'wf-p' : AGENTS.has(i) ? 'wf-a' : 'wf-m'} style={{ '--i': i }} />)}
+        </div>
+      </div>
+      <figcaption className="wf-src">Source: CyberArk Identity Security Landscape, 2025. Most were created by a deploy, not a decision.</figcaption>
+    </figure>
+  );
+}
+
 function WhyNow() {
   return (
     <section className="sec relative" aria-labelledby="now-h">
       <div className="wrap relative">
-        <SectionHead id="now-h" eyebrow="Why identity, why now" title="Identity is now the easiest way in, and the most expensive to get wrong." lead="Three numbers boards and regulators are asking about, and what we do about each." />
-        <div className="mt-14 grid gap-5 md:grid-cols-3">
-          {WHY_NOW.map((n, i) => (
-            <Reveal key={n.v} delay={i * 90} className="card flex flex-col rounded-[18px] border border-line p-7 max-md:items-center max-md:text-center md:p-8">
-              <p className="text-[15px] font-semibold tracking-[-0.005em] text-cyan-2">{n.verdict}</p>
-              <p className="mt-5 font-semibold tracking-[-0.045em] text-ink" style={{ fontSize: 'clamp(46px, 4.6vw, 68px)', lineHeight: 1 }}><CountUp value={n.v} /></p>
-              <p className="mt-5 max-w-[320px] flex-1 text-[16px] leading-relaxed text-ink-2">{n.l}</p>
-              <p className="mt-6 w-full border-t border-line pt-4 text-[12.5px] text-ink-3">Source: {n.s}</p>
-              <Link to={n.to} className="link mt-4 text-[14.5px]">{n.cta}<Icon name="ArrowRight" size={14} weight="bold" /></Link>
-            </Reveal>
+        <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-16">
+          <Reveal up><Workforce /></Reveal>
+          <div>
+            <p className="eyebrow">Why identity, why now</p>
+            <h2 id="now-h" className="t-h2 mt-5">Your workforce has changed. Your identity security has to change with it.</h2>
+            <p className="t-lead mt-5">People are now the smallest part of it. Keys, service accounts and AI agents act on your systems day and night, and most were never reviewed by anyone. Deep Algorithms finds, governs and protects every one of them, from one place.</p>
+            <ul className="mt-9 grid gap-6">
+              {ADAPT.map((a) => (
+                <li key={a.h} className="flex gap-4">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[11px] bg-[#eef5fc] text-[#0a6dbb]"><Icon name={a.icon} size={20} /></span>
+                  <span><span className="block text-[16.5px] font-semibold tracking-[-0.01em] text-ink">{a.h}</span><span className="mt-1 block text-[15px] leading-relaxed text-ink-2">{a.p}</span></span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+        <div className="mt-14 grid gap-px overflow-hidden rounded-[18px] border border-line bg-line md:grid-cols-2">
+          {NOW_STATS.map((n) => (
+            <div key={n.v} className="flex items-center gap-6 bg-bg-1 p-6 md:p-7">
+              <p className="shrink-0 font-semibold tracking-[-0.04em] text-ink" style={{ fontSize: 'clamp(34px, 3.2vw, 46px)', lineHeight: 1 }}><CountUp value={n.v} /></p>
+              <p><span className="block text-[15px] leading-snug text-ink-2">{n.l}</span><span className="mt-1.5 block text-[12.5px] text-ink-3">Source: {n.s}</span></p>
+            </div>
           ))}
         </div>
       </div>
@@ -10951,41 +11270,39 @@ function PlatformAccordion() {
 }
 
 /* "Watch the film": scroll to it and start it */
-const playFilm = (e) => {
-  const film = document.getElementById('film');
-  if (!film) return;
-  e.preventDefault();
-  film.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  window.dispatchEvent(new Event('da:play-film'));
-};
-
 export default function Home() {
   return (
     <>
       <Seo path="/" description="Deep Algorithms is an identity security platform for people, machine identities and AI agents: four products that stop identity attacks, fraud, bots and data misuse before they become a breach. ISO 27001, SOC 2 Type II. Built in India for regulated industries." />
 
-      {/* hero: what we are, proof, and the product, in one view */}
+      {/* hero: what we are, in one sentence, and the film beside it */}
       <section className="stage band-brand hero-under relative overflow-hidden" aria-labelledby="hero-h">
-        <div className="wrap relative grid items-center gap-12 pb-12 pt-10 md:pt-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)] lg:gap-10 lg:pb-16 lg:pt-20">
-          <div className="max-w-[600px] max-md:mx-auto max-md:text-center">
-            <h1 id="hero-h" className="t-hero rise" style={{ '--d': '40ms' }}>Secure every identity. Stop every misuse.</h1>
-            <p className="t-lead rise mt-6 max-w-[500px] max-md:mx-auto" style={{ '--d': '110ms' }}>People, machines and AI agents: Deep Algorithms learns how each one should behave, and stops the one that doesn’t, with the reason why.</p>
+        <div className="wrap relative grid items-center gap-12 pb-14 pt-10 md:pt-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.02fr)] lg:gap-14 lg:pb-20 lg:pt-24">
+          <div className="max-w-[620px] max-md:mx-auto max-md:text-center">
+            <h1 id="hero-h" className="t-hero rise" style={{ '--d': '60ms' }}>Identity security for the AI era.</h1>
+            <p className="t-lead rise mt-6 max-w-[540px] max-md:mx-auto" style={{ '--d': '120ms' }}>Discover every human, machine and AI agent identity. Learn how each one should behave, and stop the one that doesn’t, in milliseconds, with the reason why.</p>
             <div className="rise mt-9 flex flex-wrap gap-3 max-md:flex-col max-md:[&>*]:w-full" style={{ '--d': '180ms' }}>
-              <Explore label="See the platform" target="#platform" />
-              <a href="#film" onClick={playFilm} className="inline-flex h-[52px] items-center justify-center gap-3 rounded-full border border-line-2 bg-bg-1 px-6 text-[16px] font-semibold text-ink transition-colors hover:border-ink-3">
-                <span aria-hidden="true" className="grid h-7 w-7 place-items-center rounded-full bg-[#0a6dbb] text-white"><svg viewBox="0 0 24 24" className="ml-0.5 h-3.5 w-3.5"><path d="M7 4.5v15l13-7.5z" fill="currentColor" /></svg></span>
-                Watch the film<span className="font-normal text-ink-3">1:15</span>
-              </a>
+              <Button to="/request-demo" size="lg" arrow>Book a demo</Button>
+              <Explore label="See how it works" target="#how" variant="ghost" />
             </div>
-            <p className="rise mt-4 text-[14px] text-ink-3 max-md:text-center" style={{ '--d': '210ms' }}>
-              or <Link to="/product-tour" className="font-medium text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">Take the product tour</Link>, in eleven steps
+            <p className="rise mt-5 text-[14px] text-ink-3 max-md:text-center" style={{ '--d': '220ms' }}>
+              or <Link to="/product-tour" className="font-medium text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">take the product tour</Link>, in eleven steps
             </p>
           </div>
-          <div className="rise relative lg:pl-6" style={{ '--d': '200ms' }}>
-            <HeroStack />
+          <div id="film" className="rise relative scroll-mt-28" style={{ '--d': '220ms' }}>
+            <FilmPlayer compact teaser={{ src: '/video/film-teaser', poster: '/video/film-teaser-poster.webp' }} title="One bank. One night. Five attacks." />
           </div>
         </div>
         <TrustedRow />
+      </section>
+
+      {/* how it works: adapID CIRM as one platform view */}
+      <section id="how" className="sec scroll-mt-20" aria-labelledby="how-h">
+        <div className="wrap">
+          <SectionHead id="how-h" eyebrow="How it works" title="From first discovery to the auditor’s record. On every identity." lead="adapID CIRM finds every identity you have, learns how each one behaves, and acts the moment one changes, through the tools you already run." />
+          <Reveal up className="mx-auto mt-14 max-w-[1180px]"><CirmPipeline /></Reveal>
+          <p className="mt-8 text-center"><Link to="/adapid-ai" className="link">Explore adapID CIRM<Icon name="ArrowRight" size={14} weight="bold" /></Link></p>
+        </div>
       </section>
 
       <WhyNow />
@@ -10993,7 +11310,10 @@ export default function Home() {
       {/* the platform: four products, one standard */}
       <section id="platform" className="sec scroll-mt-20" aria-labelledby="platform-h">
         <div className="wrap">
-          <SectionHead align="left" id="platform-h" eyebrow="The platform" title="One platform. Four products. Every identity, human or machine." lead="Start with the risk that costs you most today. Each product runs on its own, deploys where your data already is, and explains every decision it makes." />
+          <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+            <SectionHead align="left" id="platform-h" eyebrow="The platform" title="One platform. Four products. Every identity, human or machine." lead="Start with the risk that costs you most today. Each product runs on its own, connects to the identity providers, clouds, apps and AI tools you already run, and explains every decision it makes." />
+            <Reveal className="max-lg:hidden"><PlatformOrbit /></Reveal>
+          </div>
           <PlatformAccordion />
           <PlatformExplorer />
           <Reveal className="mt-6 grid gap-px overflow-hidden rounded-[16px] border border-line bg-line sm:grid-cols-2 xl:grid-cols-4">
@@ -11013,14 +11333,6 @@ export default function Home() {
         <div className="wrap">
           <SectionHead align="left" id="perimeter-h" eyebrow="Where attacks begin now" title="Attackers don’t break in anymore. They log in." lead="Most access in your company no longer belongs to a person. Keys, service accounts and AI agents hold it now, and that is where attacks begin." />
           <div className="mt-14 lg:mt-6"><PerimeterStory /></div>
-        </div>
-      </section>
-
-      {/* the film */}
-      <section id="film" className="stage dark sec scroll-mt-20" aria-labelledby="film-h">
-        <div className="wrap">
-          <SectionHead id="film-h" eyebrow="Watch · 75 seconds" title="One bank. One night. Five attacks." lead="A scam payment, a rogue AI agent, a stolen login, a bot flood and a regulator’s question, and how each Deep Algorithms product stops it before the damage is done." />
-          <Reveal up className="mx-auto mt-14 max-w-[1000px]"><FilmPlayer /></Reveal>
         </div>
       </section>
 
@@ -11963,6 +12275,7 @@ export default function Why() {
 ====================================================================================================
 FILE: website/src/pages/products/AdSecurity.jsx
 ====================================================================================================
+import { ItdrFlow } from '../../components/viz/refs.jsx';
 import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, Check3 } from '../../components/ui.jsx';
@@ -11997,10 +12310,18 @@ export default function AdSecurity() {
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Active Directory Security', path: p.path }]} />
       <Hero glance={[['Protects', 'Active Directory: users, groups, service accounts and trusts'], ['Stops', 'Paths to Domain Admins, Kerberoasting and DCSync'], ['Deploys', 'Read-only access to your directory'], ['Shows', 'The one change that closes the most paths']]} layout="stack" acc="adap" crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Active Directory Security' }]} eyebrow="adapID AI · Active Directory Security"
-        title={<>Close the path to Domain Admins <span style={{ color: '#7fdcff' }}>before anyone takes it.</span></>}
+        title={<>Close the path to Domain Admins <span style={{ color: 'var(--acc)' }}>before anyone takes it.</span></>}
         lead="See every account, privilege and path through Active Directory, cut the routes attackers would use, and catch the account that starts behaving unlike itself.">
         <Stage3D tilt={[10, 0]} range={[2, 4]} className="mx-auto max-w-[1060px]"><AdTierGraph /></Stage3D>
       </Hero>
+
+      {/* how it sits: between your identities and Tier 0 */}
+      <section className="sec" aria-labelledby="how-h">
+        <div className="wrap">
+          <SectionHead id="how-h" acc={A} eyebrow="How it works" title="Between every identity and Tier 0." lead="See every path an attacker could take, fix the weak access behind it, and contain live abuse before it reaches a domain controller." />
+          <Reveal up className="mx-auto mt-14 max-w-[1120px]"><ItdrFlow /></Reveal>
+        </div>
+      </section>
 
       <section className="sec" aria-labelledby="tech-h">
         <div className="wrap">
@@ -12094,7 +12415,7 @@ export default function BotShield() {
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'BotShield AI', path: p.path }]} />
       <Hero glance={[['Protects', 'Public apps, APIs, sign-up and login flows'], ['Stops', 'Bots, scraping, OTP abuse and DDoS from L3 to L7'], ['Deploys', 'Inline at the edge, with no traffic diversion'], ['Shows', 'Exposures proved exploitable, with the evidence']]} layout="stack" acc="bot" ribbons="band" crumbs={[{ name: 'Products', path: '/products' }, { name: 'BotShield AI' }]} eyebrow="BotShield AI · Exposure, bots and DDoS"
-        title={<>The attack is autonomous. <span style={{ color: '#7ff0dc' }}>Your defence has to be too.</span></>}
+        title={<>The attack is autonomous. <span style={{ color: 'var(--acc)' }}>Your defence has to be too.</span></>}
         lead="Agents map your attack surface, prove which exposures are exploitable and deploy protection while the fix reaches its owner. Bot defence stops automation by intent, and DDoS protection keeps you online."
         note="One platform for web apps, APIs, login flows and payment journeys.">
         <Stage3D tilt={[12, 0]} range={[3, 5]} className="mx-auto max-w-[900px]"><CtemLoop /></Stage3D>
@@ -12219,7 +12540,7 @@ export default function Capability({ id }) {
     <>
       <Seo title={c.seoTitle.replace(/ \| Zenstra AI$/, '')} description={c.description} path={c.path} crumbs={[{ name: 'Zenstra AI', path: c.parent }, { name: c.name, path: c.path }]} />
       <Hero acc="zen" crumbs={[{ name: 'Zenstra AI', path: c.parent }, { name: c.name }]} eyebrow={`Zenstra AI · ${c.name}`}
-        title={<>{c.hero.lead} <span style={{ color: '#aab6ff' }}>{c.hero.accent}.</span></>} lead={c.hero.sub}>
+        title={<>{c.hero.lead} <span style={{ color: 'var(--acc)' }}>{c.hero.accent}.</span></>} lead={c.hero.sub}>
         <Stage3D tilt={[6, -14]}><V /></Stage3D>
       </Hero>
 
@@ -12253,6 +12574,7 @@ export default function Capability({ id }) {
 ====================================================================================================
 FILE: website/src/pages/products/Cirm.jsx
 ====================================================================================================
+import CirmPipeline from '../../components/CirmPipeline.jsx';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { Seo } from '../../lib/head.jsx';
@@ -12331,10 +12653,18 @@ export default function Cirm() {
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'adapID AI', path: p.path }]} />
       <Hero glance={[['Protects', 'People and machine identities across your IdP, cloud and SaaS'], ['Stops', 'Account takeover, insider misuse and over-privileged keys'], ['Deploys', 'Read-only connectors; one read-only role per AWS account'], ['Shows', 'A live risk score with the reason for every point']]} layout="stack" acc="adap" crumbs={[{ name: 'Products', path: '/products' }, { name: 'adapID AI' }]} eyebrow="adapID AI · Identity risk management"
-        title={<>A live risk score for every identity. <span style={{ color: '#7fdcff' }}>Acted on the moment it changes.</span></>}
+        title={<>A live risk score for every identity. <span style={{ color: 'var(--acc)' }}>Acted on the moment it changes.</span></>}
         lead="adapID AI learns how each person normally works across your identity provider, cloud and SaaS, and acts when that changes, before a stolen login becomes a breach.">
         <Stage3D tilt={[12, 0]} range={[3, 5]} className="mx-auto max-w-[860px]"><AdapRiskTimeline /></Stage3D>
       </Hero>
+
+      {/* the platform view: every stage CIRM runs on every identity */}
+      <section className="sec" aria-labelledby="pipe-h">
+        <div className="wrap">
+          <SectionHead id="pipe-h" acc={ACC.adap} eyebrow="One platform view" title="Seven stages. Every identity. Always on." lead="Pick a stage to see what adapID CIRM does there. It runs all seven on every person, key and agent, all the time." />
+          <Reveal up className="mx-auto mt-14 max-w-[1180px]"><CirmPipeline /></Reveal>
+        </div>
+      </section>
 
       <section className="sec" aria-labelledby="itdr-h">
         <div className="wrap">
@@ -12372,10 +12702,10 @@ export default function Cirm() {
             {FAMILY.map((f, i) => {
               const inner = (
                 <>
-                  <div className="tone-d relative h-[260px] overflow-hidden rounded-[16px] border border-line bg-[#080a0e] md:h-[300px]">
+                  <div className="relative h-[260px] overflow-hidden rounded-[16px] border border-line md:h-[300px]" style={{ background: 'radial-gradient(rgb(10 58 107 / .1) 1px, transparent 1px) 0 0 / 14px 14px, linear-gradient(160deg, #f4f8fd, #e8f0f9)' }}>
                     {f.V ? <div className="pointer-events-none absolute left-1/2 top-4 w-[118%] -translate-x-1/2 md:w-[104%]"><f.V /></div>
-                      : <div className="absolute inset-0 flex items-center justify-center"><span className="text-[64px] font-semibold tracking-[-0.05em] text-adap num">94</span><span className="ml-3 text-[15px] text-ink-3">risk score,<br />with the reasons</span></div>}
-                    <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-24" style={{ background: 'linear-gradient(transparent, #0d0f13)' }} />
+                      : <div className="absolute inset-0 flex items-center justify-center"><span className="text-[64px] font-semibold tracking-[-0.05em] text-[#c4352a] num">94</span><span className="ml-3 text-[15px] text-ink-3">risk score,<br />with the reasons</span></div>}
+                    <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-24" style={{ background: 'linear-gradient(rgb(232 240 249 / 0), #e8f0f9)' }} />
                   </div>
                   <div className="mt-6 flex items-center gap-3"><h3 className="t-h3">{f.name}</h3>{f.tag && <span className="rounded-full border border-adap/40 px-2.5 py-0.5 text-[12px] font-medium text-adap">{f.tag}</span>}</div>
                   <p className="mt-2 text-[15.5px] leading-relaxed text-ink-2">{f.body}</p>
@@ -12494,7 +12824,7 @@ export default function Ddos() {
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'BotShield AI', path: '/botshield-ai' }, { name: 'DDoS Protection', path: p.path }]} />
       <Hero acc="bot" crumbs={[{ name: 'BotShield AI', path: '/botshield-ai' }, { name: 'DDoS Protection' }]} eyebrow="BotShield AI · DDoS Protection"
-        title={<>Stay online when the flood <span style={{ color: '#7ff0dc' }}>looks like your customers.</span></>}
+        title={<>Stay online when the flood <span style={{ color: 'var(--acc)' }}>looks like your customers.</span></>}
         lead="Inline, edge-ready protection against volumetric, protocol and application-layer attacks, close to your users, without added latency or user friction."
         note="For web apps, APIs, citizen services and checkout.">
         <Stage3D tilt={[4, -9]}><div className="scn-frame"><EdgeShield /></div></Stage3D>
@@ -12626,7 +12956,7 @@ function MobileCaps() {
           <ol className="mt-3 space-y-3">{m.how.map((h, k) => <li key={k} className="flex gap-3 text-[15.5px] leading-relaxed text-ink-2"><span className="num mt-[2px] grid h-6 w-6 shrink-0 place-items-center rounded-full border border-line-2 text-[12px] font-semibold">{k + 1}</span>{h}</li>)}</ol>
           <p className="mt-7 flex items-start gap-3 rounded-[16px] border border-line p-4 text-[15.5px] leading-relaxed"><Icon name="CheckCircle" size={20} className="mt-[2px] shrink-0 text-ok" /><span><span className="font-semibold">Result. </span><span className="text-ink-2">{m.result}</span></span></p>
         </div>
-        <div className="mx-auto w-full max-w-[600px]"><CapabilityPhone cap={m.key} /></div>
+        <div className="mx-auto w-full max-w-[640px]"><CapabilityPhone cap={m.key} /></div>
       </div>
     </div>
   );
@@ -12674,15 +13004,15 @@ function CaseFlow() {
 
 function Explanation() {
   return (
-    <div className="tone-d overflow-hidden rounded-[24px] border border-line-2 p-7 md:p-9" style={{ background: 'linear-gradient(180deg, #10274a, #12171f)' }}>
+    <div className="overflow-hidden rounded-[24px] border border-line bg-bg-1 p-7 shadow-[0_40px_80px_-60px_rgb(11_42_82/.4)] md:p-9">
       <p className="text-[12.5px] font-semibold uppercase tracking-[.1em] text-ink-3">One reason, as the analyst sees it</p>
       <div className="mt-6 flex items-start justify-between gap-6">
         <p className="text-[22px] font-semibold leading-snug tracking-[-0.02em] text-ink md:text-[26px]">Phone call during the payment</p>
-        <span className="shrink-0 rounded-full px-3 py-1 text-[16px] font-semibold num" style={{ background: 'rgb(246 185 85 / .14)', color: '#ffc566' }}>+9 points</span>
+        <span className="shrink-0 rounded-full px-3 py-1 text-[16px] font-semibold num" style={{ background: '#fff4e0', color: '#a86400' }}>+9 points</span>
       </div>
       <p className="mt-4 text-[16px] leading-relaxed text-ink-2">Seen about 7.5× more often in scams than in genuine sessions.</p>
       <div className="mt-7 flex flex-wrap items-center gap-3 border-t border-line pt-6 text-[15px]">
-        <span className="text-ink-3">Score</span><span className="num font-semibold text-ink">26</span><Icon name="ArrowRight" size={14} className="text-ink-3" /><span className="num font-semibold" style={{ color: '#ffc566' }}>35</span>
+        <span className="text-ink-3">Score</span><span className="num font-semibold text-ink">26</span><Icon name="ArrowRight" size={14} className="text-ink-3" /><span className="num font-semibold" style={{ color: '#a86400' }}>35</span>
         <span className="ml-2 rounded-full border border-line-2 px-2.5 py-0.5 text-[13px] text-ink-2">Low → Medium</span>
       </div>
       <p className="mt-6 text-[14.5px] leading-relaxed text-ink-3">The bank can explain every decision to the customer, to management and to regulators.</p>
@@ -12705,7 +13035,7 @@ export default function Fraud() {
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Identity Fraud Prevention', path: p.path }]} />
       <Hero glance={[['Protects', 'Mobile banking, internet banking and UPI'], ['Stops', 'Account takeover, payment scams and mule accounts'], ['Deploys', 'An SDK in your app and on your web channel'], ['Shows', 'Every decision in under 80 ms, with its reason']]} acc="adap" crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Identity Fraud Prevention' }]} eyebrow="adapID AI · Identity Fraud Prevention"
-        title={<>Stop fraud <span style={{ color: '#7fdcff' }}>before the money moves.</span></>}
+        title={<>Stop fraud <span style={{ color: 'var(--acc)' }}>before the money moves.</span></>}
         lead="Account takeover, payment scams and mule accounts, caught at login and at payment in under 80 ms, with the reason for every decision."
         note="For mobile banking, internet banking and UPI.">
         <FraudDecisions />
@@ -12756,7 +13086,7 @@ export default function Fraud() {
               ))}
             </ul>
           </div>
-          <Reveal up className="tone-d"><WebStepUp /></Reveal>
+          <Reveal up><WebStepUp /></Reveal>
         </div>
       </section>
 
@@ -12866,7 +13196,7 @@ export default function Icms() {
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'ICMS Compliance Suite', path: p.path }]} />
       <Hero glance={[['Protects', 'Personal data in the stores that already hold it'], ['Stops', 'Access without consent or a lawful purpose'], ['Deploys', 'Connected to your data stores and identity sources'], ['Shows', 'DPDPA evidence, ready for the 72-hour breach report']]} acc="icms" crumbs={[{ name: 'Products', path: '/products' }, { name: 'ICMS Compliance Suite' }]} eyebrow="ICMS Compliance Suite · DPDPA"
-        title={<>DPDPA compliance you can prove, <span style={{ color: '#ffd98f' }}>not just claim.</span></>}
+        title={<>DPDPA compliance you can prove, <span style={{ color: 'var(--acc)' }}>not just claim.</span></>}
         lead="Every access to personal data checked against purpose and consent, and the evidence an auditor asks for, generated as it happens."
         note="For customer data, patient records and employee data.">
         <Stage3D tilt={[6, -13]}>
@@ -12931,6 +13261,7 @@ export default function Icms() {
 ====================================================================================================
 FILE: website/src/pages/products/Nhi.jsx
 ====================================================================================================
+import { KeyLineage } from '../../components/viz/refs.jsx';
 import { useRef } from 'react';
 import { useInView, useReducedMotion } from '../../lib/motion.js';
 import { Seo } from '../../lib/head.jsx';
@@ -13081,7 +13412,7 @@ export default function Nhi() {
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'NHI Security for AWS', path: p.path }]} />
       <Hero glance={[['Protects', 'IAM roles, keys and workload identities in AWS'], ['Stops', 'Unused permissions, open trust policies, leaked secrets'], ['Deploys', 'One read-only role per AWS account'], ['Shows', 'The least-privilege fix, checked against CloudTrail']]} acc="adap" crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'NHI Security for AWS' }]} eyebrow="adapID AI · NHI Security for AWS"
-        title={<>Every machine identity in your AWS accounts. <span style={{ color: '#7fdcff' }}>Found, scored, watched.</span></>}
+        title={<>Every machine identity in your AWS accounts. <span style={{ color: 'var(--acc)' }}>Found, scored, watched.</span></>}
         lead="Machine identities far outnumber people, and most were created by a deploy, not by a decision. adapID finds each role, key and workload identity, shows what it can reach and what it actually uses, and catches the one that starts behaving differently."
         note="Agentless. One read-only role per account.">
         <NhiMap />
@@ -13107,6 +13438,14 @@ export default function Nhi() {
               <pre tabIndex={0} aria-label="config/notify.env, with the leaked key on line 14" className="overflow-x-auto p-5 font-mono text-[13px] leading-[1.75] text-[#bcd6f2]"><code>{TRUST}</code></pre>
             </div>
           </Reveal>
+        </div>
+      </section>
+
+      {/* lineage: where one key came from and everything it reaches */}
+      <section className="sec" aria-labelledby="lin-h">
+        <div className="wrap">
+          <SectionHead id="lin-h" acc={A} eyebrow="Lineage" title="Every key has a history. adapID reads all of it." lead="Who created it, where it is stored, what uses it and what it can reach, on one line. So you know what breaks before you rotate, and who to ask." />
+          <Reveal up className="mx-auto mt-14 max-w-[1120px]"><KeyLineage /></Reveal>
         </div>
       </section>
 
@@ -13160,6 +13499,7 @@ export default function Nhi() {
 ====================================================================================================
 FILE: website/src/pages/products/Zenstra.jsx
 ====================================================================================================
+import { AgentConsole } from '../../components/viz/refs.jsx';
 import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Button, Icon, Reveal, SectionHead } from '../../components/ui.jsx';
@@ -13225,7 +13565,7 @@ export default function Zenstra() {
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'Zenstra AI', path: p.path }]} />
       <Hero glance={[['Protects', 'AI agents you build and the ones you buy'], ['Stops', 'Any action outside an agent’s task, before it runs'], ['Deploys', 'A gateway inside your VPC'], ['Shows', 'A tamper-evident record of every decision']]} acc="zen" crumbs={[{ name: 'Products', path: '/products' }, { name: 'Zenstra AI' }]} eyebrow="Zenstra AI · Security for AI agents"
-        title={<>Let AI agents act. <span style={{ color: '#aab6ff' }}>Check every action first.</span></>}
+        title={<>Let AI agents act. <span style={{ color: 'var(--acc)' }}>Check every action first.</span></>}
         lead="Zenstra finds every AI agent and MCP server in your enterprise, gives each one an owner and access sized to its task, and decides every tool call before it runs."
         ctas={<><Explore label="See it check an agent" /><Button href="https://www.zenstra.ai" target="_blank" rel="noopener" variant="ghost" size="lg">Visit zenstra.ai<Icon name="ArrowUpRight" size={16} /></Button></>}
         note="One platform for copilots, cloud agents, workflow automations, coding agents and MCP servers.">
@@ -13245,6 +13585,14 @@ export default function Zenstra() {
         <div className="wrap">
           <SectionHead id="where-h" acc="var(--color-zen)" eyebrow="Where your agents live" title="One platform for every place agents run." lead="Agents are built by business teams, developers and vendors, on platforms IT never provisioned. Zenstra covers all of them with one inventory, one policy and one record." />
           <Reveal className="mt-14"><ZenSurfaces /></Reveal>
+        </div>
+      </section>
+
+      {/* the console: every agent with an identity, an owner and a scope */}
+      <section className="sec pt-0" aria-labelledby="con-h">
+        <div className="wrap">
+          <SectionHead id="con-h" acc="var(--color-zen)" eyebrow="The agent console" title="Treat every AI agent like the employee it acts as." lead="An identity, an owner, a scope and a record, from the day an agent is created to the day it is retired." />
+          <Reveal up className="mx-auto mt-14 max-w-[1080px]"><AgentConsole /></Reveal>
         </div>
       </section>
 
@@ -13362,8 +13710,8 @@ test('a missing page names the address and offers search', async ({ page }) => {
 
 test('the home hero says what we stop, names who we secure and shows proof before any scroll', async ({ page, isMobile }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1, name: 'Secure every identity. Stop every misuse.' })).toBeVisible();
-  await expect(page.getByText('learns how each one should behave', { exact: false }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Identity security for the AI era.' })).toBeVisible();
+  await expect(page.getByText('Learn how each one should behave', { exact: false }).first()).toBeVisible();
   if (!isMobile) await expect(page.getByRole('img', { name: 'Canara Bank' }).first()).toBeInViewport();
 });
 
@@ -13528,27 +13876,22 @@ test('home: the pinned picture follows the story as you scroll', async ({ page, 
   await expect(page.getByRole('link', { name: 'How adapID catches it' }).first()).toBeVisible();
 });
 
-test('home: the hero shows who has access to what, stops an attacker, can be paused, and is described for screen readers', async ({ page }) => {
+test('home: the hero is one sentence, a demo button, and the film beside it', async ({ page }) => {
   await page.goto('/');
-  const hero = page.locator('figure.hs');
-  await expect(hero).toHaveAttribute('aria-label', /three planes.*service accounts, cloud keys and AI agents.*checked.*stopped.*vanishes/);
-  // the picture is plain SVG, so the server render is already the picture
-  await expect(hero.locator('svg').first()).toBeVisible();
-  await expect(hero).toHaveAttribute('data-phase', /climb|stopped|still/, { timeout: 12000 });
-  // no product names in the hero
+  const hero = page.locator('section[aria-labelledby="hero-h"]');
+  await expect(hero.getByRole('link', { name: 'Book a demo' })).toHaveAttribute('href', '/request-demo');
+  // a muted preview loops in the card until it is played
+  await expect(hero.locator('#film video source[src="/video/film-teaser.mp4"]')).toHaveCount(1);
   await expect(page.locator('section[aria-labelledby="hero-h"]')).not.toContainText(/adapID|Zenstra|BotShield|ICMS/);
-  if ((await hero.getAttribute('data-phase')) !== 'still') {
-    await hero.getByRole('button', { name: 'Pause the animation' }).click();
-    await expect(hero.getByRole('button', { name: 'Play the animation' })).toBeVisible();
-  }
 });
 
-test('home: "Watch the film" in the hero scrolls to the film and starts it', async ({ page }) => {
+test('home: "See how it works" scrolls to the CIRM platform view, whose stages can be picked', async ({ page }) => {
   await page.goto('/');
   await hydrated(page);
-  await page.locator('section[aria-labelledby="hero-h"]').getByRole('link', { name: /Watch the film/ }).click();
-  await expect(page.locator('#film video')).toBeVisible();
-  await expect(page.locator('#film')).toBeInViewport();
+  await page.locator('section[aria-labelledby="hero-h"]').getByRole('button', { name: /See how it works/ }).click();
+  await expect(page.locator('#how')).toBeInViewport();
+  await page.locator('#how').getByRole('button', { name: 'Stage 6: Contain' }).click();
+  await expect(page.locator('#how .pl-title')).toHaveText('Contain');
 });
 
 test('every hero rolls the customer logos, with a pause control', async ({ page }) => {
@@ -13623,11 +13966,10 @@ test('fraud: three checks on one dial, each session with its own decision', asyn
   await expect(gate.locator('.card')).toHaveCount(0);
 });
 
-test('home goes from the numbers straight to the platform, with no empty logo moment', async ({ page }) => {
+test('home has no blogs section, and the platform is one scroll away', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#orbit')).toHaveCount(0);
-  await hydrated(page);
-  await page.getByRole('button', { name: /See the platform/ }).first().click();
+  await page.locator('#platform-h').scrollIntoViewIfNeeded();
   await expect(page.locator('#platform-h')).toBeInViewport({ timeout: 5000 });
   // the blogs section is gone from home; blogs stay one click away in the menu
   await expect(page.locator('#res-h')).toHaveCount(0);
@@ -13875,7 +14217,7 @@ import { watch } from './helpers.js';
 const bg = (loc) => loc.evaluate((el) => getComputedStyle(el).backgroundColor);
 const sheets = (page) => page.locator('.page > :not(.dark, .fixed)');
 
-test('one light theme: a light hero, light sheets, dark only for the film', async ({ page }) => {
+test('one light theme: a light hero and light sheets', async ({ page }) => {
   const errors = watch(page);
   await page.goto('/');
   await expect(page.locator('html')).not.toHaveAttribute('data-theme', 'dark');
@@ -13883,7 +14225,6 @@ test('one light theme: a light hero, light sheets, dark only for the film', asyn
   const hero = page.locator('.page > .band-brand').first();
   expect(await hero.evaluate((el) => getComputedStyle(el).color)).toBe('rgb(14, 17, 22)');
   expect(await bg(sheets(page).nth(1))).toMatch(/rgb\((2[3-5]\d), (2[3-5]\d), (2[3-5]\d)\)/);
-  await expect(page.locator('#film').locator('xpath=ancestor-or-self::section[contains(@class,"dark")]')).toHaveCount(1);
   expect(errors).toEqual([]);
 });
 
@@ -13895,11 +14236,11 @@ test('there is no theme switch, and an old saved dark choice is ignored', async 
   expect(await page.evaluate(() => localStorage.getItem('da-theme'))).toBeNull();
 });
 
-test('the header is light over the light hero and dark over the film', async ({ page }) => {
+test('the header stays light over the light hero and when scrolled', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' });
   await expect(page.locator('header')).toHaveClass(/tone-l/);
-  await page.evaluate(() => window.scrollTo(0, document.getElementById('film').getBoundingClientRect().top + window.scrollY + 200));
-  await expect(page.locator('header')).not.toHaveClass(/tone-l/);
+  await page.evaluate(() => window.scrollTo(0, document.getElementById('how').getBoundingClientRect().top + window.scrollY));
+  await expect(page.locator('header')).toHaveClass(/tone-l/);
 });
 
 test('product pictures are drawn light on a light sheet, the way identity vendors show them', async ({ page }) => {
