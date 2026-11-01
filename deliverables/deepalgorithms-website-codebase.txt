@@ -3578,7 +3578,7 @@ export function Hero({ acc = 'brand', crumbs, eyebrow, title, lead, ctas, explor
           <h1 className={cx('t-h1 rise mt-6', stack && 'mx-auto max-w-[20ch]')} style={{ '--d': '80ms' }}>{title}</h1>
           {lead && <p className={cx('t-lead rise mt-6', stack ? 'mx-auto max-w-[680px]' : 'max-w-[560px] max-md:mx-auto')} style={{ '--d': '160ms' }}>{lead}</p>}
           <div className={cx('rise mt-9 flex flex-wrap gap-3 max-md:flex-col max-md:[&>*]:w-full', stack && 'justify-center')} style={{ '--d': '240ms' }}>
-            {ctas || <><Explore label={explore} /><Button to="/contact" variant="ghost" size="lg">Talk to an engineer</Button></>}
+            {ctas || <><Explore label={explore} /><Button to="/product-tour" variant="ghost" size="lg">Take the product tour</Button></>}
           </div>
           {note && <p className={cx('rise mt-7 text-[14px] text-ink-3 max-md:text-center', stack && 'text-center')} style={{ '--d': '300ms' }}>{note}</p>}
         </div>
@@ -3629,7 +3629,7 @@ export function Stats({ items, acc = 'brand', title, story, proof, log }) {
             ))}
           </div>
         )}
-        {story && <p className="mt-4 text-[12.5px] text-ink-3">{log ? 'An example record. Names and numbers are illustrations.' : 'People shown are models. Names, places and access are illustrations.'}</p>}
+        {story && <p className="mt-4 text-[12.5px] text-ink-3">{log ? 'People shown are models. The record is an example; names and numbers are illustrations.' : 'People shown are models. Names, places and access are illustrations.'}</p>}
       </div>
     </section>
   );
@@ -4198,7 +4198,7 @@ export function StoryCard({ story: R, log }) {
   const alert = R.alert !== undefined && R.alert !== null && R.alert >= 0;
   const products = PRODUCT_MENU.filter((m) => (R.products || []).includes(m.key));
   return (
-    <div className={cx('rc-main grid overflow-hidden rounded-[22px]', log ? 'md:grid-cols-[.78fr_1.22fr]' : 'md:grid-cols-[1.05fr_.95fr]')}>
+    <div className={cx('rc-main grid overflow-hidden rounded-[22px]', log ? 'md:grid-cols-[.8fr_1.2fr]' : 'md:grid-cols-[1.05fr_.95fr]')}>
       <div className="flex flex-col p-7 md:p-9">
         {R.kicker && <p className="mb-4 text-[13px] font-semibold uppercase tracking-[.1em] text-[var(--rc-ink2)]">{R.kicker}</p>}
         <h3 className="text-[clamp(22px,2vw,27px)] font-semibold leading-tight tracking-[-0.02em] text-[var(--rc-ink)]">{R.h}</h3>
@@ -4217,8 +4217,13 @@ export function StoryCard({ story: R, log }) {
         {R.to && <Link to={R.to} className="rc-link mt-auto pt-7">{R.cta}<Icon name="ArrowRight" size={14} weight="bold" /></Link>}
       </div>
       {/* the identity as the product sees it: a profile record, not a poster */}
-      <div className="rc-side relative flex items-center justify-center p-5 md:p-8">
-        {log ? <DecisionLog log={log} /> : <div aria-hidden="true" className="rc-rec w-full max-w-[380px] overflow-hidden rounded-[18px] bg-white">
+      <div className={cx('rc-side relative flex items-center justify-center p-5 md:p-8', log && 'rc-photo min-h-[520px] items-end md:justify-end max-md:pt-56')}>
+        {log && <>
+          {/* the person behind the record, as enterprise sites show it: a real working moment, the product's view laid over it */}
+          <img src={R.photo} alt="" className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: R.pos || '50% 30%' }} loading="lazy" decoding="async" />
+          <span aria-hidden="true" className="absolute inset-0 bg-gradient-to-l from-[#06213f]/45 via-transparent to-transparent" />
+        </>}
+        {log ? <div className="relative w-full max-w-[330px] md:origin-bottom-right md:scale-[.92] md:-mb-2 md:-mr-2"><DecisionLog log={log} /></div> : <div aria-hidden="true" className="rc-rec w-full max-w-[380px] overflow-hidden rounded-[18px] bg-white">
           <div className="relative h-[150px] md:h-[170px]">
             <img src={R.photo} alt="" className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: R.pos || '50% 30%' }} loading="lazy" decoding="async" />
             <span className={cx('absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold shadow-sm', alert ? 'bg-[#fdecec] text-[#c4352a]' : 'bg-[#e8f6ef] text-[#0c7546]')}>
@@ -4470,7 +4475,7 @@ export function CtaBand({ title = 'Find your riskiest identity before attackers 
             <p className="t-lead mx-auto mt-6 max-w-[600px] text-white/80">{body}</p>
             <div className="mt-10 flex flex-wrap justify-center gap-3">
               <Button to={primary.to} size="lg" arrow className="cta-primary">{primary.label}</Button>
-              <Button to="/contact" variant="ghost" size="lg" className="cta-ghost">Talk to us</Button>
+              <Button to="/product-tour" variant="ghost" size="lg" className="cta-ghost">Take the product tour</Button>
             </div>
             {related?.length > 0 && (
               <nav aria-label={relatedTitle} className="mx-auto mt-12 max-w-[980px] border-t border-white/15 pt-8">
@@ -11759,13 +11764,13 @@ export default function Article() {
 
 ===== website/src/pages/Blog.jsx =====
 import { useMemo } from 'react';
-import { useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { Seo } from '../lib/head.jsx';
 import { SITE } from '../data/site.js';
-import { POSTS } from '../data/posts.js';
+import { POSTS, formatDate } from '../data/posts.js';
 import { Icon, Breadcrumb, cx } from '../components/ui.jsx';
 import { PostCard, CtaBand } from '../components/blocks.jsx';
-import { TOPIC } from '../components/Cover.jsx';
+import Cover, { TOPIC } from '../components/Cover.jsx';
 import { topicSlug } from '../components/Header.jsx';
 
 const TOPICS = [...new Set(POSTS.map((p) => p.category))];
@@ -11777,11 +11782,14 @@ export default function Blog() {
   const topic = params.get('topic') || '';
   const product = params.get('product') || '';
   const q = params.get('q') || '';
+  const sort = params.get('sort') || 'new';
   const set = (k, v) => { const n = new URLSearchParams(params); if (v) n.set(k, v); else n.delete(k); setParams(n, { replace: true, preventScrollReset: true }); };
 
   const list = useMemo(() => POSTS.filter((p) => (!topic || topicSlug(p.category) === topic)
     && (!product || p.product.name.startsWith(product))
-    && (!q || `${p.title} ${p.excerpt} ${p.category}`.toLowerCase().includes(q.toLowerCase()))), [topic, product, q]);
+    && (!q || `${p.title} ${p.excerpt} ${p.category}`.toLowerCase().includes(q.toLowerCase())))
+    .sort((a, b) => (sort === 'short' ? a.read - b.read : sort === 'old' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date))), [topic, product, q, sort]);
+  const feat = POSTS[0];
   const filtering = topic || product || q;
 
   return (
@@ -11791,18 +11799,11 @@ export default function Blog() {
       <section className="stage band-brand hero-under relative overflow-hidden">
         <div className="wrap relative pb-14 pt-12 md:pt-16">
           <Breadcrumb items={[{ name: 'Blogs' }]} className="rise" />
-          <div className="mt-10 grid items-end gap-10 lg:grid-cols-[1.3fr_1fr]">
+          <div className="mt-10 max-w-[760px]">
             <div>
               <p className="eyebrow rise">Deep Algorithms Blogs</p>
               <h1 className="t-h1 rise mt-6" style={{ '--d': '80ms' }}>How identities get attacked, and how to stop it.</h1>
               <p className="t-lead rise mt-6 max-w-[620px]" style={{ '--d': '160ms' }}>Field notes and analysis on identity attacks, AI agents, financial crime, bots and the regulation that shapes them. {POSTS.length} posts across {TOPICS.length} topics.</p>
-            </div>
-            <div className="rise" style={{ '--d': '240ms' }}>
-              <label htmlFor="rs" className="mb-2 block text-[14px] text-ink-3">Search the blogs</label>
-              <div className="flex h-14 items-center gap-3 rounded-full border border-line-2 bg-white px-5 shadow-[0_14px_34px_-22px_rgb(10_94_163/.5)] focus-within:border-[#1e88d8]">
-                <Icon name="MagnifyingGlass" size={20} className="text-ink-3" />
-                <input id="rs" type="search" value={q} onChange={(e) => set('q', e.target.value)} placeholder="Mule accounts, MCP, DDoS…" className="h-full w-full bg-transparent text-[16px] text-ink outline-none placeholder:text-ink-3" />
-              </div>
             </div>
           </div>
         </div>
@@ -11810,56 +11811,66 @@ export default function Blog() {
 
       <section className="sec pt-12 md:pt-14" aria-labelledby="all-h">
         <div className="wrap">
-          <div className="flex flex-col gap-5 border-b border-line pb-6">
-            <div className="flex flex-wrap items-baseline justify-between gap-3">
-              <h2 id="all-h" className="text-[24px] font-semibold tracking-[-0.02em]">{filtering ? `${list.length} ${list.length === 1 ? 'result' : 'results'}` : 'All blogs'}</h2>
-              {filtering && <button type="button" onClick={() => setParams(new URLSearchParams(), { replace: true, preventScrollReset: true })} className="text-[14px] text-cyan-2 hover:text-fg">Clear filters</button>}
-            </div>
-            <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter by topic">
-              <span className="mr-1 text-[13px] text-ink-3">Topic</span>
-              {[['', 'All'], ...TOPICS.map((t) => [topicSlug(t), t])].map(([v, label]) => (
-                <button key={label} type="button" aria-pressed={topic === v} onClick={() => set('topic', v)}
-                  className={cx('h-9 rounded-full border px-3.5 text-[14px] transition-colors', topic === v ? 'border-transparent bg-fg font-medium text-bg' : 'border-line-2 text-ink-2 hover:text-ink')}>
-                  {label}{v && <span className="ml-1.5 text-[12px] opacity-60 num">{POSTS.filter((p) => p.category === label).length}</span>}
-                </button>
-              ))}
-            </div>
-            <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter by product">
-              <span className="mr-1 text-[13px] text-ink-3">Product</span>
-              {['', ...PRODUCTS].map((v) => (
-                <button key={v || 'all'} type="button" aria-pressed={product === v} onClick={() => set('product', v)}
-                  className={cx('h-9 rounded-full border px-3.5 text-[14px] transition-colors', product === v ? 'border-transparent bg-fg font-medium text-bg' : 'border-line-2 text-ink-2 hover:text-ink')}>{v || 'All'}</button>
-              ))}
-            </div>
-          </div>
-          <p className="sr-only" aria-live="polite">{list.length} articles shown</p>
-          {list.length ? (
-            <div className="mt-12 grid gap-x-8 gap-y-14 md:grid-cols-2 lg:grid-cols-3">
-              {list.map((p) => <div key={p.slug} className="fadein"><PostCard post={p} /></div>)}
-            </div>
-          ) : (
-            <div className="mt-16 rounded-[22px] border border-dashed border-line-2 p-12 text-center">
-              <p className="text-[20px] font-semibold">Nothing matches that yet.</p>
-              <p className="mt-2 text-ink-2">Try another word, or clear the filters to see all {POSTS.length} reports.</p>
-            </div>
+          {/* featured: the newest post, large, until the reader filters */}
+          {!filtering && sort === "new" && feat && (
+            <Link to={`/blogs/${feat.slug}`} className="card card-hover group mb-14 grid overflow-hidden md:grid-cols-[1.15fr_1fr]">
+              <Cover post={feat} className="aspect-[16/10] md:aspect-auto md:min-h-[320px]" />
+              <span className="flex flex-col justify-center p-7 md:p-10">
+                <span className="text-[12.5px] font-semibold uppercase tracking-[.1em]" style={{ color: hueOf(feat.category) }}>Featured · {feat.category}</span>
+                <span className="mt-3 text-[clamp(24px,2.4vw,32px)] font-semibold leading-tight tracking-[-0.025em]">{feat.title}</span>
+                <span className="mt-4 text-[16px] leading-relaxed text-ink-2">{feat.excerpt}</span>
+                <span className="mt-6 text-[13.5px] text-ink-3">{formatDate(feat)} · {feat.read} min read</span>
+                <span className="link mt-5">Read the blog<Icon name="ArrowRight" size={14} weight="bold" /></span>
+              </span>
+            </Link>
           )}
-        </div>
-      </section>
-
-      <section className="sec-tight" aria-labelledby="topics-h">
-        <div className="wrap">
-          <h2 id="topics-h" className="kicker mb-6">Browse by topic</h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {TOPICS.map((t) => (
-              <button key={t} type="button" onClick={() => { set('topic', topicSlug(t)); document.getElementById('all-h')?.scrollIntoView({ behavior: 'smooth' }); }} className="card card-hover flex items-center justify-between p-5 text-left">
-                <span><span className="block text-[16px] font-semibold" style={{ color: hueOf(t) }}>{t}</span><span className="mt-1 block text-[13.5px] text-ink-3">{POSTS.filter((p) => p.category === t).length} {POSTS.filter((p) => p.category === t).length === 1 ? 'report' : 'reports'}</span></span>
-                <Icon name="ArrowRight" size={16} className="text-ink-3" />
-              </button>
-            ))}
-            <a href={SITE.linkedin} target="_blank" rel="noreferrer" className="card card-hover flex items-center justify-between p-5">
-              <span><span className="block text-[16px] font-semibold">New blogs first</span><span className="mt-1 block text-[13.5px] text-ink-3">Follow us on LinkedIn</span></span>
-              <Icon name="LinkedinLogo" size={20} className="text-ink-3" />
-            </a>
+          <div className="grid gap-10 lg:grid-cols-[250px_1fr] lg:gap-12">
+            {/* filters: a sidebar on desktop, chip rows on phones */}
+            <aside className="lg:sticky lg:top-28 lg:self-start" aria-label="Filter blogs">
+              <label htmlFor="rs" className="mb-2 block text-[13px] font-medium text-ink-3">Search the blogs</label>
+              <div className="flex h-11 items-center gap-2.5 rounded-[12px] border border-line-2 bg-white px-3.5 focus-within:border-[#1e88d8] focus-within:shadow-[0_0_0_3px_rgb(30_136_216/.15)]">
+                <Icon name="MagnifyingGlass" size={17} className="text-ink-3" />
+                <input id="rs" type="search" value={q} onChange={(e) => set('q', e.target.value)} placeholder="Mule accounts, MCP, DDoS…" className="h-full w-full bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-3" />
+              </div>
+              {[['Topic', 'topic', [['', 'All topics', POSTS.length], ...TOPICS.map((t) => [topicSlug(t), t, POSTS.filter((p) => p.category === t).length])], topic],
+                ['Product', 'product', [['', 'All products', POSTS.length], ...PRODUCTS.map((v) => [v, v, POSTS.filter((p) => p.product.name.startsWith(v)).length])], product]].map(([title, key, opts, cur]) => (
+                <fieldset key={key} className="mt-7">
+                  <legend className="mb-2 text-[12px] font-semibold uppercase tracking-[.1em] text-ink-3">{title}</legend>
+                  <div className="flex flex-wrap gap-2 lg:flex-col lg:gap-0.5" role="group" aria-label={`Filter by ${key}`}>
+                    {opts.map(([v, label, n]) => (
+                      <button key={label} type="button" aria-pressed={cur === v} onClick={() => set(key, v)}
+                        className={cx('flex items-center justify-between gap-3 rounded-full border px-3.5 py-1.5 text-left text-[14px] transition-colors lg:rounded-[10px] lg:border-transparent lg:px-3 lg:py-2',
+                          cur === v ? 'border-transparent bg-[#0a6dbb] font-medium text-white lg:bg-[#e8f1fb] lg:text-[#0a5ea3]' : 'border-line-2 text-ink-2 hover:bg-[#f2f6fb] hover:text-ink')}>
+                        <span className="flex items-center gap-2.5"><span aria-hidden="true" className={cx('hidden h-4 w-4 shrink-0 place-items-center rounded-[5px] border lg:grid', cur === v ? 'border-[#0a6dbb] bg-[#0a6dbb] text-white' : 'border-line-2 bg-white')}>{cur === v && <Icon name="Check" size={11} weight="bold" />}</span>{label}</span>
+                        <span className="text-[12px] opacity-60 num">{n}</span>
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+              ))}
+              {filtering && <button type="button" onClick={() => setParams(new URLSearchParams(), { replace: true, preventScrollReset: true })} className="mt-6 text-[14px] font-medium text-[#0a6dbb] hover:text-ink">Clear filters</button>}
+            </aside>
+            <div>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
+                <h2 id="all-h" className="text-[22px] font-semibold tracking-[-0.02em]">{filtering ? `${list.length} ${list.length === 1 ? 'result' : 'results'}` : 'All blogs'}</h2>
+                <label className="flex items-center gap-2 text-[13.5px] text-ink-3">Sort by
+                  <select value={sort} onChange={(e) => set('sort', e.target.value === 'new' ? '' : e.target.value)} className="h-10 rounded-[10px] border border-line-2 bg-white px-3 text-[14px] text-ink">
+                    <option value="new">Most recent</option><option value="old">Oldest first</option><option value="short">Quickest read</option>
+                  </select>
+                </label>
+              </div>
+              <p className="mt-3 text-[13px] text-ink-3" aria-live="polite">Showing {list.length} of {POSTS.length} blogs</p>
+              {list.length ? (
+                <div className="mt-8 grid gap-x-7 gap-y-12 md:grid-cols-2">
+                  {(filtering || sort !== "new" ? list : list.filter((p) => p !== feat)).map((p) => <div key={p.slug} className="fadein"><PostCard post={p} /></div>)}
+                </div>
+              ) : (
+                <div className="mt-10 rounded-[22px] border border-dashed border-line-2 p-12 text-center">
+                  <p className="text-[20px] font-semibold">Nothing matches that yet.</p>
+                  <p className="mt-2 text-ink-2">Try another word, or clear the filters to see all {POSTS.length} blogs.</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </section>
@@ -12529,7 +12540,7 @@ export default function Products() {
         </div>
       </section>
 
-      <CtaBand title="Not sure which fits? Ask an engineer." body="Tell us which identities worry you most and we will show you the product that fits, on your own environment." primary={{ label: 'Talk to an engineer', to: '/request-demo' }} />
+      <CtaBand title="Not sure which fits? Book a demo." body="Tell us which identities worry you most and we will show you the product that fits, on your own environment." primary={{ label: 'Book a demo', to: '/request-demo' }} />
     </>
   );
 }
@@ -12848,7 +12859,6 @@ export default function Tour() {
                   <p className="t-lead mx-auto mt-4 max-w-[560px]">A 30-minute session with a Deep Algorithms engineer, on your environment where you want it, with your own questions.</p>
                   <div className="mt-8 flex flex-wrap justify-center gap-3">
                     <Button to="/request-demo" size="lg" arrow>Book a demo</Button>
-                    <Button to="/contact" variant="ghost" size="lg">Talk to an engineer</Button>
                   </div>
                   <button type="button" onClick={() => go(0)} className="mt-6 inline-flex items-center gap-2 text-[14.5px] text-white/70 hover:text-white"><Icon name="ArrowsClockwise" size={15} />Start the tour again</button>
                 </div>
@@ -13072,17 +13082,18 @@ function Years() {
 /* Leaders: a portrait, the role in one line and a short record. */
 function Leader({ p }) {
   return (
-    <div className="card card-hover group relative flex h-full flex-col overflow-hidden">
-      <div className="relative aspect-[1/1.05] overflow-hidden" style={{ background: 'radial-gradient(80% 70% at 50% 30%, #e3f0fc, #c9dff4 70%, #b7d2ee)' }}>
-        <img src={`/img/people/${p.img}.webp`} alt="" width="480" height="480" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]" loading="lazy" decoding="async" />
-        <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-[#0a3a6b]/10 to-transparent" />
+    <div className="card card-hover group relative flex h-full flex-col p-5">
+      <div className="flex items-center gap-4">
+        <span className="block h-[84px] w-[84px] shrink-0 overflow-hidden rounded-[18px] bg-[#e3eef9] shadow-[0_10px_24px_-14px_rgb(10_94_163/.6)]">
+          <img src={`/img/people/${p.img}.webp`} alt="" width="84" height="84" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" decoding="async" />
+        </span>
+        <span className="min-w-0 pr-8">
+          <span className="block text-[17px] font-semibold leading-tight tracking-[-0.015em]">{p.name}</span>
+          <span className="mt-1 block text-[13.5px] font-medium text-[#0a6dbb]">{p.role}</span>
+        </span>
       </div>
-      <div className="flex flex-1 flex-col p-6">
-        <span className="block pr-10 text-[19px] font-semibold leading-tight tracking-[-0.015em]">{p.name}</span>
-        <span className="mt-1 block text-[14px] font-medium text-[#0a6dbb]">{p.role}</span>
-        <p className="mt-4 flex-1 border-t border-line pt-4 text-[14px] leading-relaxed text-ink-2">{p.bio}</p>
-      </div>
-      <a href={p.linkedin} target="_blank" rel="noreferrer" className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-[#0a66c2] shadow-sm backdrop-blur transition-colors hover:bg-white" aria-label={`${p.name} on LinkedIn`}><Icon name="LinkedinLogo" size={18} /></a>
+      <p className="mt-4 flex-1 border-t border-line pt-4 text-[14px] leading-relaxed text-ink-2">{p.bio}</p>
+      <a href={p.linkedin} target="_blank" rel="noreferrer" className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-[#0a66c2]/10 hover:text-[#0a66c2]" aria-label={`${p.name} on LinkedIn`}><Icon name="LinkedinLogo" size={18} /></a>
     </div>
   );
 }
@@ -13283,7 +13294,7 @@ export default function Why() {
               </Reveal>
             ))}
           </div>
-          <p className="mt-8 text-[15px] text-ink-2">Evaluating a product? <Link to="/request-demo" className="link">Talk to an engineer<Icon name="ArrowRight" size={13} weight="bold" /></Link></p>
+          <p className="mt-8 text-[15px] text-ink-2">Evaluating a product? <Link to="/request-demo" className="link">Book a demo<Icon name="ArrowRight" size={13} weight="bold" /></Link></p>
         </div>
       </section>
 
