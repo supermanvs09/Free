@@ -214,7 +214,7 @@ Two stages: Node 22 installs, builds and prerenders every page; nginx then serve
 
 ## Motion graphics
 
-`src/lib/nullmotion.jsx` ports motion templates from [Null Motion](https://github.com/blixvip/NullMotion) (MIT) and drives them with [GSAP](https://gsap.com) (standard no-charge licence), as the templates do: the hero's kinetic word pill (22-kinetic-headline), every section title's word-by-word blur reveal (12-blur-reveal), the product icons rising as a 3D stack in the closing band (27-icon-stack-rise), HUD corners and a scan line over the film card (27-cinematic-hud-overlay), the incidents dropping in like a stack of toasts (06-notification) and the CIRM connectors popping in (17-integrations-grid). GSAP loads in the browser after first paint; nothing runs for reduced motion; the server render is the finished state. The product film uses the same choreography (toast stack, phone-notify card) with GSAP's eases.
+`src/lib/nullmotion.jsx` ports motion templates from [Null Motion](https://github.com/blixvip/NullMotion) (MIT) and drives them with [GSAP](https://gsap.com) (standard no-charge licence), as the templates do: the hero's kinetic word pill (22-kinetic-headline), every section title's word-by-word blur reveal (12-blur-reveal), the product icons rising as a 3D stack in the closing band (27-icon-stack-rise), HUD corners and a scan line over the film card (27-cinematic-hud-overlay), the incidents dropping in like a stack of toasts (06-notification) and the CIRM connectors popping in (17-integrations-grid). Each product page has its own move: AD Security's cursor clicks the fix and the paths to Tier 0 drop (18-cta-click), Zenstra's gateway hub and spokes (09-grid-network), BotShield's bot counter and Refused pill (16-line-growth, 01-cta-pill), ICMS's question typing itself (20-search-typing), NHI's genome rows popping in (17-integrations-grid) and the bank's notification on the Fraud phone (24-showreel-notify). GSAP loads in the browser after first paint; nothing runs for reduced motion; the server render is the finished state. The product film uses the same choreography (toast stack, phone-notify card) with GSAP's eases.
 
 ## Where things are
 
@@ -1907,6 +1907,48 @@ html.is-translated font { background: none !important; box-shadow: none !importa
 .nm-tag i { width: 7px; height: 7px; border-radius: 50%; background: #3fd98f; box-shadow: 0 0 8px #3fd98f; animation: nm-blink 1.6s ease-in-out infinite; }
 @keyframes nm-blink { 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { .nm-tag i { animation: none; } }
+
+/* per-product signature moves (lib/nullmotion.jsx) */
+.nm-fix, .nm-bots, .nm-search { border: 1px solid rgb(14 17 22 / .09); border-radius: 20px; background: #fff; padding: 22px 24px; box-shadow: 0 30px 70px -50px rgb(11 42 82 / .4); }
+.nm-fix { max-width: 760px; margin: 28px auto 0; }
+.nm-fixk, .nm-botk { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: #8a909b; }
+.nm-fixn b { font-size: 46px; font-weight: 600; letter-spacing: -.04em; color: #0e1116; font-variant-numeric: tabular-nums; }
+.nm-fixn span { margin-left: 8px; font-size: 15px; color: #8a909b; }
+.nm-fixchip { padding: 7px 14px; border-radius: 999px; background: #e8f6ef; color: #0c7546; font-size: 13.5px; font-weight: 600; }
+.nm-fixrow { position: relative; margin-top: 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border-radius: 14px; background: #fafbfd; border: 1px solid rgb(14 17 22 / .08); }
+.nm-fixrow b { display: block; font-size: 15px; color: #0e1116; } .nm-fixrow small { font-size: 12.5px; color: #626873; }
+.nm-fixbtn { position: relative; flex-shrink: 0; padding: 9px 18px; border-radius: 10px; background: #0a6dbb; color: #fff; font-size: 14px; font-weight: 600; overflow: visible; }
+.nm-rip { position: absolute; left: 50%; top: 50%; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; border: 2px solid #4fb3f6; opacity: 0; pointer-events: none; }
+.nm-cursor { position: absolute; right: 30px; top: 26px; filter: drop-shadow(0 2px 3px rgb(0 0 0 / .3)); }
+.nm-hubwrap { margin-top: 28px; max-width: 520px; }
+.nm-spoke { stroke: rgb(64 80 200 / .35); stroke-width: 1.4; stroke-dasharray: 1; }
+.nm-ring { fill: none; stroke: rgb(64 80 200 / .25); stroke-dasharray: 3 5; animation: nm-spin 18s linear infinite; transform-origin: 210px 150px; }
+@keyframes nm-spin { to { transform: rotate(360deg); } }
+.nm-pulse { fill: #4f7bff; filter: drop-shadow(0 0 4px #4f7bff); animation: aa-run 2.4s cubic-bezier(.45,0,.55,1) infinite; }
+.nm-hubt { font-size: 14px; font-weight: 700; fill: #fff; } .nm-hubs { font-size: 10.5px; fill: rgb(255 255 255 / .8); }
+.nm-hub { transform-box: fill-box; transform-origin: center; }
+.nm-node { transform-box: fill-box; transform-origin: center; }
+.nm-node rect { fill: #fff; stroke: rgb(64 80 200 / .3); } .nm-node text { font-size: 11.5px; font-weight: 600; fill: #1c2633; }
+.nm-bots { margin-top: 24px; }
+.nm-botn { margin-top: 4px; font-size: 48px; font-weight: 600; letter-spacing: -.04em; color: #c4352a; font-variant-numeric: tabular-nums; line-height: 1.05; }
+.nm-bar { margin-top: 10px; height: 8px; border-radius: 999px; background: #f1f4f8; overflow: hidden; }
+.nm-bar i { display: block; height: 100%; background: linear-gradient(90deg, #ffb347, #e5484d); transform-origin: 0 50%; }
+.nm-refused { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 999px; background: linear-gradient(135deg, #0f9a7c, #04705d); color: #fff; font-size: 14px; font-weight: 700; box-shadow: 0 10px 24px -12px rgb(4 112 93 / .7); transform-origin: 50% 80%; }
+.nm-human { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; color: #0c7546; font-weight: 600; } .nm-human i { width: 8px; height: 8px; border-radius: 50%; background: #1f9d63; }
+.nm-search { max-width: 820px; margin: 36px auto 0; }
+.nm-sbar { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; border: 1.5px solid #e0a63a; background: #fffaf0; color: #8a5600; font-size: 16px; }
+.nm-sbar span { flex: 1; color: #0e1116; font-weight: 500; }
+.nm-sbar kbd { padding: 4px 10px; border-radius: 8px; background: #8a5600; color: #fff; font: 600 12px var(--font-sans); }
+.nm-caret { display: inline-block; width: 2px; height: 1.1em; margin-left: 2px; vertical-align: -.15em; background: #8a5600; animation: nm-blink 1s steps(2) infinite; }
+.nm-ans { display: grid; grid-template-columns: 140px 1fr auto; gap: 12px; align-items: center; padding: 10px 14px; border-radius: 12px; background: #fafbfd; border: 1px solid rgb(14 17 22 / .07); font-size: 14px; }
+.nm-ans b { font-size: 13px; color: #1c2633; } .nm-ans small { font-size: 12.5px; color: #0c7546; font-weight: 600; }
+.nm-ans.crit { background: #fff5f5; border-color: #f3c4c2; } .nm-ans.crit small { color: #c4352a; }
+@media (max-width: 640px) { .nm-ans { grid-template-columns: 1fr; gap: 2px; } }
+.nm-notify { position: absolute; z-index: 5; left: 50%; top: 18px; width: min(360px, 86%); margin-left: max(-180px, -43%); display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 18px; background: rgb(255 255 255 / .96); box-shadow: 0 24px 48px -18px rgb(11 42 82 / .55); border: 1px solid rgb(14 17 22 / .06); }
+.nm-nico { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px; background: linear-gradient(135deg, #1e40af, #3b82f6); color: #fff; font-size: 12px; font-weight: 800; }
+.nm-notify b { display: block; font-size: 14px; color: #0e1116; } .nm-notify small { display: block; font-size: 12.5px; color: #626873; }
+.nm-notify em { margin-left: auto; font-style: normal; font-size: 11.5px; color: #8a909b; align-self: flex-start; }
+@media (prefers-reduced-motion: reduce) { .nm-ring, .nm-pulse, .nm-caret { animation: none; } .nm-pulse { display: none; } }
 
 
 ====================================================================================================
@@ -6620,6 +6662,7 @@ FILE: website/src/components/viz/fraud.jsx
 import { Viz, Win, Chip, Gl, cx } from './kit.jsx';
 import ProductMark from '../ProductMark.jsx';
 import { RhythmLines } from './journey.jsx';
+import { PhoneNotify } from '../../lib/nullmotion.jsx';
 
 /* Identity Fraud Prevention, for mobile and internet banking. The phone runs the
    bank's own app (light, as banking apps are); next to it is what the bank sees.
@@ -6919,6 +6962,7 @@ export function CapabilityPhone({ cap }) {
   const v = VERDICT[cap];
   return (
     <div className="mb-stage">
+      {v && <PhoneNotify key={`n-${cap}`} title={v[1].split(' · ')[0]} body={v[2]} />}
       <CapabilityPhoneInner cap={cap} c={c} />
       {v && (
         <p key={cap} className={cx('mb-verdict', `t-${v[0]}`)}>
@@ -11396,6 +11440,135 @@ export function Hud({ label = 'Live', children, className }) {
   );
 }
 
+/* ── per-product signature moves ─────────────────────────────────────────── */
+
+/* 18-cta-click (AD Security): a cursor clicks the fix, and the paths to Tier 0 drop */
+export function FixClick() {
+  const ref = useRef(null);
+  const [n, setN] = useState(16);
+  useOnView(ref, (gsap, el) => {
+    const cur = el.querySelector('.nm-cursor'), btn = el.querySelector('.nm-fixbtn'), chip = el.querySelector('.nm-fixchip'), rip = el.querySelector('.nm-rip');
+    const o = { v: 57 }; setN(57);
+    gsap.set(cur, { x: 220, y: 120, opacity: 0 }); gsap.set(chip, { opacity: 0, scale: .8 });
+    return gsap.timeline({ delay: .3 })
+      .to(cur, { opacity: 1, duration: .2 })
+      .to(cur, { x: 0, y: 0, duration: .9, ease: 'power3.inOut' })
+      .to(btn, { scale: .95, duration: .1, ease: 'power2.out' })
+      .fromTo(rip, { scale: .2, opacity: .7 }, { scale: 2.4, opacity: 0, duration: .6, ease: 'power2.out' }, '<')
+      .to(btn, { scale: 1, duration: .3, ease: 'back.out(2)' })
+      .to(o, { v: 16, duration: 1.2, ease: 'power3.out', onUpdate: () => setN(Math.round(o.v)) }, '-=.1')
+      .to(chip, { opacity: 1, scale: 1, duration: .5, ease: 'back.out(1.7)' }, '-=.6')
+      .to(cur, { x: 60, y: 40, opacity: 0, duration: .6, ease: 'power2.in' }, '-=.3');
+  }, { threshold: .4 });
+  return (
+    <div ref={ref} className="nm-fix" aria-label="Illustration: removing GenericAll on Server Admins closes 41 of the 57 paths to Tier 0, leaving 16.">
+      <div aria-hidden="true">
+        <div className="flex items-end justify-between gap-6">
+          <div><p className="nm-fixk">Paths to Tier 0</p><p className="nm-fixn"><b>{n}</b><span>of 57</span></p></div>
+          <span className="nm-fixchip">✓ 41 paths closed by one change</span>
+        </div>
+        <div className="nm-fixrow">
+          <span><b>GenericAll on Server Admins</b><small>Shared by 41 of 57 paths · fix with the highest reach</small></span>
+          <span className="nm-fixbtn">Remove<span className="nm-rip" /></span>
+          <svg className="nm-cursor" viewBox="0 0 22 24" width="22" height="24"><path d="M2 2 L20 9.5 L11.5 12 L8 21 Z" fill="#fff" stroke="#12171f" strokeWidth="1.4" strokeLinejoin="round" /></svg>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* 09-grid-network (Zenstra): the gateway at the centre, every kind of agent around it */
+const SPOKES = [['Copilots', 0], ['Claude agents', 60], ['n8n flows', 120], ['MCP servers', 180], ['Cursor', 240], ['Custom agents', 300]];
+export function HubSpokes() {
+  const ref = useRef(null);
+  useOnView(ref, (gsap, el) => gsap.timeline()
+    .from(el.querySelector('.nm-hub'), { scale: .5, opacity: 0, duration: .7, ease: 'back.out(1.6)' })
+    .from(el.querySelectorAll('.nm-spoke'), { strokeDashoffset: 1, duration: .6, ease: 'power3.out', stagger: .07 }, '-=.3')
+    .from(el.querySelectorAll('.nm-node'), { opacity: 0, scale: .6, duration: .5, ease: 'back.out(1.7)', stagger: .07 }, '-=.5'), { threshold: .35 });
+  return (
+    <div ref={ref} className="nm-hubwrap" aria-label="Illustration: the Zenstra gateway at the centre, connected to copilots, Claude agents, n8n flows, MCP servers, Cursor and custom agents.">
+      <svg viewBox="0 0 420 300" aria-hidden="true" className="block h-auto w-full">
+        <defs><radialGradient id="nm-hubg"><stop offset="0" stopColor="#4f7bff" /><stop offset="1" stopColor="#2a3fc4" /></radialGradient></defs>
+        {SPOKES.map(([n, d]) => { const a = (d * Math.PI) / 180, x = 210 + Math.cos(a) * 150, y = 150 + Math.sin(a) * 105; return <line key={n} x1="210" y1="150" x2={x} y2={y} className="nm-spoke" pathLength="1" />; })}
+        {SPOKES.map(([n, d], i) => { const a = (d * Math.PI) / 180, x = 210 + Math.cos(a) * 150, y = 150 + Math.sin(a) * 105; return <circle key={`p${n}`} r="3" className="nm-pulse" style={{ offsetPath: `path('M210 150 L${x} ${y}')`, animationDelay: `${i * .4}s` }} />; })}
+        <circle cx="210" cy="150" r="58" className="nm-ring" />
+        <g className="nm-hub"><circle cx="210" cy="150" r="40" fill="url(#nm-hubg)" /><text x="210" y="146" textAnchor="middle" className="nm-hubt">Zenstra</text><text x="210" y="162" textAnchor="middle" className="nm-hubs">gateway</text></g>
+        {SPOKES.map(([n, d]) => { const a = (d * Math.PI) / 180, x = 210 + Math.cos(a) * 150, y = 150 + Math.sin(a) * 105; return <g key={`n${n}`} className="nm-node"><rect x={x - 52} y={y - 14} width="104" height="28" rx="14" /><text x={x} y={y + 4} textAnchor="middle">{n}</text></g>; })}
+      </svg>
+    </div>
+  );
+}
+
+/* 16-line-growth + 01-cta-pill (BotShield): the bot count climbs, then refused */
+export function BotCounter() {
+  const ref = useRef(null);
+  const [n, setN] = useState(18204), [h, setH] = useState(1240);
+  useOnView(ref, (gsap, el) => {
+    const o = { v: 0, h: 0 }; setN(0); setH(0);
+    gsap.set(el.querySelector('.nm-refused'), { opacity: 0, scaleX: .9, scaleY: 1.1, y: 10 });
+    return gsap.timeline({ delay: .2 })
+      .to(o, { v: 18204, h: 1240, duration: 2.2, ease: 'power2.inOut', onUpdate: () => { setN(Math.round(o.v)); setH(Math.round(o.h)); } })
+      .fromTo(el.querySelector('.nm-bar i'), { scaleX: 0 }, { scaleX: 1, duration: 2.2, ease: 'power2.inOut' }, 0)
+      .to(el.querySelector('.nm-refused'), { opacity: 1, scaleX: 1.06, scaleY: .96, y: -2, duration: .4, ease: 'power3.out' }, '-=.3')
+      .to(el.querySelector('.nm-refused'), { scaleX: 1, scaleY: 1, y: 0, duration: .3, ease: 'back.out(1.6)' });
+  }, { threshold: .4 });
+  return (
+    <div ref={ref} className="nm-bots" aria-label="Illustration: 18,204 bot logins in sixty seconds, refused at the edge, while 1,240 real customers sign in as usual.">
+      <div aria-hidden="true">
+        <p className="nm-botk">Login attempts · last 60 s</p>
+        <p className="nm-botn">{n.toLocaleString('en-IN')}</p>
+        <div className="nm-bar"><i /></div>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <span className="nm-refused">⛉ Refused at the edge</span>
+          <span className="nm-human"><i />{h.toLocaleString('en-IN')} real customers signed in</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* 20-search-typing (ICMS): the question types itself, the answers stack in */
+const Q = 'who opened patient records last night?';
+const ANSWERS = [['reports-svc', 'Read 4,210 records', 'Purpose: monthly report', 'ok'], ['dr.kapoor', 'Opened 3 records', 'Purpose: treatment', 'ok'], ['m.sharma', 'Exported 18,400 phone numbers', 'No consent for marketing · held', 'crit']];
+export function SearchType() {
+  const ref = useRef(null);
+  const [q, setQ] = useState(Q);
+  useOnView(ref, (gsap, el) => {
+    const o = { i: 0 }; setQ('');
+    gsap.set(el.querySelectorAll('.nm-ans'), { opacity: 0, y: -14 });
+    return gsap.timeline({ delay: .2 })
+      .to(o, { i: Q.length, duration: 1.6, ease: 'none', onUpdate: () => setQ(Q.slice(0, Math.round(o.i))) })
+      .to(el.querySelectorAll('.nm-ans'), { opacity: 1, y: 0, duration: .55, ease: 'back.out(1.4)', stagger: .18 }, '+=.25');
+  }, { threshold: .35 });
+  return (
+    <div ref={ref} className="nm-search" aria-label="Illustration: asking who opened patient records last night returns three accesses with their purposes; one export without consent is held.">
+      <div aria-hidden="true">
+        <div className="nm-sbar"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg><span>{q}<i className="nm-caret" /></span><kbd>Ask ICMS</kbd></div>
+        <ul className="mt-3 grid gap-2">
+          {ANSWERS.map(([who, what, why, tone]) => (
+            <li key={who} className={cx('nm-ans', tone === 'crit' && 'crit')}><b className="font-mono">{who}</b><span>{what}</span><small>{why}</small></li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+/* 24-showreel-notify (Fraud): the bank's notification drops onto the phone stage */
+export function PhoneNotify({ title = 'Payment held', body = 'Your bank will call you in a moment.', time = 'now' }) {
+  const ref = useRef(null);
+  useOnView(ref, (gsap, el) => gsap.timeline({ repeat: -1, repeatDelay: 2.6, delay: .6 })
+    .fromTo(el, { y: -60, opacity: 0, scale: .95 }, { y: 0, opacity: 1, scale: 1, duration: .7, ease: 'back.out(1.4)' })
+    .to(el, { y: -40, opacity: 0, duration: .4, ease: 'power3.in' }, '+=3'), { threshold: .3 });
+  return (
+    <div ref={ref} className="nm-notify" aria-hidden="true">
+      <span className="nm-nico">YB</span>
+      <span className="min-w-0"><b>{title}</b><small>{body}</small></span>
+      <em>{time}</em>
+    </div>
+  );
+}
+
 
 ====================================================================================================
 FILE: website/src/lib/translate.js
@@ -13213,6 +13386,7 @@ export default function Why() {
 ====================================================================================================
 FILE: website/src/pages/products/AdSecurity.jsx
 ====================================================================================================
+import { FixClick } from '../../lib/nullmotion.jsx';
 import { ItdrFlow } from '../../components/viz/refs.jsx';
 import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
@@ -13296,6 +13470,7 @@ export default function AdSecurity() {
               <ul className="mt-6 space-y-3"><Check3 acc="var(--color-ok)">Passwords rotated, sessions revoked</Check3><Check3 acc="var(--color-ok)">Hosts isolated when a domain controller is targeted</Check3><Check3 acc="var(--color-ok)">Every action logged with its evidence</Check3></ul>
             </Reveal>
           </div>
+          <FixClick />
         </div>
       </section>
 
@@ -13320,6 +13495,7 @@ export default function AdSecurity() {
 ====================================================================================================
 FILE: website/src/pages/products/BotShield.jsx
 ====================================================================================================
+import { BotCounter } from '../../lib/nullmotion.jsx';
 import { Link } from 'react-router';
 import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
@@ -13389,6 +13565,7 @@ export default function BotShield() {
             <ul className="mt-8 grid gap-3 sm:grid-cols-2">
               {BOTS.map(([h, t]) => <li key={h} className="card p-5"><p className="text-[16px] font-semibold">{h}</p><p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">{t}</p></li>)}
             </ul>
+            <BotCounter />
           </Reveal>
           <Reveal delay={120}><div className="scn-frame"><BotStream /></div></Reveal>
         </div>
@@ -14075,6 +14252,7 @@ export default function Fraud() {
 ====================================================================================================
 FILE: website/src/pages/products/Icms.jsx
 ====================================================================================================
+import { SearchType } from '../../lib/nullmotion.jsx';
 import { useState } from 'react';
 import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
@@ -14171,6 +14349,7 @@ export default function Icms() {
       <section id="evidence" className="sec scroll-mt-20" aria-labelledby="ev-h">
         <div className="wrap">
           <SectionHead id="ev-h" acc={A} eyebrow="Audit evidence" title="Audit packages in one click, not one quarter." lead="Evidence assembled continuously and mapped to DPDPA, RBI and SEBI obligations." />
+          <SearchType />
           <div className="m-rail mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[['ClipboardText', 'Records of processing', 'Purposes, categories and the systems that process them'], ['ListChecks', 'Consent ledger', 'Every consent, withdrawal and change, per principal'], ['Fingerprint', 'Identity-linked access', 'Who read what, when, and under which purpose'], ['Siren', 'Breach readiness', 'Runbooks, contacts and the 72-hour timeline']].map(([ic, h, t], i) => (
               <Reveal key={h} delay={i * 70} className="card p-6">
@@ -14196,6 +14375,7 @@ export default function Icms() {
 ====================================================================================================
 FILE: website/src/pages/products/Nhi.jsx
 ====================================================================================================
+import { useGridPop } from '../../lib/nullmotion.jsx';
 import { KeyLineage } from '../../components/viz/refs.jsx';
 import { useRef } from 'react';
 import { useInView, useReducedMotion } from '../../lib/motion.js';
@@ -14343,6 +14523,8 @@ const FAQ = [
 ];
 
 export default function Nhi() {
+  const genRef = useRef(null);
+  useGridPop(genRef, 'tbody tr');
   return (
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'NHI Security for AWS', path: p.path }]} />
@@ -14407,7 +14589,7 @@ export default function Nhi() {
             <h2 id="gen-h" className="t-h2 mt-6">Every workload has a normal. We notice when it changes.</h2>
             <p className="t-lead mt-5">Each workload identity learns its normal calls, resources and schedule. Departures are graded, explained and sent for review.</p>
           </Reveal>
-          <Reveal delay={100}><Table caption="Workload identities and their departures from baseline" cols={['Identity', 'Departure from baseline', 'Baseline', 'Verdict']} rows={GENOME} /></Reveal>
+          <Reveal delay={100}><div ref={genRef}><Table caption="Workload identities and their departures from baseline" cols={['Identity', 'Departure from baseline', 'Baseline', 'Verdict']} rows={GENOME} /></div></Reveal>
         </div>
       </section>
 
@@ -14436,6 +14618,7 @@ export default function Nhi() {
 ====================================================================================================
 FILE: website/src/pages/products/Zenstra.jsx
 ====================================================================================================
+import { HubSpokes } from '../../lib/nullmotion.jsx';
 import { AgentConsole, AgentAccess } from '../../components/viz/refs.jsx';
 import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
@@ -14559,6 +14742,7 @@ export default function Zenstra() {
             <p className="eyebrow" style={{ '--acc': 'var(--color-zen)' }}>Deployment</p>
             <h2 id="dep-h" className="t-h2 mt-6">Deploys the way your stack already works.</h2>
             <p className="t-lead mt-5">No agent rewrite. Prompts and payloads are evaluated inside your environment; only decisions and redacted evidence reach the Zenstra control plane.</p>
+            <HubSpokes />
           </Reveal>
           <Deployment />
         </div>
