@@ -98,6 +98,7 @@ FILES
   website/src/dev/film/entry.jsx
   website/src/lib/head.jsx
   website/src/lib/motion.js
+  website/src/lib/nullmotion.jsx
   website/src/lib/translate.js
   website/src/pages/Article.jsx
   website/src/pages/Blog.jsx
@@ -136,6 +137,7 @@ FILES
   website/tools/film/footage.py
   website/tools/film/mix.py
   website/tools/film/mix2.py
+  website/tools/film/mix3.py
   website/tools/film/render.mjs
   website/tools/film/script.json
   website/tools/film/timings.json
@@ -209,6 +211,10 @@ docker build -t deepalgorithms-website . && docker run -p 8080:8080 deepalgorith
 Two stages: Node 22 installs, builds and prerenders every page; nginx then serves the static files as a non-root user (port 8080, `/healthz` for health checks). `docker-compose.yml` also runs it read-only, with every Linux capability dropped. Put TLS in front (a load balancer, Cloudflare or a reverse proxy).
 
 `nginx/default.conf` serves clean URLs (`/about-us`), sends `/about-us/` to `/about-us`, answers unknown paths with `404.html` and a real 404, caches fingerprinted assets for a year and pages not at all, gzips text and supports byte ranges for the film. `nginx/security-headers.conf` adds HSTS, `nosniff`, frame denial, a referrer and permissions policy, and a Content-Security-Policy that `scripts/csp.mjs` writes from the built pages: inline scripts run only by hash, forms post only to `SITE.formEndpoint`, and the only outside scripts allowed are Google's page translator, loaded when a visitor picks a language. The e2e suite passes against the container: `BASE_URL=http://127.0.0.1:8080 npm run test:e2e`.
+
+## Motion graphics
+
+`src/lib/nullmotion.jsx` ports motion templates from [Null Motion](https://github.com/blixvip/NullMotion) (MIT) and drives them with [GSAP](https://gsap.com) (standard no-charge licence), as the templates do: the hero's kinetic word pill (22-kinetic-headline), every section title's word-by-word blur reveal (12-blur-reveal), the product icons rising as a 3D stack in the closing band (27-icon-stack-rise), HUD corners and a scan line over the film card (27-cinematic-hud-overlay), the incidents dropping in like a stack of toasts (06-notification) and the CIRM connectors popping in (17-integrations-grid). GSAP loads in the browser after first paint; nothing runs for reduced motion; the server render is the finished state. The product film uses the same choreography (toast stack, phone-notify card) with GSAP's eases.
 
 ## Where things are
 
@@ -324,6 +330,7 @@ FILE: website/package.json
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@phosphor-icons/react": "^2.1.10",
+    "gsap": "^3.14.2",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router": "^8.5.0",
@@ -522,88 +529,91 @@ FILE: website/public/video/deep-algorithms-film.vtt
 ====================================================================================================
 WEBVTT
 
-00:00:02.800 --> 00:00:03.705
-February 2024.
+00:00:01.200 --> 00:00:04.806
+Most access in your company no longer belongs to a person.
 
-00:00:03.705 --> 00:00:08.628
-Attackers signed in to Change Healthcare with one stolen password.
+00:00:05.006 --> 00:00:08.610
+Service accounts, cloud keys and AI agents hold it now.
 
-00:00:08.728 --> 00:00:12.726
-No MFA. Nine days later, ransomware.
+00:00:08.610 --> 00:00:10.452
+And attackers have noticed.
 
-00:00:12.726 --> 00:00:15.791
-190 million people affected.
+00:00:10.952 --> 00:00:13.961
+One stolen password, typed into a remote-access portal.
 
-00:00:16.291 --> 00:00:19.523
-MGM Resorts: one phone call to the help desk.
+00:00:13.961 --> 00:00:16.894
+A healthcare network went down for weeks.
 
-00:00:19.573 --> 00:00:22.626
-Snowflake customers: passwords stolen by malware.
+00:00:16.944 --> 00:00:19.093
+adapID scores every login on behaviour,
 
-00:00:22.676 --> 00:00:26.647
-An AI chat agent’s tokens, used to export customer data.
+00:00:19.093 --> 00:00:22.000
+and holds the one that doesn’t belong.
 
-00:00:26.697 --> 00:00:27.520
-In India,
+00:00:22.800 --> 00:00:24.486
+One call to the help desk,
 
-00:00:27.520 --> 00:00:32.032
-₹120 crore lost to “digital arrest” scams in four months.
+00:00:24.486 --> 00:00:27.035
+and an attacker had an employee’s password reset.
 
-00:00:32.532 --> 00:00:33.732
-None of them broke in.
+00:00:27.085 --> 00:00:28.256
+adapID sees the reset,
 
-00:00:33.732 --> 00:00:35.811
-They logged in, and every check passed.
+00:00:28.256 --> 00:00:31.878
+the new device and the odd hour, and stops the session.
 
-00:00:36.211 --> 00:00:38.106
-Deep Algorithms secures every identity,
+00:00:32.678 --> 00:00:34.395
+A customer on a video call,
 
-00:00:38.106 --> 00:00:40.780
-and stops the one being misused.
+00:00:34.395 --> 00:00:36.412
+frightened into paying a fake officer.
 
-00:00:42.380 --> 00:00:46.282
-A valid password, from the wrong place, behaving the wrong way.
+00:00:36.462 --> 00:00:38.391
+adapID Fraud Prevention sees the call,
 
-00:00:46.282 --> 00:00:50.585
-adapID scores every session live, and holds it before anything moves.
+00:00:38.391 --> 00:00:42.328
+the coached typing and the new payee, and holds the payment.
 
-00:00:52.085 --> 00:00:55.534
-A real customer, on a call, typing what she is told.
+00:00:43.128 --> 00:00:44.938
+An AI chat agent’s tokens,
 
-00:00:55.534 --> 00:00:59.696
-adapID reads the pauses and the pasted payee, and holds the payment.
+00:00:44.938 --> 00:00:48.497
+used to copy customer data from hundreds of companies.
 
-00:01:01.196 --> 00:01:03.665
-An AI agent reaching beyond its task.
+00:00:48.547 --> 00:00:49.977
+Zenstra scopes every agent,
 
-00:01:03.665 --> 00:01:07.591
-Zenstra checks every action, and blocks it before it runs.
+00:00:49.977 --> 00:00:52.880
+and blocks any action outside its task.
 
-00:01:09.091 --> 00:01:11.275
-Stolen passwords, tried at machine speed.
+00:00:53.680 --> 00:00:57.114
+Millions of stolen passwords, fired at one login page.
 
-00:01:11.275 --> 00:01:15.680
-BotShield refuses the bots at the edge, and lets customers through.
+00:00:57.164 --> 00:00:59.461
+BotShield refuses the bots at the edge,
 
-00:01:17.180 --> 00:01:20.268
+00:00:59.461 --> 00:01:01.501
+and lets real customers in.
+
+00:01:02.301 --> 00:01:05.390
 And when the regulator asks who touched personal data,
 
-00:01:20.268 --> 00:01:22.727
+00:01:05.390 --> 00:01:07.849
 ICMS has the evidence in minutes.
 
-00:01:23.127 --> 00:01:24.988
-Same attacks. A different ending.
+00:01:08.349 --> 00:01:11.958
+Deep Algorithms. Every identity, verified before it acts.
 
-00:01:25.588 --> 00:01:26.646
+00:01:12.958 --> 00:01:14.016
 Built in India.
 
-00:01:26.646 --> 00:01:30.924
+00:01:14.016 --> 00:01:18.295
 Trusted by banks, government and enterprises that cannot afford a breach.
 
-00:01:31.224 --> 00:01:34.244
+00:01:18.595 --> 00:01:21.614
 Find your riskiest identity before attackers do.
 
-00:01:34.944 --> 00:01:37.535
+00:01:22.314 --> 00:01:24.905
 The future is decided today. Book a demo.
 
 
@@ -1876,6 +1886,28 @@ html.is-translated font { background: none !important; box-shadow: none !importa
 .island-blue .cta-ghost { background: transparent !important; color: #fff !important; border: 1px solid rgb(255 255 255 / .45) !important; }
 .island-blue .cta-ghost:hover { border-color: #fff; }
 
+/* Null Motion ports (lib/nullmotion.jsx) */
+.nm-pre .nm-w, .nm-pre.nm-stack .nm-card, .nm-pre > li { opacity: 0; }
+.nm-w { display: inline-block; will-change: transform, filter, opacity; white-space: pre; }
+.nm-kinetic { font-size: clamp(18px, 1.6vw, 22px); font-weight: 500; letter-spacing: -.01em; color: var(--color-ink-2); }
+.nm-pill { position: relative; display: inline-block; overflow: hidden; padding: 2px 14px 4px; margin: 0 2px; border-radius: 999px; color: #fff; font-weight: 600; background: linear-gradient(135deg, #1e88d8, #0a5ea3); box-shadow: 0 10px 24px -10px rgb(10 94 163 / .7), inset 0 1px 0 rgb(255 255 255 / .25); transform-origin: 50% 80%; vertical-align: -0.18em; line-height: 1.35; }
+.nm-sheen { position: absolute; top: -20%; bottom: -20%; left: -40%; width: 34%; opacity: 0; background: linear-gradient(100deg, transparent, rgb(255 255 255 / .75), transparent); transform: skewX(-18deg); pointer-events: none; }
+.nm-stack { position: relative; height: 96px; display: flex; align-items: center; justify-content: center; perspective: 1400px; }
+.nm-card { position: absolute; display: grid; place-items: center; width: 88px; height: 88px; border-radius: 24px; background: linear-gradient(160deg, #ffffff, #e8f1fa); border: 1px solid rgb(255 255 255 / .9); box-shadow: 0 24px 40px -18px rgb(0 0 0 / .55), 0 0 0 1px rgb(10 109 187 / .15), inset 0 -6px 14px rgb(10 58 107 / .1); }
+.nm-line { position: absolute; left: 20%; right: 20%; top: 50%; height: 1px; background: linear-gradient(90deg, transparent, rgb(255 255 255 / .8), transparent); opacity: .18; }
+.nm-glint { position: absolute; width: 420px; height: 140px; border-radius: 50%; background: radial-gradient(closest-side, rgb(127 214 255 / .6), transparent); opacity: .18; filter: blur(10px); }
+.nm-hud { position: relative; }
+.nm-corner { position: absolute; width: 22px; height: 22px; border-color: #4fb3f6; border-style: solid; pointer-events: none; z-index: 3; }
+.nm-corner.tl { left: -8px; top: -8px; border-width: 2px 0 0 2px; border-radius: 6px 0 0 0; }
+.nm-corner.tr { right: -8px; top: -8px; border-width: 2px 2px 0 0; border-radius: 0 6px 0 0; }
+.nm-corner.bl { left: -8px; bottom: -8px; border-width: 0 0 2px 2px; border-radius: 0 0 0 6px; }
+.nm-corner.br { right: -8px; bottom: -8px; border-width: 0 2px 2px 0; border-radius: 0 0 6px 0; }
+.nm-scan { position: absolute; left: 0; right: 0; top: 0; height: 2px; opacity: 0; background: linear-gradient(90deg, transparent, #7fd6ff, transparent); box-shadow: 0 0 18px #4fb3f6; pointer-events: none; z-index: 3; }
+.nm-tag { position: absolute; left: 14px; top: 14px; z-index: 3; display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; border-radius: 999px; background: rgb(8 12 18 / .6); border: 1px solid rgb(127 214 255 / .35); backdrop-filter: blur(8px); color: #dff4ff; font: 600 11.5px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .06em; text-transform: uppercase; pointer-events: none; }
+.nm-tag i { width: 7px; height: 7px; border-radius: 50%; background: #3fd98f; box-shadow: 0 0 8px #3fd98f; animation: nm-blink 1.6s ease-in-out infinite; }
+@keyframes nm-blink { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .nm-tag i { animation: none; } }
+
 
 ====================================================================================================
 FILE: website/src/components/Backdrop.jsx
@@ -2067,6 +2099,7 @@ FILE: website/src/components/CirmPipeline.jsx
 import { useEffect, useRef, useState } from 'react';
 import { useInView, useReducedMotion, cx } from '../lib/motion.js';
 import { Logo } from './viz/kit.jsx';
+import { useGridPop } from '../lib/nullmotion.jsx';
 
 /* adapID CIRM as one platform view, the way identity platforms draw their
    console: who is covered on the left, what happens to every identity in the
@@ -2112,6 +2145,8 @@ export default function CirmPipeline({ caption = true }) {
   const reduce = useReducedMotion();
   const [at, setAt] = useState(0);
   const [hold, setHold] = useState(false);
+  const srcRef = useRef(null);
+  useGridPop(srcRef, 'li');
   useEffect(() => {
     if (reduce || hold || !seen) return undefined;
     const t = setInterval(() => setAt((i) => (i + 1) % STAGES.length), 2200);
@@ -2187,7 +2222,7 @@ export default function CirmPipeline({ caption = true }) {
         </div>
 
         {/* what it connects to */}
-        <div className="pl-src">
+        <div className="pl-src" ref={srcRef}>
           {SOURCES.map(([g, items]) => (
             <div key={g}>
               <p className="pl-g">{g}</p>
@@ -4447,6 +4482,7 @@ export default function WorksWith() {
 FILE: website/src/components/blocks.jsx
 ====================================================================================================
 import { useReducedMotion } from '../lib/motion.js';
+import { IconStack } from '../lib/nullmotion.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { CUSTOMERS, CERTS } from '../data/site.js';
@@ -4523,6 +4559,7 @@ export function CtaBand({ title = 'Find your riskiest identity before attackers 
       <div className="wrap">
         <div className="island island-blue tone-d relative overflow-hidden px-6 py-16 text-center md:py-24">
           <div aria-hidden="true" className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(rgb(255 255 255 / .14) 1px, transparent 1px)', backgroundSize: '22px 22px', maskImage: 'radial-gradient(60% 70% at 50% 50%, #000, transparent)', WebkitMaskImage: 'radial-gradient(60% 70% at 50% 50%, #000, transparent)' }} />
+          <IconStack className="mb-10" />
           <Reveal className="relative">
             <h2 className="t-h1 mx-auto max-w-[18ch] text-white">{title}</h2>
             <p className="t-lead mx-auto mt-6 max-w-[600px] text-white/80">{body}</p>
@@ -4538,7 +4575,7 @@ export function CtaBand({ title = 'Find your riskiest identity before attackers 
 }
 
 /* The product film: poster first, the real player only once asked for. */
-export function FilmPlayer({ src = '/video/deep-algorithms-film', poster = '/video/film-poster.webp', captions = '/video/deep-algorithms-film.vtt', title = 'Same attacks. A different ending.', duration = '1:39', teaser, compact }) {
+export function FilmPlayer({ src = '/video/deep-algorithms-film', poster = '/video/film-poster.webp', captions = '/video/deep-algorithms-film.vtt', title = 'Every identity, verified before it acts.', duration = '1:26', teaser, compact }) {
   const [play, setPlay] = useState(false);
   const v = useRef(null);
   const reduce = useReducedMotion();
@@ -4637,6 +4674,7 @@ import {
   Copy, TerminalWindow, Prohibit, ArrowsLeftRight,
 } from '@phosphor-icons/react/dist/ssr';
 import { cx, useIsoLayoutEffect } from '../lib/motion.js';
+import { BlurWords } from '../lib/nullmotion.jsx';
 
 export { cx };
 
@@ -4740,7 +4778,7 @@ export function SectionHead({ eyebrow, title, lead, align = 'center', as: H = 'h
   return (
     <Reveal className={cx('blur-in', center ? 'mx-auto max-w-[880px] text-center' : 'max-w-[760px] max-md:mx-auto max-md:text-center', className)}>
       {eyebrow && <Eyebrow acc={acc} className="mb-6">{eyebrow}</Eyebrow>}
-      <H id={id} className="t-h2">{title}</H>
+      <H id={id} className="t-h2">{typeof title === 'string' ? <BlurWords text={title} /> : title}</H>
       {lead && <p className={cx('t-lead mt-5', center ? 'mx-auto max-w-[660px]' : 'max-md:mx-auto max-md:max-w-[560px]')}>{lead}</p>}
       {children}
     </Reveal>
@@ -10306,6 +10344,7 @@ createRoot(document.getElementById('root')).render(
 FILE: website/src/dev/film/Film.jsx
 ====================================================================================================
 import { useMemo } from 'react';
+import { gsap } from 'gsap';
 import TIM from '../../../tools/film/timings.json';
 import FOOTAGE from '../../../tools/film/footage.json';
 import { ZenGateway } from '../../components/viz/zenstra.jsx';
@@ -10570,96 +10609,103 @@ function Outcome({ t, at, value, label, acc }) {
 
 /* ---------- the timeline ---------- */
 
-const Lg = C.login, Tr = C.trust, Br = C.brand, Rc = C.recap;
+const Tr = C.trust, Br = C.brand, Hk = C.hook, Sh = C.shift;
 const T = {
-  inc1: C.hook.start - 0.3, inc2: C.hook2.start - 0.2, mgm: C.mgm.start - 0.25, snow: C.snow.start - 0.2, drift: C.drift.start - 0.2, india: C.india.start - 0.2,
-  login: Lg.start - 0.2,
-  brand: Br.start - 0.55, ch1: C.cirm.start - 0.5,
-  recap: Rc.start - 0.35, mumbai: Tr.start - 0.15, skyline: wordAt(Tr, 3) - 0.1, gov: wordAt(Tr, 5) + 0.05, team: wordAt(Tr, 8) - 0.1,
+  hook2: wordAt(Hk, 5) - 0.1,
+  rack: Sh.start - 0.05, cables: wordAt(Sh, 2) + 0.2, terminal: wordAt(Sh, 5) + 0.05, attacker: wordAt(Sh, 9) - 0.15,
+  c1: C.c1a.start - 0.3, brand: Br.start - 0.45,
+  mumbai: Tr.start - 0.15, skyline: wordAt(Tr, 3) - 0.1, gov: wordAt(Tr, 5) + 0.05, team: wordAt(Tr, 8) - 0.1,
   cta: C.cta.start - 0.3,
 };
 
-/* the five answers. Each product protects one kind of attack from the incidents
-   above; its picture plays the attack and the product stopping it, under a visible
-   protection layer. Focus rings were measured from the rendered DOM. */
-const CHAPTERS = [
-  { id: 'cirm', n: 1, acc: '#3cc8f6',
-    prod: { bg: 'soc', mark: 'adapid', name: 'adapID Identity Risk Management', short: 'adapID', role: 'For stolen-password logins', Pic: AdapRiskTimeline, width: 1150,
-      head: <>A valid password. The wrong behaviour.<br /><span style={{ color: '#7fdcff' }}>Held before anything moves.</span></>,
-      steps: [0.0, 0.1, 0.24, 0.38, 0.52, 0.62, 0.72], focus: { at: 0.6, x: 90, y: 18, s: 1.12, ring: [81.5, 9, 16.5, 18] },
-      outcome: { at: 0.68, value: '1.4 s', label: 'from an impossible sign-in to every session revoked' } } },
-  { id: 'fraud', n: 2, acc: '#3cc8f6',
-    prod: { bg: 'banking', mark: 'adapid', name: 'adapID Fraud Prevention', short: 'adapID', role: 'For coached payments and scams', Pic: ScamCatch, pic: { time: '21:41' }, width: 885,
-      head: <>The real customer, being coached.<br /><span style={{ color: '#7fdcff' }}>Held before the money moves.</span></>,
-      steps: [0.1, 0.22, 0.34, 0.46, 0.58, 0.68], focus: { at: 0.7, x: 65, y: 88, s: 1.12, ring: [36, 81, 63.5, 12] },
-      outcome: { at: 0.74, value: '< 80 ms', label: 'to a risk decision on every event, with the reason in plain words' } } },
-  { id: 'zenstra', n: 3, acc: '#93a2ff',
-    prod: { bg: 'code', mark: 'zenstra', name: 'Zenstra AI', short: 'Zenstra', role: 'For AI agents and their tokens', Pic: ZenGateway, width: 1050,
-      head: <>Every agent action checked.<br /><span style={{ color: '#aab6ff' }}>Before it runs.</span></>,
-      steps: [0.0, 0.12, 0.26, 0.4, 0.55, 0.7], focus: { at: 0.56, x: 50, y: 66, s: 1.12, ring: [1.5, 56, 96, 20.5] },
-      outcome: { at: 0.62, value: '4 ms', label: 'to block an agent action outside its declared task' },
-      pop: { at: 0.5, style: { left: -60, bottom: -40, width: 460 }, el: <Verdict head="BLOCKED · 4 MS" body="chat-agent → salesforce.export" sub="Outside its declared task" /> } } },
-  { id: 'botshield', n: 4, acc: '#34e0c3',
-    prod: { bg: 'traffic', mark: 'botshield', name: 'BotShield AI', short: 'BotShield', role: 'For stolen passwords at machine speed', Pic: CtemLoop, width: 1315,
-      head: <>18,204 bot logins in a minute.<br /><span style={{ color: '#7ff0dc' }}>Refused at the edge.</span></>,
-      steps: [0.0, 0.12, 0.3, 0.48, 0.66], focus: { at: 0.6, x: 47, y: 30, s: 1.12, ring: [35, 14, 26.5, 33] },
-      outcome: { at: 0.66, value: '0', label: 'accounts taken over; real customers sign in as usual' },
-      pop: { at: 0.2, style: { right: -60, top: 150, width: 400 }, el: <Verdict tone="ok" head="AT THE EDGE" body="18,204 bot logins refused" sub="No traffic diversion" /> } } },
-  { id: 'icms', n: 5, acc: '#f4c76c',
-    prod: { bg: 'ward', mark: 'icms', name: 'ICMS Compliance Suite', short: 'ICMS', role: 'For the regulator’s questions', Pic: IcmsEvidence, width: 1400,
-      head: <>Who touched personal data, and why.<br /><span style={{ color: '#ffd98f' }}>Evidence in one click.</span></>,
-      steps: [0.0, 0.08, 0.2, 0.3, 0.42, 0.54, 0.66], focus: { at: 0.44, x: 50, y: 55, s: 1.12, ring: [1.5, 46.5, 96, 18.5] },
-      outcome: { at: 0.7, value: '< 5 min', label: 'to an audit-ready evidence package, inside the 72-hour window' } } },
+/* six chapters: a real situation (no names), the person doing it, then one product
+   answering it in a small popup beside them. After the enterprise films studied:
+   the person is the hero, the product a quiet helper; one card, the outcome in a few
+   words, a confirmation, then cut. Choreography from Null Motion's notification
+   stack (06) and phone notify (24), with GSAP eases. */
+const PEOPLE = [
+  { id: 'c1', la: 'c1a', lb: 'c1b', clipA: 'login', speedA: 0.72, clipB: 'officepc', side: 'l', acc: '#3cc8f6',
+    signals: [['Password correct', 'ok'], ['New device · 02:14', 'warn'], ['Risk 91 of 100', 'crit']],
+    card: { mark: 'adapid', name: 'adapID Identity Risk', outcome: 'Login held before access', chip: 'Held · 1.4 s' } },
+  { id: 'c2', la: 'c2a', lb: 'c2b', clipA: 'helpdesk', speedA: 0.75, clipB: 'helpdesk', offsetB: 110, side: 'l', acc: '#3cc8f6',
+    signals: [['Password reset by help desk', 'warn'], ['New device, four minutes later', 'warn'], ['Asks for Domain Admins', 'crit']],
+    card: { mark: 'adapid', name: 'adapID AD Security', outcome: 'Session stopped, reset reversed', chip: 'Stopped · 2 s' } },
+  { id: 'c3', la: 'c3a', lb: 'c3b', clipA: 'worried', speedA: 0.85, clipB: 'payphone', side: 'l', acc: '#3cc8f6',
+    signals: [['On a video call · 6 min', 'warn'], ['Long pauses while typing', 'warn'], ['New payee · ₹4,80,000', 'crit']],
+    card: { mark: 'adapid', name: 'adapID Fraud Prevention', outcome: 'Payment held, customer called', chip: 'Held · 38 ms' } },
+  { id: 'c4', la: 'c4a', lb: 'c4b', clipA: 'dev', speedA: 0.8, clipB: 'dev', offsetB: 100, side: 'l', acc: '#93a2ff',
+    signals: [['chat-agent · OAuth token', 'warn'], ['Reading 41,200 records', 'warn'], ['Outside its declared task', 'crit']],
+    card: { mark: 'zenstra', name: 'Zenstra AI', outcome: 'Export blocked before it ran', chip: 'Blocked · 4 ms' } },
+  { id: 'c5', la: 'c5a', lb: 'c5b', clipA: 'greenlap', speedA: 0.9, clipB: 'greenlap', offsetB: 0, screen: true, side: 'l', acc: '#34e0c3',
+    signals: [['18,204 logins in 60 s', 'crit'], ['3 passwords, 9,000 accounts', 'warn'], ['Headless browsers', 'warn']],
+    card: { mark: 'botshield', name: 'BotShield AI', outcome: 'Bots refused at the edge', chip: '0 takeovers' } },
+  { id: 'c6', la: 'c6', lb: null, clipA: 'desktop', speedA: 0.75, side: 'l', acc: '#f4c76c',
+    signals: [['Request from the regulator', 'warn'], ['Who opened patient records?', 'warn'], ['Every access, with its purpose', 'ok']],
+    card: { mark: 'icms', name: 'ICMS Compliance Suite', outcome: 'Evidence ready in minutes', chip: '< 5 min' } },
 ];
-const CHAPTER_SCENES = CHAPTERS.map((c, i) => {
-  const line = C[c.id];
-  const pa = i ? line.start - 0.4 : T.ch1;
-  const pb = i < CHAPTERS.length - 1 ? C[CHAPTERS[i + 1].id].start - 0.4 : T.recap;
-  const at = (f) => pa + (pb - pa) * f; // a fraction of the product scene
-  const P = c.prod;
-  return [pa, pb, (t) => <Product t={t} a={pa} b={pb} acc={c.acc} ch={{ n: c.n }} {...P}
-    steps={P.steps.map((f, k) => (k === 0 ? pa - 0.6 : at(f)))}
-    focus={P.focus && { ...P.focus, at: at(P.focus.at) }}
-    outcome={P.outcome && { ...P.outcome, at: at(P.outcome.at) }}
-    pop={P.pop && { ...P.pop, at: at(P.pop.at) }} />];
+const PEOPLE_SCENES = PEOPLE.map((p, i) => {
+  const a = i ? C[p.la].start - 0.3 : T.c1;
+  const b = i < PEOPLE.length - 1 ? C[PEOPLE[i + 1].la].start - 0.3 : T.brand;
+  return [a, b, (t) => <People t={t} a={a} b={b} {...p} />];
 });
 
 /* each scene: [start, end, render] */
 const SCENES = [
-  [0, T.inc1, (t) => <ColdOpen t={t} b={T.inc1} />],
-  [T.inc1, T.inc2, (t) => (
-    <Incident t={t} a={T.inc1} b={T.inc2} clip="typing" kb={[1.03, 1.12]} clock="FEB 2024" where="CHANGE HEALTHCARE"
-      line={<>One stolen password.<br />A remote-access portal.</>} src="UnitedHealth Group testimony to the US Senate, May 2024">
-      <PortalCard t={t} at={T.inc1 + 0.9} />
-    </Incident>
-  )],
-  [T.inc2, T.mgm, (t) => (
-    <Incident t={t} a={T.inc2} b={T.mgm} clip="rack" kb={[1.04, 1.12]} clock="FEB 2024" where="CHANGE HEALTHCARE"
-      counter={(k) => Math.round(190000000 * ease(clamp(k * 1.25))).toLocaleString('en-US')}
-      line="people affected." sub="No MFA. Ransomware nine days later." src="US Department of Health and Human Services, January 2025" />
-  )],
-  [T.mgm, T.snow, (t) => <Incident t={t} a={T.mgm} b={T.snow} clip="call" kb={[1.03, 1.1]} clock="SEP 2023" where="MGM RESORTS" line="One call to the help desk." sub="Credentials reset for an attacker. About $100 million." src="MGM Resorts International, Form 8-K, October 2023" />],
-  [T.snow, T.drift, (t) => <Incident t={t} a={T.snow} b={T.drift} clip="terminal" kb={[1.04, 1.12]} clock="APR–JUN 2024" where="SNOWFLAKE CUSTOMERS" line="Passwords stolen by malware." sub="About 165 organisations notified." src="Mandiant (Google Cloud), June 2024" />],
-  [T.drift, T.india, (t) => <Incident t={t} a={T.drift} b={T.india} clip="code" kb={[1.03, 1.1]} clock="AUG 2025" where="SALESLOFT DRIFT" line={<>An AI chat agent’s tokens,<br />used to export customer data.</>} src="Google Threat Intelligence Group, August 2025" />],
-  [T.india, T.login, (t) => <Incident t={t} a={T.india} b={T.login} clip="mumbai" kb={[1.03, 1.1]} clock="JAN–APR 2024" where="INDIA" counter={(k) => `₹${Math.round(120 * ease(clamp(k * 1.3)))} crore`} line="lost to “digital arrest” scams." sub="Paid by the victims themselves, through their own banking apps." src="Indian Cyber Crime Coordination Centre (I4C), Ministry of Home Affairs, 2024" />],
-  [T.login, T.brand, (t) => (
+  [0, T.hook2, (t) => (
     <>
-      <Shot id="soc" t={t} a={T.login} b={T.brand} kb={[1.03, 1.1]} />
+      <Shot id="city" t={t} a={0} b={T.hook2} kb={[1.14, 1.04]} />
       <Scrim />
-      <div style={{ position: 'absolute', left: 120, bottom: 130 }}><Spoken line={Lg} t={t} size={92} width={1500} /></div>
-      <div style={{ position: 'absolute', right: 120, top: 110, display: 'grid', gap: 14, opacity: ease(seg(t, T.login + 0.5, T.login + 0.9)) }}>
-        {['Password correct', 'Session valid', 'No alert raised'].map((x, i) => (
-          <span key={x} style={{ display: 'inline-flex', alignItems: 'center', gap: 14, padding: '14px 24px', borderRadius: 99, border: '1px solid rgb(63 217 143 / .35)', background: 'rgb(10 14 20 / .6)', backdropFilter: 'blur(12px)', fontSize: 28, color: '#d9f7e8', opacity: ease(seg(t, T.login + 0.6 + i * 0.35, T.login + 1.0 + i * 0.35)) }}>
-            <span style={{ color: '#3fd98f', fontWeight: 700 }}>✓</span>{x}
-          </span>
-        ))}
+      <div style={{ position: 'absolute', left: 120, bottom: 130, opacity: 1 - seg(t, T.hook2 - 0.15, T.hook2) }}>
+        <Spoken line={Hk} t={t} size={92} width={1250} words="Most access in your company" part={[0, 5 / 11]} />
       </div>
     </>
   )],
-  [T.brand, T.ch1, (t) => <Brand t={t} a={T.brand} b={T.ch1} />],
-
-  ...CHAPTER_SCENES,
-  [T.recap, T.mumbai, (t) => <Recap t={t} a={T.recap} b={T.mumbai} />],
+  [T.hook2, T.rack, (t) => (
+    <>
+      <Shot id="desk" t={t} a={T.hook2} b={T.rack} kb={[1.04, 1.12]} origin="40% 40%" />
+      <Scrim />
+      <div style={{ position: 'absolute', left: 120, bottom: 130 }}><Spoken line={Hk} t={t} size={92} width={1300} words="no longer belongs to a person." part={[5 / 11, 1]} /></div>
+      <div style={{ position: 'absolute', right: 120, top: 110, textAlign: 'right', opacity: ease(seg(t, T.hook2 + 0.4, T.hook2 + 0.9)) }}>
+        <p style={{ fontSize: 120, fontWeight: 600, letterSpacing: '-0.05em', lineHeight: 1, color: '#fff' }}>82<span style={{ color: '#7fd3ff' }}>:</span>1</p>
+        <p style={{ marginTop: 10, fontSize: 25, color: 'rgb(255 255 255 / .75)' }}>machine identities for every human</p>
+        <p style={{ marginTop: 6, fontSize: 17, color: 'rgb(255 255 255 / .45)' }}>CyberArk Identity Security Landscape, 2025</p>
+      </div>
+    </>
+  )],
+  [T.rack, T.cables, (t) => (
+    <>
+      <Shot id="rack" t={t} a={T.rack} b={T.cables} kb={[1.05, 1.13]} />
+      <Scrim side="l" o={0.7} />
+      <Tag t={t} at={T.rack + 0.15} x={1060} y={250} kind="Service account" name="svc-payments-prod" color="#a9c1de" />
+      <div style={{ position: 'absolute', left: 120, bottom: 130 }}><Spoken line={Sh} t={t} size={84} words="Service accounts," part={[0, 2 / 14]} /></div>
+    </>
+  )],
+  [T.cables, T.terminal, (t) => (
+    <>
+      <Shot id="cables" t={t} a={T.cables} b={T.terminal} kb={[1.1, 1.02]} />
+      <Scrim side="l" o={0.7} />
+      <Tag t={t} at={T.cables + 0.1} x={1120} y={300} kind="Cloud key" name="AKIA••••••7Q2F" color="#ffd27a" />
+      <div style={{ position: 'absolute', left: 120, bottom: 130 }}><Spoken line={Sh} t={t} size={84} words="cloud keys" part={[2 / 14, 4 / 14]} /></div>
+    </>
+  )],
+  [T.terminal, T.attacker, (t) => (
+    <>
+      <Shot id="terminal" t={t} a={T.terminal} b={T.attacker} kb={[1.04, 1.12]} />
+      <Scrim side="l" o={0.75} />
+      <Tag t={t} at={T.terminal + 0.1} x={1080} y={260} kind="AI agent" name="invoice-agent" color="#b4bfff" />
+      <div style={{ position: 'absolute', left: 120, bottom: 130 }}><Spoken line={Sh} t={t} size={84} words="and AI agents hold it now." part={[4 / 14, 9 / 14]} /></div>
+    </>
+  )],
+  [T.attacker, T.c1, (t) => (
+    <>
+      <Shot id="attacker" t={t} a={T.attacker} b={T.c1} kb={[1.02, 1.12]} origin="70% 40%" />
+      <div style={{ position: 'absolute', inset: 0, background: 'rgb(120 10 0 / .14)', mixBlendMode: 'multiply' }} />
+      <Scrim />
+      <div style={{ position: 'absolute', left: 120, bottom: 130 }}><Spoken line={Sh} t={t} size={96} color="#ffd1cb" words="And attackers have noticed." part={[9 / 14, 1]} /></div>
+    </>
+  )],
+  ...PEOPLE_SCENES,
+  [T.brand, T.mumbai, (t) => <Brand t={t} a={T.brand} b={T.mumbai} />],
   [T.mumbai, T.skyline, (t) => (
     <>
       <Shot id="charminar" t={t} a={T.mumbai} b={T.skyline} kb={[1.02, 1.1]} origin="50% 70%" />
@@ -10669,7 +10715,7 @@ const SCENES = [
   )],
   [T.skyline, T.gov, (t) => (
     <>
-      <Shot id="payment" t={t} a={T.skyline} b={T.gov} kb={[1.04, 1.12]} offset={40} />
+      <Shot id="payment" t={t} a={T.skyline} b={T.gov} kb={[1.04, 1.12]} />
       <Scrim o={0.85} />
       <div style={{ position: 'absolute', left: 120, bottom: 130 }}><Spoken line={Tr} t={t} size={88} words="Trusted by banks, government" part={[3 / 14, 7 / 14]} /></div>
     </>
@@ -10687,6 +10733,128 @@ const SCENES = [
 ];
 
 /* ---------- scenes with more than a shot and a line ---------- */
+
+/* Null Motion eases, from GSAP itself */
+const EZ = { back: gsap.parseEase('back.out(1.4)'), back2: gsap.parseEase('back.out(1.7)'), p4: gsap.parseEase('power4.out'), p3: gsap.parseEase('power3.out') };
+const ez = (name, t, a, d) => EZ[name](clamp((t - a) / d));
+
+/* a machine identity named on screen: a glass tag pinned into the shot */
+function Tag({ t, at, x, y, kind, name, color }) {
+  const e = ez('p4', t, at, 0.5);
+  return (
+    <div style={{ position: 'absolute', left: x, top: y, opacity: e, transform: `translateY(${(1 - e) * 16}px)` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 24px 16px 18px', borderRadius: 18, background: 'rgb(10 14 20 / .62)', border: `1px solid ${color}55`, backdropFilter: 'blur(14px)', boxShadow: `0 0 60px -20px ${color}` }}>
+        <span style={{ width: 14, height: 14, borderRadius: 14, background: color, boxShadow: `0 0 18px ${color}` }} />
+        <span>
+          <span style={{ display: 'block', fontSize: 19, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color }}>{kind}</span>
+          <span style={{ display: 'block', marginTop: 4, fontFamily: MONO, fontSize: 27, color: '#f2f4f7' }}>{name}</span>
+        </span>
+      </div>
+    </div>
+  );
+}
+
+const TONE = { ok: '#3fd98f', warn: '#ffc14d', crit: '#ff6b5d' };
+/* 06-notification: one small toast, dropping in with a back ease */
+function Toast({ t, at, text, tone }) {
+  const e = ez('back', t, at, 0.7), o = clamp((t - at) / 0.25);
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 22px 14px 16px', borderRadius: 18, opacity: o, transform: `translateY(${(1 - e) * -60}px) scale(${0.95 + 0.05 * e})`,
+      background: 'linear-gradient(180deg, rgb(255 255 255 / .94), rgb(244 247 251 / .92))', boxShadow: '0 24px 50px -18px rgb(0 0 0 / .55), inset 0 1px 0 #fff', backdropFilter: 'blur(16px)' }}>
+      <span style={{ width: 12, height: 12, borderRadius: 12, background: TONE[tone], boxShadow: `0 0 0 5px ${TONE[tone]}33`, flexShrink: 0 }} />
+      <span style={{ fontSize: 25, fontWeight: 600, color: '#12171f', letterSpacing: '-0.01em' }}>{text}</span>
+    </div>
+  );
+}
+
+/* 24-showreel-notify: the product answers, in one card with its mark large */
+function Popup({ t, at, mark, name, outcome, chip, acc }) {
+  const e = ez('back2', t, at, 0.8), o = clamp((t - at) / 0.3);
+  const done = ez('back2', t, at + 1.3, 0.5);
+  return (
+    <div style={{ width: 720, padding: '28px 30px', borderRadius: 32, opacity: o, transform: `translateY(${(1 - e) * 50}px) scale(${0.9 + 0.1 * e})`, transformOrigin: '20% 100%',
+      background: 'linear-gradient(180deg, #ffffff, #f2f6fb)', boxShadow: `0 50px 100px -30px rgb(0 0 0 / .7), 0 0 0 1px rgb(255 255 255 / .6), 0 0 80px -30px ${acc}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 22 }}>
+        <span style={{ width: 150, height: 150, flexShrink: 0, borderRadius: 38, display: 'grid', placeItems: 'center', background: 'linear-gradient(160deg, #fff, #e6eff9)', boxShadow: `0 16px 30px -12px ${acc}aa, inset 0 -6px 14px rgb(10 58 107 / .1)`, border: '1px solid rgb(10 58 107 / .08)' }}>
+          <ProductMark p={mark} size={108} loading="eager" />
+        </span>
+        <span style={{ minWidth: 0 }}>
+          <span style={{ display: 'block', fontSize: 22, fontWeight: 600, letterSpacing: '.02em', color: '#5b6270' }}>{name}</span>
+          <span style={{ display: 'block', marginTop: 6, fontSize: 38, fontWeight: 650, letterSpacing: '-0.03em', lineHeight: 1.1, color: '#0e1116' }}>{outcome}</span>
+        </span>
+      </div>
+      <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 12, height: 50, opacity: done, transform: `scale(${0.85 + 0.15 * done})`, transformOrigin: '0 50%' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '10px 20px', borderRadius: 99, background: '#e8f7ef', color: '#0c7546', fontSize: 24, fontWeight: 700 }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.2 4.2L19 7" /></svg>{chip}
+        </span>
+        <span style={{ fontSize: 20, color: '#626873' }}>with the reason recorded</span>
+      </div>
+    </div>
+  );
+}
+
+/* the login page placed on the laptop's green screen: corners tracked from the clip */
+const GREEN = [[1, [949, 80], [1588, 238], [1455, 715], [840, 499]], [60, [1044, 90], [1703, 246], [1568, 729], [932, 511]], [120, [1159, 97], [1845, 256], [1707, 743], [1046, 524]], [180, [1280, 102], [1985, 266], [1848, 762], [1162, 533]], [240, [1386, 108], [2125, 278], [1990, 775], [1264, 542]]];
+function quad(f) {
+  const k = GREEN.findIndex((g) => g[0] >= f); const j = Math.max(1, k < 0 ? GREEN.length - 1 : k);
+  const [f0, ...p0] = GREEN[j - 1], [f1, ...p1] = GREEN[j]; const x = clamp((f - f0) / (f1 - f0));
+  return p0.map((p, i) => [lerp(p[0], p1[i][0], x), lerp(p[1], p1[i][1], x)]);
+}
+/* CSS matrix3d mapping a w×h box onto four corners (tl, tr, br, bl) */
+function homography(w, h, [[x0, y0], [x1, y1], [x2, y2], [x3, y3]]) {
+  const dx1 = x1 - x2, dx2 = x3 - x2, dy1 = y1 - y2, dy2 = y3 - y2, sx = x0 - x1 + x2 - x3, sy = y0 - y1 + y2 - y3;
+  const det = dx1 * dy2 - dx2 * dy1;
+  const g = (sx * dy2 - dx2 * sy) / det, hh = (dx1 * sy - sx * dy1) / det;
+  const a = x1 - x0 + g * x1, b = x3 - x0 + hh * x3, d = y1 - y0 + g * y1, e = y3 - y0 + hh * y3;
+  const m = [a / w, d / w, 0, g / w, b / h, e / h, 0, hh / h, 0, 0, 1, 0, x0, y0, 0, 1];
+  return `matrix3d(${m.join(',')})`;
+}
+function GreenLogin({ t, a, speed, n }) {
+  const f = clamp(Math.floor((t - a) * FPS * speed) + 1, 1, n);
+  const bots = Math.round(18204 * ease(seg(t, a + 0.6, a + 4)));
+  return (
+    <div style={{ position: 'absolute', left: 0, top: 0, width: 760, height: 470, transformOrigin: '0 0', transform: homography(760, 470, quad(f)), background: '#f5f7fa', overflow: 'hidden', boxShadow: '0 0 0 4px #f5f7fa' }}>
+      <div style={{ height: 52, display: 'flex', alignItems: 'center', gap: 10, padding: '0 22px', background: '#fff', borderBottom: '1px solid #e3e6eb', fontSize: 20, fontWeight: 700, color: '#1e40af' }}><span style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg,#1e40af,#3b82f6)', color: '#fff', fontSize: 12, display: 'grid', placeItems: 'center' }}>YB</span>Your Bank · Sign in</div>
+      <div style={{ padding: '36px 60px' }}>
+        <div style={{ height: 50, borderRadius: 10, border: '1px solid #d7dbe2', background: '#fff', marginBottom: 14, padding: '12px 16px', fontSize: 19, color: '#5b616c' }}>customer@email.com</div>
+        <div style={{ height: 50, borderRadius: 10, border: '1px solid #d7dbe2', background: '#fff', marginBottom: 20, padding: '12px 16px', fontSize: 19, letterSpacing: 4, color: '#5b616c' }}>••••••••</div>
+        <div style={{ height: 50, borderRadius: 10, background: '#1e40af', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 20, fontWeight: 700 }}>Sign in</div>
+        <div style={{ marginTop: 22, display: 'flex', justifyContent: 'space-between', fontFamily: MONO, fontSize: 18, color: '#c4352a' }}><span>login attempts</span><span>{bots.toLocaleString('en-US')}</span></div>
+      </div>
+    </div>
+  );
+}
+
+/* one chapter: the situation (a), then the product answering it (b) */
+function People({ t, a, b, ...p }) {
+  const la = C[p.la], lb = p.lb ? C[p.lb] : null;
+  const cut = lb ? lb.start - 0.15 : b + 1;
+  const inB = t >= cut;
+  const clip = inB ? p.clipB : p.clipA;
+  const sa = inB ? cut : a;
+  const tSig = lb ? lb.start - 0.1 : la.start + 0.8;
+  const tPop = lb ? lb.start + (lb.end - lb.start) * 0.42 : la.start + (la.end - la.start) * 0.5;
+  const side = p.side === 'l' ? { left: 110 } : { right: 110 };
+  const out = 1 - seg(t, b - 0.25, b);
+  return (
+    <div style={{ position: 'absolute', inset: 0, opacity: out }}>
+      <Shot id={clip} t={t} a={sa} b={inB ? b : cut} kb={p.screen ? [1, 1] : [1.03, 1.1]} speed={inB ? 0.85 : p.speedA} offset={inB ? (p.offsetB || 0) : 0} />
+      {p.screen && <GreenLogin t={t} a={sa} speed={inB ? 0.85 : p.speedA} n={FRAMES[clip]} />}
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(0deg, rgb(3 5 8 / .7) 0%, rgb(3 5 8 / .1) 38%, transparent 60%)' }} />
+      {/* the situation, spoken; then the answer */}
+      <div style={{ position: 'absolute', left: 120, right: 120, bottom: 96, ...(inB && p.side === 'r' ? {} : {}) }}>
+        {!inB && <Spoken line={la} t={t} size={70} width={1500} dim={0.3} />}
+        {inB && lb && <Spoken line={lb} t={t} size={52} width={1600} dim={0.3} style={{ maxWidth: 1600 }} />}
+      </div>
+      {/* the signals, then the product */}
+      <div style={{ position: 'absolute', top: 120, ...side, display: 'grid', gap: 14, justifyItems: p.side === 'l' ? 'start' : 'end' }}>
+        {p.signals.map(([text, tone], i) => <Toast key={text} t={t} at={tSig + i * 0.45} text={text} tone={tone} />)}
+        <div style={{ marginTop: 10 }}><Popup t={t} at={tPop} acc={p.acc} {...p.card} /></div>
+      </div>
+    </div>
+  );
+}
+
 
 
 /* cold open, in silence: a remote-access login screen, one password typed, no second factor */
@@ -10764,13 +10932,13 @@ function Brand({ t, a, b }) {
         <div style={{ position: 'absolute', left: '50%', top: lerp(h / 2, 92, open * (1 - close)), transform: 'translate(-50%, -50%)' }}><Mark size={lerp(70, 84, open)} /></div>
         <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 170, opacity: open * (1 - seg(t, b - 0.75, b - 0.45)) }}>
           <p style={{ fontSize: 44, fontWeight: 600, letterSpacing: '-0.03em', color: 'rgb(255 255 255 / .88)' }}>Deep Algorithms</p>
-          <div style={{ marginTop: 14 }}><Spoken line={L} t={t} size={80} width={1360} align="center" words="secures every identity, and stops the one being misused." dim={0.28} part={[2 / 11, 1]} /></div>
+          <div style={{ marginTop: 14 }}><Spoken line={L} t={t} size={80} width={1360} align="center" words="Every identity, verified before it acts." dim={0.28} part={[2 / 8, 1]} /></div>
           <div style={{ position: 'absolute', left: 40, right: 40, bottom: 40, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
             {LINE.map(([k, n, r], i) => {
               const x = ease(seg(t, wordAt(L, 2) + i * 0.12, wordAt(L, 2) + 0.5 + i * 0.12));
               return (
                 <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 20, background: 'rgb(4 22 48 / .42)', border: '1px solid rgb(255 255 255 / .2)', opacity: x, transform: `translateY(${(1 - x) * 24}px)` }}>
-                  <span style={{ width: 62, height: 62, flexShrink: 0, borderRadius: 16, display: 'grid', placeItems: 'center', background: '#fff' }}><ProductMark p={k} size={46} loading="eager" /></span>
+                  <span style={{ width: 84, height: 84, flexShrink: 0, borderRadius: 22, display: 'grid', placeItems: 'center', background: '#fff', boxShadow: '0 14px 30px -12px rgb(0 0 0 / .45)' }}><ProductMark p={k} size={62} loading="eager" /></span>
                   <span style={{ textAlign: 'left' }}><span style={{ display: 'block', fontSize: 25, fontWeight: 600, letterSpacing: '-0.02em', color: '#fff' }}>{n}</span><span style={{ display: 'block', marginTop: 3, fontSize: 18, color: 'rgb(255 255 255 / .75)' }}>{r}</span></span>
                 </div>
               );
@@ -11091,6 +11259,142 @@ export const seg = (p, a, b) => clamp01((p - a) / (b - a));
 export const ease = (t) => 1 - Math.pow(1 - t, 3);
 export const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 export const lerp = (a, b, t) => a + (b - a) * t;
+
+
+====================================================================================================
+FILE: website/src/lib/nullmotion.jsx
+====================================================================================================
+import { useEffect, useRef, useState } from 'react';
+import ProductMark from '../components/ProductMark.jsx';
+import { cx } from './motion.js';
+
+/* Motion graphics ported from Null Motion's templates (github.com/blixvip/NullMotion,
+   MIT), driven by GSAP the same way: one timeline per element, eases and timings
+   taken from the templates (kinetic headline, icon stack rise, blur reveal,
+   notification stack, integrations grid, cinematic HUD). GSAP loads only in the
+   browser, after first paint; nothing runs for reduced motion, and the server
+   render is always the finished state. */
+
+let gsapP;
+const loadGsap = () => (gsapP ||= import('gsap').then((m) => m.gsap || m.default));
+const reduced = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* run `play(gsap, el)` once, the first time `el` is well inside the viewport */
+export function useOnView(ref, play, { threshold = 0.25, rootMargin = '0px 0px -8% 0px' } = {}) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || reduced()) return undefined;
+    let tl, done = false;
+    // below the fold: hide the starting state now, so nothing flashes before it plays
+    if (el.getBoundingClientRect().top > window.innerHeight * 0.92) el.classList.add('nm-pre');
+    const io = new IntersectionObserver(([e]) => {
+      if (!e.isIntersecting || done) return;
+      done = true; io.disconnect();
+      loadGsap().then((gsap) => { tl = play(gsap, el); el.classList.remove('nm-pre'); });
+    }, { threshold, rootMargin });
+    io.observe(el);
+    return () => { io.disconnect(); tl?.kill?.(); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
+/* 22-kinetic-headline: a word pill that squashes in, settles with a back ease and a
+   light sheen, then swaps to the next word */
+export function KineticPill({ words, lead, tail, className, style }) {
+  const [i, setI] = useState(0);
+  const pill = useRef(null), sheen = useRef(null);
+  useEffect(() => {
+    if (reduced()) return undefined;
+    let tl, gs, stop = false;
+    const cycle = () => {
+      if (stop || !pill.current) return;
+      tl = gs.timeline({ onComplete: () => { if (stop) return; setI((n) => (n + 1) % words.length); requestAnimationFrame(() => requestAnimationFrame(enter)); } });
+      tl.to(pill.current, { y: -14, opacity: 0, filter: 'blur(6px)', scaleX: .94, duration: .32, ease: 'power3.in' }, 2.2);
+    };
+    const enter = () => {
+      if (stop || !pill.current) return;
+      gs.timeline({ onComplete: cycle })
+        .fromTo(pill.current, { scaleX: .93, scaleY: 1.06, y: 12, opacity: 0, filter: 'blur(6px)' }, { scaleX: 1.08, scaleY: .95, y: -4, opacity: 1, filter: 'blur(0px)', duration: .43, ease: 'power3.out' })
+        .to(pill.current, { scaleX: 1, scaleY: 1, y: 0, duration: .34, ease: 'back.out(1.55)' })
+        .fromTo(sheen.current, { left: '-40%', opacity: 0 }, { left: '118%', opacity: .85, duration: .76, ease: 'power3.inOut' }, '-=.2')
+        .to(sheen.current, { opacity: 0, duration: .18 });
+    };
+    loadGsap().then((g) => { gs = g; cycle(); });
+    return () => { stop = true; tl?.kill(); };
+  }, [words.length]);
+  return (
+    <p className={cx('nm-kinetic', className)} style={style}>
+      <span className="sr-only">{lead} {words.join(', ')} {tail}</span>
+      <span aria-hidden="true">{lead} <span ref={pill} className="nm-pill"><span ref={sheen} className="nm-sheen" />{words[i]}</span> {tail}</span>
+    </p>
+  );
+}
+
+/* 12-blur-reveal + 22's word entrance: a heading's words sharpen into place */
+export function BlurWords({ text, as: As = 'span', className }) {
+  const ref = useRef(null);
+  useOnView(ref, (gsap, el) => gsap.fromTo(el.querySelectorAll('.nm-w'),
+    { opacity: 0, y: 18, filter: 'blur(8px)' },
+    { opacity: 1, y: 0, filter: 'blur(0px)', duration: .7, ease: 'power4.out', stagger: .045 }), { threshold: .4 });
+  const words = String(text).split(' ');
+  return (
+    <As ref={ref} className={className}>
+      {words.map((w, k) => <span key={k} className="nm-w">{w}{k < words.length - 1 ? ' ' : ''}</span>)}
+    </As>
+  );
+}
+
+/* 27-icon-stack-rise: the four product marks rise as a 3D stack, settle with a
+   back ease and fan out, with a guide line and a glint */
+const LINE = ['adapid', 'zenstra', 'botshield', 'icms'];
+export function IconStack({ className }) {
+  const ref = useRef(null);
+  useOnView(ref, (gsap, el) => {
+    const cards = el.querySelectorAll('.nm-card'), line = el.querySelector('.nm-line'), glint = el.querySelector('.nm-glint');
+    const fan = [-1.5, -.5, .5, 1.5];
+    gsap.set(cards, { y: 160, opacity: 0, rotationX: 12, transformPerspective: 1400, x: 0, rotationZ: (k) => [-6, -2, 2, 6][k] });
+    return gsap.timeline({ defaults: { ease: 'power4.out' } })
+      .to(cards, { opacity: 1, y: -12, rotationX: -2, duration: .9, stagger: .07 }, 0)
+      .to(cards, { y: 0, rotationX: 0, duration: .3, ease: 'back.out(1.28)', stagger: .07 }, .8)
+      .to(cards, { x: (k) => fan[k] * 132, rotationZ: (k) => fan[k] * 2.2, duration: .72, ease: 'back.out(1.38)', stagger: .04 }, 1.05)
+      .fromTo(line, { opacity: 0, scaleX: .06 }, { opacity: .7, scaleX: 1, duration: .5 }, 1.1)
+      .fromTo(glint, { opacity: 0, scale: .7 }, { opacity: .55, scale: 1.1, duration: .5 }, 1.1)
+      .to([line, glint], { opacity: .18, duration: .6 }, 1.9);
+  }, { threshold: .35 });
+  return (
+    <div ref={ref} className={cx('nm-stack', className)} aria-hidden="true">
+      <span className="nm-glint" /><span className="nm-line" />
+      {LINE.map((p, k) => <span key={p} className="nm-card" style={{ zIndex: 4 - Math.abs(k - 1.5) }}><ProductMark p={p} size={54} /></span>)}
+    </div>
+  );
+}
+
+/* 06-notification: the items of a list drop in one after another, like a stack of toasts */
+export function useToastStack(ref, selector = ':scope > li') {
+  useOnView(ref, (gsap, el) => gsap.from(el.querySelectorAll(selector), { y: -40, opacity: 0, scale: .96, duration: .7, ease: 'back.out(1.4)', stagger: .12 }), { threshold: .15 });
+}
+
+/* 17-integrations-grid: tiles pop in from the centre outwards */
+export function useGridPop(ref, selector) {
+  useOnView(ref, (gsap, el) => gsap.from(el.querySelectorAll(selector), { opacity: 0, scale: .7, y: 12, duration: .5, ease: 'back.out(1.7)', stagger: { each: .05, from: 'center' } }), { threshold: .3 });
+}
+
+/* 27-cinematic-hud-overlay: corner brackets, a scan line and a live tag over a picture */
+export function Hud({ label = 'Live', children, className }) {
+  const ref = useRef(null);
+  useOnView(ref, (gsap, el) => gsap.timeline()
+    .from(el.querySelectorAll('.nm-corner'), { opacity: 0, scale: 1.4, duration: .6, ease: 'power3.out', stagger: .06 })
+    .fromTo(el.querySelector('.nm-scan'), { top: '0%', opacity: 0 }, { top: '100%', opacity: .9, duration: 1.4, ease: 'power2.inOut' }, .2)
+    .to(el.querySelector('.nm-scan'), { opacity: 0, duration: .3 })
+    .from(el.querySelector('.nm-tag'), { opacity: 0, x: -10, duration: .4, ease: 'power2.out' }, .3), { threshold: .3 });
+  return (
+    <div ref={ref} className={cx('nm-hud', className)}>
+      {children}
+      <span aria-hidden="true" className="nm-corner tl" /><span aria-hidden="true" className="nm-corner tr" /><span aria-hidden="true" className="nm-corner bl" /><span aria-hidden="true" className="nm-corner br" />
+      <span aria-hidden="true" className="nm-scan" />
+      <span aria-hidden="true" className="nm-tag"><i />{label}</span>
+    </div>
+  );
+}
 
 
 ====================================================================================================
@@ -11687,7 +11991,8 @@ export default function Demo() {
 ====================================================================================================
 FILE: website/src/pages/Home.jsx
 ====================================================================================================
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { KineticPill, Hud, useToastStack } from '../lib/nullmotion.jsx';
 import { Link } from 'react-router';
 import { Seo } from '../lib/head.jsx';
 import { DEPLOY } from '../data/site.js';
@@ -11905,6 +12210,8 @@ function PlatformAccordion() {
 
 /* "Watch the film": scroll to it and start it */
 export default function Home() {
+  const incRef = useRef(null);
+  useToastStack(incRef);
   return (
     <>
       <Seo path="/" description="Deep Algorithms is an identity security platform for people, machine identities and AI agents: four products that stop identity attacks, fraud, bots and data misuse before they become a breach. ISO 27001, SOC 2 Type II. Built in India for regulated industries." />
@@ -11914,6 +12221,7 @@ export default function Home() {
         <div className="wrap relative grid items-center gap-12 pb-14 pt-10 md:pt-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.02fr)] lg:gap-14 lg:pb-20 lg:pt-24">
           <div className="max-w-[620px] max-md:mx-auto max-md:text-center">
             <h1 id="hero-h" className="t-hero rise" style={{ '--d': '60ms' }}>Identity security for the AI era.</h1>
+            <KineticPill className="rise mt-5" style={{ '--d': '100ms' }} lead="Verifies every" words={['person', 'service account', 'AI agent', 'cloud key', 'payment']} tail="before it acts." />
             <p className="t-lead rise mt-6 max-w-[540px] max-md:mx-auto" style={{ '--d': '120ms' }}>Discover every human, machine and AI agent identity. Learn how each one should behave, and stop the one that doesn’t, in milliseconds, with the reason why.</p>
             <div className="rise mt-9 flex flex-wrap gap-3 max-md:flex-col max-md:[&>*]:w-full" style={{ '--d': '180ms' }}>
               <Button to="/request-demo" size="lg" arrow>Book a demo</Button>
@@ -11924,8 +12232,8 @@ export default function Home() {
             </p>
           </div>
           <div id="film" className="rise relative scroll-mt-28" style={{ '--d': '220ms' }}>
-            <FilmPlayer compact teaser={{ src: '/video/film-teaser', poster: '/video/film-teaser-poster.webp' }} title="Same attacks. A different ending." />
-            <p className="mt-2 text-[12px] text-ink-3">Real incidents, from public reports. Music: Kevin MacLeod (incompetech.com), CC BY 4.0.</p>
+            <Hud label="Live · Protected"><FilmPlayer compact teaser={{ src: '/video/film-teaser', poster: '/video/film-teaser-poster.webp' }} title="Every identity, verified before it acts." /></Hud>
+            <p className="mt-2 text-[12px] text-ink-3">Situations based on public incident reports. Music: “Ouroboros” by Kevin MacLeod (incompetech.com), CC BY 4.0.</p>
           </div>
         </div>
         <TrustedRow />
@@ -11983,7 +12291,7 @@ export default function Home() {
       <section className="sec wash" aria-labelledby="inc-h">
         <div className="wrap">
           <SectionHead id="inc-h" eyebrow="Already happening" title="Every one of these began with an identity that looked legitimate." lead="Six public incidents, each with its source, and the Deep Algorithms control that applies to that kind of attack." />
-          <ol className="inc mx-auto mt-14 max-w-[1000px]">
+          <ol ref={incRef} className="inc mx-auto mt-14 max-w-[1000px]">
             {INCIDENTS.map((x) => (
               <li key={x.h}>
                 <span className="inc-date">{x.d}</span>
@@ -14906,19 +15214,26 @@ FILE: website/tools/film/CREDITS.md
 ====================================================================================================
 # Credits
 
-## Music (take 8)
+## Music (take 9)
 
-Three cues by Kevin MacLeod, licensed under Creative Commons: By Attribution 4.0 (https://creativecommons.org/licenses/by/4.0/). The credit is shown under the film on the home page.
+"Ouroboros" by Kevin MacLeod (incompetech.com), licensed under Creative Commons: By Attribution 4.0 (https://creativecommons.org/licenses/by/4.0/). Source: https://incompetech.com/music/royalty-free/mp3-royaltyfree/Ouroboros.mp3. The credit is shown under the film on the home page.
 
-| Cue | Used for | Source |
+## Situations in the film
+
+Based on public incident reports, without naming the organisations: a stolen password on a remote-access portal with no MFA (a US healthcare network, 2024); a help-desk call that reset an employee's password (a hotel and casino group, 2023); "digital arrest" video-call scams (India, I4C, 2024); an AI chat integration's OAuth tokens used to export customer data (2025); credential stuffing against a login page.
+
+## New footage (take 9), Pexels licence
+
+| Shot | Used for | Source page |
 | --- | --- | --- |
-| "Hiding Your Reality" | The real incidents | https://incompetech.com/music/royalty-free/mp3-royaltyfree/Hiding%20Your%20Reality.mp3 |
-| "Impact Moderato" | Brand reveal and the five products | https://incompetech.com/music/royalty-free/mp3-royaltyfree/Impact%20Moderato.mp3 |
-| "Heroic Age" | Recap, proof and the end card | https://incompetech.com/music/royalty-free/mp3-royaltyfree/Heroic%20Age.mp3 |
-
-## Incidents named in the film
-
-Public reports only; Deep Algorithms was not involved. Change Healthcare (UnitedHealth Group testimony to the US Senate, May 2024; HHS, January 2025), MGM Resorts (Form 8-K, October 2023), Snowflake customer accounts (Mandiant, June 2024), Salesloft Drift (Google Threat Intelligence Group, August 2025), India "digital arrest" scams (I4C, Ministry of Home Affairs, 2024).
+| `login` | A stolen password typed in | https://www.pexels.com/video/7882634/ |
+| `officepc` | adapID holds the login | https://www.pexels.com/video/8102853/ |
+| `helpdesk` | The help-desk call | https://www.pexels.com/video/5923356/ |
+| `worried` | The coached customer | https://www.pexels.com/video/6689151/ |
+| `payphone` | The payment, held | https://www.pexels.com/video/6898014/ |
+| `dev` | The AI agent's tokens | https://www.pexels.com/video/7989676/ |
+| `greenlap` | The login page under bot attack (screen replaced) | https://www.pexels.com/video/6771499/ |
+| `desktop` | The regulator's question | https://www.pexels.com/video/5527787/ |
 
 ## Footage
 
@@ -14963,7 +15278,7 @@ FILE: website/tools/film/README.md
 
 The film on the home page (`public/video/deep-algorithms-film.mp4`, 1:15). It is made from code so it can be re-cut when the products or the words change: live-action footage carries the world and the threat, and the site's own product pictures carry the answer.
 
-**Structure.** It follows premium enterprise SaaS films: the product is the hero, shown large, simplified and true to the real app. Callouts sit on glass beside it, never inside it. There is one benefit per product, kinetic type carries the story on mute, the pacing is deliberate, and every product chapter uses the same visual system. Take 8 replaced the fictional bank with **real public incidents** (Change Healthcare, MGM Resorts, Snowflake customers, Salesloft Drift, India's "digital arrest" scams), each dated and sourced on screen, then shows the five products containing that kind of attack under a visible protection layer (scan, "Protected" → "Contained", lock). Sound is `mix2.py`: three licensed cues by Kevin MacLeod (CC BY 4.0, see `CREDITS.md`). The notes below describe take 7's structure; the timeline in `Film.jsx` is the source of truth.
+**Structure.** It follows premium enterprise SaaS films: the product is the hero, shown large, simplified and true to the real app. Callouts sit on glass beside it, never inside it. There is one benefit per product, kinetic type carries the story on mute, the pacing is deliberate, and every product chapter uses the same visual system. Take 9 (current) opens like take 7, then plays six real situations without naming anyone: a person doing the action in a bright live-action shot, signal toasts, and one product card with its mark large (Null Motion's notification and phone-notify choreography, GSAP eases), plus a tracked screen replacement. Sound is `mix3.py`: the take-7 voice chain and one licensed needle-drop. Take 8 replaced the fictional bank with **real public incidents** (Change Healthcare, MGM Resorts, Snowflake customers, Salesloft Drift, India's "digital arrest" scams), each dated and sourced on screen, then shows the five products containing that kind of attack under a visible protection layer (scan, "Protected" → "Contained", lock). Sound is `mix2.py`: three licensed cues by Kevin MacLeod (CC BY 4.0, see `CREDITS.md`). The notes below describe take 7's structure; the timeline in `Film.jsx` is the source of truth.
 1. **Cold open (silent):** 21:38 IST, a private bank, every system green, then "Before morning, five attacks will begin."
 2. **Problem:** most access now belongs to service accounts, cloud keys and AI agents. Attackers log in, and no alert fires.
 3. **Brand:** the plate opens with "catches them before they act" and shows the four product lines.
@@ -15250,6 +15565,96 @@ FILE: website/tools/film/footage.json
    "dur": 5.0,
    "lift": -0.05,
    "sat": 0.85
+  },
+  {
+   "id": "login",
+   "src": "https://videos.pexels.com/video-files/7882634/7882634-hd_1920_1080_25fps.mp4",
+   "page": "https://www.pexels.com/video/7882634/",
+   "in": 0.0,
+   "dur": 4.3,
+   "lift": 0.06,
+   "sat": 0.95,
+   "bright": true
+  },
+  {
+   "id": "officepc",
+   "src": "https://videos.pexels.com/video-files/8102853/8102853-hd_1920_1080_25fps.mp4",
+   "page": "https://www.pexels.com/video/8102853/",
+   "in": 3.0,
+   "dur": 7.0,
+   "lift": 0.06,
+   "sat": 0.95,
+   "bright": true
+  },
+  {
+   "id": "helpdesk",
+   "src": "https://videos.pexels.com/video-files/5923356/5923356-hd_1920_1080_30fps.mp4",
+   "page": "https://www.pexels.com/video/5923356/",
+   "in": 2.0,
+   "dur": 7.0,
+   "lift": 0.06,
+   "sat": 0.95,
+   "bright": true
+  },
+  {
+   "id": "worried",
+   "src": "https://videos.pexels.com/video-files/6689151/6689151-hd_1920_1080_25fps.mp4",
+   "page": "https://www.pexels.com/video/6689151/",
+   "in": 1.0,
+   "dur": 7.0,
+   "lift": 0.06,
+   "sat": 0.95,
+   "bright": true
+  },
+  {
+   "id": "payphone",
+   "src": "https://videos.pexels.com/video-files/6898014/6898014-hd_1920_1080_25fps.mp4",
+   "page": "https://www.pexels.com/video/6898014/",
+   "in": 2.0,
+   "dur": 7.0,
+   "lift": 0.06,
+   "sat": 0.95,
+   "bright": true
+  },
+  {
+   "id": "dev",
+   "src": "https://videos.pexels.com/video-files/7989676/7989676-hd_1920_1080_25fps.mp4",
+   "page": "https://www.pexels.com/video/7989676/",
+   "in": 2.0,
+   "dur": 7.0,
+   "lift": 0.06,
+   "sat": 0.95,
+   "bright": true
+  },
+  {
+   "id": "greenlap",
+   "src": "https://videos.pexels.com/video-files/6771499/6771499-hd_1920_1080_30fps.mp4",
+   "page": "https://www.pexels.com/video/6771499/",
+   "in": 1.0,
+   "dur": 8.0,
+   "lift": 0.06,
+   "sat": 0.95,
+   "bright": true
+  },
+  {
+   "id": "tap",
+   "src": "https://videos.pexels.com/video-files/4109600/4109600-hd_1920_1080_25fps.mp4",
+   "page": "https://www.pexels.com/video/4109600/",
+   "in": 3.0,
+   "dur": 6.0,
+   "lift": 0.06,
+   "sat": 0.95,
+   "bright": true
+  },
+  {
+   "id": "desktop",
+   "src": "https://videos.pexels.com/video-files/5527787/5527787-hd_1920_1080_25fps.mp4",
+   "page": "https://www.pexels.com/video/5527787/",
+   "in": 1.0,
+   "dur": 8.0,
+   "lift": 0.05,
+   "sat": 0.95,
+   "bright": true
   }
  ]
 }
@@ -15267,8 +15672,10 @@ Usage: python footage.py <cache-dir> <out-dir>"""
 import json, os, subprocess, sys
 here = os.path.dirname(os.path.abspath(__file__))
 cache, out = sys.argv[1], sys.argv[2]
+only = set(sys.argv[3:])  # optional: process only these clip ids
 os.makedirs(cache, exist_ok=True)
 for c in json.load(open(os.path.join(here, 'footage.json')))['clips']:
+    if only and c['id'] not in only: continue
     src = os.path.join(cache, c['id'] + '.mp4')
     if not os.path.exists(src):
         subprocess.run(['curl', '-sSfL', '-o', src, c['src']], check=True)
@@ -15278,7 +15685,7 @@ for c in json.load(open(os.path.join(here, 'footage.json')))['clips']:
     vf = ','.join([
         'fps=30', 'scale=1920:1080:force_original_aspect_ratio=increase:flags=lanczos', 'crop=1920:1080',
         f'eq=contrast=1.05:brightness={lift + 0.035:.3f}:saturation={c.get("sat", 0.82)}:gamma=1.06',
-        'colorbalance=rs=-0.05:gs=-0.01:bs=0.06:rm=-0.02:bm=0.025:rh=0.02:gh=0.005:bh=-0.02',
+        'colorbalance=rs=-0.01:bs=0.015' if c.get('bright') else 'colorbalance=rs=-0.05:gs=-0.01:bs=0.06:rm=-0.02:bm=0.025:rh=0.02:gh=0.005:bh=-0.02',
         'curves=all=0/0.03 0.25/0.26 0.5/0.54 0.8/0.85 1/0.98',
     ])
     subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-ss', str(c['in']), '-t', str(c['dur']), '-i', src,
@@ -15618,6 +16025,112 @@ print('mix', L, 's ->', out_path)
 
 
 ====================================================================================================
+FILE: website/tools/film/mix3.py
+====================================================================================================
+"""Sound for the product film (take 9).
+- Voice: the take-7 chain (low cut, presence lift around 3 kHz, soft-knee
+  compression), the narration people preferred.
+- Score: one licensed needle-drop, "Ouroboros" by Kevin MacLeod (incompetech.com),
+  CC BY 4.0. Lower under the opening, lifted with a hit when the first incident
+  lands, ducked 8 dB under the voice, faded under the end card.
+- Accents, after the enterprise films studied: a soft air whoosh on every chapter
+  cut, a small tick as each signal toast drops in, and a two-note confirmation
+  chime when the product's card resolves.
+Usage: python mix3.py <vo.wav> <timings.json> <music-dir> <out.wav> <length_s>"""
+import json, sys, subprocess
+import numpy as np, soundfile as sf
+
+vo_path, tim_path, mdir, out_path, L = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], float(sys.argv[5])
+T = json.load(open(tim_path)); C = {c['id']: c for c in T['lines']}
+SR = 48000; N = int(L * SR); rng = np.random.default_rng(5)
+
+def fft_filter(x, lo=None, hi=None, slope=1.0):
+    X = np.fft.rfft(x); f = np.fft.rfftfreq(len(x), 1 / SR); g = np.ones_like(f)
+    if hi: g *= 1 / np.sqrt(1 + (f / hi) ** (4 * slope))
+    if lo: g *= 1 / np.sqrt(1 + (lo / np.maximum(f, 1e-3)) ** (4 * slope))
+    return np.fft.irfft(X * g, len(x))
+def rms_db(a): return 20 * np.log10(np.sqrt(np.mean(a ** 2)) + 1e-9)
+def place(bus, a, start):
+    s = int(start * SR); e = min(N, s + len(a))
+    if 0 <= s < N: bus[s:e] += a[:e - s]
+
+# ---------- voice: the take-7 chain ----------
+v, vsr = sf.read(vo_path, dtype='float32')
+if v.ndim > 1: v = v.mean(1)
+if vsr != SR: v = np.interp(np.linspace(0, len(v) - 1, int(len(v) * SR / vsr)), np.arange(len(v)), v).astype(np.float32)
+voice = np.zeros(N); voice[:min(N, len(v))] = v[:N]
+voice = fft_filter(voice, lo=85, slope=1.0)
+voice = voice + 0.18 * fft_filter(voice, lo=2200, hi=5200)
+blk = int(0.01 * SR); nb = N // blk
+rms = np.sqrt(np.mean(voice[:nb * blk].reshape(nb, blk) ** 2, 1) + 1e-9)
+thr = np.percentile(rms[rms > 1e-3], 70) if np.any(rms > 1e-3) else 0.1
+gain_b = np.where(rms > thr, (thr / rms) ** 0.35, 1.0)
+gain = np.repeat(gain_b, blk); gain = np.pad(gain, (0, N - len(gain)), constant_values=1.0)
+voice *= np.convolve(gain, np.ones(480) / 480, mode='same')
+voice /= np.max(np.abs(voice)) + 1e-9
+voice *= 10 ** ((-15 - rms_db(voice[np.abs(voice) > 0.02])) / 20)
+
+# ---------- score ----------
+cmd = ['ffmpeg', '-v', 'error', '-i', f'{mdir}/Ouroboros.mp3', '-t', str(L + 1), '-ac', '2', '-ar', str(SR), '-f', 'f32le', '-']
+m = np.frombuffer(subprocess.run(cmd, capture_output=True).stdout, dtype=np.float32).reshape(-1, 2)[:N].copy()
+m = np.pad(m, ((0, N - len(m)), (0, 0)))
+m *= 10 ** ((-19 - rms_db(m)) / 20)
+lift = C['c1a']['start'] - 0.3
+env = np.ones(N); t = np.arange(N) / SR
+env[t < lift] = 0.55                                    # quieter under the opening
+env *= np.clip(t / 2.0, 0, 1) ** 2                       # fade in
+env *= np.clip((L - t) / 3.0, 0, 1) ** 1.5               # fade under the end card
+env = np.convolve(env, np.ones(2400) / 2400, mode='same')
+m *= env[:, None]
+# duck under the voice
+blk2 = int(0.02 * SR); nb2 = N // blk2
+speak = np.sqrt(np.mean(voice[:nb2 * blk2].reshape(nb2, blk2) ** 2, 1)) > 0.01
+g = np.where(speak, 10 ** (-8 / 20), 1.0); sm = g.copy()
+for i in range(1, nb2): sm[i] = sm[i - 1] + (g[i] - sm[i - 1]) * (0.35 if g[i] < sm[i - 1] else 0.06)
+dg = np.pad(np.repeat(sm, blk2), (0, N - nb2 * blk2), constant_values=sm[-1])
+m *= dg[:, None]
+
+# ---------- accents ----------
+fx = np.zeros((N, 2), np.float32)
+def whoosh(at, dur=0.7, amp=0.16):
+    n = int(dur * SR); x = rng.standard_normal(n)
+    k = np.sin(np.linspace(0, np.pi, n)) ** 2
+    y = fft_filter(x, lo=500, hi=6000) * k * amp
+    place(fx, np.stack([y * 0.9, y], 1).astype(np.float32), at - dur * 0.55)
+def tick(at, amp=0.10):
+    n = int(0.05 * SR); tt = np.arange(n) / SR
+    y = np.sin(2 * np.pi * 2600 * tt) * np.exp(-tt * 90) * amp
+    place(fx, np.stack([y, y], 1).astype(np.float32), at)
+def chime(at, amp=0.11):
+    for f, d in [(1318.5, 0.0), (1975.5, 0.1)]:
+        n = int(1.1 * SR); tt = np.arange(n) / SR
+        y = (np.sin(2 * np.pi * f * tt) + 0.25 * np.sin(4 * np.pi * f * tt)) * np.exp(-tt * 4.8) * amp
+        place(fx, np.stack([y, y], 1).astype(np.float32), at + d)
+def boom(at, amp=0.42, f0=52, dur=1.8):
+    n = int(dur * SR); tt = np.arange(n) / SR
+    fr = f0 * (1 + 1.3 * np.exp(-tt * 9)); y = np.sin(2 * np.pi * np.cumsum(fr) / SR) * np.exp(-tt * 2.6) * amp
+    place(fx, np.stack([y, y], 1).astype(np.float32), at)
+
+boom(lift)
+chapters = [('c1a', 'c1b'), ('c2a', 'c2b'), ('c3a', 'c3b'), ('c4a', 'c4b'), ('c5a', 'c5b'), ('c6', None)]
+for i, (la, lb) in enumerate(chapters):
+    a = C[la]['start'] - 0.3
+    if i: whoosh(a)
+    if lb: whoosh(C[lb]['start'] - 0.15, amp=0.1)
+    tsig = C[lb]['start'] - 0.1 if lb else C[la]['start'] + 0.8
+    for k in range(3): tick(tsig + k * 0.45 + 0.08)
+    l = C[lb] if lb else C[la]
+    tpop = l['start'] + (l['end'] - l['start']) * (0.42 if lb else 0.5)
+    chime(tpop + 1.3)
+whoosh(C['brand']['start'] - 0.45, amp=0.2); boom(C['brand']['start'] - 0.45, amp=0.3, f0=60)
+
+mix = m + fx + np.stack([voice, voice], 1)
+mix /= max(1.0, np.max(np.abs(mix)) / 0.95)
+sf.write(out_path, mix, SR, subtype='PCM_24')
+print('mix', L, 's ->', out_path)
+
+
+====================================================================================================
 FILE: website/tools/film/render.mjs
 ====================================================================================================
 // Renders the product film frame by frame from the dev server's film.html.
@@ -15661,90 +16174,90 @@ FILE: website/tools/film/script.json
   "lines": [
     {
       "id": "hook",
-      "text": "February 2024. Attackers signed in to Change Healthcare with one stolen password.",
-      "say": "February twenty twenty-four. Attackers signed in to Change Healthcare with one stolen password.",
-      "after": 0.5
+      "text": "Most access in your company no longer belongs to a person.",
+      "say": "Most access in your company no longer belongs to a person.",
+      "after": 0.6
     },
     {
-      "id": "hook2",
-      "text": "No MFA. Nine days later, ransomware. 190 million people affected.",
-      "say": "No multi-factor authentication. Nine days later, ransomware. One hundred and ninety million people affected.",
+      "id": "shift",
+      "text": "Service accounts, cloud keys and AI agents hold it now. And attackers have noticed.",
+      "say": "Service accounts, cloud keys and AI agents hold it now. And attackers have noticed.",
       "after": 0.9
     },
     {
-      "id": "mgm",
-      "text": "MGM Resorts: one phone call to the help desk.",
-      "say": "M-G-M Resorts: one phone call to the help desk.",
+      "id": "c1a",
+      "text": "One stolen password, typed into a remote-access portal. A healthcare network went down for weeks.",
+      "say": "One stolen password, typed into a remote-access portal. A healthcare network went down for weeks.",
       "after": 0.35
     },
     {
-      "id": "snow",
-      "text": "Snowflake customers: passwords stolen by malware.",
-      "say": "Snowflake customers: passwords stolen by malware.",
+      "id": "c1b",
+      "text": "adapID scores every login on behaviour, and holds the one that doesn’t belong.",
+      "say": "Adap-ID scores every login on behaviour, and holds the one that doesn't belong.",
+      "after": 1.2
+    },
+    {
+      "id": "c2a",
+      "text": "One call to the help desk, and an attacker had an employee’s password reset.",
+      "say": "One call to the help desk, and an attacker had an employee's password reset.",
       "after": 0.35
     },
     {
-      "id": "drift",
-      "text": "An AI chat agent’s tokens, used to export customer data.",
-      "say": "An A-I chat agent's tokens, used to export customer data.",
+      "id": "c2b",
+      "text": "adapID sees the reset, the new device and the odd hour, and stops the session.",
+      "say": "Adap-ID sees the reset, the new device and the odd hour, and stops the session.",
+      "after": 1.2
+    },
+    {
+      "id": "c3a",
+      "text": "A customer on a video call, frightened into paying a fake officer.",
+      "say": "A customer on a video call, frightened into paying a fake officer.",
       "after": 0.35
     },
     {
-      "id": "india",
-      "text": "In India, ₹120 crore lost to “digital arrest” scams in four months.",
-      "say": "In India, a hundred and twenty crore rupees lost to digital arrest scams, in four months.",
-      "after": 0.9
+      "id": "c3b",
+      "text": "adapID Fraud Prevention sees the call, the coached typing and the new payee, and holds the payment.",
+      "say": "Adap-ID Fraud Prevention sees the call, the coached typing and the new payee, and holds the payment.",
+      "after": 1.2
     },
     {
-      "id": "login",
-      "text": "None of them broke in. They logged in, and every check passed.",
-      "say": "None of them broke in. They logged in, and every check passed.",
-      "after": 0.8
+      "id": "c4a",
+      "text": "An AI chat agent’s tokens, used to copy customer data from hundreds of companies.",
+      "say": "An A-I chat agent's tokens, used to copy customer data from hundreds of companies.",
+      "after": 0.35
     },
     {
-      "id": "brand",
-      "text": "Deep Algorithms secures every identity, and stops the one being misused.",
-      "say": "Deep Algorithms secures every identity, and stops the one being misused.",
-      "after": 2.0
-    },
-    {
-      "id": "cirm",
-      "text": "A valid password, from the wrong place, behaving the wrong way. adapID scores every session live, and holds it before anything moves.",
-      "say": "A valid password, from the wrong place, behaving the wrong way. Adap-ID scores every session live, and holds it before anything moves.",
-      "after": 1.9
-    },
-    {
-      "id": "fraud",
-      "text": "A real customer, on a call, typing what she is told. adapID reads the pauses and the pasted payee, and holds the payment.",
-      "say": "A real customer, on a call, typing what she is told. Adap-ID reads the pauses and the pasted payee, and holds the payment.",
-      "after": 1.9
-    },
-    {
-      "id": "zenstra",
-      "text": "An AI agent reaching beyond its task. Zenstra checks every action, and blocks it before it runs.",
-      "say": "An A-I agent reaching beyond its task. Zenstra checks every action, and blocks it before it runs.",
-      "after": 1.9,
+      "id": "c4b",
+      "text": "Zenstra scopes every agent, and blocks any action outside its task.",
+      "say": "Zenstra scopes every agent, and blocks any action outside its task.",
+      "after": 1.2,
       "ph": {
         "Zenstra": "zzˈɛnstɹə"
       }
     },
     {
-      "id": "botshield",
-      "text": "Stolen passwords, tried at machine speed. BotShield refuses the bots at the edge, and lets customers through.",
-      "say": "Stolen passwords, tried at machine speed. Bot Shield refuses the bots at the edge, and lets customers through.",
-      "after": 1.9
+      "id": "c5a",
+      "text": "Millions of stolen passwords, fired at one login page.",
+      "say": "Millions of stolen passwords, fired at one login page.",
+      "after": 0.35
     },
     {
-      "id": "icms",
+      "id": "c5b",
+      "text": "BotShield refuses the bots at the edge, and lets real customers in.",
+      "say": "Bot Shield refuses the bots at the edge, and lets real customers in.",
+      "after": 1.2
+    },
+    {
+      "id": "c6",
       "text": "And when the regulator asks who touched personal data, ICMS has the evidence in minutes.",
       "say": "And when the regulator asks who touched personal data, I-C-M-S has the evidence, in minutes.",
-      "after": 0.8
+      "after": 0.9
     },
     {
-      "id": "recap",
-      "text": "Same attacks. A different ending.",
-      "say": "Same attacks. A different ending.",
-      "after": 1.0
+      "id": "brand",
+      "text": "Deep Algorithms. Every identity, verified before it acts.",
+      "say": "Deep Algorithms. Every identity, verified before it acts.",
+      "after": 1.4
     },
     {
       "id": "trust",
@@ -15765,118 +16278,118 @@ FILE: website/tools/film/script.json
       "after": 1.6
     }
   ],
-  "lead": 2.8
+  "lead": 1.2
 }
 
 ====================================================================================================
 FILE: website/tools/film/timings.json
 ====================================================================================================
 {
- "duration": 98.735,
+ "duration": 86.105,
  "voice": "am_fenrir",
  "speed": 1.15,
  "lines": [
   {
    "id": "hook",
-   "text": "February 2024. Attackers signed in to Change Healthcare with one stolen password.",
-   "start": 2.8,
-   "end": 8.228
+   "text": "Most access in your company no longer belongs to a person.",
+   "start": 1.2,
+   "end": 4.406
   },
   {
-   "id": "hook2",
-   "text": "No MFA. Nine days later, ransomware. 190 million people affected.",
-   "start": 8.728,
-   "end": 15.391
+   "id": "shift",
+   "text": "Service accounts, cloud keys and AI agents hold it now. And attackers have noticed.",
+   "start": 5.006,
+   "end": 10.052
   },
   {
-   "id": "mgm",
-   "text": "MGM Resorts: one phone call to the help desk.",
-   "start": 16.291,
-   "end": 19.223
+   "id": "c1a",
+   "text": "One stolen password, typed into a remote-access portal. A healthcare network went down for weeks.",
+   "start": 10.952,
+   "end": 16.594
   },
   {
-   "id": "snow",
-   "text": "Snowflake customers: passwords stolen by malware.",
-   "start": 19.573,
-   "end": 22.326
+   "id": "c1b",
+   "text": "adapID scores every login on behaviour, and holds the one that doesn\u2019t belong.",
+   "start": 16.944,
+   "end": 21.6
   },
   {
-   "id": "drift",
-   "text": "An AI chat agent\u2019s tokens, used to export customer data.",
-   "start": 22.676,
-   "end": 26.347
+   "id": "c2a",
+   "text": "One call to the help desk, and an attacker had an employee\u2019s password reset.",
+   "start": 22.8,
+   "end": 26.735
   },
   {
-   "id": "india",
-   "text": "In India, \u20b9120 crore lost to \u201cdigital arrest\u201d scams in four months.",
-   "start": 26.697,
-   "end": 31.632
+   "id": "c2b",
+   "text": "adapID sees the reset, the new device and the odd hour, and stops the session.",
+   "start": 27.085,
+   "end": 31.478
   },
   {
-   "id": "login",
-   "text": "None of them broke in. They logged in, and every check passed.",
-   "start": 32.532,
-   "end": 35.411
+   "id": "c3a",
+   "text": "A customer on a video call, frightened into paying a fake officer.",
+   "start": 32.678,
+   "end": 36.112
+  },
+  {
+   "id": "c3b",
+   "text": "adapID Fraud Prevention sees the call, the coached typing and the new payee, and holds the payment.",
+   "start": 36.462,
+   "end": 41.928
+  },
+  {
+   "id": "c4a",
+   "text": "An AI chat agent\u2019s tokens, used to copy customer data from hundreds of companies.",
+   "start": 43.128,
+   "end": 48.197
+  },
+  {
+   "id": "c4b",
+   "text": "Zenstra scopes every agent, and blocks any action outside its task.",
+   "start": 48.547,
+   "end": 52.48
+  },
+  {
+   "id": "c5a",
+   "text": "Millions of stolen passwords, fired at one login page.",
+   "start": 53.68,
+   "end": 56.814
+  },
+  {
+   "id": "c5b",
+   "text": "BotShield refuses the bots at the edge, and lets real customers in.",
+   "start": 57.164,
+   "end": 61.101
+  },
+  {
+   "id": "c6",
+   "text": "And when the regulator asks who touched personal data, ICMS has the evidence in minutes.",
+   "start": 62.301,
+   "end": 67.449
   },
   {
    "id": "brand",
-   "text": "Deep Algorithms secures every identity, and stops the one being misused.",
-   "start": 36.211,
-   "end": 40.38
-  },
-  {
-   "id": "cirm",
-   "text": "A valid password, from the wrong place, behaving the wrong way. adapID scores every session live, and holds it before anything moves.",
-   "start": 42.38,
-   "end": 50.185
-  },
-  {
-   "id": "fraud",
-   "text": "A real customer, on a call, typing what she is told. adapID reads the pauses and the pasted payee, and holds the payment.",
-   "start": 52.085,
-   "end": 59.296
-  },
-  {
-   "id": "zenstra",
-   "text": "An AI agent reaching beyond its task. Zenstra checks every action, and blocks it before it runs.",
-   "start": 61.196,
-   "end": 67.191
-  },
-  {
-   "id": "botshield",
-   "text": "Stolen passwords, tried at machine speed. BotShield refuses the bots at the edge, and lets customers through.",
-   "start": 69.091,
-   "end": 75.28
-  },
-  {
-   "id": "icms",
-   "text": "And when the regulator asks who touched personal data, ICMS has the evidence in minutes.",
-   "start": 77.18,
-   "end": 82.327
-  },
-  {
-   "id": "recap",
-   "text": "Same attacks. A different ending.",
-   "start": 83.127,
-   "end": 84.588
+   "text": "Deep Algorithms. Every identity, verified before it acts.",
+   "start": 68.349,
+   "end": 71.558
   },
   {
    "id": "trust",
    "text": "Built in India. Trusted by banks, government and enterprises that cannot afford a breach.",
-   "start": 85.588,
-   "end": 90.524
+   "start": 72.958,
+   "end": 77.895
   },
   {
    "id": "cta",
    "text": "Find your riskiest identity before attackers do.",
-   "start": 91.224,
-   "end": 93.844
+   "start": 78.595,
+   "end": 81.214
   },
   {
    "id": "cta2",
    "text": "The future is decided today. Book a demo.",
-   "start": 94.944,
-   "end": 97.135
+   "start": 82.314,
+   "end": 84.505
   }
  ]
 }
