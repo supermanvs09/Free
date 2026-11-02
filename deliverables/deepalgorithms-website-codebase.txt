@@ -3076,13 +3076,13 @@ const Item = ({ to, name, desc, lead, onPeek, on }) => (
 function ProductsMenu() {
   const adapid = PRODUCT_MENU.find((l) => l.key === 'adapid');
   // the right panel follows the pointer: what the hovered product connects to, and what it does
-  const [peek, setPeek] = useState('adapid');
+  const [peek, setPeek] = useState(null);
   const all = [...PRODUCT_MENU.map((l) => ({ to: l.key === 'adapid' ? 'adapid' : l.path, name: l.name, mark: l.key })), ...adapid.items.map((m) => ({ to: m.path, name: m.name, mark: 'adapid' }))];
   const cur = all.find((x) => x.to === peek);
   const d = cur && MENU_DETAIL[cur.to];
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_340px]">
-      <div className="p-8">
+      <div className="p-8" onMouseLeave={() => setPeek(null)}>
         <div className="mb-7 flex items-start justify-between gap-6">
           <div>
             <p className="text-[20px] font-semibold tracking-[-0.015em] text-ink">Products</p>
@@ -3113,7 +3113,7 @@ function ProductsMenu() {
         ) : (
           <>
             <p className="text-[17px] font-semibold text-ink">Works with</p>
-            <p className="mt-1 text-[13.5px] leading-snug text-ink-3">The clouds, identity providers and AI tools our products connect to. Point at a product to see its own.</p>
+            <p className="mt-1 text-[13.5px] leading-snug text-ink-3">The clouds, identity providers and AI tools our products connect to.</p>
             <Suspense fallback={<div className="mt-6 aspect-square" />}><WorksWith /></Suspense>
           </>
         )}
@@ -15438,9 +15438,9 @@ test('product menu: the four platforms, the four adapID products and the tools t
   await page.getByRole('button', { name: 'Products' }).click();
   const mega = page.locator('#mega');
   await expect(mega).toBeVisible();
-  // the only images are product logos (the four platforms, plus the one shown in the side panel); brand marks are drawn inline
+  // the only images are the four product logos; the brand marks are drawn inline
   const logos = mega.locator('img');
-  await expect(logos).toHaveCount(5);
+  await expect(logos).toHaveCount(4);
   for (const src of await logos.evaluateAll((els) => els.map((e) => e.getAttribute('src')))) expect(src).toMatch(/^\/brand\/products\/(zenstra|adapid|botshield|icms)\.webp$/);
   for (const name of ['Zenstra AI', 'BotShield AI', 'ICMS Compliance Suite', 'Continuous Identity Risk Management', 'NHI Security for AWS', 'Identity Fraud Prevention', 'Active Directory Security']) await expect(mega.getByRole('link', { name: new RegExp(name) })).toBeVisible();
   await expect(mega.getByText('Works with')).toBeVisible();
