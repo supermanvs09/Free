@@ -1,0 +1,122 @@
+package summarycommon
+
+import (
+	"context"
+	"errors"
+
+	"nhi-backend-api/internal/platform/logging"
+	"nhi-backend-api/internal/platform/scope"
+)
+
+// MonitoredIdentityLookup resolves the {source_type}/{identity_name} path of
+// the identity endpoints (backend_api_contract.md §5.2–§5.7) to one monitored
+// identity inside the caller's tenant scope. It applies the same two steps
+// as the dashboard: latest non-deleted discovery snapshot per resource from
+// the tenant's identities table (account/region scoped), then the §1.4
+// normalizer — so an identity is addressable only by the key the other
+// endpoints emit, and never outside the caller's scope.
+type MonitoredIdentityLookup struct {
+	discovery discoveryReader
+	resolver  ScopeResolver
+}
+
+// discoveryReader is the part of DashboardSummaryRepository the lookup uses.
+type discoveryReader interface {
+	LatestIdentities(ctx context.Context, resolved *scope.DataScope) ([]DiscoveryIdentityRow, error)
+}
+
+// NewMonitoredIdentityLookup wires the lookup (pass the shared scope.Resolver).
+func NewMonitoredIdentityLookup(discovery *DashboardSummaryRepository, resolver ScopeResolver) *MonitoredIdentityLookup {
+	return &MonitoredIdentityLookup{discovery: discovery, resolver: resolver}
+}
+
+// ErrIdentityNotFound reports an unknown (source_type, identity_name) inside
+// the caller's scope; handlers answer 404 IDENTITY_NOT_FOUND.
+var ErrIdentityNotFound = errors.New("identity not found")
+
+// resolvedIdentity is the lookup result: the tenant scope the identity was
+// found in and its normalized form.
+type resolvedIdentity struct {
+	Scope    *scope.DataScope
+	Identity MonitoredIdentity
+}
+
+// Resolve finds the identity. Scope or discovery failures are
+// *StoreUnavailableError (503); an unknown identity is ErrIdentityNotFound.
+// When several snapshots normalize to the same key, the most recently seen
+// one is used.
+func (l *MonitoredIdentityLookup) Resolve(ctx context.Context, userID, tenantID, dbName, sourceType, identityName string) (resolvedIdentity, error) {
+	sc, fleet, err := l.Fleet(ctx, userID, tenantID, dbName)
+	if err != nil {
+		return resolvedIdentity{}, err
+	}
+	for _, id := range fleet {
+		if id.Key.SourceType == sourceType && id.Key.IdentityName == identityName {
+			return resolvedIdentity{Scope: sc, Identity: id}, nil
+		}
+	}
+	return resolvedIdentity{}, ErrIdentityNotFound
+}
+
+// Fleet returns the caller's tenant scope and every monitored identity in
+// it: the latest non-deleted discovery snapshot per resource, normalized,
+// one entry per (source_type, identity_name) — when several snapshots
+// normalize to the same key the most recently seen one wins. Order follows
+// the discovery read; callers sort. Failures are *StoreUnavailableError.
+func (l *MonitoredIdentityLookup) Fleet(ctx context.Context, userID, tenantID, dbName string) (*scope.DataScope, []MonitoredIdentity, error) {
+	sc, err := l.resolver.Resolve(ctx, userID, tenantID, dbName)
+	if err != nil {
+		return nil, nil, &StoreUnavailableError{Op: "resolve tenant scope", Err: err}
+	}
+	rows, err := l.discovery.LatestIdentities(ctx, sc)
+	if err != nil {
+		return nil, nil, &StoreUnavailableError{Op: "read discovery identities", Err: err}
+	}
+	var (
+		fleet []MonitoredIdentity
+		index = map[MonitoringKey]int{}
+		seen  = map[MonitoringKey]*DiscoveryIdentityRow{}
+	)
+	for i := range rows {
+		id, ok := NormalizeDiscoveryRow(rows[i])
+		if !ok {
+			continue
+		}
+		if at, dup := index[id.Key]; dup {
+			if newerSnapshot(rows[i], seen[id.Key]) {
+				fleet[at], seen[id.Key] = id, &rows[i]
+			}
+			continue
+		}
+		index[id.Key] = len(fleet)
+		seen[id.Key] = &rows[i]
+		fleet = append(fleet, id)
+	}
+	return sc, fleet, nil
+}
+
+// newerSnapshot reports whether candidate was seen more recently than current.
+func newerSnapshot(candidate DiscoveryIdentityRow, current *DiscoveryIdentityRow) bool {
+	if current == nil || current.LastSeenAt == nil {
+		return candidate.LastSeenAt != nil
+	}
+	return candidate.LastSeenAt != nil && candidate.LastSeenAt.After(*current.LastSeenAt)
+}
+
+// APIBasePath is where the genome API is mounted in the merged backend
+// (routes.GenomeBasePath under /api/v1). Its /identities would otherwise
+// collide with the discovery API's /identities.
+const APIBasePath = "/api/v1/genome"
+
+// eventsReadOK reports whether a ClickHouse read succeeded; failures are
+// logged and leave the dependent fields null (graceful degradation, like
+// readOK for the PostgreSQL tables). A not-configured store is not logged.
+func EventsReadOK(ctx context.Context, op string, err error) bool {
+	if err == nil {
+		return true
+	}
+	if !errors.Is(err, ErrMonitoringEventsNotConfigured) {
+		logging.FromContext(ctx).Warn("monitoring clickhouse read failed, field left null", "op", op, "err", err, "degraded", true)
+	}
+	return false
+}

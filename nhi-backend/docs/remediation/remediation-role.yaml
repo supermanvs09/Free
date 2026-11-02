@@ -1,0 +1,112 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  ISPM remediation role. Lets the ISPM platform make the specific changes a customer
+  approved in the dashboard (One-click remediation). It is created per AWS account by the
+  customer and can be deleted at any time to switch One-click off.
+
+Parameters:
+  PlatformAccountId:
+    Type: String
+    AllowedPattern: '^\d{12}$'
+    Description: AWS account id of the ISPM platform (given in the dashboard).
+  ExternalId:
+    Type: String
+    NoEcho: true
+    MinLength: 16
+    Description: ExternalId shown in the dashboard (Settings > Remediation). Prevents the confused-deputy problem.
+  RoleName:
+    Type: String
+    Default: ISPMRemediation
+
+Resources:
+  RemediationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref RoleName
+      Description: Remediation role of the ISPM platform
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { AWS: !Sub "arn:aws:iam::${PlatformAccountId}:root" }
+            Action: sts:AssumeRole
+            Condition: { StringEquals: { "sts:ExternalId": !Ref ExternalId } }
+      Policies:
+        - PolicyName: ispm-remediation
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # Reads used to build a plan and to verify a change (nothing is written here).
+              - Sid: ReadForPlanning
+                Effect: Allow
+                Action:
+                  - iam:Get*
+                  - iam:List*
+                  - iam:Generate*
+                  - kms:Describe*
+                  - kms:Get*
+                  - kms:List*
+                  - secretsmanager:Describe*
+                  - secretsmanager:GetResourcePolicy
+                  - secretsmanager:List*
+                  - access-analyzer:ValidatePolicy
+                Resource: "*"
+              # The only changes the platform can make. At run time every change is further limited
+              # to the one resource of the approved plan (session policy), and only after your
+              # approvers approved it in the dashboard.
+              - Sid: R1PermissionsAndPolicies
+                Effect: Allow
+                Action:
+                  - iam:PutRolePolicy
+                  - iam:AttachRolePolicy
+                  - iam:DetachRolePolicy
+                  - iam:CreatePolicy
+                  - iam:CreatePolicyVersion
+                  - iam:DeletePolicyVersion
+                  - iam:SetDefaultPolicyVersion
+                  - iam:DeletePolicy
+                Resource: "*"
+              - Sid: R2R5AccessKeys
+                Effect: Allow
+                Action:
+                  - iam:UpdateAccessKey
+                  - iam:CreateAccessKey
+                  - iam:DeleteAccessKey
+                Resource: "*"
+              - Sid: R3TrustPolicies
+                Effect: Allow
+                Action:
+                  - iam:UpdateAssumeRolePolicy
+                  - iam:UpdateRole
+                Resource: "*"
+              - Sid: R4KeyAndSecretAccess
+                Effect: Allow
+                Action:
+                  - kms:PutKeyPolicy
+                  - kms:RevokeGrant
+                  - kms:CreateGrant
+                  - kms:EnableKeyRotation
+                  - kms:DisableKeyRotation
+                  - secretsmanager:PutResourcePolicy
+                  - secretsmanager:DeleteResourcePolicy
+                  - secretsmanager:RotateSecret
+                  - secretsmanager:PutSecretValue
+                  - secretsmanager:UpdateSecretVersionStage
+                Resource: "*"
+              # Hard limits that no approval can override.
+              - Sid: NeverTouchAwsManagedRoles
+                Effect: Deny
+                Action: ["iam:*"]
+                Resource:
+                  - !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-service-role/*"
+                  - !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-reserved/*"
+              - Sid: NeverTouchThisRole
+                Effect: Deny
+                Action: ["iam:*"]
+                Resource: !Sub "arn:aws:iam::${AWS::AccountId}:role/${RoleName}"
+
+Outputs:
+  RoleArn:
+    Description: Paste this into the dashboard (Settings > Remediation) and press "Validate access".
+    Value: !GetAtt RemediationRole.Arn

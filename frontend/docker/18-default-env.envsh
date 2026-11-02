@@ -1,0 +1,31 @@
+# Sourced by the nginx image's entrypoint (files named *.envsh run in the
+# entrypoint's own shell, so exports reach envsubst) before the nginx template
+# is rendered.
+#
+# envsubst only substitutes variables that exist. DISCOVERY_API_KEY is optional
+# and is never baked into the image, so when the operator did not pass one it
+# is defined here as empty. An empty value makes nginx drop the X-API-Key
+# header instead of sending the literal text "${DISCOVERY_API_KEY}".
+: "${DISCOVERY_API_KEY:=}"
+export DISCOVERY_API_KEY
+
+# DISCOVERY_UPSTREAM is the scan service's origin only: scheme, host, port. The
+# console appends /api/v1/scan/... itself, and with a variable proxy_pass any
+# path left on this value would replace the request path and break every call.
+# Trim a trailing slash, /api or /api/v1 so a pasted full base URL still works.
+DISCOVERY_UPSTREAM="${DISCOVERY_UPSTREAM%/}"
+DISCOVERY_UPSTREAM="${DISCOVERY_UPSTREAM%/api/v1}"
+DISCOVERY_UPSTREAM="${DISCOVERY_UPSTREAM%/api}"
+DISCOVERY_UPSTREAM="${DISCOVERY_UPSTREAM%/}"
+export DISCOVERY_UPSTREAM
+
+# nginx resolves the upstream names at request time and needs a resolver of its
+# own. A hard-coded 127.0.0.11 only exists under Docker's embedded DNS; on ECS
+# Fargate or Kubernetes it does not, and every proxied call then fails with 502
+# ("could not be resolved"). Unless DNS_RESOLVER was passed, use the first IPv4
+# nameserver of this container's own resolv.conf.
+if [ -z "${DNS_RESOLVER:-}" ]; then
+  DNS_RESOLVER=$(awk '$1=="nameserver" && $2 !~ ":" {print $2; exit}' /etc/resolv.conf 2>/dev/null || true)
+  : "${DNS_RESOLVER:=127.0.0.11}"
+fi
+export DNS_RESOLVER

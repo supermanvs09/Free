@@ -1,0 +1,12 @@
+DROP TABLE IF EXISTS :"schema".remediation_notifications;
+DROP TABLE IF EXISTS :"schema".remediation_ticket_links;
+DROP TABLE IF EXISTS :"schema".remediation_integrations;
+DROP TABLE IF EXISTS :"schema".remediation_audit_log;
+DROP FUNCTION IF EXISTS :"schema".remediation_audit_immutable();
+DROP TABLE IF EXISTS :"schema".remediation_approvals;
+DROP TABLE IF EXISTS :"schema".remediation_executions;
+DROP TABLE IF EXISTS :"schema".remediation_plans;
+DROP TABLE IF EXISTS :"schema".remediation_batches;
+DROP TABLE IF EXISTS :"schema".remediation_accounts;
+DROP TABLE IF EXISTS :"schema".remediation_rule_actions;
+DROP TABLE IF EXISTS :"schema".remediation_actions;

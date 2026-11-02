@@ -1,0 +1,117 @@
+import client from './client';
+import { ApiError, expectField } from './http';
+
+/*
+ * Credential exposure (NHI backend, admin only). The secret scanner writes its
+ * findings into the tenant's schema and the API serves them here; a deep-scan
+ * request is written to the tenant's deep-scan table for the scanner worker.
+ *
+ *   GET    /api/v1/credential-exposure/findings            ?limit (<=500) &offset | ?finding_id
+ *   GET    /api/v1/credential-exposure/findings/review     the models are unsure: a person decides
+ *   GET    /api/v1/credential-exposure/findings/repeated   one value copied to 3+ places in a commit
+ *   GET    /api/v1/credential-exposure/findings/noise      recognised harmless values
+ *   GET    /api/v1/credential-exposure/findings/flagged    findings the model marked false positive
+ *   GET    /api/v1/credential-exposure/findings/summary
+ *   POST   /api/v1/credential-exposure/decisions           { finding_id, decision }
+ *   GET/POST/DELETE /api/v1/credential-exposure/allowlist  accept / list / restore
+ *   POST   /api/v1/credential-exposure/deep-scan           { client_id, repository, platform? }
+ *   GET    /api/v1/credential-exposure/deep-scan/status    ?client_id &repository [&platform]
+ *
+ * These answer bare JSON, not the { success, data } envelope.
+ */
+const CE = '/api/v1/credential-exposure';
+const PAGE = 500;
+const MAX_FINDINGS = 20000;
+
+/* Every finding that is not marked safe is in exactly one of five lists. */
+const LIST_PATHS = {
+  live: `${CE}/findings`,
+  review: `${CE}/findings/review`,
+  repeated: `${CE}/findings/repeated`,
+  noise: `${CE}/findings/noise`,
+  flagged: `${CE}/findings/flagged`,
+};
+
+/**
+ * Every finding in one list (`live` is the main list). The API pages at most
+ * 500 at a time and reports the full `count`, so every page is read: the
+ * screens filter, count and group the whole set, and a partial set would
+ * undercount.
+ */
+export async function fetchFindings(signal, { list = 'live' } = {}) {
+  const path = LIST_PATHS[list] ?? LIST_PATHS.live;
+  const findings = [];
+  let count = 0;
+  for (let offset = 0; offset < MAX_FINDINGS; offset += PAGE) {
+    const body = expectField(await client.get(path, { params: { limit: PAGE, offset }, signal }), 'findings');
+    if (!Array.isArray(body.findings)) {
+      throw new ApiError({ message: 'The service answered with an unexpected response.' });
+    }
+    findings.push(...body.findings);
+    count = Number.isFinite(body.count) ? body.count : findings.length;
+    if (body.findings.length < PAGE || findings.length >= count) break;
+  }
+  return { findings, count };
+}
+
+/** { total_findings, high_count, medium_count, low_count, affected_repositories, lists: { main, review, repeated, noise, ml_flagged } } */
+export async function fetchFindingsSummary(signal) {
+  return expectField(await client.get(`${CE}/findings/summary`, { signal }), 'total_findings');
+}
+
+/** One finding (ids may contain slashes). */
+export async function fetchFinding(findingId, signal) {
+  return expectField(await client.get(`${CE}/findings`, { params: { finding_id: findingId }, signal }), 'finding_id');
+}
+
+/** The analyst's verdict; the API records who from the token. */
+export async function decideFinding({ findingId, decision }) {
+  const res = await client.post(`${CE}/decisions`, { finding_id: findingId, decision });
+  return res?.data ?? {};
+}
+
+export async function fetchAllowlist(signal) {
+  const body = expectField(await client.get(`${CE}/allowlist`, { signal }), 'entries');
+  return Array.isArray(body.entries) ? body.entries : [];
+}
+
+/** Accept a finding. All four identifying fields are required; the API records who. */
+export async function dismissFinding({ clientId, filePath, detector, redacted, reason }) {
+  const res = await client.post(`${CE}/allowlist`, {
+    client_id: clientId,
+    file_path: filePath,
+    detector,
+    redacted,
+    ...(reason ? { reason } : {}),
+  });
+  return res?.data ?? {};
+}
+
+/** Back into the live findings. */
+export async function restoreFinding({ clientId, filePath, detector, redacted }) {
+  const res = await client.delete(`${CE}/allowlist`, {
+    data: { client_id: clientId, file_path: filePath, detector, redacted },
+  });
+  return res?.data ?? {};
+}
+
+/**
+ * Start the full commit-by-commit history walk of one repository. 202 means
+ * accepted, not finished - poll `fetchDeepScanStatus`; `already_running` says
+ * an earlier request is still waiting. `repository` is a bare name for
+ * CodeCommit, `owner/repo` for GitHub; `platform` is sent when known.
+ */
+export async function startDeepScan({ clientId, repository, platform }) {
+  const body = { client_id: clientId, repository };
+  if (platform) body.platform = platform;
+  const res = await client.post(`${CE}/deep-scan`, body);
+  return res?.data ?? {};
+}
+
+/** `not_started` | `running` | `complete` | `failed`, plus counts and times. */
+export async function fetchDeepScanStatus({ clientId, repository, platform }, signal) {
+  const params = { client_id: clientId, repository };
+  if (platform) params.platform = platform;
+  const res = await client.get(`${CE}/deep-scan/status`, { params, signal });
+  return res?.data ?? {};
+}

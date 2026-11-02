@@ -1,0 +1,602 @@
+// Package postures reads the precomputed ISPM tables (ispm_*) for the posture
+// dashboard. The worker writes those tables after every scan; this package
+// only reads them (apart from PATCH /findings, which is the one write).
+//
+// Every query is schema-qualified through the DataScope (s.Table) and filtered
+// by tenant_id taken from the JWT. Nothing is hard-coded about the data:
+// pillars, rule titles, fixes and categories all come from the catalog tables.
+package common
+
+import (
+	"context"
+	"database/sql"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"math"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
+
+	"nhi-backend-api/internal/platform/scope"
+)
+
+var (
+	// ErrScopeRequired means a repository was called without a tenant scope.
+	ErrScopeRequired = errors.New("tenant scope is required")
+	// ErrNotFound: the record does not exist for this tenant (also used when
+	// it belongs to another tenant, so existence is never revealed).
+	ErrRecordNotFound = errors.New("record not found")
+	// ErrInvalidCursor: the pagination cursor is malformed or not ours.
+	ErrMalformedCursor = errors.New("invalid cursor")
+)
+
+// ISPM tables, all in the tenant schema.
+const (
+	TIdentityPosture = "ispm_identity_posture"
+	TIdentityChecks  = "ispm_identity_checks"
+	TPostureDaily    = "ispm_identity_posture_daily"
+	TPostureHourly   = "ispm_identity_posture_hourly"
+	TDashboardCache  = "ispm_nhi_dashboard_cache"
+	TSnapshots       = "ispm_posture_snapshots"
+	TFindings        = "ispm_nhi_findings"
+	TFindingHistory  = "ispm_finding_history"
+	TAccessEdges     = "ispm_access_edges"
+	TRoleUse         = "ispm_role_use"
+	tScanHistory     = "ispm_scan_history"
+	TRuleWeights     = "ispm_rule_weights"
+	TCategories      = "ispm_categories"
+	tPillars         = "ispm_pillars"
+	TIdentityEvents  = "ispm_identity_events"
+
+	// Credential details come from the scanner's credentials table and from
+	// dummy_credentials, which holds the posture sample data (tenant_demo has
+	// only the latter). See credentialSource.
+	tCredentials      = "credentials"
+	tDummyCredentials = "dummy_credentials"
+)
+
+// credentialColumns are what the posture pages read about a credential; both
+// credential tables have them with the same types.
+const credentialColumns = `arn, name, credential_type, status, created_at_aws, last_used_at,
+	permission_boundary_arn, max_session_duration, deleted_at, last_seen_at, updated_at`
+
+// credentialSource returns a relation (for FROM) over every credential table
+// the tenant schema has, with a src column: 0 for the scanner's credentials,
+// 1 for dummy_credentials, so callers prefer real data when both know an ARN.
+// When neither exists it is an empty relation of the same shape.
+func CredentialSource(ctx context.Context, s *scope.DataScope) (string, error) {
+	var hasReal, hasDummy bool
+	if err := s.DB.QueryRowContext(ctx, `SELECT to_regclass($1) IS NOT NULL, to_regclass($2) IS NOT NULL`,
+		s.Table(tCredentials), s.Table(tDummyCredentials)).Scan(&hasReal, &hasDummy); err != nil {
+		return "", fmt.Errorf("check credential tables: %w", err)
+	}
+	parts := make([]string, 0, 2)
+	if hasReal {
+		parts = append(parts, `SELECT `+credentialColumns+`, 0 AS src FROM `+s.Table(tCredentials))
+	}
+	if hasDummy {
+		parts = append(parts, `SELECT `+credentialColumns+`, 1 AS src FROM `+s.Table(tDummyCredentials))
+	}
+	if len(parts) == 0 {
+		return `(SELECT NULL::text AS arn, NULL::text AS name, NULL::text AS credential_type, NULL::text AS status,
+			NULL::timestamptz AS created_at_aws, NULL::timestamptz AS last_used_at, NULL::text AS permission_boundary_arn,
+			NULL::int AS max_session_duration, NULL::timestamptz AS deleted_at, NULL::timestamptz AS last_seen_at,
+			NULL::timestamptz AS updated_at, 0 AS src WHERE false)`, nil
+	}
+	return `(` + strings.Join(parts, ` UNION ALL `) + `)`, nil
+}
+
+// latestCredential is a LATERAL join (alias c) to the newest live row of the
+// credential at e.target_arn in src (from credentialSource).
+func LatestCredential(src string) string {
+	return `LEFT JOIN LATERAL (
+			SELECT * FROM ` + src + ` cr
+			WHERE cr.arn = e.target_arn AND cr.deleted_at IS NULL
+			ORDER BY cr.src, cr.last_seen_at DESC NULLS LAST, cr.updated_at DESC NULLS LAST
+			LIMIT 1
+		) c ON true`
+}
+
+func Need(s *scope.DataScope) error {
+	if s == nil || s.DB == nil || strings.TrimSpace(s.TenantID) == "" {
+		return ErrScopeRequired
+	}
+	return nil
+}
+
+// isUndefinedTable reports a missing relation (SQLSTATE 42P01). Optional
+// sources (role use) answer "no data yet" instead of failing when the table
+// has not been created.
+func IsUndefinedTable(err error) bool {
+	var pe *pgconn.PgError
+	return errors.As(err, &pe) && pe.Code == "42P01"
+}
+
+// isUndefinedColumn reports SQLSTATE 42703: an optional table exists but not
+// yet in the shape a query needs.
+func IsUndefinedColumn(err error) bool {
+	var pe *pgconn.PgError
+	return errors.As(err, &pe) && pe.Code == "42703"
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Cursor
+// ─────────────────────────────────────────────────────────────────────────
+
+func EncodeCursor(v any) string {
+	b, _ := json.Marshal(v)
+	return base64.RawURLEncoding.EncodeToString(b)
+}
+
+func DecodeCursor(raw string, out any) error {
+	b, err := base64.RawURLEncoding.DecodeString(strings.TrimSpace(raw))
+	if err != nil {
+		return ErrMalformedCursor
+	}
+	if err := json.Unmarshal(b, out); err != nil {
+		return ErrMalformedCursor
+	}
+	return nil
+}
+
+// clampLimit applies the documented pagination bounds (default 50, max 100).
+func ClampPageLimit(n int) int {
+	if n < 1 {
+		return 50
+	}
+	if n > 100 {
+		return 100
+	}
+	return n
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Scan metadata (meta.scan_id, ETag)
+// ─────────────────────────────────────────────────────────────────────────
+
+const metaCacheTTL = 5 * time.Second
+
+type metaEntry struct {
+	meta    Meta
+	expires time.Time
+}
+
+var metaCache = struct {
+	sync.Mutex
+	m map[string]metaEntry
+}{m: map[string]metaEntry{}}
+
+// MetaRepository answers "which scan is the data from". The answer is cached
+// for a few seconds per tenant because every request (and every ETag check)
+// asks for it, and it only changes once per scan.
+type MetaRepository struct{}
+
+func NewMetaRepository() *MetaRepository { return &MetaRepository{} }
+
+// ScanMeta returns the tenant's latest finished scan. DataAvailable is false
+// when no scan has been recorded yet.
+func (r *MetaRepository) ScanMeta(ctx context.Context, s *scope.DataScope) (Meta, error) {
+	if err := Need(s); err != nil {
+		return Meta{}, err
+	}
+	key := s.DBName + "|" + s.TenantID
+	now := time.Now()
+	metaCache.Lock()
+	if e, ok := metaCache.m[key]; ok && now.Before(e.expires) {
+		metaCache.Unlock()
+		return e.meta, nil
+	}
+	metaCache.Unlock()
+
+	q := fmt.Sprintf(`SELECT scan_id::text, completed_at, started_at
+		FROM %s
+		WHERE tenant_id = $1 AND status IN ('COMPLETED', 'PARTIAL')
+		ORDER BY started_at DESC NULLS LAST
+		LIMIT 1`, s.Table(tScanHistory))
+	var id sql.NullString
+	var completed, started sql.NullTime
+	meta := Meta{}
+	err := s.DB.QueryRowContext(ctx, q, s.TenantID).Scan(&id, &completed, &started)
+	switch {
+	case errors.Is(err, sql.ErrNoRows), err != nil && IsUndefinedTable(err):
+		// no scan yet: empty meta, data_available stays false
+	case err != nil:
+		return Meta{}, fmt.Errorf("load scan meta: %w", err)
+	default:
+		meta.ScanID = id.String
+		meta.DataAvailable = id.Valid && id.String != ""
+		if completed.Valid {
+			t := completed.Time.UTC()
+			meta.ComputedAt = &t
+		} else if started.Valid {
+			t := started.Time.UTC()
+			meta.ComputedAt = &t
+		}
+	}
+
+	metaCache.Lock()
+	if len(metaCache.m) > 10000 {
+		metaCache.m = map[string]metaEntry{}
+	}
+	metaCache.m[key] = metaEntry{meta: meta, expires: now.Add(metaCacheTTL)}
+	metaCache.Unlock()
+	return meta, nil
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Identity reference (shared by every /identities/{id}/… endpoint)
+// ─────────────────────────────────────────────────────────────────────────
+
+// identityRef is the few columns every identity page needs.
+type IdentityRef struct {
+	ID    string
+	ARN   string
+	Name  string
+	Type  string
+	Class sql.NullString
+}
+
+// loadIdentityRef finds the identity in this tenant's posture table, or
+// returns ErrNotFound. An identity of another tenant is indistinguishable
+// from a missing one.
+func LoadIdentityRef(ctx context.Context, s *scope.DataScope, id string) (*IdentityRef, error) {
+	if err := Need(s); err != nil {
+		return nil, err
+	}
+	q := fmt.Sprintf(`SELECT identity_id, COALESCE(identity_arn, ''), COALESCE(identity_name, ''),
+			COALESCE(identity_type, ''), functional_class
+		FROM %s WHERE tenant_id = $1 AND identity_id = $2`, s.Table(TIdentityPosture))
+	var ref IdentityRef
+	err := s.DB.QueryRowContext(ctx, q, s.TenantID, id).Scan(&ref.ID, &ref.ARN, &ref.Name, &ref.Type, &ref.Class)
+	if errors.Is(err, sql.ErrNoRows) || IsUndefinedTable(err) { // not scored yet
+		return nil, ErrRecordNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("load identity: %w", err)
+	}
+	return &ref, nil
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Pillar catalog
+// ─────────────────────────────────────────────────────────────────────────
+
+type pillarMeta struct {
+	Code  string
+	Name  string
+	Order int
+}
+
+// loadPillarCatalog reads the enabled pillars in display order.
+func LoadPillarCatalog(ctx context.Context, s *scope.DataScope) ([]pillarMeta, error) {
+	q := fmt.Sprintf(`SELECT pillar_code, COALESCE(NULLIF(pillar_name, ''), pillar_code), COALESCE(display_order, 0)
+		FROM %s WHERE COALESCE(enabled, true) ORDER BY display_order, pillar_code`, s.Table(tPillars))
+	rows, err := s.DB.QueryContext(ctx, q)
+	if err != nil {
+		return nil, fmt.Errorf("load pillars: %w", err)
+	}
+	defer rows.Close()
+	out := make([]pillarMeta, 0, 6)
+	for rows.Next() {
+		var p pillarMeta
+		if err := rows.Scan(&p.Code, &p.Name, &p.Order); err != nil {
+			return nil, fmt.Errorf("scan pillar: %w", err)
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Tolerant JSON helpers
+//
+// The worker stores several dashboard values as JSON. Its exact key spelling
+// is read here defensively (a few synonyms per field) so a renamed key does not
+// blank the page, and nothing is assumed about which pillars / classes exist.
+// ─────────────────────────────────────────────────────────────────────────
+
+func DecodeAny(raw []byte) any {
+	if len(raw) == 0 {
+		return nil
+	}
+	var v any
+	if err := json.Unmarshal(raw, &v); err != nil {
+		return nil
+	}
+	return v
+}
+
+func AsFloat(v any) (float64, bool) {
+	switch t := v.(type) {
+	case float64:
+		return t, true
+	case json.Number:
+		f, err := t.Float64()
+		return f, err == nil
+	case string:
+		f, err := strconv.ParseFloat(strings.TrimSpace(t), 64)
+		return f, err == nil
+	case bool:
+		return 0, false
+	}
+	return 0, false
+}
+
+func asString(v any) string {
+	if s, ok := v.(string); ok {
+		return strings.TrimSpace(s)
+	}
+	return ""
+}
+
+func firstOf(m map[string]any, keys ...string) (any, bool) {
+	for _, k := range keys {
+		if v, ok := m[k]; ok && v != nil {
+			return v, true
+		}
+	}
+	return nil, false
+}
+
+func FloatOf(m map[string]any, keys ...string) *float64 {
+	if v, ok := firstOf(m, keys...); ok {
+		if f, ok := AsFloat(v); ok {
+			return &f
+		}
+	}
+	return nil
+}
+
+func IntOf(m map[string]any, keys ...string) *int {
+	if f := FloatOf(m, keys...); f != nil {
+		n := int(math.Round(*f))
+		return &n
+	}
+	return nil
+}
+
+func StringOf(m map[string]any, keys ...string) string {
+	if v, ok := firstOf(m, keys...); ok {
+		return asString(v)
+	}
+	return ""
+}
+
+// pickWindow extracts the change for one window from either a plain number or
+// a map keyed by window ("30d", "change_30d", "score_change_30d", "1d" …).
+func PickWindow(v any, w Window) *float64 {
+	if v == nil {
+		return nil
+	}
+	if f, ok := AsFloat(v); ok {
+		return &f
+	}
+	m, ok := v.(map[string]any)
+	if !ok {
+		return nil
+	}
+	return FloatOf(m, w.Label, w.ChangeSuffix, "change_"+w.Label, "change_"+w.ChangeSuffix,
+		"score_change_"+w.Label, "score_change_"+w.ChangeSuffix)
+}
+
+// objectList accepts either a JSON array of objects or an object keyed by name
+// and returns (name, object) pairs; for arrays the name comes from nameKeys.
+type namedObject struct {
+	Name string
+	Obj  map[string]any
+}
+
+func ObjectList(raw []byte, nameKeys ...string) []namedObject {
+	switch t := DecodeAny(raw).(type) {
+	case []any:
+		out := make([]namedObject, 0, len(t))
+		for _, it := range t {
+			if m, ok := it.(map[string]any); ok {
+				out = append(out, namedObject{Name: StringOf(m, nameKeys...), Obj: m})
+			}
+		}
+		return out
+	case map[string]any:
+		out := make([]namedObject, 0, len(t))
+		for k, it := range t {
+			switch o := it.(type) {
+			case map[string]any:
+				out = append(out, namedObject{Name: k, Obj: o})
+			default:
+				if f, ok := AsFloat(o); ok {
+					out = append(out, namedObject{Name: k, Obj: map[string]any{"score": f}})
+				}
+			}
+		}
+		return out
+	}
+	return nil
+}
+
+var pillarNameKeys = []string{"pillar", "pillar_code", "code", "name"}
+
+// pillarStat is one pillar's numbers as stored by the worker.
+type PillarStat struct {
+	Score     *float64
+	Evaluated *int
+	Failing   *int
+	Status    string
+}
+
+func ParsePillarStats(raw []byte) map[string]PillarStat {
+	out := map[string]PillarStat{}
+	for _, no := range ObjectList(raw, pillarNameKeys...) {
+		if no.Name == "" {
+			continue
+		}
+		out[no.Name] = PillarStat{
+			Score:     FloatOf(no.Obj, "score", "mean", "mean_score", "pillar_score", "value"),
+			Evaluated: IntOf(no.Obj, "evaluated", "checks_evaluated"),
+			Failing:   IntOf(no.Obj, "failing", "failed", "checks_failed"),
+			Status:    strings.ToUpper(StringOf(no.Obj, "status", "state")),
+		}
+	}
+	return out
+}
+
+// fleetPillarStatus: PASS ≥ 80 · WARN ≥ 50 · FAIL < 50 (mean pillar score).
+func FleetPillarStatus(score float64) string {
+	switch {
+	case score >= 80:
+		return "PASS"
+	case score >= 50:
+		return "WARN"
+	}
+	return "FAIL"
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Small conversions
+// ─────────────────────────────────────────────────────────────────────────
+
+func Round1(f float64) float64 { return math.Round(f*10) / 10 }
+
+func NullFloat(n sql.NullFloat64) *float64 {
+	if !n.Valid {
+		return nil
+	}
+	f := Round1(n.Float64)
+	return &f
+}
+
+func NullInt(n sql.NullInt64) *int {
+	if !n.Valid {
+		return nil
+	}
+	v := int(n.Int64)
+	return &v
+}
+
+func NullStr(n sql.NullString) *string {
+	if !n.Valid {
+		return nil
+	}
+	v := n.String
+	return &v
+}
+
+func NullTime(n sql.NullTime) *time.Time {
+	if !n.Valid {
+		return nil
+	}
+	t := n.Time.UTC()
+	return &t
+}
+
+func NullBool(n sql.NullBool) *bool {
+	if !n.Valid {
+		return nil
+	}
+	v := n.Bool
+	return &v
+}
+
+func IntVal(n sql.NullInt64) int { return int(n.Int64) }
+
+// daysSince is the whole number of days between t and now (never negative).
+func DaysSince(t sql.NullTime) *int {
+	if !t.Valid {
+		return nil
+	}
+	d := int(time.Since(t.Time).Hours() / 24)
+	if d < 0 {
+		d = 0
+	}
+	return &d
+}
+
+// humanize turns "least_privilege" into "Least privilege".
+func Humanize(code string) string {
+	code = strings.TrimSpace(strings.ReplaceAll(code, "_", " "))
+	if code == "" {
+		return ""
+	}
+	return strings.ToUpper(code[:1]) + code[1:]
+}
+
+// titleCase turns "ACTIVE" into "Active".
+func TitleCase(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return ""
+	}
+	s = strings.ToLower(s)
+	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// tagList reads a compliance-tag value stored as a JSON array of strings (or
+// of objects with a tag / name / id field).
+func TagList(raw []byte) []string {
+	arr, ok := DecodeAny(raw).([]any)
+	if !ok {
+		return []string{}
+	}
+	out := make([]string, 0, len(arr))
+	seen := map[string]struct{}{}
+	for _, it := range arr {
+		tag := ""
+		switch t := it.(type) {
+		case string:
+			tag = strings.TrimSpace(t)
+		case map[string]any:
+			tag = StringOf(t, "tag", "name", "id", "control")
+		}
+		if tag == "" {
+			continue
+		}
+		if _, dup := seen[tag]; dup {
+			continue
+		}
+		seen[tag] = struct{}{}
+		out = append(out, tag)
+	}
+	return out
+}
+
+// escapeLike escapes %, _ and \ so user text is matched literally by LIKE.
+func EscapeLike(s string) string {
+	r := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+	return r.Replace(s)
+}
+
+// nullableFloat scans a numeric column that may be NULL and exposes it as a
+// rounded *float64.
+type NullableFloat struct{ sql.NullFloat64 }
+
+func (n NullableFloat) Ptr() *float64 { return NullFloat(n.NullFloat64) }
+
+// accessKeyMarkers are the ways an access key's synthetic ARN names the key:
+// IAM access keys have no AWS ARN, so scanners write their own -
+// "…:user/name/access-key/AKIA…" (this API's documentation) or
+// "…/accesskey/AKIA…" (the discovery inventory).
+var accessKeyMarkers = []string{"access-key/", "accesskey/", "access_key/"}
+
+// accessKeyID returns the key id inside an access key's ARN.
+func AccessKeyID(arn string) (string, bool) {
+	lower := strings.ToLower(arn)
+	for _, m := range accessKeyMarkers {
+		if i := strings.LastIndex(lower, m); i >= 0 {
+			if id := arn[i+len(m):]; id != "" && !strings.Contains(id, "/") {
+				return id, true
+			}
+		}
+	}
+	return "", false
+}
+
+var (
+	// ErrFindingResolved: a RESOLVED finding can only be changed by the engine.
+	ErrResolvedFinding = errors.New("finding is resolved")
+	// ErrConflict: the finding changed since the caller read it (If-Match).
+	ErrFindingModified = errors.New("finding was modified by someone else")
+)
