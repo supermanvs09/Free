@@ -1812,6 +1812,7 @@ html.is-translated font { background: none !important; box-shadow: none !importa
 /* laptops: the whole page a touch more compact (sections, cards, type and the bar
    scale together, so proportions hold). Large monitors and phones are unchanged. */
 @media (min-width: 1024px) and (max-width: 1680px) { html { zoom: .9; } }
+[data-on] { background: rgb(10 109 187 / .06); }
 
 ===== website/src/components/Backdrop.jsx =====
 /* The site-wide `aurora`: three soft beams of the logo blues, blurred and
@@ -3036,7 +3037,7 @@ export function Sent({ title, body }) {
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router';
 import { SITE, SOLUTIONS } from '../data/site.js';
-import { PRODUCT_MENU, CHALLENGES } from '../data/nav.js';
+import { PRODUCT_MENU, CHALLENGES, MENU_DETAIL } from '../data/nav.js';
 import { LANGS, getLang, setLang } from '../lib/translate.js';
 import { Button, Icon, cx } from './ui.jsx';
 import ProductMark from './ProductMark.jsx';
@@ -3057,14 +3058,13 @@ export const topicSlug = (c) => c.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
 const WorksWith = lazy(() => import('./WorksWith.jsx'));
 const ADAPID_ICON = { '/adapid-ai': 'Gauge', '/adapid-ai/nhi-security': 'Cloud', '/adapid-ai/fraud-prevention': 'CreditCard', '/ad-security': 'TreeStructure' };
-const CHALLENGE_ICON = ['Robot', 'Wallet', 'Key', 'TreeStructure', 'ShieldWarning', 'Scales'];
 
 /* Menus in the plain enterprise style: a group label, then a name and one
    grey line per item. Only Products and Solutions open a menu. */
 const GroupLabel = ({ children }) => <p className="mb-2 border-b border-line pb-3 text-[12px] font-semibold uppercase tracking-[.1em] text-ink-3">{children}</p>;
 const Tile = ({ name }) => <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] bg-[#0a6dbb] text-white"><Icon name={name} size={17} /></span>;
-const Item = ({ to, name, desc, lead }) => (
-  <Link to={to} className="group -mx-3 flex items-start gap-3 rounded-[12px] px-3 py-2.5 transition-colors hover:bg-fg/[.045] focus-visible:bg-fg/[.045]">
+const Item = ({ to, name, desc, lead, onPeek, on }) => (
+  <Link to={to} onMouseEnter={onPeek} onFocus={onPeek} className="group -mx-3 flex items-start gap-3 rounded-[12px] px-3 py-2.5 transition-colors hover:bg-fg/[.045] focus-visible:bg-fg/[.045]" data-on={on || undefined}>
     {lead}
     <span className="min-w-0">
       <span className="block text-[15px] font-medium leading-snug text-ink group-hover:text-cyan-2">{name}</span>
@@ -3075,8 +3075,13 @@ const Item = ({ to, name, desc, lead }) => (
 
 function ProductsMenu() {
   const adapid = PRODUCT_MENU.find((l) => l.key === 'adapid');
+  // the right panel follows the pointer: what the hovered product connects to, and what it does
+  const [peek, setPeek] = useState('adapid');
+  const all = [...PRODUCT_MENU.map((l) => ({ to: l.key === 'adapid' ? 'adapid' : l.path, name: l.name, mark: l.key })), ...adapid.items.map((m) => ({ to: m.path, name: m.name, mark: 'adapid' }))];
+  const cur = all.find((x) => x.to === peek);
+  const d = cur && MENU_DETAIL[cur.to];
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_320px]">
+    <div className="grid grid-cols-[minmax(0,1fr)_340px]">
       <div className="p-8">
         <div className="mb-7 flex items-start justify-between gap-6">
           <div>
@@ -3087,17 +3092,31 @@ function ProductsMenu() {
         </div>
         <GroupLabel>Platforms</GroupLabel>
         <div className="grid grid-cols-2 gap-x-8">
-          {PRODUCT_MENU.map((l) => <Item key={l.key} to={l.path} name={l.name} desc={l.blurb.replace(/, in one platform$/, '')} lead={<ProductMark p={l.key} size={32} className="shrink-0" />} />)}
+          {PRODUCT_MENU.map((l) => <Item key={l.key} to={l.path} name={l.name} desc={l.blurb.replace(/, in one platform$/, '')} lead={<ProductMark p={l.key} size={32} className="shrink-0" />} onPeek={() => setPeek(l.key === 'adapid' ? 'adapid' : l.path)} on={peek === (l.key === 'adapid' ? 'adapid' : l.path)} />)}
         </div>
         <div className="mt-6"><GroupLabel>adapID AI products</GroupLabel></div>
         <div className="grid grid-cols-2 gap-x-8">
-          {adapid.items.map((m) => <Item key={m.path} to={m.path} name={m.name} desc={m.desc} lead={<Tile name={ADAPID_ICON[m.path] || 'ShieldCheck'} />} />)}
+          {adapid.items.map((m) => <Item key={m.path} to={m.path} name={m.name} desc={m.desc} lead={<Tile name={ADAPID_ICON[m.path] || 'ShieldCheck'} />} onPeek={() => setPeek(m.path)} on={peek === m.path} />)}
         </div>
       </div>
-      <div className="border-l border-line bg-fg/[.02] p-8">
-        <p className="text-[17px] font-semibold text-ink">Works with</p>
-        <p className="mt-1 text-[13.5px] leading-snug text-ink-3">The clouds, identity providers and AI tools our products connect to.</p>
-        <Suspense fallback={<div className="mt-6 aspect-square" />}><WorksWith /></Suspense>
+      <div className="border-l border-line bg-fg/[.02] p-8" aria-live="polite">
+        {d ? (
+          <div key={cur.to} className="fadein">
+            <p className="flex items-center gap-2.5 text-[17px] font-semibold text-ink"><ProductMark p={cur.mark} size={24} />{cur.name}</p>
+            <p className="mt-5 text-[12px] font-semibold uppercase tracking-[.1em] text-ink-3">Works with</p>
+            <Suspense fallback={<div className="mt-5 h-[120px]" />}><WorksWith keys={d.works} /></Suspense>
+            <p className="mt-6 text-[12px] font-semibold uppercase tracking-[.1em] text-ink-3">Capabilities</p>
+            <ul className="mt-3 space-y-2">
+              {d.caps.map((c) => <li key={c} className="flex items-start gap-2 text-[14px] leading-snug text-ink-2"><Icon name="CheckCircle" size={16} weight="fill" className="mt-px shrink-0 text-[#0a6dbb]" />{c}</li>)}
+            </ul>
+          </div>
+        ) : (
+          <>
+            <p className="text-[17px] font-semibold text-ink">Works with</p>
+            <p className="mt-1 text-[13.5px] leading-snug text-ink-3">The clouds, identity providers and AI tools our products connect to. Point at a product to see its own.</p>
+            <Suspense fallback={<div className="mt-6 aspect-square" />}><WorksWith /></Suspense>
+          </>
+        )}
       </div>
     </div>
   );
@@ -3107,8 +3126,8 @@ function SolutionsMenu() {
   return (
     <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
       <div className="p-8">
-        <GroupLabel>By challenge</GroupLabel>
-        <div className="grid grid-cols-2 gap-x-8">{CHALLENGES.map((c, i) => <Item key={c.name} to={c.path} name={c.name} desc={c.desc} lead={<Tile name={CHALLENGE_ICON[i]} />} />)}</div>
+        <GroupLabel>By use case</GroupLabel>
+        <div className="grid grid-cols-2 gap-x-8">{CHALLENGES.map((c) => <Item key={c.name} to={c.path} name={c.name} desc={c.desc} lead={<Tile name={c.icon} />} />)}</div>
       </div>
       <div className="border-l border-line p-8">
         <GroupLabel>By industry</GroupLabel>
@@ -3903,7 +3922,7 @@ export function Split({ eyebrow, title, lead, children, visual, flip, acc = 'bra
 
 export const LINKS = {
   zenstra: { line: 'Zenstra AI', name: 'Security for AI agents', body: 'Discover every agent, scope its access and check every action before it runs.', to: '/agentic-ai/agentic-identity', acc: ACC.zen },
-  cirm: { line: 'adapID AI', name: 'Identity Risk Management', body: 'A live, explainable risk score for every person, acted on when behaviour changes.', to: '/adapid-ai', acc: ACC.adap },
+  cirm: { line: 'adapID AI', name: 'Continuous Identity Risk Management', body: 'A live, explainable risk score for every person, acted on when behaviour changes.', to: '/adapid-ai', acc: ACC.adap },
   nhi: { line: 'adapID AI', name: 'NHI Security for AWS', body: 'Every role, key and workload identity found, scored and baselined.', to: '/adapid-ai/nhi-security', acc: ACC.adap },
   fraud: { line: 'adapID AI', name: 'Identity Fraud Prevention', body: 'Account takeover, scams and mule accounts stopped before money moves.', to: '/adapid-ai/fraud-prevention', acc: ACC.adap },
   ad: { line: 'adapID AI', name: 'Active Directory Security', body: 'Attack paths to Domain Admins mapped and closed, live abuse contained.', to: '/ad-security', acc: ACC.adap },
@@ -4428,10 +4447,10 @@ import { Logo, logoTitle } from './viz/kit.jsx';
 /* The brand marks in the Products menu, loaded only when the menu opens. */
 const KEYS = ['aws', 'entra', 'okta', 'm365', 'google', 'ad', 'github', 'salesforce', 'slack', 'atlassian', 'claude', 'copilot', 'gemini', 'mcp', 'kubernetes', 'upi'];
 
-export default function WorksWith() {
+export default function WorksWith({ keys = KEYS }) {
   return (
-    <ul className="mt-6 grid grid-cols-4 gap-3">
-      {KEYS.map((k) => (
+    <ul className="mt-5 grid grid-cols-4 gap-2.5">
+      {keys.map((k) => (
         <li key={k} title={logoTitle(k)} className="flex aspect-square items-center justify-center rounded-[12px] border border-line bg-white text-[#12171f] shadow-[0_2px_6px_-3px_rgba(6,25,55,.18)]">
           <Logo k={k} size={24} />
           <span className="sr-only">{logoTitle(k)}</span>
@@ -6717,7 +6736,7 @@ import { Viz, Win, Chip, Gl, cx } from './kit.jsx';
 import ProductMark from '../ProductMark.jsx';
 import { RhythmLines } from './journey.jsx';
 import { useRef } from 'react';
-import { PhoneNotify, useOnView } from '../../lib/nullmotion.jsx';
+import { useOnView } from '../../lib/nullmotion.jsx';
 
 /* Identity Fraud Prevention, for mobile and internet banking. The phone runs the
    bank's own app (light, as banking apps are); next to it is what the bank sees.
@@ -7017,7 +7036,6 @@ export function CapabilityPhone({ cap }) {
   const v = VERDICT[cap];
   return (
     <div className="mb-stage">
-      {v && <PhoneNotify key={`n-${cap}`} title={v[1].split(' · ')[0]} body={v[2]} />}
       <CapabilityPhoneInner cap={cap} c={c} />
       {v && (
         <p key={cap} className={cx('mb-verdict', `t-${v[0]}`)}>
@@ -8060,17 +8078,24 @@ import LAND from '../scenes/land.json';
 
 /* how far a picture has played: 0 → n while on screen, the last frame for the
    server render and reduced motion */
-export function useBeat(ref, n, ms = 650) {
+export function useBeat(ref, n, ms = 650, hold = 4200, once = false) {
   const seen = useInView(ref, { threshold: 0.3 });
   const reduce = useReducedMotion();
   const [k, setK] = useState(n);
+  const done = useRef(false);
   useEffect(() => {
-    if (reduce || !seen) { setK(n); return undefined; }
+    if (reduce) { setK(n); return undefined; }
+    if (!seen && !done.current) { if (once) setK(0); return undefined; } // wait at the start, so it never collapses in view
+    if (once && done.current) return undefined; // played once: stays fully drawn, even when scrolled away and back
     let i = 0, t;
-    const next = () => { setK(i); t = setTimeout(() => { i = i >= n ? 0 : i + 1; next(); }, i >= n ? 4200 : ms); };
+    const next = () => {
+      setK(i);
+      if (once && i >= n) { done.current = true; return; }
+      t = setTimeout(() => { i = i >= n ? 0 : i + 1; next(); }, i >= n ? hold : ms);
+    };
     next();
     return () => clearTimeout(t);
-  }, [seen, reduce, n, ms]);
+  }, [seen, reduce, n, ms, hold, once]);
   return k;
 }
 
@@ -8302,9 +8327,11 @@ const lpath = (a, b) => {
 };
 
 export function KeyLineage() {
-  const k = 5; // ponytail: static and fully drawn, as asked; useBeat(ref, 5) brings the build-up back
+  const ref = useRef(null);
+  // the story builds column by column as it comes into view
+  const k = useBeat(ref, 5, 900, 0, true); // a dense picture: build it once, then leave it for reading
   return (
-    <figure className="kl" aria-label="Illustration: the lineage of one AWS access key. It was created by Kiran Rao, who left in May, stored in AWS Secrets Manager and HashiCorp Vault, and also pasted into a config file in a repository. A deploy pipeline reads it nightly and through it reaches the payments service and the customer KYC bucket. adapID recommends rotating it in Secrets Manager and assigning a new owner.">
+    <figure ref={ref} className="kl" aria-label="Illustration: the lineage of one AWS access key. It was created by Kiran Rao, who left in May, stored in AWS Secrets Manager and HashiCorp Vault, and also pasted into a config file in a repository. A deploy pipeline reads it nightly and through it reaches the payments service and the customer KYC bucket. adapID recommends rotating it in Secrets Manager and assigning a new owner.">
       <div aria-hidden="true" className="kl-scroll">
         <div className="kl-inner">
           <div className="kl-cols">
@@ -8324,7 +8351,7 @@ export function KeyLineage() {
               })}
             </svg>
             {LNODES.map((n, i) => {
-              const lit = true;
+              const lit = i === 0 || (n.c === 1 && k >= 1) || LLINKS.some(([, b, , s]) => b === i && k >= s);
               return (
                 <div key={n.n} className={cx('kl-node', lit && 'on', n.crit && 'crit', n.brand && 'brand')} style={{ left: `${LX[n.c]}%`, top: `${LY[n.r]}%` }}>
                   <span className="kl-ic">{n.logo ? <Logo k={n.logo} size="22px" /> : n.file ? <I k="storage" s={20} /> : <I k="person" s={20} />}</span>
@@ -8712,7 +8739,7 @@ export function AgentAccess() {
 /* phone and the bank's view side by side; stacked in a narrow frame */
 .mb-grid { display: grid; grid-template-columns: 36% 1fr; gap: 5%; align-items: center; }
 .mb-grid.wide { grid-template-columns: 42% 1fr; }
-@container (max-width: 560px) {
+@container (max-width: 420px) {
   .mb-grid, .mb-grid.wide { grid-template-columns: 1fr; gap: 1.6em; }
   .mb-grid > .mb-phone-wrap { width: 46%; max-width: 230px; margin-inline: auto; }
   .mb-fit { font-size: calc(100cqw / 36); }
@@ -8878,9 +8905,9 @@ export function AgentAccess() {
 
 /* fraud: the phone on a stage, notes floating over its edge, the decision under it */
 .mb-stage { position: relative; padding: 14px; border: 1px solid rgb(14 17 22 / .08); border-radius: 24px; background: radial-gradient(70% 60% at 50% 0%, rgb(30 136 216 / .10), transparent 70%), linear-gradient(160deg, #f4f8fd, #e6eff9); }
-@container (min-width: 561px) {
-  .mb-stage .mb-grid.wide { grid-template-columns: 42% 1fr; gap: 0; }
-  .mb-stage .mb-grid.wide > .s2 { position: relative; z-index: 2; margin-left: -4%; }
+@container (min-width: 421px) {
+  .mb-stage .mb-grid.wide { grid-template-columns: 44% 1fr; gap: 0; }
+  .mb-stage .mb-grid.wide > .s2 { position: relative; z-index: 2; margin-left: -4%; font-size: 1.12em; }
 }
 .mb-stage .mb-phone { box-shadow: 0 60px 90px -45px rgb(11 42 82 / .6), 0 0 0 1px rgb(14 17 22 / .08); }
 .mb-stage .vz-pop { background: #fff; border: 1px solid rgb(14 17 22 / .09); box-shadow: 0 22px 40px -22px rgb(11 42 82 / .45); }
@@ -9940,7 +9967,7 @@ export const PRODUCT_MENU = [
     blurb: 'Security for human and machine identities',
     kind: 'products',
     items: [
-      { name: 'Identity Risk Management', desc: 'A live risk score for every person', path: '/adapid-ai' },
+      { name: 'Continuous Identity Risk Management', desc: 'A live risk score for every person', path: '/adapid-ai' },
       { name: 'NHI Security for AWS', desc: 'Every role, key and workload identity', path: '/adapid-ai/nhi-security' },
       { name: 'Identity Fraud Prevention', desc: 'Mobile and internet banking, login to payment', path: '/adapid-ai/fraud-prevention' },
       { name: 'Active Directory Security', desc: 'Attack paths to Domain Admins', path: '/ad-security' },
@@ -9986,14 +10013,31 @@ export const PRODUCT_MENU = [
   },
 ];
 
+/* Solutions by use case: what the buyer wants done, in three or four words. */
 export const CHALLENGES = [
-  { name: 'Govern AI agents', desc: 'Owners, scoped access and checks before every action', path: '/agentic-ai/agentic-identity' },
-  { name: 'Stop account takeover and mule accounts', desc: 'Score every login, payee and payment', path: '/adapid-ai/fraud-prevention' },
-  { name: 'Secure machine identities in AWS', desc: 'Find unused access and leaked keys', path: '/adapid-ai/nhi-security' },
-  { name: 'Close Active Directory attack paths', desc: 'Cut the routes to Domain Admins', path: '/ad-security' },
-  { name: 'Stop bots and DDoS', desc: 'Keep portals and APIs online', path: '/botshield-ai' },
-  { name: 'Prove DPDPA compliance', desc: 'Evidence generated as data is used', path: '/dpdpa-compliance' },
+  { name: 'Catch stolen logins', desc: 'Spot the wrong person with the right password', path: '/adapid-ai', icon: 'Gauge' },
+  { name: 'Secure AI agents', desc: 'Every agent owned, scoped and checked', path: '/agentic-ai/agentic-identity', icon: 'Robot' },
+  { name: 'Stop payment fraud', desc: 'Account takeover, scams and mule accounts', path: '/adapid-ai/fraud-prevention', icon: 'Wallet' },
+  { name: 'Secure cloud identities', desc: 'Unused access and leaked keys in AWS', path: '/adapid-ai/nhi-security', icon: 'Cloud' },
+  { name: 'Protect Active Directory', desc: 'Close the paths to Domain Admins', path: '/ad-security', icon: 'TreeStructure' },
+  { name: 'Fix real exposures', desc: 'Proven, patched, tested again', path: '/botshield-ai', icon: 'Bug' },
+  { name: 'Stop bots and DDoS', desc: 'Keep portals and APIs online', path: '/botshield-ai/ddos-protection', icon: 'ShieldWarning' },
+  { name: 'Protect PII for DPDPA', desc: 'Find, mask and prove every access', path: '/dpdpa-compliance', icon: 'Scales' },
 ];
+
+/* What each product connects to and what it does, shown in the Products menu
+   when that product is hovered. Keyed by the product's page. */
+export const MENU_DETAIL = {
+  adapid: { works: ['okta', 'entra', 'ad', 'aws', 'm365', 'upi', 'github', 'salesforce'], caps: ['Continuous Identity Risk Management', 'NHI Security for AWS', 'Identity Fraud Prevention', 'Active Directory Security'] },
+  '/adapid-ai': { works: ['okta', 'entra', 'ad', 'google', 'm365', 'salesforce', 'slack', 'github'], caps: ['Behaviour baseline for every identity', 'Live risk score, with its reasons', 'Step-up or hold through your IdP', 'Sessions revoked across systems'] },
+  '/adapid-ai/nhi-security': { works: ['aws', 'iam', 'lambda', 's3', 'rds', 'vault', 'actions', 'kubernetes'], caps: ['Role, key and workload inventory', 'Unused permissions removed', 'Leaked secrets found', 'Baselines from CloudTrail'] },
+  '/adapid-ai/fraud-prevention': { works: ['upi', 'android', 'apple', 'chrome', 'visa', 'mastercard', 'paytm', 'phonepe'], caps: ['Behavioural biometrics', 'Silent TOTP and face verification', 'Device, call and SIM-swap signals', 'Mule account detection'] },
+  '/ad-security': { works: ['ad', 'entra', 'windows', 'm365', 'splunk', 'vault'], caps: ['Attack paths to Domain Admins', 'Weak Kerberos tickets', 'Live abuse detection', 'Fixes, checked again'] },
+  '/agentic-ai/agentic-identity': { works: ['copilotstudio', 'copilot', 'claude', 'n8n', 'langchain', 'cursor', 'mcp', 'aws'], caps: ['Agent and shadow agent discovery', 'Intent verification', 'Zero standing privilege', 'Runtime anomaly detection', 'Cryptographic audit trail'] },
+  '/botshield-ai': { works: ['cloudflare', 'nginx', 'aws', 'azure', 'kubernetes', 'chrome', 'android', 'apple'], caps: ['Threat exposure management', 'Bot defence by intent', 'DDoS protection, L3 to L7', 'Virtual patching'] },
+  '/dpdpa-compliance': { works: ['postgres', 'mysql', 'mongodb', 'snowflake', 's3', 'm365', 'google', 'salesforce'], caps: ['PII discovery and classification', 'Masking and tokenisation', 'Purpose and consent checks', '72-hour breach response', 'Evidence for DPDPA, RBI and SEBI'] },
+};
+
 
 ===== website/src/data/posts.js =====
 /* Blog library. Bodies live in src/content/posts/<slug>.json. Dates are
@@ -12643,7 +12687,7 @@ const NEEDS = ['Everything', 'AI agents', 'People', 'Machine identities', 'Payme
 
 const ALL = [
   { line: 'Zenstra AI', acc: ACC.zen, name: 'Zenstra AI', ico: 'Robot', kind: 'Platform', body: 'Discover every AI agent and MCP server, give each one an owner and scoped access, and decide every tool call before it runs.', needs: ['AI agents'], to: '/agentic-ai/agentic-identity', points: ['Agent discovery', 'Runtime enforcement', 'Decision record'] },
-  { line: 'adapID AI', acc: ACC.adap, name: 'Identity Risk Management', ico: 'UserCircle', kind: 'Product', body: 'A live, explainable risk score for every person, acted on the moment behaviour changes.', needs: ['People'], to: '/adapid-ai', points: ['Behaviour baselines', 'Step-up, hold or block', 'Day-one detection'] },
+  { line: 'adapID AI', acc: ACC.adap, name: 'Continuous Identity Risk Management', ico: 'UserCircle', kind: 'Product', body: 'A live, explainable risk score for every person, acted on the moment behaviour changes.', needs: ['People'], to: '/adapid-ai', points: ['Behaviour baselines', 'Step-up, hold or block', 'Day-one detection'] },
   { line: 'adapID AI', acc: ACC.adap, name: 'NHI Security for AWS', ico: 'Key', kind: 'Product', body: 'Every IAM role, key and workload identity found, scored for posture and watched for new behaviour.', needs: ['Machine identities'], to: '/adapid-ai/nhi-security', points: ['Agentless, one read-only role', 'Granted vs used', 'Leaked secrets'] },
   { line: 'adapID AI', acc: ACC.adap, name: 'Identity Fraud Prevention', ico: 'CreditCard', kind: 'Product', body: 'Mobile and internet banking protected from login to payment: account takeover, scams and mule accounts.', needs: ['Payments', 'People'], to: '/adapid-ai/fraud-prevention', points: ['Behavioural biometrics', 'Scam signals', 'Mule accounts at the payee'] },
   { line: 'adapID AI', acc: ACC.adap, name: 'Active Directory Security', ico: 'TreeStructure', kind: 'Product', body: 'Paths to Domain Admins mapped and cut, and live abuse contained in seconds.', needs: ['Active Directory'], to: '/ad-security', points: ['Attack path ranking', 'Kerberoasting to DCSync', 'Automatic containment'] },
@@ -13817,7 +13861,7 @@ import { STORIES } from '../../data/stories.js';
 const p = PRODUCTS.adapid;
 
 const FAMILY = [
-  { name: 'Identity Risk Management', tag: 'You are here', body: 'A live, explainable risk score for every person, acted on the moment behaviour changes.', to: null, V: RiskScoreCard },
+  { name: 'Continuous Identity Risk Management', tag: 'You are here', body: 'A live, explainable risk score for every person, acted on the moment behaviour changes.', to: null, V: RiskScoreCard },
   { name: 'NHI Security for AWS', body: 'Every IAM role, key and workload identity found, scored for posture and watched for new behaviour.', to: '/adapid-ai/nhi-security', V: NhiWorkbench },
   { name: 'Identity Fraud Prevention', body: 'Mobile and internet banking protected from login to payment: takeover, scams and mules.', to: '/adapid-ai/fraud-prevention', V: ScamCatch },
   { name: 'Active Directory Security', body: 'Paths to Domain Admins mapped and cut, and live abuse contained in seconds.', to: '/ad-security', V: AdWorkbench },
@@ -13877,7 +13921,7 @@ export default function Cirm() {
   return (
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'adapID AI', path: p.path }]} />
-      <Hero glance={[['Protects', 'People and machine identities across your IdP, cloud and SaaS'], ['Stops', 'Account takeover, insider misuse and over-privileged keys'], ['Deploys', 'Read-only connectors; one read-only role per AWS account'], ['Shows', 'A live risk score with the reason for every point']]} layout="stack" acc="adap" crumbs={[{ name: 'Products', path: '/products' }, { name: 'adapID AI' }]} eyebrow="adapID AI · Identity risk management"
+      <Hero glance={[['Protects', 'People and machine identities across your IdP, cloud and SaaS'], ['Stops', 'Account takeover, insider misuse and over-privileged keys'], ['Deploys', 'Read-only connectors; one read-only role per AWS account'], ['Shows', 'A live risk score with the reason for every point']]} layout="stack" acc="adap" crumbs={[{ name: 'Products', path: '/products' }, { name: 'adapID AI' }]} eyebrow="adapID AI · Continuous identity risk management"
         title={<>A live risk score for every identity. <span style={{ color: 'var(--acc)' }}>Acted on the moment it changes.</span></>}
         lead="adapID AI learns how each person normally works across your identity provider, cloud and SaaS, and acts when that changes, before a stolen login becomes a breach.">
         <Stage3D tilt={[12, 0]} range={[3, 5]} className="mx-auto max-w-[860px]"><AdapRiskTimeline /></Stage3D>
@@ -15394,13 +15438,17 @@ test('product menu: the four platforms, the four adapID products and the tools t
   await page.getByRole('button', { name: 'Products' }).click();
   const mega = page.locator('#mega');
   await expect(mega).toBeVisible();
-  // the only images are the four product logos; the brand marks are drawn inline
+  // the only images are product logos (the four platforms, plus the one shown in the side panel); brand marks are drawn inline
   const logos = mega.locator('img');
-  await expect(logos).toHaveCount(4);
+  await expect(logos).toHaveCount(5);
   for (const src of await logos.evaluateAll((els) => els.map((e) => e.getAttribute('src')))) expect(src).toMatch(/^\/brand\/products\/(zenstra|adapid|botshield|icms)\.webp$/);
-  for (const name of ['Zenstra AI', 'BotShield AI', 'ICMS Compliance Suite', 'Identity Risk Management', 'NHI Security for AWS', 'Identity Fraud Prevention', 'Active Directory Security']) await expect(mega.getByRole('link', { name: new RegExp(name) })).toBeVisible();
+  for (const name of ['Zenstra AI', 'BotShield AI', 'ICMS Compliance Suite', 'Continuous Identity Risk Management', 'NHI Security for AWS', 'Identity Fraud Prevention', 'Active Directory Security']) await expect(mega.getByRole('link', { name: new RegExp(name) })).toBeVisible();
   await expect(mega.getByText('Works with')).toBeVisible();
   await expect(mega.getByRole('img', { name: 'AWS' })).toBeVisible();
+  // pointing at a product shows what that product works with, and its capabilities
+  await mega.getByRole('link', { name: /Zenstra AI/ }).first().hover();
+  await expect(mega.getByText('Capabilities')).toBeVisible();
+  await expect(mega.getByText('Intent verification')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(mega).toBeHidden();
 });
