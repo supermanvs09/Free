@@ -6,6 +6,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"nhi-backend-api/internal/modules/auditlog"
 	"nhi-backend-api/internal/modules/auth"
 	"nhi-backend-api/internal/modules/awsintegration"
 	"nhi-backend-api/internal/modules/credentialexposure"
@@ -26,6 +27,8 @@ import (
 	"nhi-backend-api/internal/modules/remediation"
 	"nhi-backend-api/internal/modules/scanchanges"
 	"nhi-backend-api/internal/modules/settings"
+	"nhi-backend-api/internal/modules/users"
+	"nhi-backend-api/internal/platform/audit"
 	"nhi-backend-api/internal/platform/middleware"
 )
 
@@ -62,6 +65,19 @@ type HandlerContainer struct {
 	CredentialExposureAllowlistHandler *credentialexposure.AllowlistHandler
 	CredentialExposureDecisionHandler  *credentialexposure.DecisionHandler
 	CredentialExposureDeepScanHandler  *credentialexposure.DeepScanHandler
+
+	// Who may sign in (admin only) and what everyone did. Both are ordinary
+	// routes: the audit middleware records changes made through them like any
+	// other, so administering users is itself audited.
+	UsersHandler    *users.Handler
+	AuditLogHandler *auditlog.Handler
+
+	// AuditSink receives one entry per action. Nil turns recording off, which
+	// is what happens when no database is configured.
+	AuditSink audit.Sink
+	// AuditReads records ordinary GETs as well. Off unless asked for: a
+	// console that polls would bury the entries that matter.
+	AuditReads bool
 }
 
 func SetupRoutes(h HandlerContainer) *mux.Router {
@@ -69,6 +85,13 @@ func SetupRoutes(h HandlerContainer) *mux.Router {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RequestLogger)
 	r.Use(middleware.Recoverer)
+	// One middleware records every action, including a sign-in and anything
+	// refused, so an endpoint added later is covered without a line here.
+	if h.AuditSink != nil {
+		cfg := audit.DefaultConfig()
+		cfg.Reads = h.AuditReads
+		r.Use(audit.Middleware(h.AuditSink, nil, cfg))
+	}
 
 	r.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]any{
@@ -107,8 +130,13 @@ func SetupRoutes(h HandlerContainer) *mux.Router {
 
 	v1 := r.PathPrefix("/api/v1").Subrouter()
 	v1.Use(h.AuthMiddleware.Authenticate)
+	// One gate decides every route from the capability table in
+	// internal/platform/authz, so a new endpoint is covered by its default
+	// (read for a GET, write for anything else) rather than by being forgotten.
+	v1.Use(h.AuthMiddleware.Authorize)
 	protected := r.PathPrefix("/api").Subrouter()
 	protected.Use(h.AuthMiddleware.Authenticate)
+	protected.Use(h.AuthMiddleware.Authorize)
 	registerProtected(v1, h, true)
 	registerProtected(protected, h, false)
 	return r
@@ -121,6 +149,19 @@ func registerProtected(router *mux.Router, h HandlerContainer, versioned bool) {
 			path = "/me"
 		}
 		router.HandleFunc(path, h.AuthHandler.Me).Methods(http.MethodGet)
+	}
+	// Who may sign in to this workspace.
+	if h.UsersHandler != nil {
+		router.HandleFunc("/users", h.UsersHandler.List).Methods(http.MethodGet)
+		router.HandleFunc("/users", h.UsersHandler.Create).Methods(http.MethodPost)
+		router.HandleFunc("/users/{id}", h.UsersHandler.Update).Methods(http.MethodPatch)
+		router.HandleFunc("/users/{id}", h.UsersHandler.Delete).Methods(http.MethodDelete)
+	}
+	// What everyone did. Read-only by design: entries are written by the
+	// middleware and are never edited or deleted from the console.
+	if h.AuditLogHandler != nil {
+		router.HandleFunc("/audit-logs", h.AuditLogHandler.List).Methods(http.MethodGet)
+		router.HandleFunc("/audit-logs/filters", h.AuditLogHandler.Facets).Methods(http.MethodGet)
 	}
 	if h.NewAPIFilterHandler != nil {
 		router.HandleFunc("/filters", h.NewAPIFilterHandler.GetFilters).Methods(http.MethodGet)

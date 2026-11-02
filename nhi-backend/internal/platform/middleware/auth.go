@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"nhi-backend-api/internal/platform/audit"
 	chclient "nhi-backend-api/internal/platform/clickhouse"
 	"nhi-backend-api/internal/platform/config"
 	"nhi-backend-api/internal/platform/httpx"
@@ -79,6 +80,9 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 		claims.Role = role                                                 // the database's current role, not the token's
 		r = r.WithContext(chclient.WithTenant(r.Context(), claims.DBName)) // per-tenant ClickHouse database
 		logging.RequestFrom(r.Context()).SetActor(claims.TenantID, claims.UserID)
+		// Name the caller for the audit middleware, which sits outside this one
+		// so that it records a refusal too.
+		audit.SetCaller(r.Context(), audit.Caller{Actor: claims.UserID, Role: role, TenantID: claims.TenantID})
 		ctx := context.WithValue(r.Context(), UserClaimsKey, claims)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

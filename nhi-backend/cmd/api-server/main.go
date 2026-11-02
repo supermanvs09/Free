@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 
 	"nhi-backend-api/internal/identitygraph"
 	"nhi-backend-api/internal/identitygraph/eventstore"
+	"nhi-backend-api/internal/modules/auditlog"
 	"nhi-backend-api/internal/modules/auth"
 	"nhi-backend-api/internal/modules/awsintegration"
 	"nhi-backend-api/internal/modules/credentialexposure"
@@ -53,6 +55,8 @@ import (
 	"nhi-backend-api/internal/modules/posture/quickwins"
 	"nhi-backend-api/internal/modules/scanchanges"
 	"nhi-backend-api/internal/modules/settings"
+	"nhi-backend-api/internal/modules/users"
+	"nhi-backend-api/internal/platform/audit"
 	"nhi-backend-api/internal/platform/awsconnect"
 	"nhi-backend-api/internal/platform/clickhouse"
 	"nhi-backend-api/internal/platform/config"
@@ -152,6 +156,22 @@ func main() {
 		}
 	}()
 	monitoringEvents := summarycommon.NewMonitoringEvents(monitoringClient, monitoringCfg.Database)
+
+	// Who may sign in, what everyone did. The audit store writes in the
+	// background so recording never slows a request; Close drains the last
+	// few entries on shutdown.
+	globalSchema := config.DefaultGlobalSchema
+	if s := strings.TrimSpace(db.GlobalSchema()); s != "" {
+		globalSchema = s
+	}
+	auditStore := audit.NewStore(db.DB, globalSchema)
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		auditStore.Close(ctx)
+		cancel()
+	}()
+	usersHandler := users.NewHandler(users.NewRepository(db, globalSchema))
+	auditLogHandler := auditlog.NewHandler(auditlog.NewRepository(db, globalSchema))
 
 	userRepo := auth.NewUserRepository(db)
 	resolver := scope.NewResolver(db)
@@ -284,6 +304,10 @@ func main() {
 	router := routes.SetupRoutes(routes.HandlerContainer{
 		AuthHandler:                    authHandler,
 		AuthMiddleware:                 authMiddleware,
+		UsersHandler:                   usersHandler,
+		AuditLogHandler:                auditLogHandler,
+		AuditSink:                      auditStore,
+		AuditReads:                     cfg.AuditReads,
 		NewAPIFilterHandler:            filterHandler,
 		NewAPISettingsHandler:          settingsHandler,
 		NewAPIDashboardOverviewHandler: dashboardHandler,

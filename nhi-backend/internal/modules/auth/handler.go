@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"nhi-backend-api/internal/platform/audit"
 	"nhi-backend-api/internal/platform/httpx"
 	"nhi-backend-api/internal/platform/logging"
 	"nhi-backend-api/internal/platform/middleware"
@@ -137,6 +138,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logging.FromContext(r.Context()).Warn("login failed", "err", err)
 		logging.Audit(r.Context(), "login", req.Login(), "", "", "failure")
+		audit.SetCaller(r.Context(), audit.Caller{Actor: req.Login()})
 		sendJSON(w, http.StatusUnauthorized, httpx.APIResponse{
 			Success: false,
 			Message: "Invalid email/username or password",
@@ -146,6 +148,9 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logging.Audit(r.Context(), "login", req.Login(), "", "", "success")
+	// Name the caller for the audit middleware. It sits outside authentication,
+	// so until a password has been checked there is nobody to name.
+	audit.SetCaller(r.Context(), audit.Caller{Actor: resp.User.Email, Role: resp.User.Role, TenantID: resp.User.TenantID})
 	sendJSON(w, http.StatusOK, httpx.APIResponse{
 		Success: true,
 		Message: "Login successful",

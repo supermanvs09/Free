@@ -39,6 +39,11 @@ type Config struct {
 	ClickHouse ClickHouseConfig `yaml:"clickhouse"`
 	// AWSIntegration: "Connect AWS Account" (see aws_integration.go).
 	AWSIntegration AWSIntegrationConfig `yaml:"aws_integration"`
+
+	// AuditReads records ordinary GETs in the audit log as well as changes.
+	// Off by default: a console that polls would bury the entries that matter.
+	// NHI_AUDIT_READS=true turns it on.
+	AuditReads bool
 }
 
 // DefaultClickHouseSuffix is appended to a tenant's schema name to name its
@@ -254,6 +259,13 @@ func (c *Config) applyEnvironment() error {
 			return fmt.Errorf("config: NHI_CLICKHOUSE_SECURE must be true or false")
 		}
 		c.ClickHouse.Secure = secure
+	}
+	if value, ok := os.LookupEnv("NHI_AUDIT_READS"); ok && strings.TrimSpace(value) != "" {
+		reads, err := strconv.ParseBool(strings.TrimSpace(value))
+		if err != nil {
+			return fmt.Errorf("config: NHI_AUDIT_READS must be true or false")
+		}
+		c.AuditReads = reads
 	}
 	if origins := strings.TrimSpace(os.Getenv("NHI_CORS_ALLOWED_ORIGINS")); origins != "" {
 		c.CORS.AllowedOrigins = make([]string, 0)

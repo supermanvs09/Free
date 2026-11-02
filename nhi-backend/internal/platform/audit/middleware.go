@@ -55,8 +55,14 @@ func Middleware(sink Sink, caller CallerFunc, cfg Config) func(http.Handler) htt
 				next.ServeHTTP(w, r)
 				return
 			}
+			if skip(r) {
+				next.ServeHTTP(w, r)
+				return
+			}
 			start := time.Now()
 			isRead := r.Method == http.MethodGet || r.Method == http.MethodHead
+			// Somewhere for whoever authenticates the request to say who it was.
+			r = r.WithContext(WithHolder(r.Context()))
 
 			var body []byte
 			if cfg.Bodies && !isRead && r.Body != nil {
@@ -80,8 +86,8 @@ func Middleware(sink Sink, caller CallerFunc, cfg Config) func(http.Handler) htt
 			}
 
 			route := RouteOf(r)
-			c := Caller{}
-			if caller != nil {
+			c := CallerFrom(r)
+			if c.Actor == "" && caller != nil {
 				c = caller(r)
 			}
 			if c.Actor == "" {
@@ -113,6 +119,12 @@ func Middleware(sink Sink, caller CallerFunc, cfg Config) func(http.Handler) htt
 			sink.Record(r.Context(), e)
 		})
 	}
+}
+
+// skip leaves out what is not an action: the health probe a load balancer
+// calls every few seconds, and the browser's CORS preflight.
+func skip(r *http.Request) bool {
+	return r.Method == http.MethodOptions || strings.HasSuffix(r.URL.Path, "/health")
 }
 
 func details(r *http.Request, body []byte, cfg Config) map[string]any {
