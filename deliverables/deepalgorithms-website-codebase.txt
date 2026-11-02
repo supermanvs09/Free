@@ -433,25 +433,25 @@ BotShield refuses the bots at the edge,
 00:00:59.461 --> 00:01:01.501
 and lets real customers in.
 
-00:01:02.301 --> 00:01:05.390
-And when the regulator asks who touched personal data,
+00:01:02.301 --> 00:01:05.570
+And when the regulator asks who touched customer PII,
 
-00:01:05.390 --> 00:01:07.849
-ICMS has the evidence in minutes.
+00:01:05.570 --> 00:01:09.239
+ICMS shows every access and its purpose, in minutes.
 
-00:01:08.349 --> 00:01:11.958
+00:01:09.739 --> 00:01:13.348
 Deep Algorithms. Every identity, verified before it acts.
 
-00:01:12.958 --> 00:01:14.016
+00:01:14.348 --> 00:01:15.406
 Built in India.
 
-00:01:14.016 --> 00:01:18.295
+00:01:15.406 --> 00:01:19.685
 Trusted by banks, government and enterprises that cannot afford a breach.
 
-00:01:18.595 --> 00:01:21.614
+00:01:19.985 --> 00:01:23.004
 Find your riskiest identity before attackers do.
 
-00:01:22.314 --> 00:01:24.905
+00:01:23.704 --> 00:01:26.295
 The future is decided today. Book a demo.
 
 ===== website/scripts/csp.mjs =====
@@ -976,8 +976,8 @@ main { overflow-x: clip; }
      :root:not([data-theme='dark']) :is(.page > :not(.dark, .fixed), .tone-l)
    ========================================================================== */
 /* sections meet edge to edge, as enterprise pages do; --hdr is the fixed header's height (a utility bar sits above the menu from 1024px) */
-:root { --hl: 74%; --sheet-r: 0px; --sheet-x: 0px; --hdr: 72px; }
-@media (min-width: 1024px) { :root { --hdr: 120px; } }
+:root { --hl: 74%; --sheet-r: 0px; --sheet-x: 0px; --hdr: 64px; }
+@media (min-width: 1024px) { :root { --hdr: 104px; } }
 
 @layer base {
   :root:not([data-theme='dark']) :is(.page > :not(.dark, .fixed), .tone-l) {
@@ -1156,15 +1156,15 @@ header .hdr-bg { transition: background-color 0.35s ease, border-color 0.35s eas
 }
 .band-brand .badge-cert { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 11px; border-radius: 8px; border: 1px solid var(--color-line-2); font-size: 12.5px; font-weight: 600; color: var(--color-ink-2); }
 /* ---------- NHI Security for AWS: the account map ---------- */
-.nm-line { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset .8s ease; }
-.nm-line.on { stroke-dashoffset: 0; }
-.nm-dash { opacity: 0; transition: opacity .5s, stroke .5s; }
-.nm-dash.on { opacity: 1; }
-.nm-tile, .nm-key { opacity: 0; scale: .85; transition: opacity .45s, scale .5s cubic-bezier(.34,1.56,.64,1); }
-.nm-tile.on, .nm-key.on { opacity: 1; scale: 1; }
-.nm-card { opacity: 0; transform: translateY(12px) scale(.96); transition: opacity .45s, transform .5s cubic-bezier(.34,1.56,.64,1), background-color .5s; }
-.nm-card.on { opacity: 1; transform: none; }
-@media (prefers-reduced-motion: reduce) { .nm-line { stroke-dashoffset: 0; } .nm-dash, .nm-tile, .nm-key, .nm-card { opacity: 1; scale: 1; transform: none; } }
+.nhm-line { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset .8s ease; }
+.nhm-line.on { stroke-dashoffset: 0; }
+.nhm-dash { opacity: 0; transition: opacity .5s, stroke .5s; }
+.nhm-dash.on { opacity: 1; }
+.nhm-tile, .nhm-key { opacity: 0; scale: .85; transition: opacity .45s, scale .5s cubic-bezier(.34,1.56,.64,1); }
+.nhm-tile.on, .nhm-key.on { opacity: 1; scale: 1; }
+.nhm-card { opacity: 0; transform: translateY(12px) scale(.96); transition: opacity .45s, transform .5s cubic-bezier(.34,1.56,.64,1), background-color .5s; }
+.nhm-card.on { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { .nhm-line { stroke-dashoffset: 0; } .nhm-dash, .nhm-tile, .nhm-key, .nhm-card { opacity: 1; scale: 1; transform: none; } }
 
 /* ---------- Why Deep Algorithms: the platform picture and the team roll ---------- */
 .core-node { border-color: var(--color-line-2); transition: border-color .4s, color .4s, background .4s, box-shadow .4s, scale .4s; }
@@ -1191,7 +1191,7 @@ html.is-translated iframe.skiptranslate, html.is-translated body > .skiptranslat
 html.is-translated .VIpgJd-ZVi9od-ORHb-OEVmcd, html.is-translated .VIpgJd-ZVi9od-aZ2wEe-wOHMyf { display: none !important; }
 html.is-translated font { background: none !important; box-shadow: none !important; }
 /* ---------- utility bar above the menu (desktop) ---------- */
-.ubar { position: relative; z-index: 2; height: 36px; transition: height .3s cubic-bezier(.16, 1, .3, 1), opacity .3s; }
+.ubar { position: relative; z-index: 2; height: 32px; transition: height .3s cubic-bezier(.16, 1, .3, 1), opacity .3s; }
 .ubar.away { height: 0; opacity: 0; overflow: hidden; }
 
 /* home "By role": coloured cards (RoleCards.jsx). Light pastels in the light
@@ -1403,7 +1403,7 @@ html.is-translated font { background: none !important; box-shadow: none !importa
 .kl-link path { fill: none; stroke: #a78bfa; stroke-width: 1.6; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset .9s cubic-bezier(.16,1,.3,1); }
 .kl-link.on path { stroke-dashoffset: 0; }
 .kl-link.bad path { stroke: #e5484d; }
-.kl-tag { display: inline-block; padding: 1px 8px; border: 1px solid #12171f; border-radius: 999px; background: #e9ddff; font-size: 10.5px; font-weight: 600; color: #12171f; opacity: 0; transition: opacity .4s .5s; white-space: nowrap; }
+.kl-tag { display: inline-block; line-height: 18px; padding: 1px 9px; border: 1px solid #12171f; border-radius: 999px; background: #e9ddff; font-size: 10.5px; font-weight: 600; color: #12171f; opacity: 0; transition: opacity .4s .5s; white-space: nowrap; }
 .kl-link.bad .kl-tag { background: #fde2e1; }
 .kl-link.on .kl-tag { opacity: 1; }
 .kl-node { position: absolute; transform: translate(-50%, -30px); display: flex; flex-direction: column; align-items: center; text-align: center; width: 140px; opacity: .35; transition: opacity .5s; }
@@ -1489,7 +1489,7 @@ html.is-translated font { background: none !important; box-shadow: none !importa
 .jy-prog { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: #0a6dbb; transform-origin: 0 50%; }
 .jy-body { display: grid; gap: 0; }
 @media (min-width: 900px) { .jy-body { grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr); } }
-.jy-device { display: grid; place-items: center; padding: 20px 16px; min-height: 500px; background: radial-gradient(rgb(10 58 107 / .1) 1px, transparent 1px) 0 0 / 14px 14px, linear-gradient(160deg, #f4f8fd, #e6eff9); }
+.jy-device { display: grid; place-items: center; padding: 20px 16px; min-height: 500px; background: radial-gradient(70% 60% at 50% 0%, rgb(30 136 216 / .10), transparent 70%), linear-gradient(160deg, #f4f8fd, #e6eff9); }
 .jy-panel { padding: 16px; display: grid; gap: 10px; align-content: start; border-left: 1px solid rgb(14 17 22 / .06); }
 /* phone */
 .jy-phone { width: 204px; aspect-ratio: 9 / 19; padding: 8px; border-radius: 38px; background: linear-gradient(160deg, #2a2d33, #161a21); box-shadow: 0 60px 90px -45px rgb(11 42 82 / .6), 0 0 0 1px rgb(14 17 22 / .1); font-size: 12px; }
@@ -1583,7 +1583,7 @@ html.is-translated font { background: none !important; box-shadow: none !importa
 .jy-paste dl div.on { opacity: 1; }
 .jy-paste dt { font-size: 10.5px; color: #8a909b; } .jy-paste dd { font-size: 13px; font-weight: 600; }
 .jy-paste dl div.bad dd { color: #c4352a; }
-.jy-mouse { margin-top: 8px; width: 100%; height: auto; background: radial-gradient(rgb(10 58 107 / .1) 1px, transparent 1px) 0 0 / 12px 12px; border-radius: 10px; }
+.jy-mouse { margin-top: 8px; width: 100%; height: auto; background: linear-gradient(180deg, #f4f8fd, #edf3fa); border-radius: 10px; }
 .jy-mouse .hum { fill: none; stroke: #0a6dbb; stroke-width: 2; stroke-dasharray: 4 4; opacity: .7; }
 .jy-mouse .bot { fill: none; stroke: #e5484d; stroke-width: 2.4; stroke-dasharray: 1; }
 .jy-mouse .jump { fill: #e5484d; }
@@ -1809,6 +1809,9 @@ html.is-translated font { background: none !important; box-shadow: none !importa
    the fixed bar (articles, legal pages) never show a dark strip under it */
 :root:not([data-theme='dark']), :root:not([data-theme='dark']) body { background-color: #f6f9fd; }
 :root:not([data-theme='dark']) .backdrop { background: linear-gradient(180deg, #f6f9fd, #ffffff 70%); }
+/* laptops: the whole page a touch more compact (sections, cards, type and the bar
+   scale together, so proportions hold). Large monitors and phones are unchanged. */
+@media (min-width: 1024px) and (max-width: 1680px) { html { zoom: .9; } }
 
 ===== website/src/components/Backdrop.jsx =====
 /* The site-wide `aurora`: three soft beams of the logo blues, blurred and
@@ -3282,7 +3285,7 @@ export default function Header() {
       <a href="#main" className="sr-only-focusable absolute left-4 top-3 z-50 rounded-full bg-white px-4 py-2 text-[#12171f]">Skip to content</a>
       <div aria-hidden="true" className={cx('hdr-bg absolute inset-0 -z-10 border-b', solid ? 'solid border-line bg-[#0b0e13]/80 backdrop-blur-xl' : 'border-transparent bg-transparent')} />
       <UtilityBar away={scrolled || !!open} />
-      <div className="wrap flex h-[72px] items-center gap-6 lg:h-[84px]">
+      <div className="wrap flex h-[64px] items-center gap-6 lg:h-[72px]">
         <Link to="/" aria-label="Deep Algorithms home" className="shrink-0"><Logo dual className="h-[30px] lg:h-[36px]" /></Link>
         <nav aria-label="Primary" className="hidden flex-1 lg:block">
           <ul className="flex items-center justify-center gap-0.5 xl:gap-1.5">
@@ -4546,7 +4549,7 @@ export function CtaBand({ title = 'Find your riskiest identity before attackers 
 }
 
 /* The product film: poster first, the real player only once asked for. */
-export function FilmPlayer({ src = '/video/deep-algorithms-film', poster = '/video/film-poster.webp', captions = '/video/deep-algorithms-film.vtt', title = 'Every identity, verified before it acts.', duration = '1:26', teaser, compact }) {
+export function FilmPlayer({ src = '/video/deep-algorithms-film', poster = '/video/film-poster.webp', captions = '/video/deep-algorithms-film.vtt', title = 'Every identity, verified before it acts.', duration = '1:28', teaser, compact }) {
   const [play, setPlay] = useState(false);
   const v = useRef(null);
   const reduce = useReducedMotion();
@@ -4731,7 +4734,7 @@ import {
   PlugsConnected, Pulse, SpeakerHigh, SpeakerSlash, ClosedCaptioning, CornersOut, Funnel, BookOpen, Newspaper, Briefcase, Medal, Buildings as Office,
   ArrowsClockwise, FlowArrow, Lock, ShieldWarning, Code, Laptop, ChatCircleText, Calendar, Check, Circle, Hourglass, Infinity as Loop,
   UserCircle, IdentificationCard, CreditCard, DeviceMobile, Bug, Cpu, WebhooksLogo, TreeView, Export, SealCheck, Barcode, CursorClick, ListChecks,
-  Copy, TerminalWindow, Prohibit, ArrowsLeftRight, EyeSlash, ChartBar, Desktop, Sliders,
+  Copy, TerminalWindow, Prohibit, ArrowsLeftRight, EyeSlash, ChartBar, Desktop, Sliders, Tag, Trash,
 } from '@phosphor-icons/react/dist/ssr';
 import { cx, useIsoLayoutEffect } from '../lib/motion.js';
 import { BlurWords } from '../lib/nullmotion.jsx';
@@ -4746,7 +4749,7 @@ const ICONS = {
   PlugsConnected, Pulse, SpeakerHigh, SpeakerSlash, ClosedCaptioning, CornersOut, Funnel, BookOpen, Newspaper, Briefcase, Medal, Office,
   ArrowsClockwise, FlowArrow, Lock, ShieldWarning, Code, Laptop, ChatCircleText, Calendar, Check, Circle, Hourglass, Loop,
   UserCircle, IdentificationCard, CreditCard, DeviceMobile, Bug, Cpu, WebhooksLogo, TreeView, Export, SealCheck, Barcode, CursorClick, ListChecks,
-  Copy, TerminalWindow, Prohibit, ArrowsLeftRight, EyeSlash, ChartBar, Desktop, Sliders,
+  Copy, TerminalWindow, Prohibit, ArrowsLeftRight, EyeSlash, ChartBar, Desktop, Sliders, Tag, Trash,
 };
 export function Icon({ name, size = 20, weight = 'regular', className, style }) {
   const C = ICONS[name];
@@ -6403,8 +6406,7 @@ export function IdentityGraph({ k: fk } = {}) {
         return (
           <Win title={<span className="inline-flex items-center gap-[.5em]">Identity graph · blast radius</span>}
             right={held ? <Chip tone="ok">Contained · 0 systems exposed</Chip> : spread ? <Chip tone="crit">6 systems · 12 resources exposed</Chip> : <Chip tone="info">Mapped</Chip>} glow="rgb(0 174 239 / .45)">
-            <div className="relative overflow-hidden rounded-[.9em]" style={{ aspectRatio: '1000 / 620', background: 'radial-gradient(70% 60% at 50% 0%, rgb(60 160 255 / .30), transparent 70%), radial-gradient(50% 50% at 100% 100%, rgb(0 174 239 / .16), transparent 70%), linear-gradient(160deg, #0b3768, #062448 60%, #04182f)', boxShadow: 'inset 0 0 0 1px rgb(120 190 255 / .18), 0 30px 60px -30px rgb(10 94 163 / .55)' }}>
-              <div aria-hidden="true" className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(rgb(160 190 230 / .12) 1px, transparent 1px)', backgroundSize: '2.2em 2.2em', maskImage: 'radial-gradient(closest-side, #000, transparent)', WebkitMaskImage: 'radial-gradient(closest-side, #000, transparent)' }} />
+            <div className="tone-d relative overflow-hidden rounded-[.9em]" style={{ aspectRatio: '1000 / 620', background: 'radial-gradient(70% 60% at 50% 0%, rgb(60 160 255 / .30), transparent 70%), radial-gradient(50% 50% at 100% 100%, rgb(0 174 239 / .16), transparent 70%), linear-gradient(160deg, #0b3768, #062448 60%, #04182f)', boxShadow: 'inset 0 0 0 1px rgb(120 190 255 / .18), 0 30px 60px -30px rgb(10 94 163 / .55)' }}>
               <svg viewBox="0 0 1000 620" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" aria-hidden="true">
                 <defs>
                   <radialGradient id="ig-blast"><stop offset="0" stopColor="#ff6b5d" stopOpacity=".26" /><stop offset=".7" stopColor="#ff6b5d" stopOpacity=".08" /><stop offset="1" stopColor="#ff6b5d" stopOpacity="0" /></radialGradient>
@@ -6444,13 +6446,13 @@ export function IdentityGraph({ k: fk } = {}) {
                   <span className="absolute"><Av name="Kavya Reddy" i={3} /></span>
                 </span>
                 <span className="mt-[.45em] whitespace-nowrap text-[.95em] font-semibold">Kavya Reddy</span>
-                <span className="whitespace-nowrap vz-m" style={{ color: held ? 'var(--vz-green)' : hot ? 'var(--vz-red)' : undefined }}>{held ? 'Held · step-up sent' : hot ? 'Risk 94 · sign-in from Lagos' : 'Risk 18 · normal'}</span>
+                <span className="mt-[.25em] whitespace-nowrap rounded-full px-[.7em] py-[.15em] vz-m" style={{ background: 'rgb(5 21 44 / .88)', border: '1px solid rgb(160 190 230 / .18)', color: held ? 'var(--vz-green)' : hot ? 'var(--vz-red)' : undefined }}>{held ? 'Held · step-up sent' : hot ? 'Risk 94 · sign-in from Lagos' : 'Risk 18 · normal'}</span>
               </span>
 
               {/* systems */}
               {apps.map((a, i) => (
                 <span key={a.k} className="s1 absolute -translate-x-1/2 -translate-y-1/2" style={{ ...pct(a.p), transitionDelay: `${i * 70}ms` }}>
-                  <span className="flex items-center gap-[.45em] rounded-full py-[.3em] pl-[.3em] pr-[.75em]" style={{ background: 'var(--vz-solid)', border: `1px solid ${held ? 'rgb(63 217 143 / .45)' : spread ? 'rgb(255 107 93 / .5)' : 'rgb(160 190 230 / .2)'}`, boxShadow: '0 .6em 1.4em -.6em rgb(0 0 0 / .8)', transition: 'border-color .6s' }}>
+                  <span className="flex items-center gap-[.45em] rounded-full py-[.3em] pl-[.3em] pr-[.75em] text-[#0e1116]" style={{ background: '#fff', border: `1px solid ${held ? 'rgb(63 217 143 / .45)' : spread ? 'rgb(255 107 93 / .5)' : 'rgb(160 190 230 / .2)'}`, boxShadow: '0 .6em 1.4em -.6em rgb(0 0 0 / .8)', transition: 'border-color .6s' }}>
                     <App k={a.k} />
                     <span className="whitespace-nowrap text-[max(var(--vz-min),.88em)] font-semibold">{a.n}</span>
                     {held && <Gl g="lock" className="h-[1em] w-[1em]" style={{ color: '#4be29a' }} />}
@@ -6460,7 +6462,7 @@ export function IdentityGraph({ k: fk } = {}) {
 
               {/* resources */}
               {apps.flatMap((a) => a.res).map((r, i) => (
-                <span key={r.n} className="s2 absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full px-[.6em] py-[.18em] text-[max(var(--vz-min),.74em)] font-medium" style={{ ...pct(r.p), transitionDelay: `${i * 40}ms`, background: '#0b203f', color: held ? '#7a7c80' : crit && r.crit ? '#ffd0ca' : spread ? 'var(--vz-red)' : '#b2b4b8', border: `1px solid ${crit && r.crit && !held ? 'rgb(255 107 93 / .7)' : 'rgb(160 190 230 / .14)'}`, boxShadow: crit && r.crit && !held ? '0 0 1.2em rgb(255 107 93 / .45)' : 'none', transition: 'all .6s' }}>{r.n}</span>
+                <span key={r.n} className="s2 absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full px-[.6em] py-[.18em] text-[max(var(--vz-min),.74em)] font-medium" style={{ ...pct(r.p), transitionDelay: `${i * 40}ms`, background: '#0b203f', color: held ? '#9aa6b8' : crit && r.crit ? '#ffe1dc' : spread ? '#ffb1a8' : '#c9d3e1', border: `1px solid ${crit && r.crit && !held ? 'rgb(255 107 93 / .7)' : 'rgb(160 190 230 / .14)'}`, boxShadow: crit && r.crit && !held ? '0 0 1.2em rgb(255 107 93 / .45)' : 'none', transition: 'all .6s' }}>{r.n}</span>
               ))}
 
               {/* reach counter */}
@@ -8207,23 +8209,23 @@ export function NhiMap() {
       <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 h-full w-full overflow-visible" aria-hidden="true">
         {TILES.map((t, i) => (
           <g key={t.k}>
-            <path id={`nm-p${i}`} d={curve(C, t)} pathLength="1" fill="none" stroke="rgb(190 215 255 / .55)" strokeWidth="1.6" className={cx('nm-line', k >= 1 && 'on')} style={{ transitionDelay: `${i * 120}ms` }} />
+            <path id={`nm-p${i}`} d={curve(C, t)} pathLength="1" fill="none" stroke="rgb(190 215 255 / .55)" strokeWidth="1.6" className={cx('nhm-line', k >= 1 && 'on')} style={{ transitionDelay: `${i * 120}ms` }} />
             {k >= 2 && !reduce && <circle r="4" fill="#7fdcff"><animateMotion dur="2.4s" repeatCount="indefinite" begin={`${i * 0.3}s`}><mpath href={`#nm-p${i}`} /></animateMotion></circle>}
           </g>
         ))}
         {/* the line to the finding */}
-        <path d={`M${(C.x / 100) * W} ${(C.y / 100) * H} V ${0.66 * H} Q ${(C.x / 100) * W} ${0.7 * H} ${(C.x / 100) * W + 20} ${0.7 * H} H ${0.56 * W}`} fill="none" stroke={fixed ? '#4be29a' : '#ff8b7e'} strokeWidth="1.8" strokeDasharray="5 4" className={cx('nm-dash', k >= 3 && 'on')} />
+        <path d={`M${(C.x / 100) * W} ${(C.y / 100) * H} V ${0.66 * H} Q ${(C.x / 100) * W} ${0.7 * H} ${(C.x / 100) * W + 20} ${0.7 * H} H ${0.56 * W}`} fill="none" stroke={fixed ? '#4be29a' : '#ff8b7e'} strokeWidth="1.8" strokeDasharray="5 4" className={cx('nhm-dash', k >= 3 && 'on')} />
       </svg>
 
       {/* key glyphs on the lines, as access the identities hold */}
       {[[31, 24], [64, 18], [70, 47], [30, 76]].map(([x, y], i) => (
-        <span key={i} aria-hidden="true" className={cx('nm-key absolute grid h-7 w-7 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white/25 bg-[#0b2a5c] text-[#bfe6ff]', k >= 1 && 'on')} style={{ left: `${x}%`, top: `${y}%`, transitionDelay: `${300 + i * 120}ms` }}>
+        <span key={i} aria-hidden="true" className={cx('nhm-key absolute grid h-7 w-7 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white/25 bg-[#0b2a5c] text-[#bfe6ff]', k >= 1 && 'on')} style={{ left: `${x}%`, top: `${y}%`, transitionDelay: `${300 + i * 120}ms` }}>
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><circle cx="5" cy="8" r="2.6" /><path d="M7.6 8H14M12 8v2.2M14 8v1.6" /></svg>
         </span>
       ))}
 
       {TILES.map((t, i) => (
-        <span key={t.k} className={cx('nm-tile absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center', k >= 0 && 'on')} style={{ left: `${t.x}%`, top: `${t.y}%`, transitionDelay: `${i * 90}ms` }}>
+        <span key={t.k} className={cx('nhm-tile absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center', k >= 0 && 'on')} style={{ left: `${t.x}%`, top: `${t.y}%`, transitionDelay: `${i * 90}ms` }}>
           <span className="grid h-[52px] w-[52px] place-items-center rounded-[14px] bg-white text-[#12171f] shadow-[0_14px_30px_-12px_rgba(0,0,0,.6)] max-sm:h-11 max-sm:w-11"><Logo k={t.k} size="58%" /></span>
           <span className="mt-1.5 text-[12px] font-medium text-white/80">{t.label}</span>
         </span>
@@ -8234,7 +8236,7 @@ export function NhiMap() {
       </span>
 
       {/* the finding, then the fix */}
-      <div className={cx('nm-card absolute bottom-[3%] right-0 w-[48%] min-w-[220px] rounded-[16px] p-4 text-white shadow-[0_24px_50px_-18px_rgba(0,0,0,.75)] transition-colors duration-500', k >= 3 && 'on', fixed ? 'bg-[#14a06a]' : 'bg-[#f0644d]')}>
+      <div className={cx('nhm-card absolute bottom-[3%] right-0 w-[48%] min-w-[220px] rounded-[16px] p-4 text-white shadow-[0_24px_50px_-18px_rgba(0,0,0,.75)] transition-colors duration-500', k >= 3 && 'on', fixed ? 'bg-[#14a06a]' : 'bg-[#f0644d]')}>
         <p className="flex items-center gap-2 text-[15px] font-semibold">
           <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true">{fixed ? <path d="m4.5 10.5 3.5 3.5 7.5-8" strokeLinecap="round" /> : <><path d="M10 3 18 17H2L10 3z" /><path d="M10 8.5v3.5M10 14.6v.1" strokeLinecap="round" /></>}</svg>
           {fixed ? 'Unused access removed' : 'IAM role · ecs-notify-svc'}
@@ -8272,7 +8274,7 @@ const I = ({ k, s = 16 }) => <svg viewBox="0 0 24 24" width={s} height={s} aria-
 
 /* ── NHI: one key, from where it was made to everything it reaches ───────── */
 const LCOLS = [['origin', 'Origin'], ['people', 'People'], ['storage', 'Storage'], ['consumers', 'Consumers'], ['resources', 'Resources']];
-const LX = [10, 30, 50, 70, 90], LY = [22, 52, 82];
+const LX = [10, 30, 50, 70, 90], LY = [16, 49, 82];
 const LNODES = [
   { c: 0, r: 1, logo: 'aws', n: 'AKIA••••7Q2F', sub: 'access key · prod', brand: true },
   { c: 1, r: 0, person: true, n: 'Asha Nair', sub: 'can read it' },
@@ -8290,7 +8292,7 @@ const LLINKS = [
   [0, 3, 'Created by', 1], [3, 4, 'Stored', 2], [3, 5, 'Stored', 2], [3, 6, 'Leaked', 3, true],
   [4, 7, 'Read by', 4], [7, 8, 'Deploys', 4], [7, 9, 'Reaches', 4],
 ];
-const at = (i) => [LX[LNODES[i].c] * 10, LY[LNODES[i].r] * 3.2];
+const at = (i) => [LX[LNODES[i].c] * 10, LY[LNODES[i].r] * 4];
 const lpath = (a, b) => {
   const [x1, y1] = at(a), [x2, y2] = at(b);
   const s = x1 + 34, e = x2 - 34, m = (s + e) / 2;
@@ -8300,30 +8302,29 @@ const lpath = (a, b) => {
 };
 
 export function KeyLineage() {
-  const ref = useRef(null);
-  const k = useBeat(ref, 5, 900);
+  const k = 5; // ponytail: static and fully drawn, as asked; useBeat(ref, 5) brings the build-up back
   return (
-    <figure ref={ref} className="kl" aria-label="Illustration: the lineage of one AWS access key. It was created by Kiran Rao, who left in May, stored in AWS Secrets Manager and HashiCorp Vault, and also pasted into a config file in a repository. A deploy pipeline reads it nightly and through it reaches the payments service and the customer KYC bucket. adapID recommends rotating it in Secrets Manager and assigning a new owner.">
+    <figure className="kl" aria-label="Illustration: the lineage of one AWS access key. It was created by Kiran Rao, who left in May, stored in AWS Secrets Manager and HashiCorp Vault, and also pasted into a config file in a repository. A deploy pipeline reads it nightly and through it reaches the payments service and the customer KYC bucket. adapID recommends rotating it in Secrets Manager and assigning a new owner.">
       <div aria-hidden="true" className="kl-scroll">
         <div className="kl-inner">
           <div className="kl-cols">
             {LCOLS.map(([ic, n]) => <span key={n} className="kl-col"><I k={ic} s={14} />{n}</span>)}
           </div>
-          <div className="relative" style={{ height: 320 }}>
+          <div className="relative" style={{ height: 400 }}>
             {LX.slice(1).map((x) => <span key={x} className="kl-rule" style={{ left: `${x - 10}%` }} />)}
-            <svg viewBox="0 0 1000 320" className="absolute inset-0 h-full w-full overflow-visible">
+            <svg viewBox="0 0 1000 400" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible">
               {LLINKS.map(([a, b, l, s, bad]) => {
                 const [x1, y1] = at(a), [x2, y2] = at(b), m = (x1 + 34 + x2 - 34) / 2;
                 return (
                   <g key={`${a}-${b}`} className={cx('kl-link', k >= s && 'on', bad && 'bad')}>
                     <path d={lpath(a, b)} pathLength="1" />
-                    <foreignObject x={m - 34} y={(y1 + y2) / 2 - 10} width="68" height="20"><span className="kl-tag">{l}</span></foreignObject>
+                    <foreignObject x={m - 40} y={(y1 + y2) / 2 - 12} width="80" height="24"><span className="kl-tag">{l}</span></foreignObject>
                   </g>
                 );
               })}
             </svg>
             {LNODES.map((n, i) => {
-              const lit = i === 0 || LLINKS.some(([, b, , s]) => b === i && k >= s);
+              const lit = true;
               return (
                 <div key={n.n} className={cx('kl-node', lit && 'on', n.crit && 'crit', n.brand && 'brand')} style={{ left: `${LX[n.c]}%`, top: `${LY[n.r]}%` }}>
                   <span className="kl-ic">{n.logo ? <Logo k={n.logo} size="22px" /> : n.file ? <I k="storage" s={20} /> : <I k="person" s={20} />}</span>
@@ -8713,8 +8714,8 @@ export function AgentAccess() {
 .mb-grid.wide { grid-template-columns: 42% 1fr; }
 @container (max-width: 560px) {
   .mb-grid, .mb-grid.wide { grid-template-columns: 1fr; gap: 1.6em; }
-  .mb-grid > .mb-phone-wrap { width: 62%; margin-inline: auto; }
-  .mb-fit { font-size: calc(100cqw / 30); }
+  .mb-grid > .mb-phone-wrap { width: 46%; max-width: 230px; margin-inline: auto; }
+  .mb-fit { font-size: calc(100cqw / 36); }
 }
 
 /* a picture shown larger than it was drawn: same layout, bigger type */
@@ -8876,7 +8877,7 @@ export function AgentAccess() {
 @media (prefers-reduced-motion: reduce) { .lp-float.on, .lp-pin.hit { animation: none; } }
 
 /* fraud: the phone on a stage, notes floating over its edge, the decision under it */
-.mb-stage { position: relative; padding: 14px; border: 1px solid rgb(14 17 22 / .08); border-radius: 24px; background: radial-gradient(rgb(10 58 107 / .1) 1px, transparent 1px) 0 0 / 14px 14px, linear-gradient(160deg, #f4f8fd, #e6eff9); }
+.mb-stage { position: relative; padding: 14px; border: 1px solid rgb(14 17 22 / .08); border-radius: 24px; background: radial-gradient(70% 60% at 50% 0%, rgb(30 136 216 / .10), transparent 70%), linear-gradient(160deg, #f4f8fd, #e6eff9); }
 @container (min-width: 561px) {
   .mb-stage .mb-grid.wide { grid-template-columns: 42% 1fr; gap: 0; }
   .mb-stage .mb-grid.wide > .s2 { position: relative; z-index: 2; margin-left: -4%; }
@@ -9394,6 +9395,7 @@ export function ZenDecideFirst() {
 }
 
 ===== website/src/components/viz/zenstra.jsx =====
+import { useRef } from 'react';
 import { Viz, Win, Chip, Gl, Logo, App, Av, Spark, cx } from './kit.jsx';
 import { Ring } from './home.jsx';
 
@@ -9405,10 +9407,11 @@ const CALLS = [
   { agent: 'payments-agent', plat: 'langgraph', tool: 'payments.transfer', sys: 'Core banking', g: 'bank', d: 'Hold', tone: 'warn', why: '₹18,40,000 needs a person' },
   { agent: 'invoice-agent', plat: 'copilotstudio', tool: 'salesforce.export', sys: 'Salesforce', app: 'salesforce', d: 'Block', tone: 'crit', why: 'Outside its declared task' },
 ];
-export function ZenGateway({ compact, k: fk }) {
+export function ZenGateway({ compact, k: fk, pop }) {
+  const played = useRef(false); // the popup waits until the rows have actually played up to the block
   return (
     <Viz k={fk} steps={[500, 900, 900, 1000, 900, 900]} hold={3800} label="Illustration: the Zenstra gateway allows a ticket update, holds a large payment for human approval and blocks a CRM export that is outside the agent's task.">
-      {(k) => (
+      {(k) => (<div className="relative">
         <Win title="Zenstra · Runtime gateway" right={<Chip tone="zen" plain>In your VPC</Chip>} glow="rgb(120 135 255 / .5)">
           <div className="grid items-center gap-[.6em]" style={{ gridTemplateColumns: '1.15fr .9fr 1.05fr' }}>
             <span className="vz-h">Agent and tool call</span><span className="vz-h text-center">Decision</span><span className="vz-h text-right">System</span>
@@ -9445,7 +9448,15 @@ export function ZenGateway({ compact, k: fk }) {
           </div>
           <div className="s6 mt-[.8em] flex items-center justify-between vz-m"><span>Every decision written to the record</span><span className="vz-mono">#48231 → #48233 ✓ chained</span></div>
         </Win>
-      )}
+        {/* the verdict, once the blocked call has actually been decided (step 4), top right */}
+        {pop && (
+          <div className="vz-pop absolute -right-[5%] -top-[16%] z-10 hidden w-[44%] transition-all duration-500 md:block" style={{ padding: '.9em 1em', '--glow': 'rgb(255 107 93 / .5)', opacity: (k < 4 && (played.current = true)) || !played.current ? 0 : 1, transform: played.current && k >= 4 ? 'none' : 'translateY(-.6em) scale(.96)' }}>
+            <p className="text-[.78em] font-semibold uppercase tracking-[.08em]" style={{ color: 'var(--vz-red)' }}>Blocked · 4 ms</p>
+            <p className="mt-[.2em] vz-t">invoice-agent → crm.export</p>
+            <p className="vz-m">Not part of “summarise the Q3 contract”</p>
+          </div>
+        )}
+      </div>)}
     </Viz>
   );
 }
@@ -10107,8 +10118,8 @@ export const PRODUCTS = {
   },
   icms: {
     path: '/dpdpa-compliance', line: 'ICMS Compliance Suite', name: 'ICMS Compliance Suite',
-    seoTitle: 'ICMS Compliance Suite: Automated DPDPA Compliance and Evidence',
-    description: 'ICMS discovers personal data, checks every access against purpose and consent, and generates audit-ready evidence for DPDPA 2023, RBI and SEBI automatically.',
+    seoTitle: 'ICMS Compliance Suite: PII Protection and DPDPA Compliance',
+    description: 'ICMS discovers and classifies PII, masks it where it should not be seen, checks every access against purpose and consent, and generates audit-ready evidence for DPDPA 2023, RBI and SEBI.',
     stats: [{ v: '₹250 Cr', l: 'maximum penalty for failing to safeguard personal data', s: 'DPDPA 2023' }, { v: '72 hrs', l: 'to report a personal data breach in full to the Data Protection Board', s: 'DPDP Rules 2025' }, { v: '< 5 min', l: 'to generate an audit package', s: 'Deep Algorithms benchmark' }],
     research: ['ctem-dpdpa-india-2026', 'india-mule-account-crisis'],
     cta: { title: 'Be ready the day the Data Protection Board asks.', body: 'Book a DPDPA gap analysis with a compliance engineer.' },
@@ -10738,8 +10749,8 @@ const PEOPLE = [
     signals: [['18,204 logins in 60 s', 'crit'], ['3 passwords, 9,000 accounts', 'warn'], ['Headless browsers', 'warn']],
     card: { mark: 'botshield', name: 'BotShield AI', outcome: 'Bots refused at the edge', chip: '0 takeovers' } },
   { id: 'c6', la: 'c6', lb: null, clipA: 'desktop', speedA: 0.75, side: 'l', acc: '#f4c76c',
-    signals: [['Request from the regulator', 'warn'], ['Who opened patient records?', 'warn'], ['Every access, with its purpose', 'ok']],
-    card: { mark: 'icms', name: 'ICMS Compliance Suite', outcome: 'Evidence ready in minutes', chip: '< 5 min' } },
+    signals: [['PII found: Aadhaar, PAN · 4 stores', 'warn'], ['Read without consent · refused', 'ok'], ['Every access, with its purpose', 'ok']],
+    card: { mark: 'icms', name: 'ICMS Compliance Suite', outcome: 'PII protected, evidence ready', chip: '< 5 min' } },
 ];
 const PEOPLE_SCENES = PEOPLE.map((p, i) => {
   const a = i ? C[p.la].start - 0.3 : T.c1;
@@ -13134,8 +13145,7 @@ function ProductPanel() {
       tl = g.timeline()
         .fromTo(root.querySelector(`[data-k="${on}"] .ps-pop`), { scale: 0.86 }, { scale: 1, duration: 0.9, ease: 'back.out(2.4)' }, 0.18)
         .fromTo(root.querySelector(`[data-k="${on}"] .ps-sheen`), { xPercent: -160, opacity: 0 }, { xPercent: 160, opacity: 1, duration: 0.9, ease: 'power2.inOut' }, 0.35)
-        .fromTo(copy.current.querySelectorAll('.ps-w'), { y: 14, opacity: 0, filter: 'blur(8px)' }, { y: 0, opacity: 1, filter: 'blur(0px)', duration: 0.6, stagger: 0.03, ease: 'power3.out' }, 0.15)
-        .fromTo(root.querySelector('.ps-ghost'), { opacity: 0, letterSpacing: '0.12em' }, { opacity: 1, letterSpacing: '-0.02em', duration: 1.1, ease: 'expo.out' }, 0);
+        .fromTo(copy.current.querySelectorAll('.ps-w'), { y: 14, opacity: 0, filter: 'blur(8px)' }, { y: 0, opacity: 1, filter: 'blur(0px)', duration: 0.6, stagger: 0.03, ease: 'power3.out' }, 0.15);
     });
     return () => tl?.kill();
   }, [on, reduce]);
@@ -13143,10 +13153,9 @@ function ProductPanel() {
   const pick = (k) => { setHeld(true); setOn(k); };
   const P = LINEUP[on];
   return (
-    <div ref={ref} className="ps relative mx-auto grid w-full max-w-[560px] place-items-center py-6 text-center" style={{ '--pc': P[3] }}>
-      {/* the backdrop: a lit field in the product's colour, its name as a ghost word, a floor */}
+    <div ref={ref} className="ps relative mx-auto grid w-full max-w-[560px] place-items-center py-6 text-center" style={{ '--pc': '#1e88d8' }}>
+      {/* the backdrop: one light-blue field and a floor, the same for every product */}
       <div aria-hidden="true" className="ps-field absolute inset-x-[-6%] top-0 h-[300px] rounded-[40px] max-sm:h-[240px]" />
-      <p aria-hidden="true" key={`g${on}`} className="ps-ghost pointer-events-none absolute left-1/2 top-[54px] -translate-x-1/2 whitespace-nowrap text-[clamp(70px,8.6vw,124px)] font-bold leading-none tracking-[-0.02em] max-sm:top-[48px]">{P[1].split(' ')[0]}</p>
 
       <div className="relative h-[240px] w-full max-sm:h-[190px]" role="group" aria-roledescription="carousel" aria-label="Deep Algorithms products">
         <div aria-hidden="true" className="ps-floor absolute bottom-[14px] left-1/2 h-[26px] w-[190px] -translate-x-1/2 rounded-[50%] max-sm:w-[150px]" />
@@ -13163,9 +13172,9 @@ function ProductPanel() {
               style={{ transform: `translate(-50%, -50%) translateX(${sx * m.x}%) scale(${m.s})`, filter: m.b ? `blur(${m.b}px) saturate(.8)` : 'none', opacity: m.o, zIndex: 10 - Math.abs(d) }}>
               <span className="ps-pop relative grid place-items-center">
                 <span className={cx('grid place-items-center', centre && 'ps-bob')}>
-                  <ProductMark p={L[0]} size={136} className="max-sm:!h-[104px] max-sm:!w-[104px]" style={{ filter: centre ? `drop-shadow(0 22px 34px color-mix(in oklab, ${L[3]} 55%, transparent))` : 'none' }} />
+                  <ProductMark p={L[0]} size={136} className="max-sm:!h-[104px] max-sm:!w-[104px]" style={{ filter: centre ? 'drop-shadow(0 22px 34px rgb(30 136 216 / .45))' : 'none' }} />
                 </span>
-                <span aria-hidden="true" className="ps-sheen pointer-events-none absolute inset-0 opacity-0" />
+                {centre && <span aria-hidden="true" className="ps-sheen pointer-events-none absolute inset-0 opacity-0" />}
               </span>
             </button>
           );
@@ -13177,10 +13186,10 @@ function ProductPanel() {
         <span className="mt-3 block min-h-[5.1em] max-w-[32ch] text-[17px] leading-relaxed text-ink-2">{words(P[7])}</span>
       </Link>
       <div className="relative mt-4 flex gap-2" role="group" aria-label="Choose a product">
-        {LINEUP.map(([k, name, , c], i) => (
+        {LINEUP.map(([k, name], i) => (
           <button key={k} type="button" onClick={() => pick(i)} aria-label={name} aria-current={i === on || undefined} className="group py-2">
             <span className="block h-[3px] w-10 overflow-hidden rounded-full bg-ink/10 transition-colors group-hover:bg-ink/20">
-              <span className={cx('block h-full rounded-full', i === on && !held && !reduce && seen ? 'ps-fill' : '')} style={{ background: c, width: i === on && (held || reduce || !seen) ? '100%' : i === on ? undefined : '0%', animationDuration: `${HOLD}ms` }} />
+              <span className={cx('block h-full rounded-full', i === on && !held && !reduce && seen ? 'ps-fill' : '')} style={{ background: '#1e88d8', width: i === on && (held || reduce || !seen) ? '100%' : i === on ? undefined : '0%', animationDuration: `${HOLD}ms` }} />
             </span>
           </button>
         ))}
@@ -13920,7 +13929,7 @@ export default function Cirm() {
             {FAMILY.map((f, i) => {
               const inner = (
                 <>
-                  <div className="relative h-[260px] overflow-hidden rounded-[16px] border border-line md:h-[300px]" style={{ background: 'radial-gradient(rgb(10 58 107 / .1) 1px, transparent 1px) 0 0 / 14px 14px, linear-gradient(160deg, #f4f8fd, #e8f0f9)' }}>
+                  <div className="relative h-[260px] overflow-hidden rounded-[16px] border border-line md:h-[300px]" style={{ background: 'radial-gradient(70% 60% at 50% 0%, rgb(30 136 216 / .12), transparent 70%), linear-gradient(160deg, #f4f8fd, #e8f0f9)' }}>
                     {f.V ? <div className="pointer-events-none absolute left-1/2 top-4 w-[118%] -translate-x-1/2 md:w-[104%]"><f.V /></div>
                       : <div className="absolute inset-0 flex items-center justify-center"><span className="text-[64px] font-semibold tracking-[-0.05em] text-[#c4352a] num">94</span><span className="ml-3 text-[15px] text-ink-3">risk score,<br />with the reasons</span></div>}
                     <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-24" style={{ background: 'linear-gradient(rgb(232 240 249 / 0), #e8f0f9)' }} />
@@ -14428,7 +14437,7 @@ function Ledger() {
     <div ref={ref} className="overflow-hidden rounded-[22px] border border-[#0a5ea3]/12 bg-white text-left shadow-[0_40px_90px_-40px_rgb(10_94_163/.5)]" role="img"
       aria-label="ICMS evidence ledger: every access to Aadhaar data with who, purpose and consent verdict. A marketing export and an analytics agent are refused; the audit package is ready.">
       <div className="flex items-center gap-3 border-b border-line bg-[#f6f9fd] px-5 py-3">
-        <span className="flex items-center gap-2 text-[13.5px] font-semibold text-ink"><ProductMark p="icms" size={20} />ICMS · Personal data access</span>
+        <span className="flex items-center gap-2 text-[13.5px] font-semibold text-ink"><ProductMark p="icms" size={20} />ICMS · PII access</span>
         <span className="ml-auto flex h-9 min-w-[44%] items-center gap-2 rounded-full border border-line bg-white px-3.5 text-[13px] text-ink shadow-sm max-sm:hidden">
           <Icon name="MagnifyingGlass" size={14} className="text-ink-3" /><span className="lg-q">Aadhaar</span><i className="h-4 w-px animate-pulse bg-[#0a6dbb]" />
           <span className="ml-auto text-[11.5px] text-ink-3">Today</span>
@@ -14460,9 +14469,9 @@ export default function Icms() {
   return (
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'ICMS Compliance Suite', path: p.path }]} />
-      <Hero glance={[['Protects', 'Personal data in the stores that already hold it'], ['Stops', 'Access without consent or a lawful purpose'], ['Deploys', 'Connected to your data stores and identity sources'], ['Shows', 'DPDPA evidence, ready for the 72-hour breach report']]} acc="icms" crumbs={[{ name: 'Products', path: '/products' }, { name: 'ICMS Compliance Suite' }]} eyebrow="ICMS Compliance Suite · DPDPA"
-        title={<>DPDPA compliance you can prove, <span style={{ color: 'var(--acc)' }}>not just claim.</span></>}
-        lead="Every access to personal data checked against purpose and consent, and the evidence an auditor asks for, generated as it happens."
+      <Hero glance={[['Protects', 'PII and sensitive personal data, where it already lives'], ['Stops', 'Access without consent or a lawful purpose'], ['Deploys', 'Connected to your data stores and identity sources'], ['Shows', 'DPDPA evidence, ready for the 72-hour breach report']]} acc="icms" crumbs={[{ name: 'Products', path: '/products' }, { name: 'ICMS Compliance Suite' }]} eyebrow="ICMS Compliance Suite · DPDPA"
+        title={<>Protect every piece of PII. <span style={{ color: 'var(--acc)' }}>Prove DPDPA compliance.</span></>}
+        lead="ICMS finds the PII your organisation holds, from Aadhaar and PAN to account numbers and health records, masks it where it should not be seen, checks every access against purpose and consent, and keeps the evidence an auditor asks for."
         note="For customer data, patient records and employee data.">
         <Ledger />
       </Hero>
@@ -14478,7 +14487,23 @@ export default function Icms() {
         </div>
       </section>
 
-      <Split id="discover" acc="icms" eyebrow="Discover" title="Find personal data, even where it should not be." lead="Databases, buckets, warehouses and shared drives scanned, with an owner named for every store." visual={<DataMap />} />
+      {/* the PII lifecycle, in one row: what ICMS does to personal data from the moment it is found */}
+      <section className="sec-tight" aria-labelledby="pii-h">
+        <div className="wrap">
+          <SectionHead align="left" id="pii-h" acc={A} eyebrow="PII protection" title="From the moment PII is found to the day it is erased." />
+          <ol className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {[['MagnifyingGlass', 'Discover', 'Scan every store for PII and sensitive personal data'], ['Tag', 'Classify', 'Label Aadhaar, PAN, financial and health data by sensitivity'], ['EyeSlash', 'Mask', 'Mask or tokenise PII for people and apps that do not need it'], ['Fingerprint', 'Govern access', 'Check each access against identity, purpose and consent'], ['Trash', 'Retain and erase', 'Erase on request or at retention end, with proof']].map(([ic, h, d], i) => (
+              <Reveal as="li" key={h} delay={i * 60} className="card relative p-5">
+                <span className="flex items-center justify-between"><span className="grid h-10 w-10 place-items-center rounded-[12px] text-white" style={{ background: 'linear-gradient(140deg,#1e88d8,#0a5ea3)' }}><Icon name={ic} size={19} /></span><span className="mono text-[12px] text-ink-3">{String(i + 1).padStart(2, '0')}</span></span>
+                <h3 className="mt-4 text-[17px] font-semibold">{h}</h3>
+                <p className="mt-1.5 text-[14px] leading-snug text-ink-2">{d}</p>
+              </Reveal>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <Split id="discover" acc="icms" eyebrow="PII discovery and classification" title="Find every piece of PII, even where it should not be." lead="Databases, buckets, warehouses and shared drives scanned and classified: Aadhaar, PAN, phone numbers, account numbers, health records. Each store gets an owner, and PII outside its approved place is flagged." visual={<DataMap />} />
       <Split id="consent" className="stage" acc="icms" flip eyebrow="Purpose and consent" title="Who touched what, and why." lead="Every access is linked to an identity and checked against its declared purpose and the principal’s consent. Access outside consent is flagged the moment it happens." visual={<ConsentLedger />} />
       <Split id="breach" acc="icms" eyebrow="Breach response" title="Inside the 72 hours, with evidence in hand." lead="When a breach happens, ICMS scopes the affected records and data principals and drafts the report from evidence it already holds." visual={<BreachClock />} />
 
@@ -14759,7 +14784,7 @@ import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Button, Icon, Reveal, SectionHead } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import Stage3D, { Pop } from '../../components/Stage3D.jsx';
+import Stage3D from '../../components/Stage3D.jsx';
 import { Hero, Stats, Faq, Compare, Explorer, Explore, LINKS } from '../../components/ProductKit.jsx';
 import { ZenGateway, ZenInventory, ZenGrant, ZenMcp, ZenDetect, ZenRecord } from '../../components/viz/zenstra.jsx';
 import { Logo, logoTitle } from '../../components/viz/kit.jsx';
@@ -14842,14 +14867,7 @@ export default function Zenstra() {
         ctas={<><Explore label="See it check an agent" /><Button href="https://www.zenstra.ai" target="_blank" rel="noopener" variant="ghost" size="lg">Visit zenstra.ai<Icon name="ArrowUpRight" size={16} /></Button></>}
         note="One platform for copilots, cloud agents, workflow automations, coding agents and MCP servers.">
         <Stage3D tilt={[6, -15]}>
-          <ZenGateway />
-          <Pop z={90} className="absolute -left-[6%] bottom-[8%] hidden w-[46%] md:block" delay={900}>
-            <div className="vz-pop vzw" style={{ padding: '14px 16px', '--glow': 'rgb(255 107 93 / .5)' }}>
-              <p className="text-[12px] font-semibold uppercase tracking-[.08em] text-crit">Blocked · 4 ms</p>
-              <p className="mt-1 text-[14px] font-medium">invoice-agent → crm.export</p>
-              <p className="text-[12.5px] text-ink-3">Not part of “summarise the Q3 contract”</p>
-            </div>
-          </Pop>
+          <ZenGateway pop />
         </Stage3D>
       </Hero>
 
@@ -15628,7 +15646,7 @@ The film on the home page (`public/video/deep-algorithms-film.mp4`, 1:15). It is
    2. **Zenstra AI.** An agent exports customer records, and the action is blocked (4 ms).
    3. **adapID Identity Risk Management (CIRM).** Right password, wrong person, and every session is revoked (1.4 s).
    4. **BotShield AI.** 18,204 bot logins hit, and 6 of 37 exposures are proven and patched.
-   5. **ICMS.** The regulator asks, and the evidence package is ready (< 5 min).
+   5. **ICMS.** PII is found and refused where there is no consent; the regulator asks, and every access with its purpose is ready (< 5 min).
 
    The camera leans into the one row that matters, with a spotlight, and the result lands as one number on glass. A chapter marker (01/05 … 05/05) keeps the viewer oriented.
 5. **Resolution:** 09:00, business as usual. "One night. Five attacks. Nothing lost."
@@ -16566,8 +16584,8 @@ await b.close();
     },
     {
       "id": "c6",
-      "text": "And when the regulator asks who touched personal data, ICMS has the evidence in minutes.",
-      "say": "And when the regulator asks who touched personal data, I-C-M-S has the evidence, in minutes.",
+      "text": "And when the regulator asks who touched customer PII, ICMS shows every access and its purpose, in minutes.",
+      "say": "And when the regulator asks who touched customer P-I-I, I-C-M-S shows every access, and its purpose, in minutes.",
       "after": 0.9
     },
     {
@@ -16599,7 +16617,7 @@ await b.close();
 }
 ===== website/tools/film/timings.json =====
 {
- "duration": 86.105,
+ "duration": 87.495,
  "voice": "am_fenrir",
  "speed": 1.15,
  "lines": [
@@ -16677,33 +16695,33 @@ await b.close();
   },
   {
    "id": "c6",
-   "text": "And when the regulator asks who touched personal data, ICMS has the evidence in minutes.",
+   "text": "And when the regulator asks who touched customer PII, ICMS shows every access and its purpose, in minutes.",
    "start": 62.301,
-   "end": 67.449
+   "end": 68.839
   },
   {
    "id": "brand",
    "text": "Deep Algorithms. Every identity, verified before it acts.",
-   "start": 68.349,
-   "end": 71.558
+   "start": 69.739,
+   "end": 72.948
   },
   {
    "id": "trust",
    "text": "Built in India. Trusted by banks, government and enterprises that cannot afford a breach.",
-   "start": 72.958,
-   "end": 77.895
+   "start": 74.348,
+   "end": 79.285
   },
   {
    "id": "cta",
    "text": "Find your riskiest identity before attackers do.",
-   "start": 78.595,
-   "end": 81.214
+   "start": 79.985,
+   "end": 82.604
   },
   {
    "id": "cta2",
    "text": "The future is decided today. Book a demo.",
-   "start": 82.314,
-   "end": 84.505
+   "start": 83.704,
+   "end": 85.895
   }
  ]
 }
