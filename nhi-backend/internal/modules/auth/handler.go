@@ -138,7 +138,10 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logging.FromContext(r.Context()).Warn("login failed", "err", err)
 		logging.Audit(r.Context(), "login", req.Login(), "", "", "failure")
-		audit.SetCaller(r.Context(), audit.Caller{Actor: req.Login()})
+		audit.SetCaller(r.Context(), audit.Caller{
+			Actor:    req.Login(),
+			TenantID: h.authService.TenantForAudit(r.Context(), req.Login()),
+		})
 		sendJSON(w, http.StatusUnauthorized, httpx.APIResponse{
 			Success: false,
 			Message: "Invalid email/username or password",

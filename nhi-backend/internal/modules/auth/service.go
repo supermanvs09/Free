@@ -73,6 +73,22 @@ func (s *AuthService) Login(ctx context.Context, req LoginRequest) (*LoginRespon
 	return s.issueTokens(ctx, user, sessionID, now)
 }
 
+// TenantForAudit is the workspace an email belongs to, so that a failed
+// sign-in is recorded against the workspace it was aimed at rather than
+// nowhere - an admin needs to see attempts on their own users. It is used only
+// for the audit entry and never changes what the caller is told, so an unknown
+// email simply has no tenant.
+func (s *AuthService) TenantForAudit(ctx context.Context, email string) string {
+	if strings.TrimSpace(email) == "" {
+		return ""
+	}
+	user, err := s.userRepo.GetByEmail(ctx, email)
+	if err != nil || user == nil {
+		return ""
+	}
+	return user.TenantID
+}
+
 // dummyHash is compared against when the user is missing or has no bcrypt
 // hash; it matches no password anyone will send.
 var dummyHash, _ = bcrypt.GenerateFromPassword([]byte("no-such-user-placeholder"), bcrypt.DefaultCost)

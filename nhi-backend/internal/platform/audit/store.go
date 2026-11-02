@@ -80,7 +80,7 @@ func (s *Store) run() {
 	defer close(s.done)
 	const (
 		batchSize  = 50
-		flushEvery = 2 * time.Second
+		flushEvery = time.Second
 	)
 	ticker := time.NewTicker(flushEvery)
 	defer ticker.Stop()
