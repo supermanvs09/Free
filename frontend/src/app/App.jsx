@@ -32,6 +32,7 @@ const GenomeDetailPage = lazy(() => import('../features/genome/GenomeDetailPage'
 const IntegrationsPage = lazy(() => import('../features/integrations/IntegrationsPage'));
 const UsersPage = lazy(() => import('../features/admin/UsersPage'));
 const AuditLogPage = lazy(() => import('../features/admin/AuditLogPage'));
+const RemediationPage = lazy(() => import('../features/remediation/RemediationPage'));
 const NotFoundPage = lazy(() => import('../features/NotFoundPage'));
 
 function Screen({ children }) {
@@ -92,6 +93,7 @@ export default function App() {
                   }
                 />
                 <Route path="/activity" element={<Screen><ActivityPage /></Screen>} />
+                <Route path="/remediation" element={<Screen><RemediationPage /></Screen>} />
                 <Route path="/access-graph" element={<Screen><AccessGraphPage /></Screen>} />
                 <Route path="/access-graph/:id" element={<Screen><AccessDetailPage /></Screen>} />
                 <Route path="/genome" element={<Screen><GenomePage /></Screen>} />

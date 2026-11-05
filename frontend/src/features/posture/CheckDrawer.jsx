@@ -1,6 +1,6 @@
 import { complianceLabel } from '../../lib/posture';
 import { useMemo } from 'react';
-import { ArrowRight, Filter, Info, Loader2, Wrench } from 'lucide-react';
+import { ArrowRight, Filter, Info, Loader2, Wand2, Wrench } from 'lucide-react';
 import { useAccess } from '../../app/useAccess';
 import { fetchCheckDetail, fetchQuickWinIdentities } from '../../lib/api/posture';
 import { severityMeta } from '../../lib/domain';
@@ -87,6 +87,7 @@ export function CheckDrawer({
   identity,
   finding,
   onFindingAction,
+  onFix,
   quickWin,
   onFilter,
   pillarNames,
@@ -199,6 +200,11 @@ export function CheckDrawer({
               <FindingStatusTag status={finding.status ?? 'unknown'} size="md" />
               {!finding.status && (
                 <span className="text-[12px] text-ink-3">Its state is not in the last 90 days of findings.</span>
+              )}
+              {onFix && (
+                <Button variant="primary" size="sm" icon={Wand2} onClick={onFix}>
+                  Fix this finding
+                </Button>
               )}
               {actions.length > 0 && (
                 <span className="ml-auto flex flex-wrap gap-1.5">

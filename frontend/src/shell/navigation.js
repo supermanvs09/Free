@@ -12,6 +12,7 @@ import {
   UsersRound,
   ShieldCheck,
   ShieldOff,
+  Wrench,
 } from 'lucide-react';
 
 /**
@@ -70,7 +71,11 @@ export const NAV_GROUPS = [
     label: 'Operations',
     /* Alerts, Reports, Scans and User management have no API yet; they
        return here with their endpoints. */
-    items: [{ to: '/activity', label: 'Activity', icon: Activity }],
+    /* Remediation: following and deciding the fixes made from findings. */
+    items: [
+      { to: '/activity', label: 'Activity', icon: Activity },
+      { to: '/remediation', label: 'Remediation', icon: Wrench },
+    ],
   },
   {
     key: 'settings',
@@ -114,6 +119,7 @@ export const ALL_NAV_ITEMS = NAV_GROUPS.flatMap((group) =>
 export const BREADCRUMBS = {
   '/overview': ['Overview', 'Dashboard'],
   '/posture': ['Overview', 'Posture'],
+  '/remediation': ['Operations', 'Remediation'],
   '/identities': ['Inventory', 'Identities'],
   '/credentials': ['Inventory', 'Credentials'],
   '/exposure': ['Credential exposure', 'Exposed credentials'],

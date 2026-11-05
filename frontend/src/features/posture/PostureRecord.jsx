@@ -41,6 +41,7 @@ import { Tag } from '../../ui/Tag';
 import { TONE_VAR } from '../../ui/cn';
 import { CheckDrawer } from './CheckDrawer';
 import { FindingDialog, findingActions, FindingStatusTag } from './findings';
+import { useFixFlow } from '../remediation/useFixFlow';
 import { BandTag, Delta, formatScore, identityTypeLabel, pillarLabel, PillarBars, resolveBand, ScoreRing } from './parts';
 import { useCursorList } from './useCursorList';
 import { usePostureIdentity } from './usePostureIdentity';
@@ -169,6 +170,7 @@ export function PostureBody({ header, identity }) {
   };
 
   const reload = () => setRevision((value) => value + 1);
+  const fixFlow = useFixFlow();
   const score = posture?.score ?? header.score;
   const band = posture?.band || header.band;
   const grade = posture?.grade || header.grade;
@@ -187,6 +189,7 @@ export function PostureBody({ header, identity }) {
     findingFor,
     openCheck: (check) => setDrawer({ check }),
     act: (finding, mode) => setDialog({ finding, mode }),
+    fix: (finding) => fixFlow.openFix(finding),
     setView,
   };
 
@@ -238,9 +241,24 @@ export function PostureBody({ header, identity }) {
           finding={drawerFinding}
           pillarNames={pillarNames}
           onFindingAction={(mode) => setDialog({ finding: drawerFinding, mode })}
+          onFix={
+            drawerFinding && String(drawerFinding.status ?? 'OPEN').toUpperCase() === 'OPEN'
+              ? () => {
+                  setDrawer(null);
+                  fixFlow.openFix({
+                    ...drawerFinding,
+                    rule_id: drawerCheck.rule_id,
+                    severity: drawerCheck.severity,
+                    account_id: drawerFinding.row?.account_id || header.account?.id || '',
+                  });
+                }
+              : undefined
+          }
           onClose={() => setDrawer(null)}
         />
       )}
+
+      {fixFlow.element}
 
       {dialog && (
         <FindingDialog
@@ -1256,15 +1274,20 @@ function FindingsView({ ctx }) {
             rowKey={(row) => row.finding_id}
             density="compact"
             loading={list.loading}
-            rowActions={
-              ctx.editable
-                ? (row) => {
-                    const finding = { finding_id: row.finding_id, title: row.title || row.rule_id, status: row.status, row };
-                    const items = findingActions(row.status, (mode) => ctx.act(finding, mode));
-                    return items.length ? <Menu items={items} label={`Actions for ${finding.title}`} /> : <span className="block size-8" />;
-                  }
-                : undefined
-            }
+            rowActions={(row) => {
+              const finding = { finding_id: row.finding_id, title: row.title || row.rule_id, status: row.status, row };
+              const open = String(row.status ?? '').toUpperCase() === 'OPEN';
+              const items = [
+                open && {
+                  key: 'fix',
+                  label: 'Fix this finding…',
+                  icon: Wrench,
+                  onSelect: () => ctx.fix({ ...finding, rule_id: row.rule_id, severity: row.severity, account_id: row.account_id || ctx.header.account?.id || '' }),
+                },
+                ...(ctx.editable ? findingActions(row.status, (mode) => ctx.act(finding, mode)) : []),
+              ].filter(Boolean);
+              return items.length ? <Menu items={items} label={`Actions for ${finding.title}`} /> : <span className="block size-8" />;
+            }}
             emptyState={
               status === 'open' ? (
                 <ClearState compact title="No open findings" description="Nothing is open against this identity or the credentials it uses." />
