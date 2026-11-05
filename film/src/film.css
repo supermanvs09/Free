@@ -1,0 +1,68 @@
+/* Deep Algorithms Solutions brand film. One 1920x1080 stage; every frame is a pure function of time. */
+:root {
+  --ink: #04060b; --ink2: #070b13;
+  --t1: #eef3fa; --t2: #aab6c7; --t3: #6c788b; --t4: #465163;
+  --line: rgba(255,255,255,.085); --line2: rgba(255,255,255,.14);
+  --brand: #1597e5; --brand2: #0068ac; --cyan: #3cc8f6; --violet: #9d8cff;
+  --amber: #f3b23e; --red: #ef5a5f; --green: #3fd99b; --zen: #93a2ff; --zen2: #5b6cf0;
+  --sans: 'Inter', system-ui, sans-serif; --disp: 'Inter Display', 'Inter', sans-serif; --mono: 'JetBrains Mono', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--ink); color: var(--t1); font-family: var(--sans);
+  -webkit-font-smoothing: antialiased; font-feature-settings: 'cv11', 'ss01', 'tnum' 0; }
+#stage, .scene, .fill { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+#stage { overflow: hidden; background: var(--ink); }
+.scene { display: none; overflow: hidden; }
+.abs { position: absolute; }
+canvas.full { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+.num { font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--mono); }
+
+/* post */
+#post { position: absolute; inset: 0; pointer-events: none; }
+#grain { position: absolute; inset: 0; width: 1920px; height: 1080px; mix-blend-mode: overlay; opacity: .5; }
+#vig { position: absolute; inset: 0; background: radial-gradient(120% 95% at 50% 46%, transparent 55%, rgba(0,0,0,.42) 100%); }
+#dip { position: absolute; inset: 0; background: #000; opacity: 0; }
+
+/* kinetic type */
+.kin { position: absolute; font-family: var(--disp); font-weight: 600; letter-spacing: -.035em; line-height: 1.04; color: var(--t1); }
+.kin .w { display: inline-block; white-space: pre; will-change: transform, opacity, filter; }
+.kin .acc { color: var(--cyan); }
+.kin.zen .acc { color: var(--zen); }
+.kin.sm { font-family: var(--sans); font-weight: 500; letter-spacing: -.01em; }
+
+/* glass panels shared by the product moments */
+.pan { position: absolute; border-radius: 22px; border: 1px solid var(--line2);
+  background: linear-gradient(180deg, rgba(22,31,48,.92), rgba(11,16,27,.94));
+  box-shadow: 0 50px 120px -40px rgba(0,0,0,.9), 0 0 0 1px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.07); }
+.ph { display: flex; align-items: center; gap: 14px; padding: 20px 24px; border-bottom: 1px solid var(--line); }
+.tile { width: 40px; height: 40px; border-radius: 11px; background: #fff; display: grid; place-items: center; overflow: hidden; flex: none;
+  box-shadow: 0 6px 18px -6px rgba(0,0,0,.6); }
+.tile img { width: 100%; height: 100%; object-fit: contain; }
+.ph b { font-size: 19px; font-weight: 650; letter-spacing: -.01em; }
+.ph span { font-size: 15px; color: var(--t2); }
+.ph .tag { margin-left: auto; font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--t2);
+  border: 1px solid var(--line2); border-radius: 99px; padding: 6px 12px; }
+.pill { display: inline-flex; align-items: center; gap: 8px; border-radius: 99px; padding: 6px 13px; font-size: 14px; font-weight: 650; letter-spacing: .05em; text-transform: uppercase; }
+.pill i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; box-shadow: 0 0 12px currentColor; }
+.p-low { color: var(--green); background: rgba(63,217,155,.12); }
+.p-mid { color: var(--amber); background: rgba(243,178,62,.13); }
+.p-high { color: var(--red); background: rgba(239,90,95,.14); }
+.row { display: flex; align-items: center; gap: 14px; }
+.lbl { font-size: 13px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--t3); }
+
+/* chapter end card */
+.endcard { position: absolute; left: 0; right: 0; text-align: center; }
+.endcard .h { font-family: var(--disp); font-weight: 600; font-size: 74px; letter-spacing: -.04em; line-height: 1.05; }
+.endcard .sub { display: inline-flex; align-items: center; gap: 14px; margin-top: 30px; font-size: 22px; color: var(--t2); }
+.endcard .sub b { color: var(--t1); font-weight: 650; }
+.endcard .sub .tile { width: 38px; height: 38px; border-radius: 10px; }
+.endcard .sub .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--t3); }
+
+/* small caption chips */
+.chip { position: absolute; display: inline-flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 12px;
+  background: rgba(14,20,32,.86); border: 1px solid var(--line2); font-size: 17px; color: var(--t1); white-space: nowrap;
+  box-shadow: 0 20px 50px -20px rgba(0,0,0,.8); }
+.chip i { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.chip small { color: var(--t3); font-size: 14px; }
+.cursor { position: absolute; width: 28px; height: 28px; z-index: 50; }

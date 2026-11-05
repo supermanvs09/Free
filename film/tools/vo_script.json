@@ -1,0 +1,112 @@
+{
+ "voice": "am_fenrir",
+ "speed": 1.0,
+ "lines": [
+  {
+   "id": "o1",
+   "at": 1.4,
+   "text": "Every day, millions of identities connect people, applications and systems.",
+   "say": "Every day, millions of identities connect people, applications, and systems."
+  },
+  {
+   "id": "o2",
+   "at": 6.1,
+   "text": "But not every identity belongs to a person.",
+   "say": "But not every identity belongs to a person."
+  },
+  {
+   "id": "o3",
+   "at": 8.8,
+   "text": "And as the digital world evolves, so do the threats.",
+   "say": "And as the digital world evolves... so do the threats."
+  },
+  {
+   "id": "m1",
+   "at": 13.0,
+   "text": "A successful sign-in is only the beginning.",
+   "say": "A successful sign-in is only the beginning."
+  },
+  {
+   "id": "m2",
+   "at": 19.6,
+   "text": "adapID AI keeps reading the context, and adapts trust as the risk changes.",
+   "say": "Adap I.D. A.I. keeps reading the context, and adapts trust as the risk changes."
+  },
+  {
+   "id": "a1",
+   "at": 26.4,
+   "text": "Every enterprise identity has relationships.",
+   "say": "Every enterprise identity has relationships."
+  },
+  {
+   "id": "a2",
+   "at": 29.6,
+   "text": "One quiet change can open a path to the whole directory.",
+   "say": "One quiet change can open a path to the whole directory."
+  },
+  {
+   "id": "n1",
+   "at": 37.2,
+   "text": "Your applications have identities too.",
+   "say": "Your applications have identities too."
+  },
+  {
+   "id": "n2",
+   "at": 41.0,
+   "text": "This one can reach far more than it ever uses.",
+   "say": "This one can reach far more than it ever uses."
+  },
+  {
+   "id": "b1",
+   "at": 49.4,
+   "text": "The password is right. The OTP is right.",
+   "say": "The password is right. The O.T.P. is right."
+  },
+  {
+   "id": "b2",
+   "at": 53.0,
+   "text": "But is it really the customer?",
+   "say": "But is it really the customer?"
+  },
+  {
+   "id": "b3",
+   "at": 57.6,
+   "text": "adapID AI recognises the person: how they type, tap and hold the phone.",
+   "say": "Adap I.D. A.I. recognises the person. How they type, tap, and hold the phone."
+  },
+  {
+   "id": "z1",
+   "at": 66.0,
+   "text": "AI makes every team faster.",
+   "say": "A.I. makes every team faster."
+  },
+  {
+   "id": "z2",
+   "at": 72.8,
+   "text": "Zenstra AI sees what is about to leave, and stops it before it is sent.",
+   "say": "Zenstra A.I. sees what is about to leave, and stops it before it is sent.",
+   "ph": {
+    "Zenstra": "z\u02c8\u025bnst\u0279\u0259"
+   }
+  },
+  {
+   "id": "f1",
+   "at": 83.0,
+   "text": "Every identity tells a story. Every interaction creates risk.",
+   "say": "Every identity tells a story. Every interaction creates risk."
+  },
+  {
+   "id": "f2",
+   "at": 87.6,
+   "text": "Every connection needs intelligence.",
+   "say": "Every connection needs intelligence."
+  },
+  {
+   "id": "f3",
+   "at": 91.0,
+   "text": "Deep Algorithms Solutions.",
+   "say": "Deep Algorithms. Solutions.",
+   "speed": 0.92
+  }
+ ]
+}
