@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 export { useQuery, useMutation } from './useQuery';
 export { usePopover } from './usePopover';
+export { useContainedScroll } from './useContainedScroll';
 
 export function useDebouncedValue(value, delay = 320) {
   const [debounced, setDebounced] = useState(value);
@@ -26,14 +27,27 @@ export function useMediaQuery(query) {
   return matches;
 }
 
+/* How many overlays hold the scroll lock right now. A counter, not a saved
+   value: with a confirmation dialog open over a drawer, each one used to save
+   and restore `overflow`, and closing them in the "wrong" order restored
+   `hidden` - leaving the page under them unable to scroll once both were gone.
+   It also clears on navigation, so a drawer left open by a route change can
+   never strand the next screen. */
+let scrollLocks = 0;
+
+function applyScrollLock() {
+  document.body.style.overflow = scrollLocks > 0 ? 'hidden' : '';
+}
+
 /** Locks scroll while a modal/drawer owns the viewport. */
 export function useScrollLock(active) {
   useEffect(() => {
     if (!active) return undefined;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    scrollLocks += 1;
+    applyScrollLock();
     return () => {
-      document.body.style.overflow = previous;
+      scrollLocks = Math.max(0, scrollLocks - 1);
+      applyScrollLock();
     };
   }, [active]);
 }

@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { Skeleton } from '../ui/Skeleton';
+import { IdleSessionGuard } from './IdleSessionGuard';
 
 /**
  * Gate for every authenticated route. While the stored token is being
@@ -8,12 +9,24 @@ import { Skeleton } from '../ui/Skeleton';
  * paint already has the shape of the destination.
  */
 export function RequireAuth({ children }) {
-  const { isAuthenticated, status } = useAuth();
+  const { isAuthenticated, status, endReason } = useAuth();
   const location = useLocation();
 
   if (!isAuthenticated && status === 'verifying') return <ShellSkeleton />;
-  if (!isAuthenticated) return <Navigate to="/login" replace state={{ from: location }} />;
-  return children;
+  if (!isAuthenticated) {
+    /* A deep link opened while signed out (or a session the server ended)
+       returns to that screen after sign-in. Signing out, switching user or
+       timing out does not: the next sign-in - possibly someone else's -
+       starts on the dashboard. */
+    const keepPlace = endReason !== 'signout' && endReason !== 'switch' && endReason !== 'idle';
+    return <Navigate to="/login" replace state={keepPlace ? { from: location } : undefined} />;
+  }
+  return (
+    <>
+      {children}
+      <IdleSessionGuard />
+    </>
+  );
 }
 
 function ShellSkeleton() {

@@ -18,6 +18,11 @@ out_dir = sys.argv[3] if len(sys.argv) > 3 else "sql"
 SEED_TABLES = ["ispm_pillars", "ispm_categories", "ispm_rule_weights", "drift_config"]
 KEEP = {"FUNCTION", "TABLE", "SEQUENCE", "SEQUENCE OWNED BY", "DEFAULT", "CONSTRAINT",
         "INDEX", "FK CONSTRAINT", "TRIGGER", "COMMENT", "VIEW"}
+# Tables of the old scanner that a service of today owns under the same name:
+# the remediation service creates its own remediation_actions (the fix catalog,
+# keyed on action_type). Copying the old table would make that migration fail,
+# so remediation could never start for the new company.
+SKIP_TABLES = {"remediation_actions"}
 # Partition children (and their indexes) are created per tenant at run time.
 CHILD = re.compile(r"^ispm_identity_posture_(daily|hourly)_(\d|default)")
 PARENT = r"ispm_identity_posture_(?:daily|hourly)"
@@ -45,6 +50,8 @@ for b in blocks:
     if CHILD.match(first) or CHILD.match(b["name"].split(" ")[-1]):
         continue
     body = "\n".join(b["body"])
+    if any(f"{schema}.{t} " in body or f"{schema}.{t}\n" in body or first == t for t in SKIP_TABLES):
+        continue
     # drop the trailing "--" comment framing and OWNER statements
     body = re.sub(r"^ALTER (TABLE|SEQUENCE|FUNCTION|VIEW)[^\n]* OWNER TO [^\n]*\n", "", body, flags=re.M)
     body = re.sub(r"\n--\s*$", "", body.strip("\n") + "\n").strip("\n")

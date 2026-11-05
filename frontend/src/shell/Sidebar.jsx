@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { ChevronDown, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
 import { useAccess } from '../app/useAccess';
+import { useContainedScroll } from '../lib/hooks';
 import { navGroupsFor } from './navigation';
 import { useWorkspace } from '../app/WorkspaceContext';
 import { IconButton } from '../ui/Button';
@@ -52,8 +53,9 @@ function SidebarLink({ item, collapsed, onNavigate, badge }) {
 }
 
 
-/* The group that is always open. Everything else starts closed, one at a time,
-   so the rail reads as a short table of contents rather than a wall of links. */
+/* The group open when the current screen belongs to none (a 404, say). Every
+   group - Overview included - opens and closes the same way, one at a time, so
+   the rail reads as a short table of contents rather than a wall of links. */
 const DEFAULT_OPEN = 'overview';
 
 /**
@@ -107,17 +109,23 @@ export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile
 
   /* Groups open and close on click, not hover: hover menus open by accident,
      do nothing on touch screens and are hard to reach by keyboard. It is an
-     accordion: Overview is always open, and of the rest only one is open at a
-     time - opening a group closes the previous one. The group holding the
-     current screen opens when you arrive on it. */
-  const [openGroup, setOpenGroup] = useState(activeGroup !== DEFAULT_OPEN ? activeGroup : null);
+     accordion: one group open at a time, and the group holding the current
+     screen opens when you arrive on it (closing the one you came from).
+     Overview follows the same rule as every other group: it used to be pinned
+     open with no control, so it stayed open beside whichever group you were
+     working in, and it was the only heading that could not be collapsed. */
+  const [openGroup, setOpenGroup] = useState(activeGroup ?? DEFAULT_OPEN);
   const [lastActive, setLastActive] = useState(activeGroup);
   if (activeGroup !== lastActive) {
     setLastActive(activeGroup);
-    if (activeGroup && activeGroup !== DEFAULT_OPEN) setOpenGroup(activeGroup);
+    if (activeGroup) setOpenGroup(activeGroup);
   }
   const navRef = useRef(null);
+  const asideRef = useRef(null);
   const scroll = useScrollAffordance(navRef);
+  /* A wheel over the rail scrolls the rail and stops at its ends; it never
+     carries on into the page beside it (scroll chaining). */
+  useContainedScroll(asideRef, { scroller: 'nav' });
   const toggleGroup = (key) => setOpenGroup((current) => (current === key ? null : key));
 
   const content = (
@@ -180,32 +188,26 @@ export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile
               </div>
             );
           }
-          const pinned = group.key === DEFAULT_OPEN;
-          const open = pinned || openGroup === group.key;
+          const open = openGroup === group.key;
           const panelId = `nav-group-${group.key}`;
           const holdsActive = group.key === activeGroup;
           return (
             <div key={group.key} className="mb-1 last:mb-0">
-              {pinned ? (
-                /* Overview is always open: a label, not a control. */
-                <p className="px-2.5 py-1.5 text-[10px] font-semibold tracking-[0.14em] text-ink-3 uppercase">{group.label}</p>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => toggleGroup(group.key)}
-                  aria-expanded={open}
-                  aria-controls={panelId}
-                  className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[10px] font-semibold tracking-[0.14em] text-ink-3 uppercase transition-colors hover:bg-surface-3 hover:text-ink-2"
-                >
-                  <span className="min-w-0 flex-1 truncate">{group.label}</span>
-                  {/* A closed group that holds the current screen says so. */}
-                  {holdsActive && !open && <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-brand" />}
-                  <ChevronDown
-                    aria-hidden="true"
-                    className={cn('size-3.5 shrink-0 transition-transform duration-200', open ? 'rotate-0' : '-rotate-90')}
-                  />
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => toggleGroup(group.key)}
+                aria-expanded={open}
+                aria-controls={panelId}
+                className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[10px] font-semibold tracking-[0.14em] text-ink-3 uppercase transition-colors hover:bg-surface-3 hover:text-ink-2"
+              >
+                <span className="min-w-0 flex-1 truncate">{group.label}</span>
+                {/* A closed group that holds the current screen says so. */}
+                {holdsActive && !open && <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-brand" />}
+                <ChevronDown
+                  aria-hidden="true"
+                  className={cn('size-3.5 shrink-0 transition-transform duration-200', open ? 'rotate-0' : '-rotate-90')}
+                />
+              </button>
               {/* Height animates through grid rows, which needs no measured
                   height. `inert` keeps the links of a closed group out of the
                   tab order and away from screen readers. */}
@@ -252,8 +254,9 @@ export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile
   return (
     <>
       <aside
+        ref={asideRef}
         className={cn(
-          'fixed top-16 bottom-0 left-0 z-30 hidden shrink-0 flex-col border-r border-sidebar-line bg-sidebar transition-[width] duration-250 ease-[var(--ease-out-quint)] lg:flex',
+          'fixed top-16 bottom-0 left-0 z-30 hidden shrink-0 flex-col overscroll-contain border-r border-sidebar-line bg-sidebar transition-[width] duration-250 ease-[var(--ease-out-quint)] lg:flex',
           collapsed ? 'w-[60px]' : 'w-[232px]',
         )}
       >

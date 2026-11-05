@@ -62,7 +62,7 @@ export default function IdentitiesPage() {
   const [selected, setSelected] = useState(null);
   const [searchDraft, setSearchDraft] = useState(() => searchParams.get('search') || '');
   const debouncedSearch = useDebouncedValue(searchDraft, 320);
-  const { railOpen, toggleRail } = useFacetRail();
+  const { railOpen, toggleRail } = useFacetRail('identities');
   const [density, setDensity] = useState(() => {
     try {
       return localStorage.getItem(DENSITY_KEY) || 'comfortable';

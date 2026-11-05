@@ -1245,23 +1245,6 @@ CREATE TABLE __SCHEMA__.permission_usage (
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
--- TABLE: remediation_actions
-CREATE TABLE __SCHEMA__.remediation_actions (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    identity_id bigint,
-    credential_id uuid,
-    finding_type text NOT NULL,
-    action_type text NOT NULL,
-    status text DEFAULT 'pending'::text,
-    assigned_to text,
-    executed_by text,
-    executed_at timestamp with time zone,
-    details jsonb,
-    scan_id text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT chk_ra_status CHECK ((status = ANY (ARRAY['pending'::text, 'approved'::text, 'in_progress'::text, 'executed'::text, 'failed'::text, 'rejected'::text])))
-);
-
 -- TABLE: resources
 CREATE TABLE __SCHEMA__.resources (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -1829,10 +1812,6 @@ ALTER TABLE ONLY __SCHEMA__.nhi_users
 ALTER TABLE ONLY __SCHEMA__.permission_usage
     ADD CONSTRAINT permission_usage_pkey PRIMARY KEY (id);
 
--- CONSTRAINT: remediation_actions remediation_actions_pkey
-ALTER TABLE ONLY __SCHEMA__.remediation_actions
-    ADD CONSTRAINT remediation_actions_pkey PRIMARY KEY (id);
-
 -- CONSTRAINT: resources resources_arn_key
 ALTER TABLE ONLY __SCHEMA__.resources
     ADD CONSTRAINT resources_arn_key UNIQUE (arn);
@@ -2223,24 +2202,6 @@ CREATE INDEX idx_lineage_type ON __SCHEMA__.nhi_lineage_aws USING btree (scan_id
 
 -- INDEX: idx_pu_credential
 CREATE INDEX idx_pu_credential ON __SCHEMA__.permission_usage USING btree (credential_id);
-
--- INDEX: idx_ra_assigned
-CREATE INDEX idx_ra_assigned ON __SCHEMA__.remediation_actions USING btree (assigned_to);
-
--- INDEX: idx_ra_credential
-CREATE INDEX idx_ra_credential ON __SCHEMA__.remediation_actions USING btree (credential_id);
-
--- INDEX: idx_ra_finding
-CREATE INDEX idx_ra_finding ON __SCHEMA__.remediation_actions USING btree (finding_type);
-
--- INDEX: idx_ra_identity
-CREATE INDEX idx_ra_identity ON __SCHEMA__.remediation_actions USING btree (identity_id);
-
--- INDEX: idx_ra_scan
-CREATE INDEX idx_ra_scan ON __SCHEMA__.remediation_actions USING btree (scan_id);
-
--- INDEX: idx_ra_status
-CREATE INDEX idx_ra_status ON __SCHEMA__.remediation_actions USING btree (status);
 
 -- INDEX: idx_res_arn
 CREATE INDEX idx_res_arn ON __SCHEMA__.resources USING btree (arn);

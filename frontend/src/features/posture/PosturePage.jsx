@@ -82,7 +82,7 @@ export default function PosturePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { lock } = useAccess();
   const { notify } = useToast();
-  const { railOpen, toggleRail } = useFacetRail();
+  const { railOpen, toggleRail } = useFacetRail('posture');
   const { open, opening } = useOpenPostureIdentity();
 
   const window = normaliseWindow(searchParams.get('window') || DEFAULT_WINDOW);

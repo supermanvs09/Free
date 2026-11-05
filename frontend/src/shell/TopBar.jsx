@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { LogOut, Menu, Moon, Search, Sun, ArrowLeftRight } from 'lucide-react';
 import { useAuth } from '../app/AuthContext';
 import { useThemeMode } from '../app/ThemeContext';
@@ -31,6 +31,7 @@ import { cn } from '../ui/cn';
  */
 export function TopBar({ onOpenNav, onOpenCommand, minimal = false }) {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const { theme, setPreference } = useThemeMode();
   const nextTheme = theme === 'dark' ? 'light' : 'dark';
   const [menuOpen, setMenuOpen] = useState(false);
@@ -184,19 +185,30 @@ export function TopBar({ onOpenNav, onOpenCommand, minimal = false }) {
             <div className="p-1">
               {/* Administration of the console itself lives with the account,
                   not in the navigation of the estate. Super admins only. */}
-              <Link
+              <button
                 role="menuitem"
-                to="/login?switch=1"
-                onClick={() => setMenuOpen(false)}
+                type="button"
+                /* Signs this session out, then opens sign-in. Only showing the
+                   sign-in form over a live session let Back walk straight into
+                   the console again with no password asked. */
+                onClick={async () => {
+                  setMenuOpen(false);
+                  await logout({ reason: 'switch' });
+                  navigate('/login', { replace: true });
+                }}
                 className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-[13px] text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink focus-visible:bg-surface-2 focus-visible:text-ink"
               >
                 <ArrowLeftRight aria-hidden="true" className="size-4" />
                 Sign in as another user
-              </Link>
+              </button>
               <button
                 role="menuitem"
                 type="button"
-                onClick={logout}
+                onClick={async () => {
+                  setMenuOpen(false);
+                  await logout({ reason: 'signout' });
+                  navigate('/login', { replace: true });
+                }}
                 /* Destructive-by-intent, so it colours red on hover rather
                    than taking the neutral hover every other menu item gets.
                    The resting state stays neutral: a permanently red row in a

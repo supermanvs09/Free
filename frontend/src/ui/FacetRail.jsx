@@ -1,16 +1,27 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { useContainedScroll } from '../lib/hooks';
 import { ChevronDown, Lock, PanelLeftClose, SlidersHorizontal, X } from 'lucide-react';
 import { formatNumber } from '../lib/format';
 import { Button } from './Button';
 import { cn } from './cn';
 
-const RAIL_KEY = 'dna.facets.open';
+const RAIL_PREFIX = 'dna.facets.open.';
 
-/** Whether the desktop rail is showing. Persisted per viewer. */
-export function useFacetRail() {
+/**
+ * Whether the desktop rail is showing on one screen (`page`).
+ *
+ * Each screen keeps its own choice: closing the rail on Posture used to close
+ * it on Identities, Credentials and Exposed credentials too, because they all
+ * shared one key. The choice lasts for this browser tab (sessionStorage) and
+ * is cleared on sign-out (`clearFacetRailState`), so a new sign-in always
+ * starts with the filters showing - the documented default - instead of
+ * inheriting whatever the last person left.
+ */
+export function useFacetRail(page = 'default') {
+  const key = RAIL_PREFIX + page;
   const [open, setOpen] = useState(() => {
     try {
-      return localStorage.getItem(RAIL_KEY) !== '0';
+      return sessionStorage.getItem(key) !== '0';
     } catch {
       return true;
     }
@@ -20,15 +31,29 @@ export function useFacetRail() {
     setOpen((value) => {
       const next = !value;
       try {
-        localStorage.setItem(RAIL_KEY, next ? '1' : '0');
+        sessionStorage.setItem(key, next ? '1' : '0');
       } catch {
         /* per-viewer convenience only - safe to lose */
       }
       return next;
     });
-  }, []);
+  }, [key]);
 
   return { railOpen: open, toggleRail: toggle };
+}
+
+/** Forgets every screen's rail choice (called on sign-out). */
+export function clearFacetRailState() {
+  try {
+    for (const store of [sessionStorage, localStorage]) {
+      for (let i = store.length - 1; i >= 0; i -= 1) {
+        const k = store.key(i);
+        if (k && (k.startsWith(RAIL_PREFIX) || k === 'dna.facets.open')) store.removeItem(k);
+      }
+    }
+  } catch {
+    /* storage refused - nothing was kept either */
+  }
 }
 
 /**
@@ -54,6 +79,12 @@ export function FacetRail({
   mobileTitle = 'Filters',
 }) {
   const [openOnMobile, setOpenOnMobile] = useState(false);
+  const railRef = useRef(null);
+  /* The rail scrolls on its own: it is pinned below the header with its
+     height capped to the window, so a long list of filters scrolls inside the
+     rail and the records beside it scroll with the page. A wheel over the rail
+     never moves the records (and the reverse never moves the rail). */
+  useContainedScroll(railRef, { scroller: '[data-rail-body]' });
 
   const body = (
     <>
@@ -91,7 +122,7 @@ export function FacetRail({
         )}
       </div>
 
-      <div className="divide-y divide-line">
+      <div data-rail-body="" className="min-h-0 flex-1 divide-y divide-line overflow-y-auto overscroll-contain">
         {groups.map((group) => (
           <FacetGroup key={group.key} group={group} />
         ))}
@@ -135,9 +166,10 @@ export function FacetRail({
       </div>
 
       <aside
+        ref={railRef}
         aria-label="Filters"
         className={cn(
-          'sticky top-[calc(104px/var(--content-zoom))] hidden overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface lg:block',
+          'sticky top-[calc(104px/var(--content-zoom))] hidden max-h-[calc((100dvh-120px)/var(--content-zoom))] flex-col overflow-hidden overscroll-contain rounded-[var(--radius-panel)] border border-line bg-surface lg:flex',
           className,
         )}
       >
@@ -155,6 +187,9 @@ function FacetGroup({ group }) {
   const [open, setOpen] = useState(group.defaultOpen !== false);
   const [showAll, setShowAll] = useState(false);
   const activeInGroup = group.options.filter((option) => option.active).length;
+  /* `single`: one value at a time - picking another replaces it (a radio).
+     Otherwise several values combine, and a long list offers "Select all". */
+  const single = Boolean(group.single);
   const collapsible = group.options.length > FACET_PREVIEW + 2;
   const visible =
     collapsible && !showAll
@@ -202,9 +237,13 @@ function FacetGroup({ group }) {
                   )}
                 >
                   <input
-                    type="checkbox"
+                    type={single ? 'radio' : 'checkbox'}
+                    name={single ? `facet-${group.key}` : undefined}
                     checked={option.active}
-                    onChange={() => group.onToggle(option.value)}
+                    onChange={() => (single && group.onSelect ? group.onSelect(option.value) : group.onToggle(option.value))}
+                    /* A checked radio fires no change event; clicking it again
+                       clears the filter. */
+                    onClick={single && option.active ? () => (group.onSelect ? group.onSelect(null) : group.onToggle(option.value)) : undefined}
                     className="size-3.5 shrink-0 accent-[var(--t-brand)]"
                   />
                   <span className="min-w-0 flex-1 truncate" title={option.label}>
@@ -225,6 +264,26 @@ function FacetGroup({ group }) {
               ))
             )}
           </div>
+          {!single && group.onSelectAll && group.options.length > 2 && (
+            <div className="mt-1 flex items-center gap-2 text-[11.5px]">
+              <button
+                type="button"
+                onClick={() => group.onSelectAll(group.options.map((option) => option.value))}
+                disabled={activeInGroup === group.options.length}
+                className="font-medium text-brand hover:underline disabled:cursor-default disabled:text-ink-3 disabled:no-underline"
+              >
+                Select all
+              </button>
+              {activeInGroup > 0 && (
+                <>
+                  <span aria-hidden="true" className="text-ink-3">·</span>
+                  <button type="button" onClick={() => group.onSelectAll([])} className="font-medium text-brand hover:underline">
+                    Clear
+                  </button>
+                </>
+              )}
+            </div>
+          )}
           {collapsible && (
             <button
               type="button"

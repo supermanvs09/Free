@@ -8,6 +8,9 @@ BEGIN;
 ALTER TABLE nhi_global.nhi_users ADD COLUMN IF NOT EXISTS created_by  text;
 ALTER TABLE nhi_global.nhi_users ADD COLUMN IF NOT EXISTS updated_at  timestamptz;
 ALTER TABLE nhi_global.nhi_users ADD COLUMN IF NOT EXISTS updated_by  text;
+-- Production rows carry a department (the tenant-onboarding service writes it);
+-- databases built only from these migrations did not have the column.
+ALTER TABLE nhi_global.nhi_users ADD COLUMN IF NOT EXISTS department  text;
 
 -- One account per email. Case does not matter: signing in does not care, so
 -- two accounts differing only in case would be one account with two passwords.

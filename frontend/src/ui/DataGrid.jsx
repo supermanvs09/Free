@@ -49,7 +49,12 @@ export function DataGrid({
 
   if (!rows || rows.length === 0) return <div className={className}>{emptyState}</div>;
 
-  const cellPadding = density === 'compact' ? 'px-3 py-2' : 'px-3.5 py-3';
+  /* The two densities differ enough to see: compact trims the row to a single
+     tight line (smaller type, the secondary line of a cell drawn tighter),
+     comfortable gives each row room to breathe. They used to differ by 4px a
+     row, which nobody could tell apart. */
+  const compact = density === 'compact';
+  const cellPadding = compact ? 'px-3 py-1.5 text-[12.5px]' : 'px-3.5 py-3.5 text-[13px]';
 
   const toggleSort = (column) => {
     if (!column.sortable || !onSortChange) return;
@@ -114,7 +119,7 @@ export function DataGrid({
 
   return (
     <div className={cn('w-full overflow-x-auto', className)}>
-      <table className="w-full min-w-full border-collapse text-left">
+      <table className={cn('w-full min-w-full border-collapse text-left', compact ? 'grid-compact' : 'grid-comfortable')}>
         {caption && <caption className="sr-only">{caption}</caption>}
         <thead className="grid-sticky-head">
           <tr className="border-b border-line">
@@ -192,7 +197,7 @@ export function DataGrid({
                   <td
                     key={column.key}
                     className={cn(
-                      'max-w-0 align-middle text-[13px] text-ink-2',
+                      'max-w-0 align-middle text-ink-2',
                       cellPadding,
                       column.align === 'right' && 'text-right',
                       column.align === 'center' && 'text-center',
@@ -222,7 +227,7 @@ export function CellStack({ title, meta, mono = false, icon: Icon, tone, badge }
       {Icon && (
         <span
           className={cn(
-            'grid size-7 shrink-0 place-items-center rounded-md border border-line bg-surface-2',
+            'cell-icon grid size-7 shrink-0 place-items-center rounded-md border border-line bg-surface-2',
             tone,
           )}
         >
@@ -238,7 +243,7 @@ export function CellStack({ title, meta, mono = false, icon: Icon, tone, badge }
         </span>
         {meta && (
           <span
-            className={cn('mt-0.5 block truncate text-[11.5px] text-ink-3', mono && 'font-mono')}
+            className={cn('cell-meta mt-0.5 block truncate text-[11.5px] text-ink-3', mono && 'font-mono')}
             title={typeof meta === 'string' ? meta : undefined}
           >
             {meta}

@@ -113,7 +113,7 @@ export default function CredentialsPage() {
   const { notify } = useToast();
   const { can } = useAccess();
   const [selectedRow, setSelectedRow] = useState(null);
-  const { railOpen, toggleRail } = useFacetRail();
+  const { railOpen, toggleRail } = useFacetRail('credentials');
   const [density, setDensity] = useState(() => {
     try {
       return localStorage.getItem(DENSITY_KEY) || 'comfortable';

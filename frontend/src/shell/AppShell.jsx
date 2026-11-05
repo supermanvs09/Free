@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
@@ -23,6 +23,24 @@ export function AppShell() {
     }
   });
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  /* Every screen opens at its top. The page scrolls the window, and a
+     client-side route change keeps the window's offset - so a screen opened
+     from the foot of another (Dashboard -> "All activity", a Genome row ->
+     its record) used to open half-way down, or at the very bottom. The
+     browser's own restoration is switched off for the same reason: it
+     restores the previous screen's offset onto the next. Changes of the query
+     string alone (a filter, a tab) do not move the page. */
+  useLayoutEffect(() => {
+    try {
+      if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual';
+    } catch {
+      /* not supported - harmless */
+    }
+  }, []);
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [pathname]);
   const [commandOpen, setCommandOpen] = useState(false);
 
   const toggleCollapse = useCallback(() => {

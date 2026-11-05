@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { fetchMe, login as loginRequest, logout as logoutRequest, profileFrom } from '../lib/api/auth';
 import { onSessionExpired } from '../lib/api/client';
-import { adoptSession, clearSession, readStoredUser, readToken, subscribeSignOut, writeSession, writeStoredUser } from '../lib/api/session';
+import { clearFacetRailState } from '../ui/FacetRail';
+import { adoptSession, clearLastActivity, clearSession, readStoredUser, readToken, subscribeSignOut, writeLastActivity, writeSession, writeStoredUser } from '../lib/api/session';
 
 const AuthContext = createContext(null);
 
@@ -24,6 +25,11 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(readStoredUser);
   const [status, setStatus] = useState(() => (readToken() ? 'verifying' : 'anonymous'));
   const [expired, setExpired] = useState(false);
+  /* Why the last session ended, for the sign-in page: 'signout' (the person
+     chose to), 'switch' (sign in as another user), 'idle' (no activity for
+     the idle limit), 'expired' (the server ended it). After the first two the
+     next sign-in opens the dashboard rather than the screen they left. */
+  const [endReason, setEndReason] = useState(null);
 
   const endSession = useCallback(() => {
     setToken(null);
@@ -31,11 +37,25 @@ export function AuthProvider({ children }) {
     setStatus('anonymous');
   }, []);
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(async ({ reason = 'signout' } = {}) => {
     await logoutRequest();
     clearSession();
+    clearLastActivity();
+    clearFacetRailState();
+    setEndReason(reason);
     endSession();
   }, [endSession]);
+
+  /* Back after signing out must not show the console again. A page the
+     browser kept whole in its back/forward cache comes back with the old
+     screen drawn; if there is no session any more, start from sign-in. */
+  useEffect(() => {
+    const onPageShow = (event) => {
+      if (event.persisted && !readToken()) window.location.replace('/login');
+    };
+    window.addEventListener('pageshow', onPageShow);
+    return () => window.removeEventListener('pageshow', onPageShow);
+  }, []);
 
   /* Signing out in another tab of the same session signs this one out too. */
   useEffect(() => subscribeSignOut(endSession), [endSession]);
@@ -43,6 +63,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     onSessionExpired(() => {
       setExpired(true);
+      setEndReason('expired');
       endSession();
     });
   }, [endSession]);
@@ -84,7 +105,9 @@ export function AuthProvider({ children }) {
   const signIn = useCallback(async ({ email, password }) => {
     const result = await loginRequest({ email, password });
     writeSession({ token: result.token, refreshToken: result.refreshToken, user: result.user });
+    writeLastActivity();
     setExpired(false);
+    setEndReason(null);
     setUser(result.user);
     setToken(result.token);
     setStatus('authenticated');
@@ -97,12 +120,13 @@ export function AuthProvider({ children }) {
       token,
       status,
       expired,
+      endReason,
       isAuthenticated: Boolean(token),
       signIn,
       logout,
       clearExpired: () => setExpired(false),
     }),
-    [user, token, status, expired, signIn, logout],
+    [user, token, status, expired, endReason, signIn, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

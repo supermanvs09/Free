@@ -639,7 +639,7 @@ func (s *Service) insertUser(ctx context.Context, tx *sql.Tx, t Tenant, in *clea
 	var r UserReport
 	err := tx.QueryRowContext(ctx, `INSERT INTO `+s.table("nhi_users")+`
 		(id, email, password, full_name, department, role, tenant_id, status, last_login_at, created_at, team)
-		VALUES ((SELECT COALESCE(max(id), 0) + 1 FROM `+s.table("nhi_users")+`), $1::text, $2::text, $3::text, NULLIF($4::text, ''), $5::text, $6::uuid, 'active', NULL, now(), NULLIF($7::text, ''))
+		VALUES ((SELECT COALESCE(max(id), 0) + 1 FROM `+s.table("nhi_users")+`), $1::text, $2::text, $3::text, NULLIF($4::text, ''), $5::text, $6::uuid, 'active', NULL, now(), $7::text)
 		RETURNING id, email, full_name, role, created_at`,
 		login, string(in.hash), u.FullName, u.Department, u.Role, t.TenantID, u.Team).
 		Scan(&r.ID, &r.Username, &r.FullName, &r.Role, &r.CreatedAt)

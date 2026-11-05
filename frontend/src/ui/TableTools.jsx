@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useCallback, useId, useRef, useState } from 'react';
 import {
   Check,
   Download,
@@ -8,7 +8,7 @@ import {
   Rows3,
   Settings2,
 } from 'lucide-react';
-import { usePopover } from '../lib/hooks';
+import { FloatingPanel } from './Floating';
 import { cn } from './cn';
 
 /**
@@ -33,7 +33,8 @@ import { cn } from './cn';
  *     not what an operator came to this screen to do.
  *
  * Everything keeps its accessible name, its tooltip and its keyboard path, and
- * both popovers are placed by `usePopover` so neither runs off a short window.
+ * both popovers are drawn by `FloatingPanel`, above the page, so no panel clips
+ * them and neither runs off a short window.
  */
 
 const TOOL_BUTTON =
@@ -65,11 +66,12 @@ export function RefreshButton({ onRefresh, refreshing = false, label = 'Refresh 
 /** Table settings: display preferences for this surface. */
 export function TableSettings({ density, onDensityChange }) {
   const [open, setOpen] = useState(false);
-  const { wrapperRef, triggerRef, panelProps } = usePopover(open, () => setOpen(false));
+  const triggerRef = useRef(null);
+  const close = useCallback(() => setOpen(false), []);
   const labelId = useId();
 
   return (
-    <div ref={wrapperRef} className="relative shrink-0">
+    <div className="relative shrink-0">
       <button
         ref={triggerRef}
         type="button"
@@ -83,13 +85,7 @@ export function TableSettings({ density, onDensityChange }) {
         <Settings2 aria-hidden="true" className="size-3.5" />
       </button>
 
-      {open && (
-        <div
-          role="dialog"
-          aria-labelledby={labelId}
-          {...panelProps}
-          className="animate-pop absolute right-0 z-40 w-64 rounded-[var(--radius-panel)] border border-line bg-surface shadow-lg"
-        >
+      <FloatingPanel anchorRef={triggerRef} open={open} onClose={close} role="dialog" aria-labelledby={labelId} className="w-64">
           <p
             id={labelId}
             className="shrink-0 border-b border-line bg-surface-2 px-3 py-2 text-[10.5px] font-semibold tracking-[0.12em] text-ink-3 uppercase"
@@ -107,7 +103,13 @@ export function TableSettings({ density, onDensityChange }) {
                     type="button"
                     role="radio"
                     aria-checked={active}
-                    onClick={() => onDensityChange(option.value)}
+                    onClick={() => {
+                      onDensityChange(option.value);
+                      /* A preference picked is done with: the panel closes,
+                         as a menu does, and the table shows the result. */
+                      close();
+                      triggerRef.current?.focus();
+                    }}
                     className={cn(
                       'flex items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors',
                       active ? 'bg-info-soft' : 'hover:bg-surface-2',
@@ -137,8 +139,7 @@ export function TableSettings({ density, onDensityChange }) {
               })}
             </div>
           </div>
-        </div>
-      )}
+      </FloatingPanel>
     </div>
   );
 }
@@ -150,12 +151,13 @@ export function TableSettings({ density, onDensityChange }) {
  */
 export function OverflowMenu({ items, label = 'More actions' }) {
   const [open, setOpen] = useState(false);
-  const { wrapperRef, triggerRef, panelProps } = usePopover(open, () => setOpen(false));
+  const triggerRef = useRef(null);
+  const close = useCallback(() => setOpen(false), []);
   const visible = (items || []).filter(Boolean);
   if (visible.length === 0) return null;
 
   return (
-    <div ref={wrapperRef} className="relative shrink-0">
+    <div className="relative shrink-0">
       <button
         ref={triggerRef}
         type="button"
@@ -169,12 +171,7 @@ export function OverflowMenu({ items, label = 'More actions' }) {
         <MoreHorizontal aria-hidden="true" className="size-4" />
       </button>
 
-      {open && (
-        <div
-          role="menu"
-          {...panelProps}
-          className="animate-pop absolute right-0 z-40 w-60 rounded-[var(--radius-panel)] border border-line bg-surface shadow-lg"
-        >
+      <FloatingPanel anchorRef={triggerRef} open={open} onClose={close} role="menu" aria-label={label} className="w-60">
           <div className="min-h-0 flex-1 overflow-y-auto p-1">
             {visible.map((item) => {
               const Icon = item.icon || Download;
@@ -204,8 +201,7 @@ export function OverflowMenu({ items, label = 'More actions' }) {
               );
             })}
           </div>
-        </div>
-      )}
+      </FloatingPanel>
     </div>
   );
 }

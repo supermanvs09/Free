@@ -139,3 +139,32 @@ export function subscribeSignOut(handler) {
   window.addEventListener('storage', onStorage);
   return () => window.removeEventListener('storage', onStorage);
 }
+
+/* Last user activity, shared by this browser's tabs (see IdleSessionGuard).
+   Signing in starts the clock; signing out removes it. */
+const ACTIVITY_KEY = 'dna.lastActivity';
+
+export function readLastActivity() {
+  try {
+    const value = Number(localStorage.getItem(ACTIVITY_KEY));
+    return Number.isFinite(value) && value > 0 ? value : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function writeLastActivity(at = Date.now()) {
+  try {
+    localStorage.setItem(ACTIVITY_KEY, String(at));
+  } catch {
+    /* storage refused: the tab still tracks its own activity */
+  }
+}
+
+export function clearLastActivity() {
+  try {
+    localStorage.removeItem(ACTIVITY_KEY);
+  } catch {
+    /* nothing kept */
+  }
+}

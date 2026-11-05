@@ -111,7 +111,7 @@ export default function FindingsPage() {
   /* Seeded from `?search=` so a link lands on the finding it names. Only the
      starting value: the box is local state from then on. */
   const [search, setSearch] = useState(() => searchParams.get('search') || '');
-  const { railOpen, toggleRail } = useFacetRail();
+  const { railOpen, toggleRail } = useFacetRail('exposure');
   const [density, setDensity] = useState('comfortable');
   const [view, setView] = useState('findings');
   const [category, setCategory] = useState('');

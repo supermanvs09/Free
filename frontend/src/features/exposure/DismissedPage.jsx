@@ -75,7 +75,7 @@ export default function DismissedPage() {
   const [reviewer, setReviewer] = useState('');
   const [reasonState, setReasonState] = useState('');
   const [view, setView] = useState('table');
-  const { railOpen, toggleRail } = useFacetRail();
+  const { railOpen, toggleRail } = useFacetRail('exposure-accepted');
   const [density, setDensity] = useState('comfortable');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);

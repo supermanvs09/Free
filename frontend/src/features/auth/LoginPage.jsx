@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AlertTriangle, ArrowRight, BadgeCheck, Clock3, Info, Lock, ShieldCheck, UserRound } from 'lucide-react';
 import { useAuth } from '../../app/AuthContext';
 import { Button } from '../../ui/Button';
@@ -28,13 +28,13 @@ const TRUST_MARKS = [
  * palette with `data-theme="light"`.
  */
 export default function LoginPage() {
-  const { signIn, isAuthenticated, expired, clearExpired, user } = useAuth();
+  const { signIn, isAuthenticated, expired, endReason, clearExpired } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  /* "Switch account" from the account menu: sign in as someone else in this
-     tab while other tabs keep theirs - how two roles are worked side by side
-     in one browser. */
-  const switching = new URLSearchParams(location.search).get('switch') === '1';
+  /* Where to go after signing in: the screen a deep link asked for, if any,
+     otherwise the dashboard. After signing out (or switching user, or timing
+     out) there is no `from`, so the next sign-in starts on the dashboard. */
+  const destination = location.state?.from?.pathname || '/';
 
   /* Starts blank. People sign in with their workspace username, which reads
      name@workspace (e.g. cirm@bimasugam). The API takes it as the login id. */
@@ -43,6 +43,7 @@ export default function LoginPage() {
   const [formError, setFormError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const usernameRef = useRef(null);
+  const passwordRef = useRef(null);
   const submitRef = useRef(null);
 
   /* Focus the username field: the form starts empty, so the next thing
@@ -51,8 +52,11 @@ export default function LoginPage() {
     usernameRef.current?.focus();
   }, []);
 
-  if (isAuthenticated && !switching) {
-    return <Navigate to={location.state?.from?.pathname || '/'} replace />;
+  /* "Sign in as another user" now signs the current session out first, so
+     there is never a signed-in session behind this form that Back could
+     return to. */
+  if (isAuthenticated) {
+    return <Navigate to={destination} replace />;
   }
 
   const onSubmit = async (event) => {
@@ -72,7 +76,7 @@ export default function LoginPage() {
     try {
       clearExpired();
       await signIn({ email: values.email.trim(), password: values.password });
-      navigate(location.state?.from?.pathname || '/', { replace: true });
+      navigate(destination, { replace: true });
     } catch (error) {
       /* The API's own text for a wrong pair still says "email/username";
          the form only asks for a username, so say it in the form's words. */
@@ -81,7 +85,13 @@ export default function LoginPage() {
           ? "That username and password don't match. Check both and try again."
           : error?.message || 'Sign-in failed.',
       );
-      setValues((v) => ({ ...v, password: '' }));
+      /* The password stays: a mistyped username is the commoner mistake, and
+         clearing what was typed made people enter it all again. It is
+         selected instead, so typing replaces it in one go. */
+      window.requestAnimationFrame(() => {
+        passwordRef.current?.focus();
+        passwordRef.current?.select?.();
+      });
     } finally {
       setSubmitting(false);
     }
@@ -180,20 +190,16 @@ export default function LoginPage() {
               Sign in to access the platform
             </p>
 
-            {switching && isAuthenticated && (
-              <div
+            {!expired && !formError && (endReason === 'idle' || endReason === 'switch') && (
+              <p
                 role="status"
                 className="mt-5 flex items-start gap-2 rounded-[var(--radius-control)] border border-info/25 bg-info-soft px-3 py-2.5 text-[clamp(12px,0.85vw,16px)] text-ink-2"
               >
                 <Info aria-hidden="true" className="mt-px size-4 shrink-0 text-info" />
-                <span>
-                  Signed in as {user?.name ?? 'another account'} in this tab. Signing in here switches this tab
-                  only - other open tabs keep their account.{' '}
-                  <Link to="/" className="font-semibold text-brand underline-offset-4 hover:underline">
-                    Back to the console
-                  </Link>
-                </span>
-              </div>
+                {endReason === 'idle'
+                  ? 'You were signed out after a period without activity. Sign in again to continue.'
+                  : 'You are signed out. Sign in with the other account.'}
+              </p>
             )}
 
             {expired && !formError && (
@@ -259,6 +265,7 @@ export default function LoginPage() {
                 error={fieldErrors.password}
               >
                 <PasswordInput
+                  ref={passwordRef}
                   id="login-password"
                   size="auth"
                   autoComplete="current-password"
