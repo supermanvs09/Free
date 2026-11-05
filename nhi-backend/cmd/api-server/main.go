@@ -269,6 +269,12 @@ func main() {
 		awsVerifier, awsEvents = awsintegration.NewSimulatedVerifier(every)
 		slog.Warn("aws integration: SIMULATED AWS - no real account is checked (NHI_AWS_SIMULATE=true). Never use this in production.")
 	}
+	approvalMailer := mailer.FromEnv()
+	if approvalMailer.Configured() {
+		slog.Info("approval e-mail: ready", "provider", approvalMailer.Provider(), "to", approvalMailer.To())
+	} else {
+		slog.Warn("approval e-mail: not configured, approvals will not be e-mailed", "provider", approvalMailer.Provider(), "problem", approvalMailer.Problem())
+	}
 	awsIntegrationHandler := awsintegration.NewAWSIntegrationHandler(awsintegration.NewAWSIntegrationService(
 		awsintegration.NewAWSIntegrationRepository(db),
 		awsVerifier,
@@ -285,9 +291,9 @@ func main() {
 			EventPollInterval:  time.Duration(cfg.AWSIntegration.EventPollSeconds) * time.Second,
 			EventWaitLimit:     time.Duration(cfg.AWSIntegration.EventWaitMinutes) * time.Minute,
 			ApprovalsURL:       cfg.AWSIntegration.ApprovalsURL,
-			// The approval notice: SMTP_* / EMAIL_FROM (shared with remediation)
-			// to CONNECTION_APPROVAL_EMAILS.
-			Mailer: mailer.FromEnv(),
+			// The approval notice: EMAIL_PROVIDER (smtp | ses), EMAIL_FROM and
+			// SMTP_* or SES_REGION, to CONNECTION_APPROVAL_EMAILS.
+			Mailer: approvalMailer,
 		},
 	))
 

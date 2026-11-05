@@ -310,9 +310,21 @@ func (s *AWSIntegrationService) finishWatch(caller AWSCaller, settings *AWSTenan
 // request either way, so the Approvals page can say whether mail went out.
 func (s *AWSIntegrationService) notifyApprovers(ctx context.Context, id int64, caller AWSCaller, domain string, rec AWSAccountRecord, check AWSCheck) {
 	log := logging.FromContext(ctx).With("tenant_id", caller.TenantID, "account_id", rec.AccountID, "approval_id", id)
+	// Mailers that can say which provider they use and why they cannot send.
+	type described interface {
+		Provider() string
+		Problem() string
+	}
+	if d, ok := s.mailer.(described); ok && s.mailer != nil {
+		log = log.With("provider", d.Provider())
+	}
 	if s.mailer == nil || !s.mailer.Configured() {
-		log.Warn("aws integration: approval e-mail not sent: set SMTP_HOST, EMAIL_FROM and CONNECTION_APPROVAL_EMAILS")
-		_ = s.store.SetApprovalEmail(ctx, id, "not_configured", "SMTP_HOST, EMAIL_FROM or CONNECTION_APPROVAL_EMAILS is not set")
+		why := "set EMAIL_PROVIDER with SMTP_HOST or SES_REGION, EMAIL_FROM and CONNECTION_APPROVAL_EMAILS"
+		if d, ok := s.mailer.(described); ok && s.mailer != nil && d.Problem() != "" {
+			why = d.Problem()
+		}
+		log.Warn("aws integration: approval e-mail not sent: " + why)
+		_ = s.store.SetApprovalEmail(ctx, id, "not_configured", why)
 		return
 	}
 	subject, htmlBody, text := approvalEmail(caller, domain, rec, check, s.opts.ApprovalsURL)
