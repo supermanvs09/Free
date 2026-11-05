@@ -1,2 +1,5 @@
 .env
 *.csv
+
+# go build output
+/tenant-onboarding
