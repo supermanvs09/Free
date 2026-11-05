@@ -69,6 +69,9 @@ func expectedRegions(regions []string) []AWSCheckRegion {
 }
 
 func (s *AWSIntegrationService) pollInterval() time.Duration {
+	if s.testPoll > 0 {
+		return s.testPoll
+	}
 	d := s.opts.EventPollInterval
 	if d <= 0 {
 		d = defaultEventPoll

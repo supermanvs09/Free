@@ -49,6 +49,19 @@ type AWSIntegrationConfig struct {
 	EventQueueURL string `yaml:"event_queue_url"`
 	// EventLookbackHours is unused by the SQS peek; kept so older configs load.
 	EventLookbackHours int `yaml:"event_lookback_hours"`
+	// ForwardRoleName is the role customers create for EventBridge to put
+	// events on our bus. Default NHIEventBridgeForwardRole.
+	ForwardRoleName string `yaml:"forward_role_name"`
+	// TrailName is the CloudTrail trail customers create when none qualifies.
+	TrailName string `yaml:"trail_name"`
+	// EventPollSeconds is how often the "Receive your events" check reads the
+	// queue (5-10; default 7). EventWaitMinutes is how long it watches
+	// before concluding (default 15).
+	EventPollSeconds int `yaml:"event_poll_seconds"`
+	EventWaitMinutes int `yaml:"event_wait_minutes"`
+	// ApprovalsURL is the tenant-onboarding console's Approvals page, linked
+	// from the "approval needed" e-mail (APPROVALS_URL).
+	ApprovalsURL string `yaml:"approvals_url"`
 }
 
 var awsSecretPrefixRE = regexp.MustCompile(`^[A-Za-z0-9/_+=.@-]{1,256}$`)
@@ -67,6 +80,21 @@ func (a *AWSIntegrationConfig) load() error {
 	set(&a.GitHubAPIURL, "NHI_GITHUB_API_URL")
 	set(&a.EventLogGroup, "NHI_AWS_EVENT_LOG_GROUP")
 	set(&a.EventQueueURL, "NHI_AWS_EVENT_QUEUE_URL")
+	set(&a.ForwardRoleName, "NHI_AWS_FORWARD_ROLE_NAME")
+	set(&a.TrailName, "NHI_AWS_TRAIL_NAME")
+	set(&a.ApprovalsURL, "APPROVALS_URL")
+	for _, kv := range []struct {
+		key string
+		dst *int
+	}{{"NHI_AWS_EVENT_POLL_SECONDS", &a.EventPollSeconds}, {"NHI_AWS_EVENT_WAIT_MINUTES", &a.EventWaitMinutes}} {
+		if v, ok := os.LookupEnv(kv.key); ok && strings.TrimSpace(v) != "" {
+			n, err := strconv.Atoi(strings.TrimSpace(v))
+			if err != nil || n <= 0 {
+				return fmt.Errorf("config: %s must be a positive integer", kv.key)
+			}
+			*kv.dst = n
+		}
+	}
 	if v, ok := os.LookupEnv("NHI_AWS_EVENT_LOOKBACK_HOURS"); ok && strings.TrimSpace(v) != "" {
 		n, err := strconv.Atoi(strings.TrimSpace(v))
 		if err != nil {
@@ -92,7 +120,22 @@ func (a *AWSIntegrationConfig) load() error {
 	}
 	a.ForwardRuleName = strings.TrimSpace(a.ForwardRuleName)
 	if a.ForwardRuleName == "" {
-		a.ForwardRuleName = "nhi-forward-events"
+		a.ForwardRuleName = "nhi-forward-activity"
+	}
+	if a.ForwardRoleName = strings.TrimSpace(a.ForwardRoleName); a.ForwardRoleName == "" {
+		a.ForwardRoleName = "NHIEventBridgeForwardRole"
+	}
+	if a.TrailName = strings.TrimSpace(a.TrailName); a.TrailName == "" {
+		a.TrailName = "adapid-nhi-trail"
+	}
+	if a.EventPollSeconds == 0 {
+		a.EventPollSeconds = 7
+	}
+	if a.EventPollSeconds < 5 || a.EventPollSeconds > 10 {
+		return fmt.Errorf("config: aws_integration.event_poll_seconds must be between 5 and 10")
+	}
+	if a.EventWaitMinutes == 0 {
+		a.EventWaitMinutes = 15
 	}
 	a.GitHubSecretPrefix = strings.Trim(strings.TrimSpace(a.GitHubSecretPrefix), "/")
 	if a.GitHubSecretPrefix == "" {

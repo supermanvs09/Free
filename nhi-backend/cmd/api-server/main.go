@@ -63,6 +63,7 @@ import (
 	"nhi-backend-api/internal/platform/database"
 	"nhi-backend-api/internal/platform/githubcheck"
 	"nhi-backend-api/internal/platform/logging"
+	"nhi-backend-api/internal/platform/mailer"
 	"nhi-backend-api/internal/platform/middleware"
 	"nhi-backend-api/internal/platform/scope"
 	"nhi-backend-api/internal/routes"
@@ -269,6 +270,14 @@ func main() {
 			ForwardRuleName:    cfg.AWSIntegration.ForwardRuleName,
 			GitHubSecretPrefix: cfg.AWSIntegration.GitHubSecretPrefix,
 			EventLookback:      time.Duration(cfg.AWSIntegration.EventLookbackHours) * time.Hour,
+			ForwardRoleName:    cfg.AWSIntegration.ForwardRoleName,
+			TrailName:          cfg.AWSIntegration.TrailName,
+			EventPollInterval:  time.Duration(cfg.AWSIntegration.EventPollSeconds) * time.Second,
+			EventWaitLimit:     time.Duration(cfg.AWSIntegration.EventWaitMinutes) * time.Minute,
+			ApprovalsURL:       cfg.AWSIntegration.ApprovalsURL,
+			// The approval notice: SMTP_* / EMAIL_FROM (shared with remediation)
+			// to CONNECTION_APPROVAL_EMAILS.
+			Mailer: mailer.FromEnv(),
 		},
 	))
 

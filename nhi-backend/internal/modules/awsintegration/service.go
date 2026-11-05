@@ -156,6 +156,8 @@ type AWSIntegrationService struct {
 
 	running sync.Map // tenantID -> struct{}: one check per tenant at a time
 	watches sync.Map // watchKey -> *watchEntry: the events checks running now
+	// testPoll overrides the 5-10s poll interval in tests.
+	testPoll time.Duration
 }
 
 // NewAWSIntegrationService wires the service. verifier may be nil when the

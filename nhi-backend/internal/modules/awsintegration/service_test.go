@@ -23,11 +23,14 @@ var awsTestCaller = AWSCaller{TenantID: awsTestTenant, Schema: "tenant_a", Actor
 // ── fakes ────────────────────────────────────────────────────────────────
 
 type fakeAWSStore struct {
-	mu       sync.Mutex
-	settings *AWSTenantSettings
-	accounts map[string]AWSAccountRecord // per account, single tenant
-	claimed  bool
-	saved    []ExposureUpdate
+	mu        sync.Mutex
+	settings  *AWSTenantSettings
+	accounts  map[string]AWSAccountRecord // per account, single tenant
+	claimed   bool
+	saved     []ExposureUpdate
+	approvals []ApprovalRequest
+	emails    map[int64]string
+	withdrawn []string
 }
 
 func newFakeAWSStore() *fakeAWSStore {
@@ -39,7 +42,65 @@ func newFakeAWSStore() *fakeAWSStore {
 			EventBusARN:  "arn:aws:events:ap-south-1:999999999999:event-bus/nhi-central-bus",
 		},
 		accounts: map[string]AWSAccountRecord{},
+		emails:   map[int64]string{},
 	}
+}
+
+func (f *fakeAWSStore) SaveCheckStart(_ context.Context, _, _ string, rec AWSAccountRecord) (*AWSAccountRecord, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.claimed {
+		return nil, ErrAWSAccountClaimedByTenant
+	}
+	if prev, ok := f.accounts[rec.AccountID]; ok {
+		prev.RoleARN, prev.Regions, prev.Checks, prev.LastVerifiedAt = rec.RoleARN, rec.Regions, rec.Checks, rec.LastVerifiedAt
+		f.accounts[rec.AccountID] = prev
+		return &prev, nil
+	}
+	rec.Status = AWSStatusPending
+	f.accounts[rec.AccountID] = rec
+	return &rec, nil
+}
+
+func (f *fakeAWSStore) SaveChecks(_ context.Context, _, accountID string, checks []AWSCheck) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	rec := f.accounts[accountID]
+	rec.Checks = append([]AWSCheck(nil), checks...)
+	f.accounts[accountID] = rec
+	return nil
+}
+
+func (f *fakeAWSStore) RequestApproval(_ context.Context, req ApprovalRequest) (int64, *AWSAccountRecord, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	rec := f.accounts[req.Account.AccountID]
+	rec.Checks = req.Account.Checks
+	rec.Status, rec.IsConnected = AWSStatusPendingApproval, false
+	rec.Approval = AWSApproval{Status: ApprovalPending, RequestedBy: req.RequestedBy}
+	f.accounts[rec.AccountID] = rec
+	f.approvals = append(f.approvals, req)
+	return int64(len(f.approvals)), &rec, nil
+}
+
+func (f *fakeAWSStore) SetApprovalEmail(_ context.Context, id int64, status, _ string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.emails[id] = status
+	return nil
+}
+
+func (f *fakeAWSStore) WithdrawApprovals(_ context.Context, _, accountID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.withdrawn = append(f.withdrawn, accountID)
+	return nil
+}
+
+func (f *fakeAWSStore) account(id string) AWSAccountRecord {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.accounts[id]
 }
 
 func (f *fakeAWSStore) TenantSettings(context.Context, string) (*AWSTenantSettings, error) {
@@ -210,13 +271,44 @@ func (v *fakeVerifier) ReadSecretToken(context.Context, *awsconnect.Session, aws
 	return v.secretToken, v.secretErr
 }
 
+// fakeEvents: found delivers an event from every region asked about in
+// `regions` (default: the usual test regions) on each poll.
 type fakeEvents struct {
-	found bool
-	err   error
+	found   bool
+	regions []string
+	err     error
 }
 
-func (e fakeEvents) HasEventsFrom(context.Context, awsconnect.Platform, string, time.Time) (bool, error) {
-	return e.found, e.err
+func (e fakeEvents) PollEvents(context.Context, awsconnect.Platform, string) (awsconnect.EventPoll, error) {
+	out := awsconnect.EventPoll{Regions: map[string]int{}, Seen: 10}
+	if e.err != nil {
+		return out, e.err
+	}
+	if e.found {
+		regions := e.regions
+		if regions == nil {
+			regions = []string{"us-east-1", "ap-south-1", "eu-west-1"}
+		}
+		for _, r := range regions {
+			out.Regions[r]++
+		}
+	}
+	return out, nil
+}
+
+type fakeMailer struct {
+	mu   sync.Mutex
+	sent []string
+	err  error
+}
+
+func (m *fakeMailer) Configured() bool { return true }
+func (m *fakeMailer) To() []string     { return []string{"approver@platform.test"} }
+func (m *fakeMailer) Send(_ context.Context, subject, _, _ string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.sent = append(m.sent, subject)
+	return m.err
 }
 
 type fakeGitHub struct {
@@ -239,7 +331,24 @@ func newTestService(store *fakeAWSStore, v *fakeVerifier, gh *fakeGitHub, events
 	if gh != nil {
 		github = gh
 	}
-	return NewAWSIntegrationService(store, verifier, github, events, AWSIntegrationOptions{})
+	svc := NewAWSIntegrationService(store, verifier, github, events, AWSIntegrationOptions{EventWaitLimit: 400 * time.Millisecond})
+	svc.testPoll = 20 * time.Millisecond
+	return svc
+}
+
+// settle waits for the events check of an account to finish (its state is no
+// longer running and no watcher is left).
+func settle(t *testing.T, svc *AWSIntegrationService, store *fakeAWSStore, accountID string) AWSAccountRecord {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if !svc.watching(awsTestTenant, accountID) {
+			return store.account(accountID)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("the events check never finished")
+	return AWSAccountRecord{}
 }
 
 func states(checks []AWSCheck) string {
@@ -261,23 +370,101 @@ func connectedAccount(store *fakeAWSStore) {
 
 // ── verify ───────────────────────────────────────────────────────────────
 
-func TestVerifyConnectsAndQueuesFirstSync(t *testing.T) {
+// A first connection whose checks all pass waits for approval: it is not
+// connected and no sync is queued until a platform admin approves it, and the
+// approvers are e-mailed.
+func TestVerifyFirstConnectionWaitsForApproval(t *testing.T) {
 	store := newFakeAWSStore()
 	svc := newTestService(store, &fakeVerifier{}, nil, fakeEvents{found: true})
+	mail := &fakeMailer{}
+	svc.mailer = mail
 	res, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"ap-south-1", "us-east-1"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Status != AWSStatusConnected || !res.Saved || !res.SyncQueued || states(res.Checks) != "pass,pass,pass" {
-		t.Fatalf("got %+v", res)
+	if !res.Watching || res.Status != AWSStatusPending || states(res.Checks) != "pass,pass,running" {
+		t.Fatalf("verify returned %+v", res)
 	}
 	if got := strings.Join(res.Regions, ","); got != "us-east-1,ap-south-1" {
 		t.Fatalf("regions in catalogue order: %s", got)
 	}
-	// Verified again: connected, no second queue.
-	res, _ = svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"})
-	if res.SyncQueued {
-		t.Fatal("second verify queued again")
+	rec := settle(t, svc, store, "222222222222")
+	if rec.Status != AWSStatusPendingApproval || rec.IsConnected || rec.Approval.Status != ApprovalPending || rec.SyncStatus == AWSSyncQueued {
+		t.Fatalf("after the events check: %+v", rec)
+	}
+	if states(rec.Checks) != "pass,pass,pass" || len(store.approvals) != 1 {
+		t.Fatalf("checks %s, %d approval requests", states(rec.Checks), len(store.approvals))
+	}
+	if len(mail.sent) != 1 || store.emails[1] != "sent" {
+		t.Fatalf("approvers not e-mailed: %v %v", mail.sent, store.emails)
+	}
+}
+
+// An account already approved (or connected before approvals existed) is
+// re-checked without asking again: it stays connected.
+func TestRecheckOfApprovedAccountNeedsNoApproval(t *testing.T) {
+	store := newFakeAWSStore()
+	connectedAccount(store)
+	svc := newTestService(store, &fakeVerifier{}, nil, fakeEvents{found: true})
+	if _, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"}); err != nil {
+		t.Fatal(err)
+	}
+	if rec := store.account("222222222222"); !rec.IsConnected {
+		t.Fatal("a re-check took a working connection down while it ran")
+	}
+	rec := settle(t, svc, store, "222222222222")
+	if rec.Status != AWSStatusConnected || len(store.approvals) != 0 {
+		t.Fatalf("got %s with %d approvals", rec.Status, len(store.approvals))
+	}
+}
+
+// The events check waits for every region, and us-east-1 for IAM's global
+// events. At the time limit, some regions seen is a warning, none a failure.
+func TestEventsCheckRegions(t *testing.T) {
+	store := newFakeAWSStore()
+	svc := newTestService(store, &fakeVerifier{}, nil, fakeEvents{found: true, regions: []string{"ap-south-1"}})
+	if _, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"ap-south-1"}); err != nil {
+		t.Fatal(err)
+	}
+	rec := settle(t, svc, store, "222222222222")
+	ev := rec.Checks[2]
+	if ev.State != AWSCheckWarn || !strings.Contains(ev.Message, "us-east-1") || len(ev.Regions) != 2 {
+		t.Fatalf("partial events: %+v", ev)
+	}
+	if rec.Approval.Status != ApprovalPending {
+		t.Fatal("a warning still goes to approval, with the missing regions shown")
+	}
+
+	store = newFakeAWSStore()
+	svc = newTestService(store, &fakeVerifier{}, nil, fakeEvents{})
+	if _, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"}); err != nil {
+		t.Fatal(err)
+	}
+	rec = settle(t, svc, store, "222222222222")
+	if rec.Checks[2].State != AWSCheckFail || rec.Status != AWSStatusPending || len(store.approvals) != 0 {
+		t.Fatalf("no events: %+v", rec)
+	}
+}
+
+// Our own credentials refused: an error on our side, never a fix for them.
+func TestPlatformCredentialErrorsAreOurs(t *testing.T) {
+	store := newFakeAWSStore()
+	res, err := newTestService(store, &fakeVerifier{assumeErr: awsconnect.ErrPlatformCredentials}, nil, fakeEvents{found: true}).
+		Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Checks[0].State != AWSCheckError || res.Checks[0].Fix != "" || !strings.Contains(res.Checks[0].Message, "on our side") {
+		t.Fatalf("got %+v", res.Checks[0])
+	}
+	store = newFakeAWSStore()
+	svc := newTestService(store, &fakeVerifier{}, nil, fakeEvents{err: awsconnect.ErrPlatformCredentials})
+	if _, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"}); err != nil {
+		t.Fatal(err)
+	}
+	rec := settle(t, svc, store, "222222222222")
+	if rec.Checks[2].State != AWSCheckError || !strings.Contains(rec.Checks[2].Message, "on our side") {
+		t.Fatalf("queue read with refused credentials: %+v", rec.Checks[2])
 	}
 }
 
@@ -290,10 +477,9 @@ func TestVerifyOutcomes(t *testing.T) {
 		saved  bool
 		fix    string
 	}{
-		{"assume denied", &fakeVerifier{assumeErr: awsconnect.ErrAccessDenied}, fakeEvents{found: true}, "fail,skipped,skipped", false, "Check the External ID matches"},
+		{"assume denied", &fakeVerifier{assumeErr: awsconnect.ErrAccessDenied}, fakeEvents{found: true}, "fail,skipped,skipped", false, "Check the trust policy names our role and your External ID exactly"},
 		{"assume unavailable", &fakeVerifier{assumeErr: errors.New("dial")}, fakeEvents{found: true}, "error,skipped,skipped", false, ""},
-		{"no read", &fakeVerifier{readErr: awsconnect.ErrAccessDenied}, fakeEvents{found: true}, "pass,fail,pass", true, "Attach SecurityAudit + ViewOnlyAccess"},
-		{"no events", &fakeVerifier{}, fakeEvents{}, "pass,pass,fail", true, "Check the EventBridge rule target ARN"},
+		{"no read", &fakeVerifier{readErr: awsconnect.ErrAccessDenied}, fakeEvents{found: true}, "pass,fail,skipped", true, "Attach SecurityAudit and ViewOnlyAccess to NHIPlatformCollector"},
 		{"bus error", &fakeVerifier{busErr: errors.New("throttled")}, fakeEvents{found: true}, "pass,pass,error", true, ""},
 	}
 	for _, tc := range cases {
@@ -330,12 +516,12 @@ func fmtChecks(c []AWSCheck) string {
 func TestVerifyFailingAfterConnectIsActionNeeded(t *testing.T) {
 	store := newFakeAWSStore()
 	connectedAccount(store)
-	res, err := newTestService(store, &fakeVerifier{}, nil, fakeEvents{}).Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"})
-	if err != nil {
+	svc := newTestService(store, &fakeVerifier{}, nil, fakeEvents{})
+	if _, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"}); err != nil {
 		t.Fatal(err)
 	}
-	if res.Status != AWSStatusActionNeeded {
-		t.Fatalf("got %s", res.Status)
+	if rec := settle(t, svc, store, "222222222222"); rec.Status != AWSStatusActionNeeded {
+		t.Fatalf("got %s", rec.Status)
 	}
 }
 
