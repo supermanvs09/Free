@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "film/src/s_zen.js"
+        ],
+        "createdAt": "2026-11-05T23:07:28.210Z",
+        "reason": "Claude decided: red severity stripe on the Zenstra 'Blocked!' error banner in the rendered film is an intentional alert-state pattern, not a decorative card accent"
+      }
+    ]
+  }
+}
