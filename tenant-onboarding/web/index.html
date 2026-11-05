@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="light">
+  <title>Onboard a company</title>
+  <link rel="icon" type="image/png" href="/brand/mark.png">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <aside class="sidebar" id="sidebar" aria-label="Main">
+    <a class="side-brand" href="#/onboard" aria-label="Super Admin, NHI Security for AWS">
+      <span class="mark-badge"><img src="/brand/mark.png" alt=""></span>
+      <span class="side-title"><strong>Super Admin</strong><small>NHI Security for AWS</small></span>
+    </a>
+    <p class="nav-label">Manage</p>
+    <nav aria-label="Sections">
+      <a class="nav-item" id="nav-onboard" href="#/onboard"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Onboard company</a>
+      <a class="nav-item" id="nav-tenants" href="#/tenants"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16M14 9h5a1 1 0 0 1 1 1v11M3 21h18M8 8h2M8 12h2M8 16h2"/></svg>Tenants<span class="count" id="nav-count" hidden></span></a>
+    </nav>
+    <div class="side-foot">
+      <p>Changes are saved straight away and logged.</p>
+      <strong>Deep Algorithms</strong>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim" hidden></div>
+
+  <div class="content">
+    <header class="topbar">
+      <button type="button" class="icon-btn nav-toggle" id="nav-toggle" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <p class="crumbs"><span>Super Admin</span><span aria-hidden="true">/</span><span class="here" id="crumb-page">Onboard company</span></p>
+      <div class="topbar-right">
+        <div class="account">
+          <span class="avatar" id="avatar" aria-hidden="true"></span>
+          <span class="name" id="who-name"></span>
+          <button type="button" class="icon-btn logout" id="signout" aria-label="Sign out" title="Sign out"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg></button>
+        </div>
+      </div>
+    </header>
+
+    <div id="session-banner" class="session-banner" role="alert" hidden>
+      Your session has ended, so nothing more can be saved. Sign in again in a
+      <a href="/" target="_blank" rel="noopener">new tab</a>, then come back here and retry. What you typed is still on this page.
+    </div>
+
+    <main id="main" tabindex="-1">
+      <section id="view-onboard" class="view" aria-labelledby="t-onboard">
+        <div class="hero">
+          <div>
+            <h1 id="t-onboard">Onboard a company</h1>
+            <p class="lede">Register a company, then create its first user or skip that step. Everything is saved together, or not at all.</p>
+          </div>
+        </div>
+        <div class="lift">
+          <div class="onboard-grid">
+            <div class="col">
+      <div id="banner" class="banner" role="alert" hidden></div>
+
+    <ol id="stepper" class="stepper" aria-label="Progress">
+      <li id="dot-1" aria-current="step"><span class="num">1</span><span class="lbl">Company</span></li>
+      <li id="dot-2"><span class="num">2</span><span class="lbl">First user</span></li>
+    </ol>
+
+    <form id="form" novalidate autocomplete="off">
+      <div id="step-1">
+      <section aria-labelledby="h-company">
+        <h2 id="h-company" tabindex="-1">Company</h2>
+        <div class="field">
+          <label for="company_name">Company name</label>
+          <input id="company_name" name="company_name" type="text" maxlength="80" required autofocus aria-describedby="company_name-hint company_name-error">
+          <p class="hint" id="company_name-hint">The workspace name and domain are created from this. <span id="preview" hidden>Workspace name: <strong id="preview-name"></strong></span></p>
+          <p class="error" id="company_name-error" hidden></p>
+        </div>
+      </section>
+
+      <section aria-labelledby="h-aws">
+        <h2 id="h-aws">AWS collector</h2>
+        <div class="field">
+          <label for="collector_aws_account_id">AWS account ID</label>
+          <input id="collector_aws_account_id" name="collector_aws_account_id" type="text" inputmode="numeric" maxlength="12" placeholder="123456789012" required aria-describedby="collector_aws_account_id-error">
+          <p class="error" id="collector_aws_account_id-error" hidden></p>
+        </div>
+        <div class="field">
+          <label for="collector_external_id">External ID</label>
+          <input id="collector_external_id" name="collector_external_id" type="text" maxlength="255" spellcheck="false" required aria-describedby="collector_external_id-error">
+          <p class="error" id="collector_external_id-error" hidden></p>
+        </div>
+        <div class="field">
+          <label for="collector_event_bridge_arn">Event bus ARN</label>
+          <input id="collector_event_bridge_arn" name="collector_event_bridge_arn" type="text" maxlength="320" spellcheck="false" placeholder="arn:aws:events:ap-south-1:123456789012:event-bus/default" required aria-describedby="collector_event_bridge_arn-error">
+          <p class="error" id="collector_event_bridge_arn-error" hidden></p>
+        </div>
+        <div class="field">
+          <label for="collector_regions">Regions</label>
+          <input id="collector_regions" name="collector_regions" type="text" spellcheck="false" placeholder="ap-south-1, us-east-1" required aria-describedby="collector_regions-hint collector_regions-error">
+          <p class="hint" id="collector_regions-hint">Separate several with commas.</p>
+          <p class="error" id="collector_regions-error" hidden></p>
+        </div>
+        <div class="field">
+          <label for="customer_aws_account_id">Customer AWS account ID <span class="opt">optional</span></label>
+          <input id="customer_aws_account_id" name="customer_aws_account_id" type="text" inputmode="numeric" maxlength="12" placeholder="123456789012" aria-describedby="customer_aws_account_id-hint customer_aws_account_id-error">
+          <p class="hint" id="customer_aws_account_id-hint">If you know the account the customer will connect, it is added now with the External ID above.</p>
+          <p class="error" id="customer_aws_account_id-error" hidden></p>
+        </div>
+      </section>
+
+      <button type="button" id="next" class="btn primary">Next: first user</button>
+      </div>
+
+      <div id="step-2" hidden>
+      <section aria-labelledby="h-user">
+        <h2 id="h-user" tabindex="-1">First user</h2>
+        <p class="hint lead">Create the person who will sign in first. You can skip this and add users later.</p>
+        <div id="user-fields">
+          <div class="field">
+            <label for="user_full_name">Full name</label>
+            <input id="user_full_name" name="user_full_name" type="text" maxlength="100" aria-describedby="user_full_name-error">
+            <p class="error" id="user_full_name-error" hidden></p>
+          </div>
+          <div class="field">
+            <label for="user_username">Username</label>
+            <div class="suffix">
+              <input id="user_username" name="user_username" type="text" maxlength="32" spellcheck="false" autocapitalize="none" aria-describedby="user_username-hint user_username-error">
+              <span id="user-suffix" aria-hidden="true">@workspace</span>
+            </div>
+            <p class="hint" id="user_username-hint">They sign in with <strong id="login-preview">name@workspace</strong>.</p>
+            <p class="error" id="user_username-error" hidden></p>
+          </div>
+          <div class="field">
+            <label for="user_password">Password</label>
+            <div class="row">
+              <input id="user_password" name="user_password" type="password" maxlength="72" spellcheck="false" autocomplete="new-password" aria-describedby="user_password-hint user_password-error">
+              <button type="button" class="btn ghost" id="show-password" aria-pressed="false">Show</button>
+              <button type="button" class="btn ghost" id="make-password">Generate</button>
+            </div>
+            <p class="hint" id="user_password-hint">At least 10 characters. It is stored securely and cannot be read back, so keep the downloaded file safe.</p>
+            <p class="error" id="user_password-error" hidden></p>
+          </div>
+          <div class="field">
+            <label for="user_role">Role</label>
+            <select id="user_role" name="user_role" aria-describedby="user_role-error">
+              <option value="admin" selected>Admin</option>
+              <option value="manager">Manager</option>
+              <option value="analyst">Analyst</option>
+              <option value="user">User</option>
+            </select>
+            <p class="error" id="user_role-error" hidden></p>
+          </div>
+          <div class="pair">
+            <div class="field">
+              <label for="user_department">Department <span class="opt">optional</span></label>
+              <input id="user_department" name="user_department" type="text" maxlength="100" aria-describedby="user_department-error">
+              <p class="error" id="user_department-error" hidden></p>
+            </div>
+            <div class="field">
+              <label for="user_team">Team <span class="opt">optional</span></label>
+              <input id="user_team" name="user_team" type="text" maxlength="100" aria-describedby="user_team-error">
+              <p class="error" id="user_team-error" hidden></p>
+            </div>
+          </div>
+          <p class="hint">A file with the sign-in details downloads when the user is created.</p>
+        </div>
+      </section>
+
+      <button type="submit" id="submit" class="btn primary">Onboard company</button>
+      <div class="nav">
+        <button type="button" id="back" class="btn ghost">Back</button>
+        <button type="button" id="skip" class="btn link">Skip and onboard without a user</button>
+      </div>
+      </div>
+    </form>
+
+    <section id="result" class="result" aria-live="polite" tabindex="-1" hidden></section>
+            </div>
+        <aside class="summary card" aria-label="Summary of what will be created">
+          <h2>Summary</h2>
+          <dl>
+            <div><dt>Company</dt><dd id="sum-company"></dd></div>
+            <div><dt>Workspace</dt><dd id="sum-ws"></dd></div>
+            <div><dt>Domain</dt><dd id="sum-domain"></dd></div>
+            <div><dt>AWS collector</dt><dd id="sum-aws"></dd></div>
+            <div><dt>Regions</dt><dd id="sum-regions"></dd></div>
+            <div><dt>First user</dt><dd id="sum-user"></dd></div>
+          </dl>
+          <p class="hint">Nothing is saved until you press <strong>Onboard company</strong>.</p>
+        </aside>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-tenants" class="view" aria-labelledby="t-tenants" hidden>
+        <div class="hero">
+          <div>
+            <h1 id="t-tenants">Tenants</h1>
+            <p class="lede" id="tenants-sub">Every registered company. Select Edit to change its domain or collector details.</p>
+          </div>
+          <a class="btn primary" href="#/onboard">Onboard company</a>
+        </div>
+        <div class="lift">
+      <div class="toolbar">
+        <div class="search">
+          <label for="search" class="sr">Search companies</label>
+          <input id="search" type="search" placeholder="Search by name, domain or ID   ( / )" autocomplete="off" spellcheck="false">
+        </div>
+        <p id="tenants-count" class="muted" aria-live="polite"></p>
+        <button type="button" class="btn ghost" id="refresh">Refresh</button>
+      </div>
+
+      <div id="tenants-banner" class="banner" role="alert" hidden></div>
+
+      <div class="table-wrap" id="table-wrap">
+        <table id="tenants-table">
+          <caption class="sr">Registered companies</caption>
+          <thead>
+            <tr>
+              <th scope="col" aria-sort="none"><button type="button" class="sort" data-sort="name">Company</button></th>
+              <th scope="col">AWS account</th>
+              <th scope="col">External ID</th>
+              <th scope="col">Event bus</th>
+              <th scope="col">Regions</th>
+              <th scope="col" aria-sort="descending"><button type="button" class="sort" data-sort="created">Created</button></th>
+              <th scope="col"><span class="sr">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="tenants-body"></tbody>
+        </table>
+      </div>
+      <div id="tenants-empty" class="empty" hidden></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="edit" aria-labelledby="edit-title">
+    <form id="edit-form" method="dialog" novalidate autocomplete="off">
+      <header class="dlg-head">
+        <div>
+          <h2 id="edit-title">Edit company</h2>
+          <p class="muted" id="edit-sub"></p>
+        </div>
+        <button type="button" class="icon-btn" id="edit-x" aria-label="Close">&times;</button>
+      </header>
+      <div class="dlg-body">
+        <div id="edit-banner" class="banner" role="alert" hidden></div>
+        <dl class="fixed">
+          <div><dt>Tenant ID</dt><dd id="edit-id"></dd></div>
+          <div><dt>Workspace</dt><dd id="edit-ws"></dd></div>
+        </dl>
+        <p class="hint fixed-note">These two link the company to its users and data, so they can't be changed here.</p>
+
+        <div class="field">
+          <label for="edit_domain_name">Domain</label>
+          <input id="edit_domain_name" type="text" spellcheck="false" maxlength="255" aria-describedby="edit_domain_name-error">
+          <p class="error" id="edit_domain_name-error" hidden></p>
+        </div>
+        <div class="field">
+          <label for="edit_collector_aws_account_id">AWS account ID</label>
+          <input id="edit_collector_aws_account_id" type="text" inputmode="numeric" maxlength="12" aria-describedby="edit_collector_aws_account_id-error">
+          <p class="error" id="edit_collector_aws_account_id-error" hidden></p>
+        </div>
+        <div class="field">
+          <label for="edit_collector_external_id">External ID</label>
+          <input id="edit_collector_external_id" type="text" spellcheck="false" maxlength="255" aria-describedby="edit_collector_external_id-warn edit_collector_external_id-error">
+          <div class="note warn" id="edit_collector_external_id-warn" hidden>
+            <strong>Changing the External ID affects the customer.</strong> Their AWS role trusts the current one, so
+            connections stop working until their role is updated to the new value.
+            <label class="check"><input type="checkbox" id="confirm-external"> I understand</label>
+          </div>
+          <p class="error" id="edit_collector_external_id-error" hidden></p>
+        </div>
+        <div class="field">
+          <label for="edit_collector_event_bridge_arn">Event bus ARN</label>
+          <input id="edit_collector_event_bridge_arn" type="text" spellcheck="false" maxlength="320" aria-describedby="edit_collector_event_bridge_arn-error">
+          <p class="error" id="edit_collector_event_bridge_arn-error" hidden></p>
+        </div>
+        <div class="field">
+          <label for="edit_collector_regions">Regions</label>
+          <input id="edit_collector_regions" type="text" spellcheck="false" aria-describedby="edit_collector_regions-hint edit_collector_regions-error">
+          <p class="hint" id="edit_collector_regions-hint">Separate several with commas.</p>
+          <p class="error" id="edit_collector_regions-error" hidden></p>
+        </div>
+
+        <div class="danger-zone">
+          <div>
+            <strong>Delete this company</strong>
+            <p>Permanently removes the company, its users and all of its data. This cannot be undone.</p>
+          </div>
+          <button type="button" class="btn danger sm" id="delete-open">Delete&hellip;</button>
+        </div>
+      </div>
+      <footer class="dlg-foot">
+        <span class="muted" id="edit-state" aria-live="polite">No changes yet</span>
+        <div class="actions">
+          <button type="button" class="btn ghost" id="edit-cancel">Cancel</button>
+          <button type="submit" class="btn primary" id="edit-save" disabled>Save changes</button>
+        </div>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="del" aria-labelledby="del-title">
+    <form id="del-form" method="dialog" novalidate autocomplete="off">
+      <header class="dlg-head danger">
+        <div>
+          <h2 id="del-title">Delete company</h2>
+          <p class="muted" id="del-sub"></p>
+        </div>
+        <button type="button" class="icon-btn" id="del-x" aria-label="Close">&times;</button>
+      </header>
+      <div class="dlg-body">
+        <div id="del-banner" class="banner" role="alert" hidden></div>
+        <p id="del-loading" class="muted">Checking what will be deleted&hellip;</p>
+        <div id="del-main" hidden>
+          <p class="del-lead">You are about to permanently delete <strong id="del-name"></strong>. This is what will be removed:</p>
+          <ul class="del-list" id="del-list"></ul>
+          <p class="hint del-keep">Not touched: the company&rsquo;s event history in the analytics store, and anything in the customer&rsquo;s AWS account.</p>
+          <div class="field">
+            <label for="del-confirm">Type <strong id="del-name2"></strong> to confirm</label>
+            <input id="del-confirm" type="text" spellcheck="false" autocomplete="off" aria-describedby="del-confirm-error">
+            <p class="error" id="del-confirm-error" hidden></p>
+          </div>
+        </div>
+      </div>
+      <footer class="dlg-foot">
+        <span class="muted" id="del-state"></span>
+        <div class="actions">
+          <button type="button" class="btn ghost" id="del-cancel">Cancel</button>
+          <button type="submit" class="btn danger solid" id="del-go" disabled>Delete company</button>
+        </div>
+      </footer>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" popover="manual"></div>
+
+  <script src="/lib.js"></script>
+  <script src="/onboard.js"></script>
+  <script src="/tenants.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

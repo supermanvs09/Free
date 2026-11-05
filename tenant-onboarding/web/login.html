@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="light">
+  <title>Sign in · Super Admin</title>
+  <link rel="icon" type="image/png" href="/brand/mark.png">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body class="login-page">
+  <section class="login-art" aria-label="Super Admin, NHI Security for AWS">
+    <div class="login-art-inner">
+      <p class="welcome">Welcome to</p>
+      <div class="mark-badge"><img src="/brand/mark.png" alt="Deep Algorithms"></div>
+      <h2>Super Admin</h2>
+      <p class="product-line">NHI Security for AWS</p>
+      <p class="blurb">Onboard companies, set up their workspaces and first users, and keep every tenant&rsquo;s details up to date, all in one place.</p>
+    </div>
+    <div class="login-art-foot"><span>Deep Algorithms</span><i aria-hidden="true"></i><span>Authorised use only</span></div>
+    <div class="wave-edge" aria-hidden="true"></div>
+  </section>
+
+  <main class="login-pane">
+    <div class="login-card">
+      <h1>Sign in</h1>
+      <p class="lede">Enter your administrator username and password.</p>
+
+      <div id="login-error" class="banner" role="alert" hidden></div>
+
+      <form id="login-form" novalidate>
+        <div class="field">
+          <label for="username">Username</label>
+          <input id="username" name="username" type="text" placeholder="Enter your username" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="64" required autofocus>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <div class="row">
+            <input id="password" name="password" type="password" placeholder="Enter your password" autocomplete="current-password" maxlength="200" required aria-describedby="caps">
+            <button type="button" class="btn ghost" id="show" aria-pressed="false">Show</button>
+          </div>
+          <p class="hint caps" id="caps" hidden>Caps Lock is on.</p>
+        </div>
+        <button type="submit" class="btn primary" id="signin">Sign in</button>
+      </form>
+      <p class="login-note">Sign-ins and changes are logged.</p>
+    </div>
+  </main>
+  <script src="/login.js"></script>
+</body>
+</html>
