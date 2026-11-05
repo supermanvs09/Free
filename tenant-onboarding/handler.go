@@ -386,11 +386,13 @@ func (h *Handler) decide(approve bool) http.HandlerFunc {
 		case errors.As(err, &verr):
 			writeJSON(w, http.StatusUnprocessableEntity, errorBody{Error: verr.Fields["note"], Fields: verr.Fields})
 		case errors.As(err, &derr):
+			log.Printf("decide approval %d by %s: not changed: %v", id, Who(r), derr)
 			writeJSON(w, http.StatusConflict, errorBody{Error: derr.Error(), Code: "decided"})
 		case errors.Is(err, NotFoundError{}):
+			log.Printf("decide approval %d by %s: no such request", id, Who(r))
 			writeJSON(w, http.StatusNotFound, errorBody{Error: "That request no longer exists.", Code: "not_found"})
 		default:
-			log.Printf("decide approval %d: %v", id, err)
+			log.Printf("decide approval %d by %s: failed, nothing changed: %v", id, Who(r), err)
 			writeJSON(w, http.StatusInternalServerError, errorBody{Error: "Something went wrong and nothing was changed. Try again; if it keeps happening, contact engineering."})
 		}
 	}

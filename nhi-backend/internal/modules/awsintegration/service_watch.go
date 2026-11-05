@@ -110,6 +110,8 @@ func (s *AWSIntegrationService) startWatch(caller AWSCaller, p awsconnect.Platfo
 	if prev, loaded := s.watches.Swap(key, entry); loaded {
 		prev.(*watchEntry).cancel()
 	}
+	logging.FromContext(ctx).Info("aws integration: events watch started", "tenant_id", caller.TenantID, "account_id", rec.AccountID,
+		"regions", rec.Regions, "deadline", deadline, "poll_every", s.pollInterval())
 	go s.watch(ctx, entry, key, caller, p, settings, rec, check)
 	return check
 }
@@ -138,8 +140,15 @@ func (s *AWSIntegrationService) watch(ctx context.Context, entry *watchEntry, ke
 		switch {
 		case err != nil:
 			failures++
-			log.Warn("aws integration: events watch, queue read failed", "err", err, "failures", failures)
+			if errors.Is(err, awsconnect.ErrPlatformCredentials) {
+				logCheckError(ctx, caller.TenantID, rec.AccountID, AWSCheckEvents, err)
+			} else {
+				log.Warn("aws integration: events watch, queue read failed", "err", err, "failures", failures)
+			}
 			if errors.Is(err, awsconnect.ErrPlatformCredentials) || failures >= 5 {
+				if failures >= 5 {
+					log.Error("aws integration: events watch gave up after repeated queue read failures; check NHI_AWS_EVENT_QUEUE_URL and the queue's permissions", "err", err)
+				}
 				platformError(&check, err)
 				s.finishWatch(caller, settings, rec, check, false)
 				return
@@ -154,6 +163,7 @@ func (s *AWSIntegrationService) watch(ctx context.Context, entry *watchEntry, ke
 					if !check.Regions[i].Seen {
 						check.Regions[i].Seen = true
 						check.Regions[i].FirstSeenAt = &at
+						log.Info("aws integration: events watch, first event from region", "region", check.Regions[i].Region, "events", n)
 					}
 				}
 			}
@@ -253,6 +263,9 @@ func (s *AWSIntegrationService) finishWatch(caller AWSCaller, settings *AWSTenan
 		}
 	}
 	rec.Checks = checks
+	seenRegions, missingRegions := regionSplit(check.Regions)
+	logChecks(ctx, "aws integration: events watch finished", rec.AccountID, []AWSCheck{check}, "tenant_id", caller.TenantID,
+		"ok", ok, "regions_seen", seenRegions, "regions_missing", missingRegions, "messages_scanned", check.Scanned)
 	current, err := s.store.GetAccount(ctx, caller.Schema, rec.AccountID)
 	if err != nil || current == nil {
 		log.Warn("aws integration: events watch finished but the account is gone", "err", err)
@@ -265,9 +278,12 @@ func (s *AWSIntegrationService) finishWatch(caller AWSCaller, settings *AWSTenan
 			status = AWSStatusConnected
 		}
 		rec.Status = status
-		if _, _, err := s.store.SaveVerification(ctx, caller.TenantID, caller.Schema, rec); err != nil {
+		saved, queued, err := s.store.SaveVerification(ctx, caller.TenantID, caller.Schema, rec)
+		if err != nil {
 			log.Error("aws integration: saving the finished check failed", "err", err)
+			return
 		}
+		log.Info("aws integration: account status after the events check", "status", saved.Status, "sync_queued", queued, "already_approved", approved)
 		return
 	}
 	seen, _ := regionSplit(check.Regions)

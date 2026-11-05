@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 	"sync"
@@ -346,6 +347,19 @@ func (s *AWSIntegrationService) begin(tenantID string) (func(), error) {
 // shown it controls the account. The first time all three pass, a sync is
 // queued and the account joins the tenant's scope.
 func (s *AWSIntegrationService) Verify(ctx context.Context, caller AWSCaller, rawRoleARN string, rawRegions []string) (*AWSVerifyResponse, error) {
+	log := logging.FromContext(ctx).With("role_arn", strings.TrimSpace(rawRoleARN))
+	log.Info("aws integration: connection check started", "regions", rawRegions, "by", caller.Actor)
+	result, err := s.verify(ctx, caller, rawRoleARN, rawRegions)
+	if err != nil {
+		// Mapped to a response (and logged with its code) by the handler.
+		return nil, err
+	}
+	logChecks(ctx, "aws integration: connection check finished", result.AccountID, result.Checks,
+		"status", result.Status, "watching_events", result.Watching, "sync_queued", result.SyncQueued)
+	return result, nil
+}
+
+func (s *AWSIntegrationService) verify(ctx context.Context, caller AWSCaller, rawRoleARN string, rawRegions []string) (*AWSVerifyResponse, error) {
 	p, settings, err := s.platform(ctx, caller.TenantID)
 	if err != nil {
 		return nil, err
@@ -389,6 +403,7 @@ func (s *AWSIntegrationService) Verify(ctx context.Context, caller AWSCaller, ra
 	stepCancel()
 	if err != nil {
 		if errors.Is(err, awsconnect.ErrAccessDenied) {
+			logCustomerDenied(ctx, role.AccountID, checks[0].Key, err)
 			fail(&checks[0], "AWS would not let us use this role: the role ARN, its trust policy (our role NHIPlatformAssumer) or the External ID does not match.", "Check the trust policy names our role and your External ID exactly")
 		} else if errors.Is(err, awsconnect.ErrPlatformCredentials) {
 			logCheckError(ctx, caller.TenantID, role.AccountID, checks[0].Key, err)
@@ -410,6 +425,7 @@ func (s *AWSIntegrationService) Verify(ctx context.Context, caller AWSCaller, ra
 		return nil, err
 	}
 	if claimed {
+		logging.FromContext(ctx).Warn("aws integration: account already connected to another workspace, refused", "account_id", role.AccountID)
 		return nil, ErrAWSAccountClaimed
 	}
 
@@ -421,6 +437,7 @@ func (s *AWSIntegrationService) Verify(ctx context.Context, caller AWSCaller, ra
 	case err == nil:
 		pass(&checks[1], "Read access works.")
 	case errors.Is(err, awsconnect.ErrAccessDenied), errors.Is(err, awsconnect.ErrNothingRead):
+		logCustomerDenied(ctx, role.AccountID, checks[1].Key, err)
 		fail(&checks[1], "The role cannot read your account.", "Attach SecurityAudit and ViewOnlyAccess to NHIPlatformCollector")
 	default:
 		logCheckError(ctx, caller.TenantID, role.AccountID, checks[1].Key, err)
@@ -513,6 +530,7 @@ func (s *AWSIntegrationService) UpdateRegions(ctx context.Context, caller AWSCal
 	if err != nil {
 		return nil, err
 	}
+	logging.FromContext(ctx).Info("aws integration: regions changed", "account_id", accountID, "regions", regions, "by", caller.Actor)
 	account := rec.ToAPI()
 	return &account, nil
 }
@@ -575,10 +593,12 @@ func (s *AWSIntegrationService) SetExposure(ctx context.Context, caller AWSCalle
 		if req.CodeCommit {
 			checks := s.checkCodeCommit(ctx, caller, session, assumeErr, rec)
 			update.CodeCommit = &ExposurePlatformUpdate{Connected: allPass(checks), Checks: checks}
+			logChecks(ctx, "aws integration: credential exposure, CodeCommit checked", accountID, checks, "connected", allPass(checks))
 		}
 		if req.GitHub {
 			checks := s.checkGitHub(ctx, caller, session, assumeErr, rec, secret)
 			update.GitHub = &ExposurePlatformUpdate{Connected: allPass(checks), Checks: checks, SecretARN: secret.ARN}
+			logChecks(ctx, "aws integration: credential exposure, GitHub checked", accountID, checks, "connected", allPass(checks), "secret_arn", secret.ARN)
 		}
 	}
 
@@ -592,6 +612,8 @@ func (s *AWSIntegrationService) SetExposure(ctx context.Context, caller AWSCalle
 	if err != nil {
 		return nil, err
 	}
+	logging.FromContext(ctx).Info("aws integration: credential exposure settings saved", "account_id", accountID,
+		"github", req.GitHub, "codecommit", req.CodeCommit, "by", caller.Actor)
 	resp := &AWSExposureResponse{Account: saved.ToAPI()}
 	for _, a := range all {
 		if a.GitHubConnected || a.CodeCommitConnected {
@@ -605,6 +627,7 @@ func (s *AWSIntegrationService) SetExposure(ctx context.Context, caller AWSCalle
 // the connection itself is broken, so nothing else can be tried.
 func roleUnusable(ctx context.Context, checks []AWSCheck, caller AWSCaller, accountID string, err error) {
 	if errors.Is(err, awsconnect.ErrAccessDenied) {
+		logCustomerDenied(ctx, accountID, checks[0].Key, err)
 		fail(&checks[0], "AWS would not let us use this account's role any more.", "Re-check the account connection")
 	} else {
 		logCheckError(ctx, caller.TenantID, accountID, checks[0].Key, err)
@@ -837,6 +860,7 @@ func (s *AWSIntegrationService) RequestSync(ctx context.Context, caller AWSCalle
 	if err != nil {
 		return nil, err
 	}
+	logging.FromContext(ctx).Info("aws integration: sync requested", "account_id", accountID, "already_queued", already, "by", caller.Actor)
 	return &AWSSyncResponse{Account: rec.ToAPI(), AlreadyQueued: already}, nil
 }
 
@@ -846,6 +870,7 @@ func (s *AWSIntegrationService) CancelSync(ctx context.Context, caller AWSCaller
 	if err != nil {
 		return nil, err
 	}
+	logging.FromContext(ctx).Info("aws integration: queued sync cancelled", "account_id", accountID, "by", caller.Actor)
 	return &AWSSyncResponse{Account: rec.ToAPI()}, nil
 }
 
@@ -926,9 +951,51 @@ func unavailable(c *AWSCheck) {
 	c.State, c.Message, c.Fix = AWSCheckError, "We could not run this check just now. Try again in a minute.", ""
 }
 
-// logCheckError keeps AWS's own error text in the server log only.
+// logCheckError keeps AWS's own error text in the server log only. A refusal
+// of our own platform credentials is an operations problem (every tenant is
+// affected), so it is logged as an error with what to do.
 func logCheckError(ctx context.Context, tenantID, accountID, check string, err error) {
-	logging.FromContext(ctx).Warn("aws integration check failed", "tenant_id", tenantID, "account_id", accountID, "check", check, "err", err)
+	log := logging.FromContext(ctx).With("tenant_id", tenantID, "account_id", accountID, "check", check, "err", err)
+	switch {
+	case errors.Is(err, awsconnect.ErrPlatformCredentials):
+		log.Error("aws integration: OUR platform AWS credentials were refused (e.g. InvalidClientTokenId, ExpiredToken, SignatureDoesNotMatch). " +
+			"Rotate or fix the API server's AWS credentials; no customer can connect until then")
+	case errors.Is(err, context.DeadlineExceeded):
+		log.Warn("aws integration: check timed out talking to AWS")
+	default:
+		log.Warn("aws integration: check could not run")
+	}
+}
+
+// logCustomerDenied records AWS's refusal in the customer's account: the
+// customer sees what to fix, support sees AWS's exact words here.
+func logCustomerDenied(ctx context.Context, accountID, check string, err error) {
+	logging.FromContext(ctx).Info("aws integration: check failed in the customer's account", "account_id", accountID, "check", check, "err", err)
+}
+
+// logChecks writes one line per finished check run: each check's state, and
+// for every check that did not pass, the message the customer was shown.
+// The level follows the worst state: an error on our side is a warning, a
+// failure in the customer's setup is info.
+func logChecks(ctx context.Context, msg, accountID string, checks []AWSCheck, extra ...any) {
+	states := make([]string, 0, len(checks))
+	var problems []string
+	level := slog.LevelInfo
+	for _, c := range checks {
+		states = append(states, c.Key+"="+string(c.State))
+		switch c.State {
+		case AWSCheckPass, AWSCheckRunning, AWSCheckSkipped:
+			continue
+		case AWSCheckError:
+			level = slog.LevelWarn
+		}
+		problems = append(problems, c.Key+": "+c.Message)
+	}
+	args := append([]any{"account_id", accountID, "checks", strings.Join(states, " ")}, extra...)
+	if len(problems) > 0 {
+		args = append(args, "problems", problems)
+	}
+	logging.FromContext(ctx).Log(ctx, level, msg, args...)
 }
 
 func humanHours(d time.Duration) string {

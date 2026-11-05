@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
@@ -13,6 +12,7 @@ import (
 
 	"nhi-backend-api/internal/platform/awsconnect"
 	"nhi-backend-api/internal/platform/httpx"
+	"nhi-backend-api/internal/platform/logging"
 	"nhi-backend-api/internal/platform/middleware"
 )
 
@@ -237,29 +237,52 @@ func writeAWSError(w http.ResponseWriter, r *http.Request, err error, fallback, 
 	var invalidARN *awsconnect.ErrInvalidRoleARN
 	var invalidRegions *awsconnect.ErrInvalidRegions
 	var invalidSecret *awsconnect.ErrInvalidSecretARN
+	status, code, message := http.StatusInternalServerError, fallbackCode, fallback
 	switch {
 	case errors.As(err, &invalidSecret):
-		httpx.SendJSONResponse(w, http.StatusBadRequest, httpx.APIResponse{Success: false, Message: invalidSecret.Message, Error: "INVALID_SECRET_ARN"})
+		status, code, message = http.StatusBadRequest, "INVALID_SECRET_ARN", invalidSecret.Message
 	case errors.As(err, &invalidARN):
-		httpx.SendJSONResponse(w, http.StatusBadRequest, httpx.APIResponse{Success: false, Message: invalidARN.Message, Error: "INVALID_ROLE_ARN"})
+		status, code, message = http.StatusBadRequest, "INVALID_ROLE_ARN", invalidARN.Message
 	case errors.As(err, &invalidRegions):
-		httpx.SendJSONResponse(w, http.StatusBadRequest, httpx.APIResponse{Success: false, Message: invalidRegions.Message, Error: "INVALID_REGIONS"})
+		status, code, message = http.StatusBadRequest, "INVALID_REGIONS", invalidRegions.Message
 	case errors.Is(err, ErrAWSAccountNotFound):
-		httpx.SendJSONResponse(w, http.StatusNotFound, httpx.APIResponse{Success: false, Message: "This AWS account is not connected to your workspace", Error: "AWS_ACCOUNT_NOT_FOUND"})
+		status, code, message = http.StatusNotFound, "AWS_ACCOUNT_NOT_FOUND", "This AWS account is not connected to your workspace"
 	case errors.Is(err, ErrAWSAccountNotConnected):
-		httpx.SendJSONResponse(w, http.StatusConflict, httpx.APIResponse{Success: false, Message: "This account has not passed its checks yet. Verify the connection first", Error: "AWS_ACCOUNT_NOT_CONNECTED"})
+		status, code, message = http.StatusConflict, "AWS_ACCOUNT_NOT_CONNECTED", "This account has not passed its checks yet. Verify the connection first"
 	case errors.Is(err, ErrAWSAccountClaimed):
-		httpx.SendJSONResponse(w, http.StatusConflict, httpx.APIResponse{Success: false, Message: "This AWS account is already connected to another workspace. Contact support if that is unexpected", Error: "AWS_ACCOUNT_IN_USE"})
+		status, code, message = http.StatusConflict, "AWS_ACCOUNT_IN_USE", "This AWS account is already connected to another workspace. Contact support if that is unexpected"
 	case errors.Is(err, ErrAWSVerifyInProgress):
-		httpx.SendJSONResponse(w, http.StatusTooManyRequests, httpx.APIResponse{Success: false, Message: "A connection check is already running. Wait for it to finish", Error: "AWS_VERIFY_IN_PROGRESS"})
+		status, code, message = http.StatusTooManyRequests, "AWS_VERIFY_IN_PROGRESS", "A connection check is already running. Wait for it to finish"
 	case errors.Is(err, ErrAWSTablesMissing), errors.Is(err, ErrAWSTenantNotConfigured):
-		if errors.Is(err, ErrAWSTablesMissing) {
-			slog.Warn("aws integration: tenant tables missing", "err", err)
-		}
-		httpx.SendJSONResponse(w, http.StatusServiceUnavailable, httpx.APIResponse{Success: false, Message: "AWS connections are not set up for your workspace yet. Contact support", Error: "AWS_PLATFORM_NOT_CONFIGURED"})
+		status, code, message = http.StatusServiceUnavailable, "AWS_PLATFORM_NOT_CONFIGURED", "AWS connections are not set up for your workspace yet. Contact support"
 	case errors.Is(err, ErrAWSUnavailable):
-		httpx.SendJSONResponse(w, http.StatusServiceUnavailable, httpx.APIResponse{Success: false, Message: "AWS cannot be reached right now. Try again shortly", Error: "AWS_UNAVAILABLE"})
+		status, code, message = http.StatusServiceUnavailable, "AWS_UNAVAILABLE", "AWS cannot be reached right now. Try again shortly"
 	default:
+		// Logged with the request by SendServerError.
 		httpx.SendServerError(w, r, err, fallback, fallbackCode)
+		return
+	}
+	logAWSError(r, status, code, err)
+	httpx.SendJSONResponse(w, status, httpx.APIResponse{Success: false, Message: message, Error: code})
+}
+
+// logAWSError puts every refused integration request in the log with the
+// route, the account and the code the page was given. Setup problems on our
+// side (tables, platform settings, AWS unreachable) are errors with a hint;
+// a customer's input or state is info.
+func logAWSError(r *http.Request, status int, code string, err error) {
+	log := logging.FromContext(r.Context()).With("method", r.Method, "path", r.URL.Path, "status", status, "code", code, "err", err)
+	if id := mux.Vars(r)["account_id"]; id != "" {
+		log = log.With("account_id", id)
+	}
+	switch {
+	case errors.Is(err, ErrAWSTablesMissing):
+		log.Error("aws integration: the tenant schema has no accounts table; run the tenant migrations for this workspace")
+	case errors.Is(err, ErrAWSTenantNotConfigured):
+		log.Error("aws integration: the tenant has no collector_aws_account_id / collector_event_bridge_arn / collector_external_id in nhi_global.tenants; finish its onboarding")
+	case errors.Is(err, ErrAWSUnavailable):
+		log.Error("aws integration: AWS is not configured or not reachable from the API server (verifier missing or AWS calls failing)")
+	default:
+		log.Info("aws integration: request refused")
 	}
 }
