@@ -1,3 +1,4 @@
+import { consoleRole } from '../roles';
 import client from './client';
 import { ApiError, unwrapMain } from './http';
 import { readRefreshToken } from './session';
@@ -45,22 +46,15 @@ export function profileFrom(user = {}, me = {}) {
     team: user.team || '',
     tenantId: me.tenant_id || user.tenant_id || null,
     serverRole,
-    role: consoleRoleFor(serverRole),
+    /* The server says which console role this is and what it may do; the
+       client-side mapping is only the fallback for an older server. */
+    role: me.console_role ? consoleRole(me.console_role) : consoleRoleFor(serverRole),
+    capabilities: Array.isArray(me.capabilities) ? me.capabilities : user.capabilities ?? null,
     lastLoginAt: user.last_login_at || null,
   };
 }
 
-/** Server roles -> console roles. Unknown roles get the least access. */
+/** Server roles -> console roles (lib/roles.js). Unknown roles get the least access. */
 export function consoleRoleFor(serverRole) {
-  switch (serverRole) {
-    case 'super_admin':
-    case 'superadmin':
-      return 'super_admin';
-    case 'admin':
-      return 'admin';
-    case 'analyst':
-      return 'analyst';
-    default:
-      return 'viewer';
-  }
+  return consoleRole(serverRole);
 }

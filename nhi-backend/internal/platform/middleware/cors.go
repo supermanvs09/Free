@@ -24,7 +24,7 @@ func SetupCORS(cfg config.CORSConfig) func(http.Handler) http.Handler {
 		// PATCH and If-None-Match serve the posture API (PATCH
 		// /findings/{id}, optional ETag revalidation on GETs).
 		AllowedMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders: []string{"Authorization", "Content-Type", "Accept", "If-Match", "If-None-Match", "X-Request-ID"},
+		AllowedHeaders: []string{"Authorization", "Content-Type", "Accept", "If-Match", "If-None-Match", "X-Request-ID", "X-Console-Screen"},
 		// ETag must be readable by the browser to send it back as If-None-Match.
 		ExposedHeaders:   []string{"ETag", "Retry-After", "Content-Disposition", "X-Request-ID"},
 		AllowCredentials: true,

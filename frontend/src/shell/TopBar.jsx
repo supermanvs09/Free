@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { LogOut, Menu, Moon, Search, Sun, ArrowLeftRight } from 'lucide-react';
+import { LogOut, Menu, Moon, Search, Sun, ArrowLeftRight, KeyRound, ScrollText, UsersRound } from 'lucide-react';
+import { useAccess } from '../app/useAccess';
+import { ChangePasswordModal } from '../features/admin/ChangePasswordModal';
 import { useAuth } from '../app/AuthContext';
 import { useThemeMode } from '../app/ThemeContext';
 import { usePopover } from '../lib/hooks';
@@ -35,6 +37,8 @@ export function TopBar({ onOpenNav, onOpenCommand, minimal = false }) {
   const { theme, setPreference } = useThemeMode();
   const nextTheme = theme === 'dark' ? 'light' : 'dark';
   const [menuOpen, setMenuOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const { can } = useAccess();
   const { wrapperRef: menuRef, triggerRef, panelProps } = usePopover(menuOpen, () =>
     setMenuOpen(false),
   );
@@ -182,9 +186,43 @@ export function TopBar({ onOpenNav, onOpenCommand, minimal = false }) {
               </span>
             </div>
 
+            <div className="border-b border-line p-1">
+              {/* The person's own account, then the console's administration. */}
+              <button
+                role="menuitem"
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setPasswordOpen(true);
+                }}
+                className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-[13px] text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink focus-visible:bg-surface-2 focus-visible:text-ink"
+              >
+                <KeyRound aria-hidden="true" className="size-4" />
+                Change password
+              </button>
+              {can('users.manage') && (
+                <Link
+                  role="menuitem"
+                  to="/settings/users"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-[13px] text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink focus-visible:bg-surface-2 focus-visible:text-ink"
+                >
+                  <UsersRound aria-hidden="true" className="size-4" />
+                  Users & roles
+                </Link>
+              )}
+              <Link
+                role="menuitem"
+                to="/audit-log"
+                onClick={() => setMenuOpen(false)}
+                className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-[13px] text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink focus-visible:bg-surface-2 focus-visible:text-ink"
+              >
+                <ScrollText aria-hidden="true" className="size-4" />
+                {can('audit.all') ? 'Audit log' : 'My activity log'}
+              </Link>
+            </div>
+
             <div className="p-1">
-              {/* Administration of the console itself lives with the account,
-                  not in the navigation of the estate. Super admins only. */}
               <button
                 role="menuitem"
                 type="button"
@@ -222,6 +260,7 @@ export function TopBar({ onOpenNav, onOpenCommand, minimal = false }) {
           </div>
         )}
       </div>
+      <ChangePasswordModal open={passwordOpen} onClose={() => setPasswordOpen(false)} />
     </header>
   );
 }

@@ -15,13 +15,15 @@ import { useAuth } from './AuthContext';
 export function useAccess() {
   const { user } = useAuth();
   const role = user?.role ?? null;
+  const capabilities = user?.capabilities ?? null;
   return useMemo(
     () => ({
       role,
       roleLabel: role ? roleMeta(role).label : '',
-      can: (permission) => roleCan(role, permission),
-      lock: (permission) => (roleCan(role, permission) ? undefined : deniedReason(permission)),
+      capabilities,
+      can: (permission) => roleCan(role, permission, capabilities),
+      lock: (permission) => (roleCan(role, permission, capabilities) ? undefined : deniedReason(permission)),
     }),
-    [role],
+    [role, capabilities],
   );
 }

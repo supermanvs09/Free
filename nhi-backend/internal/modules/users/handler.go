@@ -58,10 +58,12 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 // roleOptions is what the console offers when assigning a role, with the one
 // sentence that says what each one may do.
-func roleOptions() []map[string]string {
-	out := make([]map[string]string, 0, len(authz.Roles))
+func roleOptions() []map[string]any {
+	out := make([]map[string]any, 0, len(authz.Roles))
 	for _, r := range authz.Roles {
-		out = append(out, map[string]string{"key": string(r), "label": r.Label(), "summary": roleSummary(r)})
+		// capabilities: the server's own matrix, so the console's Roles &
+		// permissions view can never disagree with what is enforced.
+		out = append(out, map[string]any{"key": string(r), "label": r.Label(), "summary": roleSummary(r), "capabilities": authz.Capabilities(r)})
 	}
 	return out
 }

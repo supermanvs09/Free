@@ -8,6 +8,8 @@ import {
   // History, - reinstate with the Scans nav item
   KeyRound,
   Plug,
+  ScrollText,
+  UsersRound,
   ShieldCheck,
   ShieldOff,
 } from 'lucide-react';
@@ -75,9 +77,14 @@ export const NAV_GROUPS = [
     label: 'Settings',
     /* Last in the rail on purpose. Everything above reads the estate; this is
        the one group that changes how the estate is collected. */
-    /* User management is reached from the account menu, not from here: it
-       administers the console, not the estate. */
-    items: [{ to: '/integrations', label: 'Integrations', icon: Plug }],
+    /* Users & roles administers the console itself (admins only); the audit
+       log is open to everyone, who see their own actions (admins and
+       operators see everyone's). */
+    items: [
+      { to: '/integrations', label: 'Integrations', icon: Plug },
+      { to: '/settings/users', label: 'Users & roles', icon: UsersRound, permission: 'users.manage' },
+      { to: '/audit-log', label: 'Audit log', icon: ScrollText },
+    ],
   },
 ];
 
@@ -115,6 +122,8 @@ export const BREADCRUMBS = {
   '/genome': ['Behaviour', 'NHI Genome'],
   '/activity': ['Operations', 'Activity'],
   '/integrations': ['Settings', 'Integrations'],
+  '/settings/users': ['Settings', 'Users & roles'],
+  '/audit-log': ['Settings', 'Audit log'],
 };
 
 /**

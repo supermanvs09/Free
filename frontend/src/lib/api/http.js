@@ -42,6 +42,9 @@ function readPayload(payload) {
   return {
     message: typeof payload.message === 'string' ? payload.message : undefined,
     code: typeof payload.error === 'string' ? payload.error : undefined,
+    /* A refusal about one input names it ({ data: { field } }), so a form can
+       show the message under that input. */
+    field: typeof payload.data?.field === 'string' ? payload.data.field : undefined,
   };
 }
 

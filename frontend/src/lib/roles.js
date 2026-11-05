@@ -1,101 +1,147 @@
 /**
  * Console roles and what each one may do.
  *
- * Four roles, ordered by reach. The split follows the one most security
- * consoles settle on: whoever administers the console itself (people and
- * integrations) is separate from whoever runs the security programme, and
- * accepting a risk - dismissing an alert, allowlisting a leaked secret - is
- * reserved for the people accountable for that decision rather than for
- * everyone who works the queue.
+ * The rules live on the server (nhi-backend internal/platform/authz): four
+ * roles, each holding a set of capabilities, and every API route needing one
+ * capability. `/me` returns the signed-in person's role and capabilities, and
+ * the screens decide what to offer from those - so a button is shown exactly
+ * when the API will allow it, and a change to the rules on the server needs no
+ * change here.
  *
- * The screens read this table to decide what to show. It mirrors what the
- * services enforce - a check in the browser alone is presentation, not
- * security:
- *
- *   credential exposure APIs and integration changes   admin only
- *   posture finding updates (accept, suppress, assign) analyst or admin
- *
- * Server roles map onto these (lib/api/auth.js consoleRoleFor): admin -> admin,
- * analyst -> analyst, anything else -> viewer.
+ * The console asks for permissions by name (`integrations.manage`); each name
+ * maps onto the server capability that gates it. The static table below is a
+ * fallback for a server that does not return capabilities yet, and it mirrors
+ * the server's matrix.
  */
 
 export const ROLES = {
-  super_admin: {
-    key: 'super_admin',
-    label: 'Super admin',
-    rank: 4,
-    summary: 'Full control of the console, including users, roles and integrations.',
-  },
   admin: {
     key: 'admin',
     label: 'Admin',
+    rank: 4,
+    summary: 'Everything, including connecting AWS accounts, exposed credentials and managing users.',
+  },
+  operator: {
+    key: 'operator',
+    label: 'Operator',
     rank: 3,
-    summary: 'Runs the security programme and the workspace: connects AWS accounts, reviews exposed credentials, accepts posture risks.',
+    summary: 'Reads everything, gives the second approval (remediation plans) and maintains policies. Does not change findings itself.',
   },
   analyst: {
     key: 'analyst',
     label: 'Analyst',
     rank: 2,
-    summary: 'Investigates identities and works posture findings: assign, accept with a reason, suppress for a while.',
+    summary: 'Investigates and works findings: posture, anomalies, remediation plans, scans. No integrations or user management.',
   },
   viewer: {
     key: 'viewer',
     label: 'Viewer',
     rank: 1,
-    summary: 'Read-only oversight: posture, inventory, access and behaviour. No exposed secrets and no changes.',
+    summary: 'Read-only: posture, inventory, access, behaviour and activity. Can export tables.',
   },
 };
 
-export const ROLE_ORDER = ['super_admin', 'admin', 'analyst', 'viewer'];
+export const ROLE_ORDER = ['admin', 'operator', 'analyst', 'viewer'];
 
-/**
- * Every permission the console checks, grouped the way the matrix on the
- * User management screen shows them. `roles` lists who holds it.
- */
-export const PERMISSIONS = [
-  { key: 'data.view', group: 'Visibility', label: 'View posture, inventory, access, behaviour, activity and reports', roles: ['super_admin', 'admin', 'analyst', 'viewer'] },
-  { key: 'data.export', group: 'Visibility', label: 'Export tables to CSV', roles: ['super_admin', 'admin', 'analyst', 'viewer'] },
-
-  { key: 'alerts.view', group: 'Alerts', label: 'Open the Alerts screen', roles: ['super_admin', 'admin', 'analyst'] },
-  { key: 'alerts.viewAll', group: 'Alerts', label: 'See every alert - otherwise only those assigned or escalated to you', roles: ['super_admin', 'admin'] },
-  { key: 'alerts.work', group: 'Alerts', label: 'Acknowledge, start, resolve, escalate and add notes', roles: ['super_admin', 'admin', 'analyst'] },
-  { key: 'alerts.take', group: 'Alerts', label: 'Assign an alert to themselves', roles: ['super_admin', 'admin', 'analyst'] },
-  { key: 'alerts.assign', group: 'Alerts', label: 'Assign alerts to anyone', roles: ['super_admin', 'admin'] },
-  { key: 'alerts.dismiss', group: 'Alerts', label: 'Dismiss (accept a risk) and reopen closed alerts', roles: ['super_admin', 'admin'] },
-  { key: 'alerts.bulk', group: 'Alerts', label: 'Act on many alerts at once', roles: ['super_admin', 'admin'] },
-
-  { key: 'anomalies.review', group: 'NHI Genome', label: 'Mark an anomaly as real or as a false positive', roles: ['super_admin', 'admin', 'analyst'] },
-
-  { key: 'exposure.view', group: 'Credential exposure', label: 'See exposed credentials - secrets found in code', roles: ['super_admin', 'admin'] },
-  { key: 'exposure.deepScan', group: 'Credential exposure', label: 'Request a deep scan of a repository', roles: ['super_admin', 'admin'] },
-  { key: 'exposure.review', group: 'Credential exposure', label: 'Accept a finding as reviewed, or restore it', roles: ['super_admin', 'admin'] },
-
-  { key: 'posture.findings', group: 'Posture', label: 'Assign, accept or suppress a posture finding', roles: ['super_admin', 'admin', 'analyst'] },
-
-  { key: 'reports.generate', group: 'Reports', label: 'Generate a report', roles: ['super_admin', 'admin', 'analyst'] },
-  { key: 'reports.schedule', group: 'Reports', label: 'Create, pause and delete schedules, and delete past runs', roles: ['super_admin', 'admin'] },
-
-  { key: 'integrations.operate', group: 'Administration', label: 'Re-check connections and request a sync', roles: ['super_admin', 'admin'] },
-  { key: 'scan.run', group: 'Administration', label: 'Run a scan of the AWS accounts', roles: ['super_admin', 'admin', 'analyst'] },
-  { key: 'integrations.manage', group: 'Administration', label: 'Connect and remove AWS accounts, enable credential scanning', roles: ['super_admin', 'admin'] },
-  { key: 'users.manage', group: 'Administration', label: 'Invite users, change roles, deactivate accounts', roles: ['super_admin'] },
+/** The server's capabilities, in words (for the Roles & permissions matrix). */
+export const CAPABILITIES = [
+  { key: 'read', label: 'View posture, inventory, access, behaviour and activity' },
+  { key: 'export', label: 'Export tables to CSV' },
+  { key: 'write', label: 'Work findings and anomalies, create and run remediation plans' },
+  { key: 'operate', label: 'Run discovery and posture scans' },
+  { key: 'approve', label: 'Approve or reject remediation plans (second review)' },
+  { key: 'policies', label: 'Maintain allowlists and suppressions' },
+  { key: 'exposure', label: 'See and review exposed credentials (secrets found in code)' },
+  { key: 'integrations', label: 'Connect and remove AWS accounts, code scanning, remediation settings' },
+  { key: 'users', label: 'Add people, change roles, reset passwords, deactivate accounts' },
+  { key: 'audit.all', label: "Read everyone's actions in the audit log (others see their own)" },
 ];
 
-const BY_KEY = new Map(PERMISSIONS.map((permission) => [permission.key, permission]));
+/* Mirrors internal/platform/authz grants; used only when /me carries none. */
+const STATIC_GRANTS = {
+  admin: ['read', 'export', 'write', 'operate', 'approve', 'policies', 'integrations', 'exposure', 'users', 'audit.all'],
+  operator: ['read', 'export', 'approve', 'policies', 'audit.all'],
+  analyst: ['read', 'export', 'write', 'operate'],
+  viewer: ['read', 'export'],
+};
 
-export function roleMeta(role) {
-  return ROLES[role] ?? ROLES.viewer;
+/** Console permission -> the server capability that gates it. */
+const PERMISSION_CAPABILITY = {
+  'data.view': 'read',
+  'data.export': 'export',
+  'alerts.view': 'read',
+  'alerts.viewAll': 'read',
+  'alerts.work': 'write',
+  'alerts.take': 'write',
+  'alerts.assign': 'write',
+  'alerts.dismiss': 'write',
+  'alerts.bulk': 'write',
+  'anomalies.review': 'write',
+  'exposure.view': 'exposure',
+  'exposure.deepScan': 'exposure',
+  'exposure.review': 'exposure',
+  'posture.findings': 'write',
+  'reports.generate': 'write',
+  'reports.schedule': 'policies',
+  'integrations.operate': 'integrations',
+  'integrations.manage': 'integrations',
+  'scan.run': 'operate',
+  'users.manage': 'users',
+  'audit.all': 'audit.all',
+  'remediation.plan': 'write',
+  'remediation.execute': 'write',
+  'remediation.approve': 'approve',
+  'remediation.settings': 'integrations',
+};
+
+/** The console role for a role name from the server (aliases folded in). */
+export function consoleRole(serverRole) {
+  switch (String(serverRole || '').trim().toLowerCase()) {
+    case 'admin':
+    case 'super_admin':
+    case 'superadmin':
+    case 'super admin':
+    case 'owner':
+    case 'administrator':
+      return 'admin';
+    case 'operator':
+    case 'approver':
+    case 'reviewer':
+    case 'manager':
+      return 'operator';
+    case 'analyst':
+    case 'security':
+      return 'analyst';
+    default:
+      return 'viewer';
+  }
 }
 
-/** Whether `role` holds `permission`. Unknown permissions are refused. */
-export function roleCan(role, permission) {
-  return Boolean(BY_KEY.get(permission)?.roles.includes(role));
+export function roleMeta(role) {
+  return ROLES[consoleRole(role)] ?? ROLES.viewer;
+}
+
+/** The capabilities a role holds without asking the server. */
+export function staticCapabilities(role) {
+  return STATIC_GRANTS[consoleRole(role)] ?? STATIC_GRANTS.viewer;
+}
+
+/**
+ * Whether the person may do `permission`. `capabilities` is what /me
+ * returned; without it the static table for the role decides. Unknown
+ * permissions are refused.
+ */
+export function roleCan(role, permission, capabilities) {
+  const capability = PERMISSION_CAPABILITY[permission];
+  if (!capability) return false;
+  const held = Array.isArray(capabilities) && capabilities.length > 0 ? capabilities : staticCapabilities(role);
+  return held.includes(capability);
 }
 
 /** The least-privileged role that holds `permission`, for "needs X" hints. */
 export function minimumRoleFor(permission) {
-  const holders = BY_KEY.get(permission)?.roles ?? [];
-  return [...ROLE_ORDER].reverse().find((role) => holders.includes(role)) ?? 'super_admin';
+  const capability = PERMISSION_CAPABILITY[permission];
+  return [...ROLE_ORDER].reverse().find((role) => STATIC_GRANTS[role].includes(capability)) ?? 'admin';
 }
 
 /** Where a role lands after signing in. */
@@ -103,20 +149,12 @@ export function homeFor() {
   return '/overview';
 }
 
-/** What `/overview` is for each role, in words - shown on User management. */
-export const ROLE_HOME = {
-  super_admin: 'Organisation dashboard',
-  admin: 'Organisation dashboard',
-  analyst: 'Organisation dashboard',
-  viewer: 'Dashboard, without credential exposure',
-};
-
 /** One sentence for a disabled control: why it is disabled and who can. */
 export function deniedReason(permission) {
-  const needed = roleMeta(minimumRoleFor(permission)).label;
-  return needed === ROLES.super_admin.label
-    ? 'Only a super admin can do this.'
-    : `Needs the ${needed} role or higher.`;
+  const needed = minimumRoleFor(permission);
+  if (needed === 'admin') return 'Only an admin can do this.';
+  const holders = ROLE_ORDER.filter((role) => STATIC_GRANTS[role].includes(PERMISSION_CAPABILITY[permission])).map((role) => ROLES[role].label);
+  return `Needs one of these roles: ${holders.join(', ')}.`;
 }
 
 /** A refusal shaped like the API's, so screens handle it as a 403. */

@@ -30,6 +30,8 @@ const AccessDetailPage = lazy(() => import('../features/access/AccessDetailPage'
 const GenomePage = lazy(() => import('../features/genome/GenomePage'));
 const GenomeDetailPage = lazy(() => import('../features/genome/GenomeDetailPage'));
 const IntegrationsPage = lazy(() => import('../features/integrations/IntegrationsPage'));
+const UsersPage = lazy(() => import('../features/admin/UsersPage'));
+const AuditLogPage = lazy(() => import('../features/admin/AuditLogPage'));
 const NotFoundPage = lazy(() => import('../features/NotFoundPage'));
 
 function Screen({ children }) {
@@ -95,6 +97,17 @@ export default function App() {
                 <Route path="/genome" element={<Screen><GenomePage /></Screen>} />
                 <Route path="/genome/:id" element={<Screen><GenomeDetailPage /></Screen>} />
                 <Route path="/integrations" element={<Screen><IntegrationsPage /></Screen>} />
+                <Route
+                  path="/settings/users"
+                  element={
+                    <Screen>
+                      <RequirePermission permission="users.manage" screen="Users & roles" title="Managing users is for admins">
+                        <UsersPage />
+                      </RequirePermission>
+                    </Screen>
+                  }
+                />
+                <Route path="/audit-log" element={<Screen><AuditLogPage /></Screen>} />
                 <Route path="*" element={<Screen><NotFoundPage /></Screen>} />
               </Route>
             </Routes>

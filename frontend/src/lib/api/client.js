@@ -27,6 +27,10 @@ const client = axios.create({
 client.interceptors.request.use((config) => {
   const token = readToken();
   if (token && !config.headers.Authorization) config.headers.Authorization = `Bearer ${token}`;
+  /* The screen a request came from, for the audit log's "Screen" column. */
+  if (typeof window !== 'undefined' && !config.headers['X-Console-Screen']) {
+    config.headers['X-Console-Screen'] = window.location.pathname.slice(0, 120);
+  }
   return config;
 });
 
