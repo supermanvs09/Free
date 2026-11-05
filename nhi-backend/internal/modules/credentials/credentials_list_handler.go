@@ -134,6 +134,10 @@ func (h *CredentialsHandler) List(w http.ResponseWriter, r *http.Request) {
 		httpx.SendJSONResponse(w, http.StatusBadRequest, httpx.APIResponse{Success: false, Message: "min_idle_days must be an integer", Error: "INVALID_REQUEST"})
 		return
 	}
+	if filter.Expired, err = httpx.ParseOptionalBool(q, "expired"); err != nil {
+		httpx.SendJSONResponse(w, http.StatusBadRequest, httpx.APIResponse{Success: false, Message: "expired must be true or false", Error: "INVALID_REQUEST"})
+		return
+	}
 	if filter.MaxDaysUntilExpiry, err = httpx.ParseOptionalInt(q, "max_days_until_expiry"); err != nil {
 		httpx.SendJSONResponse(w, http.StatusBadRequest, httpx.APIResponse{Success: false, Message: "max_days_until_expiry must be an integer", Error: "INVALID_REQUEST"})
 		return

@@ -428,7 +428,7 @@ export const CHANGE_GRID = '@min-[56rem]:grid-cols-[7.25rem_8.5rem_minmax(0,1fr)
  * One change as a row: type, entity, the sentence, the ARN and when, with
  * the details and CloudTrail evidence behind a disclosure.
  */
-export function ChangeRow({ change, layout = 'table' }) {
+export function ChangeRow({ change, layout = 'table', density = 'comfortable' }) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const evidence = change.evidence;
@@ -480,7 +480,8 @@ export function ChangeRow({ change, layout = 'table' }) {
     <li className="border-b border-line last:border-b-0">
       <div
         className={cn(
-          'relative grid w-full items-center gap-x-4 gap-y-2 px-4 py-3 text-left transition-colors hover:bg-surface-2/70 sm:px-5',
+          'relative grid w-full items-center gap-x-4 gap-y-2 px-4 text-left transition-colors hover:bg-surface-2/70 sm:px-5',
+          density === 'compact' ? 'py-1.5 [&_.change-meta]:hidden' : 'py-3.5',
           CHANGE_GRID,
           open && 'bg-surface-2/70',
         )}
@@ -499,7 +500,7 @@ export function ChangeRow({ change, layout = 'table' }) {
           >
             {change.summary}
           </button>
-          <span className="mt-0.5 block truncate text-[11.5px] text-ink-3">
+          <span className="change-meta mt-0.5 block truncate text-[11.5px] text-ink-3">
             {entityTo && change.name ? (
               <Link to={entityTo} className="relative z-[1] font-medium text-ink-2 hover:text-brand hover:underline">
                 {change.name}

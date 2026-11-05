@@ -116,10 +116,20 @@ func (r *CredentialsRepository) GetCredentialsList(ctx context.Context, resolved
 	}
 	if f.MaxDaysUntilExpiry != nil {
 		innerWhere = append(innerWhere, fmt.Sprintf(
-			"c.expires_at IS NOT NULL AND c.expires_at <= NOW() + (%s::int * INTERVAL '1 day')", addArg(*f.MaxDaysUntilExpiry)))
+			// Expiring within the window, not already expired: a credential
+			// that lapsed last month is not "expiring in 30 days".
+			"c.expires_at IS NOT NULL AND c.expires_at > NOW() AND c.expires_at <= NOW() + (%s::int * INTERVAL '1 day')", addArg(*f.MaxDaysUntilExpiry)))
 	}
 
 	// ── outer (computed-column) filters ──────────────────────────────────
+	if f.Expired != nil {
+		if *f.Expired {
+			innerWhere = append(innerWhere, "c.expires_at IS NOT NULL AND c.expires_at <= NOW()")
+		} else {
+			innerWhere = append(innerWhere, "(c.expires_at IS NULL OR c.expires_at > NOW())")
+		}
+	}
+
 	var outerWhere []string
 	if f.IsOrphaned != nil {
 		outerWhere = append(outerWhere, fmt.Sprintf("is_orphaned = %s", addArg(*f.IsOrphaned)))

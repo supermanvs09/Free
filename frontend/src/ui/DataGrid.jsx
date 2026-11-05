@@ -142,7 +142,7 @@ export function DataGrid({
                   style={column.width ? { width: column.width } : undefined}
                   aria-sort={active ? (sort.direction === 'asc' ? 'ascending' : 'descending') : undefined}
                   className={cn(
-                    'overflow-hidden px-3.5 py-2.5 align-middle text-[11px] font-semibold tracking-[0.07em] text-ellipsis whitespace-nowrap text-ink-3 uppercase',
+                    'px-3.5 py-2.5 align-middle text-[11px] font-semibold tracking-[0.07em] break-words text-ink-3 uppercase',
                     column.align === 'right' && 'text-right',
                     column.align === 'center' && 'text-center',
                   )}

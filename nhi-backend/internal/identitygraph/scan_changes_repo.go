@@ -240,12 +240,16 @@ func (r *ScanChangesRepository) Summary(ctx context.Context, sc *scope.DataScope
 }
 
 func emptySummary() ScanChangeSummary {
-	s := ScanChangeSummary{ByChangeType: map[string]int{}, ByEntityType: map[string]int{}}
+	s := ScanChangeSummary{ByChangeType: map[string]int{}, ByEntityType: map[string]int{}, ByEntityAndChange: map[string]map[string]int{}}
 	for _, t := range ChangeTypes {
 		s.ByChangeType[t] = 0
 	}
 	for _, t := range EntityTypes {
 		s.ByEntityType[t] = 0
+		s.ByEntityAndChange[t] = map[string]int{}
+		for _, c := range ChangeTypes {
+			s.ByEntityAndChange[t][c] = 0
+		}
 	}
 	return s
 }
@@ -543,6 +547,10 @@ func (r *ScanChangesRepository) countsByPair(ctx context.Context, sc *scope.Data
 		summary.Total += n
 		summary.ByChangeType[p.changeType] += n
 		summary.ByEntityType[p.entityType] += n
+		if summary.ByEntityAndChange[p.entityType] == nil {
+			summary.ByEntityAndChange[p.entityType] = map[string]int{}
+		}
+		summary.ByEntityAndChange[p.entityType][p.changeType] += n
 	}
 	return summary, counts, rows.Err()
 }

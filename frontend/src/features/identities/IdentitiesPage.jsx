@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ArrowDownWideNarrow, ArrowUpNarrowWide, Copy, Fingerprint, SearchX } from 'lucide-react';
 import { countIdentities, fetchFilters, fetchIdentities, fetchTopOwners } from '../../lib/api/inventory';
@@ -83,8 +83,16 @@ export default function IdentitiesPage() {
   /* A link from elsewhere (`/identities?search=<arn>`) changes the URL while
      the page is mounted; the box follows it. */
   const urlSearch = searchParams.get('search') || '';
+  /* Only a change made elsewhere (a link, a removed chip, Clear all, Back)
+     is copied into the box. The value this page wrote itself is not: when the
+     debounce wrote "abc" while "abcd" was already typed, copying it back reset
+     the box mid-typing and the search ran on the cut-off term - which is why
+     a search for a record on the list could come back empty. */
+  const writtenSearch = useRef(urlSearch);
   useEffect(() => {
-    setSearchDraft((draft) => (draft.trim() === urlSearch ? draft : urlSearch));
+    if (urlSearch === writtenSearch.current) return;
+    writtenSearch.current = urlSearch;
+    setSearchDraft(urlSearch);
   }, [urlSearch]);
 
   useEffect(() => {
@@ -95,6 +103,7 @@ export default function IdentitiesPage() {
     if (value) next.set('search', value);
     else next.delete('search');
     next.delete('page');
+    writtenSearch.current = value;
     setSearchParams(next, { replace: true });
     // Only a settled draft writes the URL; the URL writing back is handled above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -130,6 +139,58 @@ export default function IdentitiesPage() {
     [],
   );
   const counts = countsQuery.data;
+
+  /* Rail counts that follow the other filters. Each group is counted over the
+     list as every *other* active filter narrows it (values inside one group
+     combine with OR, so a group never narrows its own counts), and each risk
+     signal is counted the same way. With nothing applied the scope-wide
+     figures above are already right. Without this, "Lambda function 10" sat
+     beside a seven-row list and read as a filter that did nothing. */
+  const activeFilterKey = JSON.stringify({ ...filters, page: 1, pageSize: 25, sortBy: '', sortOrder: '' });
+  const anyFilter = FILTER_PARAMS.some((param) => searchParams.get(param));
+  const railCountsQuery = useQuery(
+    async (signal) => {
+      if (!anyFilter) return null;
+      const base = { ...filters, page: 1 };
+      const without = (keys) => {
+        const next = { ...base };
+        for (const key of keys) next[key] = Array.isArray(next[key]) ? [] : '';
+        return next;
+      };
+      const tally = async (query, field) => {
+        const out = {};
+        let page = 1;
+        let total = Infinity;
+        let seen = 0;
+        while (seen < total && page <= 5) {
+          const result = await fetchIdentities({ ...query, page, pageSize: 100 }, signal);
+          total = result.total;
+          for (const row of result.rows) {
+            const key = String(row[field] ?? '').toLowerCase();
+            out[key] = (out[key] ?? 0) + 1;
+          }
+          seen += result.rows.length;
+          if (result.rows.length === 0) break;
+          page += 1;
+        }
+        return seen < total ? null : out; // too large to count here: fall back to scope-wide counts
+      };
+      const signalKeys = ['isPublic', 'minIdleDays', 'shadow'];
+      const [type, cls, env, status, isPublic, stale, idle, shadow] = await Promise.all([
+        tally(without(['identityType']), 'identity_type'),
+        tally(without(['functionalClass']), 'functional_class'),
+        tally(without(['environment']), 'environment'),
+        tally(without(['status']), 'status'),
+        countIdentities({ ...without(signalKeys), isPublic: 'true' }, signal),
+        countIdentities({ ...without(signalKeys), minIdleDays: 90 }, signal),
+        countIdentities({ ...without(signalKeys), minIdleDays: 30 }, signal),
+        countIdentities({ ...without(signalKeys), shadow: 'true' }, signal),
+      ]);
+      return { type, class: cls, env, status, signals: { public: isPublic, stale, idle, shadow } };
+    },
+    [activeFilterKey, anyFilter],
+  );
+  const railCounts = anyFilter ? railCountsQuery.data : null;
 
   const update = useCallback(
     (mutate) => {
@@ -223,12 +284,18 @@ export default function IdentitiesPage() {
       key,
       label,
       note,
+      onSelectAll: (values) =>
+        update((next) => {
+          if (values.length) next.set(param, values.map((value) => String(value).toLowerCase()).join(','));
+          else next.delete(param);
+        }),
       options: (entries ?? [])
         .filter((entry) => allowed.has(String(entry[valueKey]).toLowerCase()) && Number(entry.count) > 0)
         .map((entry) => ({
           value: entry[valueKey],
           label: describe(entry[valueKey]),
-          count: Number(entry.count),
+          /* With other filters on, the count under them (0 is shown as 0). */
+          count: railCounts?.[key] ? railCounts[key][String(entry[valueKey]).toLowerCase()] ?? 0 : Number(entry.count),
           active: splitList(searchParams.get(param)).some((value) => value.toLowerCase() === String(entry[valueKey]).toLowerCase()),
         })),
       onToggle: (value) => toggleListValue(param, value),
@@ -240,7 +307,7 @@ export default function IdentitiesPage() {
         options: SIGNALS.map((signal) => ({
           value: signal.key,
           label: signal.label,
-          count: counts ? counts[signal.key] : undefined,
+          count: railCounts?.signals ? railCounts.signals[signal.key] : counts ? counts[signal.key] : undefined,
           active: searchParams.get(signal.param) === signal.value,
         })),
         onToggle: (value) => {
@@ -275,7 +342,7 @@ export default function IdentitiesPage() {
         defaultOpen: false,
       },
     ];
-  }, [facets, ownersQuery.data, counts, searchParams, toggleListValue, toggleParam]);
+  }, [facets, ownersQuery.data, counts, railCounts, searchParams, toggleListValue, toggleParam, update]);
 
   const rows = query.data?.rows ?? [];
   const total = query.data?.total ?? 0;
@@ -440,6 +507,18 @@ export default function IdentitiesPage() {
       <PageHeader
         title="Identities"
         lede="Workloads, services and automations that act in your AWS accounts. Select one to see what it can do, who can use it and what it did."
+        /* The views are lenses on the same identities, not a breakdown of the
+           total: an identity unused for 90 days is also idle for 30, and a
+           public one can be idle too. Said once, where the numbers are, so
+           nobody tries to add them up. */
+        meta={
+          counts ? (
+            <p className="text-[11.5px] text-ink-3">
+              {formatNumber(counts.all)} identities in your scope. The views below overlap - one identity can be in several - so
+              their counts do not add up to the total.
+            </p>
+          ) : null
+        }
         tabs={
           <Tabs
             size="sm"
@@ -450,6 +529,7 @@ export default function IdentitiesPage() {
                 value: preset.key,
                 label: preset.label,
                 count: counts ? counts[preset.countKey] : undefined,
+                title: preset.key === 'idle' ? 'Includes the identities unused for 90+ days' : undefined,
               })),
               ...(activePreset === null ? [{ value: 'custom', label: 'Custom filter' }] : []),
             ]}

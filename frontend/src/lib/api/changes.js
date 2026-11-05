@@ -104,6 +104,7 @@ export async function fetchScanChanges({ scanId, changeType, entityType, page = 
       total: Number(summary.total) || 0,
       byChangeType: summary.by_change_type ?? {},
       byEntityType: summary.by_entity_type ?? {},
+      byEntityAndChange: summary.by_entity_and_change ?? null,
     },
     changes: list(data?.changes).map(shapeChange),
     pagination: {

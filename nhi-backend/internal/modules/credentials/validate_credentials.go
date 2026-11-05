@@ -5,7 +5,7 @@ var credentialsListAllowed = map[string]struct{}{
 	"credential_type": {}, "status": {}, "owner_principal_arn": {},
 	"rotation_enabled": {}, "rotation_overdue": {},
 	"is_orphaned": {}, "has_external_trust": {},
-	"min_idle_days": {}, "max_days_until_expiry": {},
+	"min_idle_days": {}, "max_days_until_expiry": {}, "expired": {},
 	"sort_by": {}, "sort_order": {},
 }
 

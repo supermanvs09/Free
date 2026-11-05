@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, GitCompareArrows, History, SearchX } from 'lucide-react';
 import { fetchScanChanges, fetchScans, scanChangesRoute } from '../../lib/api/changes';
@@ -16,6 +16,7 @@ import { ListSkeleton, Skeleton } from '../../ui/Skeleton';
 import { EmptyState, ErrorState } from '../../ui/States';
 import { SegmentedControl } from '../../ui/Tabs';
 import { Tag } from '../../ui/Tag';
+import { TableSettings } from '../../ui/TableTools';
 import { cn } from '../../ui/cn';
 import { CHANGE_GRID, CHANGE_META, CHANGE_TYPES, ChangeRow, ENTITY_META, ENTITY_TYPES } from './parts';
 
@@ -77,6 +78,38 @@ export default function ScanChangesPage() {
     setSearchParams(next, { replace: true });
   };
   const clearFilters = () => setParams({ change_type: '', entity_type: '' });
+
+  /* Counts that follow the other filter. With the list narrowed to one
+     entity type (the Identities page's "Review the changes" opens it that
+     way), "Created (12)" counted every entity type and so promised rows the
+     list did not have; with a change type chosen, the entity menu did the
+     same. Each count now counts what its choice would actually list. */
+  const countFor = (type, entity) => {
+    if (!summary) return 0;
+    const cross = summary.byEntityAndChange;
+    if (entity && type) return cross ? cross[entity]?.[type] ?? 0 : null;
+    if (entity) return summary.byEntityType[entity] ?? 0;
+    if (type) return summary.byChangeType[type] ?? 0;
+    return summary.total;
+  };
+  const listRef = useRef(null);
+  const showList = () =>
+    window.requestAnimationFrame(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  const [density, setDensity] = useState(() => {
+    try {
+      return localStorage.getItem('dna.changes.density') === 'compact' ? 'compact' : 'comfortable';
+    } catch {
+      return 'comfortable';
+    }
+  });
+  const setDensityPref = (value) => {
+    setDensity(value);
+    try {
+      localStorage.setItem('dna.changes.density', value);
+    } catch {
+      /* per-viewer convenience */
+    }
+  };
 
   const data = query.data;
   const scan = data?.scan;
@@ -167,8 +200,15 @@ export default function ScanChangesPage() {
           summary={summary}
           changeType={changeType}
           entityType={entityType}
-          onChangeType={(value) => setParams({ change_type: value === changeType ? '' : value })}
-          onEntityType={(value) => setParams({ entity_type: value === entityType ? '' : value })}
+          countFor={countFor}
+          onChangeType={(value) => {
+            setParams({ change_type: value === changeType ? '' : value });
+            showList();
+          }}
+          onEntityType={(value) => {
+            setParams({ entity_type: value === entityType ? '' : value });
+            showList();
+          }}
         />
       )}
 
@@ -176,18 +216,18 @@ export default function ScanChangesPage() {
         <ScanHistory scans={scansQuery.data} currentId={scan?.id} onOpen={(id) => navigate(scanChangesRoute(id))} />
       )}
 
-      <Panel prominence="lead" flush className="overflow-hidden">
+      <Panel ref={listRef} prominence="lead" flush className="scroll-mt-28 overflow-hidden" data-list-top="">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
           <SegmentedControl
             label="Change type"
             value={changeType || 'all'}
             onChange={(value) => setParams({ change_type: value === 'all' ? '' : value })}
             options={[
-              { value: 'all', label: `All${summary ? ` (${formatNumber(summary.total)})` : ''}` },
-              ...CHANGE_TYPES.map((type) => ({
-                value: type,
-                label: `${CHANGE_META[type].filter}${summary ? ` (${formatNumber(summary.byChangeType[type] ?? 0)})` : ''}`,
-              })),
+              { value: 'all', label: `All${summary ? ` (${formatNumber(countFor('', entityType))})` : ''}` },
+              ...CHANGE_TYPES.map((type) => {
+                const n = countFor(type, entityType);
+                return { value: type, label: `${CHANGE_META[type].filter}${summary && n !== null ? ` (${formatNumber(n)})` : ''}` };
+              }),
             ]}
           />
           <div className="flex flex-wrap items-center gap-2">
@@ -199,12 +239,13 @@ export default function ScanChangesPage() {
               className="min-w-[11rem]"
               options={[
                 { value: '', label: 'All entity types' },
-                ...ENTITY_TYPES.map((type) => ({
-                  value: type,
-                  label: `${ENTITY_META[type].plural}${summary ? ` (${formatNumber(summary.byEntityType[type] ?? 0)})` : ''}`,
-                })),
+                ...ENTITY_TYPES.map((type) => {
+                  const n = countFor(changeType, type);
+                  return { value: type, label: `${ENTITY_META[type].plural}${summary && n !== null ? ` (${formatNumber(n)})` : ''}` };
+                }),
               ]}
             />
+            <TableSettings density={density} onDensityChange={setDensityPref} />
             {filtered && (
               <Button variant="ghost" size="sm" onClick={clearFilters}>
                 Clear filters
@@ -215,7 +256,7 @@ export default function ScanChangesPage() {
 
         <div
           aria-hidden="true"
-          className={cn('hidden gap-x-4 border-b border-line bg-surface-2 px-5 py-2 text-[11px] font-medium text-ink-3 @min-[56rem]:grid', CHANGE_GRID)}
+          className={cn('hidden items-center gap-x-4 border-b border-line bg-surface-2 px-4 py-2 text-[11px] font-medium text-ink-3 sm:px-5 @min-[56rem]:grid', CHANGE_GRID)}
         >
           <span>Change</span>
           <span>Entity</span>
@@ -234,7 +275,7 @@ export default function ScanChangesPage() {
         ) : (
           <ul aria-busy={query.isRefreshing || undefined} className={cn('transition-opacity', (query.isRefreshing || query.isLoading) && 'opacity-60')}>
             {data.changes.map((change) => (
-              <ChangeRow key={change.id} change={change} />
+              <ChangeRow key={change.id} change={change} density={density} />
             ))}
           </ul>
         )}
@@ -254,7 +295,7 @@ export default function ScanChangesPage() {
   );
 }
 
-function SummaryPanel({ scan, summary, changeType, entityType, onChangeType, onEntityType }) {
+function SummaryPanel({ scan, summary, changeType, entityType, countFor, onChangeType, onEntityType }) {
   const first = !scan?.previousScanId;
   const duration = scanDuration(scan);
   const entityTotal = ENTITY_TYPES.reduce((sum, type) => sum + (summary.byEntityType[type] ?? 0), 0);
@@ -300,17 +341,29 @@ function SummaryPanel({ scan, summary, changeType, entityType, onChangeType, onE
 
         <div className="flex min-w-0 flex-col gap-5">
           <div className="grid gap-3 @min-[40rem]:grid-cols-[minmax(0,0.8fr)_repeat(3,minmax(0,1fr))]">
-            <div className="rounded-[var(--radius-control)] border border-line bg-surface-2 px-4 py-3">
-              <p className="text-[11px] font-medium text-ink-3">Total changes</p>
-              <p data-numeric="" className="mt-1 text-[26px] leading-none font-bold text-ink">
-                {formatNumber(summary.total)}
+            {/* Every card is a filter: Total shows them all again. */}
+            <button
+              type="button"
+              aria-pressed={!changeType}
+              onClick={() => onChangeType(changeType || '')}
+              title="Show every change type"
+              className={cn(
+                'rounded-[var(--radius-control)] border px-4 py-3 text-left transition-shadow hover:shadow-sm',
+                !changeType ? 'border-brand/45 bg-info-soft ring-1 ring-brand/25' : 'border-line bg-surface-2',
+              )}
+            >
+              <p className="text-[11px] font-medium text-ink-3">
+                {entityType ? `All ${ENTITY_META[entityType].plural.toLowerCase()} changes` : 'Total changes'}
               </p>
-            </div>
+              <p data-numeric="" className="mt-1 text-[26px] leading-none font-bold text-ink">
+                {formatNumber(countFor('', entityType))}
+              </p>
+            </button>
             {CHANGE_TYPES.map((type) => {
               const meta = CHANGE_META[type];
               const Icon = meta.icon;
               const style = STAT_STYLE[type];
-              const count = summary.byChangeType[type] ?? 0;
+              const count = countFor(type, entityType) ?? summary.byChangeType[type] ?? 0;
               const active = changeType === type;
               return (
                 <button
@@ -350,7 +403,7 @@ function SummaryPanel({ scan, summary, changeType, entityType, onChangeType, onE
             </div>
             <ul className="mt-2.5 flex flex-wrap gap-x-1 gap-y-1">
               {ENTITY_TYPES.map((type) => {
-                const count = summary.byEntityType[type] ?? 0;
+                const count = countFor(changeType, type) ?? summary.byEntityType[type] ?? 0;
                 const active = entityType === type;
                 return (
                   <li key={type}>

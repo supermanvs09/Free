@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowDownWideNarrow, ArrowUpNarrowWide, KeyRound, SearchX } from 'lucide-react';
 import { countCredentials, fetchCredentials, fetchFilters } from '../../lib/api/inventory';
@@ -39,8 +39,11 @@ import { CredentialDrawer } from './CredentialDrawer';
 
 /* Risk flags: each is exactly one parameter of `GET /api/v1/credentials`. */
 const FLAGS = [
-  { key: 'expired', label: 'Already expired', param: 'max_days_until_expiry', value: '0', tone: 'critical', query: { maxDaysUntilExpiry: 0 } },
-  { key: 'expiring', label: 'Expires within 30 days', param: 'max_days_until_expiry', value: '30', tone: 'high', query: { maxDaysUntilExpiry: 30 }, note: 'includes expired' },
+  { key: 'expired', label: 'Already expired', param: 'expired', value: 'true', tone: 'critical', query: { expired: 'true' } },
+  /* Still to come: expired credentials are their own row above, not part of
+     this one (they used to be, so "expires within 30 days" listed credentials
+     that lapsed months ago). */
+  { key: 'expiring', label: 'Expires within 30 days', param: 'max_days_until_expiry', value: '30', tone: 'high', query: { maxDaysUntilExpiry: 30 } },
   { key: 'overdue', label: 'Rotation overdue', param: 'rotation_overdue', value: 'true', tone: 'high', query: { rotationOverdue: 'true' } },
   { key: 'noRotation', label: 'Rotation disabled', param: 'rotation_enabled', value: 'false', tone: 'medium', query: { rotationEnabled: 'false' } },
   { key: 'stale', label: 'Unused 90+ days', param: 'min_idle_days', value: '90', tone: 'medium', query: { minIdleDays: 90 } },
@@ -99,6 +102,7 @@ function readQuery(searchParams) {
       isOrphaned: boolParam('is_orphaned'),
       hasExternalTrust: boolParam('has_external_trust'),
       maxDaysUntilExpiry: intParam('max_days_until_expiry'),
+      expired: boolParam('expired'),
       minIdleDays: intParam('min_idle_days'),
       sortBy: sortKey ? column : undefined,
       sortOrder: sortKey ? (desc ? 'desc' : 'asc') : undefined,
@@ -133,8 +137,16 @@ export default function CredentialsPage() {
   const [searchDraft, setSearchDraft] = useState(() => searchParams.get('search') || '');
   const debouncedSearch = useDebouncedValue(searchDraft, 320);
   const urlSearch = searchParams.get('search') || '';
+  /* Only a change made elsewhere (a link, a removed chip, Clear all, Back)
+     is copied into the box. The value this page wrote itself is not: when the
+     debounce wrote "abc" while "abcd" was already typed, copying it back reset
+     the box mid-typing and the search ran on the cut-off term - which is why
+     a search for a record on the list could come back empty. */
+  const writtenSearch = useRef(urlSearch);
   useEffect(() => {
-    setSearchDraft((draft) => (draft.trim() === urlSearch ? draft : urlSearch));
+    if (urlSearch === writtenSearch.current) return;
+    writtenSearch.current = urlSearch;
+    setSearchDraft(urlSearch);
   }, [urlSearch]);
   useEffect(() => {
     const value = debouncedSearch.trim();
@@ -143,6 +155,7 @@ export default function CredentialsPage() {
     if (value) next.set('search', value);
     else next.delete('search');
     next.delete('page');
+    writtenSearch.current = value;
     setSearchParams(next, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch]);
@@ -184,11 +197,20 @@ export default function CredentialsPage() {
       else next.delete(param);
     });
 
-  const toggleFlag = (flag) =>
+  /* A card or a Rotation queue bar filters the list - and brings the list
+     into view, since it sits below them: applying a filter out of sight read
+     as "nothing happened". */
+  const listRef = useRef(null);
+  const showList = () =>
+    window.requestAnimationFrame(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  const toggleFlag = (flag) => {
     update((next) => {
       if (next.get(flag.param) === flag.value) next.delete(flag.param);
       else next.set(flag.param, flag.value);
     });
+    showList();
+  };
+  const flagByKey = (key) => FLAGS.find((flag) => flag.key === key);
 
   const clearAll = () => {
     update((next) => FILTER_PARAMS.forEach((param) => next.delete(param)));
@@ -256,6 +278,13 @@ export default function CredentialsPage() {
           active: filters.credentialType.includes(entry.type),
         })),
       onToggle: (value) => toggleList('credential_type', value),
+      /* Values in one group combine (any of them); "Select all" / "Clear"
+         set the whole group in one go. */
+      onSelectAll: (values) =>
+        update((next) => {
+          if (values.length) next.set('credential_type', values.join(','));
+          else next.delete('credential_type');
+        }),
       note: 'Roles that a workload uses are listed here as credentials. Stand-alone roles, such as cross-account roles, also appear on Identities.',
     },
     {
@@ -268,6 +297,13 @@ export default function CredentialsPage() {
         active: filters.status.includes(status),
       })),
       onToggle: (value) => toggleList('status', value),
+      /* Values in one group combine (any of them); "Select all" / "Clear"
+         set the whole group in one go. */
+      onSelectAll: (values) =>
+        update((next) => {
+          if (values.length) next.set('status', values.join(','));
+          else next.delete('status');
+        }),
     },
   ];
 
@@ -442,8 +478,10 @@ export default function CredentialsPage() {
         <div className="grid gap-3 @min-[30rem]:grid-cols-2 @min-[54rem]:grid-cols-4">
           <MetricTile label="Credentials in scope" value={counts.total} tone="brand" caption="Roles, keys, secrets and certificates in your accounts" className="animate-rise" />
           <MetricTile
-            as={Link}
-            to="?rotation_overdue=true"
+            as="button"
+            type="button"
+            onClick={() => toggleFlag(flagByKey('overdue'))}
+            aria-pressed={searchParams.get('rotation_overdue') === 'true'}
             label="Rotation overdue"
             value={counts.flags.overdue}
             tone="high"
@@ -453,8 +491,10 @@ export default function CredentialsPage() {
             className="animate-rise"
           />
           <MetricTile
-            as={Link}
-            to="?max_days_until_expiry=30"
+            as="button"
+            type="button"
+            onClick={() => toggleFlag(flagByKey('expiring'))}
+            aria-pressed={searchParams.get('max_days_until_expiry') === '30'}
             label="Expiring in 30 days"
             value={counts.flags.expiring}
             tone="critical"
@@ -462,8 +502,10 @@ export default function CredentialsPage() {
             className="animate-rise"
           />
           <MetricTile
-            as={Link}
-            to="?is_orphaned=true"
+            as="button"
+            type="button"
+            onClick={() => toggleFlag(flagByKey('orphaned'))}
+            aria-pressed={searchParams.get('is_orphaned') === 'true'}
             label="Orphaned"
             value={counts.flags.orphaned}
             tone="medium"
@@ -523,7 +565,7 @@ export default function CredentialsPage() {
         railOpen={railOpen}
         rail={<FacetRail groups={facetGroups} appliedCount={chips.length} onClearAll={clearAll} onClose={toggleRail} mobileTitle="Filter credentials" />}
       >
-        <Panel prominence="lead" flush className="animate-rise overflow-hidden">
+        <Panel ref={listRef} prominence="lead" flush className="animate-rise scroll-mt-28 overflow-hidden">
           <RecordBar
             trailing={
               <TableToolbar>

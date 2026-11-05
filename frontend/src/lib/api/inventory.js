@@ -145,6 +145,7 @@ export async function fetchCredentials(query = {}, signal) {
       has_external_trust: query.hasExternalTrust,
       min_idle_days: query.minIdleDays,
       max_days_until_expiry: query.maxDaysUntilExpiry,
+      expired: query.expired,
       sort_by: query.sortBy,
       sort_order: query.sortOrder,
     }),

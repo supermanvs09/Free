@@ -65,6 +65,11 @@ type ScanChangeSummary struct {
 	Total        int            `json:"total"`
 	ByChangeType map[string]int `json:"by_change_type"`
 	ByEntityType map[string]int `json:"by_entity_type"`
+	// ByEntityAndChange is the cross count: entity type -> change type -> n.
+	// A screen filtered to one entity type (the Identities page's "Review the
+	// changes") reads its tab counts from here, so "Created (n)" always
+	// matches the rows the filtered list returns.
+	ByEntityAndChange map[string]map[string]int `json:"by_entity_and_change"`
 }
 
 // CloudTrailEvidence is the CloudTrail event that created or deleted the

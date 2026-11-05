@@ -24,6 +24,10 @@ type CredentialListFilter struct {
 
 	MinIdleDays        *int
 	MaxDaysUntilExpiry *int
+	// Expired keeps credentials whose expiry is already past (true) or not
+	// past / without expiry (false). max_days_until_expiry no longer includes
+	// expired ones, so this is how they are listed.
+	Expired *bool
 
 	SortBy    string
 	SortOrder string
