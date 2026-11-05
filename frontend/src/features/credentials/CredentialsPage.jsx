@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { ArrowDownWideNarrow, ArrowUpNarrowWide, KeyRound, SearchX } from 'lucide-react';
 import { countCredentials, fetchCredentials, fetchFilters } from '../../lib/api/inventory';
 import { useDebouncedValue, useQuery } from '../../lib/hooks';

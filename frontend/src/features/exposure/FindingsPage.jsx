@@ -158,11 +158,27 @@ export default function FindingsPage() {
     [selected, allFindings],
   );
 
+  /* Filters belong to the list they were set on. Each list is a different
+     record set, so switching lists (or platform tabs) starts from a clean
+     slate - filters kept from another list hid rows and made the new list
+     look wrong. */
+  const resetFilters = () => {
+    setTier('');
+    setDetector('');
+    setRepository('');
+    setVerdict('');
+    setCategory('');
+    setConfidence('');
+    setVisibility('');
+    setSearch('');
+    setRepeatBucket('');
+  };
   const switchSource = (next) => {
     const params = new URLSearchParams(searchParams);
     if (next === 'live') params.delete('set');
     else params.set('set', next);
-    setRepeatBucket('');
+    params.delete('search');
+    resetFilters();
     setSearchParams(params, { replace: true });
     setSelected(null);
     setPage(1);
@@ -193,6 +209,11 @@ export default function FindingsPage() {
       /* The enrichment is searchable too: a commit message is often the fastest
          way back to a finding somebody described in a ticket. */
       return [
+        /* The finding's own id and commit: an id copied from a ticket or
+           an alert found nothing before. */
+        finding.finding_id,
+        finding.commit_id,
+        finding.redacted,
         finding.repository,
         finding.file_path,
         finding.author,
@@ -576,7 +597,7 @@ export default function FindingsPage() {
     {
       key: 'risk',
       header: 'Risk',
-      width: '10%',
+      width: '13%',
       sortable: true,
       cell: (row) => {
         const meta = severityMeta(row.risk_tier);
@@ -606,7 +627,7 @@ export default function FindingsPage() {
     {
       key: 'author',
       header: 'Committed by',
-      width: '16%',
+      width: '13%',
       priority: 'wide',
       cell: (row) => {
         const author = parseAuthor(row.author);
@@ -654,7 +675,10 @@ export default function FindingsPage() {
           <Tabs
             size="sm"
             value={platform}
-            onChange={withReset(setPlatform)}
+            onChange={withReset((value) => {
+              resetFilters();
+              setPlatform(value);
+            })}
             tabs={[
               { value: 'all', label: 'All platforms', count: summary.total },
               { value: 'github', label: 'GitHub', count: summary.byPlatform.github },
@@ -683,7 +707,10 @@ export default function FindingsPage() {
         {LIST_ORDER.map((key) => {
           const entry = LISTS[key];
           const active = key === listKey;
-          const count = listCounts?.[entry.countKey];
+          /* The server's list counts cover every platform. On the GitHub or
+             CodeCommit tab they promised rows the list did not have, so there
+             the open list counts its own rows and the others show no number. */
+          const count = platform === 'all' ? listCounts?.[entry.countKey] : active && !loading ? platformFiltered.length : undefined;
           return (
             <button
               key={key}
@@ -787,7 +814,7 @@ export default function FindingsPage() {
             size="sm"
             value={search}
             onChange={withReset(setSearch)}
-            placeholder="Search repository, file, branch, kind of secret or person…"
+            placeholder="Search id, repository, file, commit, kind of secret or person…"
             className="w-full min-w-0 sm:max-w-sm"
           />
           <ResultCount

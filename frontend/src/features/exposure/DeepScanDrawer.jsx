@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { fetchDeepScanStatus, startDeepScan } from '../../lib/api/exposure';
 import { normalisePlatform, platformMeta } from '../../lib/domain';
-import { formatDateTime, formatNumber, formatRelative } from '../../lib/format';
+import { formatDateTime, formatNumber, formatRelative, parseDate } from '../../lib/format';
 import { Button } from '../../ui/Button';
 import { Field, Input, SearchInput } from '../../ui/Field';
 import { Drawer } from '../../ui/Overlay';
@@ -68,6 +68,7 @@ export function DeepScanDrawer({ open, onClose, findings = [] }) {
   const [manualClient, setManualClient] = useState('');
   const [manualRepo, setManualRepo] = useState('');
   const [manualError, setManualError] = useState('');
+  const [manualFieldErrors, setManualFieldErrors] = useState({});
   /* Repositories the operator named by hand, so a repository with no findings
      yet - which is exactly the case a deep scan is for - can still be asked
      for. Kept beside the discovered list rather than merged into it, because
@@ -107,6 +108,12 @@ export function DeepScanDrawer({ open, onClose, findings = [] }) {
     const seen = new Set(discovered.map((row) => row.key));
     return [...discovered, ...manualTargets.filter((row) => !seen.has(row.key))];
   }, [discovered, manualTargets]);
+
+  /* Client ids the scanner has repositories for (from the findings). */
+  const knownClients = useMemo(
+    () => [...new Set(findings.map((finding) => String(finding.client_id || '').trim()).filter(Boolean))].sort(),
+    [findings],
+  );
 
   const visible = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -152,8 +159,21 @@ export function DeepScanDrawer({ open, onClose, findings = [] }) {
       event.preventDefault();
       const clientId = manualClient.trim();
       const repository = manualRepo.trim();
-      if (!clientId || !repository) {
-        setManualError('Both a client id and a repository are required.');
+      /* Each field says what is wrong with it, under it - one generic line
+         ("both are required") gave no hint which one was missing. */
+      const errors = {};
+      if (!clientId) errors.client = 'Enter the client id.';
+      else if (knownClients.length > 0 && !knownClients.includes(clientId)) {
+        /* Checked here, before the request: the service only knows clients
+           it has scanned, and a typo used to be accepted by the form and
+           refused only after "Request deep scan". */
+        errors.client = `No scanned repositories for "${clientId}" in your workspace. Use one of: ${knownClients.slice(0, 4).join(', ')}${knownClients.length > 4 ? '…' : ''}.`;
+      }
+      if (!repository) errors.repo = 'Enter the repository name.';
+      else if (/\s/.test(repository)) errors.repo = 'A repository name has no spaces.';
+      setManualFieldErrors(errors);
+      if (Object.keys(errors).length > 0) {
+        setManualError('');
         return;
       }
       const key = `${clientId}␟${repository}`;
@@ -173,7 +193,7 @@ export function DeepScanDrawer({ open, onClose, findings = [] }) {
       setManualClient('');
       setManualRepo('');
     },
-    [manualClient, manualRepo, targets],
+    [manualClient, manualRepo, targets, knownClients],
   );
 
   const counts = useMemo(() => {
@@ -194,7 +214,7 @@ export function DeepScanDrawer({ open, onClose, findings = [] }) {
       title="Deep scan"
       subtitle="Walk a repository's whole history, not just the files as they are now."
       footer={
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex w-full flex-wrap items-center justify-between gap-3">
           <p className="text-[11.5px] text-ink-3">
             {counts.running > 0
               ? `Polling every ${DEEP_SCAN_POLL_MS / 1000} seconds while a walk is running.`
@@ -206,7 +226,9 @@ export function DeepScanDrawer({ open, onClose, findings = [] }) {
         </div>
       }
     >
-      <div className="flex flex-col gap-4">
+      {/* The drawer body has no padding of its own; without this the panels
+          ran into the drawer's edges and the layout read as broken. */}
+      <div className="flex flex-col gap-4 p-4 sm:p-5">
         {/* Why anybody would run this, before the controls that run it. A
             control whose cost is "reads every commit you have ever pushed"
             should not be offered without saying what it buys. */}
@@ -291,32 +313,48 @@ export function DeepScanDrawer({ open, onClose, findings = [] }) {
             The list above is built from findings, so a repository the scanner has never flagged is
             not on it.
           </p>
-          <form className="mt-3 flex flex-wrap items-end gap-3" onSubmit={onAddManual}>
-            <Field label="Client id" htmlFor="deep-client" className="min-w-[12rem] flex-1">
+          <form noValidate className="mt-3 grid items-start gap-3 @min-[34rem]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]" onSubmit={onAddManual}>
+            <Field label="Client id" htmlFor="deep-client" required error={manualFieldErrors.client}>
               <Input
                 id="deep-client"
+                list="deep-client-options"
                 value={manualClient}
-                onChange={(event) => setManualClient(event.target.value)}
-                placeholder="e.g. test-sample-client"
+                invalid={Boolean(manualFieldErrors.client)}
+                onChange={(event) => {
+                  setManualClient(event.target.value);
+                  if (manualFieldErrors.client) setManualFieldErrors((prev) => ({ ...prev, client: undefined }));
+                }}
+                placeholder={knownClients[0] ? `e.g. ${knownClients[0]}` : 'e.g. test-sample-client'}
+                autoComplete="off"
               />
+              <datalist id="deep-client-options">
+                {knownClients.map((client) => (
+                  <option key={client} value={client} />
+                ))}
+              </datalist>
             </Field>
-            <Field
-              label="Repository"
-              htmlFor="deep-repo"
-              className="min-w-[13rem] flex-1"
-              hint="A bare name for CodeCommit, owner/repo for GitHub."
-            >
+            <Field label="Repository" htmlFor="deep-repo" required error={manualFieldErrors.repo}>
               <Input
                 id="deep-repo"
                 value={manualRepo}
-                onChange={(event) => setManualRepo(event.target.value)}
+                invalid={Boolean(manualFieldErrors.repo)}
+                onChange={(event) => {
+                  setManualRepo(event.target.value);
+                  if (manualFieldErrors.repo) setManualFieldErrors((prev) => ({ ...prev, repo: undefined }));
+                }}
                 placeholder="e.g. test-sample"
               />
             </Field>
-            <Button type="submit" variant="secondary">
-              Add
-            </Button>
+            {/* Lined up with the inputs, not with the bottom of the tallest
+                field: the label row above the inputs is matched by a spacer. */}
+            <div className="flex flex-col gap-1.5">
+              <span aria-hidden="true" className="hidden h-[19px] @min-[34rem]:block" />
+              <Button type="submit" variant="secondary">
+                Add
+              </Button>
+            </div>
           </form>
+          <p className="mt-2 text-[11.5px] text-ink-3">Repository: a bare name for CodeCommit, owner/repo for GitHub.</p>
           {manualError && <p className="mt-2 text-[12.5px] text-critical">{manualError}</p>}
           <p className="mt-2 text-[11.5px] leading-relaxed text-ink-3">
             Which platform a client is on comes from the scanner's own records, so nothing here says
@@ -326,6 +364,31 @@ export function DeepScanDrawer({ open, onClose, findings = [] }) {
         </div>
       </div>
     </Drawer>
+  );
+}
+
+/**
+ * How long a running walk has been going, so a long scan reads as working and
+ * not as stuck. A history walk reads every commit: a few minutes for a small
+ * repository, half an hour or more for a long-lived one.
+ */
+function RunningNote({ status }) {
+  const startedAt = parseDate(status?.started_at || status?.requested_at);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 15000);
+    return () => window.clearInterval(id);
+  }, []);
+  const minutes = startedAt ? Math.max(0, Math.floor((now - startedAt.getTime()) / 60000)) : null;
+  return (
+    <p className="mt-2 flex items-start gap-2 rounded-[var(--radius-control)] border border-info/25 bg-info-soft px-3 py-2 text-[12px] leading-relaxed text-ink-2" role="status">
+      <span aria-hidden="true" className="deep-scan-pulse mt-1.5" />
+      <span>
+        {minutes === null ? 'Reading the history now.' : minutes < 1 ? 'Started less than a minute ago.' : `Running for ${formatNumber(minutes)} minute${minutes === 1 ? '' : 's'}.`}{' '}
+        Every commit since the first is read, so a long history can take 30 minutes or more. You can close this panel - the
+        scan carries on, and new findings appear on Exposed credentials when it finishes.
+      </span>
+    </p>
   );
 }
 
@@ -392,12 +455,17 @@ function TargetRow({ row, state, pending, onRequest, onRefresh }) {
           {/* A plain button, not an icon-only one: "re-check" is not a glyph
               anybody recognises, and this row already carries a primary
               action whose label the reader has to tell it apart from. */}
+          {/* While a walk runs its status is polled automatically, so a manual
+              re-check adds nothing - and next to "Running" it read as a way to
+              start it again. It comes back once the walk has ended. */}
           <Button
             variant="ghost"
             size="sm"
             icon={RefreshCw}
             onClick={onRefresh}
             loading={state?.loading}
+            disabled={running}
+            title={running ? 'Checked automatically every few seconds while the scan runs' : undefined}
             aria-label={`Re-check the deep scan status for ${row.repository}`}
           >
             Re-check
@@ -456,6 +524,8 @@ function TargetRow({ row, state, pending, onRequest, onRefresh }) {
           )}
         </p>
       )}
+
+      {running && <RunningNote status={status} />}
 
       {failed && <FailureNote status={status} />}
 
