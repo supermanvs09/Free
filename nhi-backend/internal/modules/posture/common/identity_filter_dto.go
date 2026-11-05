@@ -10,9 +10,14 @@ const (
 	SortFailed    = "failed" // most failed checks first
 	SortChange    = "change" // biggest drop in the window first
 	SortName      = "name"
+	// The reverse of each, so every sortable column of the table sorts both
+	// ways (the console's headers toggle direction).
+	SortFailedAsc  = "-failed" // fewest failed checks first
+	SortChangeDesc = "-change" // biggest rise in the window first
+	SortNameDesc   = "-name"   // Z to A
 )
 
-var SortKeys = []string{SortScore, SortScoreDesc, SortFailed, SortChange, SortName}
+var SortKeys = []string{SortScore, SortScoreDesc, SortFailed, SortChange, SortName, SortFailedAsc, SortChangeDesc, SortNameDesc}
 
 // Values of ?changed=.
 const (

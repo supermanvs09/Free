@@ -168,6 +168,18 @@ function ScopeEditor({ open, current, onClose, onSaved }) {
   const accountOptions = useMemo(() => withSelected(options.data?.accounts, current.accounts), [options.data, current]);
   const regionOptions = useMemo(() => withSelected(options.data?.regions, current.regions), [options.data, current]);
 
+  /* A saved "all" (or a selection none of whose values is listed any more)
+     opened with every box clear, under a warning that an empty scope is not
+     allowed. It opens with every listed value ticked instead - which is what
+     "all" means. */
+  useEffect(() => {
+    if (!open || !options.data) return;
+    const fill = (list, setter) =>
+      setter((prev) => (list.length > 0 && !list.some((option) => prev.has(option.id)) ? new Set(list.map((option) => option.id)) : prev));
+    fill(accountOptions, setAccounts);
+    fill(regionOptions, setRegions);
+  }, [open, options.data, accountOptions, regionOptions]);
+
   const invalid = accounts.size === 0 || regions.size === 0;
 
   const onSave = async () => {
@@ -242,6 +254,7 @@ function ScopeEditor({ open, current, onClose, onSaved }) {
 function withSelected(list = [], selected = []) {
   const out = [...list];
   for (const id of selected) {
+    if (String(id).toLowerCase() === 'all') continue; // "all" is a choice, not a value to list
     if (!out.some((option) => option.id === id)) out.push({ id, identities: null });
   }
   return out.sort((a, b) => String(a.id).localeCompare(String(b.id)));
@@ -266,19 +279,28 @@ function ChoiceGroup({ label, options, selected, onToggle, onAll, mono, wide }) 
         <p className="mt-1.5 text-[12px] text-ink-3">Nothing has been discovered yet.</p>
       ) : (
         <div className={cn('mt-1.5 grid gap-0.5', !wide && 'sm:grid-cols-2')}>
-          {options.map((option) => (
+          {options.map((option) => {
+            /* The last ticked value cannot be cleared: an empty scope would
+               hide every figure, so the choice is never offered (with one
+               account there is nothing to choose at all). */
+            const locked = selected.has(option.id) && options.filter((entry) => selected.has(entry.id)).length === 1;
+            return (
             <label
               key={option.id}
+              title={locked ? `At least one ${label === 'Accounts' ? 'account' : 'region'} stays selected` : undefined}
               className={cn(
-                'flex cursor-pointer items-center gap-2.5 rounded-md px-1.5 py-1.5 text-[12.5px] transition-colors hover:bg-surface-2',
+                'flex items-center gap-2.5 rounded-md px-1.5 py-1.5 text-[12.5px] transition-colors',
+                locked ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-surface-2',
                 selected.has(option.id) ? 'text-ink' : 'text-ink-2',
               )}
             >
               <input
                 type="checkbox"
                 checked={selected.has(option.id)}
+                disabled={locked}
+                aria-describedby={locked ? `${label}-locked-note` : undefined}
                 onChange={() => onToggle(option.id)}
-                className="size-3.5 shrink-0 accent-[var(--t-brand)]"
+                className="size-3.5 shrink-0 accent-[var(--t-brand)] disabled:opacity-70"
               />
               <span className="flex min-w-0 flex-1 items-center gap-2">
                 <span className={cn('min-w-0 truncate', mono && 'font-mono text-[12px]')}>{option.id}</span>
@@ -302,8 +324,16 @@ function ChoiceGroup({ label, options, selected, onToggle, onAll, mono, wide }) 
                       .join(' · ')}
               </span>
             </label>
-          ))}
+            );
+          })}
         </div>
+      )}
+      {options.filter((entry) => selected.has(entry.id)).length === 1 && options.length > 0 && (
+        <p id={`${label}-locked-note`} className="mt-1 text-[11px] text-ink-3">
+          {options.length === 1
+            ? `This is the only ${label === 'Accounts' ? 'account' : 'region'}, so it is always included.`
+            : `At least one ${label === 'Accounts' ? 'account' : 'region'} must stay selected.`}
+        </p>
       )}
     </fieldset>
   );

@@ -23,6 +23,10 @@ type IdentityListFilter struct {
 
 	IsPubliclyAccessible *bool
 	MinIdleDays          *int
+	// Shadow keeps identities "created outside your normal process", by the
+	// dashboard's rule: no owner tag and no creator known from CloudTrail
+	// (without CloudTrail, no owner tag alone).
+	Shadow bool
 
 	SortBy    string
 	SortOrder string

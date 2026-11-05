@@ -157,6 +157,13 @@ func sortFor(key string, w common.Window) sortSpec {
 		return sortSpec{expr: "COALESCE(%s." + w.ChangeColumn + ", 1000000)"}
 	case common.SortName:
 		return sortSpec{expr: "COALESCE(%s.identity_name, '')"}
+	case common.SortFailedAsc:
+		return sortSpec{expr: "COALESCE(%s.checks_failed, 0)"}
+	case common.SortChangeDesc:
+		// biggest rise first; identities without history still go last
+		return sortSpec{expr: "COALESCE(%s." + w.ChangeColumn + ", -1000000)", desc: true}
+	case common.SortNameDesc:
+		return sortSpec{expr: "COALESCE(%s.identity_name, '')", desc: true}
 	}
 	return sortSpec{expr: "%s.score"}
 }

@@ -132,6 +132,9 @@ func (r *IdentitiesListRepository) GetIdentitiesList(ctx context.Context, resolv
 	if f.IsPubliclyAccessible != nil {
 		where = append(where, fmt.Sprintf("COALESCE(i.is_publicly_accessible, false) = %s", addArg(*f.IsPubliclyAccessible)))
 	}
+	if f.Shadow {
+		where = append(where, "(i.owner IS NULL OR BTRIM(i.owner) = '')")
+	}
 
 	sortKey := strings.ToLower(strings.TrimSpace(f.SortBy))
 	sortCol, ok := identitySortColumns[sortKey]
@@ -145,7 +148,10 @@ func (r *IdentitiesListRepository) GetIdentitiesList(ctx context.Context, resolv
 	}
 
 	derivedSort := derivedIdentitySorts[sortKey]
-	inGo := derivedSort || f.MinIdleDays != nil
+	// A shadow filter also needs CloudTrail's creators, which are only known
+	// in Go; without CloudTrail the SQL owner test is the whole rule.
+	shadowInGo := f.Shadow && src.Available()
+	inGo := derivedSort || f.MinIdleDays != nil || shadowInGo
 	sqlSortCol, sqlSortDir := sortCol, sortDir
 	if derivedSort {
 		sqlSortCol, sqlSortDir = "name", "ASC" // stable base order; Go re-sorts
@@ -283,6 +289,15 @@ func (r *IdentitiesListRepository) GetIdentitiesList(ctx context.Context, resolv
 				// Same rule as the dashboard's stale count: idle since the last
 				// recorded use, or since creation when it was never used.
 				if idle := identitygraph.EffectiveIdleDays(row.item.IdleDays, row.item.AgeDays); idle != nil && *idle >= *f.MinIdleDays {
+					kept = append(kept, row)
+				}
+			}
+			list = kept
+		}
+		if shadowInGo {
+			kept := list[:0]
+			for _, row := range list {
+				if row.item.CreatedBy == nil {
 					kept = append(kept, row)
 				}
 			}

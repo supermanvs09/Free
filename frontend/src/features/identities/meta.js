@@ -1,4 +1,4 @@
-import { NEUTRAL_SERIES, SERIES_TOKENS } from '../../lib/domain';
+import { CLASSIFICATIONS, NEUTRAL_SERIES, SERIES_TOKENS } from '../../lib/domain';
 import { titleCaseEnum } from '../../lib/format';
 
 /**
@@ -75,12 +75,40 @@ const CLASSES = {
   network: { label: 'Network', badge: 'NET', slot: 6 },
 };
 
+/* The classifier's own codes (NHI_SERVICE, HUMAN, NHI_CICD ...) - what the
+   inventory actually stores. They were missing here, so every category fell
+   through to the neutral grey and the dashboard's Identity mix donut drew all
+   of its slices in one colour. */
+const CLASSIFICATION_BADGES = {
+  HUMAN: 'HUM',
+  NHI_SERVICE: 'SVC',
+  NHI_AGENT: 'AGT',
+  NHI_CICD: 'CI',
+  NHI_SAAS: 'SAAS',
+  NHI_EPHEMERAL: 'EPH',
+  DUAL_IDENTITY: 'DUAL',
+  UNCLASSIFIED: '?',
+};
+
+/* A stable hue for a class neither list knows: the same name always gets the
+   same colour, and it is never the neutral grey kept for "not classified". */
+function hashedSlot(text) {
+  let hash = 0;
+  for (const ch of String(text)) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  return hash % (SERIES_TOKENS.length - 1);
+}
+
 export function functionalClassMeta(value) {
-  const entry = CLASSES[String(value || '').toLowerCase()];
-  if (!entry) {
-    return { label: value ? titleCaseEnum(value) : 'Not classified', badge: value ? String(value).slice(0, 3).toUpperCase() : '?', color: NEUTRAL_SERIES };
+  const raw = String(value || '').trim();
+  const entry = CLASSES[raw.toLowerCase()];
+  if (entry) return { label: entry.label, badge: entry.badge, color: SERIES_TOKENS[entry.slot] };
+  const classification = CLASSIFICATIONS[raw.toUpperCase()];
+  if (classification) {
+    /* Labels stay as every other screen prints them ("NHI service"). */
+    return { label: titleCaseEnum(raw), badge: CLASSIFICATION_BADGES[raw.toUpperCase()] ?? '?', color: classification.color };
   }
-  return { label: entry.label, badge: entry.badge, color: SERIES_TOKENS[entry.slot] };
+  if (!raw) return { label: 'Not classified', badge: '?', color: NEUTRAL_SERIES };
+  return { label: titleCaseEnum(raw), badge: raw.slice(0, 3).toUpperCase(), color: SERIES_TOKENS[hashedSlot(raw)] };
 }
 
 /* ── Environment / lifecycle status ──────────────────────────────────────── */

@@ -36,6 +36,13 @@ export const SIGNALS = [
     hint: 'Can be reached from the internet',
   },
   {
+    key: 'shadow',
+    param: 'shadow',
+    value: 'true',
+    label: 'Created outside your normal process',
+    hint: 'No owner tag, and no creator known from the AWS activity log',
+  },
+  {
     key: 'stale',
     param: 'min_idle_days',
     value: '90',
@@ -55,6 +62,7 @@ export const FILTER_PARAMS = [
   'search',
   'owner',
   'is_publicly_accessible',
+  'shadow',
   'min_idle_days',
   ...LIST_PARAMS.map((entry) => entry.param),
 ];
@@ -122,6 +130,7 @@ export function readFilters(searchParams) {
     status: listOf(searchParams, 'status'),
     owner: searchParams.get('owner') || '',
     isPublic: searchParams.get('is_publicly_accessible') === 'true' ? 'true' : '',
+    shadow: searchParams.get('shadow') === 'true' ? 'true' : '',
     minIdleDays: /^\d+$/.test(searchParams.get('min_idle_days') || '') ? searchParams.get('min_idle_days') : '',
     page: Math.max(1, Number(searchParams.get('page')) || 1),
     pageSize: [10, 25, 50, 100].includes(pageSize) ? pageSize : 25,
@@ -147,6 +156,9 @@ export function describeFilters(searchParams) {
 
   if (searchParams.get('is_publicly_accessible') === 'true') {
     chips.push({ key: 'is_publicly_accessible', label: 'Risk', value: 'Publicly accessible' });
+  }
+  if (searchParams.get('shadow') === 'true') {
+    chips.push({ key: 'shadow', label: 'Risk', value: 'Created outside your normal process' });
   }
   const idle = searchParams.get('min_idle_days');
   if (idle) chips.push({ key: 'min_idle_days', label: 'Risk', value: Number(idle) >= 90 ? `Unused for ${idle}+ days` : `Idle ${idle}+ days` });

@@ -142,6 +142,13 @@ func (h *IdentitiesListHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	shadow, err := httpx.ParseOptionalBool(q, "shadow")
+	if err != nil {
+		httpx.SendJSONResponse(w, http.StatusBadRequest, httpx.APIResponse{Success: false, Message: "shadow must be true or false", Error: "INVALID_REQUEST"})
+		return
+	}
+	filter.Shadow = shadow != nil && *shadow
+
 	result, err := h.service.GetIdentities(r.Context(), claims.UserID, claims.TenantID, claims.DBName, filter)
 	if err != nil {
 		httpx.SendServerError(w, r, err, "Failed to retrieve identities", "IDENTITIES_LOAD_FAILED")

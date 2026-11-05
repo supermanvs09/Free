@@ -23,6 +23,8 @@ export function MetricTile({
   /** Numbers for an inline history line, revealed on hover. Supplied only
       where the backend actually carries history for this measure. */
   sparkline,
+  /** What the sparkline counts, for its legend ("identities"). */
+  sparklineLabel,
   icon: Icon,
   as: Tag = 'div',
   className,
@@ -79,14 +81,50 @@ export function MetricTile({
 
       {caption && <p className="mt-1.5 text-[11.5px] leading-snug text-ink-3">{caption}</p>}
 
-      {sparkline?.length > 1 && (
-        <Sparkline values={sparkline} tone={tone} className="mt-3" />
-      )}
+      {/* Both small graphics say what they are, in a line under them and in
+          a tooltip: an unlabelled line or bar left people guessing. */}
+      {sparkline?.length > 1 && <SparklineWithLegend values={sparkline} tone={tone} unitLabel={sparklineLabel} />}
 
       {meter !== undefined && meter !== null && (
-        <Meter value={meter} tone={tone} height={4} className="mt-3" label={meterLabel || label} />
+        <div className="mt-3" title={`${meterLabel || label}: ${Math.round(Number(meter) || 0)}%`}>
+          <Meter value={meter} tone={tone} height={4} label={meterLabel || label} />
+          <p className="mt-1 flex items-center justify-between gap-2 text-[10.5px] text-ink-3">
+            <span className="truncate">{meterLabel || 'Share'}</span>
+            <span data-numeric="" className="shrink-0 font-semibold text-ink-2">
+              {formatPercent(meter)}
+            </span>
+          </p>
+        </div>
       )}
     </Tag>
+  );
+}
+
+function formatPercent(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '-';
+  return `${n < 1 && n > 0 ? n.toFixed(1) : Math.round(n)}%`;
+}
+
+function SparklineWithLegend({ values, tone, unitLabel }) {
+  const numbers = values.filter((value) => Number.isFinite(Number(value))).map(Number);
+  if (numbers.length < 2) return null;
+  const first = numbers[0];
+  const last = numbers[numbers.length - 1];
+  const delta = last - first;
+  /* The dashboard's curves are cumulative by month first seen ("how many of
+     today's identities existed by the end of each month"). */
+  const legend = `Growth over ${numbers.length} months: ${formatNumber(first)} → ${formatNumber(last)}${unitLabel ? ` ${unitLabel}` : ''}, by the month each was first discovered`;
+  return (
+    <div className="mt-3" title={legend}>
+      <Sparkline values={numbers} tone={tone} />
+      <p className="mt-1 flex items-center justify-between gap-2 text-[10.5px] text-ink-3">
+        <span className="truncate">Growth over {numbers.length} months</span>
+        <span data-numeric="" className="shrink-0 font-semibold text-ink-2">
+          {delta === 0 ? 'no change' : `${delta > 0 ? '+' : '−'}${formatNumber(Math.abs(delta))}`}
+        </span>
+      </p>
+    </div>
   );
 }
 

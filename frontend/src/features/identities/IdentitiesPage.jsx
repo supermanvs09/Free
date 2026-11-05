@@ -118,13 +118,14 @@ export default function IdentitiesPage() {
      requested, the total read. Never derived from the loaded page. */
   const countsQuery = useQuery(
     async (signal) => {
-      const [all, isPublic, stale, idle] = await Promise.all([
+      const [all, isPublic, stale, idle, shadow] = await Promise.all([
         countIdentities({}, signal),
         countIdentities({ isPublic: 'true' }, signal),
         countIdentities({ minIdleDays: 90 }, signal),
         countIdentities({ minIdleDays: 30 }, signal),
+        countIdentities({ shadow: 'true' }, signal),
       ]);
-      return { all, public: isPublic, stale, idle };
+      return { all, public: isPublic, stale, idle, shadow };
     },
     [],
   );

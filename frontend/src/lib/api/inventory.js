@@ -70,6 +70,7 @@ export async function fetchIdentities(query = {}, signal) {
       vpc_id: query.vpcId,
       is_publicly_accessible: query.isPublic,
       min_idle_days: query.minIdleDays,
+      shadow: query.shadow,
       sort_by: query.sortBy,
       sort_order: query.sortOrder,
     }),

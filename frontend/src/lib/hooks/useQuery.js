@@ -68,7 +68,14 @@ export function useQuery(fetcher, deps = [], { enabled = true, keepPrevious = tr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, run, dataEpoch, ...deps]);
 
-  const refetch = useCallback(() => run('initial'), [run]);
+  /* A refetch keeps what is on screen and dims it ('refreshing'), like a
+     background reload. It used to start over as a first load: the data was
+     dropped, skeletons replaced it and the page collapsed and grew back - so
+     a Refresh button looked like it did nothing (its spinner keys off
+     `isRefreshing`, which never became true) and a screen that refetches on
+     a timer (Integrations) jumped back to the top each time. With no data yet
+     it is a first load anyway. */
+  const refetch = useCallback(() => run('refresh'), [run]);
 
   return {
     data: state.data,

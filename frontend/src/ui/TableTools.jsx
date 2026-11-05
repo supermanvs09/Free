@@ -49,16 +49,25 @@ const DENSITIES = [
 
 /** Icon-only refresh. Spins only while a refetch is actually in flight. */
 export function RefreshButton({ onRefresh, refreshing = false, label = 'Refresh records' }) {
+  /* A reload that answers in 50 ms finished before the spinner could be seen,
+     so the button seemed dead. Each click shows a turn of at least 700 ms. */
+  const [pulse, setPulse] = useState(false);
+  const spinning = refreshing || pulse;
   return (
     <button
       type="button"
-      onClick={onRefresh}
-      disabled={refreshing}
+      onClick={() => {
+        setPulse(true);
+        window.setTimeout(() => setPulse(false), 700);
+        onRefresh?.();
+      }}
+      disabled={spinning}
+      aria-busy={spinning || undefined}
       aria-label={label}
       title={label}
       className={TOOL_BUTTON}
     >
-      <RefreshCw aria-hidden="true" className={cn('size-3.5', refreshing && 'animate-spin')} />
+      <RefreshCw aria-hidden="true" className={cn('size-3.5', spinning && 'animate-spin')} />
     </button>
   );
 }

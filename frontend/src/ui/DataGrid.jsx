@@ -119,7 +119,16 @@ export function DataGrid({
 
   return (
     <div className={cn('w-full overflow-x-auto', className)}>
-      <table className={cn('w-full min-w-full border-collapse text-left', compact ? 'grid-compact' : 'grid-comfortable')}>
+      {/* Fixed layout when every column states its width: with automatic
+          layout the browser re-measured the columns from whichever rows were
+          showing, so sorting or paging shifted every column sideways. */}
+      <table
+        className={cn(
+          'w-full min-w-full border-collapse text-left',
+          compact ? 'grid-compact' : 'grid-comfortable',
+          visibleColumns.every((column) => column.width) && 'table-fixed',
+        )}
+      >
         {caption && <caption className="sr-only">{caption}</caption>}
         <thead className="grid-sticky-head">
           <tr className="border-b border-line">
@@ -133,7 +142,7 @@ export function DataGrid({
                   style={column.width ? { width: column.width } : undefined}
                   aria-sort={active ? (sort.direction === 'asc' ? 'ascending' : 'descending') : undefined}
                   className={cn(
-                    'px-3.5 py-2.5 text-[11px] font-semibold tracking-[0.07em] text-ink-3 uppercase',
+                    'overflow-hidden px-3.5 py-2.5 align-middle text-[11px] font-semibold tracking-[0.07em] text-ellipsis whitespace-nowrap text-ink-3 uppercase',
                     column.align === 'right' && 'text-right',
                     column.align === 'center' && 'text-center',
                   )}

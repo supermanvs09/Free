@@ -60,7 +60,27 @@ const RISK_LABELS = {
 };
 
 const LIST_KEYS = ['band', 'severity', 'category', 'account', 'type', 'pillar', 'failing_check'];
-const SORTS = ['score', '-score', 'failed', 'change', 'name'];
+const SORTS = ['score', '-score', 'failed', '-failed', 'change', '-change', 'name', '-name'];
+/* Each sortable column, the API's sort key for it and the direction that key
+   sorts in. The "-" form of a key is the reverse, so every header toggles
+   both ways (Identity, Failed checks and Change used to sort one way only, so
+   a second click did nothing). */
+const SORT_LABELS = {
+  score: 'Lowest score first',
+  '-score': 'Highest score first',
+  failed: 'Most failed checks first',
+  '-failed': 'Fewest failed checks first',
+  change: 'Biggest drop first',
+  '-change': 'Biggest rise first',
+  name: 'Name, A to Z',
+  '-name': 'Name, Z to A',
+};
+const SORT_COLUMNS = {
+  identity: { param: 'name', natural: 'asc' },
+  score: { param: 'score', natural: 'asc' },
+  failed: { param: 'failed', natural: 'desc' },
+  change: { param: 'change', natural: 'asc' },
+};
 const PAGE_SIZES = [10, 25, 50, 100];
 
 const categoryLabel = (value) => (value ? titleCaseEnum(value) : 'Unclassified');
@@ -351,24 +371,19 @@ export default function PosturePage() {
 
   /* ── Table ──────────────────────────────────────────────────────────── */
 
-  const gridSort =
-    sort === 'name'
-      ? { key: 'identity', direction: 'asc' }
-      : sort === 'failed'
-        ? { key: 'failed', direction: 'desc' }
-        : sort === 'change'
-          ? { key: 'change', direction: 'asc' }
-          : { key: 'score', direction: sort === '-score' ? 'desc' : 'asc' };
+  const gridSort = (() => {
+    const reversed = sort.startsWith('-');
+    const param = reversed ? sort.slice(1) : sort;
+    const [key, spec] = Object.entries(SORT_COLUMNS).find(([, entry]) => entry.param === param) ?? ['score', SORT_COLUMNS.score];
+    const flip = (dir) => (dir === 'asc' ? 'desc' : 'asc');
+    return { key, direction: reversed ? flip(spec.natural) : spec.natural };
+  })();
 
   const onSortChange = (next) => {
-    const value =
-      next.key === 'score'
-        ? gridSort.key === 'score' && sort === 'score'
-          ? '-score'
-          : 'score'
-        : next.key === 'identity'
-          ? 'name'
-          : next.key;
+    const spec = SORT_COLUMNS[next.key];
+    if (!spec) return;
+    /* Same column: reverse it. New column: its natural direction first. */
+    const value = gridSort.key === next.key && gridSort.direction === spec.natural ? `-${spec.param}` : spec.param;
     setParams({ sort: value === 'score' ? '' : value });
   };
 
@@ -615,7 +630,7 @@ export default function PosturePage() {
               loading={facetsQuery.isLoading && !facets}
             />
             <span className="hidden text-[11.5px] text-ink-3 xl:inline">
-              {sort === 'score' ? 'Lowest score first. ' : ''}Open a row to see why and what to fix.
+              {SORT_LABELS[sort]}. Open a row to see why and what to fix.
             </span>
           </RecordBar>
 
@@ -874,17 +889,23 @@ function Distribution({ overview, selected, onBand }) {
   return (
     <Panel prominence="quiet" className="animate-rise" data-stagger="" style={{ '--stagger': 1 }}>
       <PanelHeader prominence="quiet" title="Identities by score" subtitle="Healthy 80+, Fair 60–79, Poor 40–59, Critical below 40. Select a band to list them." />
-      <div
-        className="mt-4 flex h-2.5 w-full gap-[2px] overflow-hidden rounded-full bg-track"
-        role="img"
-        aria-label={entries.map((entry) => `${entry.label}: ${entry.count}`).join(', ')}
-      >
+      {/* Each segment of the bar is a band filter too, like the buttons
+          below it: a coloured bar that ignored clicks read as broken. */}
+      <div className="mt-4 flex h-3 w-full gap-[2px] overflow-hidden rounded-full bg-track">
         {total > 0 &&
           entries.map((entry) =>
             entry.count > 0 ? (
-              <span
+              <button
                 key={entry.key}
-                className="h-full first:rounded-l-full last:rounded-r-full"
+                type="button"
+                onClick={() => onBand(entry.apiKey)}
+                title={`${entry.label}: ${formatNumber(entry.count)} - list them`}
+                aria-label={`List ${entry.label.toLowerCase()} identities (${entry.count})`}
+                aria-pressed={selected.includes(entry.apiKey)}
+                className={cn(
+                  'h-full cursor-pointer transition-[opacity,filter] first:rounded-l-full last:rounded-r-full hover:brightness-110',
+                  selected.length > 0 && !selected.includes(entry.apiKey) && 'opacity-35',
+                )}
                 style={{ width: `${(entry.count / total) * 100}%`, background: TONE_VAR[entry.tone] }}
               />
             ) : null,
@@ -918,16 +939,19 @@ function Distribution({ overview, selected, onBand }) {
       {risks.length > 0 && (
         <>
           <p className="mt-4 text-[10.5px] font-semibold tracking-[0.1em] text-ink-3 uppercase">Identities with</p>
-          <ul className="mt-2 flex flex-wrap gap-1.5">
+          {/* Figures, not filters: the worker counts these by its own rules,
+              which no list filter reproduces exactly, so they are laid out as
+              a read-only summary rather than as chips that look clickable. */}
+          <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
             {risks.map(([key, count]) => (
-              <li key={key} className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 text-[12px] text-ink-2">
-                {RISK_LABELS[key] ?? titleCaseEnum(key)}
-                <span data-numeric="" className="font-semibold text-ink">
+              <div key={key} className="flex items-baseline justify-between gap-2 border-b border-dashed border-line py-1 text-[12px]">
+                <dt className="min-w-0 truncate text-ink-3">{RISK_LABELS[key] ?? titleCaseEnum(key)}</dt>
+                <dd data-numeric="" className="shrink-0 font-semibold text-ink">
                   {formatNumber(count)}
-                </span>
-              </li>
+                </dd>
+              </div>
             ))}
-          </ul>
+          </dl>
         </>
       )}
     </Panel>
@@ -937,7 +961,7 @@ function Distribution({ overview, selected, onBand }) {
 function QuickWins({ overview, active, onPick, pillarNames }) {
   const wins = overview.quick_wins ?? [];
   return (
-    <Panel prominence="quiet" className="animate-rise" data-stagger="" style={{ '--stagger': 2 }}>
+    <Panel id="quick-wins" prominence="quiet" className="animate-rise scroll-mt-28" data-stagger="" style={{ '--stagger': 2 }}>
       <PanelHeader
         prominence="quiet"
         icon={Sparkles}
@@ -986,7 +1010,7 @@ function QuickWins({ overview, active, onPick, pillarNames }) {
 function WeakestIdentities({ overview, open, opening }) {
   const weakest = overview.weakest_identities ?? [];
   return (
-    <Panel prominence="quiet" className="animate-rise" data-stagger="" style={{ '--stagger': 1 }}>
+    <Panel id="weakest-identities" prominence="quiet" className="animate-rise scroll-mt-28" data-stagger="" style={{ '--stagger': 1 }}>
       <PanelHeader prominence="quiet" icon={ShieldCheck} title="Weakest identities" subtitle="The identities with the lowest scores. Start here." />
       {weakest.length === 0 ? (
         <p className="mt-3 text-[12.5px] text-ink-3">No identity scored yet.</p>

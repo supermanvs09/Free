@@ -14,7 +14,7 @@ const COLLAPSE_KEY = 'dna.sidebar.collapsed';
  * content column that owns its own breadcrumb, title and toolbars.
  */
 export function AppShell() {
-  const { pathname } = useLocation();
+  const { pathname, hash } = useLocation();
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem(COLLAPSE_KEY) === '1';
@@ -41,6 +41,29 @@ export function AppShell() {
   useLayoutEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, [pathname]);
+
+  /* A link to a section of a screen (/posture#weakest-identities) opens the
+     screen at that section. Screens load their data first, so the section is
+     looked for over the next few seconds and brought into view once drawn,
+     with a brief highlight so the eye finds it. */
+  useEffect(() => {
+    const id = decodeURIComponent(hash.replace(/^#/, ''));
+    if (!id) return undefined;
+    let tries = 0;
+    let timer = 0;
+    const seek = () => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        el.classList.add('section-flash');
+        timer = window.setTimeout(() => el.classList.remove('section-flash'), 1600);
+        return;
+      }
+      if (tries++ < 40) timer = window.setTimeout(seek, 100);
+    };
+    seek();
+    return () => window.clearTimeout(timer);
+  }, [pathname, hash]);
   const [commandOpen, setCommandOpen] = useState(false);
 
   const toggleCollapse = useCallback(() => {

@@ -26,6 +26,7 @@ import {
   fetchScopeSettings,
 } from '../../lib/api/overview';
 import { useQuery } from '../../lib/hooks';
+import { useToast } from '../../ui/Toast';
 import { NEUTRAL_SERIES, SERIES_TOKENS } from '../../lib/domain';
 import { formatDate, formatDateTime, formatNumber, formatRelative, humanizeToken, parseDate, percentValue } from '../../lib/format';
 import { genomeRoute } from '../../lib/identityLinks';
@@ -87,17 +88,28 @@ function OrganisationDashboard({ exposure, offerExposureSetup }) {
 
   const findingSummary = useMemo(() => summariseFindings(findingsQuery.data?.findings), [findingsQuery.data]);
 
-  const refreshAll = () => {
-    overviewQuery.refetch();
-    scopeQuery.refetch();
-    postureQuery.refetch();
-    genomeQuery.refetch();
-    trendsQuery.refetch();
-    if (exposure) findingsQuery.refetch();
+  /* Refresh says it worked: the button spins while the figures reload (they
+     stay on screen, dimmed), then a note confirms the time they were read. */
+  const { notify } = useToast();
+  const [manualRefresh, setManualRefresh] = useState(false);
+  const refreshAll = async () => {
+    setManualRefresh(true);
+    const started = Date.now();
+    await Promise.allSettled([
+      overviewQuery.refetch(),
+      scopeQuery.refetch(),
+      postureQuery.refetch(),
+      genomeQuery.refetch(),
+      trendsQuery.refetch(),
+      exposure ? findingsQuery.refetch() : null,
+    ]);
+    await new Promise((resolve) => setTimeout(resolve, Math.max(0, 600 - (Date.now() - started))));
+    setManualRefresh(false);
+    notify({ variant: 'success', title: 'Figures refreshed', description: `Read at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}.` });
   };
 
   const refreshing =
-    overviewQuery.isRefreshing || postureQuery.isRefreshing || genomeQuery.isRefreshing || scopeQuery.isRefreshing;
+    manualRefresh || overviewQuery.isRefreshing || postureQuery.isRefreshing || genomeQuery.isRefreshing || scopeQuery.isRefreshing;
 
   /* No tenant tables yet: one calm message instead of a page of failed cards. */
   if (overviewFailed && overviewQuery.error?.code === 'TENANT_NOT_PROVISIONED') {
@@ -233,11 +245,14 @@ function HeadlineTiles({ kpis, charts, activity, exposure, findingsQuery, findin
         label="Identities discovered"
         value={kpis.totalIdentities}
         sparkline={identitySpark}
+        sparklineLabel="identities"
         icon={Fingerprint}
         tone="brand"
         caption={`Workloads, services and automations in ${formatNumber(kpis.accountsScanned)} AWS account${kpis.accountsScanned === 1 ? '' : 's'}`}
       />
       <MetricTile
+        as={Link}
+        to="/identities?shadow=true"
         data-stagger=""
         style={{ '--stagger': 1 }}
         className="animate-rise"
@@ -262,6 +277,7 @@ function HeadlineTiles({ kpis, charts, activity, exposure, findingsQuery, findin
         label="Credentials"
         value={kpis.totalCredentials}
         sparkline={credentialSpark}
+        sparklineLabel="credentials"
         icon={KeyRound}
         tone="medium"
         caption={
@@ -363,6 +379,7 @@ function SignalsBody({ overview, loading }) {
       denominator: kpis.totalIdentities,
       denominatorLabel: 'of identities',
       tone: 'high',
+      to: '/identities?shadow=true',
     },
     {
       key: 'orphaned',
@@ -649,6 +666,22 @@ function InventoryGrowth({ overview, trends, loading, failed, embedded }) {
           </div>
         ) : (
           <div className="flex flex-col gap-4">
+            {fromScans && overview && (() => {
+              const last = data[data.length - 1];
+              const ids = overview.kpis.totalIdentities;
+              const creds = overview.kpis.totalCredentials;
+              if ((ids == null || ids === last.identities) && (creds == null || creds === last.credentials)) return null;
+              /* The two figures count different things; say so instead of
+                 leaving two numbers that look like they should agree. */
+              return (
+                <p className="rounded-[var(--radius-control)] border border-line bg-surface-2 px-3 py-2 text-[11.5px] leading-relaxed text-ink-3">
+                  The chart plots what each scan counted. The inventory now holds{' '}
+                  <strong className="font-semibold text-ink-2" data-numeric="">{formatNumber(ids)}</strong> identities and{' '}
+                  <strong className="font-semibold text-ink-2" data-numeric="">{formatNumber(creds)}</strong> credentials in your
+                  selected regions: a scan's total also counts regions outside your scope and items removed since.
+                </p>
+              );
+            })()}
             {[
               { key: 'identities', label: 'Identities', color: 'var(--t-series-1)' },
               { key: 'credentials', label: 'Credentials', color: 'var(--t-series-2)' },
@@ -657,8 +690,11 @@ function InventoryGrowth({ overview, trends, loading, failed, embedded }) {
                 <div className="flex items-baseline justify-between gap-3">
                   <p className="text-[12px] font-semibold text-ink-2">{series.label}</p>
                   <p className="text-[11.5px] text-ink-3" data-numeric="">
-                    {formatNumber(data[data.length - 1][series.key])} today
-
+                    {/* The right-hand figure is the chart's own last point, so
+                        it always matches that point's tooltip. With scan totals
+                        it is the last scan's count, not "today's" inventory. */}
+                    {formatNumber(data[data.length - 1][series.key])}{' '}
+                    {fromScans ? 'at the last scan' : 'today'}
                   </p>
                 </div>
                 <TrendChart
@@ -963,7 +999,7 @@ function WeakestIdentities({ query, embedded }) {
       <Head embedded={embedded} title="Lowest security scores"
         subtitle="Start fixing here."
         actions={
-          <Button as={Link} to="/posture" variant="secondary" size="sm" iconRight={ArrowRight}>
+          <Button as={Link} to="/posture#weakest-identities" variant="secondary" size="sm" iconRight={ArrowRight}>
             All scores
           </Button>
         }
@@ -1224,7 +1260,7 @@ function PostureBanner({ query }) {
         </PostureFact>
 
         <div className="@min-[44rem]:justify-self-start @min-[60rem]:justify-self-end">
-          <Button as={Link} to="/posture" variant="secondary" size="sm" iconRight={ArrowRight}>
+          <Button as={Link} to="/posture#quick-wins" variant="secondary" size="sm" iconRight={ArrowRight}>
             See what to fix
           </Button>
 

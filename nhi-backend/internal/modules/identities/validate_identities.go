@@ -4,7 +4,7 @@ var identitiesListAllowed = map[string]struct{}{
 	"page": {}, "page_size": {}, "search": {},
 	"identity_type": {}, "functional_class": {}, "environment": {},
 	"status": {}, "owner": {}, "vpc_id": {},
-	"is_publicly_accessible": {}, "min_idle_days": {},
+	"is_publicly_accessible": {}, "min_idle_days": {}, "shadow": {},
 	"sort_by": {}, "sort_order": {},
 }
 

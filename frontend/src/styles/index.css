@@ -818,3 +818,19 @@
     padding-bottom: 0.4rem;
   }
 }
+
+/* A section opened by a link (#anchor) is outlined for a moment. */
+@layer utilities {
+  .section-flash {
+    animation: dna-section-flash 1.6s ease-out;
+  }
+}
+@keyframes dna-section-flash {
+  0%,
+  30% {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--t-brand) 45%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
