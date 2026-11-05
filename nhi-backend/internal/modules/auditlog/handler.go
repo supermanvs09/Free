@@ -198,10 +198,20 @@ func (h *Handler) exportCSV(w http.ResponseWriter, r *http.Request, q Query) {
 	_ = cw.Write([]string{"When (UTC)", "Who", "Role", "Action", "Outcome", "Target", "Screen", "Method", "Path", "Status", "Error", "IP", "Request ID"})
 	for _, e := range page.Entries {
 		_ = cw.Write([]string{
-			e.OccurredAt.UTC().Format(time.RFC3339), e.Actor, e.ActorRole, e.Action, e.Outcome,
-			e.Target, e.Screen, e.Method, e.Path, strconv.Itoa(e.Status), e.ErrorCode, e.IP, e.RequestID,
+			e.OccurredAt.UTC().Format(time.RFC3339), cell(e.Actor), cell(e.ActorRole), cell(e.Action), e.Outcome,
+			cell(e.Target), cell(e.Screen), e.Method, cell(e.Path), strconv.Itoa(e.Status), cell(e.ErrorCode), e.IP, cell(e.RequestID),
 		})
 	}
+}
+
+// cell keeps a value a caller supplied (a username, an id in a URL, a header)
+// from being read as a formula when the export is opened in a spreadsheet:
+// "=HYPERLINK(...)" typed as a sign-in name would otherwise run.
+func cell(s string) string {
+	if s != "" && strings.ContainsRune("=+-@\t\r", rune(s[0])) {
+		return "'" + s
+	}
+	return s
 }
 
 func badRequest(w http.ResponseWriter, message, code string) {

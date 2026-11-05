@@ -160,7 +160,16 @@ func details(r *http.Request, body []byte, cfg Config) map[string]any {
 }
 
 func isExport(r *http.Request) bool {
-	return strings.Contains(strings.ToLower(r.URL.Path), "/export")
+	// A download is an export whether it has its own path (/posture/export)
+	// or is a list asked for as a file (/audit-logs?format=csv).
+	if strings.Contains(strings.ToLower(r.URL.Path), "/export") {
+		return true
+	}
+	switch strings.ToLower(strings.TrimSpace(r.URL.Query().Get("format"))) {
+	case "csv", "xlsx", "json-file":
+		return true
+	}
+	return false
 }
 
 // RouteOf is the template mux matched, which is what makes entries comparable
@@ -258,19 +267,24 @@ func trim(s string, n int) string {
 	return s
 }
 
+// clientIP is who sent the request. X-Forwarded-For is believed only when the
+// connection itself came from a proxy on a private or loopback address (the
+// load balancer, nginx): anyone can write the header, and a caller reaching
+// the API directly could otherwise put any address they liked in the log.
 func clientIP(r *http.Request) string {
-	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
-		// The first entry is the client; the rest are proxies.
-		if first, _, ok := strings.Cut(fwd, ","); ok {
-			return trim(first, 64)
-		}
-		return trim(fwd, 64)
-	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		return trim(r.RemoteAddr, 64)
+		host = strings.TrimSpace(r.RemoteAddr)
 	}
-	return host
+	remote := net.ParseIP(host)
+	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" && remote != nil && (remote.IsLoopback() || remote.IsPrivate()) {
+		// The first entry is the client; the rest are proxies.
+		first, _, _ := strings.Cut(fwd, ",")
+		if ip := net.ParseIP(strings.TrimSpace(first)); ip != nil {
+			return ip.String()
+		}
+	}
+	return trim(host, 64)
 }
 
 // recorder notes the status and, for a refusal or a failure, the error code the

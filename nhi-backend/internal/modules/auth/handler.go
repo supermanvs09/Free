@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"nhi-backend-api/internal/platform/authz"
 	"strconv"
 	"strings"
 	"time"
@@ -253,6 +254,12 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 			"tenant_id": claims.TenantID,
 			"db_name":   claims.DBName,
 			"role":      claims.Role,
+			// What the role means, from the same table the API enforces, so
+			// the console shows exactly the controls that will be allowed
+			// instead of keeping its own copy of the rules.
+			"console_role": string(authz.NormalizeRole(claims.Role)),
+			"role_label":   authz.NormalizeRole(claims.Role).Label(),
+			"capabilities": authz.Capabilities(authz.NormalizeRole(claims.Role)),
 		},
 	})
 }

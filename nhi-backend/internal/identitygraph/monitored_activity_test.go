@@ -148,7 +148,7 @@ func TestIdentityActivityReadsGenomeStore(t *testing.T) {
 	mustExec(`CREATE TABLE ` + schema + `.identities (id uuid PRIMARY KEY, name text, arn text, identity_type text, account_id text,
 		region text, status text, type_attributes jsonb, deleted_at timestamptz)`)
 	mustExec(`CREATE TABLE ` + schema + `.identity_credentials (identity_id uuid, credential_id uuid)`)
-	mustExec(`INSERT INTO `+schema+`.identities VALUES
+	mustExec(`INSERT INTO ` + schema + `.identities VALUES
 		('00000000-0000-0000-0000-000000000001','fn','arn:lambda:fn','lambda_function','111111111111','ap-south-1','active','{}',NULL),
 		('00000000-0000-0000-0000-000000000002','task','arn:ecs:task','ecs_task','111111111111','ap-south-1','active','{}',NULL),
 		('00000000-0000-0000-0000-000000000003','alice','arn:iam:user/alice','iam_user','111111111111','us-east-1','active','{}',NULL)`)

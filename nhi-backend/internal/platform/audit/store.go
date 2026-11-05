@@ -5,9 +5,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"log/slog"
+	"net"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"nhi-backend-api/internal/platform/database"
 )
@@ -30,6 +33,7 @@ type Store struct {
 	dropped int64
 
 	closeOnce sync.Once
+	closed    bool // set under mu: Record after Close drops instead of panicking
 	done      chan struct{}
 }
 
@@ -54,13 +58,56 @@ func (s *Store) Record(_ context.Context, e Entry) {
 	if s == nil {
 		return
 	}
-	select {
-	case s.queue <- e:
-	default:
-		s.mu.Lock()
+	// The lock makes "not closed" and the send one step: a request that
+	// finishes while the server shuts down used to send on the closed channel
+	// and panic.
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
 		s.dropped++
-		s.mu.Unlock()
+		return
 	}
+	select {
+	case s.queue <- normalize(e):
+	default:
+		s.dropped++
+	}
+}
+
+// normalize makes an entry insertable whatever the request carried: the ip
+// and tenant columns are typed, and one unparsable value used to fail the
+// whole batch it was written with.
+func normalize(e Entry) Entry {
+	if e.IP != "" {
+		if ip := net.ParseIP(strings.TrimSpace(e.IP)); ip != nil {
+			e.IP = ip.String()
+		} else {
+			if e.Details == nil {
+				e.Details = map[string]any{}
+			}
+			e.Details["ip_raw"] = trim(e.IP, 64)
+			e.IP = ""
+		}
+	}
+	if e.TenantID != "" && !uuidRE.MatchString(e.TenantID) {
+		e.TenantID = ""
+	}
+	e.Actor = cleanText(e.Actor)
+	e.UserAgent = cleanText(e.UserAgent)
+	e.Path = cleanText(e.Path)
+	e.Target = cleanText(e.Target)
+	e.Screen = cleanText(e.Screen)
+	return e
+}
+
+var uuidRE = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
+// cleanText drops NUL bytes and invalid UTF-8, which Postgres refuses in text.
+func cleanText(s string) string {
+	if !strings.ContainsRune(s, 0) && utf8.ValidString(s) {
+		return s
+	}
+	return strings.ToValidUTF8(strings.ReplaceAll(s, "\x00", ""), "")
 }
 
 // Close drains what is queued and stops the writer. Called on shutdown so the
@@ -69,7 +116,12 @@ func (s *Store) Close(ctx context.Context) {
 	if s == nil {
 		return
 	}
-	s.closeOnce.Do(func() { close(s.queue) })
+	s.closeOnce.Do(func() {
+		s.mu.Lock()
+		s.closed = true
+		close(s.queue)
+		s.mu.Unlock()
+	})
 	select {
 	case <-s.done:
 	case <-ctx.Done():
@@ -94,7 +146,19 @@ func (s *Store) run() {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		if err := s.insert(ctx, batch); err != nil {
-			slog.Error("audit: could not write entries", "err", err, "entries", len(batch))
+			// A batch is one transaction, so one bad row would lose every
+			// entry with it. Write them one by one instead: the good ones are
+			// kept and only the row that cannot be stored is reported.
+			lost := 0
+			for _, e := range batch {
+				if err := s.insert(ctx, []Entry{e}); err != nil {
+					lost++
+					slog.Error("audit: could not write an entry", "err", err, "action", e.Action, "actor", e.Actor)
+				}
+			}
+			if lost > 0 {
+				slog.Error("audit: entries lost", "lost", lost, "of", len(batch), "batch_err", err)
+			}
 		}
 		cancel()
 		batch = batch[:0]
@@ -145,7 +209,8 @@ func (s *Store) insert(ctx context.Context, batch []Entry) error {
 		details := "{}"
 		if len(e.Details) > 0 {
 			if b, err := json.Marshal(e.Details); err == nil {
-				details = string(b)
+				// jsonb refuses the NUL character even escaped.
+				details = strings.ReplaceAll(string(b), `\u0000`, "")
 			}
 		}
 		if _, err := stmt.ExecContext(ctx, e.OccurredAt, e.TenantID, e.Actor, e.ActorRole, e.Action,

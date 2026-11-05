@@ -149,6 +149,7 @@ func registerProtected(router *mux.Router, h HandlerContainer, versioned bool) {
 			path = "/me"
 		}
 		router.HandleFunc(path, h.AuthHandler.Me).Methods(http.MethodGet)
+		router.HandleFunc(path+"/password", h.AuthHandler.ChangePassword).Methods(http.MethodPatch)
 	}
 	// Who may sign in to this workspace.
 	if h.UsersHandler != nil {

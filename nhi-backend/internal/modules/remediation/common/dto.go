@@ -4,6 +4,7 @@
 package common
 
 import (
+	"nhi-backend-api/internal/platform/authz"
 	"regexp"
 	"strings"
 
@@ -33,13 +34,18 @@ func (c Caller) Can(p domain.Permission) bool { return RoleOf(c.Role).Can(p) }
 //	approver, manager    approver  read, approve / reject
 //	analyst              analyst   read, create and submit plans, execute, roll back
 //	anything else        viewer    read only
+//
+// The console's own roles come first (internal/platform/authz): user
+// management assigns admin / operator / analyst / viewer, and an operator is
+// the approver here. Mapping only the older names left an operator created in
+// User management as a viewer, unable to approve a plan.
 func RoleOf(role string) domain.Role {
-	switch strings.ToLower(strings.TrimSpace(role)) {
-	case "admin", "super_admin", "superadmin":
+	switch authz.NormalizeRole(role) {
+	case authz.RoleAdmin:
 		return domain.RoleAdmin
-	case "approver", "manager":
+	case authz.RoleOperator:
 		return domain.RoleApprover
-	case "analyst":
+	case authz.RoleAnalyst:
 		return domain.RoleAnalyst
 	}
 	return domain.RoleViewer

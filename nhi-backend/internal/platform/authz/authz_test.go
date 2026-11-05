@@ -121,7 +121,16 @@ func TestRequiredForTheRoutesThatMatter(t *testing.T) {
 		// Second review.
 		{http.MethodPost, "/api/v1/remediation/plans/{id}/approve", CapApprove},
 		{http.MethodPost, "/api/v1/remediation/plans/{id}/reject", CapApprove},
-		{http.MethodPost, "/api/v1/remediation/plans/{id}/execute", CapApprove},
+		// Running (or retrying) an approved plan is the analyst's step in
+		// remediation, not a second approval (remediation API doc, section 2).
+		{http.MethodPost, "/api/v1/remediation/plans/{id}/execute", CapWrite},
+		{http.MethodPost, "/api/v1/remediation/batches/{id}/execute", CapWrite},
+		// Remediation account settings are for admins.
+		{http.MethodPut, "/api/v1/remediation/accounts/{account_id}", CapIntegrations},
+
+		// A person's own account and data scope: every role.
+		{http.MethodPut, "/api/v1/settings", CapRead},
+		{http.MethodPatch, "/api/v1/me/password", CapRead},
 
 		// Collection.
 		{http.MethodPost, "/api/v1/ispm/scans", CapOperate},

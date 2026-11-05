@@ -32,9 +32,21 @@ type rule struct {
 }
 
 var policy = []rule{
+	// Things a signed-in person does to their own account: change their own
+	// password, save their own data scope. Every role may, or a viewer could
+	// not pick which accounts their own dashboard shows.
+	{contains: []string{"/me/"}, cap: CapRead},
+	{contains: []string{"/settings"}, methods: []string{http.MethodPut}, cap: CapRead},
+
 	// People who can sign in. Reading the list is as restricted as changing it:
 	// it names everyone with access.
 	{contains: []string{"/users"}, reads: true, cap: CapUsers},
+
+	// Remediation decides its own steps (remediation/common.RoleOf): running or
+	// retrying an approved plan is the analyst's job there, not an approval,
+	// and account settings are for admins only.
+	{contains: []string{"/remediation/", "/execute"}, cap: CapWrite},
+	{contains: []string{"/remediation/accounts"}, cap: CapIntegrations},
 
 	// Leaked secrets: seeing one is the privileged part, so reads included.
 	{contains: []string{"/credential-exposure/allowlist"}, cap: CapPolicies},

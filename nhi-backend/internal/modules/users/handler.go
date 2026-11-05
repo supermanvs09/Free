@@ -210,15 +210,6 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 				forbidden(w, "You cannot change your own role. Ask another admin to do it.", "role")
 				return
 			}
-			if authz.NormalizeRole(target.Role) == authz.RoleAdmin && authz.Role(role) != authz.RoleAdmin {
-				if ok, err := h.lastAdmin(r, claims.TenantID, target.ID); err != nil {
-					httpx.SendServerError(w, r, err, "Failed to update the user", "USER_UPDATE_FAILED")
-					return
-				} else if ok {
-					forbidden(w, "This is the only active admin. Make someone else an admin first.", "role")
-					return
-				}
-			}
 			changes.Role = ptr(role)
 		}
 	}
@@ -232,15 +223,6 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 			if self && status != "active" {
 				forbidden(w, "You cannot switch off your own account.", "status")
 				return
-			}
-			if status != "active" && authz.NormalizeRole(target.Role) == authz.RoleAdmin {
-				if ok, err := h.lastAdmin(r, claims.TenantID, target.ID); err != nil {
-					httpx.SendServerError(w, r, err, "Failed to update the user", "USER_UPDATE_FAILED")
-					return
-				} else if ok {
-					forbidden(w, "This is the only active admin. Make someone else an admin first.", "status")
-					return
-				}
 			}
 			changes.Status = ptr(status)
 		}
@@ -259,7 +241,21 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		changes.PasswordHash = ptr(string(hash))
 	}
 
-	user, err := h.repo.Update(r.Context(), claims.TenantID, id, changes, claims.UserID)
+	// Taking an admin away (demoting or switching off an active admin) needs
+	// another active admin to remain; the repository checks that and applies
+	// the change in one transaction.
+	wasAdmin := authz.NormalizeRole(target.Role) == authz.RoleAdmin && strings.EqualFold(strings.TrimSpace(target.Status), "active")
+	losesAdmin := wasAdmin && ((changes.Role != nil && authz.NormalizeRole(*changes.Role) != authz.RoleAdmin) ||
+		(changes.Status != nil && *changes.Status != "active"))
+	user, err := h.repo.Update(r.Context(), claims.TenantID, id, changes, claims.UserID, losesAdmin)
+	if errors.Is(err, ErrLastAdmin) {
+		field := "role"
+		if changes.Status != nil {
+			field = "status"
+		}
+		forbidden(w, "This is the only active admin. Make someone else an admin first.", field)
+		return
+	}
 	if errors.Is(err, ErrNotFound) {
 		notFound(w)
 		return
@@ -294,16 +290,12 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		forbidden(w, "You cannot remove your own account.", "id")
 		return
 	}
-	if authz.NormalizeRole(target.Role) == authz.RoleAdmin {
-		if only, err := h.lastAdmin(r, claims.TenantID, target.ID); err != nil {
-			httpx.SendServerError(w, r, err, "Failed to remove the user", "USER_DELETE_FAILED")
-			return
-		} else if only {
+	activeAdmin := authz.NormalizeRole(target.Role) == authz.RoleAdmin && strings.EqualFold(strings.TrimSpace(target.Status), "active")
+	if err := h.repo.Delete(r.Context(), claims.TenantID, id, activeAdmin); err != nil {
+		if errors.Is(err, ErrLastAdmin) {
 			forbidden(w, "This is the only active admin. Make someone else an admin first.", "id")
 			return
 		}
-	}
-	if err := h.repo.Delete(r.Context(), claims.TenantID, id); err != nil {
 		if errors.Is(err, ErrNotFound) {
 			notFound(w)
 			return
@@ -312,11 +304,6 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.SendJSONResponse(w, http.StatusOK, httpx.APIResponse{Success: true, Message: "User removed successfully", Data: map[string]any{"id": id, "email": target.Email}})
-}
-
-func (h *Handler) lastAdmin(r *http.Request, tenantID string, excludeID int) (bool, error) {
-	n, err := h.repo.CountActiveAdmins(r.Context(), tenantID, excludeID)
-	return n == 0, err
 }
 
 /* ---------- small helpers, so the handlers above read as rules ---------- */
