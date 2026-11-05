@@ -30,9 +30,12 @@ var (
 // What the customer is asked to set up. Kept next to the checks that prove it.
 var (
 	awsManagedPolicies = []string{"SecurityAudit", "ViewOnlyAccess"}
-	awsEventSources    = []string{
-		"aws.ec2", "aws.ecs", "aws.iam", "aws.sts",
-		"aws.lambda", "aws.eks", "aws.secretsmanager", "aws.kms",
+	// The rule's event pattern (setup guide, step 4). aws.codecommit is only
+	// needed with code scanning; the guide says to drop it otherwise.
+	awsEventSources = []string{
+		"aws.ssm", "aws.rolesanywhere", "aws.ec2", "aws.ecs", "aws.iam", "aws.sts", "aws.lambda", "aws.eks",
+		"aws.secretsmanager", "aws.kms", "aws.batch", "aws.codecommit", "aws.s3", "aws.amplify", "aws.glue",
+		"aws.states", "aws.scheduler", "aws.codebuild", "aws.codedeploy", "aws.codepipeline", "aws.cloudformation",
 	}
 	// CodeCommit: the four reads the secret scanner uses, as an inline policy on
 	// the role. There is no managed policy for exactly these; listing the
@@ -66,6 +69,11 @@ type AWSIntegrationStore interface {
 	SaveExposure(ctx context.Context, schema, accountID string, u ExposureUpdate) (*AWSAccountRecord, error)
 	RequestSync(ctx context.Context, schema, accountID, actor string, at time.Time) (*AWSAccountRecord, bool, error)
 	DeleteAccount(ctx context.Context, tenantID, schema, accountID string) error
+	SaveCheckStart(ctx context.Context, tenantID, schema string, rec AWSAccountRecord) (*AWSAccountRecord, error)
+	SaveChecks(ctx context.Context, schema, accountID string, checks []AWSCheck) error
+	RequestApproval(ctx context.Context, req ApprovalRequest) (int64, *AWSAccountRecord, error)
+	SetApprovalEmail(ctx context.Context, id int64, status, errText string) error
+	WithdrawApprovals(ctx context.Context, tenantID, accountID string) error
 }
 
 // AWSVerifier is the AWS side (awsconnect.Client in production).
@@ -84,9 +92,10 @@ type GitHubChecker interface {
 	Check(ctx context.Context, token string) (githubcheck.Result, error)
 }
 
-// AWSEventSource answers "has an event from this account reached us?".
+// AWSEventSource reads the central event queue: one poll reports the events
+// from an account it found, by region.
 type AWSEventSource interface {
-	HasEventsFrom(ctx context.Context, p awsconnect.Platform, accountID string, since time.Time) (bool, error)
+	PollEvents(ctx context.Context, p awsconnect.Platform, accountID string) (awsconnect.EventPoll, error)
 }
 
 // QueueEventSource is the "Receive your events" check: it peeks at the central
@@ -95,17 +104,14 @@ type AWSEventSource interface {
 // service only after an account is connected, so it cannot be asked first.
 type QueueEventSource struct{ Client *awsconnect.Client }
 
-func (s QueueEventSource) HasEventsFrom(ctx context.Context, p awsconnect.Platform, accountID string, _ time.Time) (bool, error) {
-	found, seen, err := s.Client.PeekEventsFrom(ctx, p, accountID)
-	log := logging.FromContext(ctx)
-	if err != nil {
-		log.Warn("aws integration: events check, event queue peek failed", "account_id", accountID, "err", err)
-		return false, err
+func (s QueueEventSource) PollEvents(ctx context.Context, p awsconnect.Platform, accountID string) (awsconnect.EventPoll, error) {
+	poll, err := s.Client.PollEventsFrom(ctx, p, accountID)
+	if err == nil {
+		// Seen tells an empty queue (nothing delivered, or already consumed)
+		// from one carrying only other accounts' events.
+		logging.FromContext(ctx).Debug("aws integration: events check, queue polled", "account_id", accountID, "messages_seen", poll.Seen, "regions", poll.Regions)
 	}
-	// seen tells an empty queue (nothing delivered, or already consumed) from
-	// one carrying only other accounts' events.
-	log.Info("aws integration: events check, event queue peeked", "account_id", accountID, "messages_seen", seen, "found", found)
-	return found, nil
+	return poll, err
 }
 
 // AWSIntegrationOptions are the deployment's names and limits.
@@ -115,6 +121,21 @@ type AWSIntegrationOptions struct {
 	ForwardRuleName    string
 	GitHubSecretPrefix string
 	EventLookback      time.Duration
+	// ForwardRoleName is the customer's role EventBridge uses to put events
+	// on our bus (NHIEventBridgeForwardRole).
+	ForwardRoleName string
+	// TrailName is the CloudTrail trail to create when none qualifies.
+	TrailName string
+	// EventPollInterval is how often the events check reads the queue (5-10s).
+	EventPollInterval time.Duration
+	// EventWaitLimit is how long it watches before concluding.
+	EventWaitLimit time.Duration
+	// ApprovalsURL is the onboarding console's Approvals page, linked from
+	// the e-mail.
+	ApprovalsURL string
+	// Mailer sends the approval notice; nil or unconfigured records
+	// "not_configured" on the request.
+	Mailer AWSMailer
 }
 
 // AWSCaller is who is asking, from the signed token.
@@ -130,9 +151,11 @@ type AWSIntegrationService struct {
 	github   GitHubChecker
 	events   AWSEventSource
 	opts     AWSIntegrationOptions
+	mailer   AWSMailer
 	now      func() time.Time
 
 	running sync.Map // tenantID -> struct{}: one check per tenant at a time
+	watches sync.Map // watchKey -> *watchEntry: the events checks running now
 }
 
 // NewAWSIntegrationService wires the service. verifier may be nil when the
@@ -145,9 +168,11 @@ func NewAWSIntegrationService(store AWSIntegrationStore, verifier AWSVerifier, g
 	}
 	opts.AssumerRoleName = orDefault(opts.AssumerRoleName, "NHIPlatformAssumer")
 	opts.CollectorRoleName = orDefault(opts.CollectorRoleName, "NHIPlatformCollector")
-	opts.ForwardRuleName = orDefault(opts.ForwardRuleName, "nhi-forward-events")
+	opts.ForwardRuleName = orDefault(opts.ForwardRuleName, "nhi-forward-activity")
+	opts.ForwardRoleName = orDefault(opts.ForwardRoleName, "NHIEventBridgeForwardRole")
+	opts.TrailName = orDefault(opts.TrailName, "adapid-nhi-trail")
 	opts.GitHubSecretPrefix = orDefault(opts.GitHubSecretPrefix, "nhi/github")
-	return &AWSIntegrationService{store: store, verifier: verifier, github: github, events: events, opts: opts, now: time.Now}
+	return &AWSIntegrationService{store: store, verifier: verifier, github: github, events: events, opts: opts, mailer: opts.Mailer, now: time.Now}
 }
 
 // platform reads the tenant's collector values and checks them against each other.
@@ -220,9 +245,21 @@ func (s *AWSIntegrationService) Get(ctx context.Context, caller AWSCaller, canMa
 		Accounts:  make([]AWSConnectedAccount, 0, len(records)),
 	}
 	for _, rec := range records {
+		// An events check saved as running whose watcher is not in this
+		// process stopped with it (a restart, a deploy): say so, rather than
+		// show a check that will never finish.
+		for i := range rec.Checks {
+			if rec.Checks[i].Key == AWSCheckEvents && rec.Checks[i].State == AWSCheckRunning && !s.watching(caller.TenantID, rec.AccountID) {
+				rec.Checks[i].State = AWSCheckError
+				rec.Checks[i].Message = "The events check stopped before it finished (the service restarted). Check again to resume it."
+			}
+		}
 		out.Accounts = append(out.Accounts, rec.ToAPI())
 		if rec.ConnectedAt != nil {
 			out.HasConnectedAccount = true
+		}
+		if rec.Approval.Status == ApprovalPending {
+			out.AwaitingApproval = true
 		}
 		if rec.GitHubConnected || rec.CodeCommitConnected {
 			out.ExposureEnabled = true
@@ -240,16 +277,19 @@ func (s *AWSIntegrationService) Get(ctx context.Context, caller AWSCaller, canMa
 		return nil, err
 	}
 	out.Setup = &AWSSetupValues{
-		AccountID:       p.AccountID,
-		ExternalID:      settings.ExternalID,
-		EventBusARN:     p.EventBusARN,
-		Region:          p.Region,
-		AssumerRoleARN:  p.AssumerRoleARN,
-		RoleName:        s.opts.CollectorRoleName,
-		RuleName:        s.opts.ForwardRuleName,
-		ManagedPolicies: append([]string(nil), awsManagedPolicies...),
-		EventSources:    append([]string(nil), awsEventSources...),
-		Regions:         offeredRegions(settings),
+		AccountID:        p.AccountID,
+		ExternalID:       settings.ExternalID,
+		EventBusARN:      p.EventBusARN,
+		Region:           p.Region,
+		AssumerRoleARN:   p.AssumerRoleARN,
+		RoleName:         s.opts.CollectorRoleName,
+		RuleName:         s.opts.ForwardRuleName,
+		ForwardRoleName:  s.opts.ForwardRoleName,
+		TrailName:        s.opts.TrailName,
+		EventWaitMinutes: int(s.waitLimit() / time.Minute),
+		ManagedPolicies:  append([]string(nil), awsManagedPolicies...),
+		EventSources:     append([]string(nil), awsEventSources...),
+		Regions:          offeredRegions(settings),
 		Exposure: AWSExposureSetup{
 			CodeCommit: CodeCommitSetup{
 				ManagedPolicy: "", // none: the four actions go in an inline policy
@@ -272,6 +312,11 @@ func tenantStatus(records []AWSAccountRecord) string {
 	for _, rec := range records {
 		if rec.IsConnected {
 			return AWSStatusConnected
+		}
+	}
+	for _, rec := range records {
+		if rec.Approval.Status == ApprovalPending {
+			return AWSStatusPendingApproval
 		}
 	}
 	return AWSStatusActionNeeded
@@ -340,7 +385,11 @@ func (s *AWSIntegrationService) Verify(ctx context.Context, caller AWSCaller, ra
 	stepCancel()
 	if err != nil {
 		if errors.Is(err, awsconnect.ErrAccessDenied) {
-			fail(&checks[0], "AWS would not let us use this role.", "Check the External ID matches")
+			fail(&checks[0], "AWS would not let us use this role: the role ARN, its trust policy (our role NHIPlatformAssumer) or the External ID does not match.", "Check the trust policy names our role and your External ID exactly")
+		} else if errors.Is(err, awsconnect.ErrPlatformCredentials) {
+			logCheckError(ctx, caller.TenantID, role.AccountID, checks[0].Key, err)
+			platformError(&checks[0], err)
+			checks[0].Message = "Our platform could not sign in to AWS (its own credentials were refused, e.g. InvalidClientTokenId). This is on our side, not in your account; we have been alerted. Try again later."
 		} else {
 			logCheckError(ctx, caller.TenantID, role.AccountID, checks[0].Key, err)
 			unavailable(&checks[0])
@@ -368,7 +417,7 @@ func (s *AWSIntegrationService) Verify(ctx context.Context, caller AWSCaller, ra
 	case err == nil:
 		pass(&checks[1], "Read access works.")
 	case errors.Is(err, awsconnect.ErrAccessDenied), errors.Is(err, awsconnect.ErrNothingRead):
-		fail(&checks[1], "The role cannot read your account.", "Attach SecurityAudit + ViewOnlyAccess")
+		fail(&checks[1], "The role cannot read your account.", "Attach SecurityAudit and ViewOnlyAccess to NHIPlatformCollector")
 	default:
 		logCheckError(ctx, caller.TenantID, role.AccountID, checks[1].Key, err)
 		unavailable(&checks[1])
@@ -376,53 +425,70 @@ func (s *AWSIntegrationService) Verify(ctx context.Context, caller AWSCaller, ra
 
 	// 3. Events. Allow the account on the bus first (idempotent); EventBridge
 	// retries refused deliveries, so events sent before this still arrive.
-	stepCtx, stepCancel = context.WithTimeout(ctx, awsPermissionBudget)
-	err = s.verifier.AllowAccountOnBus(stepCtx, p, role.AccountID)
-	stepCancel()
-	switch {
-	case err != nil:
-		logCheckError(ctx, caller.TenantID, role.AccountID, "bus_permission", err)
-		unavailable(&checks[2])
-	case s.events == nil:
-		logCheckError(ctx, caller.TenantID, role.AccountID, checks[2].Key, errors.New("no event queue: set NHI_AWS_EVENT_QUEUE_URL"))
-		unavailable(&checks[2])
-	default:
-		found, err := s.events.HasEventsFrom(ctx, p, role.AccountID, s.now().Add(-s.opts.EventLookback))
-		switch {
-		case err != nil:
-			logCheckError(ctx, caller.TenantID, role.AccountID, checks[2].Key, err)
-			unavailable(&checks[2])
-		case found:
-			pass(&checks[2], "Events from your account are arriving.")
-		default:
-			fail(&checks[2], "No event from this account has reached us yet. Events can take a few minutes after the rule is created.", "Check the EventBridge rule target ARN, then re-check in a few minutes")
-		}
-	}
-
-	allPassed := checks[0].State == AWSCheckPass && checks[1].State == AWSCheckPass && checks[2].State == AWSCheckPass
-	if allPassed {
-		result.Status = AWSStatusConnected
-	}
-
-	// Saved even if the caller has gone: the checks really ran.
-	saveCtx, saveCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
-	defer saveCancel()
-	saved, queued, err := s.store.SaveVerification(saveCtx, caller.TenantID, caller.Schema, AWSAccountRecord{
+	// The events check then runs in the background (service_watch.go): it
+	// watches the queue for a few minutes instead of peeking once.
+	rec := AWSAccountRecord{
 		AccountID:      role.AccountID,
 		RoleARN:        role.ARN,
 		Regions:        regions,
 		ExternalID:     settings.ExternalID,
-		Status:         result.Status,
-		Checks:         checks,
+		Status:         AWSStatusPending,
 		LastVerifiedAt: result.VerifiedAt,
 		LastVerifiedBy: caller.Actor,
-	})
+	}
+	saveCtx, saveCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer saveCancel()
+	if checks[1].State != AWSCheckPass {
+		// No point watching for events while the role cannot read the account.
+		checks[2].State, checks[2].Message, checks[2].Fix = AWSCheckSkipped, "Runs once the checks above pass.", ""
+	} else {
+		stepCtx, stepCancel = context.WithTimeout(ctx, awsPermissionBudget)
+		err = s.verifier.AllowAccountOnBus(stepCtx, p, role.AccountID)
+		stepCancel()
+		switch {
+		case err != nil:
+			logCheckError(ctx, caller.TenantID, role.AccountID, "bus_permission", err)
+			if errors.Is(err, awsconnect.ErrPlatformCredentials) {
+				platformError(&checks[2], err)
+			} else {
+				unavailable(&checks[2])
+			}
+		case s.events == nil:
+			logCheckError(ctx, caller.TenantID, role.AccountID, checks[2].Key, errors.New("no event queue: set NHI_AWS_EVENT_QUEUE_URL"))
+			unavailable(&checks[2])
+		default:
+			rec.Checks = checks
+			saved, err := s.store.SaveCheckStart(saveCtx, caller.TenantID, caller.Schema, rec)
+			if errors.Is(err, ErrAWSAccountClaimedByTenant) {
+				return nil, ErrAWSAccountClaimed
+			}
+			if err != nil {
+				return nil, err
+			}
+			rec.Checks = append([]AWSCheck(nil), checks...) // the watcher's own copy
+			checks[2] = s.startWatch(caller, p, settings, rec)
+			rec.Checks = checks
+			if err := s.store.SaveChecks(saveCtx, caller.Schema, rec.AccountID, checks); err != nil {
+				return nil, err
+			}
+			result.Checks = checks
+			result.Status = saved.Status
+			result.Saved = true
+			result.Watching = true
+			return result, nil
+		}
+	}
+
+	// Saved even if the caller has gone: the checks really ran.
+	rec.Checks = checks
+	saved, queued, err := s.store.SaveVerification(saveCtx, caller.TenantID, caller.Schema, rec)
 	if errors.Is(err, ErrAWSAccountClaimedByTenant) {
 		return nil, ErrAWSAccountClaimed
 	}
 	if err != nil {
 		return nil, err
 	}
+	result.Checks = checks
 	result.Status = saved.Status
 	result.Saved = true
 	result.SyncQueued = queued
@@ -778,6 +844,13 @@ func (s *AWSIntegrationService) RequestSync(ctx context.Context, caller AWSCalle
 func (s *AWSIntegrationService) RemoveAccount(ctx context.Context, caller AWSCaller, accountID string) error {
 	if err := s.store.DeleteAccount(ctx, caller.TenantID, caller.Schema, accountID); err != nil {
 		return err
+	}
+	// Stop a check still watching for its events, and close its approval.
+	if v, ok := s.watches.LoadAndDelete(watchKey{caller.TenantID, accountID}); ok {
+		v.(*watchEntry).cancel()
+	}
+	if err := s.store.WithdrawApprovals(ctx, caller.TenantID, accountID); err != nil {
+		logging.FromContext(ctx).Warn("aws integration: withdrawing the approval request failed", "account_id", accountID, "err", err)
 	}
 	// Best effort: the account is already removed; a permission left behind
 	// only lets events in that no tenant scope includes.

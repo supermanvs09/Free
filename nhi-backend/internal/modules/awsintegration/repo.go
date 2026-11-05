@@ -140,7 +140,9 @@ const accountColumns = `account_id, COALESCE(client_role_arn, ''), COALESCE(regi
 	COALESCE(last_verified_at, updated_at), last_verified_by, connected_at,
 	github_enabled, COALESCE(github_secret_arn, ''), github_checks, github_verified_at,
 	codecommit_enabled, codecommit_checks, codecommit_verified_at, exposure_updated_by,
-	sync_status, sync_requested_at, sync_requested_by, sync_started_at, last_synced_at, last_sync_error`
+	sync_status, sync_requested_at, sync_requested_by, sync_started_at, last_synced_at, last_sync_error,
+	COALESCE(approval_status, ''), approval_requested_at, COALESCE(approval_requested_by, ''),
+	approved_at, COALESCE(approved_by, ''), COALESCE(approval_note, '')`
 
 type rowScanner interface{ Scan(dest ...any) error }
 
@@ -162,14 +164,17 @@ func scanAccount(row rowScanner) (*AWSAccountRecord, error) {
 	var rec AWSAccountRecord
 	var regions pq.StringArray
 	var checks, ghChecks, ccChecks []byte
-	var connectedAt, ghVerified, ccVerified, requestedAt, startedAt, syncedAt sql.NullTime
+	var connectedAt, ghVerified, ccVerified, requestedAt, startedAt, syncedAt, apprRequested, apprDecided sql.NullTime
 	if err := row.Scan(&rec.AccountID, &rec.RoleARN, &regions, &rec.ExternalID, &rec.Status, &rec.IsConnected, &checks,
 		&rec.LastVerifiedAt, &rec.LastVerifiedBy, &connectedAt,
 		&rec.GitHubConnected, &rec.GitHubSecretARN, &ghChecks, &ghVerified,
 		&rec.CodeCommitConnected, &ccChecks, &ccVerified, &rec.ExposureUpdatedBy,
-		&rec.SyncStatus, &requestedAt, &rec.SyncRequestedBy, &startedAt, &syncedAt, &rec.LastSyncError); err != nil {
+		&rec.SyncStatus, &requestedAt, &rec.SyncRequestedBy, &startedAt, &syncedAt, &rec.LastSyncError,
+		&rec.Approval.Status, &apprRequested, &rec.Approval.RequestedBy, &apprDecided, &rec.Approval.DecidedBy, &rec.Approval.Note); err != nil {
 		return nil, err
 	}
+	rec.Approval.RequestedAt = utcPtr(apprRequested)
+	rec.Approval.DecidedAt = utcPtr(apprDecided)
 	rec.Regions = withoutGlobal(regions)
 	// The table stores a connected account as 'active'; the API keeps its
 	// own word for it (rows written before the change still say 'connected').
@@ -208,6 +213,9 @@ func utcPtr(t sql.NullTime) *time.Time {
 func (r *AWSIntegrationRepository) ListAccounts(ctx context.Context, schema string) ([]AWSAccountRecord, error) {
 	db, err := r.tenantPool(schema)
 	if err != nil {
+		return nil, err
+	}
+	if err := r.ensureApprovalColumns(ctx, db, schema); err != nil {
 		return nil, err
 	}
 	q := `SELECT ` + accountColumns + ` FROM ` + database.Table(schema, accountsTable) + `
@@ -267,6 +275,9 @@ func applyLastScans(ctx context.Context, db *sql.DB, schema string, accounts []A
 func (r *AWSIntegrationRepository) GetAccount(ctx context.Context, schema, accountID string) (*AWSAccountRecord, error) {
 	db, err := r.tenantPool(schema)
 	if err != nil {
+		return nil, err
+	}
+	if err := r.ensureApprovalColumns(ctx, db, schema); err != nil {
 		return nil, err
 	}
 	q := `SELECT ` + accountColumns + ` FROM ` + database.Table(schema, accountsTable) + `

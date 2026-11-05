@@ -29,7 +29,24 @@ var (
 	// ErrEventSourceNotConfigured: this deployment has no event log group, so
 	// the events check cannot run.
 	ErrEventSourceNotConfigured = errors.New("event log group is not configured")
+	// ErrPlatformCredentials: the platform's own AWS credentials were refused
+	// (InvalidClientTokenId, an expired token, no credentials at all). Nothing
+	// the customer did can cause this, so it must never be reported as a
+	// problem with their role.
+	ErrPlatformCredentials = errors.New("the platform's aws credentials were refused")
 )
+
+// platformCredentialCodes are AWS's answers to a call signed with bad, expired
+// or missing credentials of our own.
+var platformCredentialCodes = map[string]struct{}{
+	"InvalidClientTokenId":        {},
+	"UnrecognizedClientException": {},
+	"ExpiredToken":                {},
+	"ExpiredTokenException":       {},
+	"InvalidAccessKeyId":          {},
+	"SignatureDoesNotMatch":       {},
+	"MissingAuthenticationToken":  {},
+}
 
 // accessDeniedCodes are the error codes AWS uses for "not allowed".
 var accessDeniedCodes = map[string]struct{}{
@@ -48,6 +65,13 @@ func classify(err error) error {
 		if _, denied := accessDeniedCodes[apiErr.ErrorCode()]; denied {
 			return fmt.Errorf("%w: %s", ErrAccessDenied, apiErr.ErrorCode())
 		}
+		if _, ours := platformCredentialCodes[apiErr.ErrorCode()]; ours {
+			return fmt.Errorf("%w: %s", ErrPlatformCredentials, apiErr.ErrorCode())
+		}
+	}
+	// The SDK found no credentials at all (no role, no profile, no keys).
+	if strings.Contains(err.Error(), "failed to retrieve credentials") || strings.Contains(err.Error(), "no EC2 IMDS role found") {
+		return fmt.Errorf("%w: %v", ErrPlatformCredentials, err)
 	}
 	return err
 }

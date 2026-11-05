@@ -27,6 +27,18 @@ const (
 	AWSStatusPending      = "pending"       // saved, has never passed every check
 	AWSStatusActionNeeded = "action_needed" // passed before, the latest check failed
 	AWSStatusConnected    = "connected"     // the latest check passed every step
+	// AWSStatusPendingApproval: every check passed on a first connection; a
+	// platform admin approves it before the account is connected.
+	AWSStatusPendingApproval = "pending_approval"
+	// AWSStatusRejected: the platform admin declined the connection.
+	AWSStatusRejected = "rejected"
+)
+
+// Approval of a first connection (accounts.approval_status).
+const (
+	ApprovalPending  = "pending"
+	ApprovalApproved = "approved"
+	ApprovalRejected = "rejected"
 )
 
 // State of one check.
@@ -35,6 +47,11 @@ const (
 	AWSCheckFail    = "fail"    // the customer's setup needs a change; Fix says which
 	AWSCheckSkipped = "skipped" // not run because an earlier check failed
 	AWSCheckError   = "error"   // could not be run (our side); try again
+	// AWSCheckRunning: the events check is watching the queue right now.
+	AWSCheckRunning = "running"
+	// AWSCheckWarn: passed, with something to look at (a region whose events
+	// have not arrived yet).
+	AWSCheckWarn = "warn"
 )
 
 // Connection check keys, in the order they run.
@@ -77,6 +94,9 @@ type AWSIntegrationResponse struct {
 	// ExposureEnabled is true when any account scans GitHub or CodeCommit:
 	// the console shows the exposed-credential pages from then on.
 	ExposureEnabled bool `json:"exposure_enabled"`
+	// AwaitingApproval is true while an account that passed every check waits
+	// for the platform's approval: the console shows "waiting for approval".
+	AwaitingApproval bool `json:"awaiting_approval"`
 	// CanManage is true for roles allowed to connect accounts (admin). Setup
 	// is null for everyone else.
 	CanManage bool                  `json:"can_manage"`
@@ -92,17 +112,23 @@ type AWSWorkspace struct {
 // AWSSetupValues is everything the customer copies into the AWS console, and
 // the regions they may choose from.
 type AWSSetupValues struct {
-	AccountID       string           `json:"account_id"`
-	ExternalID      string           `json:"external_id"`
-	EventBusARN     string           `json:"event_bus_arn"`
-	Region          string           `json:"region"`
-	AssumerRoleARN  string           `json:"assumer_role_arn"`
-	RoleName        string           `json:"role_name"`
-	RuleName        string           `json:"rule_name"`
-	ManagedPolicies []string         `json:"managed_policies"`
-	EventSources    []string         `json:"event_sources"`
-	Regions         []AWSRegion      `json:"regions"`
-	Exposure        AWSExposureSetup `json:"exposure"`
+	AccountID      string `json:"account_id"`
+	ExternalID     string `json:"external_id"`
+	EventBusARN    string `json:"event_bus_arn"`
+	Region         string `json:"region"`
+	AssumerRoleARN string `json:"assumer_role_arn"`
+	RoleName       string `json:"role_name"`
+	RuleName       string `json:"rule_name"`
+	// ForwardRoleName is the role EventBridge uses to put events on our bus.
+	ForwardRoleName string `json:"forward_role_name"`
+	// TrailName is the CloudTrail trail to create when none qualifies.
+	TrailName       string   `json:"trail_name"`
+	ManagedPolicies []string `json:"managed_policies"`
+	EventSources    []string `json:"event_sources"`
+	// EventWaitMinutes is how long the events check watches for events.
+	EventWaitMinutes int              `json:"event_wait_minutes"`
+	Regions          []AWSRegion      `json:"regions"`
+	Exposure         AWSExposureSetup `json:"exposure"`
 }
 
 // AWSExposureSetup is what the customer adds to the same role to let the
@@ -141,8 +167,9 @@ type AWSConnectedAccount struct {
 	AccountID      string      `json:"account_id"`
 	RoleARN        string      `json:"role_arn"`
 	Regions        []string    `json:"regions"`
-	Status         string      `json:"status"` // pending | connected | action_needed
+	Status         string      `json:"status"` // pending | pending_approval | connected | action_needed | rejected
 	IsConnected    bool        `json:"is_connected"`
+	Approval       AWSApproval `json:"approval"`
 	Checks         []AWSCheck  `json:"checks"`
 	LastVerifiedAt time.Time   `json:"last_verified_at"`
 	LastVerifiedBy string      `json:"last_verified_by"`
@@ -185,6 +212,33 @@ type AWSCheck struct {
 	// Fix is the one change that makes a failed check pass. Empty unless
 	// State is "fail".
 	Fix string `json:"fix,omitempty"`
+	// Events check only: the regions events are expected from and whether
+	// each has delivered one, and the watch's start and end.
+	Regions   []AWSCheckRegion `json:"regions,omitempty"`
+	StartedAt *time.Time       `json:"started_at,omitempty"`
+	Deadline  *time.Time       `json:"deadline,omitempty"`
+	Scanned   int              `json:"messages_scanned,omitempty"`
+}
+
+// AWSCheckRegion is one region of the events check.
+type AWSCheckRegion struct {
+	Region      string     `json:"region"`
+	Seen        bool       `json:"seen"`
+	FirstSeenAt *time.Time `json:"first_seen_at,omitempty"`
+	Events      int        `json:"events"`
+	// Global marks us-east-1 when it is expected because IAM and STS deliver
+	// their (global) events there, not because the customer chose it.
+	Global bool `json:"global,omitempty"`
+}
+
+// AWSApproval is the platform's decision on a first connection.
+type AWSApproval struct {
+	Status      string     `json:"status"` // "" | pending | approved | rejected
+	RequestedAt *time.Time `json:"requested_at,omitempty"`
+	RequestedBy string     `json:"requested_by,omitempty"`
+	DecidedAt   *time.Time `json:"decided_at,omitempty"`
+	DecidedBy   string     `json:"decided_by,omitempty"`
+	Note        string     `json:"note,omitempty"`
 }
 
 type AWSVerifyRequest struct {
@@ -211,7 +265,7 @@ type AWSExposureResponse struct {
 }
 
 type AWSVerifyResponse struct {
-	Status     string     `json:"status"` // connected | action_needed | pending
+	Status     string     `json:"status"` // connected | action_needed | pending | pending_approval
 	AccountID  string     `json:"account_id"`
 	RoleARN    string     `json:"role_arn"`
 	Regions    []string   `json:"regions"`
@@ -223,6 +277,9 @@ type AWSVerifyResponse struct {
 	// SyncQueued is true when this verification connected the account for
 	// the first time and its first sync was queued.
 	SyncQueued bool `json:"sync_queued"`
+	// Watching is true when the events check runs on in the background: the
+	// console follows it on GET /integrations/aws.
+	Watching bool `json:"watching"`
 }
 
 type AWSSyncResponse struct {
@@ -262,6 +319,7 @@ type AWSAccountRecord struct {
 	CodeCommitChecks    []AWSCheck
 	CodeCommitVerified  *time.Time
 	ExposureUpdatedBy   string
+	Approval            AWSApproval
 	SyncStatus          string
 	SyncRequestedAt     *time.Time
 	SyncRequestedBy     string
@@ -289,6 +347,7 @@ func (r AWSAccountRecord) ToAPI() AWSConnectedAccount {
 		Regions:        regions,
 		Status:         r.Status,
 		IsConnected:    r.IsConnected,
+		Approval:       r.Approval,
 		Checks:         nonNilChecks(r.Checks),
 		LastVerifiedAt: r.LastVerifiedAt,
 		LastVerifiedBy: r.LastVerifiedBy,
