@@ -148,6 +148,9 @@ export function SyncPanel({ open, onClose }) {
 
   let subtitle = 'Reads your AWS accounts, then scores what it finds. About 5 to 10 minutes.';
   if (running) subtitle = `Step ${Math.min(4, doneStep + 1)} of 4 · running for ${clock(now - run.startedAt)}`;
+  if (running && run.slow) {
+    subtitle = `Still running after ${clock(now - run.startedAt)}. Large accounts take longer; nothing has failed. Checked every 30 seconds.`;
+  }
   if (failed) subtitle = 'The sync did not finish.';
   if (finished) subtitle = `Finished in ${clock((run.finishedAt ?? now) - run.startedAt)}.`;
 

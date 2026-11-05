@@ -335,6 +335,21 @@ export async function sync(accountId) {
   return clone({ account, already_queued: false });
 }
 
+export async function cancelSync(accountId) {
+  requireManage();
+  await wait(DELAY.write);
+  const account = findAccount(accountId);
+  if (account.sync.status === 'running') {
+    throw new ApiError({ status: 409, code: 'AWS_SYNC_RUNNING', message: 'This sync has already started and can no longer be cancelled. It finishes on its own.' });
+  }
+  if (account.sync.status !== 'queued') {
+    throw new ApiError({ status: 409, code: 'AWS_SYNC_NOT_QUEUED', message: 'There is no queued sync to cancel for this account.' });
+  }
+  account.sync = { ...account.sync, status: account.sync.last_synced_at ? 'succeeded' : 'idle', requested_at: null, requested_by: '' };
+  commit();
+  return clone(account);
+}
+
 export async function remove(accountId) {
   requireManage();
   await wait(DELAY.write);

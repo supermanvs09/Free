@@ -1,7 +1,12 @@
-import { useEffect, useState } from 'react';
-import { AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AlertTriangle, ChevronDown, Layers, Loader2, RefreshCw, Server } from 'lucide-react';
+import { useWorkspace } from '../../app/WorkspaceContext';
+import { syncAwsAccount } from '../../lib/api/integrations';
 import { formatDateTime, formatRelative } from '../../lib/format';
 import { Button } from '../../ui/Button';
+import { FloatingPanel } from '../../ui/Floating';
+import { useToast } from '../../ui/Toast';
 import { cn } from '../../ui/cn';
 import { useSync } from './SyncContext';
 
@@ -35,7 +40,7 @@ export function SyncButton() {
     return (
       <button type="button" onClick={openPanel} className={cn(base, 'border-brand/40 bg-info-soft text-brand hover:border-brand')} aria-label="Sync in progress. Show progress.">
         <Loader2 aria-hidden="true" className="size-4 motion-safe:animate-spin" />
-        <span>Syncing · step {STEP_OF[run.stage] ?? 1} of 4</span>
+        <span>{run.slow ? 'Still syncing · large accounts take longer' : `Syncing · step ${STEP_OF[run.stage] ?? 1} of 4`}</span>
       </button>
     );
   }
@@ -55,10 +60,64 @@ export function SyncButton() {
   ) : null;
 
   if (!canScan) return <div className="hidden sm:flex">{last}</div>;
-  const minutes = Math.ceil((cooldownUntil - now) / 60000);
   return (
     <>
       {last}
+      <SyncChooser base={base} cooling={cooling} cooldownUntil={cooldownUntil} now={now} start={start} openPanel={openPanel} />
+    </>
+  );
+}
+
+/** Accounts a sync can read: connected, with regions to read. */
+function syncableAccounts(integration) {
+  return (integration?.accounts ?? []).filter((account) => account.status === 'connected' && account.connectedAt);
+}
+
+/**
+ * "Sync now": with one connected account it just syncs; with more it asks
+ * which - every account (read, score, refresh every page: the full sync) or
+ * one account (queued for the discovery worker, followed on Integrations).
+ */
+function SyncChooser({ base, cooling, cooldownUntil, now, start, openPanel }) {
+  const workspace = useWorkspace();
+  const { notify } = useToast();
+  const navigate = useNavigate();
+  const anchorRef = useRef(null);
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState('');
+  const accounts = syncableAccounts(workspace.integration);
+  const choose = accounts.length > 1;
+  const minutes = Math.ceil((cooldownUntil - now) / 60000);
+
+  const syncAll = () => {
+    setOpen(false);
+    if (cooling) openPanel();
+    else start();
+  };
+
+  const syncOne = async (account) => {
+    setPending(account.accountId);
+    try {
+      const { alreadyQueued } = await syncAwsAccount({ accountId: account.accountId });
+      setOpen(false);
+      notify({
+        variant: alreadyQueued ? 'info' : 'success',
+        title: alreadyQueued ? `${account.accountId} is already syncing` : `Sync of ${account.accountId} queued`,
+        description: alreadyQueued
+          ? 'A sync of this account is already queued or running.'
+          : 'Only this account is read. Follow it - or cancel it before it starts - on Integrations.',
+        action: { label: 'Open Integrations', onSelect: () => navigate('/integrations') },
+      });
+      workspace.refresh?.();
+    } catch (error) {
+      notify({ variant: 'error', title: `Could not sync ${account.accountId}`, description: error?.message });
+    } finally {
+      setPending('');
+    }
+  };
+
+  if (!choose) {
+    return (
       <button
         type="button"
         onClick={cooling ? openPanel : start}
@@ -68,10 +127,92 @@ export function SyncButton() {
         <RefreshCw aria-hidden="true" className="size-4" />
         <span>{cooling ? `Next sync in ${minutes} min` : 'Sync now'}</span>
       </button>
+    );
+  }
+
+  return (
+    <>
+      <button
+        ref={anchorRef}
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        className={cn(base, 'border-topbar-line bg-topbar-field text-topbar-ink hover:border-ink-3/45')}
+        title="Choose all accounts or one account to sync"
+      >
+        <RefreshCw aria-hidden="true" className="size-4" />
+        <span>Sync now</span>
+        <ChevronDown aria-hidden="true" className={cn('size-3.5 transition-transform', open && 'rotate-180')} />
+      </button>
+      <FloatingPanel
+        anchorRef={anchorRef}
+        open={open}
+        onClose={() => setOpen(false)}
+        role="dialog"
+        aria-label="Choose what to sync"
+        className="w-80 rounded-[var(--radius-panel)] border border-line bg-surface p-1.5 shadow-[var(--t-shadow-lg)]"
+      >
+        <p className="px-2.5 pt-1.5 pb-1 text-[11px] font-semibold tracking-[0.06em] text-ink-3 uppercase">What to sync</p>
+        <ChooserItem
+          icon={Layers}
+          title={`All accounts (${accounts.length})`}
+          detail={
+            cooling
+              ? `Available again in ${minutes} min - the scanner runs one full sync every 10 minutes.`
+              : 'Reads every account, scores what it finds and refreshes every page. About 5 to 10 minutes.'
+          }
+          disabled={cooling}
+          onSelect={syncAll}
+        />
+        <div className="my-1 border-t border-line" />
+        <p className="px-2.5 pt-1 pb-1 text-[11px] font-semibold tracking-[0.06em] text-ink-3 uppercase">One account</p>
+        {accounts.map((account) => {
+          const busy = account.sync.status === 'queued' || account.sync.status === 'running';
+          return (
+            <ChooserItem
+              key={account.accountId}
+              icon={Server}
+              mono
+              title={account.accountId}
+              detail={
+                busy
+                  ? account.sync.status === 'queued'
+                    ? 'Already queued'
+                    : 'Syncing now'
+                  : `${account.regions.length} region${account.regions.length === 1 ? '' : 's'}${account.sync.lastSyncedAt ? ` · last synced ${formatRelative(account.sync.lastSyncedAt)}` : ' · not synced yet'}`
+              }
+              loading={pending === account.accountId}
+              disabled={busy || Boolean(pending) || account.regions.length === 0}
+              onSelect={() => syncOne(account)}
+            />
+          );
+        })}
+      </FloatingPanel>
     </>
   );
 }
 
+function ChooserItem({ icon: Icon, title, detail, disabled, loading, mono, onSelect }) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onSelect}
+      className="flex w-full items-start gap-2.5 rounded-[var(--radius-control)] px-2.5 py-2 text-left transition-colors hover:bg-surface-2 focus-visible:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:bg-transparent"
+    >
+      {loading ? (
+        <Loader2 aria-hidden="true" className="mt-0.5 size-4 shrink-0 animate-spin text-brand" />
+      ) : (
+        <Icon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-ink-3" />
+      )}
+      <span className="min-w-0">
+        <span className={cn('block text-[13px] font-medium text-ink', mono && 'font-mono')}>{title}</span>
+        <span className="block text-[11.5px] leading-snug text-ink-3">{detail}</span>
+      </span>
+    </button>
+  );
+}
 
 /**
  * The same control for a page body (Integrations): one workspace-wide Sync now,
@@ -111,7 +252,7 @@ export function SyncNowButton() {
       onClick={cooling ? openPanel : start}
       title={cooling ? `A sync can run every 10 minutes. The next one can start in ${minutes} min.` : 'Read every connected AWS account, score what is found and refresh every page'}
     >
-      {cooling ? `Next sync in ${minutes} min` : 'Sync now'}
+      {cooling ? `Next sync in ${minutes} min` : 'Sync all accounts'}
     </Button>
   );
 }

@@ -22,7 +22,13 @@ export const STEPS = ['start', 'discovery', 'posture', 'refresh'];
 
 const DISCOVERY_POLL_MS = 10_000;
 const POSTURE_POLL_MS = 4_000;
-const MAX_RUN_MS = 30 * 60_000; // a run that has not finished by then is reported, not waited on forever
+/* A large estate can take well over half an hour. Past SLOW_AFTER_MS the run
+   is marked slow (said plainly, polled less often) and still followed; only
+   after MAX_RUN_MS does the console stop following it - and says the scan may
+   well finish without it, offering to pick it up again. */
+const SLOW_AFTER_MS = 20 * 60_000;
+const SLOW_POLL_MS = 30_000;
+const MAX_RUN_MS = 3 * 60 * 60_000;
 const COOLDOWN_MS = 10 * 60_000; // the scanner's gap between two scans
 const MAX_LOST_POLLS = 5;
 const STORE_KEY = 'nhi.sync.v1';
@@ -139,16 +145,23 @@ function newRun() {
 
 function schedule(delay) {
   clearTimeout(timer);
-  timer = setTimeout(tick, delay);
+  /* A slow run is still followed, just less often. */
+  timer = setTimeout(tick, delay > 0 && state.run?.slow ? Math.max(delay, SLOW_POLL_MS) : delay);
 }
 
 async function tick() {
   const run = state.run;
   if (!isActive(run)) return;
-  if (Date.now() - run.startedAt > MAX_RUN_MS) {
-    fail(run.stage === 'posture' ? 'posture' : 'discovery', 'This is taking longer than expected. The scan may still be running; check again in a few minutes.', { timedOut: true });
+  const elapsed = Date.now() - run.startedAt;
+  if (elapsed > MAX_RUN_MS) {
+    fail(
+      run.stage === 'posture' ? 'posture' : 'discovery',
+      'We stopped following this sync after 3 hours without a result. It has not failed as far as we know - the scanner may still finish it. Check again to pick it up.',
+      { timedOut: true, resumable: true },
+    );
     return;
   }
+  if (elapsed > SLOW_AFTER_MS && !run.slow) patchRun({ slow: true });
   if (run.stage === 'discovery') await pollDiscovery(run);
   else if (run.stage === 'posture') await pollPosture(run);
 }
@@ -275,7 +288,11 @@ export function resume() {
   if (!run) return;
   if (run.stage === 'failed' && run.discovery.scanId && run.discovery.state !== 'completed' && run.discovery.state !== 'failed') {
     lostPolls = 0;
-    patchRun({ stage: 'discovery', error: null, failedStep: null, finishedAt: null, startedAt: Date.now() });
+    patchRun({ stage: 'discovery', error: null, failedStep: null, finishedAt: null, startedAt: Date.now(), slow: false, timedOut: false });
+    schedule(0);
+  } else if (run.stage === 'failed' && run.failedStep === 'posture' && run.posture?.jobId) {
+    /* Stopped following the scoring job: ask for it again. */
+    patchRun({ stage: 'posture', error: null, failedStep: null, finishedAt: null, startedAt: Date.now(), slow: false, timedOut: false });
     schedule(0);
   } else if (isActive(run)) {
     schedule(0);

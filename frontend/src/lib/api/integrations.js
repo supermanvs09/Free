@@ -10,7 +10,8 @@ import { INTEGRATIONS_PREVIEW } from './integrationsPreview';
  *   POST   /api/v1/integrations/aws/verify                         { role_arn, regions }
  *   PUT    /api/v1/integrations/aws/accounts/{id}/regions          { regions }
  *   PUT    /api/v1/integrations/aws/accounts/{id}/exposure         { github, codecommit, github_secret_arn }
- *   POST   /api/v1/integrations/aws/accounts/{id}/sync
+ *   POST   /api/v1/integrations/aws/accounts/{id}/sync              queue a sync of one account
+ *   DELETE /api/v1/integrations/aws/accounts/{id}/sync              cancel it while still queued
  *   DELETE /api/v1/integrations/aws/accounts/{id}
  *
  * A build with VITE_INTEGRATIONS_PREVIEW=true answers all of these in the
@@ -169,6 +170,13 @@ export async function setAwsExposure({ accountId, github, codecommit, githubSecr
 export async function syncAwsAccount({ accountId }) {
   const d = INTEGRATIONS_PREVIEW ? await preview.sync(accountId) : unwrapMain(await client.post(`${BASE}/accounts/${enc(accountId)}/sync`));
   return { account: awsAccount(d.account), alreadyQueued: Boolean(d.already_queued) };
+}
+
+/** Withdraw a queued sync (409 once the worker has started it). */
+export async function cancelAwsAccountSync({ accountId }) {
+  if (INTEGRATIONS_PREVIEW) return { account: awsAccount(await preview.cancelSync(accountId)) };
+  const d = unwrapMain(await client.delete(`${BASE}/accounts/${enc(accountId)}/sync`));
+  return { account: awsAccount(d.account) };
 }
 
 export async function removeAwsAccount({ accountId }) {

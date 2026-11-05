@@ -119,7 +119,15 @@ function ExposureForm({ account, accounts, onSelectAccount, setup, onClose, onSa
     event?.preventDefault();
     setTouched(true);
     if (localSecretProblem) {
-      secretRef.current?.focus();
+      /* The field can be far down the panel: take the reader there and say
+         why nothing was checked, rather than stop silently. */
+      secretRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      secretRef.current?.focus({ preventScroll: true });
+      notify({
+        variant: 'error',
+        title: 'Nothing was checked yet',
+        description: 'GitHub needs the ARN of the secret that holds its token. Paste it, or untick GitHub to check CodeCommit on its own.',
+      });
       return;
     }
     setRunning(true);

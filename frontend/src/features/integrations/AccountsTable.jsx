@@ -8,12 +8,13 @@ import {
   Loader2,
   MapPin,
   PanelRightOpen,
+  RefreshCw,
   SearchX,
   ShieldCheck,
   Trash2,
   XCircle,
 } from 'lucide-react';
-import { removeAwsAccount, updateAwsAccountRegions, verifyAwsConnection } from '../../lib/api/integrations';
+import { cancelAwsAccountSync, removeAwsAccount, syncAwsAccount, updateAwsAccountRegions, verifyAwsConnection } from '../../lib/api/integrations';
 import { formatDateTime, formatNumber, formatRelative } from '../../lib/format';
 import { Button } from '../../ui/Button';
 import { Field, Input, SearchInput } from '../../ui/Field';
@@ -62,21 +63,46 @@ export function syncBlockedReason(account) {
   return '';
 }
 
-/** Sync now and Re-check connection for one account, with their toasts. */
+/** Sync this account, cancel its queued sync, and re-check its connection, with their toasts. */
 export function useAccountActions(account, { onChanged, onEditRegions } = {}) {
   const { notify } = useToast();
-  const scan = useSync();
   const [busy, setBusy] = useState('');
 
-  /* One scan covers the whole workspace: this opens the same progress panel as the
-     top bar's Sync now, and follows a scan that is already running. */
+  /* This account only: it is queued for the discovery worker, and the page
+     follows its state (queued -> syncing -> synced). The top bar's Sync now
+     offers every account at once. */
   const sync = async () => {
     setBusy('sync');
     try {
-      await scan.start();
+      const { alreadyQueued } = await syncAwsAccount({ accountId: account.accountId });
+      notify(
+        alreadyQueued
+          ? { variant: 'info', title: `${account.accountId} is already syncing`, description: 'A sync of this account is already queued or running. This page follows it.' }
+          : {
+              variant: 'success',
+              title: `Sync of ${account.accountId} queued`,
+              description: 'It starts as soon as the discovery worker is free; this page follows it. You can cancel it until it starts.',
+            },
+      );
       onChanged?.();
+    } catch (error) {
+      notify({ variant: 'error', title: `Could not sync ${account.accountId}`, description: error?.message });
     } finally {
       setBusy('');
+    }
+  };
+
+  /* Only a sync still waiting can be withdrawn; once the worker has it, it finishes on its own. */
+  const cancel = async () => {
+    setBusy('cancel');
+    try {
+      await cancelAwsAccountSync({ accountId: account.accountId });
+      notify({ variant: 'success', title: 'Sync cancelled', description: `The queued sync of ${account.accountId} was withdrawn. Nothing was read.` });
+    } catch (error) {
+      notify({ variant: error?.code === 'AWS_SYNC_RUNNING' ? 'info' : 'error', title: 'Could not cancel the sync', description: error?.message });
+    } finally {
+      setBusy('');
+      onChanged?.();
     }
   };
 
@@ -113,7 +139,7 @@ export function useAccountActions(account, { onChanged, onEditRegions } = {}) {
     }
   };
 
-  return { busy, sync, recheck };
+  return { busy, sync, cancel, recheck };
 }
 
 const FILTERS = [
@@ -242,10 +268,13 @@ export function AccountsTable({ accounts, catalogue, inventory, canManage, onCha
 }
 
 function AccountRow({ account, names, counts, inventoryKnown, canManage, onChanged, onOpen, onEdit, onRemove, onExposure }) {
-  const { busy, recheck } = useAccountActions(account, { onChanged, onEditRegions: onEdit });
+  const { busy, sync: syncThis, cancel, recheck } = useAccountActions(account, { onChanged, onEditRegions: onEdit });
   const { run } = useSync();
-  // A sync covers every connected account, so while one runs each of them reads as syncing.
+  // A workspace sync covers every connected account, so while one runs each of them reads as syncing.
   const syncing = account.status === 'connected' && Boolean(run) && run.stage !== 'done' && run.stage !== 'failed';
+  const queued = account.sync.status === 'queued';
+  const accountRunning = account.sync.status === 'running' || syncing;
+  const blocked = syncBlockedReason(account);
   const meta = ACCOUNT_STATUS[account.status] ?? ACCOUNT_STATUS.action_needed;
   const sync = syncing ? SYNC.running : (SYNC[account.sync.status] ?? SYNC.idle);
   const SyncIcon = sync.icon;
@@ -356,8 +385,38 @@ function AccountRow({ account, names, counts, inventoryKnown, canManage, onChang
           <ExposureBadges account={account} onOpen={canManage && onExposure && account.connectedAt ? onExposure : null} />
         </div>
 
-        {/* Actions */}
+        {/* Actions: this account's own sync, in reach, then the rest in the menu. */}
         <div className="flex items-center gap-1.5 @min-[66rem]:justify-end">
+          {canManage && account.connectedAt && (
+            queued ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={XCircle}
+                loading={busy === 'cancel'}
+                disabled={Boolean(busy)}
+                onClick={cancel}
+                title="Withdraw this sync before it starts"
+                aria-label={`Cancel the queued sync of ${account.accountId}`}
+              >
+                Cancel sync
+              </Button>
+            ) : (
+              <span title={accountRunning ? 'Syncing now. It finishes on its own.' : blocked || 'Read this account again now'}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={RefreshCw}
+                  loading={busy === 'sync'}
+                  disabled={Boolean(busy) || accountRunning || Boolean(blocked)}
+                  onClick={syncThis}
+                  aria-label={`Sync account ${account.accountId} now`}
+                >
+                  {accountRunning ? 'Syncing…' : 'Sync now'}
+                </Button>
+              </span>
+            )
+          )}
           <Menu
             outlined
             label={`More actions for ${account.accountId}`}

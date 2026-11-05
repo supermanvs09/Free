@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CheckCircle2, Globe2, KeyRound, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react';
+import { CheckCircle2, Globe2, KeyRound, RefreshCw, ShieldCheck, Trash2, XCircle } from 'lucide-react';
 import { formatDateTime, formatNumber, formatRelative } from '../../lib/format';
 import { Button } from '../../ui/Button';
 import { CopyableValue } from '../../ui/Copyable';
@@ -29,7 +29,9 @@ const TABS = [
  */
 export function AccountDrawer({ account, setup, catalogue, counts, canManage, onClose, onChanged, onEditRegions, onRemove, onExposure }) {
   const [tab, setTab] = useState('overview');
-  const { busy, sync, recheck } = useAccountActions(account, { onChanged, onEditRegions });
+  const { busy, sync, cancel, recheck } = useAccountActions(account, { onChanged, onEditRegions });
+  const queued = account.sync.status === 'queued';
+  const runningNow = account.sync.status === 'running';
   const names = useMemo(() => new Map(catalogue.map((region) => [region.code, region.name])), [catalogue]);
   const meta = ACCOUNT_STATUS[account.status] ?? ACCOUNT_STATUS.action_needed;
   const blocked = syncBlockedReason(account);
@@ -62,9 +64,15 @@ export function AccountDrawer({ account, setup, catalogue, counts, canManage, on
               Re-check connection
             </Button>
             <span title={blocked || undefined}>
-              <Button variant="primary" icon={RefreshCw} loading={busy === 'sync'} disabled={Boolean(blocked) || Boolean(busy)} onClick={sync}>
-                Sync all accounts
-              </Button>
+              {queued ? (
+                <Button variant="secondary" icon={XCircle} loading={busy === 'cancel'} disabled={Boolean(busy)} onClick={cancel}>
+                  Cancel queued sync
+                </Button>
+              ) : (
+                <Button variant="primary" icon={RefreshCw} loading={busy === 'sync'} disabled={Boolean(blocked) || Boolean(busy) || runningNow} onClick={sync}>
+                  {runningNow ? 'Syncing…' : 'Sync this account'}
+                </Button>
+              )}
             </span>
           </>
         ) : null
@@ -231,8 +239,8 @@ function SyncTab({ account, blocked }) {
         </div>
       </div>
       <p className="text-[12.5px] leading-relaxed text-ink-2">
-        A sync re-reads every allowed region and global IAM for all connected accounts, then scores what it finds. It always covers every
-        account, not just this one. Sync all accounts starts one and shows its progress; the dashboards change when it finishes.
+        Sync this account re-reads its allowed regions and global IAM. It is queued for the discovery worker and can be cancelled until it
+        starts. To read every account and score them together, use Sync now in the top bar and choose All accounts.
       </p>
       {blocked && <p className="text-[12px] text-ink-3">Sync is not available: {blocked.toLowerCase()}.</p>}
       <DetailList>
