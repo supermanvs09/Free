@@ -1,5 +1,7 @@
 package credentialexposure
 
+import "encoding/json"
+
 // Finding is a normalized row from either scanner findings table.
 type Finding struct {
 	FindingID          string   `json:"finding_id"`
@@ -20,6 +22,7 @@ type Finding struct {
 	CodeCommitURI      *string  `json:"codecommit_uri"`
 	Platform           string   `json:"platform"`
 	GitHubURI          *string  `json:"github_uri"`
+	BitbucketURI       *string  `json:"bitbucket_uri"`
 	LinePreview        *string  `json:"line_preview"`
 	Confidence         *string  `json:"confidence"`
 	Category           *string  `json:"category"`
@@ -43,6 +46,9 @@ type Finding struct {
 	MLVetoModelVersion *string  `json:"ml_veto_model_version"`
 	ValueFingerprint   *string  `json:"value_fingerprint"`
 	NoiseFlags         *string  `json:"noise_flags"`
+	// Deep is true for a finding from a deep scan (secscan_deep_findings_*,
+	// finding_id ends in "@<branch>"): a decision on it is sent with deep: true.
+	Deep bool `json:"deep,omitempty"`
 }
 
 type FindingsResponse struct {
@@ -90,6 +96,31 @@ type FindingsSummary struct {
 	Lists ListCounts `json:"lists"`
 	// ListCounts is the same as Lists, under the scanner backend's name.
 	ListCounts ListCounts `json:"list_counts"`
+	// ByPlatform splits the chosen list by platform.
+	ByPlatform PlatformCounts `json:"by_platform"`
+	// Platforms are the scanner platforms this workspace has findings tables for.
+	Platforms []string `json:"platforms"`
+	// DeepFindings counts the deep-scan findings (not part of the five lists);
+	// DeepAvailable is false until a deep scan has written its table.
+	DeepFindings  int  `json:"deep_findings"`
+	DeepAvailable bool `json:"deep_available"`
+}
+
+// DeepFindingsFilter narrows GET /deep-findings.
+type DeepFindingsFilter struct {
+	ClientID   string
+	Platform   string
+	Repository string
+	Branch     string
+	Limit      int
+	Offset     int
+}
+
+// PlatformCounts is a list's findings per scanner platform.
+type PlatformCounts struct {
+	CodeCommit int `json:"codecommit"`
+	GitHub     int `json:"github"`
+	Bitbucket  int `json:"bitbucket"`
 }
 
 type FindingsSummaryFilter struct {
@@ -125,6 +156,8 @@ type FindingDecisionRequest struct {
 	FindingID string `json:"finding_id"`
 	Decision  string `json:"decision"`
 	DecidedBy string `json:"decided_by,omitempty"`
+	// Deep labels a deep-scan finding (GET /deep-findings).
+	Deep bool `json:"deep,omitempty"`
 }
 
 type OKResponse struct {
@@ -134,7 +167,10 @@ type OKResponse struct {
 type DeepScanRequest struct {
 	ClientID   string `json:"client_id"`
 	Repository string `json:"repository"`
-	Platform   string `json:"platform,omitempty"` // "github" | "codecommit"; inferred when omitted
+	Platform   string `json:"platform,omitempty"` // codecommit | github | bitbucket; inferred when omitted
+	// Branches: absent (the default branch, as before), "default", "all" or
+	// a list of names - the scanner guide's shape.
+	Branches json.RawMessage `json:"branches,omitempty"`
 }
 
 // DeepScanAccepted is the 202 body: the walk is queued (or was already).
@@ -145,12 +181,25 @@ type DeepScanAccepted struct {
 	RepoKey        string `json:"repo_key"`
 	Platform       string `json:"platform"`
 	RequestedAt    string `json:"requested_at"`
-	AlreadyRunning bool   `json:"already_running"`
+	AlreadyRunning bool   `json:"already_running"` // every walk asked for was already waiting or running
+	// Branches is set when branches were chosen: the exact list queued, to poll
+	// each with GET /deep-scan/status?branch=.
+	Branches []string      `json:"branches,omitempty"`
+	Runs     []DeepScanRun `json:"runs"`
+}
+
+// DeepScanRun is one walk of a request.
+type DeepScanRun struct {
+	Branch         *string `json:"branch"`
+	RepoKey        string  `json:"repo_key"`
+	RequestedAt    string  `json:"requested_at"`
+	AlreadyRunning bool    `json:"already_running"`
 }
 
 type DeepScanResult struct {
 	ClientID        string  `json:"client_id"`
 	RepoKey         string  `json:"repo_key"`
+	Branch          *string `json:"branch,omitempty"`
 	Platform        string  `json:"platform"`
 	RequestedAt     *string `json:"requested_at"`
 	CompletedAt     *string `json:"completed_at"`

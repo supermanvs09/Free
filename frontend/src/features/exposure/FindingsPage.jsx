@@ -4,6 +4,7 @@ import {
   ExternalLink,
   FileWarning,
   GitCommitHorizontal,
+  History,
   List,
   Radar,
   SearchX,
@@ -16,6 +17,10 @@ import { useMutation, useQuery } from '../../lib/hooks';
 import {
   confidenceMeta,
   findingLink,
+  findingUri,
+  normalisePlatform,
+  PLATFORM_ORDER,
+  PLATFORMS,
   platformMeta,
   recommendedActionMeta,
   repoVisibilityMeta,
@@ -103,10 +108,16 @@ export default function FindingsPage() {
      drawer and the grid change the moment the write succeeds. */
   const [verdicts, setVerdicts] = useState(() => new Map());
 
-  const [platform, setPlatform] = useState('all');
+  const [platform, setPlatform] = useState(() => {
+    const asked = searchParams.get('platform');
+    return asked && Object.hasOwn(PLATFORMS, asked) ? asked : 'all';
+  });
   const [tier, setTier] = useState('');
   const [detector, setDetector] = useState('');
-  const [repository, setRepository] = useState('');
+  /* `?repository=` and `?branch=` land on one repository / branch: the deep
+     scan panel links here that way after a history walk. */
+  const [repository, setRepository] = useState(() => searchParams.get('repository') || '');
+  const [branch, setBranch] = useState(() => (searchParams.get('branch') || '').replace(/^refs\/heads\//, ''));
   const [verdict, setVerdict] = useState('');
   /* Seeded from `?search=` so a link lands on the finding it names. Only the
      starting value: the box is local state from then on. */
@@ -166,6 +177,7 @@ export default function FindingsPage() {
     setTier('');
     setDetector('');
     setRepository('');
+    setBranch('');
     setVerdict('');
     setCategory('');
     setConfidence('');
@@ -177,7 +189,7 @@ export default function FindingsPage() {
     const params = new URLSearchParams(searchParams);
     if (next === 'live') params.delete('set');
     else params.set('set', next);
-    params.delete('search');
+    for (const key of ['search', 'repository', 'branch', 'platform']) params.delete(key);
     resetFilters();
     setSearchParams(params, { replace: true });
     setSelected(null);
@@ -189,10 +201,9 @@ export default function FindingsPage() {
   const platformFiltered = useMemo(() => {
     if (platform === 'all') return allFindings;
     /* A finding recorded before platform tracking existed reports null and is
-       always CodeCommit, so the CodeCommit filter is "not GitHub". */
-    if (platform === 'github')
-      return allFindings.filter((finding) => String(finding.platform).toLowerCase() === 'github');
-    return allFindings.filter((finding) => String(finding.platform).toLowerCase() !== 'github');
+       always CodeCommit: normalisePlatform says so, and keeps Bitbucket out of
+       the CodeCommit tab (the guide's 2026-11-05 warning). */
+    return allFindings.filter((finding) => normalisePlatform(finding.platform) === platform);
   }, [allFindings, platform]);
 
   const filtered = useMemo(() => {
@@ -201,6 +212,7 @@ export default function FindingsPage() {
       if (tier && String(finding.risk_tier).toUpperCase() !== tier) return false;
       if (detector && finding.detector !== detector) return false;
       if (repository && finding.repository !== repository) return false;
+      if (branch && shortBranch(finding.branch) !== branch) return false;
       if (category && String(finding.category || '') !== category) return false;
       if (confidence && String(finding.confidence || '').toLowerCase() !== confidence) return false;
       if (visibility && String(finding.repo_visibility || '').toLowerCase() !== visibility) return false;
@@ -227,7 +239,7 @@ export default function FindingsPage() {
         .filter(Boolean)
         .some((field) => String(field).toLowerCase().includes(needle));
     });
-  }, [platformFiltered, tier, detector, repository, category, confidence, visibility, verdict, search]);
+  }, [platformFiltered, tier, detector, repository, branch, category, confidence, visibility, verdict, search]);
 
   const sorted = useMemo(() => {
     const rows = [...filtered];
@@ -290,6 +302,18 @@ export default function FindingsPage() {
       .sort((a, b) => b[1] - a[1])
       .map(([key, count]) => ({ value: key, label: key, count, active: repository === key }));
   }, [platformFiltered, repository]);
+
+  /* Every branch is scanned (since 2026-11-05), so a finding's branch says
+     where the secret was introduced. Shown once there is more than one. */
+  const branchOptions = useMemo(() => {
+    const rows = repository ? platformFiltered.filter((finding) => finding.repository === repository) : platformFiltered;
+    return countBy(rows, (finding) => (finding.branch ? shortBranch(finding.branch) : '')).map(([key, count]) => ({
+      value: key,
+      label: key,
+      count,
+      active: branch === key,
+    }));
+  }, [platformFiltered, repository, branch]);
 
   const categoryOptions = useMemo(
     () =>
@@ -392,8 +416,25 @@ export default function FindingsPage() {
           setPage(1);
           setVisibility((current) => (current === value ? '' : value));
         },
-        note: 'Reported by GitHub only. A CodeCommit repository is always private to its AWS account.',
+        note: 'Reported by GitHub only. CodeCommit and Bitbucket repositories are recorded as private.',
       },
+      ...(branchOptions.length > 1 || branch
+        ? [
+            {
+              key: 'branch',
+              label: 'Branch',
+              options: branchOptions,
+              onToggle: (value) => {
+                setPage(1);
+                setBranch((current) => (current === value ? '' : value));
+              },
+              note:
+                listKey === 'history'
+                  ? 'The branch a deep scan walked. The same secret found on two branches is two rows.'
+                  : 'Where the secret was introduced. A branch other than the default is scanned for what it adds.',
+            },
+          ]
+        : []),
       {
         key: 'category',
         label: 'Category',
@@ -414,7 +455,7 @@ export default function FindingsPage() {
         note: 'How sure the scanner is that this is a secret. Separate from risk, which is how much harm it could do if real.',
       },
     ],
-    [summary, tier, detector, verdictOptions, repositoryOptions, visibilityOptions, categoryOptions, confidenceOptions],
+    [summary, tier, detector, verdictOptions, repositoryOptions, branchOptions, branch, listKey, visibilityOptions, categoryOptions, confidenceOptions],
   );
 
   const chips = useMemo(() => {
@@ -423,6 +464,7 @@ export default function FindingsPage() {
     if (tier) list.push({ key: 'tier', label: 'Risk', value: severityMeta(tier).label });
     if (detector) list.push({ key: 'detector', label: 'Kind', value: humanizeToken(detector) });
     if (repository) list.push({ key: 'repository', label: 'Repository', value: repository });
+    if (branch) list.push({ key: 'branch', label: 'Branch', value: branch });
     if (verdict) list.push({ key: 'verdict', label: 'Verdict', value: VERDICTS[verdict]?.label ?? verdict });
     if (visibility) {
       list.push({ key: 'visibility', label: 'Visibility', value: repoVisibilityMeta(visibility)?.label ?? visibility });
@@ -432,13 +474,14 @@ export default function FindingsPage() {
       list.push({ key: 'confidence', label: 'Match', value: confidenceMeta(confidence)?.label ?? confidence });
     }
     return list;
-  }, [search, tier, detector, repository, verdict, visibility, category, confidence]);
+  }, [search, tier, detector, repository, branch, verdict, visibility, category, confidence]);
 
   const removeChip = (key) => {
     if (key === 'search') setSearch('');
     if (key === 'tier') setTier('');
     if (key === 'detector') setDetector('');
     if (key === 'repository') setRepository('');
+    if (key === 'branch') setBranch('');
     if (key === 'verdict') setVerdict('');
     if (key === 'visibility') setVisibility('');
     if (key === 'category') setCategory('');
@@ -450,6 +493,7 @@ export default function FindingsPage() {
     setTier('');
     setDetector('');
     setRepository('');
+    setBranch('');
     setVerdict('');
     setVisibility('');
     setCategory('');
@@ -463,7 +507,7 @@ export default function FindingsPage() {
         { header: 'Detector', value: (row) => row.detector },
         { header: 'Risk tier', value: (row) => row.risk_tier },
         { header: 'Recommended action', value: (row) => row.recommended_action },
-        { header: 'Platform', value: (row) => row.platform || 'codecommit' },
+        { header: 'Platform', value: (row) => normalisePlatform(row.platform) },
         { header: 'Repository', value: (row) => row.repository },
         { header: 'Branch', value: (row) => row.branch },
         { header: 'Commit', value: (row) => row.commit_id },
@@ -492,7 +536,7 @@ export default function FindingsPage() {
         { header: 'Model score', value: (row) => row.ml_score ?? '' },
         { header: 'Analyst verdict', value: (row) => row.analyst_decision || '' },
         { header: 'Verdict by', value: (row) => row.analyst_decided_by || '' },
-        { header: 'Link', value: (row) => row.codecommit_uri || row.github_uri || '' },
+        { header: 'Link', value: (row) => findingUri(row) },
       ],
       rows: sorted,
     });
@@ -529,7 +573,7 @@ export default function FindingsPage() {
   const onDecide = useCallback(
     async (finding, value) => {
       if (!finding.finding_id) return;
-      const result = await decision.mutate({ findingId: finding.finding_id, decision: value });
+      const result = await decision.mutate({ findingId: finding.finding_id, decision: value, deep: Boolean(finding.deep) });
       if (!result.ok) {
         notify({
           variant: 'error',
@@ -681,8 +725,11 @@ export default function FindingsPage() {
             })}
             tabs={[
               { value: 'all', label: 'All platforms', count: summary.total },
-              { value: 'github', label: 'GitHub', count: summary.byPlatform.github },
-              { value: 'codecommit', label: 'CodeCommit', count: summary.byPlatform.codecommit },
+              /* A platform shows once the workspace has its tables or rows:
+                 a Bitbucket tab that is always zero would only add noise. */
+              ...PLATFORM_ORDER.filter(
+                (key) => summary.byPlatform[key] > 0 || counts.data?.platforms?.includes(key) || platform === key,
+              ).map((key) => ({ value: key, label: PLATFORMS[key].label, count: summary.byPlatform[key] })),
             ]}
           />
         }
@@ -731,6 +778,33 @@ export default function FindingsPage() {
             </button>
           );
         })}
+        {/* Not a sixth list: the history view. Set apart so the five still
+            read as adding up. */}
+        {(counts.data?.deep_available || listKey === 'history') && (
+          <>
+            <span aria-hidden="true" className="mx-1 hidden h-5 w-px bg-line-strong sm:block" />
+            <button
+              type="button"
+              aria-current={listKey === 'history' ? 'page' : undefined}
+              onClick={() => switchSource('history')}
+              title="Secrets deep scans found in the history, one row per branch"
+              className={cn(
+                'inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-[12.5px] transition-colors',
+                listKey === 'history'
+                  ? 'border-brand bg-info-soft font-semibold text-brand'
+                  : 'border-dashed border-line-strong bg-surface text-ink-2 hover:text-ink',
+              )}
+            >
+              <History aria-hidden="true" className="size-3.5" />
+              {LISTS.history.label}
+              {Number.isFinite(platform === 'all' ? counts.data?.deep_findings : undefined) && (
+                <span data-numeric="" className="rounded-full bg-surface-3 px-1.5 text-[11px] font-semibold text-ink-2">
+                  {formatNumber(counts.data.deep_findings)}
+                </span>
+              )}
+            </button>
+          </>
+        )}
       </nav>
 
       {loading ? (
@@ -756,7 +830,7 @@ export default function FindingsPage() {
             label="Repositories affected"
             value={summary.repositoryCount}
             tone="info"
-            caption="Code repositories with at least one secret, on GitHub and CodeCommit"
+            caption={listKey === 'history' ? `On ${formatNumber(summary.branchCount)} branch${summary.branchCount === 1 ? '' : 'es'}` : 'Code repositories with at least one secret'}
           />
           <MetricTile
             label="Kinds of secret"
@@ -945,7 +1019,21 @@ export default function FindingsPage() {
       <DeepScanDrawer
         open={deepScanOpen}
         onClose={() => setDeepScanOpen(false)}
-        findings={allFindings}
+        onOpenHistory={({ repository: repo, branch: name, platform: p }) => {
+          setDeepScanOpen(false);
+          const params = new URLSearchParams();
+          params.set('set', 'history');
+          if (repo) params.set('repository', repo);
+          if (name) params.set('branch', name);
+          if (p) params.set('platform', p);
+          resetFilters();
+          setRepository(repo || '');
+          setBranch(name || '');
+          setPlatform(p || 'all');
+          setSearchParams(params, { replace: false });
+          setSelected(null);
+          setPage(1);
+        }}
       />
     </div>
   );

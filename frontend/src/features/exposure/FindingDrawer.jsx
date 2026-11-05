@@ -108,6 +108,11 @@ export function FindingDrawer({ finding, onClose, onDismiss, dismissing, onDecid
           <Tag tone={action.tone} size="sm">
             {action.label}
           </Tag>
+          {finding.deep && (
+            <Tag tone="neutral" size="sm">
+              History · {shortBranch(finding.branch)}
+            </Tag>
+          )}
         </span>
       }
       footer={
@@ -120,6 +125,7 @@ export function FindingDrawer({ finding, onClose, onDismiss, dismissing, onDecid
               rel="noreferrer noopener"
               variant="secondary"
               iconRight={ExternalLink}
+              title={link.note || undefined}
             >
               {link.label}
             </Button>
@@ -144,6 +150,13 @@ export function FindingDrawer({ finding, onClose, onDismiss, dismissing, onDecid
       <div className="flex flex-col gap-5 px-4 py-4 sm:px-5">
         {tab === 'overview' && (
           <>
+          {finding.deep && (
+            <p className="rounded-[var(--radius-control)] border border-info/30 bg-info-soft px-3.5 py-2.5 text-[12.5px] leading-relaxed text-ink">
+              <span className="font-semibold">Found by a deep scan of {shortBranch(finding.branch)}.</span> It was in this commit of the
+              branch's history; it may since have been deleted from the code - but every clone and fork still has it, so it still has to
+              be rotated. If it is still in the code today it is also on Exposed secrets.
+            </p>
+          )}
           {/* The next step first: what the scanner recommends, in words. */}
           <div className="rounded-[var(--radius-control)] border border-line bg-surface-2 p-3.5">
             <SectionLabel>What to do</SectionLabel>
@@ -462,10 +475,11 @@ export function FindingDrawer({ finding, onClose, onDismiss, dismissing, onDecid
         {!link && (
           <p className="flex items-start gap-2 text-[12px] text-ink-3">
             <FileWarning aria-hidden="true" className="mt-px size-3.5 shrink-0" />
-            No console link is available for this finding - the scanner had no region on file for the
-            tenant when it was recorded.
+            No link to the code is available for this finding - the scanner had no region on file for the
+            account when it was recorded.
           </p>
         )}
+        {link?.note && <p className="text-[11.5px] text-ink-3">{link.note}</p>}
       </div>
 
       {confirming && (
@@ -542,8 +556,14 @@ function VerdictSection({ finding, onDecide, deciding }) {
                 {model.label}
               </Tag>
               {model.score !== null && (
-                <span data-numeric="" className="text-[11.5px] text-ink-3" title={model.version ? `Model ${model.version}` : undefined}>
-                  {Math.round(model.score * 100)}% sure
+                /* A ranking score, not a probability (scanner guide): shown as a
+                   score with a word for its strength, never as "x% sure". */
+                <span
+                  data-numeric=""
+                  className="text-[11.5px] text-ink-3"
+                  title={`A ranking score from 0 to 1, not a probability.${model.version ? ` Model ${model.version}.` : ''}`}
+                >
+                  score {model.score.toFixed(2)} · {model.score >= 0.8 ? 'strong' : model.score >= 0.4 ? 'moderate' : 'weak'} signal
                 </span>
               )}
             </span>

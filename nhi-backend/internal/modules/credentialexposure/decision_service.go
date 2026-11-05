@@ -16,7 +16,7 @@ func NewDecisionService(repo *DecisionRepository, resolver *scope.Resolver) *Dec
 	return &DecisionService{repo: repo, resolver: resolver}
 }
 
-func (s *DecisionService) Save(ctx context.Context, userID, tenantID, dbName, id, decision, by string) error {
+func (s *DecisionService) Save(ctx context.Context, userID, tenantID, dbName, id, decision, by string, deep bool) error {
 	id = strings.TrimSpace(id)
 	decision = strings.ToLower(strings.TrimSpace(decision))
 	by = strings.TrimSpace(by)
@@ -33,5 +33,5 @@ func (s *DecisionService) Save(ctx context.Context, userID, tenantID, dbName, id
 	if err != nil {
 		return err
 	}
-	return s.repo.Save(ctx, resolved, id, decision, by)
+	return s.repo.Save(ctx, resolved, id, decision, by, deep)
 }

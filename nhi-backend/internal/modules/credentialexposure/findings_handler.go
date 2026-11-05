@@ -12,13 +12,16 @@ import (
 var (
 	findingsListAllowed = map[string]struct{}{
 		"client_id": {}, "platform": {}, "ml_flagged": {},
-		"limit": {}, "offset": {}, "finding_id": {}, "list": {},
+		"limit": {}, "offset": {}, "finding_id": {}, "list": {}, "deep": {},
+	}
+	deepFindingsAllowed = map[string]struct{}{
+		"client_id": {}, "platform": {}, "repository": {}, "branch": {}, "limit": {}, "offset": {},
 	}
 	findingsSummaryAllowed = map[string]struct{}{
 		"client_id": {}, "platform": {}, "ml_flagged": {}, "list": {},
 	}
 	validPlatforms = map[string]struct{}{
-		"codecommit": {}, "github": {},
+		"codecommit": {}, "github": {}, "bitbucket": {},
 	}
 )
 
@@ -106,7 +109,7 @@ func (h *FindingsHandler) Summary(w http.ResponseWriter, r *http.Request) {
 	filter.List = list
 	if filter.Platform != "" {
 		if _, ok := validPlatforms[strings.ToLower(filter.Platform)]; !ok {
-			writeAPIError(w, http.StatusBadRequest, "Invalid platform: "+filter.Platform+". Allowed: codecommit, github", "INVALID_PLATFORM")
+			writeAPIError(w, http.StatusBadRequest, "Invalid platform: "+filter.Platform+". Allowed: codecommit, github, bitbucket", "INVALID_PLATFORM")
 			return
 		}
 	}
@@ -133,11 +136,24 @@ func (h *FindingsHandler) list(w http.ResponseWriter, r *http.Request, list stri
 	q := r.URL.Query()
 	if values, hasID := q["finding_id"]; hasID {
 		id := strings.TrimSpace(values[0])
-		if len(q) != 1 || id == "" || len(id) > 1000 {
-			writeAPIError(w, http.StatusBadRequest, "finding_id must be the only query parameter and must not exceed 1000 characters", "INVALID_QUERY")
+		deep := false
+		if raw := q.Get("deep"); raw != "" {
+			v, err := strconv.ParseBool(raw)
+			if err != nil {
+				writeAPIError(w, http.StatusBadRequest, "deep must be true or false", "INVALID_QUERY")
+				return
+			}
+			deep = v
+		}
+		others := len(q) - 1
+		if _, ok := q["deep"]; ok {
+			others--
+		}
+		if others != 0 || id == "" || len(id) > 1000 {
+			writeAPIError(w, http.StatusBadRequest, "finding_id may only be combined with deep, and must not exceed 1000 characters", "INVALID_QUERY")
 			return
 		}
-		item, err := h.service.Get(r.Context(), claims.UserID, claims.TenantID, claims.DBName, id)
+		item, err := h.service.Get(r.Context(), claims.UserID, claims.TenantID, claims.DBName, id, deep)
 		if err != nil {
 			switch {
 			case errors.Is(err, ErrFindingNotFound):
@@ -164,7 +180,7 @@ func (h *FindingsHandler) list(w http.ResponseWriter, r *http.Request, list stri
 	}
 	if filter.Platform != "" {
 		if _, ok := validPlatforms[strings.ToLower(filter.Platform)]; !ok {
-			writeAPIError(w, http.StatusBadRequest, "Invalid platform: "+filter.Platform+". Allowed: codecommit, github", "INVALID_PLATFORM")
+			writeAPIError(w, http.StatusBadRequest, "Invalid platform: "+filter.Platform+". Allowed: codecommit, github, bitbucket", "INVALID_PLATFORM")
 			return
 		}
 	}
@@ -182,6 +198,10 @@ func (h *FindingsHandler) list(w http.ResponseWriter, r *http.Request, list stri
 		} else if byName != "" {
 			filter.List = byName
 		}
+	}
+	if _, ok := q["deep"]; ok {
+		writeAPIError(w, http.StatusBadRequest, "deep is only used with finding_id; deep-scan findings are at /credential-exposure/deep-findings", "INVALID_QUERY")
+		return
 	}
 	if raw := q.Get("limit"); raw != "" {
 		v, err := strconv.Atoi(raw)
@@ -202,6 +222,54 @@ func (h *FindingsHandler) list(w http.ResponseWriter, r *http.Request, list stri
 	items, count, err := h.service.List(r.Context(), claims.UserID, claims.TenantID, claims.DBName, filter)
 	if err != nil {
 		writeInvalidOr(w, r, err, "INVALID_QUERY", "Unable to load findings")
+		return
+	}
+	writeJSON(w, http.StatusOK, FindingsResponse{Count: count, Findings: items, Limit: filter.Limit, Offset: filter.Offset})
+}
+
+// ListDeep is GET /credential-exposure/deep-findings: the deep-scan findings,
+// one row per branch, optionally for one client, platform, repository and branch.
+func (h *FindingsHandler) ListDeep(w http.ResponseWriter, r *http.Request) {
+	if !requireScannerAdmin(w, r) {
+		return
+	}
+	claims := middleware.GetClaims(r)
+	if rejectUnknownQuery(w, r, deepFindingsAllowed) {
+		return
+	}
+	q := r.URL.Query()
+	filter := DeepFindingsFilter{
+		ClientID:   strings.TrimSpace(q.Get("client_id")),
+		Platform:   strings.TrimSpace(q.Get("platform")),
+		Repository: strings.TrimSpace(q.Get("repository")),
+		Branch:     strings.TrimSpace(q.Get("branch")),
+		Limit:      200,
+	}
+	if filter.Platform != "" {
+		if _, ok := validPlatforms[strings.ToLower(filter.Platform)]; !ok {
+			writeAPIError(w, http.StatusBadRequest, "Invalid platform: "+filter.Platform+". Allowed: codecommit, github, bitbucket", "INVALID_PLATFORM")
+			return
+		}
+	}
+	if raw := q.Get("limit"); raw != "" {
+		v, err := strconv.Atoi(raw)
+		if err != nil || v < 1 || v > 500 {
+			writeAPIError(w, http.StatusBadRequest, "limit must be between 1 and 500", "INVALID_QUERY")
+			return
+		}
+		filter.Limit = v
+	}
+	if raw := q.Get("offset"); raw != "" {
+		v, err := strconv.Atoi(raw)
+		if err != nil || v < 0 {
+			writeAPIError(w, http.StatusBadRequest, "offset must be a non-negative integer", "INVALID_QUERY")
+			return
+		}
+		filter.Offset = v
+	}
+	items, count, err := h.service.ListDeep(r.Context(), claims.UserID, claims.TenantID, claims.DBName, filter)
+	if err != nil {
+		writeInvalidOr(w, r, err, "INVALID_QUERY", "Unable to load deep-scan findings")
 		return
 	}
 	writeJSON(w, http.StatusOK, FindingsResponse{Count: count, Findings: items, Limit: filter.Limit, Offset: filter.Offset})

@@ -51,7 +51,7 @@ func TestUpdateTenantChangesOnlyWhatWasEdited(t *testing.T) {
 	// The other company, the users and the workspace are untouched.
 	var d string
 	_ = db.QueryRow(`SELECT domain_name FROM nhi_global.tenants WHERE tenant_id = $1`, other.TenantID).Scan(&d)
-	if d != other.DomainName || tablesIn(t, db, "acme_corp") != 64 {
+	if d != other.DomainName || tablesIn(t, db, "acme_corp") != 72 {
 		t.Error("something outside the edited row changed")
 	}
 
@@ -286,7 +286,7 @@ func TestDeleteTenantRemovesEverythingOfThatCompanyOnly(t *testing.T) {
 	}
 
 	p, err := svc.PreviewDelete(ctx, acme.TenantID)
-	if err != nil || p.Users != 1 || p.Tables != 64 || p.Accounts != 1 || !p.SchemaExists || p.DBName != "acme_corp" {
+	if err != nil || p.Users != 1 || p.Tables != 72 || p.Accounts != 1 || !p.SchemaExists || p.DBName != "acme_corp" {
 		t.Fatalf("preview = %+v %v", p, err)
 	}
 	if count(t, db, `SELECT count(*) FROM nhi_global.tenants`) != 2 {
@@ -318,7 +318,7 @@ func TestDeleteTenantRemovesEverythingOfThatCompanyOnly(t *testing.T) {
 		t.Errorf("tokens left = %d, want only the other company's", n)
 	}
 	// The other company is untouched.
-	if !schemaExists(t, db, "globex") || tablesIn(t, db, "globex") != 64 ||
+	if !schemaExists(t, db, "globex") || tablesIn(t, db, "globex") != 72 ||
 		count(t, db, `SELECT count(*) FROM nhi_global.tenants WHERE tenant_id = $1`, globex.TenantID) != 1 ||
 		count(t, db, `SELECT count(*) FROM nhi_global.nhi_users WHERE tenant_id = $1`, globex.TenantID) != 1 {
 		t.Fatal("deleting one company changed another")
@@ -400,7 +400,7 @@ func TestDeleteTenantIsAllOrNothing(t *testing.T) {
 	if _, err := svc.DeleteTenant(ctx, res.Tenant.TenantID, "acme_corp"); err == nil {
 		t.Fatal("the delete should have failed")
 	}
-	if !schemaExists(t, db, "acme_corp") || tablesIn(t, db, "acme_corp") != 64 ||
+	if !schemaExists(t, db, "acme_corp") || tablesIn(t, db, "acme_corp") != 72 ||
 		count(t, db, `SELECT count(*) FROM nhi_global.nhi_users`) != 1 || count(t, db, `SELECT count(*) FROM nhi_global.tenants`) != 1 {
 		t.Fatal("a failed delete left things half removed")
 	}
@@ -420,7 +420,7 @@ func TestDeleteTenantHTTP(t *testing.T) {
 	}
 	c.signIn("superadmin", testPassword)
 	w := c.do("GET", path+"/delete-preview", nil)
-	if w.Code != 200 || !strings.Contains(w.Body.String(), `"tables":64`) {
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"tables":72`) {
 		t.Errorf("preview = %d %s", w.Code, w.Body)
 	}
 	if w := c.do("DELETE", path, map[string]string{"confirm": "nope"}); w.Code != 422 {

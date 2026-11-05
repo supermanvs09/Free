@@ -1,3 +1,5 @@
+import { normalisePlatform } from '../../lib/domain';
+
 /**
  * A finding's identity.
  *
@@ -15,7 +17,9 @@
  */
 export function findingKey(finding) {
   if (finding?.finding_id !== undefined && finding?.finding_id !== null) {
-    return `id:${finding.finding_id}`;
+    /* A deep-scan finding's id ends in "@<branch>", so it never collides with
+       a normal finding's; the prefix keeps the two sets apart anyway. */
+    return `${finding.deep ? 'deep' : 'id'}:${finding.finding_id}`;
   }
   return [finding?.client_id, finding?.file_path, finding?.detector, finding?.redacted].join('|');
 }
@@ -81,7 +85,8 @@ export function describeExposureError(error) {
  */
 export function summariseFindings(findings = []) {
   const byTier = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 };
-  const byPlatform = { github: 0, codecommit: 0 };
+  const byPlatform = { github: 0, codecommit: 0, bitbucket: 0 };
+  const branches = new Set();
   const repositories = new Set();
   const detectors = new Map();
 
@@ -90,11 +95,13 @@ export function summariseFindings(findings = []) {
     if (tier in byTier) byTier[tier] += 1;
 
     // A finding recorded before platform tracking existed reports null and is
-    // always CodeCommit, so anything that is not explicitly GitHub counts there.
-    if (String(finding.platform || '').toLowerCase() === 'github') byPlatform.github += 1;
-    else byPlatform.codecommit += 1;
+    // always CodeCommit; GitHub and Bitbucket are named (the guide's rule).
+    byPlatform[normalisePlatform(finding.platform)] += 1;
 
-    if (finding.repository) repositories.add(finding.repository);
+    /* The same name can exist on two platforms (or under two clients): those
+       are different repositories. */
+    if (finding.repository) repositories.add(`${normalisePlatform(finding.platform)}|${finding.client_id || ''}|${finding.repository}`);
+    if (finding.branch) branches.add(`${finding.repository}|${String(finding.branch).replace(/^refs\/heads\//, '')}`);
     if (finding.detector) detectors.set(finding.detector, (detectors.get(finding.detector) || 0) + 1);
   }
 
@@ -103,6 +110,7 @@ export function summariseFindings(findings = []) {
     byTier,
     byPlatform,
     repositoryCount: repositories.size,
+    branchCount: branches.size,
     detectors: [...detectors.entries()]
       .map(([key, value]) => ({ key, value }))
       .sort((a, b) => b.value - a.value),
@@ -156,7 +164,7 @@ export const DEEP_SCAN_STATES = {
   complete: {
     label: 'Finished',
     tone: 'low',
-    description: 'The whole history has been read. Any secret it found is on Exposed secrets.',
+    description: 'The whole history has been read. What it found is under Found in history.',
   },
   failed: {
     label: 'Failed',
@@ -194,10 +202,19 @@ export function describeDeepScanFailure(status) {
       raw,
     };
   }
-  if (/installation|revoked|404|Not Found|credentials/i.test(raw)) {
+  if (/installation|revoked|404|Not Found|credentials|401|Unauthorized|token/i.test(raw)) {
+    const platform = normalisePlatform(status?.platform);
     return {
-      cause: 'GitHub access for this repository looks revoked or removed.',
-      fix: 'Give the scanner access to the GitHub organisation again, then start the scan again.',
+      cause:
+        platform === 'bitbucket'
+          ? 'Bitbucket access for this repository looks revoked or expired.'
+          : platform === 'github'
+            ? 'GitHub access for this repository looks revoked or removed.'
+            : 'The scanner could not sign in to read this repository.',
+      fix:
+        platform === 'bitbucket'
+          ? 'Renew the scanner\'s Bitbucket access token for this project, then start the scan again.'
+          : 'Give the scanner access again, then start the scan again.',
       raw,
     };
   }
@@ -228,10 +245,27 @@ export function describeDeepScanRequestError(error) {
       retryable: false,
     };
   }
+  if (error?.code === 'UNKNOWN_BRANCH') {
+    return { title: 'Branch not found', message: message || 'Choose a branch from the list for this repository.', retryable: false };
+  }
+  if (error?.code === 'PLATFORM_REQUIRED') {
+    return {
+      title: 'Which platform?',
+      message: 'This client has repositories of that name on more than one platform. Pick the repository from the list instead.',
+      retryable: false,
+    };
+  }
+  if (error?.code === 'DEEP_SCAN_UNAVAILABLE') {
+    return {
+      title: 'Deep scans are not set up here',
+      message: 'The scanner has not been set up for deep scans on this platform in your workspace yet. Contact support.',
+      retryable: false,
+    };
+  }
   if (status === 400) {
     return {
       title: 'This repository cannot be scanned',
-      message: message || 'Check the repository name: just the name for CodeCommit, owner/name for GitHub.',
+      message: message || 'Check the repository name: a bare name for CodeCommit, owner/repo for GitHub, PROJECT/repo for Bitbucket.',
       retryable: false,
     };
   }
@@ -343,6 +377,23 @@ export const LISTS = {
 };
 
 export const LIST_ORDER = ['live', 'review', 'repeated', 'noise', 'flagged'];
+
+/**
+ * Not a sixth list: what deep scans found walking the history, one row per
+ * branch. The same secret still in the code today is also in one of the five
+ * lists - these are two views (history and now), not duplicates.
+ */
+LISTS.history = {
+  key: 'history',
+  label: 'Found in history',
+  title: 'Found in history',
+  unit: 'secrets in history',
+  countKey: 'deep',
+  lede: 'What deep scans found walking every commit of a branch: including secrets that were committed and later deleted - still in every clone and fork. One row per branch it was found on.',
+  caption: 'From deep scans, one row per branch',
+  emptyTitle: 'Nothing found in history yet',
+  emptyText: 'Run a deep scan of a repository (Scan full history) to walk its history. What it finds appears here.',
+};
 
 export function listFromParam(value) {
   return Object.hasOwn(LISTS, value) && value !== 'live' ? value : 'live';

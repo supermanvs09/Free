@@ -12,30 +12,13 @@ import (
 
 var (
 	ErrFindingNotFound  = errors.New("finding not found")
-	ErrFindingAmbiguous = errors.New("finding id exists in both platform tables")
+	ErrFindingAmbiguous = errors.New("finding id exists in more than one platform table")
 	errScopeRequired    = errors.New("tenant scope is required")
 )
 
 type FindingsRepository struct{}
 
 func NewFindingsRepository() *FindingsRepository { return &FindingsRepository{} }
-
-const findingColumns = `finding_id, client_id, repository, branch, commit_id, author, created_at,
- detector, severity, file_path, line_number, redacted, verification_status, risk_tier,
- recommended_action, codecommit_uri, platform, github_uri, line_preview, confidence,
- category, committer, commit_message, commit_authored_at, files_changed, additions,
- deletions, repo_visibility, repo_stars, repo_forks, repo_pushed_at, ml_score,
- ml_decision, ml_model_version, analyst_decision, analyst_decided_at, analyst_decided_by,
- ml_veto_score, ml_veto_model_version, value_fingerprint, noise_flags`
-
-// platformSelect reads one scanner table minus what a person marked safe. The
-// tables live in the tenant schema (passed in already quoted) and are isolated
-// by schema, not by account_id; client_id filtering still serves multi-client tenants.
-func platformSelect(schema, table, fallbackPlatform string) string {
-	return ` SELECT finding_id,client_id,repository,branch,commit_id,author,created_at,detector,severity,file_path,line_number,redacted,verification_status,risk_tier,recommended_action,codecommit_uri,COALESCE(NULLIF(platform,''),'` + fallbackPlatform + `') AS platform,github_uri,line_preview,confidence,category,committer,commit_message,commit_authored_at,files_changed,additions,deletions,repo_visibility,repo_stars,repo_forks,repo_pushed_at,ml_score,ml_decision,ml_model_version,analyst_decision,analyst_decided_at,analyst_decided_by,ml_veto_score,ml_veto_model_version,value_fingerprint,noise_flags
- FROM ` + schema + `.` + table + ` f
- WHERE NOT EXISTS (SELECT 1 FROM ` + schema + `.secscan_allowlist_dashboard a WHERE a.client_id=f.client_id AND a.file_path=f.file_path AND a.detector=f.detector AND a.redacted=f.redacted)`
-}
 
 // genericDetector: detectors with no provider key format, the only ones the
 // second model may take out of the main list.
@@ -56,13 +39,13 @@ const listCase = `CASE
    OR (b.detector ~ '_broad$' AND NOT COALESCE(b.ml_score>=0.95 AND b.ml_veto_score>=0.30, false)) THEN 'ml_flagged'
  ELSE 'main' END`
 
-// findingsUnion is every finding that is not allowlisted, from both platform
-// tables, with the list each one belongs to as finding_list. A value repeated
-// at three or more different places in one commit is "repeated"; private-key
-// detectors are exempt because their value is always the same header.
-func findingsUnion(schema string) string {
-	return `WITH base AS (` + platformSelect(schema, "secscan_findings_codecommit", "codecommit") + `
- UNION ALL` + platformSelect(schema, "secscan_findings_github", "github") + `),
+// findingsUnion is every finding that is not allowlisted, from every platform
+// table the schema has, with the list each one belongs to as finding_list. A
+// value repeated at three or more different places in one commit is
+// "repeated"; private-key detectors are exempt because their value is always
+// the same header.
+func findingsUnion(cat *schemaCatalog, schema string) string {
+	return `WITH base AS (` + unionOf(cat, schema, kindFindings) + `),
 repeated AS (
  SELECT platform, client_id, repository, commit_id, value_fingerprint FROM base
  WHERE COALESCE(value_fingerprint,'')<>'' AND detector !~* 'private_key'
@@ -79,8 +62,12 @@ func (r *FindingsRepository) List(ctx context.Context, resolved *scope.DataScope
 	if resolved == nil || resolved.DB == nil {
 		return nil, 0, errScopeRequired
 	}
+	cat, err := loadCatalog(ctx, resolved)
+	if err != nil {
+		return nil, 0, err
+	}
 	clause, args := findingsWhere(filter.ClientID, filter.Platform, listOrMain(filter.List))
-	base := findingsUnion(resolved.QSchema())
+	base := findingsUnion(cat, resolved.QSchema())
 	var total int
 	if err := resolved.DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM ("+base+") f"+clause, args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count credential exposure findings: %w", err)
@@ -108,11 +95,70 @@ func (r *FindingsRepository) List(ctx context.Context, resolved *scope.DataScope
 	return items, total, nil
 }
 
-func (r *FindingsRepository) GetByID(ctx context.Context, resolved *scope.DataScope, id string) (*Finding, error) {
-	if resolved == nil || resolved.DB == nil {
-		return nil, errScopeRequired
+// ListDeep reads the deep-scan findings (secscan_deep_findings_*): every row
+// that is not allowlisted, one per branch, not sorted into lists. A branch
+// filter "main" also matches GitHub's "refs/heads/main".
+func (r *FindingsRepository) ListDeep(ctx context.Context, resolved *scope.DataScope, filter DeepFindingsFilter) ([]Finding, int, error) {
+	cat, err := loadCatalog(ctx, resolved)
+	if err != nil {
+		return nil, 0, err
 	}
-	rows, err := resolved.DB.QueryContext(ctx, "SELECT "+findingColumns+" FROM ("+findingsUnion(resolved.QSchema())+") f WHERE finding_id=$1 LIMIT 2", id)
+	where, args := findingsWhere(filter.ClientID, filter.Platform, "")
+	extra := make([]string, 0, 2)
+	if filter.Repository != "" {
+		args = append(args, filter.Repository)
+		extra = append(extra, fmt.Sprintf("repository=$%d", len(args)))
+	}
+	if filter.Branch != "" {
+		args = append(args, filter.Branch)
+		extra = append(extra, fmt.Sprintf("(branch=$%d OR branch='refs/heads/'||$%d)", len(args), len(args)))
+	}
+	if len(extra) > 0 {
+		if where == "" {
+			where = " WHERE " + strings.Join(extra, " AND ")
+		} else {
+			where += " AND " + strings.Join(extra, " AND ")
+		}
+	}
+	base := unionOf(cat, resolved.QSchema(), kindDeepFindings)
+	var total int
+	if err := resolved.DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM ("+base+") f"+where, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count deep-scan findings: %w", err)
+	}
+	listArgs := append(append([]any(nil), args...), filter.Limit, filter.Offset)
+	query := "SELECT " + findingColumns + " FROM (" + base + ") f" + where +
+		" ORDER BY " + scannerTimeOrder("created_at") + fmt.Sprintf(", finding_id ASC LIMIT $%d OFFSET $%d", len(listArgs)-1, len(listArgs))
+	rows, err := resolved.DB.QueryContext(ctx, query, listArgs...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("query deep-scan findings: %w", err)
+	}
+	defer rows.Close()
+	items := make([]Finding, 0)
+	for rows.Next() {
+		item, err := scanFinding(rows)
+		if err != nil {
+			return nil, 0, fmt.Errorf("scan deep-scan finding: %w", err)
+		}
+		item.Deep = true
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterate deep-scan findings: %w", err)
+	}
+	return items, total, nil
+}
+
+// GetByID reads one finding; deep reads the deep-scan findings instead.
+func (r *FindingsRepository) GetByID(ctx context.Context, resolved *scope.DataScope, id string, deep bool) (*Finding, error) {
+	cat, err := loadCatalog(ctx, resolved)
+	if err != nil {
+		return nil, err
+	}
+	source := findingsUnion(cat, resolved.QSchema())
+	if deep {
+		source = unionOf(cat, resolved.QSchema(), kindDeepFindings)
+	}
+	rows, err := resolved.DB.QueryContext(ctx, "SELECT "+findingColumns+" FROM ("+source+") f WHERE finding_id=$1 LIMIT 2", id)
 	if err != nil {
 		return nil, fmt.Errorf("query finding: %w", err)
 	}
@@ -133,12 +179,14 @@ func (r *FindingsRepository) GetByID(ctx context.Context, resolved *scope.DataSc
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate finding: %w", err)
 	}
+	item.Deep = deep
 	return &item, nil
 }
 
 func (r *FindingsRepository) Summary(ctx context.Context, resolved *scope.DataScope, filter FindingsSummaryFilter) (FindingsSummary, error) {
-	if resolved == nil || resolved.DB == nil {
-		return FindingsSummary{}, errScopeRequired
+	cat, err := loadCatalog(ctx, resolved)
+	if err != nil {
+		return FindingsSummary{}, err
 	}
 	// The severity and repository figures describe one list; the list counts
 	// describe all five, for the same client and platform.
@@ -155,21 +203,37 @@ func (r *FindingsRepository) Summary(ctx context.Context, resolved *scope.DataSc
 		COUNT(*) FILTER (WHERE finding_list='review')::int,
 		COUNT(*) FILTER (WHERE finding_list='repeated')::int,
 		COUNT(*) FILTER (WHERE finding_list='noise')::int,
-		COUNT(*) FILTER (WHERE finding_list='ml_flagged')::int
-	FROM (` + findingsUnion(resolved.QSchema()) + `) f` + clause
+		COUNT(*) FILTER (WHERE finding_list='ml_flagged')::int,
+		COUNT(*) FILTER (WHERE ` + pick + ` AND platform='codecommit')::int,
+		COUNT(*) FILTER (WHERE ` + pick + ` AND platform='github')::int,
+		COUNT(*) FILTER (WHERE ` + pick + ` AND platform='bitbucket')::int
+	FROM (` + findingsUnion(cat, resolved.QSchema()) + `) f` + clause
 	var out FindingsSummary
 	l := &out.Lists
 	if err := resolved.DB.QueryRowContext(ctx, query, args...).Scan(&out.TotalFindings, &out.HighCount, &out.MediumCount, &out.LowCount, &out.AffectedRepositories,
-		&l.Main, &l.Review, &l.Repeated, &l.Noise, &l.Flagged); err != nil {
+		&l.Main, &l.Review, &l.Repeated, &l.Noise, &l.Flagged,
+		&out.ByPlatform.CodeCommit, &out.ByPlatform.GitHub, &out.ByPlatform.Bitbucket); err != nil {
 		return FindingsSummary{}, fmt.Errorf("summarize credential exposure findings: %w", err)
 	}
 	out.ListCounts = out.Lists
+	out.Platforms = make([]string, 0, 3)
+	for _, pt := range cat.platformTables(kindFindings) {
+		out.Platforms = append(out.Platforms, pt.platform)
+	}
+	deepTables := cat.platformTables(kindDeepFindings)
+	out.DeepAvailable = len(deepTables) > 0
+	if out.DeepAvailable {
+		dclause, dargs := findingsWhere(filter.ClientID, filter.Platform, "")
+		if err := resolved.DB.QueryRowContext(ctx, "SELECT COUNT(*)::int FROM ("+unionOf(cat, resolved.QSchema(), kindDeepFindings)+") f"+dclause, dargs...).Scan(&out.DeepFindings); err != nil {
+			return FindingsSummary{}, fmt.Errorf("count deep-scan findings: %w", err)
+		}
+	}
 	return out, nil
 }
 
 func scanFinding(row interface{ Scan(...any) error }) (Finding, error) {
 	var f Finding
-	var codeURI, githubURI, preview, confidence, category, committer, message, authoredAt sql.NullString
+	var codeURI, githubURI, bitbucketURI, preview, confidence, category, committer, message, authoredAt sql.NullString
 	var visibility, pushedAt, mlDecision, mlVersion, analystDecision, analystAt, analystBy sql.NullString
 	var filesChanged, additions, deletions, stars, forks sql.NullInt64
 	var mlScore, vetoScore sql.NullFloat64
@@ -177,7 +241,7 @@ func scanFinding(row interface{ Scan(...any) error }) (Finding, error) {
 	err := row.Scan(
 		&f.FindingID, &f.ClientID, &f.Repository, &f.Branch, &f.CommitID, &f.Author, &f.CreatedAt,
 		&f.Detector, &f.Severity, &f.FilePath, &f.LineNumber, &f.Redacted, &f.VerificationStatus,
-		&f.RiskTier, &f.RecommendedAction, &codeURI, &f.Platform, &githubURI, &preview, &confidence,
+		&f.RiskTier, &f.RecommendedAction, &codeURI, &f.Platform, &githubURI, &bitbucketURI, &preview, &confidence,
 		&category, &committer, &message, &authoredAt, &filesChanged, &additions, &deletions,
 		&visibility, &stars, &forks, &pushedAt, &mlScore, &mlDecision, &mlVersion,
 		&analystDecision, &analystAt, &analystBy, &vetoScore, &vetoVersion, &fingerprint, &noiseFlags,
@@ -185,7 +249,7 @@ func scanFinding(row interface{ Scan(...any) error }) (Finding, error) {
 	if err != nil {
 		return f, err
 	}
-	f.CodeCommitURI, f.GitHubURI, f.LinePreview = stringPtr(codeURI), stringPtr(githubURI), stringPtr(preview)
+	f.CodeCommitURI, f.GitHubURI, f.BitbucketURI, f.LinePreview = stringPtr(codeURI), stringPtr(githubURI), stringPtr(bitbucketURI), stringPtr(preview)
 	f.Confidence, f.Category, f.Committer = stringPtr(confidence), stringPtr(category), stringPtr(committer)
 	f.CommitMessage, f.CommitAuthoredAt = stringPtr(message), stringPtr(authoredAt)
 	f.RepoVisibility, f.RepoPushedAt = stringPtr(visibility), stringPtr(pushedAt)

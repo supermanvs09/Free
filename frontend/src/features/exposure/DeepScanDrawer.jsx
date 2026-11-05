@@ -1,209 +1,130 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, CheckCircle2, GitBranch, History, Play, RefreshCw, Radar } from 'lucide-react';
 import { useAccess } from '../../app/useAccess';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import {
-  AlertTriangle,
-  CheckCircle2,
-  GitBranch,
-  History,
-  Play,
-  RefreshCw,
-  Radar,
-} from 'lucide-react';
-import { fetchDeepScanStatus, startDeepScan } from '../../lib/api/exposure';
-import { normalisePlatform, platformMeta } from '../../lib/domain';
+import { fetchRepositories, startDeepScan } from '../../lib/api/exposure';
+import { PLATFORM_ORDER, PLATFORMS, platformMeta } from '../../lib/domain';
 import { formatDateTime, formatNumber, formatRelative, parseDate } from '../../lib/format';
 import { Button } from '../../ui/Button';
-import { Field, Input, SearchInput } from '../../ui/Field';
+import { SearchInput, Select } from '../../ui/Field';
 import { Drawer } from '../../ui/Overlay';
 import { SectionLabel } from '../../ui/Panel';
-import { ClearState, EmptyState } from '../../ui/States';
+import { ClearState, EmptyState, ErrorState } from '../../ui/States';
+import { SegmentedControl } from '../../ui/Tabs';
 import { Tag } from '../../ui/Tag';
 import { useToast } from '../../ui/Toast';
-import {
-  DEEP_SCAN_POLL_MS,
-  deepScanStateMeta,
-  describeDeepScanFailure,
-  describeDeepScanRequestError,
-} from './scannerState';
+import { DEEP_SCAN_POLL_MS, deepScanStateMeta, describeDeepScanFailure, describeDeepScanRequestError } from './scannerState';
 
 /**
- * Deep scan.
+ * Deep scan: walk a repository's history, commit by commit, on the branches
+ * you choose.
  *
- * ── Why a drawer and not a screen of its own ────────────────────────────────
- * A deep scan is a thing you do to a repository you are already looking at, so
- * it belongs beside the findings rather than in the navigation as a peer of
- * them. It also has no state of its own to come back to: once a walk finishes
- * its output is findings, and findings already have a screen.
+ * The normal scans read what each push changes (and, the first time, the
+ * files as they are). A secret committed and deleted later is invisible to
+ * them but still in every clone and fork; only a walk of the history finds
+ * it. Its findings are kept apart from the live lists, under "Found in
+ * history", one row per branch.
  *
- * The repository list is passed in rather than fetched. The findings have
- * already been loaded by the screen behind this, and distinct
- * (client_id, repository) pairs are derivable from it - a second identical
- * request would only introduce a way for the two lists to disagree.
+ * The list is every repository the scanner has recorded in this workspace
+ * (GET /repositories, built from the scanner's per-branch ledger), so a
+ * repository with no finding - exactly the one whose history is worth
+ * reading - is listed too. A repository appears after the scanner's first
+ * scan of it, within an hour of being onboarded.
  *
- * ── What this is for ────────────────────────────────────────────────────────
- * The onboarding scan reads a repository as it exists right now. That means a
- * secret which was committed and later deleted is invisible to it - the file
- * no longer contains the value, but every clone of the repository still does,
- * and so does every fork. A deep scan walks the history commit by commit from
- * the first one to HEAD, which is the only way to find those.
- *
- * It is opt-in on the service's side because it does not scale automatically
- * to a repository with a long history, so this screen is a request-and-watch
- * screen rather than something that runs on a schedule.
- *
- * ── Why it polls ────────────────────────────────────────────────────────────
- * `POST /api/v1/credential-exposure/deep-scan` answers 202 "accepted", not
- * "done", and there is no push notification for completion. Polling the
- * status endpoint is the only mechanism there is, every five seconds.
- *
- * The API writes the request into the tenant's deep-scan table, which the
- * scanner worker picks up. Only rows that are actually running are polled: a completed
- * scan does not change, and re-asking for it every five seconds would be
- * traffic that answers nothing.
+ * One request reads every repository's branches and deep-scan states, and it
+ * is repeated every five seconds only while a walk is running and the panel
+ * is open (there is no push notification for a deep scan).
  */
-export function DeepScanDrawer({ open, onClose, findings = [] }) {
+export function DeepScanDrawer({ open, onClose, onOpenHistory }) {
   const { notify } = useToast();
+  const [repos, setRepos] = useState(null);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
-  const [manualClient, setManualClient] = useState('');
-  const [manualRepo, setManualRepo] = useState('');
-  const [manualError, setManualError] = useState('');
-  const [manualFieldErrors, setManualFieldErrors] = useState({});
-  /* Repositories the operator named by hand, so a repository with no findings
-     yet - which is exactly the case a deep scan is for - can still be asked
-     for. Kept beside the discovered list rather than merged into it, because
-     the two have different provenance and the reader should be able to tell. */
-  const [manualTargets, setManualTargets] = useState([]);
-  /* Set when the server says deep scans are not configured (503). */
+  const [platform, setPlatform] = useState('');
 
-  /* One row per repository the service has ever reported a finding against.
-     Distinct (client_id, repository), which is the pair the two deep-scan
-     endpoints identify a scan by - not the repository alone, because the same
-     repository name can exist under two clients. */
-  const discovered = useMemo(() => {
-    const rows = new Map();
-    for (const finding of findings) {
-      if (!finding.client_id || !finding.repository) continue;
-      const key = `${finding.client_id}␟${finding.repository}`;
-      const existing = rows.get(key);
-      if (existing) {
-        existing.findings += 1;
-        continue;
-      }
-      rows.set(key, {
-        key,
-        clientId: finding.client_id,
-        repository: finding.repository,
-        platform: normalisePlatform(finding.platform),
-        findings: 1,
-        source: 'findings',
-      });
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      setRepos(await fetchRepositories());
+      setError(null);
+    } catch (err) {
+      if (err?.code !== 'CANCELLED') setError(err);
+    } finally {
+      setLoading(false);
     }
-    return [...rows.values()].sort(
-      (a, b) => b.findings - a.findings || a.repository.localeCompare(b.repository),
-    );
-  }, [findings]);
+  }, []);
 
-  const targets = useMemo(() => {
-    const seen = new Set(discovered.map((row) => row.key));
-    return [...discovered, ...manualTargets.filter((row) => !seen.has(row.key))];
-  }, [discovered, manualTargets]);
+  /* Every opening re-reads: a walk requested elsewhere, or one that finished
+     while the panel was shut, would otherwise show its old state. */
+  useEffect(() => {
+    if (open) load();
+  }, [open, load]);
 
-  /* Client ids the scanner has repositories for (from the findings). */
-  const knownClients = useMemo(
-    () => [...new Set(findings.map((finding) => String(finding.client_id || '').trim()).filter(Boolean))].sort(),
-    [findings],
+  const running = useMemo(
+    () => (repos ?? []).some((repo) => repo.deep_scan?.status === 'running' || repo.branches.some((b) => b.deep_scan?.status === 'running')),
+    [repos],
   );
+  useEffect(() => {
+    if (!open || !running) return undefined;
+    const id = setInterval(() => {
+      if (document.visibilityState !== 'hidden') load();
+    }, DEEP_SCAN_POLL_MS);
+    return () => clearInterval(id);
+  }, [open, running, load]);
 
+  const platforms = useMemo(() => PLATFORM_ORDER.filter((p) => (repos ?? []).some((repo) => repo.platform === p)), [repos]);
   const visible = useMemo(() => {
     const needle = search.trim().toLowerCase();
-    if (!needle) return targets;
-    return targets.filter((row) =>
-      `${row.repository} ${row.clientId}`.toLowerCase().includes(needle),
+    return (repos ?? []).filter(
+      (repo) =>
+        (!platform || repo.platform === platform) &&
+        (!needle || `${repo.repository} ${repo.client_id} ${repo.branches.map((b) => b.name).join(' ')}`.toLowerCase().includes(needle)),
     );
-  }, [targets, search]);
-
-  const { statuses, refresh, request, pending } = useDeepScanStatuses(targets, open);
-
-  const onRequest = useCallback(
-    async (row) => {
-      try {
-        const accepted = await request(row);
-        notify(
-          accepted?.already_running
-            ? {
-                title: 'Already requested',
-                description: `${row.repository} is already waiting for or in a history walk. This screen will follow it.`,
-                variant: 'info',
-              }
-            : {
-                title: 'Deep scan requested',
-                description: `${row.repository} will be walked commit by commit. This screen will follow it.`,
-                variant: 'success',
-              },
-        );
-      } catch (error) {
-        const described = describeDeepScanRequestError(error);
-        notify({
-          title: described.title,
-          description: described.message,
-          variant: 'error',
-        });
-      }
-    },
-    [request, notify],
-  );
-
-  const onAddManual = useCallback(
-    (event) => {
-      event.preventDefault();
-      const clientId = manualClient.trim();
-      const repository = manualRepo.trim();
-      /* Each field says what is wrong with it, under it - one generic line
-         ("both are required") gave no hint which one was missing. */
-      const errors = {};
-      if (!clientId) errors.client = 'Enter the client id.';
-      else if (knownClients.length > 0 && !knownClients.includes(clientId)) {
-        /* Checked here, before the request: the service only knows clients
-           it has scanned, and a typo used to be accepted by the form and
-           refused only after "Request deep scan". */
-        errors.client = `No scanned repositories for "${clientId}" in your workspace. Use one of: ${knownClients.slice(0, 4).join(', ')}${knownClients.length > 4 ? '…' : ''}.`;
-      }
-      if (!repository) errors.repo = 'Enter the repository name.';
-      else if (/\s/.test(repository)) errors.repo = 'A repository name has no spaces.';
-      setManualFieldErrors(errors);
-      if (Object.keys(errors).length > 0) {
-        setManualError('');
-        return;
-      }
-      const key = `${clientId}␟${repository}`;
-      if (targets.some((row) => row.key === key)) {
-        setManualError('That repository is already on the list below.');
-        return;
-      }
-      setManualError('');
-      /* No platform is claimed for a hand-entered row. Which platform a client
-         is on comes from the service's own records, and guessing it from the
-         presence of a slash would put a label on screen this dashboard cannot
-         stand behind - the service will reject a wrong shape and say so. */
-      setManualTargets((current) => [
-        ...current,
-        { key, clientId, repository, platform: null, findings: 0, source: 'manual' },
-      ]);
-      setManualClient('');
-      setManualRepo('');
-    },
-    [manualClient, manualRepo, targets, knownClients],
-  );
+  }, [repos, search, platform]);
 
   const counts = useMemo(() => {
-    const out = { running: 0, complete: 0, failed: 0, not_started: 0 };
-    for (const row of targets) {
-      const state = String(statuses[row.key]?.data?.status || 'not_started').toLowerCase();
-      if (state in out) out[state] += 1;
+    const out = { branches: 0, running: 0, failed: 0, complete: 0 };
+    for (const repo of repos ?? []) {
+      for (const b of repo.branches) {
+        out.branches += 1;
+        const state = branchScan(repo, b)?.status;
+        if (state in out) out[state] += 1;
+      }
     }
     return out;
-  }, [targets, statuses]);
+  }, [repos]);
+
+  /* A request shows as running on the click that made it, not five seconds
+     later; the next read replaces it with the server's state. */
+  const markRunning = (repo, branches, accepted) => {
+    const now = accepted?.requested_at || new Date().toISOString();
+    const runningScan = { status: 'running', requested_at: now, completed_at: null, commits_scanned: null, findings: null, failed_at: null, error: null };
+    setRepos((current) =>
+      (current ?? []).map((r) => {
+        if (r !== repo) return r;
+        if (!branches.length) return { ...r, deep_scan: runningScan };
+        return { ...r, branches: r.branches.map((b) => (branches.includes(b.name) ? { ...b, deep_scan: runningScan } : b)) };
+      }),
+    );
+  };
+
+  const onStart = async (repo, choice) => {
+    try {
+      const accepted = await startDeepScan({ clientId: repo.client_id, repository: repo.repository, platform: repo.platform, branches: choice.value });
+      const branches = accepted?.branches ?? [];
+      markRunning(repo, branches, accepted);
+      const what = branches.length === 0 ? 'its default branch' : branches.length === 1 ? branches[0] : `${branches.length} branches`;
+      notify(
+        accepted?.already_running
+          ? { variant: 'info', title: 'Already running', description: `${repo.repository} (${what}) is already being walked. This panel follows it.` }
+          : { variant: 'success', title: 'Deep scan started', description: `${repo.repository}: walking ${what}, commit by commit. This panel follows it; you can close it.` },
+      );
+    } catch (err) {
+      const described = describeDeepScanRequestError(err);
+      notify({ variant: 'error', title: described.title, description: described.message });
+      load();
+    }
+  };
 
   return (
     <Drawer
@@ -211,14 +132,12 @@ export function DeepScanDrawer({ open, onClose, findings = [] }) {
       onClose={onClose}
       width="xl"
       eyebrow="Credential exposure"
-      title="Deep scan"
-      subtitle="Walk a repository's whole history, not just the files as they are now."
+      title="Scan full history"
+      subtitle="Walk every commit of a repository's branches - including secrets that were committed and later deleted."
       footer={
         <div className="flex w-full flex-wrap items-center justify-between gap-3">
           <p className="text-[11.5px] text-ink-3">
-            {counts.running > 0
-              ? `Polling every ${DEEP_SCAN_POLL_MS / 1000} seconds while a walk is running.`
-              : 'Nothing is running, so nothing is being polled.'}
+            {running ? `A walk is running: checked every ${DEEP_SCAN_POLL_MS / 1000} seconds while this panel is open.` : 'Nothing is running.'}
           </p>
           <Button variant="secondary" onClick={onClose}>
             Close
@@ -226,154 +145,241 @@ export function DeepScanDrawer({ open, onClose, findings = [] }) {
         </div>
       }
     >
-      {/* The drawer body has no padding of its own; without this the panels
-          ran into the drawer's edges and the layout read as broken. */}
       <div className="flex flex-col gap-4 p-4 sm:p-5">
-        {/* Why anybody would run this, before the controls that run it. A
-            control whose cost is "reads every commit you have ever pushed"
-            should not be offered without saying what it buys. */}
         <div className="grid gap-3 @min-[34rem]:grid-cols-2">
           <div className="rounded-[var(--radius-control)] border border-line bg-surface-2 p-3.5">
-            <SectionLabel>The scan that already runs</SectionLabel>
+            <SectionLabel>The scans that already run</SectionLabel>
             <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-2">
-              Reads the files as they exist at HEAD. It catches a secret that is in the code now,
-              which is most of them, and it is cheap enough to run on every push.
+              Every push, on every branch, within about 30 seconds: they find a secret that is in the code now.
             </p>
           </div>
           <div className="rounded-[var(--radius-control)] border border-line bg-surface-2 p-3.5">
             <SectionLabel>What a deep scan adds</SectionLabel>
             <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-2">
-              Reads every commit from the first one to HEAD. It catches the secret somebody
-              committed and then deleted in the next commit - still present in every clone and
-              every fork, and the one people believe they have already fixed.
+              Every commit from the first to the latest. It finds the secret somebody committed and deleted in the next commit - still in
+              every clone and fork. Results go to <span className="font-medium text-ink">Found in history</span>.
             </p>
           </div>
         </div>
 
-        {/* Four counts rather than four tiles: inside a drawer the tile
-            treatment competes with the list that matters. */}
-        <dl className="flex flex-wrap gap-x-6 gap-y-2 rounded-[var(--radius-control)] border border-line bg-inset px-3.5 py-2.5 text-[12px]">
-          <Fact label="Repositories" value={formatNumber(targets.length)} />
-          <Fact label="Running" value={formatNumber(counts.running)} />
-          <Fact label="History fully read" value={formatNumber(counts.complete)} />
-          <Fact label="Failed" value={formatNumber(counts.failed)} />
-        </dl>
+        {repos && (
+          <dl className="flex flex-wrap gap-x-6 gap-y-2 rounded-[var(--radius-control)] border border-line bg-inset px-3.5 py-2.5 text-[12px]">
+            <Fact label="Repositories" value={formatNumber(repos.length)} />
+            <Fact label="Branches" value={formatNumber(counts.branches)} />
+            <Fact label="Walking now" value={formatNumber(counts.running)} />
+            <Fact label="History read" value={formatNumber(counts.complete)} />
+            {counts.failed > 0 && <Fact label="Failed" value={formatNumber(counts.failed)} />}
+          </dl>
+        )}
 
         <div className="overflow-hidden rounded-[var(--radius-panel)] border border-line">
           <div className="flex flex-wrap items-center gap-3 border-b border-line bg-surface-2 px-3.5 py-2.5">
-            <SearchInput
-              size="sm"
-              value={search}
-              onChange={setSearch}
-              placeholder="Search repository or client id…"
-              className="w-full min-w-0 sm:max-w-xs"
-            />
-            <p className="text-[12px] text-ink-3" data-numeric="">
-              {formatNumber(visible.length)} of {formatNumber(targets.length)}
-            </p>
+            <SearchInput size="sm" value={search} onChange={setSearch} placeholder="Search repository, branch or client id…" className="w-full min-w-0 sm:max-w-xs" />
+            {platforms.length > 1 && (
+              <SegmentedControl
+                label="Platform"
+                options={[{ value: '', label: 'All' }, ...platforms.map((p) => ({ value: p, label: PLATFORMS[p].label }))]}
+                value={platform}
+                onChange={setPlatform}
+              />
+            )}
+            <Button variant="ghost" size="sm" icon={RefreshCw} loading={loading} onClick={load} className="ml-auto">
+              Refresh
+            </Button>
           </div>
 
-          {visible.length === 0 ? (
-            targets.length === 0 ? (
+          {error && !repos ? (
+            <div className="p-4">
+              <ErrorState error={error} onRetry={load} compact title="The repositories could not be read" />
+            </div>
+          ) : !repos ? (
+            <ul className="divide-y divide-line" aria-busy="true">
+              {[0, 1, 2].map((i) => (
+                <li key={i} className="px-4 py-4">
+                  <div className="h-4 w-48 animate-pulse rounded bg-surface-3" />
+                  <div className="mt-2 h-3 w-72 animate-pulse rounded bg-surface-3" />
+                </li>
+              ))}
+            </ul>
+          ) : visible.length === 0 ? (
+            repos.length === 0 ? (
               <ClearState
                 compact
-                title="No repositories to scan"
-                description="The scanner has not reported a finding against any repository yet, so there is nothing here to walk. A repository can still be named by hand below."
+                title="No repositories scanned yet"
+                description="A repository appears here after the scanner's first scan of it - within an hour of turning on code scanning for it."
               />
             ) : (
-              <EmptyState
-                compact
-                icon={Radar}
-                title="No repository matches that search"
-                description="Clear the search to see every repository the scanner knows about."
-              />
+              <EmptyState compact icon={Radar} title="No repository matches" description="Clear the search or platform to see every repository." />
             )
           ) : (
             <ul className="divide-y divide-line">
-              {visible.map((row) => (
-                <TargetRow
-                  key={row.key}
-                  row={row}
-                  state={statuses[row.key]}
-                  pending={pending === row.key}
-                  onRequest={() => onRequest(row)}
-                  onRefresh={() => refresh(row)}
-                />
+              {visible.map((repo) => (
+                <RepositoryRow key={`${repo.platform}|${repo.client_id}|${repo.repository}`} repo={repo} onStart={onStart} onOpenHistory={onOpenHistory} />
               ))}
             </ul>
           )}
         </div>
-
-        {/* A repository with zero findings never appears above - and that is
-            exactly the repository somebody wants to deep scan, because a clean
-            snapshot says nothing about the history behind it. */}
-        <div className="rounded-[var(--radius-panel)] border border-line bg-surface-2 p-3.5">
-          <SectionLabel>Scan a repository that has no findings yet</SectionLabel>
-          <p className="mt-1 text-[12px] leading-relaxed text-ink-3">
-            The list above is built from findings, so a repository the scanner has never flagged is
-            not on it.
-          </p>
-          <form noValidate className="mt-3 grid items-start gap-3 @min-[34rem]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]" onSubmit={onAddManual}>
-            <Field label="Client id" htmlFor="deep-client" required error={manualFieldErrors.client}>
-              <Input
-                id="deep-client"
-                list="deep-client-options"
-                value={manualClient}
-                invalid={Boolean(manualFieldErrors.client)}
-                onChange={(event) => {
-                  setManualClient(event.target.value);
-                  if (manualFieldErrors.client) setManualFieldErrors((prev) => ({ ...prev, client: undefined }));
-                }}
-                placeholder={knownClients[0] ? `e.g. ${knownClients[0]}` : 'e.g. test-sample-client'}
-                autoComplete="off"
-              />
-              <datalist id="deep-client-options">
-                {knownClients.map((client) => (
-                  <option key={client} value={client} />
-                ))}
-              </datalist>
-            </Field>
-            <Field label="Repository" htmlFor="deep-repo" required error={manualFieldErrors.repo}>
-              <Input
-                id="deep-repo"
-                value={manualRepo}
-                invalid={Boolean(manualFieldErrors.repo)}
-                onChange={(event) => {
-                  setManualRepo(event.target.value);
-                  if (manualFieldErrors.repo) setManualFieldErrors((prev) => ({ ...prev, repo: undefined }));
-                }}
-                placeholder="e.g. test-sample"
-              />
-            </Field>
-            {/* Lined up with the inputs, not with the bottom of the tallest
-                field: the label row above the inputs is matched by a spacer. */}
-            <div className="flex flex-col gap-1.5">
-              <span aria-hidden="true" className="hidden h-[19px] @min-[34rem]:block" />
-              <Button type="submit" variant="secondary">
-                Add
-              </Button>
-            </div>
-          </form>
-          <p className="mt-2 text-[11.5px] text-ink-3">Repository: a bare name for CodeCommit, owner/repo for GitHub.</p>
-          {manualError && <p className="mt-2 text-[12.5px] text-critical">{manualError}</p>}
-          <p className="mt-2 text-[11.5px] leading-relaxed text-ink-3">
-            Which platform a client is on comes from the scanner's own records, so nothing here says
-            which one to use. Give the repository in the wrong shape and the service answers with
-            which shape it wanted.
-          </p>
-        </div>
+        <p className="text-[11.5px] leading-relaxed text-ink-3">
+          Branches are listed once the scanner has scanned them (within an hour of their first push). A walk reads every commit, so a
+          long history can take 30 minutes or more.
+        </p>
       </div>
     </Drawer>
   );
 }
 
-/**
- * How long a running walk has been going, so a long scan reads as working and
- * not as stuck. A history walk reads every commit: a few minutes for a small
- * repository, half an hour or more for a long-lived one.
- */
+/** A branch's latest walk; the default branch also shows a walk requested without choosing branches. */
+function branchScan(repo, branch) {
+  if (branch.deep_scan) return branch.deep_scan;
+  if (branch.default && repo.deep_scan) return repo.deep_scan;
+  return null;
+}
+
+/** The dropdown: the scanner guide's options (Default branch, All branches, each branch). */
+function branchOptions(repo) {
+  const named = repo.branches.filter((b) => b.name);
+  const options = [{ key: 'default', value: 'default', label: `Default branch${repo.default_branch ? ` (${repo.default_branch})` : ''}` }];
+  if (named.length > 1) options.push({ key: 'all', value: 'all', label: `All branches (${named.length})` });
+  for (const b of named) {
+    if (b.default) continue;
+    options.push({ key: `b:${b.name}`, value: [b.name], label: b.name });
+  }
+  return options;
+}
+
+function RepositoryRow({ repo, onStart, onOpenHistory }) {
+  const { lock } = useAccess();
+  const platform = platformMeta(repo.platform);
+  const options = useMemo(() => branchOptions(repo), [repo]);
+  const [choice, setChoice] = useState('default');
+  const [pending, setPending] = useState(false);
+  const selected = options.find((o) => o.key === choice) ?? options[0];
+  const chosen = selected.value === 'default' ? repo.branches.filter((b) => b.default) : selected.value === 'all' ? repo.branches : repo.branches.filter((b) => selected.value.includes(b.name));
+  const allRunning = chosen.length > 0 && chosen.every((b) => branchScan(repo, b)?.status === 'running');
+
+  const start = async () => {
+    setPending(true);
+    try {
+      await onStart(repo, selected);
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <li className="px-4 py-3.5">
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2.5">
+        <div className="min-w-0">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <p className="min-w-0 truncate text-[13.5px] font-semibold text-ink" title={repo.repository}>
+              {repo.repository}
+            </p>
+            <Tag tone={platform.tone} size="sm">
+              {platform.label}
+            </Tag>
+          </div>
+          <p className="mt-0.5 text-[11.5px] text-ink-3">
+            <span className="font-mono">{repo.client_id}</span>
+            {' · '}
+            {repo.findings > 0 ? `${formatNumber(repo.findings)} secret${repo.findings === 1 ? '' : 's'} in the code` : 'No secret in the code'}
+            {repo.deep_findings > 0 && ` · ${formatNumber(repo.deep_findings)} found in history`}
+            {repo.last_scanned_at && ` · last scanned ${formatRelative(repo.last_scanned_at)}`}
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <Select
+            size="sm"
+            aria-label={`Branches to walk in ${repo.repository}`}
+            value={choice}
+            onChange={(event) => setChoice(event.target.value)}
+            options={options.map((o) => ({ value: o.key, label: o.label }))}
+            className="w-52"
+          />
+          <Button
+            variant="primary"
+            size="sm"
+            icon={allRunning ? undefined : Play}
+            onClick={start}
+            loading={pending}
+            disabled={allRunning || pending}
+            locked={allRunning ? undefined : lock('exposure.deepScan')}
+            title={allRunning ? 'Already walking; this panel follows it' : undefined}
+          >
+            {allRunning ? 'Walking…' : 'Scan history'}
+          </Button>
+        </div>
+      </div>
+
+      <ul className="mt-2.5 flex flex-col gap-1.5">
+        {repo.branches.map((b) => (
+          <BranchLine key={b.name || '(default)'} repo={repo} branch={b} onOpenHistory={onOpenHistory} />
+        ))}
+      </ul>
+    </li>
+  );
+}
+
+function BranchLine({ repo, branch, onOpenHistory }) {
+  const scan = branchScan(repo, branch);
+  const meta = deepScanStateMeta(scan?.status);
+  const name = branch.name || 'default branch';
+  return (
+    <li className="rounded-[var(--radius-control)] bg-surface-2 px-3 py-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px]">
+        <GitBranch aria-hidden="true" className="size-3.5 shrink-0 text-ink-3" />
+        <span className="min-w-0 truncate font-mono text-ink" title={name}>
+          {name}
+        </span>
+        {branch.default && (
+          <Tag tone="neutral" size="sm">
+            Default
+          </Tag>
+        )}
+        <span className="text-ink-3" title={branch.last_scanned_at ? formatDateTime(branch.last_scanned_at) : undefined}>
+          {branch.last_scanned_at ? `Scanned ${formatRelative(branch.last_scanned_at)}` : 'Not scanned yet'}
+          {branch.pending_commit_id ? ' · a scan is in progress' : ''}
+        </span>
+        <span className="ml-auto flex items-center gap-2">
+          <Tag tone={meta.tone} size="sm" dot={meta.tone !== 'neutral'}>
+            {scan?.status === 'running' ? (
+              <span className="flex items-center gap-1.5">
+                <span aria-hidden="true" className="deep-scan-pulse" />
+                History: {meta.label.toLowerCase()}
+              </span>
+            ) : scan ? (
+              `History: ${meta.label.toLowerCase()}`
+            ) : (
+              'History not read'
+            )}
+          </Tag>
+          {branch.deep_findings > 0 && onOpenHistory && (
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={History}
+              onClick={() => onOpenHistory({ repository: repo.repository, branch: branch.name, platform: repo.platform })}
+            >
+              {formatNumber(branch.deep_findings)} in history
+            </Button>
+          )}
+        </span>
+      </div>
+      {scan?.status === 'complete' && (
+        <p className="mt-1 flex items-start gap-1.5 pl-5 text-[11.5px] text-ink-2">
+          <CheckCircle2 aria-hidden="true" className="mt-px size-3 shrink-0 text-low" />
+          {Number.isFinite(scan.commits_scanned) ? `${formatNumber(scan.commits_scanned)} commits read` : 'History read'}
+          {scan.completed_at ? ` ${formatRelative(scan.completed_at)}` : ''}
+          {Number.isFinite(scan.findings) ? ` · ${scan.findings === 0 ? 'no secret anywhere in it' : `${formatNumber(scan.findings)} secret${scan.findings === 1 ? '' : 's'} found`}` : ''}.
+        </p>
+      )}
+      {scan?.status === 'running' && <RunningNote status={scan} />}
+      {scan?.status === 'failed' && <FailureNote status={{ ...scan, platform: repo.platform }} />}
+    </li>
+  );
+}
+
 function RunningNote({ status }) {
-  const startedAt = parseDate(status?.started_at || status?.requested_at);
+  const startedAt = parseDate(status?.requested_at);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 15000);
@@ -381,206 +387,28 @@ function RunningNote({ status }) {
   }, []);
   const minutes = startedAt ? Math.max(0, Math.floor((now - startedAt.getTime()) / 60000)) : null;
   return (
-    <p className="mt-2 flex items-start gap-2 rounded-[var(--radius-control)] border border-info/25 bg-info-soft px-3 py-2 text-[12px] leading-relaxed text-ink-2" role="status">
-      <span aria-hidden="true" className="deep-scan-pulse mt-1.5" />
-      <span>
-        {minutes === null ? 'Reading the history now.' : minutes < 1 ? 'Started less than a minute ago.' : `Running for ${formatNumber(minutes)} minute${minutes === 1 ? '' : 's'}.`}{' '}
-        Every commit since the first is read, so a long history can take 30 minutes or more. You can close this panel - the
-        scan carries on, and new findings appear on Exposed credentials when it finishes.
-      </span>
+    <p className="mt-1 pl-5 text-[11.5px] text-ink-2" role="status">
+      {minutes === null ? 'Reading the history now.' : minutes < 1 ? 'Started less than a minute ago.' : `Running for ${formatNumber(minutes)} minute${minutes === 1 ? '' : 's'}.`}{' '}
+      You can close this panel; the walk carries on.
     </p>
   );
 }
 
-/**
- * One repository, its deep-scan state, and the one control it offers.
- *
- * The button's label is the state, in words: "Request deep scan" the first
- * time, "Scan again" once there is a result. A scan that is already running
- * offers nothing - re-posting would reset it back to the beginning, and
- * somebody watching a progress row would read that as a failure.
- */
-function TargetRow({ row, state, pending, onRequest, onRefresh }) {
-  const { lock } = useAccess();
-  const status = state?.data;
-  const meta = deepScanStateMeta(status?.status);
-  const running = String(status?.status).toLowerCase() === 'running';
-  const failed = String(status?.status).toLowerCase() === 'failed';
-  const platform = row.platform ? platformMeta(row.platform) : null;
-  /* The service reports which platform it holds this client under, which is
-     better than anything the dashboard could infer - so once a status has come
-     back it overrides the label derived from the findings. */
-  const reported = status?.platform ? platformMeta(status.platform) : null;
-
-  return (
-    <li className="px-4 py-3.5">
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2.5">
-        <div className="min-w-0">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <GitBranch aria-hidden="true" className="size-4 shrink-0 text-ink-3" />
-            <p className="min-w-0 truncate text-[13px] font-semibold text-ink" title={row.repository}>
-              {row.repository}
-            </p>
-            {(reported ?? platform) && (
-              <Tag tone={(reported ?? platform).tone} size="sm">
-                {(reported ?? platform).label}
-              </Tag>
-            )}
-            {row.source === 'manual' && (
-              <Tag tone="neutral" size="sm">
-                Added by hand
-              </Tag>
-            )}
-          </div>
-          <p className="mt-1 truncate font-mono text-[11.5px] text-ink-3">{row.clientId}</p>
-          <p className="mt-1 text-[11.5px] leading-relaxed text-ink-3">
-            {row.findings > 0
-              ? `${formatNumber(row.findings)} live finding${row.findings === 1 ? '' : 's'} from the snapshot scan.`
-              : 'No findings from the snapshot scan.'}{' '}
-            {meta.description}
-          </p>
-        </div>
-
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <Tag tone={meta.tone} size="sm" dot={meta.tone !== 'neutral'}>
-            {running ? (
-              <span className="flex items-center gap-1.5">
-                <span aria-hidden="true" className="deep-scan-pulse" />
-                {meta.label}
-              </span>
-            ) : (
-              meta.label
-            )}
-          </Tag>
-          {/* A plain button, not an icon-only one: "re-check" is not a glyph
-              anybody recognises, and this row already carries a primary
-              action whose label the reader has to tell it apart from. */}
-          {/* While a walk runs its status is polled automatically, so a manual
-              re-check adds nothing - and next to "Running" it read as a way to
-              start it again. It comes back once the walk has ended. */}
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={RefreshCw}
-            onClick={onRefresh}
-            loading={state?.loading}
-            disabled={running}
-            title={running ? 'Checked automatically every few seconds while the scan runs' : undefined}
-            aria-label={`Re-check the deep scan status for ${row.repository}`}
-          >
-            Re-check
-          </Button>
-          <Button
-            variant={failed ? 'secondary' : 'primary'}
-            size="sm"
-            icon={status?.status && status.status !== 'not_started' ? History : Play}
-            onClick={onRequest}
-            loading={pending}
-            disabled={running || pending}
-            locked={running ? undefined : lock('exposure.deepScan')}
-          >
-            {running
-              ? 'Running'
-              : status?.status === 'complete'
-                ? 'Scan again'
-                : failed
-                  ? 'Try again'
-                  : 'Request deep scan'}
-          </Button>
-        </div>
-      </div>
-
-      {/* The numbers only exist once a walk has finished, so the row stays one
-          line until there is something true to put on the second. */}
-      {status && status.status !== 'not_started' && (
-        <dl className="mt-2.5 flex flex-wrap gap-x-6 gap-y-1.5 rounded-[var(--radius-control)] bg-surface-2 px-3 py-2 text-[11.5px]">
-          <Fact label="Requested" value={status.requested_at ? formatRelative(status.requested_at) : '-'} title={status.requested_at ? formatDateTime(status.requested_at) : undefined} />
-          {status.completed_at && (
-            <Fact label="Finished" value={formatRelative(status.completed_at)} title={formatDateTime(status.completed_at)} />
-          )}
-          {Number.isFinite(status.commits_scanned) && (
-            <Fact label="Commits read" value={formatNumber(status.commits_scanned)} />
-          )}
-          {Number.isFinite(status.findings) && (
-            <Fact label="Secrets found" value={formatNumber(status.findings)} />
-          )}
-        </dl>
-      )}
-
-      {status?.status === 'complete' && Number.isFinite(status.findings) && (
-        <p className="mt-2 flex items-start gap-2 text-[12px] leading-relaxed text-ink-2">
-          <CheckCircle2 aria-hidden="true" className="mt-px size-3.5 shrink-0 text-low" />
-          {status.findings > 0 ? (
-            <span>
-              The history walk added {formatNumber(status.findings)} finding
-              {status.findings === 1 ? '' : 's'}, which are in the live set on{' '}
-              <Link to="/exposure" className="text-brand hover:underline">
-                Exposed credentials
-              </Link>
-              .
-            </span>
-          ) : (
-            <span>The whole history was read and no secret was found anywhere in it.</span>
-          )}
-        </p>
-      )}
-
-      {running && <RunningNote status={status} />}
-
-      {failed && <FailureNote status={status} />}
-
-      {state?.error && !status && (
-        <p className="mt-2 text-[12px] text-ink-3">
-          {state.error.code === 'PLATFORM_REQUIRED'
-            ? 'This client has a repository of this name on both GitHub and CodeCommit, so the status cannot be told apart without a platform.'
-            : 'The status for this repository could not be read. It has not necessarily failed - only the check did.'}
-        </p>
-      )}
-    </li>
-  );
-}
-
-function Fact({ label, value, title }) {
-  return (
-    <div className="flex items-baseline gap-1.5">
-      <dt className="text-ink-3">{label}</dt>
-      <dd className="font-medium text-ink-2" data-numeric="" title={title}>
-        {value}
-      </dd>
-    </div>
-  );
-}
-
-/**
- * A failed walk, explained before it is quoted.
- *
- * `error` is the raw exception the service caught. The integration guide is
- * explicit that it is fine in front of an operator and not something to show
- * an end user as-is, so it is put under a heading that says what it is - and
- * the cause is named above it, because the raw string says what threw without
- * saying what to do.
- */
 function FailureNote({ status }) {
   const failure = describeDeepScanFailure(status);
   return (
-    <div className="mt-2.5 rounded-[var(--radius-control)] border border-critical/30 bg-critical-soft p-3">
-      <p className="flex items-start gap-2 text-[12.5px] leading-relaxed text-ink">
+    <div className="mt-1.5 ml-5 rounded-[var(--radius-control)] border border-critical/30 bg-critical-soft p-2.5">
+      <p className="flex items-start gap-1.5 text-[12px] leading-relaxed text-ink">
         <AlertTriangle aria-hidden="true" className="mt-px size-3.5 shrink-0 text-critical" />
         <span>
           <span className="font-semibold">{failure.cause}</span> {failure.fix}
+          {status.failed_at && <span className="text-ink-3"> Failed {formatRelative(status.failed_at)}.</span>}
         </span>
       </p>
-      {status.failed_at && (
-        <p className="mt-1.5 pl-5.5 text-[11.5px] text-ink-3">
-          Failed {formatRelative(status.failed_at)} ({formatDateTime(status.failed_at)}).
-        </p>
-      )}
       {failure.raw && (
-        <details className="mt-2 pl-5.5">
-          <summary className="cursor-pointer text-[11.5px] font-medium text-ink-2">
-            What the service reported
-          </summary>
-          <pre className="mt-1.5 overflow-x-auto rounded-[var(--radius-control)] border border-line bg-inset p-2.5 font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-ink-3">
+        <details className="mt-1.5 pl-5">
+          <summary className="cursor-pointer text-[11.5px] font-medium text-ink-2">What the scanner reported</summary>
+          <pre className="mt-1 overflow-x-auto rounded-[var(--radius-control)] border border-line bg-inset p-2 font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-ink-3">
             {failure.raw}
           </pre>
         </details>
@@ -589,121 +417,13 @@ function FailureNote({ status }) {
   );
 }
 
-/**
- * Statuses for every listed repository, polled while any of them is running.
- *
- * One interval for the whole page rather than one per row: a dozen timers
- * firing at slightly different moments produces a dozen requests a second
- * apart instead of one burst every five, and each row then re-renders on its
- * own schedule. The interval is torn down the moment nothing is running, so an
- * idle page makes no requests at all.
- *
- * Nothing happens while the drawer is closed. It is mounted all the time on the
- * findings screen, and an earlier version read a status for every repository
- * the moment that screen loaded - and kept polling any running scan in the
- * background - whether or not anybody ever opened the drawer. Every opening
- * re-reads every row, because a scan requested elsewhere, or one that finished
- * while the drawer was shut, would otherwise show its old state.
- */
-function useDeepScanStatuses(targets, open) {
-  const [statuses, setStatuses] = useState({});
-  const [pending, setPending] = useState('');
-  const targetsRef = useRef(targets);
-  targetsRef.current = targets;
-
-  const load = useCallback(async (row) => {
-    setStatuses((current) => ({
-      ...current,
-      [row.key]: { ...current[row.key], loading: true },
-    }));
-    try {
-      const data = await fetchDeepScanStatus({
-        clientId: row.clientId,
-        repository: row.repository,
-        platform: row.platform || undefined,
-      });
-      setStatuses((current) => ({ ...current, [row.key]: { data, loading: false, error: null } }));
-      return data;
-    } catch (error) {
-      if (error?.code === 'CANCELLED') return null;
-      setStatuses((current) => ({
-        ...current,
-        [row.key]: { data: current[row.key]?.data, loading: false, error },
-      }));
-      return null;
-    }
-  }, []);
-
-  /* Every listed repository is read once, so the list arrives with real states
-     rather than a column of "not started" that turns out to be wrong. */
-  const loadedRef = useRef(new Set());
-  useEffect(() => {
-    if (!open) {
-      loadedRef.current = new Set();
-      return;
-    }
-    for (const row of targets) {
-      if (loadedRef.current.has(row.key)) continue;
-      loadedRef.current.add(row.key);
-      load(row);
-    }
-  }, [targets, load, open]);
-
-  const runningKeys = targets
-    .filter((row) => String(statuses[row.key]?.data?.status).toLowerCase() === 'running')
-    .map((row) => row.key)
-    .join(',');
-
-  useEffect(() => {
-    if (!open || !runningKeys) return undefined;
-    const interval = setInterval(() => {
-      const keys = new Set(runningKeys.split(','));
-      for (const row of targetsRef.current) {
-        if (keys.has(row.key)) load(row);
-      }
-    }, DEEP_SCAN_POLL_MS);
-    return () => clearInterval(interval);
-  }, [runningKeys, load, open]);
-
-  /* Requesting a scan sets the row running immediately from the 202 body
-     rather than waiting for the next poll, so the button's state changes on
-     the click that caused it. */
-  const request = useCallback(
-    async (row) => {
-      setPending(row.key);
-      try {
-        const accepted = await startDeepScan({ clientId: row.clientId, repository: row.repository, platform: row.platform });
-        setStatuses((current) => ({
-          ...current,
-          [row.key]: {
-            loading: false,
-            error: null,
-            data: {
-              ...(current[row.key]?.data ?? {}),
-              client_id: row.clientId,
-              repo_key: row.repository,
-              status: accepted?.status || 'running',
-              platform: accepted?.platform ?? current[row.key]?.data?.platform,
-              requested_at: accepted?.requested_at || new Date().toISOString(),
-              /* A fresh request clears the previous run's result, which is what
-                 the service does too - keeping the old numbers on screen would
-                 attribute them to the run that just started. */
-              completed_at: null,
-              commits_scanned: null,
-              findings: null,
-              failed_at: null,
-              error: null,
-            },
-          },
-        }));
-        return accepted;
-      } finally {
-        setPending('');
-      }
-    },
-    [],
+function Fact({ label, value }) {
+  return (
+    <div className="flex items-baseline gap-1.5">
+      <dt className="text-ink-3">{label}</dt>
+      <dd className="font-medium text-ink-2" data-numeric="">
+        {value}
+      </dd>
+    </div>
   );
-
-  return { statuses, refresh: load, request, pending };
 }
-

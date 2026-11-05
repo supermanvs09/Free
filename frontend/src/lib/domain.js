@@ -459,9 +459,13 @@ export function recommendedActionMeta(value) {
 }
 
 export const PLATFORMS = {
-  github: { label: 'GitHub', tone: 'brand' },
-  codecommit: { label: 'CodeCommit', tone: 'info' },
+  github: { key: 'github', label: 'GitHub', tone: 'brand', repoShape: 'owner/repo', linkLabel: 'Open on GitHub' },
+  codecommit: { key: 'codecommit', label: 'CodeCommit', tone: 'info', repoShape: 'a bare name', linkLabel: 'Open in AWS' },
+  bitbucket: { key: 'bitbucket', label: 'Bitbucket', tone: 'medium', repoShape: 'PROJECT/repo', linkLabel: 'Open in Bitbucket' },
 };
+
+/** The scanner's platforms, in display order. */
+export const PLATFORM_ORDER = ['codecommit', 'github', 'bitbucket'];
 
 /**
  * Per the integration guide a finding recorded before platform tracking
@@ -469,18 +473,34 @@ export const PLATFORMS = {
  * CodeCommit. Normalise here so no screen repeats the null check.
  */
 export function normalisePlatform(value) {
-  return String(value || '').toLowerCase() === 'github' ? 'github' : 'codecommit';
+  const key = String(value || '').toLowerCase();
+  /* GitHub and Bitbucket are named; anything else, null included, is CodeCommit
+     (the guide's rule - "platform !== github" alone counted Bitbucket as
+     CodeCommit). */
+  return key === 'github' || key === 'bitbucket' ? key : 'codecommit';
 }
 
 export function platformMeta(value) {
   return PLATFORMS[normalisePlatform(value)];
 }
 
-/** Exactly one of the two URI fields is populated; label the link accordingly. */
+/**
+ * Exactly one of the three URI fields is populated (the CodeCommit one can be
+ * missing on old data). A Bitbucket link opens the client's own server, so it
+ * only works for someone with access to it.
+ */
 export function findingLink(finding) {
-  if (finding?.codecommit_uri) return { href: finding.codecommit_uri, label: 'Open in AWS' };
-  if (finding?.github_uri) return { href: finding.github_uri, label: 'Open on GitHub' };
+  if (finding?.codecommit_uri) return { href: finding.codecommit_uri, label: 'Open in AWS', note: '' };
+  if (finding?.github_uri) return { href: finding.github_uri, label: 'Open on GitHub', note: '' };
+  if (finding?.bitbucket_uri) {
+    return { href: finding.bitbucket_uri, label: 'Open in Bitbucket', note: 'Opens your Bitbucket server: you need access to it.' };
+  }
   return null;
+}
+
+/** The URI a finding carries, whatever its platform (exports). */
+export function findingUri(finding) {
+  return finding?.codecommit_uri || finding?.github_uri || finding?.bitbucket_uri || '';
 }
 
 /* ── Finding enrichment (added by the scanner, additive to the original shape) ─
@@ -492,7 +512,7 @@ export function findingLink(finding) {
    different statements - so it is made once, here, rather than guessed at by
    each screen.                                                              */
 
-/** Fields that never populate for CodeCommit, per the integration guide. */
+/** Fields only GitHub reports (diff stats, social counts), per the integration guide. */
 const GITHUB_ONLY_FIELDS = ['additions', 'deletions', 'repo_stars', 'repo_forks', 'repo_pushed_at'];
 
 export function isGithubOnlyField(field) {
@@ -583,7 +603,7 @@ export function commitSize(finding) {
     files,
     additions,
     deletions,
-    /* On CodeCommit this is "files we scanned", which can undercount. */
+    /* Elsewhere this is "files we scanned", which can undercount. */
     filesAreExact: platform === 'github',
     hasLineStats: additions !== null || deletions !== null,
   };

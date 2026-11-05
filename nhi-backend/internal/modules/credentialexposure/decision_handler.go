@@ -3,6 +3,7 @@ package credentialexposure
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"nhi-backend-api/internal/platform/middleware"
 )
@@ -26,11 +27,15 @@ func (h *DecisionHandler) Save(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// The signed-in user decided; a decided_by in the body is ignored.
-	err := h.service.Save(r.Context(), claims.UserID, claims.TenantID, claims.DBName, req.FindingID, req.Decision, claims.UserID)
+	err := h.service.Save(r.Context(), claims.UserID, claims.TenantID, claims.DBName, req.FindingID, req.Decision, claims.UserID, req.Deep)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrDecisionFindingNotFound):
-			writeError(w, http.StatusNotFound, "NOT_FOUND", "Finding not found")
+			msg := "Finding not found"
+			if !req.Deep && strings.Contains(req.FindingID, "@") {
+				msg = "Finding not found. A deep-scan finding (its id ends in @<branch>) is labelled with deep: true"
+			}
+			writeError(w, http.StatusNotFound, "NOT_FOUND", msg)
 		case errors.Is(err, ErrDecisionFindingAmbiguous):
 			writeError(w, http.StatusConflict, "AMBIGUOUS_FINDING", "Finding ID matched more than one platform table")
 		default:

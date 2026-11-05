@@ -198,18 +198,21 @@ Reads for every signed-in user; changes for admins.
 
 | Method | Path | What it does |
 |---|---|---|
-| GET | `/credential-exposure/findings` | The **main list**: secrets the scanner found in GitHub / CodeCommit that need action (not marked safe, not set aside by the rules in "Finding lists"), newest first. Same 41 fields as the scanner's own API (the 37 earlier ones plus `ml_veto_score`, `ml_veto_model_version`, `value_fingerprint`, `noise_flags`); timestamps always carry an offset (rows stored without one are UTC). `?ml_flagged=true` reads the ML-flagged list instead. |
+| GET | `/credential-exposure/findings` | The **main list**: secrets the scanner found in CodeCommit / GitHub / Bitbucket that need action (not marked safe, not set aside by the rules in "Finding lists"), newest first. Same 41 fields as the scanner's own API (the 37 earlier ones plus `ml_veto_score`, `ml_veto_model_version`, `value_fingerprint`, `noise_flags`); timestamps always carry an offset (rows stored without one are UTC). `?ml_flagged=true` reads the ML-flagged list instead. |
 | GET | `/credential-exposure/findings/review` | **Needs review**: the models are unsure either way, so a person should decide. |
 | GET | `/credential-exposure/findings/repeated` | **Same value repeated**: one value (`value_fingerprint`) at 3+ different places in one commit. The console groups it by repeat count. |
 | GET | `/credential-exposure/findings/noise` | **Known harmless**: values tagged in `noise_flags` (published example keys, hashes, ARNs, plain URLs...). |
 | GET | `/credential-exposure/findings/flagged` (alias `/ml-flagged`) | **Likely false alarms**: the models think they are not real secrets. |
-| GET | `/credential-exposure/findings/summary` | Counts by risk and repositories affected for one list (main unless `?ml_flagged=true`), plus `lists: {main, review, repeated, noise, ml_flagged}` - the five counts add up to every finding that is not marked safe. |
+| GET | `/credential-exposure/findings/summary` | Counts by risk and repositories affected for one list (main unless `?ml_flagged=true`), plus `lists: {main, review, repeated, noise, ml_flagged}` - the five counts add up to every finding that is not marked safe - `by_platform`, the `platforms` this workspace has tables for, and `deep_findings` / `deep_available`. |
+| GET | `/credential-exposure/deep-findings` | **Found in history**: what deep scans found (`secscan_deep_findings_<platform>`), one row per branch (`finding_id` ends in `@<branch>`, `deep: true`), not sorted into the five lists. Filters `client_id`, `platform`, `repository`, `branch` (`main` also matches `refs/heads/main`), `limit`, `offset`. A secret still in the code is also in a list: two views, not duplicates. |
+| GET | `/credential-exposure/repositories` | Every repository the scanner has recorded (from its per-branch ledger, findings and deep-scan rows), with `default_branch`, `branches[]` (last scanned commit and time, findings, deep findings, latest deep scan) and counts. A repository without findings is listed too. |
+| GET | `/credential-exposure/branches` | `?client_id&repository[&platform]`: the deep-scan branch dropdown, the scanner guide's shape (`default_branch`, `branches`, `complete`, `warning`, `options: [{value, label, kind}]`) plus `details`. Read from the scanner's tables, not the code platform: a branch appears once the scanner has scanned it. The default branch's name is learnt from its findings (`complete: false` + a `warning` until then). |
 | GET | `/credential-exposure/allowlist` | Findings marked safe (the Accepted list). |
 | POST | `/credential-exposure/allowlist` | Marks a finding as safe, with a reason. |
 | DELETE | `/credential-exposure/allowlist` | Restores a finding to the live list. |
-| POST | `/credential-exposure/decisions` | Records an analyst verdict on a finding (real secret / false positive). The signed-in user is recorded as `decided_by` (a value in the body is ignored); the allowlist records `dismissed_by` the same way. |
-| POST | `/credential-exposure/deep-scan` | Requests a full-history walk of one repository (`{client_id, repository, platform?}`, 202). Written to the tenant's `secscan_deepscan_<platform>` row for the scanner worker - no external call. Answers `{accepted: true, status: "running", ...}`. 400 `INVALID_REPOSITORY` when a GitHub repository is not `owner/repo` or a CodeCommit repository is not one of the client's onboarded repositories; 404 `CLIENT_NOT_FOUND` when this workspace's scanner has never seen the client on that platform. A walk already waiting or running is left alone (`already_running: true`). |
-| GET | `/credential-exposure/deep-scan/status` | Progress of that rescan; the same object with `status: "not_started"` when none was requested. |
+| POST | `/credential-exposure/decisions` | Records an analyst verdict on a finding (real secret / false positive); `deep: true` for a deep-scan finding (else 404). The signed-in user is recorded as `decided_by` (a value in the body is ignored); the allowlist records `dismissed_by` the same way. |
+| POST | `/credential-exposure/deep-scan` | Requests a full-history walk of one repository (`{client_id, repository, platform?, branches?}`, 202). `branches`: left out = the default branch as before; `"default"`, `"all"` (at most 50) or a list of names, one walk each (answer lists `branches` and `runs`; 400 `UNKNOWN_BRANCH` with `available`). Written to the tenant's `secscan_deepscan_<platform>` row for the scanner worker - no external call. Answers `{accepted: true, status: "running", ...}`. 400 `INVALID_REPOSITORY` when a GitHub repository is not `owner/repo` or a CodeCommit repository is not one of the client's onboarded repositories; 404 `CLIENT_NOT_FOUND` when this workspace's scanner has never seen the client on that platform. A walk already waiting or running is left alone (`already_running: true`). |
+| GET | `/credential-exposure/deep-scan/status` | Progress of that rescan (`&branch=` for one chosen branch); the same object with `status: "not_started"` when none was requested. |
 
 ### Posture scans (ISPM rule engine)
 
@@ -690,6 +693,21 @@ hidden by a rule that did not exist when it was written. Generic detectors are
 the repeated rule is matched on the detector name (`private_key`); confirm it
 against your scanner's detector names. `ml_features` is never returned.
 
+#### Scanner tables (read-time catalog)
+
+The scanner creates its tables per client schema and per platform when it
+first needs them, and has added columns in place. Every query is built from
+what the tenant schema actually holds (`information_schema`, cached a
+minute): `secscan_findings_<p>`, `secscan_deep_findings_<p>`,
+`secscan_ledger_<p>`, `secscan_deepscan_<p>` for `p` in `codecommit`,
+`github`, `bitbucket`, and `secscan_allowlist_dashboard`. A missing table is
+left out; a missing optional column (e.g. `bitbucket_uri` on an older table)
+reads as null. `migrations/tenant/010_secret_scanner_v2.sql` creates the
+Bitbucket and deep-findings tables and adds `bitbucket_uri` up front (new
+tenants get them from the onboarding template). GitHub/Bitbucket clients
+must be configured in the scanner with the tenant's schema; the scanner's
+default schema is not read.
+
 #### Deep-scan contract (scanner worker)
 
 The API never calls the scanner. `POST /credential-exposure/deep-scan` upserts
@@ -702,6 +720,12 @@ else the one the client has ledger rows or findings on, else `github` for an
 `owner/repo` name and `codecommit` otherwise. The worker claims waiting rows
 and writes `completed_at` + `commits_scanned` + `findings`, or `failed_at` +
 `error`; `GET /deep-scan/status` reads the same row.
+
+Branches (2026-11-05): a walk of a chosen branch is the row with `repo_key =
+"<repository>:<branch>"` (the default branch chosen by name too); `"<repository>"`
+alone is a request without branches, which walks the default branch. Its
+findings go to `secscan_deep_findings_<platform>` with `finding_id` ending in
+`@<branch>`. The ledger's default-branch row stays `"<repository>"`.
 
 #### Sync contract (discovery worker)
 

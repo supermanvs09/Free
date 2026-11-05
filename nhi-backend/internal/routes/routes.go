@@ -228,6 +228,7 @@ func registerProtected(router *mux.Router, h HandlerContainer, versioned bool) {
 		router.HandleFunc("/credential-exposure/findings/repeated", h.CredentialExposureFindingsHandler.ListRepeated).Methods(http.MethodGet)
 		router.HandleFunc("/credential-exposure/findings/noise", h.CredentialExposureFindingsHandler.ListNoise).Methods(http.MethodGet)
 		router.HandleFunc("/credential-exposure/findings/summary", h.CredentialExposureFindingsHandler.Summary).Methods(http.MethodGet)
+		router.HandleFunc("/credential-exposure/deep-findings", h.CredentialExposureFindingsHandler.ListDeep).Methods(http.MethodGet)
 	}
 	if h.CredentialExposureAllowlistHandler != nil {
 		router.HandleFunc("/credential-exposure/allowlist", h.CredentialExposureAllowlistHandler.List).Methods(http.MethodGet)
@@ -240,6 +241,8 @@ func registerProtected(router *mux.Router, h HandlerContainer, versioned bool) {
 	if h.CredentialExposureDeepScanHandler != nil {
 		router.HandleFunc("/credential-exposure/deep-scan", h.CredentialExposureDeepScanHandler.Trigger).Methods(http.MethodPost)
 		router.HandleFunc("/credential-exposure/deep-scan/status", h.CredentialExposureDeepScanHandler.Status).Methods(http.MethodGet)
+		router.HandleFunc("/credential-exposure/repositories", h.CredentialExposureDeepScanHandler.Repositories).Methods(http.MethodGet)
+		router.HandleFunc("/credential-exposure/branches", h.CredentialExposureDeepScanHandler.Branches).Methods(http.MethodGet)
 	}
 }
 
