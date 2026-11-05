@@ -282,13 +282,44 @@ func TestAWSIntegrationRepositoryAgainstPostgres(t *testing.T) {
 	if list, err := repo.ListAccounts(ctx, schemaA); err != nil || len(list) == 0 {
 		t.Fatalf("list: %v %v", list, err)
 	}
-	if err := repo.DeleteAccount(ctx, tenantA, schemaA, acct); err != nil {
+	// The account's data, and another account's that must stay.
+	const otherAcct = "222233334444"
+	mustExec(t, db, `CREATE TABLE `+database.Table(schemaA, "identities")+` (account_id text, name text)`)
+	mustExec(t, db, `CREATE TABLE `+database.Table(schemaA, "nhi_events_aws")+` (identity_arn text)`)
+	mustExec(t, db, `CREATE TABLE `+database.Table(schemaA, "ispm_identity_posture")+` (identity_id text, account_id text)`)
+	mustExec(t, db, `CREATE TABLE `+database.Table(schemaA, "ispm_role_use")+` (identity_id text)`)
+	mustExec(t, db, `CREATE TABLE `+database.Table(schemaA, "secscan_findings_codecommit")+` (client_id text, file_path text)`)
+	mustExec(t, db, `INSERT INTO `+database.Table(schemaA, "secscan_findings_codecommit")+` VALUES ($1, 'a'), ($2, 'b')`, acct, otherAcct)
+	mustExec(t, db, `INSERT INTO `+database.Table(schemaA, "identities")+` VALUES ($1, 'a'), ($2, 'b')`, acct, otherAcct)
+	mustExec(t, db, `INSERT INTO `+database.Table(schemaA, "nhi_events_aws")+` VALUES ($1), ($2)`,
+		"arn:aws:iam::"+acct+":role/a", "arn:aws:iam::"+otherAcct+":role/b")
+	mustExec(t, db, `INSERT INTO `+database.Table(schemaA, "ispm_identity_posture")+` VALUES ('i-a', $1), ('i-b', $2)`, acct, otherAcct)
+	mustExec(t, db, `INSERT INTO `+database.Table(schemaA, "ispm_role_use")+` VALUES ('i-a'), ('i-b')`)
+	// An append-only table refuses the delete: skipped, the removal goes on.
+	mustExec(t, db, `CREATE TABLE `+database.Table(schemaA, "audit_rows")+` (account_id text)`)
+	mustExec(t, db, `INSERT INTO `+database.Table(schemaA, "audit_rows")+` VALUES ($1)`, acct)
+	mustExec(t, db, `CREATE FUNCTION "`+schemaA+`".no_delete() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'append only'; END $$`)
+	mustExec(t, db, `CREATE TRIGGER audit_rows_no_delete BEFORE DELETE ON `+database.Table(schemaA, "audit_rows")+` FOR EACH ROW EXECUTE FUNCTION "`+schemaA+`".no_delete()`)
+	purged, err := repo.DeleteAccount(ctx, tenantA, schemaA, acct)
+	if err != nil {
 		t.Fatal(err)
+	}
+	if purged[purgeSkipped+"audit_rows"] != -1 {
+		t.Fatalf("append-only table not reported as skipped: %v", purged)
+	}
+	for _, table := range []string{"identities", "nhi_events_aws", "ispm_identity_posture", "ispm_role_use", "secscan_findings_codecommit"} {
+		if purged[table] != 1 {
+			t.Fatalf("purged %s = %d, want 1 (%v)", table, purged[table], purged)
+		}
+		var left int
+		if err := db.QueryRow(`SELECT count(*) FROM ` + database.Table(schemaA, table)).Scan(&left); err != nil || left != 1 {
+			t.Fatalf("%s rows left = %d (%v), want the other account's 1", table, left, err)
+		}
 	}
 	if got := scope(schemaA, acct); len(got) != 0 {
 		t.Fatalf("scope after delete: %v", got)
 	}
-	if err := repo.DeleteAccount(ctx, tenantA, schemaA, acct); !errors.Is(err, ErrAWSAccountNotFound) {
+	if _, err := repo.DeleteAccount(ctx, tenantA, schemaA, acct); !errors.Is(err, ErrAWSAccountNotFound) {
 		t.Fatalf("delete twice: %v", err)
 	}
 	if claimed, _ := repo.AccountClaimedByOther(ctx, tenantB, acct); claimed {

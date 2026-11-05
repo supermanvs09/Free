@@ -24,6 +24,7 @@ import { Panel } from '../../ui/Panel';
 import { EmptyState, InlineError } from '../../ui/States';
 import { SegmentedControl } from '../../ui/Tabs';
 import { useSync } from '../sync/SyncContext';
+import { reloadAllData } from '../../lib/sync/engine';
 import { useToast } from '../../ui/Toast';
 import { cn } from '../../ui/cn';
 import { ACCOUNT_STATUS } from './awsSetup';
@@ -552,6 +553,8 @@ function RemoveAccountBody({ account, lastConnected, onClose, onRemoved }) {
     setError(null);
     try {
       await removeAwsAccount({ accountId: account.accountId });
+      // Its data is gone from every page: reload what is on screen (scope picker, counts).
+      reloadAllData();
       notify({ variant: 'success', title: `${account.accountId} removed`, description: 'Delete the role and rule in that AWS account to finish.' });
       onRemoved(account.accountId);
     } catch (failure) {
@@ -569,7 +572,7 @@ function RemoveAccountBody({ account, lastConnected, onClose, onRemoved }) {
         </li>
         <li className="flex gap-2">
           <span aria-hidden="true" className="mt-[7px] size-1.5 shrink-0 rounded-full bg-ink-3" />
-          Its identities and credentials leave your dashboards and lists.
+          Everything collected from it - identities, credentials, posture scores, findings and change history - is deleted from every page. Connecting it again scans it afresh.
         </li>
         <li className="flex gap-2">
           <span aria-hidden="true" className="mt-[7px] size-1.5 shrink-0 rounded-full bg-ink-3" />

@@ -69,7 +69,7 @@ export function AnomaliesPanel({ sourceType, onClearSource }) {
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13px] text-ink">{item.what_changed}</span>
                   <span className="block truncate text-[11.5px] text-ink-3">
-                    {item.identity.display_name || item.identity.identity_name} · {sourceTypeLabel(item.identity.source_type)}
+                    {item.identity.display_name || item.identity.identity_name} · {sourceTypeLabel(item.identity.source_type, item.identity.identity_name)}
                   </span>
                 </span>
                 <span className="shrink-0 text-[11.5px] text-ink-3" title={formatDateTime(item.detected_at)}>{formatRelative(item.detected_at)}</span>

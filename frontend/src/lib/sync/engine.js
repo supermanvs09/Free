@@ -62,6 +62,12 @@ export function subscribeEpoch(listener) {
   return () => epochListeners.delete(listener);
 }
 
+/** Every screen's queries reload: the data changed outside a sync run (an account was removed). */
+export function reloadAllData() {
+  epoch += 1;
+  epochListeners.forEach((listener) => listener());
+}
+
 function set(patch) {
   state = { ...state, ...patch };
   persist();
@@ -259,8 +265,7 @@ async function pollPosture(run) {
 function finish() {
   clearTimeout(timer);
   patchRun({ stage: 'done', finishedAt: Date.now() });
-  epoch += 1;
-  epochListeners.forEach((listener) => listener());
+  reloadAllData();
   emit('done');
 }
 

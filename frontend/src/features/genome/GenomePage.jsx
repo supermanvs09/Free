@@ -138,7 +138,7 @@ export default function GenomePage() {
       columns: [
         { header: 'Identity', value: (row) => row.name },
         { header: 'ARN', value: (row) => row.identityName },
-        { header: 'Workload type', value: (row) => sourceTypeLabel(row.sourceType) },
+        { header: 'Workload type', value: (row) => sourceTypeLabel(row.sourceType, row.identity_type) },
         { header: 'Account', value: (row) => row.account_id },
         { header: 'Region', value: (row) => row.region ?? '' },
         { header: 'Status', value: (row) => row.status ?? '' },
@@ -161,7 +161,7 @@ export default function GenomePage() {
             {row.name || row.identityName}
           </span>
           <span className="block truncate text-[11.5px] text-ink-3">
-            {sourceTypeLabel(row.sourceType)}
+            {sourceTypeLabel(row.sourceType, row.identity_type)}
             {row.status && String(row.status).toLowerCase() !== 'active' ? ` · ${row.status}` : ''}
           </span>
         </span>
@@ -235,7 +235,7 @@ export default function GenomePage() {
           <ErrorState error={summary.error} onRetry={summary.refetch} title="The behaviour summary failed to load" />
         </Panel>
       ) : summary.isLoading && !summary.data ? (
-        <StatStripSkeleton count={4} />
+        <StatStripSkeleton count={3} />
       ) : (
         <>
           <SummaryCards cards={summary.data.cards} window={window} />
@@ -393,8 +393,10 @@ function SummaryCards({ cards, window }) {
   const established = cards.baselines_established;
   const open = cards.open_anomalies;
   const coverage = Number.isFinite(watched) && watched > 0 && Number.isFinite(established) ? (established / watched) * 100 : null;
-  // Critical anomalies is null until the pipeline scores severities; the tile is shown only once it is measured.
+  // One anomaly tile: the count, with the critical share in its caption once
+  // the pipeline scores severities (critical_anomalies is null until then).
   const critical = cards.critical_anomalies;
+  const hasCritical = Number.isFinite(critical);
   const tiles = [
     <MetricTile
       key="established"
@@ -417,14 +419,15 @@ function SummaryCards({ cards, window }) {
       label={`New anomalies · ${window}`}
       value={open}
       tone={open > 0 ? 'critical' : 'neutral'}
-      caption={`Raised in the last ${WINDOW_WORDS[window]} and still open; older open ones are in the list below`}
+      caption={
+        hasCritical && critical > 0
+          ? `${formatNumber(critical)} critical · raised in the last ${WINDOW_WORDS[window]} and still open`
+          : `Raised in the last ${WINDOW_WORDS[window]} and still open; older open ones are in the list below`
+      }
     />,
-    critical !== null && critical !== undefined && (
-      <MetricTile key="critical" label="Critical anomalies" value={critical} tone="critical" caption="Highest-confidence departures" />
-    ),
   ].filter(Boolean);
   return (
-    <div className={`grid gap-3 @min-[30rem]:grid-cols-2 ${tiles.length === 4 ? '@min-[54rem]:grid-cols-4' : '@min-[54rem]:grid-cols-3'}`}>
+    <div className="grid gap-3 @min-[30rem]:grid-cols-2 @min-[54rem]:grid-cols-3">
       {tiles.map((tile, index) => (
         <div key={tile.key} className="animate-rise" data-stagger="" style={{ '--stagger': index }}>
           {tile}
@@ -515,7 +518,7 @@ function MostAnomalous({ entries }) {
                   {entry.display_name || entry.identity_name}
                 </Link>
                 <span className="block truncate text-[11px] text-ink-3">
-                  {sourceTypeLabel(entry.source_type)}
+                  {sourceTypeLabel(entry.source_type, entry.identity_name)}
                   {entry.region ? ` · ${entry.region}` : ''}
                 </span>
               </span>
@@ -558,7 +561,7 @@ function RecentlyBaselined({ entries, loading }) {
               {entry.display_name || entry.identity_name}
             </Link>
             <span className="block truncate text-[11px] text-ink-3">
-              {sourceTypeLabel(entry.source_type)}
+              {sourceTypeLabel(entry.source_type, entry.identity_name)}
               {entry.region ? ` · ${entry.region}` : ''}
             </span>
           </span>

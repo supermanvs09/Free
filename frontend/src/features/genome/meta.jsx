@@ -16,7 +16,7 @@ const SOURCE_TYPES = {
   ELASTIC_BEAN: 'Elastic Beanstalk',
   AWS_SLR: 'Service-linked role',
   SSM: 'Systems Manager',
-  GLUE: 'Glue job',
+  GLUE: 'Glue job or crawler',
   EMR: 'EMR cluster',
   BATCH: 'Batch job',
   DMS: 'DMS replication',
@@ -37,9 +37,22 @@ const SOURCE_TYPES = {
   IAM: 'IAM role',
 };
 
-export function sourceTypeLabel(value) {
+/**
+ * The genome service keys Glue jobs and Glue crawlers under one GLUE family;
+ * `hint` (the discovery identity_type, or the identity's ARN) says which one.
+ */
+function glueKind(hint) {
+  const text = String(hint ?? '').toLowerCase();
+  if (text === 'glue_crawler' || /:crawler\//.test(text)) return 'Glue crawler';
+  if (text === 'glue_job' || /:job\//.test(text)) return 'Glue job';
+  return null;
+}
+
+export function sourceTypeLabel(value, hint) {
   if (!value) return 'Unknown source';
-  return SOURCE_TYPES[String(value).toUpperCase()] ?? titleCaseEnum(value);
+  const key = String(value).toUpperCase();
+  if (key === 'GLUE') return glueKind(hint) ?? SOURCE_TYPES.GLUE;
+  return SOURCE_TYPES[key] ?? titleCaseEnum(value);
 }
 
 /** Readable name for a fingerprint / anomaly dimension key. */

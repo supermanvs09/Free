@@ -83,7 +83,7 @@ export function AnomalyDrawer({ anomaly, onClose, onReviewed }) {
     <Drawer
       open={Boolean(anomaly)}
       onClose={onClose}
-      eyebrow={identity ? sourceTypeLabel(identity.source_type) : 'Departure from baseline'}
+      eyebrow={identity ? sourceTypeLabel(identity.source_type, identity.identity_name) : 'Departure from baseline'}
       title={identity?.display_name || identity?.identity_name || 'Anomaly'}
       subtitle={anomaly?.what_changed}
     >

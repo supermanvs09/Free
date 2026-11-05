@@ -967,7 +967,7 @@ function BehaviourPanel({ query }) {
                       {row.displayName}
                     </span>
                     <span className="block truncate text-[11px] text-ink-3">
-                      {sourceTypeLabel(row.sourceType)}
+                      {sourceTypeLabel(row.sourceType, row.identityName)}
                       {row.region ? ` · ${row.region}` : ''}
                     </span>
                   </span>

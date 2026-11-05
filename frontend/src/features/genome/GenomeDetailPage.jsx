@@ -253,7 +253,7 @@ function GenomeIdentity({ sourceType, identityName }) {
     <div className="flex flex-col gap-6">
       <PageHeader
         title={title}
-        lede={[sourceTypeLabel(sourceType), identity?.account_id ?? record?.account_id, identity?.region ?? record?.region]
+        lede={[sourceTypeLabel(sourceType, identityName), identity?.account_id ?? record?.account_id, identity?.region ?? record?.region]
           .filter(Boolean)
           .join(' · ')}
         actions={

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -69,7 +70,7 @@ type AWSIntegrationStore interface {
 	SaveExposure(ctx context.Context, schema, accountID string, u ExposureUpdate) (*AWSAccountRecord, error)
 	RequestSync(ctx context.Context, schema, accountID, actor string, at time.Time) (*AWSAccountRecord, bool, error)
 	CancelSync(ctx context.Context, schema, accountID string) (*AWSAccountRecord, error)
-	DeleteAccount(ctx context.Context, tenantID, schema, accountID string) error
+	DeleteAccount(ctx context.Context, tenantID, schema, accountID string) (map[string]int64, error)
 	SaveCheckStart(ctx context.Context, tenantID, schema string, rec AWSAccountRecord) (*AWSAccountRecord, error)
 	SaveChecks(ctx context.Context, schema, accountID string, checks []AWSCheck) error
 	RequestApproval(ctx context.Context, req ApprovalRequest) (int64, *AWSAccountRecord, error)
@@ -848,14 +849,36 @@ func (s *AWSIntegrationService) CancelSync(ctx context.Context, caller AWSCaller
 	return &AWSSyncResponse{Account: rec.ToAPI()}, nil
 }
 
-// RemoveAccount disconnects an account: its row and its scope rows are
-// deleted in one transaction (its scanned records drop out of every scope),
+// RemoveAccount disconnects an account: its row and everything stored for it
+// (identities, credentials, posture, findings, history) are deleted in one
+// transaction, so it disappears from every page,
 // and its permission on the central bus is revoked so its events are refused.
 // Nothing changes in the customer's AWS account; the page tells them to
 // delete the role and rule themselves.
 func (s *AWSIntegrationService) RemoveAccount(ctx context.Context, caller AWSCaller, accountID string) error {
-	if err := s.store.DeleteAccount(ctx, caller.TenantID, caller.Schema, accountID); err != nil {
+	log := logging.FromContext(ctx).With("account_id", accountID)
+	purged, err := s.store.DeleteAccount(ctx, caller.TenantID, caller.Schema, accountID)
+	if err != nil {
+		if !errors.Is(err, ErrAWSAccountNotFound) {
+			log.Error("aws integration: removing the account failed, nothing was deleted", "err", err)
+		}
 		return err
+	}
+	var total int64
+	var skipped []string
+	for table, n := range purged {
+		if strings.HasPrefix(table, purgeSkipped) {
+			skipped = append(skipped, strings.TrimPrefix(table, purgeSkipped))
+			delete(purged, table)
+			continue
+		}
+		total += n
+	}
+	log.Info("aws integration: account removed with its data", "rows_deleted", total, "tables", purged)
+	if len(skipped) > 0 {
+		sort.Strings(skipped)
+		log.Warn("aws integration: some of the removed account's rows could not be deleted, remove them by hand",
+			"tables", skipped)
 	}
 	// Stop a check still watching for its events, and close its approval.
 	if v, ok := s.watches.LoadAndDelete(watchKey{caller.TenantID, accountID}); ok {

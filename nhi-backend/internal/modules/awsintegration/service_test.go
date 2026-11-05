@@ -226,14 +226,14 @@ func (f *fakeAWSStore) RequestSync(_ context.Context, _, accountID, actor string
 	return &rec, false, nil
 }
 
-func (f *fakeAWSStore) DeleteAccount(_ context.Context, _, _, accountID string) error {
+func (f *fakeAWSStore) DeleteAccount(_ context.Context, _, _, accountID string) (map[string]int64, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if _, ok := f.accounts[accountID]; !ok {
-		return ErrAWSAccountNotFound
+		return nil, ErrAWSAccountNotFound
 	}
 	delete(f.accounts, accountID)
-	return nil
+	return map[string]int64{}, nil
 }
 
 type fakeVerifier struct {
