@@ -831,7 +831,7 @@ export default function FindingsPage() {
         {loading ? (
           <GridSkeleton columns={5} rows={10} />
         ) : repeatView ? (
-          <RepeatedView groups={pageRepeats} allGroups={allRepeatGroups} bucket={repeatBucket} onBucket={withReset(setRepeatBucket)} onSelect={setSelected} />
+          <RepeatedView groups={pageRepeats} allGroups={allRepeatGroups} bucket={repeatBucket} onBucket={withReset(setRepeatBucket)} onSelect={setSelected} density={density} />
         ) : view === 'findings' ? (
           <DataGrid
             caption="Exposed secrets"
@@ -909,7 +909,7 @@ export default function FindingsPage() {
             }
           />
         ) : (
-          <PushList pushes={pagePushes} onSelect={setSelected} />
+          <PushList pushes={pagePushes} onSelect={setSelected} density={density} />
         )}
 
         {/* Only once there is more than one page. A pager under a list of six
@@ -956,7 +956,9 @@ export default function FindingsPage() {
  * recommends grouping by (repository, commit) so the blast radius of a single
  * commit reads as one item.
  */
-function PushList({ pushes, onSelect }) {
+/* Density applies to every view of the list, not just the table: in the
+   By commit view the setting used to change nothing. */
+function PushList({ pushes, onSelect, density = 'comfortable' }) {
   if (pushes.length === 0) {
     return (
       <EmptyState
@@ -979,7 +981,7 @@ function PushList({ pushes, onSelect }) {
         const platform = platformMeta(push.platform);
 
         return (
-          <li key={push.key} className="px-4 py-3.5">
+          <li key={push.key} className={density === 'compact' ? 'px-4 py-2' : 'px-4 py-4'}>
             <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
               <div className="min-w-0">
                 <div className="flex min-w-0 items-center gap-2">

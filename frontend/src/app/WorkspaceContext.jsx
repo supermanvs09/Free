@@ -23,6 +23,12 @@ export function WorkspaceProvider({ children }) {
   // sign-in never sees the previous session's workspace while its own loads.
   const [state, setState] = useState({ forToken: null, status: 'loading', data: null, error: null });
   const controller = useRef(null);
+  /* Once this session has seen a connected account, the console stays open
+     even if the last account is then removed. Before, removing it from
+     Manage connections swapped the whole console for the full-screen
+     first-connection setup, with no way back to anything else. The
+     first-run gate is for a workspace that has never been connected. */
+  const seenConnected = useRef({ token: null, value: false });
 
   const load = useCallback(async (forToken) => {
     controller.current?.abort();
@@ -48,11 +54,13 @@ export function WorkspaceProvider({ children }) {
     const status = !token ? 'idle' : current ? state.status : 'loading';
     const d = current ? state.data : null;
     const failedOpen = status === 'error' && !d;
+    if (seenConnected.current.token !== token) seenConnected.current = { token, value: false };
+    if (d?.hasConnectedAccount) seenConnected.current.value = true;
     return {
       status,
       error: current ? state.error : null,
       integration: d,
-      hasConnectedAccount: failedOpen ? true : Boolean(d?.hasConnectedAccount),
+      hasConnectedAccount: failedOpen ? true : Boolean(d?.hasConnectedAccount) || seenConnected.current.value,
       exposureEnabled: Boolean(d?.exposureEnabled),
       canManage: Boolean(d?.canManage),
       domain: d?.domain || '',

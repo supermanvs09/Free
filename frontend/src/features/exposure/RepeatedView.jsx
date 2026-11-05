@@ -13,7 +13,7 @@ import { findingKey, REPEAT_BUCKETS } from './scannerState';
  * repeats; its places open underneath. The chips above split the values by how
  * often they repeat, so the worst copy-paste jobs are one tap away.
  */
-export function RepeatedView({ groups, allGroups, bucket, onBucket, onSelect }) {
+export function RepeatedView({ groups, allGroups, bucket, onBucket, onSelect, density = 'comfortable' }) {
   const counts = REPEAT_BUCKETS.map((entry) => ({ ...entry, groups: allGroups.filter((group) => group.bucket === entry.key).length }));
   const total = allGroups.reduce((sum, group) => sum + group.count, 0);
   const widest = Math.max(1, ...allGroups.map((group) => group.count));
@@ -38,7 +38,7 @@ export function RepeatedView({ groups, allGroups, bucket, onBucket, onSelect }) 
       ) : (
         <ul className="divide-y divide-line">
           {groups.map((group) => (
-            <RepeatedGroup key={group.key} group={group} widest={widest} onSelect={onSelect} />
+            <RepeatedGroup key={group.key} group={group} widest={widest} onSelect={onSelect} density={density} />
           ))}
         </ul>
       )}
@@ -81,7 +81,7 @@ function CopyDots({ count, tone }) {
 
 const PREVIEW = 4;
 
-function RepeatedGroup({ group, onSelect }) {
+function RepeatedGroup({ group, onSelect, density = 'comfortable' }) {
   const [open, setOpen] = useState(false);
   const worst = group.findings.reduce((acc, finding) => {
     const meta = severityMeta(finding.risk_tier);
@@ -92,7 +92,7 @@ function RepeatedGroup({ group, onSelect }) {
   const hidden = group.findings.length - shown.length;
 
   return (
-    <li className="px-4 py-3.5">
+    <li className={density === 'compact' ? 'px-4 py-2' : 'px-4 py-4'}>
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
         <div className="min-w-0">
           <p className="flex flex-wrap items-baseline gap-x-2 text-[13.5px] font-semibold text-ink">
