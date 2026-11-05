@@ -35,8 +35,26 @@ export function useMediaQuery(query) {
    never strand the next screen. */
 let scrollLocks = 0;
 
+/* Locked on <html>, not <body>: with the root's zoom (styles/index.css), an
+   `overflow: hidden` body clipped to the viewport and the browser clamped the
+   page's scroll position - opening a drawer near the bottom of a long page
+   threw the reader back up the page. The position is also kept by hand, so
+   any browser that still moves it gets put back. */
+let lockedAt = null;
+
 function applyScrollLock() {
-  document.body.style.overflow = scrollLocks > 0 ? 'hidden' : '';
+  const root = document.documentElement;
+  if (scrollLocks > 0) {
+    if (lockedAt === null) lockedAt = { x: window.scrollX, y: window.scrollY };
+    root.style.overflow = 'hidden';
+    document.body.style.overflow = '';
+    if (window.scrollY !== lockedAt.y) window.scrollTo({ left: lockedAt.x, top: lockedAt.y, behavior: 'instant' });
+  } else {
+    root.style.overflow = '';
+    document.body.style.overflow = '';
+    if (lockedAt && window.scrollY !== lockedAt.y) window.scrollTo({ left: lockedAt.x, top: lockedAt.y, behavior: 'instant' });
+    lockedAt = null;
+  }
 }
 
 /** Locks scroll while a modal/drawer owns the viewport. */

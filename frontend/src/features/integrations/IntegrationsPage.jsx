@@ -87,9 +87,21 @@ export default function IntegrationsPage() {
   const anotherKey = `${storageKey}.another`;
 
   const addSectionRef = useRef(null);
+  /* Once, when the section opens - not on every background refresh of the
+     accounts (every few seconds while a sync runs), which used to pull the
+     reader back to it wherever they had scrolled. */
+  const scrolledToAdd = useRef(false);
+  const hasData = Boolean(data);
   useEffect(() => {
-    if (adding && data) addSectionRef.current?.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' });
-  }, [adding, data]);
+    if (!adding) {
+      scrolledToAdd.current = false;
+      return;
+    }
+    if (hasData && !scrolledToAdd.current) {
+      scrolledToAdd.current = true;
+      addSectionRef.current?.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' });
+    }
+  }, [adding, hasData]);
 
   /* While a sync is queued or running, an events check watches, or a
      connection waits for approval, keep the page current on its own. */
