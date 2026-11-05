@@ -53,7 +53,7 @@ func (r *Repository) Page(ctx context.Context, resolved *scope.DataScope, f Filt
 		where = append(where, "a.dimension = "+arg(f.Dimension))
 	}
 	if f.Status != "" {
-		where = append(where, "a.status = "+arg(f.Status))
+		where = append(where, "lower(a.status) = lower("+arg(f.Status)+")") // the pipeline's casing is not fixed
 	}
 	if f.SourceType != "" {
 		where = append(where, "a.source_type = "+arg(f.SourceType))

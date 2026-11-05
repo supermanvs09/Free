@@ -4,6 +4,7 @@ import {
   BackgroundVariant,
   Controls,
   MiniMap,
+  Panel as FlowPanel,
   ReactFlow,
   ReactFlowProvider,
   useReactFlow,
@@ -512,9 +513,15 @@ function FlowInner({
           proOptions={{ hideAttribution: false }}
           fitView
           fitViewOptions={INITIAL_FIT}
-          /* Two-finger and wheel zoom without a modifier: an analyst reaches
-             for the wheel before they reach for a button. */
-          zoomOnScroll
+          /* The page scrolls past the graph: the wheel over the canvas used to
+             zoom the graph, so scrolling down the page stopped dead whenever
+             the pointer crossed it. Zoom is Ctrl/⌘ + wheel, a trackpad pinch,
+             or the + / − buttons; full screen, where there is no page to
+             scroll, keeps plain wheel zoom. */
+          zoomOnScroll={fullscreen}
+          zoomActivationKeyCode={['Control', 'Meta']}
+          zoomOnPinch
+          preventScrolling={fullscreen}
           panOnScroll={false}
           panOnDrag
           selectionOnDrag={false}
@@ -523,6 +530,11 @@ function FlowInner({
         >
           <Background variant={BackgroundVariant.Dots} gap={22} size={1} />
           <Controls showInteractive={false} position="bottom-left" />
+          {!fullscreen && (
+            <FlowPanel position="top-left" className="pointer-events-none !m-2 rounded-md bg-surface/85 px-2 py-1 text-[11px] text-ink-3 shadow-xs">
+              Ctrl / ⌘ + scroll or pinch to zoom · drag to move
+            </FlowPanel>
+          )}
           {layout.nodes.length > 6 && (
             <MiniMap
               pannable

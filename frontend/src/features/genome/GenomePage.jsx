@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Download, SearchX, ShieldQuestion } from 'lucide-react';
 import { fetchGenomeIdentity, fetchGenomeSummary, fetchMonitoredFleet } from '../../lib/api/genome';
@@ -6,7 +6,7 @@ import { genomeRoute } from '../../lib/identityLinks';
 import { useDebouncedValue, useQuery } from '../../lib/hooks';
 import { severityMeta } from '../../lib/domain';
 import { exportRowsToCsv, timestampedName } from '../../lib/csv';
-import { NEUTRAL_SERIES, SERIES_TOKENS } from '../../lib/domain';
+import { SERIES_TOKENS } from '../../lib/domain';
 import { formatDateTime, formatNumber, formatRelative } from '../../lib/format';
 import { PageHeader } from '../../shell/PageHeader';
 import { AnomaliesPanel } from './AnomaliesPanel';
@@ -35,7 +35,6 @@ const WINDOWS = [
 ];
 const WINDOW_WORDS = { '24h': '24 hours', '7d': '7 days', '30d': '30 days' };
 const DAY_MS = 86400000;
-const DONUT_SLICES = 6;
 
 /**
  * NHI Genome - fleet view.
@@ -55,7 +54,23 @@ export default function GenomePage() {
   const navigate = useNavigate();
   const { notify } = useToast();
 
+  /* Two filters, kept apart. `source` is set by the "What is watched" donut and
+     narrows the departures and the table together. `list` is the table's own
+     workload menu and narrows the table only: picking EC2 in the table used to
+     change the departures panel above it as well. */
   const sourceType = searchParams.get('source') || '';
+  const listSource = searchParams.get('list') || '';
+  const tableSource = listSource || sourceType;
+  const departuresRef = useRef(null);
+  const tableRef = useRef(null);
+  /* globalThis: this component's `window` is the time window (24h/7d/30d). */
+  const bringIntoView = (ref) =>
+    globalThis.requestAnimationFrame(() => {
+      const el = ref.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top;
+      if (top < 110 || top > globalThis.innerHeight * 0.6) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   const pageSize = PAGE_SIZES.includes(Number(searchParams.get('size'))) ? Number(searchParams.get('size')) : 25;
   const page = Math.max(1, Number(searchParams.get('page')) || 1);
 
@@ -86,31 +101,30 @@ export default function GenomePage() {
     () =>
       all.filter(
         (row) =>
-          (!sourceType || row.sourceType === sourceType) &&
+          (!tableSource || row.sourceType === tableSource) &&
           (!search ||
             [row.name, row.arn, row.account_id, row.region].some((value) => String(value ?? '').toLowerCase().includes(search))),
       ),
-    [all, sourceType, search],
+    [all, tableSource, search],
   );
   const lastPage = Math.max(1, Math.ceil(filtered.length / pageSize));
   const current = Math.min(page, lastPage);
   const rows = filtered.slice((current - 1) * pageSize, current * pageSize);
   const rowSummaries = useRowSummaries(rows);
 
-  /* Workload mix of the watched fleet, largest first; the tail folds into
-     "Other" so the ring stays readable. */
+  /* Workload mix of the watched fleet, largest first. Every family keeps its
+     own slice: folding the tail into "Other" gave a slice that could not be
+     selected, so only some segments of the ring filtered the list. */
   const mix = useMemo(() => {
     const counts = new Map();
     for (const row of all) counts.set(row.sourceType, (counts.get(row.sourceType) ?? 0) + 1);
     const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-    const head = sorted.slice(0, DONUT_SLICES).map(([key, value], index) => ({
+    return sorted.map(([key, value], index) => ({
       key,
       label: sourceTypeLabel(key),
       value,
-      color: SERIES_TOKENS[index % SERIES_TOKENS.length],
+      color: SERIES_TOKENS[index % (SERIES_TOKENS.length - 1)],
     }));
-    const rest = sorted.slice(DONUT_SLICES).reduce((sum, [, value]) => sum + value, 0);
-    return rest ? [...head, { key: 'other', label: 'Other', value: rest, color: NEUTRAL_SERIES }] : head;
   }, [all]);
 
   const typeOptions = useMemo(
@@ -194,7 +208,7 @@ export default function GenomePage() {
     },
   ];
 
-  const filteredView = Boolean(sourceType || search);
+  const filteredView = Boolean(tableSource || search);
 
   return (
     <div className="flex flex-col gap-6">
@@ -238,7 +252,14 @@ export default function GenomePage() {
           <PanelHeader
             prominence="quiet"
             title="What is watched"
-            subtitle="Monitored identities in your scope, by workload type. Select a type to list it."
+            subtitle={(() => {
+              /* Say exactly what is counted, so it can be checked against the
+                 database: every discovered workload identity in the selected
+                 accounts and regions, whatever its status. */
+              const active = all.filter((row) => String(row.status || '').toLowerCase() === 'active').length;
+              const base = 'Workload identities discovered in your selected accounts and regions, by type. Select a type to list it.';
+              return all.length ? `${base} ${formatNumber(all.length)} in all: ${formatNumber(active)} active, ${formatNumber(all.length - active)} with another status.` : base;
+            })()}
           />
           {fleet.isLoading && !fleet.data ? (
             <ChartSkeleton height={184} />
@@ -249,7 +270,11 @@ export default function GenomePage() {
               className="mt-4"
               data={mix}
               centerLabel="Watched"
-              onSelect={(item) => item.key !== 'other' && setParams({ source: item.key === sourceType ? '' : item.key, page: '' })}
+              onSelect={(item) => {
+                setParams({ source: item.key === sourceType ? '' : item.key, list: '', page: '' });
+                /* The result is below the fold: take the reader to it. */
+                bringIntoView(departuresRef);
+              }}
             />
           )}
         </Panel>
@@ -259,9 +284,11 @@ export default function GenomePage() {
         </Panel>
       </div>
 
-      <AnomaliesPanel sourceType={sourceType} />
+      <div ref={departuresRef} className="scroll-mt-28">
+        <AnomaliesPanel sourceType={sourceType} onClearSource={() => setParams({ source: '', page: '' })} />
+      </div>
 
-      <Panel prominence="lead" flush className="animate-rise overflow-hidden">
+      <Panel ref={tableRef} prominence="lead" flush className="animate-rise scroll-mt-28 overflow-hidden" data-list-top="">
         <RecordBar
           trailing={
             <TableToolbar className="w-full flex-wrap sm:w-auto">
@@ -278,8 +305,14 @@ export default function GenomePage() {
               />
               <Select
                 size="sm"
-                value={sourceType}
-                onChange={(event) => setParams({ source: event.target.value, page: '' })}
+                value={tableSource}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  /* "All" from the table clears both, so the menu never shows
+                     a type it is not applying. */
+                  setParams(value ? { list: value === sourceType ? '' : value, page: '' } : { list: '', source: '', page: '' });
+                  bringIntoView(tableRef);
+                }}
                 options={typeOptions}
                 aria-label="Workload type"
                 className="min-w-0 flex-1 sm:w-48 sm:flex-none"
@@ -322,7 +355,7 @@ export default function GenomePage() {
                       size="sm"
                       onClick={() => {
                         setSearchDraft('');
-                        setParams({ source: '', page: '' });
+                        setParams({ source: '', list: '', page: '' });
                       }}
                     >
                       Clear filters

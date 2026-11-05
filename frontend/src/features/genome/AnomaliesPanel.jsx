@@ -20,7 +20,7 @@ const STATES = [
  * The fleet's departures from baseline, newest first. Open one to see what
  * changed, the call behind it, and to record whether it was expected.
  */
-export function AnomaliesPanel({ sourceType }) {
+export function AnomaliesPanel({ sourceType, onClearSource }) {
   const [state, setState] = useState('open');
   const [selected, setSelected] = useState(null);
   const query = useQuery((signal) => fetchAnomalies({ state, sourceType, limit: 10 }, signal), [state, sourceType]);
@@ -34,6 +34,17 @@ export function AnomaliesPanel({ sourceType }) {
         subtitle="Calls that did not match what an identity normally does. Open one to review it."
         actions={<SegmentedControl label="Which departures" options={STATES} value={state} onChange={setState} />}
       />
+      {/* Narrowed from the "What is watched" ring: say so, with a way back. */}
+      {sourceType && (
+        <p className="mt-2 flex flex-wrap items-center gap-2 text-[12px] text-ink-3">
+          Showing {sourceTypeLabel(sourceType)} only
+          {onClearSource && (
+            <button type="button" onClick={onClearSource} className="font-medium text-brand hover:underline">
+              Show every type
+            </button>
+          )}
+        </p>
+      )}
       {query.isError && !query.data ? (
         <InlineError error={query.error} onRetry={query.refetch} />
       ) : !query.data ? (
@@ -43,7 +54,11 @@ export function AnomaliesPanel({ sourceType }) {
           compact
           icon={ShieldCheck}
           title={state === 'open' ? 'No open departures' : 'No departures recorded'}
-          description="Everything the watched identities did matched their normal behaviour."
+          description={
+            state === 'open'
+              ? `Nothing ${sourceType ? `for ${sourceTypeLabel(sourceType)} ` : ''}is waiting for review. Choose All to see the ones already reviewed.`
+              : 'Everything the watched identities did matched their normal behaviour.'
+          }
         />
       ) : (
         <ul className="mt-3 divide-y divide-line">

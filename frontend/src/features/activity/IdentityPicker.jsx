@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown, Search } from 'lucide-react';
 import { fetchIdentities } from '../../lib/api/inventory';
-import { useDebouncedValue, usePopover, useQuery } from '../../lib/hooks';
+import { useDebouncedValue, useQuery } from '../../lib/hooks';
+import { FloatingPanel } from '../../ui/Floating';
 import { formatRelativeShort } from '../../lib/format';
 import { Skeleton } from '../../ui/Skeleton';
 import { cn } from '../../ui/cn';
@@ -25,10 +26,7 @@ export function IdentityPicker({ value, label, onChange }) {
   const [active, setActive] = useState(0);
   const debounced = useDebouncedValue(search.trim(), 260);
   const searchRef = useRef(null);
-  const { wrapperRef, triggerRef, panelProps } = usePopover(open, () => {
-    setOpen(false);
-    setSearch('');
-  });
+  const triggerRef = useRef(null);
 
   const query = useQuery(
     (signal) => fetchIdentities({ search: debounced, page: 1, pageSize: 20, sortBy: 'last_activity_at', sortOrder: 'desc' }, signal),
@@ -70,7 +68,7 @@ export function IdentityPicker({ value, label, onChange }) {
   };
 
   return (
-    <div ref={wrapperRef} className="relative min-w-0 basis-72">
+    <div className="relative min-w-0 basis-72">
       <button
         ref={triggerRef}
         type="button"
@@ -90,11 +88,9 @@ export function IdentityPicker({ value, label, onChange }) {
         <ChevronDown aria-hidden="true" className={cn('size-3.5 shrink-0 text-ink-3 transition-transform duration-200', open && 'rotate-180')} />
       </button>
 
-      {open && (
-        <div
-          {...panelProps}
-          className="animate-pop absolute left-0 z-40 flex w-[min(92vw,28rem)] flex-col rounded-[var(--radius-panel)] border border-line bg-surface shadow-lg"
-        >
+      {/* Drawn above the page, flush under the box: it no longer pushes or
+          is clipped by the layout around it, and opens with no gap. */}
+      <FloatingPanel anchorRef={triggerRef} open={open} onClose={close} align="start" gap={2} minWidthOfAnchor className="w-[min(92vw,28rem)]">
           <div className="shrink-0 border-b border-line bg-surface-2 p-2">
             <input
               ref={searchRef}
@@ -166,8 +162,7 @@ export function IdentityPicker({ value, label, onChange }) {
                 : 'Most recently active first.'}
             </p>
           )}
-        </div>
-      )}
+      </FloatingPanel>
     </div>
   );
 }

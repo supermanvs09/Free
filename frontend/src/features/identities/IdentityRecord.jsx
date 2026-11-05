@@ -5,7 +5,7 @@ import { fetchIdentity } from '../../lib/api/inventory';
 import { useQuery } from '../../lib/hooks';
 import { accessDetailRoute, identityRoute } from '../../lib/identityLinks';
 import { Button } from '../../ui/Button';
-import { formatDateTime, formatNumber, formatRelative, percentValue, policyName, titleCaseEnum } from '../../lib/format';
+import { formatDateTime, formatNumber, formatRelative, formatUtc, percentValue, policyName, titleCaseEnum } from '../../lib/format';
 import { SegmentedControl, TabPanel } from '../../ui/Tabs';
 import { DetailList, DetailRow, SectionLabel } from '../../ui/Panel';
 import { Code, Tag } from '../../ui/Tag';
@@ -359,7 +359,9 @@ function OverviewPanel({ identityId, query, active, compact }) {
                 {Number.isFinite(identity.age_days) && <span className="ml-1.5 text-ink-3">({formatNumber(identity.age_days)} days ago)</span>}
               </DetailRow>
               <DetailRow label="First found">{formatDateTime(identity.first_seen_at)}</DetailRow>
-              <DetailRow label="Last found">{formatDateTime(identity.last_seen_at)}</DetailRow>
+              <DetailRow label="Last seen by a scan">
+                <span title={formatUtc(identity.last_seen_at)}>{formatDateTime(identity.last_seen_at)}</span>
+              </DetailRow>
               <DetailRow label="ARN" mono>
                 <CopyableValue value={identity.arn} />
               </DetailRow>

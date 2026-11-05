@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Activity, ArrowUpRight } from 'lucide-react';
 import { fetchIdentities, fetchIdentity } from '../../lib/api/inventory';
@@ -10,6 +10,7 @@ import { Button } from '../../ui/Button';
 import { Panel, PanelHeader } from '../../ui/Panel';
 import { ListSkeleton } from '../../ui/Skeleton';
 import { EmptyState, InlineError } from '../../ui/States';
+import { Pagination } from '../../ui/Pagination';
 import { identityTypeLabel } from '../identities/meta';
 import { ActivitySummary } from './ActivitySections';
 import { EventTimeline } from './EventTimeline';
@@ -101,21 +102,28 @@ export default function ActivityPage() {
 }
 
 function StartHere({ picker, onChoose }) {
+  /* Every identity, a page at a time, most recently active first. It used to
+     stop at eight, while the picker above offered the whole inventory. */
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(12);
   const recentQuery = useQuery(
-    (signal) => fetchIdentities({ page: 1, pageSize: 8, sortBy: 'last_activity_at', sortOrder: 'desc' }, signal),
-    [],
+    (signal) => fetchIdentities({ page, pageSize, sortBy: 'last_activity_at', sortOrder: 'desc' }, signal),
+    [page, pageSize],
   );
   const rows = recentQuery.data?.rows ?? [];
+  const total = recentQuery.data?.total ?? 0;
   const activityAvailable = recentQuery.data?.activityAvailable !== false;
 
   return (
-    <Panel prominence="lead" className="animate-rise">
+    <Panel prominence="lead" className="animate-rise" data-list-top="">
       <PanelHeader
         title="Choose an identity"
         subtitle="Pick an identity to see every call it made to AWS, including calls made with its keys and roles."
         actions={<div className="w-72 max-w-full">{picker}</div>}
       />
-      <p className="mt-5 text-[10.5px] font-semibold tracking-[0.11em] text-ink-3 uppercase">Most recently active</p>
+      <p className="mt-5 text-[10.5px] font-semibold tracking-[0.11em] text-ink-3 uppercase">
+        {activityAvailable ? 'Most recently active' : 'Identities'}
+      </p>
       {recentQuery.isError && !recentQuery.data ? (
         <div className="mt-2">
           <InlineError error={recentQuery.error} onRetry={recentQuery.refetch} label="Identities unavailable" />
@@ -124,30 +132,49 @@ function StartHere({ picker, onChoose }) {
         <div className="mt-2">
           <ListSkeleton rows={4} />
         </div>
-      ) : !activityAvailable ? (
-        <p className="mt-2 text-[12.5px] text-ink-3">
-          The AWS activity log (CloudTrail) cannot be read right now, so recent activity is unknown. You can still choose an
-          identity above.
-        </p>
       ) : rows.length === 0 ? (
         <p className="mt-2 text-[12.5px] text-ink-3">No identities in your scope.</p>
       ) : (
-        <ul className="mt-2 grid gap-2 @min-[40rem]:grid-cols-2 @min-[70rem]:grid-cols-4">
-          {rows.map((row) => (
-            <li key={row.id}>
-              <button
-                type="button"
-                onClick={() => onChoose(row)}
-                className="flex w-full flex-col rounded-[var(--radius-control)] border border-line bg-surface-2 px-3.5 py-2.5 text-left transition-colors hover:border-line-strong hover:bg-surface-3"
-              >
-                <span className="truncate text-[13px] font-semibold text-ink">{row.name || row.arn}</span>
-                <span className="truncate text-[11.5px] text-ink-3">
-                  {identityTypeLabel(row.identity_type)} · {row.last_activity_at ? formatRelative(row.last_activity_at) : 'never used'}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <>
+          {!activityAvailable && (
+            <p className="mt-2 text-[12px] text-ink-3">
+              The AWS activity log (CloudTrail) cannot be read right now, so the order is not by recent activity. You can still
+              open any identity.
+            </p>
+          )}
+          <ul
+            className={`mt-2 grid gap-2 transition-opacity @min-[40rem]:grid-cols-2 @min-[70rem]:grid-cols-4 ${recentQuery.isRefreshing ? 'opacity-60' : ''}`}
+          >
+            {rows.map((row) => (
+              <li key={row.id}>
+                <button
+                  type="button"
+                  onClick={() => onChoose(row)}
+                  className="flex w-full flex-col rounded-[var(--radius-control)] border border-line bg-surface-2 px-3.5 py-2.5 text-left transition-colors hover:border-line-strong hover:bg-surface-3"
+                >
+                  <span className="truncate text-[13px] font-semibold text-ink">{row.name || row.arn}</span>
+                  <span className="truncate text-[11.5px] text-ink-3">
+                    {identityTypeLabel(row.identity_type)}
+                    {activityAvailable ? ` · ${row.last_activity_at ? formatRelative(row.last_activity_at) : 'never used'}` : ''}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <Pagination
+            className="-mx-5 mt-4 -mb-5"
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            unit="identities"
+            pageSizes={[12, 24, 48]}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
+          />
+        </>
       )}
     </Panel>
   );

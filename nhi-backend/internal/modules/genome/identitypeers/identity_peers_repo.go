@@ -38,7 +38,7 @@ func (r *Repository) OpenAlertsByIdentityDimension(ctx context.Context, resolved
 	types, names := common.KeyArrays(keys)
 	q := `SELECT a.source_type, a.identity_name, a.dimension, COUNT(*)
 	      FROM ` + resolved.Table("alerts") + ` a` + common.KeyJoin("a") + `
-	      WHERE a.status = 'open'
+	      WHERE lower(a.status) = 'open'
 	      GROUP BY a.source_type, a.identity_name, a.dimension
 	      ORDER BY a.source_type, a.identity_name, COUNT(*) DESC, a.dimension`
 	rows, err := resolved.DB.QueryContext(ctx, q, types, names)

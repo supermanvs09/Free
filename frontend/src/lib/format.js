@@ -52,13 +52,24 @@ export function parseDate(input) {
 export function formatDateTime(input) {
   const date = parseDate(input);
   if (!date) return DASH;
+  /* The zone is printed: timestamps are stored in UTC and shown in the
+     reader's own time, and without the zone a time on screen and the same
+     time read from the database looked like two different moments. */
   return date.toLocaleString(undefined, {
     year: 'numeric',
     month: 'short',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
+    timeZoneName: 'short',
   });
+}
+
+/** The exact instant in UTC, for a tooltip: matches what the database stores. */
+export function formatUtc(input) {
+  const date = parseDate(input);
+  if (!date) return '';
+  return `${date.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '')} UTC`;
 }
 
 export function formatDate(input) {

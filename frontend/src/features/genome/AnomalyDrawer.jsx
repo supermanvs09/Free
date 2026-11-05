@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { CheckCircle2, HelpCircle, ShieldAlert } from 'lucide-react';
-import { fetchAnomaly, fetchAnomalyEvidence, saveAnomalyFeedback } from '../../lib/api/genome';
+import { Archive, CheckCircle2, HelpCircle, RotateCcw, ShieldAlert } from 'lucide-react';
+import { fetchAnomaly, fetchAnomalyEvidence, saveAnomalyFeedback, setAnomalyDisposition } from '../../lib/api/genome';
+import { useAccess } from '../../app/useAccess';
 import { useMutation, useQuery } from '../../lib/hooks';
 import { formatDateTime, formatNumber, formatRelative } from '../../lib/format';
 import { Button } from '../../ui/Button';
@@ -17,6 +18,8 @@ const VERDICTS = [
   { key: 'malicious', label: 'Suspicious', icon: ShieldAlert, hint: 'Nobody should have done this.' },
   { key: 'unknown', label: 'Not sure', icon: HelpCircle, hint: 'Needs another look.' },
 ];
+
+const titleCase = (text) => text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
 
 const asText = (value) => {
   if (value === null || value === undefined) return '';
@@ -35,6 +38,30 @@ export function AnomalyDrawer({ anomaly, onClose, onReviewed }) {
   const [reason, setReason] = useState('');
   const [approve, setApprove] = useState(false);
   const save = useMutation((input) => saveAnomalyFeedback(id, input));
+  const dispose = useMutation((input) => setAnomalyDisposition(id, input));
+  const { can } = useAccess();
+  const canAct = can('anomalies.review');
+
+  /* Resolve / Dismiss close the departure: it leaves the open lists and the
+     open counts straight away. Reopen puts it back. */
+  const setState = async (disposition) => {
+    const outcome = await dispose.mutate({ disposition, reason: reason.trim() });
+    if (!outcome.ok) {
+      notify({
+        variant: 'error',
+        title: 'Could not update the departure',
+        description: outcome.error?.status === 403 ? 'Your role cannot close departures.' : outcome.error?.message,
+      });
+      return;
+    }
+    notify({
+      variant: 'success',
+      title: disposition === 'resolved' ? 'Marked resolved' : disposition === 'dismissed' ? 'Dismissed' : 'Opened again',
+      description: disposition === 'open' ? 'It is back on the open list.' : 'It no longer counts as open.',
+    });
+    detail.refetch();
+    onReviewed?.();
+  };
 
   const submit = async (decision) => {
     const outcome = await save.mutate({ decision, approvedForBaseline: decision === 'legitimate' && approve, reason: reason.trim() });
@@ -68,7 +95,7 @@ export function AnomalyDrawer({ anomaly, onClose, onReviewed }) {
         <div className="flex flex-col gap-5 px-4 py-4 sm:px-5">
           <div className="flex flex-wrap items-center gap-2">
             <Tag tone="high" size="sm" dot>{dimensionLabel(e.comparison?.dimension ?? anomaly.dimension)}</Tag>
-            <Tag tone={d.state === 'open' ? 'high' : 'neutral'} size="sm">{d.state === 'open' ? 'Open' : String(d.state)}</Tag>
+            <Tag tone={String(d.state).toLowerCase() === 'open' ? 'high' : 'neutral'} size="sm">{String(d.state).toLowerCase() === 'open' ? 'Open' : titleCase(String(d.state))}</Tag>
             {e.comparison?.score_0_1 != null && Number.isFinite(Number(e.comparison.score_0_1)) && (
               <Tag tone="neutral" size="sm">Strangeness {Math.round(e.comparison.score_0_1 * 100)}%</Tag>
             )}
@@ -136,6 +163,31 @@ export function AnomalyDrawer({ anomaly, onClose, onReviewed }) {
                   {label}
                 </Button>
               ))}
+            </div>
+          </div>
+
+          <div className="rounded-[var(--radius-control)] border border-line p-3.5">
+            <SectionLabel>Close it</SectionLabel>
+            <p className="mt-1 text-[12px] text-ink-3">
+              {d.state === 'open'
+                ? 'Resolve it once it is dealt with, or dismiss it if it needs nothing. The reason above is kept with it.'
+                : `This departure is ${String(d.state).toLowerCase()}. Open it again if it needs another look.`}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {String(d.state).toLowerCase() === 'open' ? (
+                <>
+                  <Button size="sm" icon={CheckCircle2} onClick={() => setState('resolved')} loading={dispose.pending} disabled={!canAct}>
+                    Resolve
+                  </Button>
+                  <Button variant="secondary" size="sm" icon={Archive} onClick={() => setState('dismissed')} loading={dispose.pending} disabled={!canAct}>
+                    Dismiss
+                  </Button>
+                </>
+              ) : (
+                <Button variant="secondary" size="sm" icon={RotateCcw} onClick={() => setState('open')} loading={dispose.pending} disabled={!canAct}>
+                  Open again
+                </Button>
+              )}
             </div>
           </div>
         </div>

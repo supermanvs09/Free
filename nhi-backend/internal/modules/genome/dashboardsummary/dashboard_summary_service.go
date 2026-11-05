@@ -104,7 +104,7 @@ func (s *DashboardSummaryService) GetSummary(ctx context.Context, userID, tenant
 	if summarycommon.ReadOK(ctx, "dashboard summary baselines", err) {
 		established := 0
 		for _, id := range ids {
-			if b, ok := set.baselineFor(baselines, id); ok && b.Status == "active" {
+			if b, ok := set.baselineFor(baselines, id); ok && strings.EqualFold(b.Status, "active") {
 				established++
 			}
 		}

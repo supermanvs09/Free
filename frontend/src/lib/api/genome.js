@@ -271,3 +271,13 @@ export async function saveAnomalyFeedback(id, { decision, approvedForBaseline = 
     }),
   );
 }
+
+/** Close a departure (resolved | dismissed) or open it again (open). */
+export async function setAnomalyDisposition(id, { disposition, reason = '' }) {
+  return dataOf(
+    await client.post(`${BASE}/anomalies/${encodeURIComponent(id)}/disposition`, {
+      disposition,
+      ...(reason ? { reason } : {}),
+    }),
+  );
+}

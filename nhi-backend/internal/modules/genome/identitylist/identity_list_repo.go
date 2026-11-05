@@ -61,7 +61,7 @@ func (r *Repository) OpenAlertCounts(ctx context.Context, resolved *scope.DataSc
 	}
 	types, names := common.KeyArrays(keys)
 	q := `SELECT a.source_type, a.identity_name, COUNT(*) FROM ` + resolved.Table("alerts") + ` a` + common.KeyJoin("a") + `
-	      WHERE a.status = 'open'
+	      WHERE lower(a.status) = 'open'
 	      GROUP BY a.source_type, a.identity_name`
 	rows, err := resolved.DB.QueryContext(ctx, q, types, names)
 	if err != nil {

@@ -239,7 +239,7 @@ func (r *DashboardSummaryRepository) CountOpenAlerts(ctx context.Context, resolv
 	}
 	types, names := KeyArrays(keys)
 	q := `SELECT COUNT(*) FROM ` + resolved.Table("alerts") + ` a` + KeyJoin("a") + `
-	      WHERE a.status = 'open' AND a.created_at >= $3 AND a.created_at < $4`
+	      WHERE lower(a.status) = 'open' AND a.created_at >= $3 AND a.created_at < $4`
 	var n int
 	if err := resolved.DB.QueryRowContext(ctx, q, types, names, from, to).Scan(&n); err != nil {
 		return 0, WrapMonitoringErr("count open alerts", err)
@@ -261,7 +261,7 @@ func (r *DashboardSummaryRepository) OpenAlertsByDimension(ctx context.Context, 
 	}
 	types, names := KeyArrays(keys)
 	q := `SELECT a.dimension, COUNT(*) FROM ` + resolved.Table("alerts") + ` a` + KeyJoin("a") + `
-	      WHERE a.status = 'open' AND a.created_at >= $3 AND a.created_at < $4
+	      WHERE lower(a.status) = 'open' AND a.created_at >= $3 AND a.created_at < $4
 	      GROUP BY a.dimension ORDER BY COUNT(*) DESC, a.dimension`
 	rows, err := resolved.DB.QueryContext(ctx, q, types, names, from, to)
 	if err != nil {

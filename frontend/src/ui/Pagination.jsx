@@ -35,6 +35,8 @@ export function Pagination({
   onPageChange,
   onPageSizeChange,
   unit = 'records',
+  /** Page sizes to offer; a grid of cards pages in multiples of its columns. */
+  pageSizes = PAGE_SIZES,
   className,
 }) {
   const ref = useRef(null);
@@ -42,7 +44,7 @@ export function Pagination({
   /* One rule on every screen: a list that fits on the smallest page has
      nothing to page through or resize, so there is no pager. (Genome hid it,
      Identities showed "Page 1 of 1" under seven rows.) */
-  if ((total || 0) <= PAGE_SIZES[0] && page <= 1) return null;
+  if ((total || 0) <= pageSizes[0] && page <= 1) return null;
   const go = (next) => {
     onPageChange(next);
     scrollListIntoView(ref.current);
@@ -76,7 +78,7 @@ export function Pagination({
                 onPageSizeChange(Number(event.target.value));
                 scrollListIntoView(ref.current);
               }}
-              options={PAGE_SIZES.map((size) => ({ value: String(size), label: String(size) }))}
+              options={pageSizes.map((size) => ({ value: String(size), label: String(size) }))}
               className="w-18"
               aria-label="Rows per page"
             />

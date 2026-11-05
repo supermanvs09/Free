@@ -26,7 +26,7 @@ import (
 // GenomeFull is the rest of the NHI Genome contract (backend_api_contract.md):
 // fleet list, call-volume and drift dashboards, baseline, peers, drift,
 // anomalies (list, detail, evidence, feedback, disposition) and containment.
-// Containment and disposition answer 501 until their back ends exist, as the
+// Containment answers 501 until its back end exists, as the
 // contract says. Each package answers in the contract's own envelope
 // ({data, meta} / {error}) and honours NHI_GENOME_WORKLOAD_TYPES.
 type GenomeFull struct {
@@ -65,7 +65,7 @@ func NewGenomeFull(resolver *scope.Resolver, events *common.MonitoringEvents) *G
 		anomalyDetail:       anomalydetail.NewHandler(anomalydetail.NewService(lookup, anomalydetail.NewRepository(), events)),
 		anomalyEvidence:     anomalyevidence.NewHandler(anomalyevidence.NewService(lookup, anomalyevidence.NewRepository(), events)),
 		anomalyFeedback:     anomalyfeedback.NewHandler(anomalyfeedback.NewService(anomalyfeedback.NewRepository(), resolver)),
-		anomalyDisposition:  anomalydisposition.NewHandler(anomalydisposition.NewService()),
+		anomalyDisposition:  anomalydisposition.NewHandler(anomalydisposition.NewService(resolver)),
 	}
 }
 

@@ -69,7 +69,7 @@ func (r *IdentitySummaryRepository) OpenAlertCount(ctx context.Context, resolved
 	}
 	types, names := summarycommon.KeyArrays(keys)
 	q := `SELECT COUNT(*) FROM ` + resolved.Table("alerts") + ` a` + summarycommon.KeyJoin("a") + `
-	      WHERE a.status = 'open'`
+	      WHERE lower(a.status) = 'open'`
 	var n int
 	if err := resolved.DB.QueryRowContext(ctx, q, types, names).Scan(&n); err != nil {
 		return 0, summarycommon.WrapMonitoringErr("open alert count", err)

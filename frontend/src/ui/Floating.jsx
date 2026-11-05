@@ -17,7 +17,7 @@ const MIN_USABLE = 140; // below this, opening upward is always better
  * keeps to the window, follows the trigger while the page scrolls and closes
  * on an outside click or Escape.
  */
-export function FloatingPanel({ anchorRef, open, onClose, align = 'end', className, children, ...rest }) {
+export function FloatingPanel({ anchorRef, open, onClose, align = 'end', gap = GAP, minWidthOfAnchor = false, className, children, ...rest }) {
   const panelRef = useRef(null);
   const [box, setBox] = useState(null);
 
@@ -26,19 +26,20 @@ export function FloatingPanel({ anchorRef, open, onClose, align = 'end', classNa
     const panel = panelRef.current;
     if (!anchor || !panel) return;
     const viewportH = window.visualViewport?.height ?? window.innerHeight;
+    if (minWidthOfAnchor) panel.style.minWidth = `${Math.round(anchor.width)}px`;
     const width = panel.offsetWidth;
     let left = align === 'end' ? anchor.right - width : anchor.left;
     left = Math.max(EDGE, Math.min(left, window.innerWidth - width - EDGE));
-    const below = viewportH - anchor.bottom - GAP - EDGE;
-    const above = anchor.top - GAP - EDGE;
+    const below = viewportH - anchor.bottom - gap - EDGE;
+    const above = anchor.top - gap - EDGE;
     const natural = panel.scrollHeight;
     if (natural <= below || below >= MIN_USABLE || below >= above) {
-      setBox({ left, top: anchor.bottom + GAP, maxHeight: Math.max(MIN_USABLE, below) });
+      setBox({ left, top: anchor.bottom + gap, maxHeight: Math.max(MIN_USABLE, below) });
     } else {
       const h = Math.min(natural, above);
-      setBox({ left, top: anchor.top - GAP - h, maxHeight: above });
+      setBox({ left, top: anchor.top - gap - h, maxHeight: above });
     }
-  }, [anchorRef, align]);
+  }, [anchorRef, align, gap, minWidthOfAnchor]);
 
   useLayoutEffect(() => {
     if (open) place();

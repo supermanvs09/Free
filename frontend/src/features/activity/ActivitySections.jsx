@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Activity, AlertTriangle, DatabaseZap, Globe, Network } from 'lucide-react';
 import { fetchIdentity, fetchIdentityEvents } from '../../lib/api/inventory';
 import { useQuery } from '../../lib/hooks';
@@ -8,6 +8,7 @@ import { Panel, PanelHeader } from '../../ui/Panel';
 import { MetricTile } from '../../ui/Stat';
 import { ProportionBar } from '../../ui/Meter';
 import { DataGrid } from '../../ui/DataGrid';
+import { cn } from '../../ui/cn';
 import { Pagination } from '../../ui/Pagination';
 import { ListSkeleton, StatStripSkeleton } from '../../ui/Skeleton';
 import { ClearState, EmptyState, ErrorState, InlineError } from '../../ui/States';
@@ -101,7 +102,6 @@ export function ActivitySummary({ identityId, state }) {
   const analytics = shapeQuery.data?.analytics;
   const services = analytics?.top_services ?? [];
   const volume = shapeQuery.data?.volume_chart ?? [];
-  const peak = volume.reduce((max, point) => Math.max(max, Number(point.count) || 0), 0);
 
   return (
     <div className="flex flex-col gap-4">
@@ -219,31 +219,81 @@ export function ActivitySummary({ identityId, state }) {
               {volume.length === 0 ? (
                 <p className="mt-2 text-[12px] text-ink-3">{shapeQuery.data ? 'No daily figures.' : ''}</p>
               ) : (
-                <div
-                  className="mt-2 flex h-16 items-end gap-[2px]"
-                  role="img"
-                  aria-label={`Daily calls, peak ${formatNumber(peak)} on one day`}
-                >
-                  {volume.map((point) => (
-                    <span
-                      key={point.date}
-                      title={`${formatDate(point.date)}: ${formatNumber(point.count)} calls`}
-                      className="min-w-[2px] flex-1 rounded-t-[2px] bg-[var(--t-ramp-4)]"
-                      style={{ height: `${Math.max(4, percentValue(point.count, peak))}%` }}
-                    />
-                  ))}
-                </div>
-              )}
-              {volume.length > 0 && (
-                <p className="mt-1 flex justify-between text-[10.5px] text-ink-3">
-                  <span>{formatDate(volume[0].date)}</span>
-                  <span>{formatDate(volume[volume.length - 1].date)}</span>
-                </p>
+                <DailyBars points={volume} />
               )}
             </div>
           </div>
         )}
       </Panel>
+    </div>
+  );
+}
+
+/**
+ * Calls per day as bars. Every day of the range has a slot (days with no calls
+ * read 0), so the bars line up with the dates under them; hovering or
+ * focusing a bar highlights it and reads its day and count out above the chart.
+ * The old version drew only the days that had calls - uneven gaps the reader
+ * took for misalignment - and relied on the browser's slow title tooltip.
+ */
+function DailyBars({ points }) {
+  const days = useMemo(() => {
+    const byDay = new Map(points.map((point) => [String(point.date).slice(0, 10), Number(point.count) || 0]));
+    const keys = [...byDay.keys()].sort();
+    const out = [];
+    const start = new Date(`${keys[0]}T00:00:00Z`);
+    const end = new Date(`${keys[keys.length - 1]}T00:00:00Z`);
+    for (let d = start; d <= end && out.length < 400; d = new Date(d.getTime() + 86400000)) {
+      const key = d.toISOString().slice(0, 10);
+      out.push({ date: key, count: byDay.get(key) ?? 0 });
+    }
+    return out;
+  }, [points]);
+  const peak = days.reduce((max, day) => Math.max(max, day.count), 0) || 1;
+  const [hover, setHover] = useState(null);
+  const shown = hover !== null ? days[hover] : null;
+  const total = days.reduce((sum, day) => sum + day.count, 0);
+
+  return (
+    <div className="mt-2">
+      <p className="h-4 text-[11px] text-ink-3" aria-live="polite">
+        {shown ? (
+          <>
+            <span className="font-medium text-ink-2">{formatDate(shown.date)}</span> · {formatNumber(shown.count)} call
+            {shown.count === 1 ? '' : 's'}
+          </>
+        ) : (
+          <>
+            Peak {formatNumber(peak)} a day · {formatNumber(total)} in all
+          </>
+        )}
+      </p>
+      <div
+        className="mt-1 flex h-16 items-end gap-px border-b border-line"
+        role="img"
+        aria-label={`Daily calls over ${days.length} days, peak ${formatNumber(peak)}`}
+        onMouseLeave={() => setHover(null)}
+      >
+        {days.map((day, index) => (
+          <span
+            key={day.date}
+            onMouseEnter={() => setHover(index)}
+            className="flex h-full min-w-0 flex-1 cursor-default items-end"
+          >
+            <span
+              className={cn(
+                'block w-full rounded-t-[2px] transition-colors duration-100',
+                day.count === 0 ? 'bg-line' : hover === index ? 'bg-brand' : 'bg-[var(--t-ramp-4)]',
+              )}
+              style={{ height: day.count === 0 ? '2px' : `${Math.max(6, (day.count / peak) * 100)}%` }}
+            />
+          </span>
+        ))}
+      </div>
+      <p className="mt-1 flex justify-between text-[10.5px] text-ink-3">
+        <span>{formatDate(days[0].date)}</span>
+        <span>{formatDate(days[days.length - 1].date)}</span>
+      </p>
     </div>
   );
 }
