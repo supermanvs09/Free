@@ -156,6 +156,11 @@ func main() {
 		}
 	}()
 	monitoringEvents := summarycommon.NewMonitoringEvents(monitoringClient, monitoringCfg.Database)
+	// The inventory's Activity tabs read monitored workloads from the same
+	// store as NHI Genome, so the two screens show and count the same calls.
+	if inv := summarycommon.NewInventoryActivity(monitoringEvents); inv != nil {
+		activityService.SetMonitored(inv)
+	}
 
 	// Who may sign in, what everyone did. The audit store writes in the
 	// background so recording never slows a request; Close drains the last

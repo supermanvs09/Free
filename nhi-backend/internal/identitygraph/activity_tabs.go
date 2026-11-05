@@ -106,6 +106,13 @@ func (a *ActivityService) loadLookup(ctx context.Context, resolved *scope.DataSc
 func (a *ActivityService) IdentityActivity(ctx context.Context, resolved *scope.DataScope, subj *ActivitySubject, tr *ResolvedTimeRange, service string, page, pageSize int) *IdentityActivityResponse {
 	p := normalizePaging(page, pageSize)
 	resp := emptyIdentityActivity(tr, p)
+	/* A monitored workload's calls come from the same store, key and counting
+	   as its NHI Genome page, so the two screens agree. */
+	if subj != nil && a.monitoredOn(service) {
+		if m, ok := a.monitoredIdentityActivity(ctx, resolved, subj, tr, p); ok {
+			return m
+		}
+	}
 	req := a.ForRequest(ctx, resolved)
 	if !req.Available() || subj == nil {
 		return resp
@@ -136,6 +143,11 @@ func (a *ActivityService) IdentityActivity(ctx context.Context, resolved *scope.
 func (a *ActivityService) CredentialActivity(ctx context.Context, resolved *scope.DataScope, subj *ActivitySubject, tr *ResolvedTimeRange, service string, page, pageSize int) *ActivityResponse {
 	p := normalizePaging(page, pageSize)
 	resp := emptyCredentialActivity(tr, p)
+	if subj != nil && a.monitoredOn(service) {
+		if m, ok := a.monitoredCredentialActivity(ctx, resolved, subj, tr, p); ok {
+			return m
+		}
+	}
 	req := a.ForRequest(ctx, resolved)
 	if !req.Available() || subj == nil {
 		return resp

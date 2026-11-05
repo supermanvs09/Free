@@ -72,6 +72,9 @@ type ActivityService struct {
 	seen     *ttlCache[seenEntry]
 	creators *ttlCache[string]
 	accounts *ttlCache[[]string]
+	// monitored, when set, answers the Activity tabs of monitored workload
+	// identities from the NHI Genome event store (see monitored_activity.go).
+	monitored MonitoredActivity
 }
 
 // NewActivityService wraps the ClickHouse repository. ch may be nil (or a
