@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -79,6 +80,10 @@ func NewHandler(svc *Service, auth *Auth, db *sql.DB) http.Handler {
 	mux.HandleFunc("PATCH /api/tenants/{id}", auth.requireSession(h.updateTenant))
 	mux.HandleFunc("GET /api/tenants/{id}/delete-preview", auth.requireSession(h.deletePreview))
 	mux.HandleFunc("DELETE /api/tenants/{id}", auth.requireSession(h.deleteTenant))
+	mux.HandleFunc("GET /api/approvals", auth.requireSession(h.listApprovals))
+	mux.HandleFunc("GET /api/approvals/pending", auth.requireSession(h.pendingApprovals))
+	mux.HandleFunc("POST /api/approvals/{id}/approve", auth.requireSession(h.decide(true)))
+	mux.HandleFunc("POST /api/approvals/{id}/reject", auth.requireSession(h.decide(false)))
 	mux.HandleFunc("GET /", h.root)
 	return h.secure(mux)
 }
@@ -320,6 +325,74 @@ func (h *Handler) deleteTenant(w http.ResponseWriter, r *http.Request) {
 	default:
 		log.Printf("delete company %s: %v", id, err)
 		writeJSON(w, http.StatusInternalServerError, errorBody{Error: "Something went wrong and nothing was deleted. Try again; if it keeps happening, contact engineering."})
+	}
+}
+
+func (h *Handler) listApprovals(w http.ResponseWriter, r *http.Request) {
+	list, err := h.svc.ListApprovals(r.Context(), strings.ToLower(strings.TrimSpace(r.URL.Query().Get("status"))))
+	var verr *ValidationError
+	switch {
+	case err == nil:
+		writeJSON(w, http.StatusOK, list)
+	case errors.As(err, &verr):
+		writeJSON(w, http.StatusUnprocessableEntity, errorBody{Error: verr.Fields["status"], Fields: verr.Fields})
+	default:
+		log.Printf("list approvals: %v", err)
+		writeJSON(w, http.StatusInternalServerError, errorBody{Error: "The connection requests could not be loaded. Try again; if it keeps happening, contact engineering."})
+	}
+}
+
+// pendingApprovals is what every open page polls for the badge and the
+// notification: two numbers, nothing else.
+func (h *Handler) pendingApprovals(w http.ResponseWriter, r *http.Request) {
+	n, latest, ready, err := h.svc.PendingApprovals(r.Context())
+	if err != nil {
+		log.Printf("count approvals: %v", err)
+		writeJSON(w, http.StatusInternalServerError, errorBody{Error: "The connection requests could not be counted."})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"pending": n, "latest_pending_id": latest, "ready": ready})
+}
+
+func (h *Handler) decide(approve bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+		if err != nil || id <= 0 {
+			writeJSON(w, http.StatusNotFound, errorBody{Error: "That request no longer exists.", Code: "not_found"})
+			return
+		}
+		if !h.edits.add(time.Now()) {
+			writeJSON(w, http.StatusTooManyRequests, errorBody{Error: "Too many changes in a minute. Wait a moment and try again."})
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
+		dec := json.NewDecoder(r.Body)
+		dec.DisallowUnknownFields()
+		var req struct {
+			Note string `json:"note"`
+		}
+		if err := dec.Decode(&req); err != nil {
+			writeJSON(w, http.StatusBadRequest, errorBody{Error: "That request could not be read. Reload the page and try again."})
+			return
+		}
+		a, err := h.svc.Decide(r.Context(), id, approve, req.Note, Who(r))
+		var verr *ValidationError
+		var derr DecidedError
+		switch {
+		case err == nil:
+			audit(r, "connection_"+a.Status, map[string]any{"approval_id": a.ID, "tenant_id": a.TenantID, "workspace": a.Workspace,
+				"account_id": a.AccountID, "note": clip(a.DecisionNote, 300)})
+			writeJSON(w, http.StatusOK, map[string]any{"approval": a})
+		case errors.As(err, &verr):
+			writeJSON(w, http.StatusUnprocessableEntity, errorBody{Error: verr.Fields["note"], Fields: verr.Fields})
+		case errors.As(err, &derr):
+			writeJSON(w, http.StatusConflict, errorBody{Error: derr.Error(), Code: "decided"})
+		case errors.Is(err, NotFoundError{}):
+			writeJSON(w, http.StatusNotFound, errorBody{Error: "That request no longer exists.", Code: "not_found"})
+		default:
+			log.Printf("decide approval %d: %v", id, err)
+			writeJSON(w, http.StatusInternalServerError, errorBody{Error: "Something went wrong and nothing was changed. Try again; if it keeps happening, contact engineering."})
+		}
 	}
 }
 

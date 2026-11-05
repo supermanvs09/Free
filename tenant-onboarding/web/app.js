@@ -6,21 +6,26 @@
   const VIEWS = {
     onboard: { title: 'Onboard a company', focus: () => NHI.onboard.focus() },
     tenants: { title: 'Tenants', focus: () => NHI.tenants.focus() },
+    approvals: { title: 'Approvals', focus: () => NHI.approvals.focus() },
   };
+  const CRUMBS = { onboard: 'Onboard company', tenants: 'Tenants', approvals: 'Approvals' };
 
   /* ---------- sections ---------- */
 
   function route() {
-    const name = location.hash.replace(/^#\//, '') === 'tenants' ? 'tenants' : 'onboard';
+    const asked = location.hash.replace(/^#\//, '');
+    const name = VIEWS[asked] ? asked : 'onboard';
     for (const v of Object.keys(VIEWS)) {
       $('view-' + v).hidden = v !== name;
       const link = $('nav-' + v);
       if (v === name) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
     }
-    document.title = VIEWS[name].title + ' · Super Admin';
-    $('crumb-page').textContent = name === 'tenants' ? 'Tenants' : 'Onboard company';
+    const waiting = /^\(\d+\) /.exec(document.title);
+    document.title = (waiting ? waiting[0] : '') + VIEWS[name].title + ' · Super Admin';
+    $('crumb-page').textContent = CRUMBS[name];
     setNav(false);
     if (name === 'tenants') NHI.tenants.load();   // always fresh: another operator may have changed something
+    NHI.approvals.show(name === 'approvals');
     window.scrollTo({ top: 0 });
   }
 

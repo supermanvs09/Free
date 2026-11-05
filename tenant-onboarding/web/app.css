@@ -350,3 +350,66 @@ dialog::backdrop { background: var(--overlay); }
 .del-keep { margin: 0 0 20px; }
 #del .btn { min-height: 42px; width: auto; margin: 0; }
 @media (max-width: 560px) { .danger-zone { flex-direction: column; align-items: stretch; } }
+
+/* ---------- approvals ---------- */
+.count.attn { background: #ffb020; color: #3d2600; }
+.nav-item[aria-current=page] .count.attn { background: #ffb020; color: #3d2600; }
+.bell { position: relative; }
+.bell-dot { position: absolute; top: 3px; right: 1px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--critical); color: #fff; font: 700 11px/18px var(--font); text-align: center; box-shadow: 0 0 0 2px #fff; }
+.bell-panel { position: fixed; inset: 70px 20px auto auto; margin: 0; width: min(360px, calc(100% - 24px)); padding: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg); }
+.bell-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
+.bell-list { list-style: none; margin: 0; padding: 6px; max-height: 320px; overflow-y: auto; }
+.bell-list a { display: flex; flex-direction: column; gap: 2px; padding: 10px; border-radius: 10px; color: var(--ink); text-decoration: none; }
+.bell-list a:hover, .bell-list a:focus-visible { background: var(--info-soft); }
+.bell-list .none-row { padding: 14px 10px; color: var(--ink-2); font-size: 14px; }
+.bell-foot { display: flex; justify-content: space-between; gap: 8px; padding: 6px 10px 10px; border-top: 1px solid var(--line); }
+.seg { display: inline-flex; padding: 4px; gap: 2px; border-radius: var(--pill); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.seg-btn { font: inherit; font-weight: 600; font-size: 14px; border: 0; background: none; color: var(--ink-2); padding: 7px 16px; border-radius: var(--pill); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.seg-btn[aria-selected=true] { background: var(--grad); color: #fff; }
+.seg-count:empty { display: none; }
+.seg-count { min-width: 20px; padding: 0 6px; border-radius: 10px; background: #ffb020; color: #3d2600; font-size: 12px; line-height: 20px; text-align: center; }
+.desk-note { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border: 1px solid #a9cdea; }
+.desk-note span { flex: 1 1 320px; }
+.ap-list { display: grid; gap: 14px; }
+.ap-card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 20px 22px; }
+.ap-card.pending { border-left: 5px solid #ffb020; }
+.ap-card:focus { outline: none; }
+.ap-card.flash { animation: flash 2.2s ease-out; }
+.ap-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+.ap-head .name { font-size: 17px; }
+.pill { font: 700 12px/1 var(--font); padding: 5px 10px; border-radius: var(--pill); background: var(--surface-3); color: var(--ink-2); }
+.pill.st-pending { background: var(--warn-soft); color: var(--warn); }
+.pill.st-approved { background: #dcf5e8; color: var(--ok); }
+.pill.st-rejected { background: var(--critical-soft); color: var(--critical); }
+.ap-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px 24px; margin: 0 0 14px; }
+.ap-facts dt { font-size: 12px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .05em; font-weight: 700; margin-bottom: 3px; }
+.ap-facts dd { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
+.wrap { overflow-wrap: anywhere; }
+.chip.seen { background: #dcf5e8; color: var(--ok); }
+.chip.missing { background: var(--warn-soft); color: var(--warn); }
+.ap-checks { list-style: none; margin: 0 0 12px; padding: 12px 14px; display: grid; gap: 8px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; font-size: 14px; }
+.ap-checks li { display: flex; gap: 10px; align-items: baseline; }
+.ck-icon { flex: none; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font-size: 12px; font-weight: 800; background: var(--surface-3); color: var(--ink-2); }
+.st-pass .ck-icon { background: #dcf5e8; color: var(--ok); }
+.st-warn .ck-icon { background: var(--warn-soft); color: var(--warn); }
+.st-fail .ck-icon, .st-error .ck-icon { background: var(--critical-soft); color: var(--critical); }
+.ap-foot { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 13px; }
+.mail { color: var(--ink-2); }
+.mail.ok { color: var(--ok); }
+.mail.bad { color: var(--critical); font-weight: 600; }
+.mail.warn { color: var(--warn); font-weight: 600; }
+.ap-decision { margin: 12px 0 0; padding: 10px 14px; border-radius: 12px; background: var(--surface-2); font-size: 14px; }
+.ap-decision.st-approved { background: #eefaf3; }
+.ap-decision.st-rejected { background: #fff4f3; }
+.note-text { display: block; margin-top: 4px; color: var(--ink-2); font-style: italic; }
+.ap-card.skeleton { display: grid; }
+#decide-form { display: flex; flex-direction: column; min-height: 0; border: 0; box-shadow: none; padding: 0; border-radius: 0; background: none; flex: 1; }
+#decide .btn { min-height: 42px; width: auto; margin: 0; }
+.decide-lead { margin: 0 0 8px; }
+.decide-effects { margin: 0 0 18px; padding-left: 20px; color: var(--ink-2); font-size: 14px; }
+.decide-effects li { margin: 4px 0; }
+textarea { width: 100%; font: inherit; font-size: 15px; padding: 10px 12px; color: var(--ink); background: var(--surface-2); border: 1px solid transparent; border-bottom: 2px solid var(--line-strong); border-radius: 10px 10px 4px 4px; resize: vertical; }
+textarea:focus-visible { outline: none; background: #fff; border-color: var(--line); border-bottom-color: var(--brand); }
+textarea[aria-invalid=true] { border-bottom-color: var(--critical); background: var(--critical-soft); }
+@media (max-width: 560px) { .ap-head .actions { width: 100%; } .ap-head .actions .btn { flex: 1; } .bell-panel { inset: 64px 12px auto 12px; width: auto; } }
+.ap-card .bar.w40 { width: 40%; } .ap-card .bar.w70 { width: 70%; margin-top: 12px; } .ap-card .bar.w55 { width: 55%; margin-top: 12px; }

@@ -27,7 +27,29 @@ CREATE TABLE __SCHEMA__.accounts (
     is_connected boolean DEFAULT false NOT NULL,
     account_status character varying(20) DEFAULT 'pending'::character varying NOT NULL,
     codecommit_enabled boolean DEFAULT false NOT NULL,
-    github_enabled boolean DEFAULT false NOT NULL
+    github_enabled boolean DEFAULT false NOT NULL,
+    checks jsonb DEFAULT '[]'::jsonb NOT NULL,
+    last_verified_at timestamp with time zone,
+    last_verified_by text DEFAULT ''::text NOT NULL,
+    connected_at timestamp with time zone,
+    github_secret_arn text,
+    github_checks jsonb DEFAULT '[]'::jsonb NOT NULL,
+    github_verified_at timestamp with time zone,
+    codecommit_checks jsonb DEFAULT '[]'::jsonb NOT NULL,
+    codecommit_verified_at timestamp with time zone,
+    exposure_updated_by text DEFAULT ''::text NOT NULL,
+    sync_status text DEFAULT 'idle'::text NOT NULL,
+    sync_requested_at timestamp with time zone,
+    sync_requested_by text DEFAULT ''::text NOT NULL,
+    sync_started_at timestamp with time zone,
+    last_synced_at timestamp with time zone,
+    last_sync_error text DEFAULT ''::text NOT NULL,
+    approval_status text,
+    approval_requested_at timestamp with time zone,
+    approval_requested_by text,
+    approved_at timestamp with time zone,
+    approved_by text,
+    approval_note text
 );
 
 -- TABLE: alert_feedback

@@ -21,6 +21,7 @@
     <nav aria-label="Sections">
       <a class="nav-item" id="nav-onboard" href="#/onboard"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Onboard company</a>
       <a class="nav-item" id="nav-tenants" href="#/tenants"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16M14 9h5a1 1 0 0 1 1 1v11M3 21h18M8 8h2M8 12h2M8 16h2"/></svg>Tenants<span class="count" id="nav-count" hidden></span></a>
+      <a class="nav-item" id="nav-approvals" href="#/approvals"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.4-3 8.4-7 10-4-1.6-7-5.6-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>Approvals<span class="count attn" id="nav-approvals-count" hidden></span></a>
     </nav>
     <div class="side-foot">
       <p>Changes are saved straight away and logged.</p>
@@ -34,6 +35,15 @@
       <button type="button" class="icon-btn nav-toggle" id="nav-toggle" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
       <p class="crumbs"><span>Super Admin</span><span aria-hidden="true">/</span><span class="here" id="crumb-page">Onboard company</span></p>
       <div class="topbar-right">
+        <button type="button" class="icon-btn bell" id="bell" aria-label="Connection requests" popovertarget="bell-panel" title="Connection requests"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="bell-dot" id="bell-dot" hidden></span></button>
+        <div id="bell-panel" class="bell-panel" popover aria-label="Connection requests">
+          <div class="bell-head"><strong>Connection requests</strong><span class="muted" id="bell-sub"></span></div>
+          <ul id="bell-list" class="bell-list"></ul>
+          <div class="bell-foot">
+            <a href="#/approvals" class="btn link" id="bell-all">Open approvals</a>
+            <button type="button" class="btn link" id="bell-desktop" hidden>Turn on desktop alerts</button>
+          </div>
+        </div>
         <div class="account">
           <span class="avatar" id="avatar" aria-hidden="true"></span>
           <span class="name" id="who-name"></span>
@@ -232,8 +242,70 @@
       <div id="tenants-empty" class="empty" hidden></div>
         </div>
       </section>
+
+      <section id="view-approvals" class="view" aria-labelledby="t-approvals" hidden>
+        <div class="hero">
+          <div>
+            <h1 id="t-approvals">Connection approvals</h1>
+            <p class="lede">A company&rsquo;s AWS account that passed every connection check waits here. Approve it to connect the account and start its first scan; reject it with a reason the company will see.</p>
+          </div>
+        </div>
+        <div class="lift">
+          <div class="toolbar">
+            <div class="seg" role="tablist" aria-label="Show">
+              <button type="button" role="tab" class="seg-btn" data-filter="pending" aria-selected="true">Waiting<span class="seg-count" id="seg-pending"></span></button>
+              <button type="button" role="tab" class="seg-btn" data-filter="decided" aria-selected="false">Decided</button>
+              <button type="button" role="tab" class="seg-btn" data-filter="all" aria-selected="false">All</button>
+            </div>
+            <div class="search">
+              <label for="ap-search" class="sr">Search requests</label>
+              <input id="ap-search" type="search" placeholder="Search by company, domain or account" autocomplete="off" spellcheck="false">
+            </div>
+            <p id="ap-updated" class="muted" aria-live="polite"></p>
+            <button type="button" class="btn ghost" id="ap-refresh">Refresh</button>
+          </div>
+          <div id="ap-banner" class="banner" role="alert" hidden></div>
+          <div id="ap-desktop" class="note desk-note" hidden>
+            <span><strong>Get a desktop alert for new requests?</strong> Requests also arrive by e-mail and show on the bell above while this page is open.</span>
+            <button type="button" class="btn ghost sm" id="ap-desktop-on">Turn on</button>
+            <button type="button" class="btn link" id="ap-desktop-no">Not now</button>
+          </div>
+          <div id="ap-list" class="ap-list" aria-live="polite"></div>
+          <div id="ap-empty" class="empty" hidden></div>
+        </div>
+      </section>
     </main>
   </div>
+
+  <dialog id="decide" aria-labelledby="decide-title">
+    <form id="decide-form" method="dialog" novalidate autocomplete="off">
+      <header class="dlg-head" id="decide-head">
+        <div>
+          <h2 id="decide-title">Approve connection</h2>
+          <p class="muted" id="decide-sub"></p>
+        </div>
+        <button type="button" class="icon-btn" id="decide-x" aria-label="Close">&times;</button>
+      </header>
+      <div class="dlg-body">
+        <div id="decide-banner" class="banner" role="alert" hidden></div>
+        <p id="decide-lead" class="decide-lead"></p>
+        <ul id="decide-effects" class="decide-effects"></ul>
+        <div class="field">
+          <label for="decide-note" id="decide-note-label">Note <span class="opt">optional</span></label>
+          <textarea id="decide-note" rows="3" maxlength="1000" aria-describedby="decide-note-hint decide-note-error"></textarea>
+          <p class="hint" id="decide-note-hint"></p>
+          <p class="error" id="decide-note-error" hidden></p>
+        </div>
+      </div>
+      <footer class="dlg-foot">
+        <span class="muted" id="decide-state"></span>
+        <div class="actions">
+          <button type="button" class="btn ghost" id="decide-cancel">Cancel</button>
+          <button type="submit" class="btn primary" id="decide-go">Approve and connect</button>
+        </div>
+      </footer>
+    </form>
+  </dialog>
 
   <dialog id="edit" aria-labelledby="edit-title">
     <form id="edit-form" method="dialog" novalidate autocomplete="off">
@@ -340,6 +412,7 @@
   <script src="/lib.js"></script>
   <script src="/onboard.js"></script>
   <script src="/tenants.js"></script>
+  <script src="/approvals.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>
