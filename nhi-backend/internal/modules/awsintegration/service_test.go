@@ -191,6 +191,24 @@ func (f *fakeAWSStore) SaveExposure(_ context.Context, _, accountID string, u Ex
 	return &rec, nil
 }
 
+func (f *fakeAWSStore) CancelSync(_ context.Context, _, accountID string) (*AWSAccountRecord, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	rec, ok := f.accounts[accountID]
+	if !ok {
+		return nil, ErrAWSAccountNotFound
+	}
+	switch rec.SyncStatus {
+	case AWSSyncRunning:
+		return &rec, ErrAWSSyncRunning
+	case AWSSyncQueued:
+		rec.SyncStatus = AWSSyncIdle
+		f.accounts[accountID] = rec
+		return &rec, nil
+	}
+	return &rec, ErrAWSSyncNotQueued
+}
+
 func (f *fakeAWSStore) RequestSync(_ context.Context, _, accountID, actor string, at time.Time) (*AWSAccountRecord, bool, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

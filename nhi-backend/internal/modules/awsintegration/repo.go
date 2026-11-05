@@ -38,6 +38,10 @@ var (
 	ErrAWSAccountNotFound = errors.New("aws account not found")
 	// ErrAWSAccountNotConnected: the account has not passed all checks.
 	ErrAWSAccountNotConnected = errors.New("aws account is not connected")
+	// ErrAWSSyncNotCancellable: the sync is already running (the worker has
+	// it), or there is no queued sync to cancel.
+	ErrAWSSyncRunning   = errors.New("aws sync already running")
+	ErrAWSSyncNotQueued = errors.New("aws sync not queued")
 	// ErrAWSTablesMissing: a migration has not been applied.
 	ErrAWSTablesMissing = errors.New("aws integration schema is missing: apply migrations/global/004_tenant_collector.sql and, per tenant schema, migrations/tenant/004_accounts_connection.sql")
 )
@@ -82,6 +86,21 @@ func (r *AWSIntegrationRepository) tenantPool(schema string) (*sql.DB, error) {
 		return nil, errors.New("aws integration repository is not initialized")
 	}
 	return r.db.GetTenantDB(schema)
+}
+
+// accountsDB is the tenant pool, with the accounts table's approval columns
+// made sure of first: every account read and write returns them, and a
+// schema that has not run migrations/tenant/009 must not fail on its first
+// verification or sync.
+func (r *AWSIntegrationRepository) accountsDB(ctx context.Context, schema string) (*sql.DB, error) {
+	db, err := r.tenantPool(schema)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.ensureApprovalColumns(ctx, db, schema); err != nil {
+		return nil, err
+	}
+	return db, nil
 }
 
 // TenantSettings returns the tenant's collector values, or nil when the
@@ -211,7 +230,7 @@ func utcPtr(t sql.NullTime) *time.Time {
 
 // ListAccounts returns the tenant's AWS accounts, connected first.
 func (r *AWSIntegrationRepository) ListAccounts(ctx context.Context, schema string) ([]AWSAccountRecord, error) {
-	db, err := r.tenantPool(schema)
+	db, err := r.accountsDB(ctx, schema)
 	if err != nil {
 		return nil, err
 	}
@@ -273,7 +292,7 @@ func applyLastScans(ctx context.Context, db *sql.DB, schema string, accounts []A
 
 // GetAccount returns one of the tenant's accounts, or nil.
 func (r *AWSIntegrationRepository) GetAccount(ctx context.Context, schema, accountID string) (*AWSAccountRecord, error) {
-	db, err := r.tenantPool(schema)
+	db, err := r.accountsDB(ctx, schema)
 	if err != nil {
 		return nil, err
 	}
@@ -366,7 +385,7 @@ func lockAccount(ctx context.Context, tx *sql.Tx, accountID string) error {
 // account passes and kept afterwards; that first time a sync is queued. The
 // row's regions always include 'global' so IAM identities stay in scope.
 func (r *AWSIntegrationRepository) SaveVerification(ctx context.Context, tenantID, schema string, rec AWSAccountRecord) (saved *AWSAccountRecord, syncQueued bool, err error) {
-	db, err := r.tenantPool(schema)
+	db, err := r.accountsDB(ctx, schema)
 	if err != nil {
 		return nil, false, err
 	}
@@ -449,7 +468,7 @@ func (r *AWSIntegrationRepository) SaveVerification(ctx context.Context, tenantI
 
 // UpdateRegions replaces the regions an account is read in ('global' kept).
 func (r *AWSIntegrationRepository) UpdateRegions(ctx context.Context, tenantID, schema, accountID string, regions []string) (*AWSAccountRecord, error) {
-	db, err := r.tenantPool(schema)
+	db, err := r.accountsDB(ctx, schema)
 	if err != nil {
 		return nil, err
 	}
@@ -496,7 +515,7 @@ type ExposurePlatformUpdate struct {
 
 // SaveExposure stores the exposed-credential state of one account.
 func (r *AWSIntegrationRepository) SaveExposure(ctx context.Context, schema, accountID string, u ExposureUpdate) (*AWSAccountRecord, error) {
-	db, err := r.tenantPool(schema)
+	db, err := r.accountsDB(ctx, schema)
 	if err != nil {
 		return nil, err
 	}
@@ -545,10 +564,44 @@ func (r *AWSIntegrationRepository) SaveExposure(ctx context.Context, schema, acc
 	return rec, nil
 }
 
+// CancelSync withdraws a queued sync that the worker has not claimed yet.
+// The account's sync state goes back to what it was: succeeded when it has
+// synced before, idle otherwise. A running sync is the worker's and is not
+// cancelled from here.
+func (r *AWSIntegrationRepository) CancelSync(ctx context.Context, schema, accountID string) (*AWSAccountRecord, error) {
+	db, err := r.accountsDB(ctx, schema)
+	if err != nil {
+		return nil, err
+	}
+	q := `UPDATE ` + database.Table(schema, accountsTable) + `
+		SET sync_status = CASE WHEN last_synced_at IS NOT NULL THEN 'succeeded' ELSE 'idle' END,
+			sync_requested_at = NULL, sync_requested_by = '', updated_at = now()
+		WHERE account_id = $1 AND ` + connectionRow + ` AND sync_status = 'queued'
+		RETURNING ` + accountColumns
+	rec, err := scanAccount(db.QueryRowContext(ctx, q, accountID))
+	if err == nil {
+		return rec, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("cancel aws sync: %w", missingSchema(err))
+	}
+	current, err := r.GetAccount(ctx, schema, accountID)
+	switch {
+	case err != nil:
+		return nil, err
+	case current == nil:
+		return nil, ErrAWSAccountNotFound
+	case current.SyncStatus == AWSSyncRunning:
+		return current, ErrAWSSyncRunning
+	default:
+		return current, ErrAWSSyncNotQueued
+	}
+}
+
 // RequestSync queues a sync of a connected account. When one is already
 // queued or running it changes nothing and reports alreadyQueued.
 func (r *AWSIntegrationRepository) RequestSync(ctx context.Context, schema, accountID, actor string, at time.Time) (rec *AWSAccountRecord, alreadyQueued bool, err error) {
-	db, err := r.tenantPool(schema)
+	db, err := r.accountsDB(ctx, schema)
 	if err != nil {
 		return nil, false, err
 	}
@@ -583,7 +636,7 @@ func (r *AWSIntegrationRepository) RequestSync(ctx context.Context, schema, acco
 // DeleteAccount removes the account's accounts row, which also takes it out
 // of every scope. Records already scanned stay in the tenant schema.
 func (r *AWSIntegrationRepository) DeleteAccount(ctx context.Context, tenantID, schema, accountID string) error {
-	db, err := r.tenantPool(schema)
+	db, err := r.accountsDB(ctx, schema)
 	if err != nil {
 		return err
 	}

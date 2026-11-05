@@ -258,6 +258,26 @@ func TestAWSIntegrationRepositoryAgainstPostgres(t *testing.T) {
 		t.Fatal("second sync should report already queued")
 	}
 
+	// Cancel: a queued sync is withdrawn (never synced -> idle); nothing queued
+	// -> refused; a running one belongs to the worker -> refused.
+	if r, err := repo.CancelSync(ctx, schemaA, acct); err != nil || r.SyncStatus != "idle" || r.SyncRequestedBy != "" {
+		t.Fatalf("cancel: %+v %v", r, err)
+	}
+	if _, err := repo.CancelSync(ctx, schemaA, acct); !errors.Is(err, ErrAWSSyncNotQueued) {
+		t.Fatalf("cancel twice: %v", err)
+	}
+	mustExec(t, db, `UPDATE `+database.Table(schemaA, "accounts")+` SET sync_status = 'running' WHERE account_id = $1`, acct)
+	if _, err := repo.CancelSync(ctx, schemaA, acct); !errors.Is(err, ErrAWSSyncRunning) {
+		t.Fatalf("cancel running: %v", err)
+	}
+	mustExec(t, db, `UPDATE `+database.Table(schemaA, "accounts")+` SET sync_status = 'queued', last_synced_at = now() WHERE account_id = $1`, acct)
+	if r, err := repo.CancelSync(ctx, schemaA, acct); err != nil || r.SyncStatus != "succeeded" {
+		t.Fatalf("cancel after an earlier sync: %+v %v", r, err)
+	}
+	if _, err := repo.CancelSync(ctx, schemaA, "999999999999"); !errors.Is(err, ErrAWSAccountNotFound) {
+		t.Fatalf("cancel unknown: %v", err)
+	}
+
 	// List and delete.
 	if list, err := repo.ListAccounts(ctx, schemaA); err != nil || len(list) == 0 {
 		t.Fatalf("list: %v %v", list, err)

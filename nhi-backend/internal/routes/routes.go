@@ -212,6 +212,7 @@ func registerProtected(router *mux.Router, h HandlerContainer, versioned bool) {
 		router.HandleFunc("/integrations/aws/accounts/{account_id}/regions", h.AWSIntegrationHandler.UpdateRegions).Methods(http.MethodPut)
 		router.HandleFunc("/integrations/aws/accounts/{account_id}/exposure", h.AWSIntegrationHandler.Exposure).Methods(http.MethodPut)
 		router.HandleFunc("/integrations/aws/accounts/{account_id}/sync", h.AWSIntegrationHandler.Sync).Methods(http.MethodPost)
+		router.HandleFunc("/integrations/aws/accounts/{account_id}/sync", h.AWSIntegrationHandler.CancelSync).Methods(http.MethodDelete)
 		router.HandleFunc("/integrations/aws/accounts/{account_id}", h.AWSIntegrationHandler.Remove).Methods(http.MethodDelete)
 	}
 	registerPostures(router, h.PostureHandlers)

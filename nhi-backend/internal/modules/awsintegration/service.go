@@ -68,6 +68,7 @@ type AWSIntegrationStore interface {
 	UpdateRegions(ctx context.Context, tenantID, schema, accountID string, regions []string) (*AWSAccountRecord, error)
 	SaveExposure(ctx context.Context, schema, accountID string, u ExposureUpdate) (*AWSAccountRecord, error)
 	RequestSync(ctx context.Context, schema, accountID, actor string, at time.Time) (*AWSAccountRecord, bool, error)
+	CancelSync(ctx context.Context, schema, accountID string) (*AWSAccountRecord, error)
 	DeleteAccount(ctx context.Context, tenantID, schema, accountID string) error
 	SaveCheckStart(ctx context.Context, tenantID, schema string, rec AWSAccountRecord) (*AWSAccountRecord, error)
 	SaveChecks(ctx context.Context, schema, accountID string, checks []AWSCheck) error
@@ -836,6 +837,15 @@ func (s *AWSIntegrationService) RequestSync(ctx context.Context, caller AWSCalle
 		return nil, err
 	}
 	return &AWSSyncResponse{Account: rec.ToAPI(), AlreadyQueued: already}, nil
+}
+
+// CancelSync withdraws a queued sync of one account.
+func (s *AWSIntegrationService) CancelSync(ctx context.Context, caller AWSCaller, accountID string) (*AWSSyncResponse, error) {
+	rec, err := s.store.CancelSync(ctx, caller.Schema, accountID)
+	if err != nil {
+		return nil, err
+	}
+	return &AWSSyncResponse{Account: rec.ToAPI()}, nil
 }
 
 // RemoveAccount disconnects an account: its row and its scope rows are

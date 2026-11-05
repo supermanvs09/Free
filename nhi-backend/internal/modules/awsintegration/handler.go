@@ -145,6 +145,32 @@ func (h *AWSIntegrationHandler) Sync(w http.ResponseWriter, r *http.Request) {
 	httpx.SendJSONResponse(w, http.StatusAccepted, httpx.APIResponse{Success: true, Message: message, Data: result})
 }
 
+// CancelSync is DELETE /integrations/aws/accounts/{id}/sync: withdraws a
+// queued sync the worker has not started.
+func (h *AWSIntegrationHandler) CancelSync(w http.ResponseWriter, r *http.Request) {
+	caller, ok := h.adminCaller(w, r)
+	if !ok {
+		return
+	}
+	accountID, ok := pathAccountID(w, r)
+	if !ok {
+		return
+	}
+	result, err := h.service.CancelSync(r.Context(), caller, accountID)
+	switch {
+	case errors.Is(err, ErrAWSSyncRunning):
+		httpx.SendJSONResponse(w, http.StatusConflict, httpx.APIResponse{Success: false, Message: "This sync has already started and can no longer be cancelled. It finishes on its own", Error: "AWS_SYNC_RUNNING"})
+		return
+	case errors.Is(err, ErrAWSSyncNotQueued):
+		httpx.SendJSONResponse(w, http.StatusConflict, httpx.APIResponse{Success: false, Message: "There is no queued sync to cancel for this account", Error: "AWS_SYNC_NOT_QUEUED"})
+		return
+	case err != nil:
+		writeAWSError(w, r, err, "Failed to cancel the sync", "AWS_SYNC_CANCEL_FAILED")
+		return
+	}
+	httpx.SendJSONResponse(w, http.StatusOK, httpx.APIResponse{Success: true, Message: "Sync cancelled", Data: result})
+}
+
 func (h *AWSIntegrationHandler) Remove(w http.ResponseWriter, r *http.Request) {
 	caller, ok := h.adminCaller(w, r)
 	if !ok {

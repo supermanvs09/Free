@@ -41,7 +41,7 @@ func (r *AWSIntegrationRepository) ensureApprovalColumns(ctx context.Context, db
 // already connected stays connected while its events are re-checked: a
 // re-check must not take a working connection down for minutes.
 func (r *AWSIntegrationRepository) SaveCheckStart(ctx context.Context, tenantID, schema string, rec AWSAccountRecord) (*AWSAccountRecord, error) {
-	db, err := r.tenantPool(schema)
+	db, err := r.accountsDB(ctx, schema)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func (r *AWSIntegrationRepository) SaveCheckStart(ctx context.Context, tenantID,
 // SaveChecks replaces the account's checks (the events check reports its
 // progress through here) without touching anything else.
 func (r *AWSIntegrationRepository) SaveChecks(ctx context.Context, schema, accountID string, checks []AWSCheck) error {
-	db, err := r.tenantPool(schema)
+	db, err := r.accountsDB(ctx, schema)
 	if err != nil {
 		return err
 	}
@@ -128,7 +128,7 @@ type ApprovalRequest struct {
 // request row exists for it (a repeat keeps the same row, refreshed). Returns
 // the request's id.
 func (r *AWSIntegrationRepository) RequestApproval(ctx context.Context, req ApprovalRequest) (int64, *AWSAccountRecord, error) {
-	db, err := r.tenantPool(req.Schema)
+	db, err := r.accountsDB(ctx, req.Schema)
 	if err != nil {
 		return 0, nil, err
 	}
