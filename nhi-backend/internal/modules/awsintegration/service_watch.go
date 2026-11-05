@@ -98,7 +98,7 @@ func (s *AWSIntegrationService) startWatch(caller AWSCaller, p awsconnect.Platfo
 	now := s.now().UTC()
 	deadline := now.Add(s.waitLimit())
 	check := AWSCheck{
-		Key: AWSCheckEvents, Label: "Receive your events", State: AWSCheckRunning,
+		Key: AWSCheckEvents, Label: "Events arrive from each region", State: AWSCheckRunning,
 		Message:   "Watching for events from your account. Every region in the list should deliver one; this usually takes a few minutes.",
 		Regions:   expectedRegions(rec.Regions),
 		StartedAt: &now, Deadline: &deadline,

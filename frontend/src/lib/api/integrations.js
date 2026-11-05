@@ -30,6 +30,19 @@ function checks(list) {
       state: String(c.state ?? ''),
       message: String(c.message ?? ''),
       fix: c.fix ? String(c.fix) : '',
+      /* The events check only: where events were expected and seen, and the watch's window. */
+      regions: Array.isArray(c.regions)
+        ? c.regions.map((r) => ({
+            region: String(r.region ?? ''),
+            seen: Boolean(r.seen),
+            firstSeenAt: r.first_seen_at ?? null,
+            events: Number(r.events) || 0,
+            global: Boolean(r.global),
+          }))
+        : [],
+      startedAt: c.started_at ?? null,
+      deadline: c.deadline ?? null,
+      scanned: Number(c.messages_scanned) || 0,
     }));
 }
 
@@ -48,12 +61,20 @@ export function awsAccount(a = {}) {
     accountId: String(a.account_id ?? ''),
     roleArn: String(a.role_arn ?? ''),
     regions: Array.isArray(a.regions) ? a.regions : [],
-    status: a.status || 'pending', // pending | connected | action_needed
+    status: a.status || 'pending', // pending | pending_approval | connected | action_needed | rejected
     isConnected: Boolean(a.is_connected),
     checks: checks(a.checks),
     lastVerifiedAt: a.last_verified_at ?? null,
     lastVerifiedBy: a.last_verified_by ?? '',
     connectedAt: a.connected_at ?? null,
+    approval: {
+      status: a.approval?.status || '', // '' | pending | approved | rejected
+      requestedAt: a.approval?.requested_at ?? null,
+      requestedBy: a.approval?.requested_by ?? '',
+      decidedAt: a.approval?.decided_at ?? null,
+      decidedBy: a.approval?.decided_by ?? '',
+      note: a.approval?.note ?? '',
+    },
     exposure: {
       github: platform(a.exposure?.github),
       codecommit: platform(a.exposure?.codecommit),
@@ -77,6 +98,7 @@ export async function fetchAwsIntegration(signal) {
     status: d.status || 'not_connected',
     hasConnectedAccount: Boolean(d.has_connected_account),
     exposureEnabled: Boolean(d.exposure_enabled),
+    awaitingApproval: Boolean(d.awaiting_approval),
     canManage: Boolean(d.can_manage),
     domain: d.workspace?.domain || '',
     setup: s
@@ -88,6 +110,9 @@ export async function fetchAwsIntegration(signal) {
           assumerRoleArn: s.assumer_role_arn,
           roleName: s.role_name,
           ruleName: s.rule_name,
+          forwardRoleName: s.forward_role_name || 'NHIEventBridgeForwardRole',
+          trailName: s.trail_name || 'adapid-nhi-trail',
+          eventWaitMinutes: Number(s.event_wait_minutes) || 15,
           managedPolicies: s.managed_policies ?? [],
           eventSources: s.event_sources ?? [],
           regions: (s.regions ?? []).map((r) => ({ code: r.code, name: r.name, group: r.group, optIn: Boolean(r.opt_in) })),
@@ -123,6 +148,8 @@ export async function verifyAwsConnection({ roleArn, regions }) {
     verifiedAt: d.verified_at,
     saved: Boolean(d.saved),
     syncQueued: Boolean(d.sync_queued),
+    /* The events check carries on in the background; read the account to follow it. */
+    watching: Boolean(d.watching),
   };
 }
 

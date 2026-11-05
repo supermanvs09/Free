@@ -93,7 +93,11 @@ function OverviewTab({ account, setup, names, counts, canManage, onEditRegions }
       <div className="flex items-center gap-3 rounded-[var(--radius-control)] border border-line bg-surface-2 px-3.5 py-3">
         <AwsMark size="sm" />
         <p className="min-w-0 flex-1 text-[12.5px] leading-relaxed text-ink-2">
-          {account.status === 'connected'
+          {account.status === 'pending_approval'
+            ? `Every check passed${account.approval.requestedAt ? ` ${formatRelative(account.approval.requestedAt)}` : ''}. adapID reviews each new connection before scanning starts; this account is read as soon as it is approved.`
+            : account.status === 'rejected'
+              ? `adapID did not approve this connection${account.approval.note ? `: “${account.approval.note}”` : '.'} Fix the setup, then re-check to ask again.`
+              : account.status === 'connected'
             ? 'We read this account through a read-only IAM role, and receive its CloudTrail events through an EventBridge rule. Nothing is written to the account.'
             : 'This account is not fully connected. The Connection checks tab says what failed and how to fix it.'}
         </p>

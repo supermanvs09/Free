@@ -209,3 +209,23 @@ python3 scripts/extract_tenant_schema.py nhi_db.sql <a_tenant_schema_name>
 
 Run it after the tenant tables change, review the diff, run the tests (they expect 64 tables - update
 the number in `TestTemplates` if the count changed on purpose).
+
+
+## Connection approvals
+
+A company's first connection of an AWS account (and every new account after
+it) does not go live on its own: once the console's checks pass - the role can
+be assumed, the configuration is readable, and events arrive from every chosen
+region plus us-east-1 - the API server records a request in
+`nhi_global.connection_approvals` (API migration `global/007`) and e-mails the
+people in its `CONNECTION_APPROVAL_EMAILS` (SMTP settings in the API's `.env`).
+
+The **Approvals** page here lists them. A super admin approves (the account
+becomes `active`, connected, and its first scan is queued) or rejects with a
+reason the company sees on its Integrations page. While any page of this app
+is open, the bell, the sidebar badge, the tab title and a toast announce new
+requests within 20 seconds; desktop alerts can be turned on per browser.
+
+New tenant schemas get the connection and approval columns on `accounts`
+from `sql/tenant_schema.sql`; older ones get them from the API's
+`migrations/tenant/009_account_approval.sql` (or on first use).

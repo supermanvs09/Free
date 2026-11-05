@@ -20,7 +20,7 @@ import { useToast } from '../../ui/Toast';
 import { cn } from '../../ui/cn';
 import { AccountDrawer } from './AccountDrawer';
 import { AccountsTable } from './AccountsTable';
-import { AWS_STATUS } from './awsSetup';
+import { AWS_STATUS, isWatching } from './awsSetup';
 import { AwsConnectWizard } from './AwsConnectWizard';
 import { ExposureDrawer } from './ExposureDrawer';
 import { OverviewTiles, SourceCards } from './IntegrationsOverview';
@@ -91,14 +91,18 @@ export default function IntegrationsPage() {
     if (adding && data) addSectionRef.current?.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' });
   }, [adding, data]);
 
-  /* While a sync is queued or running, keep the page current on its own. */
+  /* While a sync is queued or running, an events check watches, or a
+     connection waits for approval, keep the page current on its own. */
   const syncing = (data?.accounts ?? []).some((account) => account.sync.status === 'queued' || account.sync.status === 'running');
+  const watching = manage && (data?.accounts ?? []).some((account) => isWatching(account.checks));
+  const awaiting = manage && (data?.accounts ?? []).some((account) => account.status === 'pending_approval');
   const refresh = workspace.refresh;
+  const pollEvery = watching ? 5000 : syncing ? 8000 : awaiting ? 30000 : 0;
   useEffect(() => {
-    if (!syncing) return undefined;
-    const id = setInterval(() => refresh(), 8000);
+    if (!pollEvery) return undefined;
+    const id = setInterval(() => refresh(), pollEvery);
     return () => clearInterval(id);
-  }, [syncing, refresh]);
+  }, [pollEvery, refresh]);
 
   /* A sync from this console ended: read the accounts' own sync state again. */
   const syncEpoch = useSyncExternalStore(subscribeEpoch, getEpoch);
@@ -116,7 +120,7 @@ export default function IntegrationsPage() {
   };
 
   const onVerified = (outcome) => {
-    if (outcome.status === 'connected') {
+    if (outcome.status === 'connected' && outcome.phase !== 'watching') {
       if (!workspace.hasConnectedAccount) {
         /* The first account: celebrate here, and open the console only when
            the reader moves on - refreshing now would swap the shell under them. */
@@ -147,8 +151,12 @@ export default function IntegrationsPage() {
     }
   };
 
-  /* Previous unconnected attempt, so the setup reopens where it was left. */
-  const previous = !manage ? ((data?.accounts ?? []).find((account) => account.status !== 'connected') ?? null) : null;
+  /* Previous unconnected attempt, so the setup reopens where it was left: one
+     waiting for approval or still watching first, then the latest other. */
+  const unconnected = (data?.accounts ?? []).filter((account) => account.status !== 'connected');
+  const previous = !manage
+    ? (unconnected.find((account) => account.status === 'pending_approval' || isWatching(account.checks)) ?? unconnected[0] ?? null)
+    : null;
 
   if (!workspace.hasConnectedAccount && onboardingDone) {
     return (
@@ -217,6 +225,8 @@ export default function IntegrationsPage() {
           {manage && justAdded && <AddedBanner accountId={justAdded} onDismiss={() => setJustAdded('')} />}
 
           {manage && <AttentionBanner accounts={data.accounts} onOpen={(account) => setParam('account', account.accountId)} />}
+
+          {manage && <ApprovalBanner accounts={data.accounts} onOpen={(account) => setParam('account', account.accountId)} />}
 
           {manage && <OverviewTiles accounts={data.accounts} inventory={inventory} regionNames={regionNames} />}
 
@@ -378,7 +388,7 @@ function OnboardingSuccess({ accountId, onOpen, onAnother }) {
         </span>
         <h1 className="mt-5 text-[22px] font-extrabold tracking-[-0.02em] text-ink">AWS is connected</h1>
         <p className="mt-1.5 text-[13.5px] text-ink-2">
-          Account <span className="font-mono font-semibold text-ink">{accountId}</span> passed all three checks. We now discover its
+          Account <span className="font-mono font-semibold text-ink">{accountId}</span> passed all three checks and adapID approved it. We now discover its
           identities and credentials; your dashboard fills in after the first scan.
         </p>
         <div className="mt-6 flex flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
@@ -578,6 +588,53 @@ function AttentionBanner({ accounts, onOpen }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/** Accounts that passed every check and wait for adapID, and any it did not approve. */
+function ApprovalBanner({ accounts, onOpen }) {
+  const waiting = accounts.filter((account) => account.status === 'pending_approval');
+  const rejected = accounts.filter((account) => account.status === 'rejected');
+  if (waiting.length === 0 && rejected.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-2">
+      {waiting.length > 0 && (
+        <div role="status" className="animate-rise flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-[var(--radius-panel)] border border-info/30 bg-info-soft px-4 py-3">
+          <Clock3 aria-hidden="true" className="size-4.5 shrink-0 text-info" />
+          <p className="min-w-0 flex-1 text-[13px] text-ink-2">
+            <span className="font-semibold text-ink">
+              {waiting.length === 1 ? (
+                <>
+                  Account <span className="font-mono">{waiting[0].accountId}</span> is waiting for approval
+                </>
+              ) : (
+                `${waiting.length} accounts are waiting for approval`
+              )}
+            </span>{' '}
+            - every check passed. adapID reviews each new connection before scanning starts; this page updates on its own.
+          </p>
+          {waiting.length === 1 && (
+            <Button variant="secondary" size="sm" onClick={() => onOpen(waiting[0])}>
+              Open account
+            </Button>
+          )}
+        </div>
+      )}
+      {rejected.map((account) => (
+        <div key={account.accountId} role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-[var(--radius-panel)] border border-critical/30 bg-critical-soft px-4 py-3">
+          <AlertTriangle aria-hidden="true" className="size-4.5 shrink-0 text-critical" />
+          <p className="min-w-0 flex-1 text-[13px] text-ink-2">
+            <span className="font-semibold text-ink">
+              Account <span className="font-mono">{account.accountId}</span> was not approved
+            </span>
+            {account.approval.note ? ` - “${account.approval.note}”` : '.'} Fix the setup, then re-check the connection to ask again.
+          </p>
+          <Button variant="secondary" size="sm" onClick={() => onOpen(account)}>
+            Open account
+          </Button>
+        </div>
+      ))}
     </div>
   );
 }

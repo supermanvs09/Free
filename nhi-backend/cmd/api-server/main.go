@@ -259,6 +259,16 @@ func main() {
 		awsEvents = awsintegration.QueueEventSource{Client: awsClient}
 		slog.Info("aws integration: events check reads the SQS queue", "queue_url", cfg.AWSIntegration.EventQueueURL)
 	}
+	// A machine with no AWS behind it can stand in a simulator, so the whole
+	// connection flow can be tried: never in production.
+	if strings.EqualFold(os.Getenv("NHI_AWS_SIMULATE"), "true") {
+		if env := strings.ToLower(os.Getenv("NHI_ENV")); env == "production" || env == "prod" {
+			fatal("aws integration", fmt.Errorf("NHI_AWS_SIMULATE is refused when NHI_ENV is production"))
+		}
+		every, _ := time.ParseDuration(os.Getenv("NHI_AWS_SIMULATE_EVENT_EVERY"))
+		awsVerifier, awsEvents = awsintegration.NewSimulatedVerifier(every)
+		slog.Warn("aws integration: SIMULATED AWS - no real account is checked (NHI_AWS_SIMULATE=true). Never use this in production.")
+	}
 	awsIntegrationHandler := awsintegration.NewAWSIntegrationHandler(awsintegration.NewAWSIntegrationService(
 		awsintegration.NewAWSIntegrationRepository(db),
 		awsVerifier,

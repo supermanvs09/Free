@@ -55,7 +55,7 @@ const PASS = {
   read_access: 'Read access works.',
   events: 'Events from your account are arriving.',
 };
-const LABELS = { assume_role: 'Assume your role', read_access: 'Read your account', events: 'Receive your events' };
+const LABELS = { assume_role: 'The role can be assumed', read_access: 'Your configuration is readable', events: 'Events arrive from each region' };
 
 function awsChecks(failing = null) {
   return ['assume_role', 'read_access', 'events'].map((key) =>

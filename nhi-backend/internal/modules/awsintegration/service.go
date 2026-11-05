@@ -871,9 +871,9 @@ func (s *AWSIntegrationService) RemoveAccount(ctx context.Context, caller AWSCal
 
 func newChecks() []AWSCheck {
 	return []AWSCheck{
-		{Key: AWSCheckAssumeRole, Label: "Assume your role"},
-		{Key: AWSCheckReadAccess, Label: "Read your account"},
-		{Key: AWSCheckEvents, Label: "Receive your events"},
+		{Key: AWSCheckAssumeRole, Label: "The role can be assumed"},
+		{Key: AWSCheckReadAccess, Label: "Your configuration is readable"},
+		{Key: AWSCheckEvents, Label: "Events arrive from each region"},
 	}
 }
 

@@ -5,6 +5,7 @@
  */
 
 export const AWS_CONSOLE = {
+  cloudTrail: 'https://console.aws.amazon.com/cloudtrailv2/home#/trails',
   iamRoles: 'https://console.aws.amazon.com/iam/home#/roles',
   eventBridgeRules: 'https://console.aws.amazon.com/events/home#/rules',
   secretsManager: 'https://console.aws.amazon.com/secretsmanager/listsecrets',
@@ -20,6 +21,7 @@ export function trustPolicyJson(setup) {
       Version: '2012-10-17',
       Statement: [
         {
+          Sid: 'AllowAdapIDAssume',
           Effect: 'Allow',
           Principal: { AWS: setup.assumerRoleArn },
           Action: 'sts:AssumeRole',
@@ -32,14 +34,140 @@ export function trustPolicyJson(setup) {
   );
 }
 
+/** The event sources of the rule; aws.codecommit only with code scanning. */
+export function eventSourcesFor(setup, { codeScanning = true } = {}) {
+  return setup.eventSources.filter((source) => codeScanning || source !== 'aws.codecommit');
+}
+
 /** The EventBridge rule's custom event pattern. */
-export function eventPatternJson(setup) {
+export function eventPatternJson(setup, options) {
   /* Four sources to a line: the same JSON as JSON.stringify, laid out to be
      read at a glance rather than one value per line. */
-  const quoted = setup.eventSources.map((source) => JSON.stringify(source));
+  const quoted = eventSourcesFor(setup, options).map((source) => JSON.stringify(source));
   const lines = [];
   for (let i = 0; i < quoted.length; i += 4) lines.push(quoted.slice(i, i + 4).join(', '));
   return `{\n  "source": [\n    ${lines.join(',\n    ')}\n  ]\n}`;
+}
+
+/** Optional inline policy NHIPlatformTrailRead: read the trail's log history in S3. */
+export function trailReadPolicyJson({ bucket, kmsKeyArn, region, encrypted = true } = {}) {
+  const name = String(bucket ?? '').trim() || '<TRAIL_BUCKET_NAME>';
+  const statements = [
+    {
+      Sid: 'ReadTrailLogs',
+      Effect: 'Allow',
+      Action: ['s3:GetObject', 's3:ListBucket'],
+      Resource: [`arn:aws:s3:::${name}`, `arn:aws:s3:::${name}/AWSLogs/*`],
+    },
+  ];
+  if (encrypted) {
+    statements.push({
+      Sid: 'DecryptTrailLogs',
+      Effect: 'Allow',
+      Action: 'kms:Decrypt',
+      Resource: String(kmsKeyArn ?? '').trim() || '<TRAIL_KMS_KEY_ARN>',
+      Condition: { StringEquals: { 'kms:ViaService': `s3.${String(region ?? '').trim() || '<REGION>'}.amazonaws.com` } },
+    });
+  }
+  return JSON.stringify({ Version: '2012-10-17', Statement: statements }, null, 2);
+}
+
+/** The CodeCommit reads code scanning needs (NHIPlatformCodeCommitRead). */
+export const CODECOMMIT_READ_ACTIONS = [
+  'codecommit:GitPull',
+  'codecommit:ListRepositories',
+  'codecommit:GetRepository',
+  'codecommit:BatchGetRepositories',
+  'codecommit:ListBranches',
+  'codecommit:GetBranch',
+  'codecommit:GetReferences',
+  'codecommit:GetFile',
+  'codecommit:GetFolder',
+  'codecommit:GetBlob',
+  'codecommit:GetCommit',
+  'codecommit:BatchGetCommits',
+  'codecommit:GetDifferences',
+];
+
+/** Optional inline policy NHIPlatformCodeCommitRead, for code scanning. */
+export function codeCommitReadPolicyJson({ customerKey = true } = {}) {
+  const statements = [{ Sid: 'CodeCommitReadOnly', Effect: 'Allow', Action: CODECOMMIT_READ_ACTIONS, Resource: '*' }];
+  if (customerKey) {
+    statements.push({
+      Sid: 'CodeCommitKMSDecrypt',
+      Effect: 'Allow',
+      Action: ['kms:Decrypt', 'kms:DescribeKey'],
+      Resource: '*',
+      Condition: { StringLike: { 'kms:ViaService': 'codecommit.*.amazonaws.com' } },
+    });
+  }
+  return JSON.stringify({ Version: '2012-10-17', Statement: statements }, null, 2);
+}
+
+/** Trust policy of the forwarding role: EventBridge, from the client's own account only. */
+export function forwardRoleTrustJson(clientAccountId) {
+  return JSON.stringify(
+    {
+      Version: '2012-10-17',
+      Statement: [
+        {
+          Effect: 'Allow',
+          Principal: { Service: 'events.amazonaws.com' },
+          Action: 'sts:AssumeRole',
+          Condition: { StringEquals: { 'aws:SourceAccount': clientAccountId || '<CLIENT_ACCOUNT_ID>' } },
+        },
+      ],
+    },
+    null,
+    2,
+  );
+}
+
+/** Inline policy on the forwarding role: put events on our bus, nothing else. */
+export const FORWARD_POLICY_NAME = 'NHIForwardToAdapID';
+const forwardPolicy = (setup) => ({
+  Version: '2012-10-17',
+  Statement: [{ Effect: 'Allow', Action: 'events:PutEvents', Resource: setup.eventBusArn }],
+});
+export const forwardRolePolicyJson = (setup) => JSON.stringify(forwardPolicy(setup), null, 2);
+
+/** The regions the rule must exist in: the chosen ones, plus us-east-1 for IAM and STS. */
+export function ruleRegions(regions = []) {
+  const list = [...new Set(regions.filter(Boolean))];
+  if (!list.includes('us-east-1')) list.push('us-east-1');
+  return list;
+}
+
+/** The forwarding role from a terminal signed in to the client's account. */
+export function forwardRoleCli(setup) {
+  return [
+    'ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)',
+    '# $ACCOUNT_ID is filled in by the shell (the heredoc is unquoted).',
+    'cat > nhi-forward-trust.json <<EOF',
+    forwardRoleTrustJson('$ACCOUNT_ID'),
+    'EOF',
+    `aws iam create-role --role-name ${setup.forwardRoleName} \\`,
+    '  --assume-role-policy-document file://nhi-forward-trust.json',
+    `aws iam put-role-policy --role-name ${setup.forwardRoleName} \\`,
+    `  --policy-name ${FORWARD_POLICY_NAME} \\`,
+    `  --policy-document '${JSON.stringify(forwardPolicy(setup))}'`,
+  ].join('\n');
+}
+
+/** The rule and its target in every region, from a terminal. */
+export function ruleCli(setup, regions = [], options) {
+  const pattern = JSON.stringify({ source: eventSourcesFor(setup, options) });
+  return [
+    'ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)',
+    `for REGION in ${ruleRegions(regions).join(' ')}; do`,
+    '  aws events put-rule --region "$REGION" \\',
+    `    --name ${setup.ruleName} --event-bus-name default \\`,
+    `    --event-pattern '${pattern}'`,
+    '  aws events put-targets --region "$REGION" \\',
+    `    --rule ${setup.ruleName} --event-bus-name default \\`,
+    `    --targets "Id=adapid,Arn=${setup.eventBusArn},RoleArn=arn:aws:iam::$ACCOUNT_ID:role/${setup.forwardRoleName}"`,
+    'done',
+  ].join('\n');
 }
 
 /** What a pasted role ARN should look like, with the client's account left open. */
@@ -86,14 +214,15 @@ export function roleNameOfArn(value) {
  * step that fixes each one - so a failed check can open the step it points at.
  */
 export const AWS_CHECKS = [
-  { key: 'assume_role', label: 'Assume your role', step: 1, proves: 'sts:AssumeRole with your External ID' },
-  { key: 'read_access', label: 'Read your account', step: 1, proves: 'One read: iam:ListRoles' },
-  { key: 'events', label: 'Receive your events', step: 2, proves: 'An event from your account reached our bus' },
+  { key: 'assume_role', label: 'The role can be assumed', step: 2, proves: 'sts:AssumeRole with your External ID' },
+  { key: 'read_access', label: 'Your configuration is readable', step: 2, proves: 'One read with SecurityAudit and ViewOnlyAccess' },
+  { key: 'events', label: 'Events arrive from each region', step: 4, proves: 'An event from every region, and IAM events from us-east-1' },
 ];
 
 /** Workspace-level state, from `status` on the integration. */
 export const AWS_STATUS = {
   not_connected: { label: 'Not connected', tone: 'neutral' },
+  pending_approval: { label: 'Waiting for approval', tone: 'info' },
   action_needed: { label: 'Needs attention', tone: 'medium' },
   connected: { label: 'Connected', tone: 'low' },
 };
@@ -101,74 +230,128 @@ export const AWS_STATUS = {
 /** One account's state, from `account_status`. */
 export const ACCOUNT_STATUS = {
   pending: { label: 'Setting up', tone: 'info' },
+  pending_approval: { label: 'Waiting for approval', tone: 'info' },
+  rejected: { label: 'Not approved', tone: 'critical' },
   action_needed: { label: 'Needs attention', tone: 'medium' },
   connected: { label: 'Connected', tone: 'low' },
 };
+
+/** The events check of a run, and whether it is still watching for events. */
+export const eventsCheckOf = (checks) => (checks ?? []).find((check) => check.key === 'events') ?? null;
+export const isWatching = (checks) => eventsCheckOf(checks)?.state === 'running';
 
 /**
  * The whole setup as Markdown, with this workspace's values filled in - for
  * the common case where the admin connecting the account is not the person
  * with access to that AWS account.
  */
-export function setupGuideMarkdown(setup, regions = []) {
-  const ruleRegions = regions.length
-    ? `Create this rule in each of these regions: ${regions.map((code) => `\`${code}\``).join(', ')}${regions.includes('us-east-1') ? '' : ', and in `us-east-1` for IAM events'}.`
-    : 'Create this rule in every region you use, and in us-east-1 for IAM events.';
-  return `# Connect AWS to the NHI console
+export function setupGuideMarkdown(setup, regions = [], { codeScanning = true } = {}) {
+  const fence = '```';
+  const ruleList = ruleRegions(regions);
+  return `# Connect AWS to the adapID NHI console
 
-Two read-only changes in the AWS account you want to connect. About 10 minutes.
+Four read-only changes in the AWS account you want to connect, then one check from the console. About 20 minutes.
 
 | Value | |
 |---|---|
-| Our account ID | \`${setup.accountId}\` |
-| External ID | \`${setup.externalId}\` (unique to this workspace; keep it within your team) |
-| Event bus ARN | \`${setup.eventBusArn}\` |
-| Region | \`${setup.region}\` |
+| adapID AWS account ID | \`${setup.accountId}\` |
+| Your unique External ID | \`${setup.externalId}\` (unique to this workspace; keep it within your team) |
+| adapID event bus ARN | \`${setup.eventBusArn}\` |
+| adapID AWS Region | \`${setup.region}\` |
 
-## Step 1 - Create the read-only IAM role
+Also have ready the list of AWS regions you use.
 
-1. IAM → Roles → **Create role**.
-2. Trusted entity: **AWS account** → **Another AWS account**.
-3. Account ID: \`${setup.accountId}\`
-4. Tick **Require external ID** and paste \`${setup.externalId}\`
-5. Attach the AWS-managed policies: ${setup.managedPolicies.map((policy) => `\`${policy}\``).join(' and ')}
-6. Role name: \`${setup.roleName}\` → **Create role**.
-7. Open the role and copy its **ARN**. Send it back to whoever is connecting the account.
+## Step 1 - CloudTrail trail
 
-Alternatively, paste this trust policy under **Trust relationships → Edit trust policy**:
+CloudTrail records the API activity that EventBridge forwards. **Reuse an existing trail** if one is multi-region and logs both Read and Write management events (an organization trail also qualifies): the first copy of management events per region is free, extra trails logging the same events are charged.
 
-\`\`\`json
+Only if no qualifying trail exists:
+
+1. CloudTrail → Trails → **Create trail**. Trail name: \`${setup.trailName}\`.
+2. Storage location: create a new S3 bucket (accept the suggested name). Log file validation: enabled. SSE-KMS encryption is optional. **Next**.
+3. Event type: **Management events**; API activity: **Read** and **Write**. Leave data events and Insights off. **Next** → **Create trail**.
+4. Open the trail and confirm **Multi-region trail: Yes**.
+
+## Step 2 - IAM role ${setup.roleName}
+
+1. IAM → Roles → **Create role** → **Custom trust policy**, paste the trust policy below. **Next**.
+2. Tick ${setup.managedPolicies.map((policy) => `**${policy}**`).join(' and ')}. **Next**.
+3. Role name: \`${setup.roleName}\` → **Create role**.
+4. Optional: role → **Add permissions** → **Create inline policy** → JSON, and paste a policy below. Repeat for each one you need.
+5. Copy the role **ARN**.
+
+Trust policy:
+
+${fence}json
 ${trustPolicyJson(setup)}
-\`\`\`
+${fence}
 
-## Step 2 - Forward CloudTrail events
+Optional - **NHIPlatformTrailRead** (CloudTrail log history). Drop DecryptTrailLogs if the trail isn't encrypted with SSE-KMS:
 
-1. EventBridge → Rules → **Create rule**.
-2. Name: \`${setup.ruleName}\`. Event bus: **default**. Rule type: **Rule with an event pattern**.
-3. Event pattern → **Custom pattern (JSON)**:
+${fence}json
+${trailReadPolicyJson()}
+${fence}
 
-\`\`\`json
-${eventPatternJson(setup)}
-\`\`\`
+Optional - **NHIPlatformCodeCommitRead** (code scanning). Drop CodeCommitKMSDecrypt if repositories use the default AWS-managed key:
 
-4. Target: **EventBridge event bus in a different account or Region**.
-5. Event bus ARN: \`${setup.eventBusArn}\`
-6. Keep **Create a new role for this specific resource** → **Create rule**.
+${fence}json
+${codeCommitReadPolicyJson()}
+${fence}
 
-${ruleRegions}
+## Step 3 - EventBridge forwarding role ${setup.forwardRoleName}
 
-## Step 3 - Verify
+This role lets EventBridge send events to adapID's event bus. Create it once; the rule in every region uses it.
 
-On the console's Integrations page, paste the role ARN, choose the regions to read${regions.length ? ` (${regions.join(', ')})` : ''}, and choose **Verify connection**.
+1. IAM → Roles → **Create role** → **Custom trust policy**, paste (with this account's ID in place of \`<CLIENT_ACCOUNT_ID>\`):
+
+${fence}json
+${forwardRoleTrustJson()}
+${fence}
+
+2. **Next**, skip attaching policies, **Next**. Role name: \`${setup.forwardRoleName}\` → **Create role**.
+3. Role → **Add permissions** → **Create inline policy** → JSON, paste, and name it \`${FORWARD_POLICY_NAME}\`:
+
+${fence}json
+${forwardRolePolicyJson(setup)}
+${fence}
+
+## Step 4 - EventBridge rule ${setup.ruleName} (default event bus)
+
+Create this rule in each of these regions: ${ruleList.map((code) => `\`${code}\``).join(', ')}. us-east-1 is always needed: IAM and STS global events are delivered there.
+
+1. Switch the console to the region → EventBridge → Rules → **Create rule**.
+2. Name: \`${setup.ruleName}\`. Event bus: **default**. **Next**.
+3. Event source: **AWS events**. Creation method: **Custom pattern (JSON editor)**. Paste:
+
+${fence}json
+${eventPatternJson(setup, { codeScanning })}
+${fence}
+
+4. **Next**. Target type: **EventBridge event bus** → **Event bus in a different account or Region** → \`${setup.eventBusArn}\`.
+5. Execution role: **Use existing role** → \`${setup.forwardRoleName}\`. **Next** → **Create rule**.
+${codeScanning ? '\nRemove `aws.codecommit` from the pattern if you are not using code scanning.\n' : ''}
+## Step 5 - Verify
+
+In the console's Integrations page, paste the role ARN, choose the regions${regions.length ? ` (${regions.join(', ')})` : ''} and choose **Verify connection**. It confirms:
+
+- the role can be assumed
+- your configuration is readable
+- events are arriving from each region (including IAM events from us-east-1)
+
+When all checks pass, adapID reviews the new connection; once approved it shows as **Connected** and scanning begins.
 `;
 }
 
-/** The three setup steps: what each produces and roughly how long it takes. */
+/** The setup steps: what each produces and roughly how long it takes. */
 export const SETUP_STEPS = [
-  { number: 1, title: 'Create the read-only IAM role', where: 'IAM console', minutes: 4 },
-  { number: 2, title: 'Forward CloudTrail events', where: 'EventBridge console', minutes: 4 },
-  { number: 3, title: 'Verify the connection', where: 'This page', minutes: 1 },
+  { number: 1, title: 'Check for a CloudTrail trail', where: 'CloudTrail console', minutes: 3 },
+  { number: 2, title: `Create the read-only role`, where: 'IAM console', minutes: 4 },
+  { number: 3, title: 'Create the forwarding role', where: 'IAM console', minutes: 3 },
+  { number: 4, title: 'Forward events from each region', where: 'EventBridge console', minutes: 6 },
+  { number: 5, title: 'Verify the connection', where: 'This page', minutes: 2 },
 ];
+/** The steps done in the AWS console, which the admin marks as done. */
+export const MANUAL_STEPS = [1, 2, 3, 4];
 
 /* ── Exposed credentials ────────────────────────────────────────────────── */
 

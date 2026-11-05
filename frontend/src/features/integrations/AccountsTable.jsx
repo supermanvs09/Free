@@ -49,11 +49,14 @@ export function syncDetail(account, { withActor = false } = {}) {
   if (sync.status === 'queued' && sync.requestedAt)
     return `Requested ${formatRelative(sync.requestedAt)}${withActor && sync.requestedBy ? ` by ${sync.requestedBy}` : ''}`;
   if (sync.lastSyncedAt) return `Last finished ${formatRelative(sync.lastSyncedAt)}`;
+  if (account.status === 'pending_approval') return 'Starts once approved';
+  if (account.status === 'rejected') return 'Not approved';
   return account.status !== 'connected' ? 'After the checks pass' : 'Starts automatically';
 }
 
 /** Why "Sync now" is not available, or '' when it is. */
 export function syncBlockedReason(account) {
+  if (account.status === 'pending_approval') return 'Syncing starts once adapID approves this connection';
   if (account.status !== 'connected') return 'Fix the connection before syncing';
   if (account.regions.length === 0) return 'Choose regions to read first';
   return '';
@@ -86,9 +89,15 @@ export function useAccountActions(account, { onChanged, onEditRegions } = {}) {
     setBusy('check');
     try {
       const outcome = await verifyAwsConnection({ roleArn: account.roleArn, regions: account.regions });
-      const failing = outcome.checks.find((check) => check.state !== 'pass');
+      const failing = outcome.checks.find((check) => check.state !== 'pass' && check.state !== 'running');
       notify(
-        outcome.status === 'connected'
+        outcome.watching && !failing
+          ? {
+              variant: 'info',
+              title: `${account.accountId}: role checks passed`,
+              description: 'Now watching for events from each region. The account stays connected meanwhile; this page shows the result.',
+            }
+          : outcome.status === 'connected' && !failing
           ? { variant: 'success', title: `${account.accountId} is healthy`, description: 'All three connection checks passed.' }
           : {
               variant: 'error',
@@ -274,12 +283,22 @@ function AccountRow({ account, names, counts, inventoryKnown, canManage, onChang
 
         {/* Connection */}
         <div className="min-w-0">
-          <span className={cn('inline-flex items-center gap-1.5 text-[12.5px] font-medium', { low: 'text-low', info: 'text-info' }[meta.tone] ?? 'text-medium')}>
-            {account.status === 'connected' ? <CheckCircle2 aria-hidden="true" className="size-3.5" /> : <AlertTriangle aria-hidden="true" className="size-3.5" />}
+          <span className={cn('inline-flex items-center gap-1.5 text-[12.5px] font-medium', { low: 'text-low', info: 'text-info', critical: 'text-critical' }[meta.tone] ?? 'text-medium')}>
+            {account.status === 'connected' ? (
+              <CheckCircle2 aria-hidden="true" className="size-3.5" />
+            ) : account.status === 'pending_approval' ? (
+              <Clock3 aria-hidden="true" className="size-3.5" />
+            ) : (
+              <AlertTriangle aria-hidden="true" className="size-3.5" />
+            )}
             {meta.label}
           </span>
           <span className="mt-0.5 block truncate text-[11.5px] text-ink-3" title={failing ? `${failing.label}: ${failing.message}` : undefined}>
-            {failing ? `Failing: ${failing.label}` : account.checks.length ? (passed === 3 ? 'All 3 checks pass' : `${passed} of 3 checks pass`) : 'Not checked yet'}
+            {account.status === 'pending_approval'
+              ? 'All checks pass · awaiting adapID'
+              : account.status === 'rejected'
+                ? account.approval.note || 'Fix and re-check to ask again'
+                : failing ? `Failing: ${failing.label}` : account.checks.length ? (passed === 3 ? 'All 3 checks pass' : `${passed} of 3 checks pass`) : 'Not checked yet'}
           </span>
         </div>
 

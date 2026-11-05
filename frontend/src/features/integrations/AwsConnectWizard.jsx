@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import {
   Check,
   CheckCircle2,
@@ -13,7 +13,7 @@ import {
   Users,
 } from 'lucide-react';
 import { downloadText } from '../../lib/csv';
-import { verifyAwsConnection } from '../../lib/api/integrations';
+import { fetchAwsIntegration, verifyAwsConnection } from '../../lib/api/integrations';
 import { Button } from '../../ui/Button';
 import { CopyButton } from '../../ui/Copyable';
 import { Field, Input } from '../../ui/Field';
@@ -23,75 +23,132 @@ import { useToast } from '../../ui/Toast';
 import { cn } from '../../ui/cn';
 import {
   AWS_CONSOLE,
+  FORWARD_POLICY_NAME,
+  MANUAL_STEPS,
   SETUP_STEPS,
   accountOfRoleArn,
+  codeCommitReadPolicyJson,
   eventPatternJson,
   exampleRoleArn,
+  forwardRoleCli,
+  forwardRolePolicyJson,
+  forwardRoleTrustJson,
+  isWatching,
   roleArnProblem,
+  ruleCli,
+  ruleRegions,
   setupGuideMarkdown,
+  trailReadPolicyJson,
   trustPolicyJson,
 } from './awsSetup';
-import { VerifyResult } from './CheckList';
+import { ApprovalWait, EventsWatch, VerifyResult } from './CheckList';
 import { RegionPicker } from './RegionPicker';
 import { CodeBlock, CopyChip, Disclosure, Instructions, copyText } from './parts';
 
 const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-/* Which steps the admin has marked done, per workspace. A convenience only:
-   the API's checks are what decide whether anything is connected. */
-function readDone(key, fallback) {
+/* How often the page reads the account while the events check watches, and
+   while a connection waits for approval. */
+const WATCH_POLL_MS = 4000;
+const APPROVAL_POLL_MS = 20000;
+
+/* Which steps the admin has marked done, and the options chosen, per
+   workspace. A convenience only: the API's checks decide what is connected. */
+function readProgress(key, fallback) {
   try {
     const raw = JSON.parse(localStorage.getItem(key) ?? 'null');
-    if (Array.isArray(raw)) return new Set(raw.filter((n) => n === 1 || n === 2));
+    if (Array.isArray(raw)) return { done: new Set(raw.filter((n) => MANUAL_STEPS.includes(n))), codeScanning: true };
+    if (raw && Array.isArray(raw.done)) {
+      return { done: new Set(raw.done.filter((n) => MANUAL_STEPS.includes(n))), codeScanning: raw.codeScanning !== false };
+    }
   } catch {
     /* unreadable storage: start from the fallback */
   }
-  return new Set(fallback);
+  return { done: new Set(fallback), codeScanning: true };
 }
 
-function writeDone(key, done) {
+function writeProgress(key, progress) {
   try {
-    localStorage.setItem(key, JSON.stringify([...done]));
+    localStorage.setItem(key, JSON.stringify({ done: [...progress.done], codeScanning: progress.codeScanning }));
   } catch {
     /* private window: progress lasts for this page */
   }
 }
 
+export function clearSetupProgress(key) {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    /* nothing kept */
+  }
+}
+
+/* Where a run stands, from an account as the API returns it. */
+function phaseOf(account) {
+  if (!account) return 'idle';
+  if (isWatching(account.checks)) return 'watching';
+  if (account.status === 'pending_approval') return 'awaiting';
+  if (account.status === 'rejected') return 'rejected';
+  if (account.status === 'connected') return 'connected';
+  return account.checks?.length ? 'failed' : 'idle';
+}
+
+const runOf = (account) =>
+  account
+    ? {
+        phase: phaseOf(account),
+        accountId: account.accountId,
+        status: account.status,
+        checks: account.checks,
+        verifiedAt: account.lastVerifiedAt,
+        approval: account.approval,
+      }
+    : { phase: 'idle' };
+
 /**
- * "Connect AWS Account" as a guided timeline: two steps done in the AWS
- * console, then Verify - beside a panel holding everything to copy, what is
- * being granted, and a way to hand the whole setup to whoever owns the AWS
- * account.
+ * "Connect an AWS account" as a guided timeline: four steps in the AWS
+ * console (CloudTrail, the read-only role, the forwarding role, the rule in
+ * each region), then Verify - beside a panel holding everything to copy,
+ * what is being granted, and the whole setup as a document for whoever owns
+ * the AWS account.
  *
- * Every value in the instructions is this workspace's own, placed exactly
- * where the console asks for it and copied in one click. A failed check names
- * its fix and opens the step that makes it.
+ * Verify runs the role checks at once and then watches for events from each
+ * region for up to `setup.eventWaitMinutes`, reporting as they arrive. A first
+ * connection that passes everything waits for adapID's approval; the page
+ * follows it on its own and opens the console once approved.
  *
- * `previous` is the account last checked and not connected: its ARN and
- * checks are restored so a reload does not lose where the admin got to.
+ * `previous` is the account last checked and not connected: its ARN, regions
+ * and run are restored so a reload does not lose where the admin got to.
  */
 export function AwsConnectWizard({ setup, previous, storageKey, title = 'Connect an AWS account', onVerified, onCancel }) {
-  const [done, setDone] = useState(() => readDone(storageKey, previous ? [1, 2] : []));
-  const [openStep, setOpenStep] = useState(() => [1, 2].find((n) => !done.has(n)) ?? null);
+  const [progress, setProgress] = useState(() => readProgress(storageKey, previous ? MANUAL_STEPS : []));
+  const { done, codeScanning } = progress;
+  const [openStep, setOpenStep] = useState(() => (previous ? null : (MANUAL_STEPS.find((n) => !progress.done.has(n)) ?? null)));
   const [roleArn, setRoleArn] = useState(previous?.roleArn ?? '');
-  const [regions, setRegions] = useState(previous?.regions ?? []);
+  /* With a single region on offer there is nothing to choose. */
+  const [regions, setRegions] = useState(() => previous?.regions ?? (setup.regions.length === 1 ? [setup.regions[0].code] : []));
   const [regionsError, setRegionsError] = useState('');
-  const regionsRef = useRef(null);
   const [touched, setTouched] = useState(false);
   const [serverProblem, setServerProblem] = useState('');
   const [requestError, setRequestError] = useState(null);
   const [running, setRunning] = useState(false);
-  const [result, setResult] = useState(
-    previous ? { status: previous.status, checks: previous.checks, verifiedAt: previous.lastVerifiedAt } : null,
-  );
+  const [run, setRun] = useState(() => runOf(previous));
   const stepRefs = useRef({});
   const inputRef = useRef(null);
+  const regionsRef = useRef(null);
+  const verifyRegionsRef = useRef(null);
+  const resultRef = useRef(null);
 
-  const scrollToStep = (number) =>
-    stepRefs.current[number]?.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' });
+  const save = (next) => {
+    setProgress(next);
+    writeProgress(storageKey, next);
+  };
+
+  const scrollTo = (node, block = 'start') => node?.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block });
+  const scrollToStep = (number) => scrollTo(stepRefs.current[number]);
 
   const showStep = (number) => {
-    setOpenStep(number === 3 ? null : number);
+    setOpenStep(number === 5 ? null : number);
     scrollToStep(number);
   };
 
@@ -99,46 +156,123 @@ export function AwsConnectWizard({ setup, previous, storageKey, title = 'Connect
     const next = new Set(done);
     if (value) next.add(number);
     else next.delete(number);
-    setDone(next);
-    writeDone(storageKey, next);
+    save({ ...progress, done: next });
     if (value) {
-      const following = [1, 2].find((n) => n > number && !next.has(n));
+      const following = MANUAL_STEPS.find((n) => n > number && !next.has(n)) ?? MANUAL_STEPS.find((n) => !next.has(n));
       setOpenStep(following ?? null);
-      scrollToStep(following ?? 3);
+      scrollToStep(following ?? 5);
       if (!following) inputRef.current?.focus({ preventScroll: true });
     }
   };
 
+  /* ── Following a run: the events watch, then the approval ─────────────── */
+
+  const onVerifiedRef = useRef(onVerified);
+  useEffect(() => {
+    onVerifiedRef.current = onVerified;
+  });
+  const reported = useRef('');
+  const report = useCallback((next) => {
+    const key = `${next.accountId}:${next.phase}`;
+    if (reported.current === key) return;
+    reported.current = key;
+    onVerifiedRef.current?.({ status: next.status, accountId: next.accountId, saved: true, phase: next.phase });
+  }, []);
+
+  const [checkingNow, setCheckingNow] = useState(false);
+  const readAccount = useCallback(
+    async (accountId) => {
+      const data = await fetchAwsIntegration();
+      const account = data.accounts.find((entry) => entry.accountId === accountId);
+      if (!account) return null;
+      const next = runOf(account);
+      setRun(next);
+      if (next.phase !== 'watching') report(next);
+      return next;
+    },
+    [report],
+  );
+
+  const following = run.phase === 'watching' || run.phase === 'awaiting';
+  useEffect(() => {
+    if (!following || !run.accountId) return undefined;
+    let stopped = false;
+    let timer = null;
+    const delay = run.phase === 'watching' ? WATCH_POLL_MS : APPROVAL_POLL_MS;
+    const tick = async () => {
+      try {
+        /* A hidden tab reads less often; it catches up when shown. */
+        if (document.visibilityState !== 'hidden' || run.phase === 'watching') await readAccount(run.accountId);
+      } catch {
+        /* a failed read is retried on the next tick */
+      }
+      if (!stopped) timer = setTimeout(tick, delay);
+    };
+    timer = setTimeout(tick, delay);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') readAccount(run.accountId).catch(() => {});
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [following, run.phase, run.accountId, readAccount]);
+
+  const checkNow = async () => {
+    setCheckingNow(true);
+    try {
+      await readAccount(run.accountId);
+    } catch (error) {
+      setRequestError(error);
+    } finally {
+      setCheckingNow(false);
+    }
+  };
+
+  /* ── Verify ───────────────────────────────────────────────────────────── */
+
   const localProblem = roleArnProblem(roleArn, setup.accountId);
   const fieldError = serverProblem || (touched ? localProblem : '');
   const detectedAccount = !localProblem ? accountOfRoleArn(roleArn) : '';
-  const connected = result?.status === 'connected';
-  const completed = done.size + (connected ? 1 : 0);
-  const minutesLeft = SETUP_STEPS.filter((step) => (step.number === 3 ? !connected : !done.has(step.number))).reduce(
+  const verified = run.phase === 'connected' || run.phase === 'awaiting';
+  const completed = done.size + (verified ? 1 : 0);
+  const minutesLeft = SETUP_STEPS.filter((step) => (step.number === 5 ? !verified : !done.has(step.number))).reduce(
     (sum, step) => sum + step.minutes,
     0,
   );
 
   const verify = async (event) => {
-    event.preventDefault();
+    event?.preventDefault();
     setTouched(true);
     if (localProblem) {
       inputRef.current?.focus();
       return;
     }
     if (regions.length === 0) {
-      setRegionsError('Choose at least one region to read from.');
-      regionsRef.current?.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'center' });
+      setRegionsError('Choose the regions you use.');
+      scrollTo(verifyRegionsRef.current, 'center');
       return;
     }
     setRunning(true);
     setServerProblem('');
     setRegionsError('');
     setRequestError(null);
+    reported.current = '';
     try {
       const outcome = await verifyAwsConnection({ roleArn: roleArn.trim(), regions });
-      setResult(outcome);
-      onVerified?.(outcome);
+      const next = {
+        phase: outcome.watching ? 'watching' : phaseOf({ status: outcome.status, checks: outcome.checks }),
+        accountId: outcome.accountId,
+        status: outcome.status,
+        checks: outcome.checks,
+        verifiedAt: outcome.verifiedAt,
+        approval: null,
+      };
+      setRun(next);
+      onVerifiedRef.current?.({ ...outcome, phase: next.phase });
+      requestAnimationFrame(() => scrollTo(resultRef.current, 'nearest'));
     } catch (error) {
       /* A 400 is about the input itself, so it belongs under that field. */
       if (error?.status === 400 && error?.code === 'INVALID_REGIONS') setRegionsError(error.message);
@@ -149,12 +283,37 @@ export function AwsConnectWizard({ setup, previous, storageKey, title = 'Connect
     }
   };
 
-  const firstOpen = [1, 2].find((n) => !done.has(n));
+  const startOver = () => {
+    setRun({ phase: 'idle' });
+    reported.current = '';
+    requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }));
+  };
+
+  const cancel = () => {
+    clearSetupProgress(storageKey);
+    onCancel?.();
+  };
+
+  const firstOpen = MANUAL_STEPS.find((n) => !done.has(n));
   const stateOf = (number) => {
-    if (number === 3) return connected ? 'done' : firstOpen ? 'todo' : 'current';
+    if (number === 5) return verified ? 'done' : firstOpen ? 'todo' : 'current';
     if (done.has(number)) return 'done';
     return firstOpen === number ? 'current' : 'todo';
   };
+  const stepProps = (number, extra) => ({
+    step: SETUP_STEPS[number - 1],
+    state: stateOf(number),
+    open: openStep === number,
+    onToggle: () => setOpenStep(openStep === number ? null : number),
+    stepRef: (node) => {
+      stepRefs.current[number] = node;
+    },
+    onDone: (value) => setStepDone(number, value),
+    ...extra,
+  });
+  /* While a run is under way or decided, the inputs give way to what was checked. */
+  const locked = running || ['watching', 'awaiting', 'connected', 'rejected'].includes(run.phase);
+  const ruleList = ruleRegions(regions);
 
   return (
     <div className="grid items-start gap-5 @min-[56rem]:grid-cols-[minmax(0,1fr)_288px] @min-[80rem]:grid-cols-[minmax(0,1fr)_336px]">
@@ -164,17 +323,17 @@ export function AwsConnectWizard({ setup, previous, storageKey, title = 'Connect
             <h2 id="aws-setup-title" className="text-[17px] font-bold tracking-[-0.012em] text-ink">
               {title}
             </h2>
-            <p className="mt-0.5 text-[12.5px] text-ink-3">Two read-only changes in your AWS console, then one check from here.</p>
+            <p className="mt-0.5 text-[12.5px] text-ink-3">Four read-only changes in your AWS console, then one check from here.</p>
           </div>
-          <div className="flex min-w-[220px] flex-col gap-1.5">
+          <div className="flex min-w-[240px] flex-col gap-1.5">
             <div className="flex items-baseline justify-between gap-3 text-[12px]">
               <span className="font-medium text-ink-2" data-numeric="">
-                {completed} of 3 complete
+                {completed} of 5 complete
               </span>
-              <span className="text-ink-3">{connected ? 'Done' : `About ${minutesLeft} min left`}</span>
+              <span className="text-ink-3">{verified ? 'Done' : `About ${minutesLeft} min left`}</span>
             </div>
-            <div className="grid grid-cols-3 gap-1" aria-hidden="true">
-              {[1, 2, 3].map((n) => (
+            <div className="grid grid-cols-5 gap-1" aria-hidden="true">
+              {[1, 2, 3, 4, 5].map((n) => (
                 <span
                   key={n}
                   className={cn(
@@ -189,112 +348,199 @@ export function AwsConnectWizard({ setup, previous, storageKey, title = 'Connect
 
         <ol className="flex flex-col">
           <TimelineStep
-            step={SETUP_STEPS[0]}
-            state={stateOf(1)}
-            open={openStep === 1}
-            onToggle={() => setOpenStep(openStep === 1 ? null : 1)}
-            stepRef={(node) => {
-              stepRefs.current[1] = node;
-            }}
-            summary={`${setup.roleName} · ${setup.managedPolicies.join(' + ')}`}
-            consoleLink={{ href: AWS_CONSOLE.iamRoles, label: 'Open IAM console' }}
-            onDone={(value) => setStepDone(1, value)}
+            {...stepProps(1, {
+              summary: `A multi-region trail with Read and Write management events`,
+              consoleLink: { href: AWS_CONSOLE.cloudTrail, label: 'Open CloudTrail console' },
+            })}
+          >
+            <p className="mb-3 text-[12.5px] leading-relaxed text-ink-2">
+              CloudTrail records the API activity that EventBridge forwards to us. <b className="font-semibold text-ink">Reuse a trail you already have</b>{' '}
+              if it is multi-region and logs both Read and Write management events - an organization trail counts too. The first copy of management
+              events per region is free; a second trail logging the same events is charged.
+            </p>
+            <Disclosure label="No qualifying trail? Create one">
+              <Instructions
+                items={[
+                  <>
+                    Go to <b>Trails</b> and choose <b>Create trail</b>. Trail name <CopyChip value={setup.trailName} label="trail name" />
+                  </>,
+                  <>
+                    Storage location: <b>Create new S3 bucket</b> (accept the suggested name). Log file validation: <b>Enabled</b>. SSE-KMS
+                    encryption is optional. Choose <b>Next</b>.
+                  </>,
+                  <>
+                    Event type: <b>Management events</b>. API activity: tick both <b>Read</b> and <b>Write</b>.
+                  </>,
+                  <>
+                    Leave data events and Insights off. <b>Next</b>, then <b>Create trail</b>.
+                  </>,
+                  <>
+                    Open the trail and confirm <b>Multi-region trail: Yes</b>.
+                  </>,
+                ]}
+              />
+            </Disclosure>
+          </TimelineStep>
+
+          <TimelineStep
+            {...stepProps(2, {
+              summary: `${setup.roleName} · ${setup.managedPolicies.join(' + ')}`,
+              consoleLink: { href: AWS_CONSOLE.iamRoles, label: 'Open IAM console' },
+            })}
           >
             <Instructions
               items={[
                 <>
-                  Go to <b>Roles</b> and choose <b>Create role</b>.
+                  Go to <b>Roles</b>, choose <b>Create role</b>, then <b>Custom trust policy</b>, and paste this trust policy. <b>Next</b>.
+                  <CodeBlock code={trustPolicyJson(setup)} copyLabel="Copy trust policy" />
                 </>,
                 <>
-                  Trusted entity: <b>AWS account</b>, then <b>Another AWS account</b>.
-                </>,
-                <>
-                  Account ID <CopyChip value={setup.accountId} label="our account ID" />
-                </>,
-                <>
-                  Tick <b>Require external ID</b> and paste <CopyChip value={setup.externalId} label="External ID" />
-                </>,
-                <>
-                  Search for and tick{' '}
+                  Tick{' '}
                   {setup.managedPolicies.map((policy, index) => (
                     <span key={policy}>
                       {index > 0 && ' and '}
                       <CopyChip value={policy} />
                     </span>
                   ))}
+                  . <b>Next</b>.
                 </>,
                 <>
                   Role name <CopyChip value={setup.roleName} label="role name" />, then <b>Create role</b>.
                 </>,
                 <>
-                  Open the role and copy its <b>ARN</b> - you will paste it in step 3.
+                  Open the role and copy its <b>ARN</b> - you paste it in step 5.
                 </>,
               ]}
             />
-            <Disclosure label="Prefer JSON? Trust policy for “Edit trust relationship”">
-              <CodeBlock code={trustPolicyJson(setup)} copyLabel="Copy trust policy" />
+            <OptionalPolicies codeScanning={codeScanning} />
+          </TimelineStep>
+
+          <TimelineStep
+            {...stepProps(3, {
+              summary: `${setup.forwardRoleName} · ${FORWARD_POLICY_NAME}`,
+              consoleLink: { href: AWS_CONSOLE.iamRoles, label: 'Open IAM console' },
+            })}
+          >
+            <p className="mb-3 text-[12.5px] leading-relaxed text-ink-2">
+              This role lets EventBridge send your events to our bus. Create it once - the rule in every region uses it.
+            </p>
+            <Instructions
+              items={[
+                <>
+                  <b>Roles</b> → <b>Create role</b> → <b>Custom trust policy</b>, and paste this
+                  {detectedAccount ? (
+                    <> (filled in for account {detectedAccount})</>
+                  ) : (
+                    <>
+                      , with your account ID in place of <code className="font-mono text-[12px]">&lt;CLIENT_ACCOUNT_ID&gt;</code>
+                    </>
+                  )}
+                  .
+                  <CodeBlock code={forwardRoleTrustJson(detectedAccount)} copyLabel="Copy trust policy" />
+                </>,
+                <>
+                  <b>Next</b>, skip attaching policies, <b>Next</b>. Role name <CopyChip value={setup.forwardRoleName} label="role name" />, then{' '}
+                  <b>Create role</b>.
+                </>,
+                <>
+                  Open the role → <b>Add permissions</b> → <b>Create inline policy</b> → <b>JSON</b>, paste this and name it{' '}
+                  <CopyChip value={FORWARD_POLICY_NAME} label="policy name" />
+                  <CodeBlock code={forwardRolePolicyJson(setup)} copyLabel="Copy policy" />
+                </>,
+              ]}
+            />
+            <Disclosure label="Prefer the AWS CLI?">
+              <CodeBlock code={forwardRoleCli(setup)} copyLabel="Copy commands" />
             </Disclosure>
           </TimelineStep>
 
           <TimelineStep
-            step={SETUP_STEPS[1]}
-            state={stateOf(2)}
-            open={openStep === 2}
-            onToggle={() => setOpenStep(openStep === 2 ? null : 2)}
-            stepRef={(node) => {
-              stepRefs.current[2] = node;
-            }}
-            summary={`Rule ${setup.ruleName} → our event bus`}
-            consoleLink={{ href: AWS_CONSOLE.eventBridgeRules, label: 'Open EventBridge console' }}
-            onDone={(value) => setStepDone(2, value)}
+            {...stepProps(4, {
+              summary: `Rule ${setup.ruleName} in ${ruleList.length} region${ruleList.length === 1 ? '' : 's'} → our event bus`,
+              consoleLink: { href: AWS_CONSOLE.eventBridgeRules, label: 'Open EventBridge console' },
+            })}
           >
+            <div ref={regionsRef} className="mb-3.5 scroll-mt-24">
+              <RegionPicker
+                label="Regions you use"
+                hint="We read these, and you create the rule in each of them."
+                catalogue={setup.regions}
+                value={regions}
+                onChange={(next) => {
+                  setRegions(next);
+                  setRegionsError('');
+                }}
+                error={regionsError || undefined}
+              />
+            </div>
+            <p className="mb-3.5 flex items-start gap-2 rounded-[var(--radius-control)] bg-info-soft px-3 py-2 text-[12px] leading-relaxed text-ink-2">
+              <Info aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-info" />
+              <span>
+                Create the rule in{' '}
+                <span className="font-mono text-ink">{ruleList.join(', ')}</span>
+                {regions.includes('us-east-1') ? '' : ' - us-east-1 too, even if you do not use it: IAM and STS deliver their global events there'}.
+              </span>
+            </p>
             <Instructions
               items={[
                 <>
-                  Go to <b>Rules</b> and choose <b>Create rule</b>.
+                  Switch the console to the region, then <b>Rules</b> → <b>Create rule</b>.
                 </>,
                 <>
-                  Name <CopyChip value={setup.ruleName} label="rule name" />, event bus <b>default</b>, type{' '}
-                  <b>Rule with an event pattern</b>.
+                  Name <CopyChip value={setup.ruleName} label="rule name" />, event bus <b>default</b>. <b>Next</b>.
                 </>,
                 <>
-                  Event pattern: <b>Custom pattern (JSON)</b>, and paste
-                  <CodeBlock code={eventPatternJson(setup)} copyLabel="Copy event pattern" />
+                  Event source <b>AWS events</b>, creation method <b>Custom pattern (JSON editor)</b>, and paste
+                  <label className="mt-2 flex w-fit cursor-pointer items-center gap-2 text-[12.5px] text-ink-2">
+                    <input
+                      type="checkbox"
+                      className="size-4 accent-[var(--t-brand)]"
+                      checked={codeScanning}
+                      onChange={(event) => save({ ...progress, codeScanning: event.target.checked })}
+                    />
+                    I will use code scanning (keeps <span className="font-mono">aws.codecommit</span> in the pattern)
+                  </label>
+                  <CodeBlock code={eventPatternJson(setup, { codeScanning })} copyLabel="Copy event pattern" />
                 </>,
                 <>
-                  Target: <b>EventBridge event bus in a different account or Region</b>.
+                  <b>Next</b>. Target type <b>EventBridge event bus</b> → <b>Event bus in a different account or Region</b>, and paste{' '}
+                  <CopyChip value={setup.eventBusArn} label="event bus ARN" />
                 </>,
                 <>
-                  Event bus ARN <CopyChip value={setup.eventBusArn} label="event bus ARN" />
+                  Execution role: <b>Use existing role</b> → <CopyChip value={setup.forwardRoleName} label="role name" />. <b>Next</b>, then{' '}
+                  <b>Create rule</b>.
                 </>,
-                <>
-                  Keep <b>Create a new role for this specific resource</b>, then <b>Create rule</b>.
-                </>,
+                <>Repeat in each region above.</>,
               ]}
             />
-            <p className="mt-3.5 flex items-start gap-2 rounded-[var(--radius-control)] bg-info-soft px-3 py-2 text-[12px] leading-relaxed text-ink-2">
-              <Info aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-info" />
-              {regions.length > 0 ? (
-                <span>
-                  Create this rule in each region you allow in step 3 (
-                  <span className="font-mono">{regions.join(', ')}</span>)
-                  {regions.includes('us-east-1') ? '.' : ', and in us-east-1 for IAM events.'}
-                </span>
-              ) : (
-                'Create this rule in every region you will allow in step 3, and in us-east-1 for IAM events.'
-              )}
-            </p>
+            <Disclosure label="Prefer the AWS CLI? Every region in one go">
+              <CodeBlock code={ruleCli(setup, regions, { codeScanning })} copyLabel="Copy commands" />
+            </Disclosure>
           </TimelineStep>
 
-          <TimelineStep
-            step={SETUP_STEPS[2]}
-            state={stateOf(3)}
-            open
-            last
-            stepRef={(node) => {
-              stepRefs.current[3] = node;
-            }}
-          >
+          <TimelineStep step={SETUP_STEPS[4]} state={stateOf(5)} open last stepRef={(node) => {
+              stepRefs.current[5] = node;
+            }}>
+            {locked ? (
+              <div className="flex flex-col gap-3">
+                <dl className="grid gap-x-6 gap-y-2 rounded-[var(--radius-control)] border border-line bg-surface-2 px-3.5 py-3 text-[12.5px] @min-[40rem]:grid-cols-[auto_1fr]">
+                  <dt className="text-ink-3">Role</dt>
+                  <dd className="min-w-0 font-mono break-all text-ink">{roleArn.trim()}</dd>
+                  <dt className="text-ink-3">Regions</dt>
+                  <dd className="font-mono text-ink">
+                    {regions.join(', ')}
+                    <span className="ml-2 font-sans text-ink-3">+ us-east-1 for IAM and STS</span>
+                  </dd>
+                </dl>
+                {onCancel && run.phase !== 'watching' && !running && (
+                  <div>
+                    <Button variant="ghost" size="sm" onClick={cancel}>
+                      Close
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : (
             <form onSubmit={verify} noValidate className="flex flex-col gap-2">
               <Field label="Role ARN" htmlFor="aws-role-arn" error={fieldError || undefined}>
                 <Input
@@ -323,11 +569,13 @@ export function AwsConnectWizard({ setup, previous, storageKey, title = 'Connect
                     AWS account <span className="font-mono">{detectedAccount}</span>
                   </span>
                 ) : (
-                  !fieldError && <span className="text-ink-3">The ARN of the role from step 1.</span>
+                  !fieldError && <span className="text-ink-3">The ARN of {setup.roleName}, from step 2.</span>
                 )}
               </div>
-              <div ref={regionsRef} className="mb-2 scroll-mt-24">
+              <div ref={verifyRegionsRef} className="mb-2 scroll-mt-24">
                 <RegionPicker
+                  label="Regions you use"
+                  hint="The same regions as the rule in step 4."
                   catalogue={setup.regions}
                   value={regions}
                   onChange={(next) => {
@@ -339,15 +587,16 @@ export function AwsConnectWizard({ setup, previous, storageKey, title = 'Connect
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Button type="submit" variant="primary" size="lg" icon={ShieldCheck} loading={running}>
-                  {running ? 'Checking…' : connected ? 'Verify again' : 'Verify connection'}
+                  {running ? 'Checking…' : run.phase === 'idle' ? 'Verify connection' : 'Verify again'}
                 </Button>
                 {onCancel && (
-                  <Button variant="ghost" size="lg" onClick={onCancel} disabled={running}>
+                  <Button variant="ghost" size="lg" onClick={cancel} disabled={running}>
                     Cancel
                   </Button>
                 )}
               </div>
             </form>
+            )}
 
             {requestError && (
               <div className="mt-3">
@@ -355,16 +604,86 @@ export function AwsConnectWizard({ setup, previous, storageKey, title = 'Connect
               </div>
             )}
 
-            {(running || result) && (
-              <div className="mt-4">
-                <VerifyResult running={running} result={running ? null : result} setup={setup} onShowStep={showStep} />
-              </div>
-            )}
+            <div ref={resultRef} className="scroll-mt-24">
+              {(running || run.phase === 'failed' || run.phase === 'watching') && (
+                <div className="mt-4 flex flex-col gap-3">
+                  <VerifyResult running={running} result={running ? null : run} setup={setup} onShowStep={showStep} />
+                  {!running && run.phase === 'watching' && <EventsWatch checks={run.checks} setup={setup} regions={regions} />}
+                </div>
+              )}
+              {(run.phase === 'awaiting' || run.phase === 'rejected' || run.phase === 'connected') && (
+                <div className="mt-4">
+                  <ApprovalWait
+                    run={run}
+                    checkingNow={checkingNow}
+                    onCheckNow={checkNow}
+                    onRetry={() => {
+                      startOver();
+                      showStep(firstOpen ?? 2);
+                    }}
+                  />
+                </div>
+              )}
+            </div>
           </TimelineStep>
         </ol>
       </section>
 
-      <SetupAside setup={setup} regions={regions} />
+      <SetupAside setup={setup} regions={regions} codeScanning={codeScanning} />
+    </div>
+  );
+}
+
+/* The two optional inline policies of the read-only role, filled in as the admin types. */
+function OptionalPolicies({ codeScanning }) {
+  const [bucket, setBucket] = useState('');
+  const [encrypted, setEncrypted] = useState(false);
+  const [kmsKeyArn, setKmsKeyArn] = useState('');
+  const [customerKey, setCustomerKey] = useState(false);
+  const bucketRegion = /^arn:aws:kms:([a-z0-9-]+):/.exec(kmsKeyArn.trim())?.[1] ?? '';
+  return (
+    <div className="mt-4 border-t border-line pt-3.5">
+      <p className="mb-2 text-[12.5px] font-semibold text-ink">Optional inline policies</p>
+      <p className="mb-2 text-[12px] leading-relaxed text-ink-3">
+        On the role: <b className="font-medium text-ink-2">Add permissions</b> → <b className="font-medium text-ink-2">Create inline policy</b> →{' '}
+        <b className="font-medium text-ink-2">JSON</b>, paste, and use the name shown. Repeat for each one you need.
+      </p>
+      <div className="flex flex-col gap-1">
+        <Disclosure label="NHIPlatformTrailRead - read CloudTrail log history from S3">
+          <div className="grid gap-2 @min-[40rem]:grid-cols-2">
+            <Field label="Trail bucket name" htmlFor="trail-bucket">
+              <Input id="trail-bucket" value={bucket} onChange={(e) => setBucket(e.target.value)} placeholder="aws-cloudtrail-logs-123456789012-…" spellCheck={false} />
+            </Field>
+            <div className="flex items-end pb-2">
+              <label className="flex cursor-pointer items-center gap-2 text-[12.5px] text-ink-2">
+                <input type="checkbox" className="size-4 accent-[var(--t-brand)]" checked={encrypted} onChange={(e) => setEncrypted(e.target.checked)} />
+                The trail is encrypted with SSE-KMS
+              </label>
+            </div>
+            {encrypted && (
+              <Field label="Trail KMS key ARN" htmlFor="trail-kms" className="@min-[40rem]:col-span-2">
+                <Input id="trail-kms" value={kmsKeyArn} onChange={(e) => setKmsKeyArn(e.target.value)} placeholder="arn:aws:kms:<region>:<account>:key/<id>" spellCheck={false} />
+              </Field>
+            )}
+          </div>
+          <div className="flex items-center gap-2 text-[12px] text-ink-3">
+            Policy name <CopyChip value="NHIPlatformTrailRead" label="policy name" />
+          </div>
+          <CodeBlock code={trailReadPolicyJson({ bucket, encrypted, kmsKeyArn, region: bucketRegion })} copyLabel="Copy policy" />
+        </Disclosure>
+        <Disclosure label="NHIPlatformCodeCommitRead - scan CodeCommit repositories for secrets" defaultOpen={false}>
+          {!codeScanning && <p className="mb-2 text-[12px] text-medium">You chose not to use code scanning in step 4; skip this one.</p>}
+          <label className="mb-1 flex cursor-pointer items-center gap-2 text-[12.5px] text-ink-2">
+            <input type="checkbox" className="size-4 accent-[var(--t-brand)]" checked={customerKey} onChange={(e) => setCustomerKey(e.target.checked)} />
+            Repositories use a customer managed KMS key
+          </label>
+          <div className="flex items-center gap-2 text-[12px] text-ink-3">
+            Policy name <CopyChip value="NHIPlatformCodeCommitRead" label="policy name" />
+          </div>
+          <CodeBlock code={codeCommitReadPolicyJson({ customerKey })} copyLabel="Copy policy" />
+        </Disclosure>
+      </div>
+      <p className="mt-1 text-[11.5px] text-ink-3">Skip both if you do not need log history or code scanning - you can add them later.</p>
     </div>
   );
 }
@@ -454,38 +773,38 @@ function TimelineStep({ step, state, open, onToggle, last = false, stepRef, summ
 
         {open && (
           <div id={panelId} className="animate-fade">
-              <div className={cn('px-4 pb-4', collapsible ? 'border-t border-line pt-3.5' : 'pt-3')}>
-                {consoleLink && (
-                  <Button
-                    as="a"
-                    href={consoleLink.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    variant="secondary"
-                    size="sm"
-                    iconRight={ExternalLink}
-                    className="mb-3.5"
-                  >
-                    {consoleLink.label}
-                    <span className="sr-only">(opens in a new tab)</span>
-                  </Button>
-                )}
-                {children}
-                {onDone && (
-                  <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-3.5">
-                    <span className="text-[12px] text-ink-3">{state === 'done' ? 'Marked as done.' : 'Finished in the console?'}</span>
-                    {state === 'done' ? (
-                      <Button variant="ghost" size="sm" onClick={() => onDone(false)}>
-                        Mark as not done
-                      </Button>
-                    ) : (
-                      <Button variant="primary" size="sm" icon={Check} onClick={() => onDone(true)}>
-                        Mark as done
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
+            <div className={cn('px-4 pb-4', collapsible ? 'border-t border-line pt-3.5' : 'pt-3')}>
+              {consoleLink && (
+                <Button
+                  as="a"
+                  href={consoleLink.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  variant="secondary"
+                  size="sm"
+                  iconRight={ExternalLink}
+                  className="mb-3.5"
+                >
+                  {consoleLink.label}
+                  <span className="sr-only">(opens in a new tab)</span>
+                </Button>
+              )}
+              {children}
+              {onDone && (
+                <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-3.5">
+                  <span className="text-[12px] text-ink-3">{state === 'done' ? 'Marked as done.' : 'Finished in the console?'}</span>
+                  {state === 'done' ? (
+                    <Button variant="ghost" size="sm" onClick={() => onDone(false)}>
+                      Mark as not done
+                    </Button>
+                  ) : (
+                    <Button variant="primary" size="sm" icon={Check} onClick={() => onDone(true)}>
+                      Mark as done
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -500,9 +819,9 @@ function TimelineStep({ step, state, open, onToggle, last = false, stepRef, summ
  * values, what is being granted (the questions a security reviewer asks
  * first), and the setup as a document for whoever owns the AWS account.
  */
-function SetupAside({ setup, regions }) {
+function SetupAside({ setup, regions, codeScanning }) {
   const { notify } = useToast();
-  const guide = () => setupGuideMarkdown(setup, regions);
+  const guide = () => setupGuideMarkdown(setup, regions, { codeScanning });
   return (
     <aside
       aria-label="Connection details"
@@ -510,10 +829,10 @@ function SetupAside({ setup, regions }) {
     >
       <AsideCard title="Values to copy">
         <dl className="-my-1 divide-y divide-line">
-          <ValueRow label="Our account ID" value={setup.accountId} />
-          <ValueRow label="External ID" value={setup.externalId} note="Unique to your workspace" />
-          <ValueRow label="Event bus ARN" value={setup.eventBusArn} />
-          <ValueRow label="Region" value={setup.region} />
+          <ValueRow label="adapID AWS account ID" value={setup.accountId} />
+          <ValueRow label="Your External ID" value={setup.externalId} note="Unique to your workspace" />
+          <ValueRow label="adapID event bus ARN" value={setup.eventBusArn} />
+          <ValueRow label="adapID AWS Region" value={setup.region} />
         </dl>
       </AsideCard>
 
@@ -525,22 +844,28 @@ function SetupAside({ setup, regions }) {
               <span className="text-[11px] text-ink-3">AWS managed · read-only</span>
             </li>
           ))}
+          <li className="flex items-center justify-between gap-2">
+            <span className="font-mono text-[12.5px] text-ink">{FORWARD_POLICY_NAME}</span>
+            <span className="text-[11px] text-ink-3">events:PutEvents to our bus</span>
+          </li>
         </ul>
         <div className="mt-3 border-t border-line pt-3">
           <p className="text-[12px] text-ink-2">
-            Events from <span className="font-semibold text-ink">{setup.eventSources.length} services</span>
+            Events from <span className="font-semibold text-ink">{setup.eventSources.filter((s) => codeScanning || s !== 'aws.codecommit').length} services</span>
           </p>
           <div className="mt-1.5 flex flex-wrap gap-1">
-            {setup.eventSources.map((source) => (
-              <span key={source} className="rounded-md bg-surface-3 px-1.5 py-0.5 font-mono text-[10.5px] text-ink-2">
-                {source.replace(/^aws\./, '')}
-              </span>
-            ))}
+            {setup.eventSources
+              .filter((source) => codeScanning || source !== 'aws.codecommit')
+              .map((source) => (
+                <span key={source} className="rounded-md bg-surface-3 px-1.5 py-0.5 font-mono text-[10.5px] text-ink-2">
+                  {source.replace(/^aws\./, '')}
+                </span>
+              ))}
           </div>
         </div>
         <p className="mt-3 flex items-start gap-2 border-t border-line pt-3 text-[12px] leading-relaxed text-ink-3">
           <EyeOff aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
-          No write access, no secret values, no object contents. Revoke any time by deleting the role.
+          No write access, no secret values, no object contents. Revoke any time by deleting the two roles.
         </p>
       </AsideCard>
 
