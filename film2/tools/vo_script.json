@@ -1,9 +1,8 @@
 {
  "voice": {
-  "hm_omega": 0.75,
-  "am_fenrir": 0.25
+  "am_fenrir": 1.0
  },
- "speed": 0.94,
+ "speed": 1.15,
  "lines": [
   {
    "id": "v01",
@@ -33,7 +32,7 @@
    "id": "v05",
    "scene": 1,
    "text": "And AI is changing how work gets done.",
-   "say": "And A.I. is changing how work gets done."
+   "say": "And AI is changing how work gets done."
   },
   {
    "id": "v06",
@@ -51,13 +50,13 @@
    "id": "v08",
    "scene": 2,
    "text": "Understanding who is accessing what, how they behave, and when that behaviour changes, is essential.",
-   "say": "Understanding who is accessing what, how they behave, and when that behaviour changes... is essential."
+   "say": "Understanding who is accessing what, how they behave, and when that behaviour changes, is essential."
   },
   {
    "id": "v09",
    "scene": 2,
    "text": "adapID AI. Continuous Identity Risk Management.",
-   "say": "Adap I.D. A.I. Continuous Identity Risk Management."
+   "say": "Adap ID AI. Continuous Identity Risk Management."
   },
   {
    "id": "v10",
@@ -81,7 +80,7 @@
    "id": "v13",
    "scene": 3,
    "text": "adapID AI. Non-Human Identity Security for AWS.",
-   "say": "Adap I.D. A.I. Non-human identity security, for A.W.S."
+   "say": "Adap ID AI. Non-human identity security for A-W-S."
   },
   {
    "id": "v14",
@@ -93,25 +92,25 @@
    "id": "v15",
    "scene": 4,
    "text": "Protecting customers means looking beyond the login, and understanding the identity and behaviour behind the transaction.",
-   "say": "Protecting customers means looking beyond the login... and understanding the identity and behaviour behind the transaction."
+   "say": "Protecting customers means looking beyond the login, and understanding the identity and behaviour behind the transaction."
   },
   {
    "id": "v16",
    "scene": 4,
    "text": "adapID AI. Identity Fraud Prevention.",
-   "say": "Adap I.D. A.I. Identity fraud prevention."
+   "say": "Adap ID AI. Identity fraud prevention."
   },
   {
    "id": "v17",
    "scene": 5,
    "text": "And as organisations embrace AI, another challenge emerges.",
-   "say": "And as organisations embrace A.I., another challenge emerges."
+   "say": "And as organisations embrace AI, another challenge emerges."
   },
   {
    "id": "v18",
    "scene": 5,
    "text": "Employees need the power of AI without exposing sensitive business information.",
-   "say": "Employees need the power of A.I., without exposing sensitive business information."
+   "say": "Employees need the power of AI, without exposing sensitive business information."
   },
   {
    "id": "v19",
@@ -123,21 +122,23 @@
    "id": "v20",
    "scene": 5,
    "text": "Zenstra AI. Secure AI Interactions.",
-   "say": "Zen-stra, A.I.  Secure, A.I. interactions."
+   "say": "Zenstra AI. Secure AI interactions.",
+   "ph": {
+    "Zenstra": "z\u02c8\u025bnst\u0279\u0259"
+   }
   },
   {
    "id": "v21",
    "scene": 6,
    "text": "Because the future of business depends on identities we can understand, interactions we can trust, and technology we can secure.",
-   "say": "Because the future of business depends on identities we can understand, interactions we can trust, and technology we can secure.",
-   "speed": 1.08
+   "say": "Because the future of business depends on identities we can understand, interactions we can trust, and technology we can secure."
   },
   {
    "id": "v22",
    "scene": 6,
    "text": "Deep Algorithms Solutions. Securing identity and AI in the connected world.",
-   "say": "Deep Algorithms. Solutions. Securing identity and AI in the connected world.",
-   "speed": 1.04
+   "say": "Deep Algorithms, Solutions. Securing identity and AI in the connected world.",
+   "speed": 1.2
   }
  ]
 }

@@ -111,7 +111,7 @@ function grid(a, b, ids, thesis, mode) {
 
 /* ---------- brand ---------- */
 function brand(a, b) {
-  sfx(a + 0.35, 'logo');
+  sfx(a + 0.05, 'logo');
   return layer(a, b, (root) => {
     S(root, { background: '#04070c' });
     const bg = img('shots/s25/f0001.jpg', root, 'foot');

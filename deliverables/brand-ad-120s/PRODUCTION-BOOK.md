@@ -51,32 +51,32 @@ The 36 stills in `keyframes/` are the visual reference, taken from the finished 
 
 The lines are as you supplied them, with two small edits:
 - **"But identities aren't limited to people"** now opens without "But". It followed straight after another "But" line.
-- **The "Zenstra AI" tag** is spelled differently for the synthetic voice, so the name is said correctly.
+- **"Deep Algorithms Solutions"** is voiced with a short comma after "Algorithms", so the final "s" is kept.
 
 | Start | Line |
 |---|---|
-| 0:00.9 | Every second, businesses make thousands of digital connections. |
-| 0:05.4 | People access systems. |
-| 0:07.3 | Applications communicate. |
-| 0:09.5 | Customers move money. |
+| 0:00.8 | Every second, businesses make thousands of digital connections. |
+| 0:05.3 | People access systems. |
+| 0:07.4 | Applications communicate. |
+| 0:09.6 | Customers move money. |
 | 0:11.4 | And AI is changing how work gets done. |
-| 0:15.4 | But a successful login doesn't guarantee continuous trust. |
-| 0:19.8 | Identity risk can change throughout a session. |
-| 0:23.4 | Understanding who is accessing what, how they behave, and when that behaviour changes, is essential. |
-| 0:33.5 | adapID AI. Continuous Identity Risk Management. |
+| 0:15.6 | But a successful login doesn't guarantee continuous trust. |
+| 0:19.2 | Identity risk can change throughout a session. |
+| 0:22.6 | Understanding who is accessing what, how they behave, and when that behaviour changes, is essential. |
+| 0:33.6 | adapID AI. Continuous Identity Risk Management. |
 | 0:39.6 | Identities aren't limited to people. |
-| 0:42.6 | Applications, workloads and services have identities of their own. |
-| 0:48.0 | Their permissions and access relationships can create risks that are difficult to see. |
-| 0:57.1 | adapID AI. Non-Human Identity Security for AWS. |
-| 1:03.8 | In financial services, even valid credentials can hide a fraudulent interaction. |
-| 1:11.2 | Protecting customers means looking beyond the login, and understanding the identity and behaviour behind the transaction. |
+| 0:41.8 | Applications, workloads and services have identities of their own. |
+| 0:47.6 | Their permissions and access relationships can create risks that are difficult to see. |
+| 0:57.3 | adapID AI. Non-Human Identity Security for AWS. |
+| 1:03.6 | In financial services, even valid credentials can hide a fraudulent interaction. |
+| 1:11.4 | Protecting customers means looking beyond the login, and understanding the identity and behaviour behind the transaction. |
 | 1:21.6 | adapID AI. Identity Fraud Prevention. |
-| 1:26.5 | And as organisations embrace AI, another challenge emerges. |
-| 1:31.6 | Employees need the power of AI without exposing sensitive business information. |
-| 1:38.4 | Security must become part of the interaction itself. |
-| 1:42.7 | Zenstra AI. Secure AI Interactions. |
-| 1:46.4 | Because the future of business depends on identities we can understand, interactions we can trust, and technology we can secure. |
-| 1:54.4 | Deep Algorithms Solutions. Securing identity and AI in the connected world. |
+| 1:26.6 | And as organisations embrace AI, another challenge emerges. |
+| 1:31.4 | Employees need the power of AI without exposing sensitive business information. |
+| 1:38.6 | Security must become part of the interaction itself. |
+| 1:43.5 | Zenstra AI. Secure AI Interactions. |
+| 1:47.2 | Because the future of business depends on identities we can understand, interactions we can trust, and technology we can secure. |
+| 1:55.2 | Deep Algorithms Solutions. Securing identity and AI in the connected world. |
 
 ## 4. Shot-by-shot storyboard (120 s)
 
@@ -108,8 +108,8 @@ The lines are as you supplied them, with two small edits:
 | 74.3–81.1 | P | **adapID AI Identity Fraud Prevention.** Two active sessions, one customer, both past login. Session A, her phone: allowed, no extra step. Session B, a new device: password and OTP valid, behavioural match 18%, new beneficiary, ₹85,000. Identity risk 88. Bank policy asks for face verification; marked "Potential account takeover · not confirmed". | rebuilt |
 | 80.9–86.5 | L+M | The analyst; lockup **adapID AI · Identity Fraud Prevention** | `mk_23226` |
 | 86.4–89.9 | L | The professional with her notes | `mk_4806` |
-| 89.7–101.0 | P | An AI assistant. She types "Summarise the Q3 renewal risks for the board:" and pastes a table of customer names and account numbers. The camera pushes in and the cursor reaches Send. **Zenstra AI** scans the prompt and flags names and account numbers; the message lifts and stops at a wall of light; Send becomes a lock. "Blocked: this prompt contains customer personal data. It was not sent." | rebuilt |
-| 100.8–108.4 | L+M | Back at her desk, unbothered. A quiet chip: "Zenstra AI · decision record". Lockup **Zenstra AI · Secure AI Interactions** | `mk_4806` |
+| 89.7–101.0 | P | Claude (claude.ai). She types "Prod deploy of payments-service fails with AccessDenied. Here’s our .env, can you spot the problem?" and pastes the production `.env`: AWS access key, AWS secret key and a `DATABASE_URL` carrying the production password (AWS's documented example keys, fictional password). The camera pushes in and the cursor reaches Send. **Zenstra AI** scans the prompt and flags the access key, the secret key and the production password; the message lifts and stops at a wall of light; Send becomes a lock. "Blocked! This prompt contains credentials, API keys and tokens. It was not sent." Policy: Sensitive credential protection. | rebuilt |
+| 100.8–108.4 | L+M | Back at her desk, unbothered. A quiet chip: "Zenstra AI · decision record · production credentials stayed inside". Lockup **Zenstra AI · Secure AI Interactions** | `mk_4806` |
 | 108.3–113.5 | L | Mei in the city · the engineer · the customer smiling | `cv_7Ly15I4p2C`, `mk_41645`, `mk_1805` |
 | 113.3–115.3 | M | The same four people return in the grid: **"Every identity deserves protection."** The tiles fold into the centre | four clips |
 | 114.8–120.0 | M | The D mark rises out of a blur. **DEEP ALGORITHMS SOLUTIONS** · "Securing identity and AI in the connected world." · adapID AI · Identity Security | Zenstra AI · Secure AI Interactions · deepalgorithms.io | official marks |
@@ -126,7 +126,7 @@ These are checked against the company's own product pages (website codebase) and
 | NHI: least-privilege fix is proposed and applied with approval | "the remediation, applied with approval" | Shown as *Proposed* |
 | Fraud: behaviour, device and context compared with the customer's own normal; valid password and OTP can still be an impostor | "A fraudster with the customer's password and OTP looks exactly like the customer." | Shown |
 | Fraud: genuine customers have no extra step; high-risk moments get face verification | "with no extra step for genuine customers"; "Face verification runs only at high-risk moments" | Shown, labelled *Bank policy*, *not confirmed* |
-| Zenstra: customer data in an AI prompt is blocked before it is sent; the decision is recorded | zenstra.ai: "deny upload of member data to unapproved AI"; "Staff pasting secrets and member data into chat tools"; "Recorded with the policy that decided it" | Shown. **Confirm the banner copy** with the Zenstra team. |
+| Zenstra: credentials and production passwords in an AI prompt are blocked before it is sent; the decision is recorded | zenstra.ai: "deny model.call with secrets in payload"; "Credentials: Keys and secrets read or pasted into AI tools"; works with Claude; "Recorded with the policy that decided it" | Shown. The banner wording comes from your Zenstra brief; **confirm it** with the Zenstra team. |
 | Not shown anywhere | Performance numbers, detection rates, customer logos, certifications, integrations beyond the products' own pages | — |
 
 ## 6. Music and sound
@@ -141,7 +141,7 @@ These are checked against the company's own product pages (website codebase) and
 - **Brand audio signature:** a sub hit and three rising bells (D–A–F♯) as the mark appears.
 - **Location sound:** city air for Mei's scenes, office murmur, café room tone with cup clinks, room hum for the engineer (with keystrokes on the typing shot) and the operations room.
 - **Interface sound:** every UI event in the edit triggers its own sound, so sound and picture are frame-synced.
-- **Voice:** Kokoro TTS (Apache-2.0), a blend of a mature Indian male voice (75%) and an international voice (25%). EQ adds warmth at 180 Hz and presence at 3 kHz, with gentle compression. The music ducks about 7.5 dB under the voice.
+- **Voice:** the same voice and pace as your reference film: Kokoro `am_fenrir` at speed 1.15, measured at about 5.3 syllables per second against the reference's 5.2. "adapID" is voiced as one word ("Adap ID"), matched acoustically against the reference recording. Every line is voiced as one natural phrase, with no inserted pauses. The music ducks about 9.6 dB under the voice, and the sound effects step back too.
   - Speech-to-text over the **final mix** returns every line correctly, so the voice stays clear over score and ambience.
 
 ## 7. Quality review against the Final Creative Test
@@ -187,7 +187,7 @@ The brief asks for things that can't be produced from this environment. Here is 
 1. **Directed actors and a shoot.** The film uses licensed footage, but cast for continuity: each story keeps one person throughout, and every clip shares one grade.
    - A two-day shoot in Hyderabad or Bengaluru would add Indian talent for every role, consistent wardrobe, and on-screen device inserts.
    - The storyboard in §4 is ready to shoot.
-2. **A professional voice artist.** Record the 22 lines in §3.
+2. **A professional voice artist.** The narration uses the reference film's synthetic voice. For broadcast quality, record the 22 lines in §3.
    - `film2/tools/edl.json` holds each line's start time. Drop the WAVs in and re-run the mix; the picture doesn't change.
 3. **Real product recordings.** The product screens are rebuilt from documented workflows.
    - If approved screen recordings of adapID AI and Zenstra AI exist, they can replace the rebuilt screens one for one.

@@ -7,9 +7,9 @@ spec = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '
 mdir, out = sys.argv[1], sys.argv[2]; os.makedirs(out, exist_ok=True)
 k = Kokoro(os.path.join(mdir, 'kokoro-v1.0.onnx'), os.path.join(mdir, 'voices-v1.0.bin'))
 style = sum(k.get_voice_style(v) * w for v, w in spec['voice'].items())
-def trim(a, sr, thr=0.008):
+def trim(a, sr, thr=0.003):
     i = np.where(np.abs(a) > thr)[0]
-    return a[max(0, i[0] - int(.02 * sr)):min(len(a), i[-1] + int(.1 * sr))] if len(i) else a
+    return a[max(0, i[0] - int(.06 * sr)):min(len(a), i[-1] + int(.12 * sr))] if len(i) else a
 res = []
 for ln in spec['lines']:
     sp = ln.get('speed', spec['speed'])

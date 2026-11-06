@@ -181,51 +181,68 @@ UI.fraud = (a, b) => uiLayer(a, b, (cam) => {
   };
 }, { in: 'wipe', z1: 1.04, x1: -12 });
 
-/* ---- the AI assistant, customer data, and Zenstra stepping in before anything leaves ---- */
+/* ---- Claude, a production .env, and Zenstra stepping in before anything leaves ---- */
 UI.ai = (a, b) => uiLayer(a, b, (cam) => {
-  S(cam, { background: 'radial-gradient(80% 70% at 50% 42%, #10132c 0%, #070816 60%)' });
+  S(cam, { background: '#e9e6dd' });
+  const ff = el('style', '', cam); ff.textContent = "@font-face{font-family:'SrcSerif';src:url(assets/source-serif-4-latin-wght-normal.woff2) format('woff2');font-weight:200 900}";
   const w = el('div', 'abs', cam);
-  S(w, { left: '250px', top: '90px', width: '1420px', height: '900px', borderRadius: '24px', overflow: 'hidden', background: '#f7f7f5', color: '#1f1e1b', boxShadow: '0 80px 160px -40px rgba(0,0,0,.95)', transformOrigin: '50% 80%' });
-  w.innerHTML = `<div style="height:56px;background:#ecebe7;display:flex;align-items:center;gap:9px;padding:0 20px;border-bottom:1px solid #dedcd6"><i style="width:13px;height:13px;border-radius:50%;background:#e2675d"></i><i style="width:13px;height:13px;border-radius:50%;background:#e8b84d"></i><i style="width:13px;height:13px;border-radius:50%;background:#62c554"></i><div style="margin-left:24px;width:520px;height:34px;border-radius:9px;background:#fff;display:flex;align-items:center;padding:0 14px;font-size:16px;color:#6b6a65">AI assistant</div></div>
-    <div style="position:relative;height:844px">
-      <div class="hi" style="position:absolute;left:0;right:0;top:170px;text-align:center;font:500 46px/1.1 var(--disp);letter-spacing:-.03em;color:#2c2b27">What would you like to work on?</div>
-      <div class="bx" style="position:absolute;left:150px;right:150px;bottom:70px;border-radius:26px;background:#fff;border:1.5px solid #dcdad3;box-shadow:0 10px 30px -14px rgba(0,0,0,.25);padding:26px 28px 84px">
-        <div class="sc" style="position:absolute;left:0;right:0;height:100px;pointer-events:none"></div>
-        <div class="tx" style="font-size:24px;line-height:1.5;min-height:36px"></div><div class="cd" style="margin-top:12px;font-size:20px;line-height:1.75;color:#33322e"></div>
-        <div class="sd" style="position:absolute;right:22px;bottom:18px;width:50px;height:50px;border-radius:15px;display:grid;place-items:center"></div></div>
-      <div class="gh" style="position:absolute;left:150px;right:150px;bottom:70px;border-radius:26px;border:2px solid rgba(91,108,240,.7);background:rgba(91,108,240,.08)"></div>
-      <div class="wl" style="position:absolute;left:100px;right:100px;height:3px;border-radius:3px"></div>
-      <div class="st" style="position:absolute;left:150px;bottom:26px;font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px"></div></div>
-    <div class="bn" style="position:absolute;left:150px;right:150px;top:78px;border-radius:18px;background:#14162b;color:#fff;display:flex;align-items:center;gap:18px;padding:20px 24px;box-shadow:0 30px 60px -20px rgba(20,22,43,.7)">
-      <img src="assets/zen-mark.png" style="width:46px;height:42px;object-fit:contain"><div style="flex:1"><div style="font-size:22px;font-weight:700">Blocked: this prompt contains customer personal data.</div><div style="font-size:18px;color:#b9bfe6;margin-top:4px">It was not sent.</div></div>
-      <div style="text-align:right;font-size:15px;color:#9aa2d6;line-height:1.5">Policy<br><b style="color:#fff;font-size:17px">Customer data protection</b></div></div>`;
-  const q = (s) => w.querySelector(s);
-  const tx = q('.tx'), cd = q('.cd'), sd = q('.sd'), sc = q('.sc'), gh = q('.gh'), wl = q('.wl'), st = q('.st'), bn = q('.bn'), bx = q('.bx'), hi = q('.hi');
-  const ask = typer('Summarise the Q3 renewal risks for the board:', a + 0.35, 25, 41);
-  const ROWS = [['Asha Rao', '4418 2290 1173', '₹48,20,000'], ['Vikram Mehta', '5521 0841 9926', '₹36,75,000'], ['Lakshmi Iyer', '6034 7712 4458', '₹29,10,000']];
+  S(w, { left: '150px', top: '60px', width: '1620px', height: '960px', borderRadius: '20px', overflow: 'hidden', background: '#FAF9F5', color: '#141413', boxShadow: '0 70px 140px -40px rgba(30,25,15,.55), 0 0 0 1px rgba(0,0,0,.06)', transformOrigin: '50% 78%', fontFamily: 'Inter, system-ui, sans-serif' });
+  const arrow = (c) => `<svg width="20" height="20" viewBox="0 0 24 24"><path d="M12 19V5M5.5 11.5L12 5l6.5 6.5" fill="none" stroke="${c}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  w.innerHTML = `
+    <div style="height:52px;background:#f0eee6;display:flex;align-items:center;gap:9px;padding:0 20px;border-bottom:1px solid #e3dfd3"><i style="width:13px;height:13px;border-radius:50%;background:#e2675d"></i><i style="width:13px;height:13px;border-radius:50%;background:#e8b84d"></i><i style="width:13px;height:13px;border-radius:50%;background:#62c554"></i>
+      <div style="margin-left:22px;width:460px;height:32px;border-radius:9px;background:#fff;display:flex;align-items:center;gap:8px;padding:0 14px;font-size:15px;color:#6f6c63"><svg width="13" height="13" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5" fill="#8a877e"/><path d="M8 10.5V8a4 4 0 018 0v2.5" fill="none" stroke="#8a877e" stroke-width="2.2"/></svg>claude.ai/new</div></div>
+    <div style="display:flex;height:908px">
+      <div style="width:64px;border-right:1px solid #ebe8de;display:flex;flex-direction:column;align-items:center;padding-top:20px;gap:26px">
+        <img src="assets/claude-spark.svg" style="width:26px;height:26px">
+        ${['M12 5v14M5 12h14', 'M4 6h16M4 12h16M4 18h10', 'M5 5h14v14H5z'].map((d) => `<svg width="22" height="22" viewBox="0 0 24 24" style="opacity:.55"><path d="${d}" fill="none" stroke="#3d3a33" stroke-width="1.8" stroke-linecap="round"/></svg>`).join('')}
+        <div style="margin-top:auto;margin-bottom:22px;width:34px;height:34px;border-radius:50%;background:#3d3a33;color:#faf9f5;display:grid;place-items:center;font-size:13px;font-weight:600">PK</div></div>
+      <div style="flex:1;position:relative">
+        <div class="hi" style="position:absolute;left:0;right:0;top:250px;display:flex;align-items:center;justify-content:center;gap:18px"><img src="assets/claude-spark.svg" style="width:44px;height:44px"><span style="font:400 54px/1 SrcSerif, Georgia, serif;letter-spacing:-.015em;color:#3d3a33">Good evening, Priya</span></div>
+        <div class="bx" style="position:absolute;left:230px;right:230px;bottom:250px;border-radius:22px;background:#fff;border:1px solid #e3dfd3;box-shadow:0 6px 24px -10px rgba(40,30,10,.18);padding:22px 24px 74px">
+          <div class="sc" style="position:absolute;left:0;right:0;height:100px;pointer-events:none"></div>
+          <div class="ph" style="position:absolute;left:24px;top:22px;font-size:21px;color:#9a978d">How can I help you today?</div>
+          <div class="tx" style="font-size:21px;line-height:1.5;min-height:32px"></div><div class="cd" style="margin-top:10px;font-family:var(--mono);font-size:17px;line-height:1.8;color:#33322e;white-space:pre"></div>
+          <div style="position:absolute;left:18px;bottom:16px;width:38px;height:38px;border-radius:10px;border:1px solid #e3dfd3;display:grid;place-items:center;font-size:22px;color:#6f6c63">+</div>
+          <div style="position:absolute;right:76px;bottom:24px;font-size:16px;color:#3d3a33">Opus <span style="color:#9a978d">High</span> <span style="color:#9a978d">⌄</span></div>
+          <div class="sd" style="position:absolute;right:18px;bottom:15px;width:42px;height:40px;border-radius:10px;display:grid;place-items:center"></div></div>
+        <div class="gh" style="position:absolute;left:230px;right:230px;bottom:250px;border-radius:22px;border:2px solid rgba(91,108,240,.75);background:rgba(91,108,240,.08)"></div>
+        <div class="wl" style="position:absolute;left:180px;right:180px;height:3px;border-radius:3px"></div>
+        <div class="st" style="position:absolute;left:232px;bottom:206px;font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px"></div></div></div>
+    <div class="bn" style="position:absolute;left:290px;right:226px;top:96px;border-radius:18px;background:#14162b;color:#fff;display:flex;align-items:center;gap:18px;padding:20px 24px;box-shadow:0 30px 60px -20px rgba(20,22,43,.6);border-left:5px solid #ef5a5f">
+      <img src="assets/zen-mark.png" style="width:46px;height:42px;object-fit:contain"><div style="flex:1"><div style="font-size:22px;font-weight:700">Blocked! This prompt contains credentials, API keys and tokens.</div><div style="font-size:18px;color:#b9bfe6;margin-top:4px">It was not sent.</div></div>
+      <div style="text-align:right;font-size:15px;color:#9aa2d6;line-height:1.5">Policy<br><b style="color:#fff;font-size:17px">Sensitive credential protection</b></div></div>`;
+  const q = (x) => w.querySelector(x);
+  const tx = q('.tx'), cd = q('.cd'), sd = q('.sd'), sc = q('.sc'), gh = q('.gh'), wl = q('.wl'), st = q('.st'), bn = q('.bn'), bx = q('.bx'), hi = q('.hi'), ph = q('.ph');
+  const ask = typer('Prod deploy of payments-service fails with AccessDenied. Here’s our .env, can you spot the problem?', a + 0.3, 30, 41);
+  const ENV = [['NODE_ENV', 'production', ''], ['AWS_REGION', 'ap-south-1', ''], ['AWS_ACCESS_KEY_ID', 'AKIAIOSFODNN7EXAMPLE', 'AWS access key'], ['AWS_SECRET_ACCESS_KEY', 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY', 'AWS secret key'],
+    ['DATABASE_URL', 'Pr0d#Settle!2026', 'Production password', 'postgres://payments_admin:', '@prod-db.internal:5432/payments']];
   const cursor = el('div', 'cursor', cam); cursor.innerHTML = CUR;
-  const T0 = a + 3.1, CLICK = a + 6.6, BLOCK = CLICK + 0.05;
-  sfx(T0, 'paste'); sfx(a + 4.9, 'heart'); sfx(a + 5.5, 'heart'); sfx(CLICK, 'click'); sfx(BLOCK, 'zenScan'); sfx(BLOCK + 0.12, 'block'); [0.25, 0.4, 0.55, 0.7, 0.85, 1.0].forEach((d) => sfx(BLOCK + d, 'flag')); sfx(BLOCK + 0.9, 'banner');
+  const T0 = a + 3.6, CLICK = a + 6.6, BLOCK = CLICK + 0.05;
+  sfx(T0, 'paste'); sfx(a + 5.2, 'heart'); sfx(a + 5.8, 'heart'); sfx(CLICK, 'click'); sfx(BLOCK, 'zenScan'); sfx(BLOCK + 0.12, 'block'); [0.3, 0.45, 0.6].forEach((d) => sfx(BLOCK + d, 'flag')); sfx(BLOCK + 0.9, 'banner');
   return (t) => {
-    const push = E.inOutCubic(seg(t, T0 + 0.1, T0 + 1.6)), rel = E.inOutCubic(seg(t, BLOCK + 0.55, BLOCK + 1.5));
-    S(w, { transform: `translate(0px, ${(lerp(0, -230, push) * (1 - rel)).toFixed(1)}px) scale(${(lerp(1, 1.32, push) * lerp(1, 1 / 1.32, rel) * (rel > 0 ? 1 : 1)).toFixed(4)}) rotateX(${lerp(8, 0, E.outCubic(seg(t, a, a + 1.2))).toFixed(2)}deg)` });
-    S(hi, { opacity: (1 - seg(t, T0 - 0.2, T0 + 0.2)).toFixed(2) });
-    const n = ask.n(t); htm(tx, ask.str.slice(0, n) + (t < T0 ? '<span style="display:inline-block;width:2px;height:28px;background:#1f1e1b;vertical-align:-6px;margin-left:1px"></span>' : ''));
-    const flagged = (i) => E.outCubic(seg(t, BLOCK + 0.25 + i * 0.15, BLOCK + 0.55 + i * 0.15));
-    const hl = (v, f, tag) => `<span style="border-radius:5px;padding:1px 4px;${f > 0 ? `background:rgba(239,90,95,${(0.16 * f).toFixed(3)});box-shadow:0 0 0 ${(1.6 * f).toFixed(1)}px rgba(239,90,95,${(0.85 * f).toFixed(2)});color:#b4232a` : ''}">${v}</span>${tag && f > 0 ? `<span style="font-size:13px;font-weight:700;color:#fff;background:#d6454b;border-radius:6px;padding:3px 8px;margin-left:8px;vertical-align:2px;opacity:${f.toFixed(2)}">${tag}</span>` : ''}`;
-    htm(cd, t >= T0 ? `<div style="display:grid;grid-template-columns:1.1fr 1.3fr .8fr;gap:4px 18px"><b style="font-size:16px;color:#8a877e">Customer</b><b style="font-size:16px;color:#8a877e">Account</b><b style="font-size:16px;color:#8a877e">Renewal</b>` +
-      ROWS.map(([nm, ac, v], i) => `<span>${hl(nm, flagged(i * 2), i === 0 ? 'Customer name' : '')}</span><span class="mono" style="font-size:18px">${hl(ac, flagged(i * 2 + 1), i === 0 ? 'Account number' : '')}</span><span>${v}</span>`).join('') + '</div>' : '');
-    S(cd, { background: `rgba(91,108,240,${(0.1 * (1 - seg(t, T0, T0 + 0.6)) * (t >= T0 ? 1 : 0)).toFixed(3)})`, borderRadius: '10px' });
+    const push = E.inOutCubic(seg(t, T0 + 0.1, T0 + 1.5)), rel = E.inOutCubic(seg(t, BLOCK + 0.55, BLOCK + 1.5));
+    S(w, { transform: `translate(0px, ${(lerp(0, -150, push) * (1 - rel)).toFixed(1)}px) scale(${(lerp(1, 1.3, push) * lerp(1, 1 / 1.3, rel)).toFixed(4)})` });
+    const lift = E.inOutCubic(seg(t, a + 0.2, T0)); // the composer rises as the conversation starts, as in Claude
+    S(hi, { opacity: (1 - seg(t, T0 - 0.3, T0 + 0.1)).toFixed(2), transform: `translateY(${(-lift * 40).toFixed(1)}px)` });
+    const n = ask.n(t); S(ph, { display: n ? 'none' : 'block' });
+    htm(tx, ask.str.slice(0, n) + (t > a + 0.25 && t < T0 ? '<span style="display:inline-block;width:2px;height:26px;background:#141413;vertical-align:-5px;margin-left:1px"></span>' : ''));
+    let fi = 0; const flag = () => E.outCubic(seg(t, BLOCK + 0.3 + (fi++) * 0.15, BLOCK + 0.6 + (fi - 1) * 0.15));
+    htm(cd, t >= T0 ? ENV.map(([k, v, tag, pre = '', post = '']) => {
+      const f = tag ? flag() : 0;
+      const val = `<span style="border-radius:5px;padding:1px 3px;${f > 0 ? `background:rgba(239,90,95,${(0.16 * f).toFixed(3)});box-shadow:0 0 0 ${(1.6 * f).toFixed(1)}px rgba(239,90,95,${(0.85 * f).toFixed(2)});color:#b4232a` : ''}">${v}</span>${tag && f > 0 ? `<span style="font-family:Inter,sans-serif;font-size:13px;font-weight:700;color:#fff;background:#d6454b;border-radius:6px;padding:3px 8px;margin-left:10px;vertical-align:2px;opacity:${f.toFixed(2)}">${tag}</span>` : ''}`;
+      return `<div><span style="color:#8a877e">${k}=</span>${pre}${val}${post}</div>`;
+    }).join('') : '');
+    S(cd, { background: `rgba(217,119,87,${(0.08 * (1 - seg(t, T0, T0 + 0.6)) * (t >= T0 ? 1 : 0)).toFixed(3)})`, borderRadius: '8px' });
     const sy = seg(t, BLOCK, BLOCK + 0.6);
     S(sc, { display: sy > 0 && sy < 1 ? 'block' : 'none', top: `${lerp(-50, bx.offsetHeight - 50, sy).toFixed(0)}px`, background: 'linear-gradient(180deg, transparent, rgba(91,108,240,.18) 45%, rgba(91,108,240,.75) 50%, rgba(91,108,240,.18) 55%, transparent)' });
-    S(bx, { borderColor: t > BLOCK ? '#5b6cf0' : '#dcdad3', boxShadow: t > BLOCK ? '0 0 0 5px rgba(91,108,240,.18)' : '0 10px 30px -14px rgba(0,0,0,.25)' });
+    S(bx, { borderColor: t > BLOCK ? '#5b6cf0' : '#e3dfd3', boxShadow: t > BLOCK ? '0 0 0 5px rgba(91,108,240,.18)' : '0 6px 24px -10px rgba(40,30,10,.18)' });
     const locked = t > BLOCK + 0.1;
-    htm(sd, locked ? '<svg width="24" height="24" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5" fill="#fff"/><path d="M8 10.5V8a4 4 0 018 0v2.5" fill="none" stroke="#fff" stroke-width="2.2"/></svg>' : '<svg width="24" height="24" viewBox="0 0 24 24"><path d="M12 19V5M5.5 11.5L12 5l6.5 6.5" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>');
-    S(sd, { background: locked ? '#5b6cf0' : n > 3 ? '#2c2b27' : '#c9c7bf', transform: `scale(${t > CLICK && t < CLICK + 0.12 ? 0.88 : 1})` });
-    const lift = E.outCubic(seg(t, CLICK, CLICK + 0.17)), drop = E.inOutCubic(seg(t, CLICK + 0.3, CLICK + 0.75));
-    S(gh, { display: t > CLICK && t < CLICK + 0.8 ? 'block' : 'none', height: px(bx.offsetHeight), transform: `translateY(${(-lift * 80 + drop * 80).toFixed(1)}px)`, opacity: (lift * (1 - drop)).toFixed(3) });
+    htm(sd, locked ? '<svg width="22" height="22" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5" fill="#fff"/><path d="M8 10.5V8a4 4 0 018 0v2.5" fill="none" stroke="#fff" stroke-width="2.2"/></svg>' : arrow('#fff'));
+    S(sd, { background: locked ? '#5b6cf0' : n > 2 ? '#D97757' : '#ecc3b2', transform: `scale(${t > CLICK && t < CLICK + 0.12 ? 0.88 : 1})` });
+    const lf = E.outCubic(seg(t, CLICK, CLICK + 0.17)), dr = E.inOutCubic(seg(t, CLICK + 0.3, CLICK + 0.75));
+    S(gh, { display: t > CLICK && t < CLICK + 0.8 ? 'block' : 'none', height: px(bx.offsetHeight), transform: `translateY(${(-lf * 80 + dr * 80).toFixed(1)}px)`, opacity: (lf * (1 - dr)).toFixed(3) });
     const wall = Math.sin(clamp(seg(t, CLICK + 0.12, CLICK + 0.85)) * Math.PI);
-    S(wl, { display: wall > 0 ? 'block' : 'none', bottom: px(70 + bx.offsetHeight + 84), background: `linear-gradient(90deg, transparent, rgba(91,108,240,${wall.toFixed(2)}) 20%, rgba(170,180,255,${wall.toFixed(2)}) 50%, rgba(91,108,240,${wall.toFixed(2)}) 80%, transparent)`, boxShadow: `0 0 ${(30 * wall).toFixed(0)}px ${(6 * wall).toFixed(0)}px rgba(91,108,240,${(0.6 * wall).toFixed(2)})` });
+    S(wl, { display: wall > 0 ? 'block' : 'none', bottom: px(250 + bx.offsetHeight + 84), background: `linear-gradient(90deg, transparent, rgba(91,108,240,${wall.toFixed(2)}) 20%, rgba(170,180,255,${wall.toFixed(2)}) 50%, rgba(91,108,240,${wall.toFixed(2)}) 80%, transparent)`, boxShadow: `0 0 ${(30 * wall).toFixed(0)}px ${(6 * wall).toFixed(0)}px rgba(91,108,240,${(0.6 * wall).toFixed(2)})` });
     const bnp = E.outExpo(seg(t, BLOCK + 0.9, BLOCK + 1.5)); S(bn, { opacity: bnp.toFixed(3), transform: `translateY(${((1 - bnp) * -40).toFixed(1)}px)` });
     htm(st, t > BLOCK + 1.4 ? '<span style="width:9px;height:9px;border-radius:50%;background:#5b6cf0"></span><span style="color:#3d4196">Not sent · decision recorded by Zenstra AI</span>' : '');
     const cp = E.inOutCubic(seg(t, a + 5.0, a + 6.3)); const r = sd.getBoundingClientRect();
@@ -236,6 +253,6 @@ UI.ai = (a, b) => uiLayer(a, b, (cam) => {
 /* a quiet record over the live shot: the decision is on file */
 UI.zenRecord = (root) => {
   const c = el('div', 'chipL', root); S(c, { right: '90px', bottom: '96px' });
-  c.innerHTML = '<img src="assets/zen-mark.png" style="width:30px;height:28px;object-fit:contain"><div><small>Zenstra AI · decision record</small><div style="margin-top:6px">Prompt blocked · customer data stayed inside</div></div>';
+  c.innerHTML = '<img src="assets/zen-mark.png" style="width:30px;height:28px;object-fit:contain"><div><small>Zenstra AI · decision record</small><div style="margin-top:6px">Prompt blocked · production credentials stayed inside</div></div>';
   return (t) => reveal(c, win(t, 101.2, 103.0, 0.45, 0.4), 14, 8);
 };

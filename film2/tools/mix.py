@@ -136,8 +136,8 @@ for k, chn in enumerate(['Bb', 'Gm', 'A']):
     for e in range(8):
         te = 107.5 + k * 2.5 + e * 0.3125; pluck(CH[chn][2 + e % 4] + 12, te, 0.45, pan=0.3 * np.sin(e), decay=0.3)
         if e % 4 == 0: thump(te, 0.6, f=50, dur=0.35, buf=music)
-noise_sweep(113.2, 1.9, 150, 7000, 0.35, 'up', send=0.7)
-pad(CH['D'], 115.0, 5.0, 0.62, bright=0.6, att=0.3, rel=2.6); pad([38, 26], 115.0, 5.0, 0.7, bright=0.1, att=0.4, rel=2.4)
+noise_sweep(112.7, 1.85, 150, 7000, 0.3, 'up', send=0.6)
+pad(CH['D'], 114.6, 5.4, 0.36, bright=0.5, att=0.35, rel=2.6); pad([38, 26], 114.6, 5.4, 0.4, bright=0.1, att=0.4, rel=2.4)
 
 # ---------------- location ambience, from the edit ----------------
 def bed(t0, t1, kind, g):
@@ -213,8 +213,8 @@ for e in events:
     elif ty == 'link': [bell(m, t + k * 0.12, 0.13, (k - 1) * 0.4, 2.2) for k, m in enumerate((81, 86, 88))]
     elif ty == 'swell': noise_sweep(t, 1.3, 120, 5000, 0.28, 'up', send=0.7)
     elif ty == 'logo':
-        boom(t, 0.5, 100, 36, 3.0, send=0.6)
-        for k, m in enumerate((74, 81, 90)): bell(m, t + k * 0.24, 0.42 - k * 0.04, pan=(k - 1) * 0.35, decay=3.2, send=0.8)
+        boom(t, 0.32, 100, 36, 2.2, send=0.5)
+        for k, m in enumerate((74, 81, 90)): bell(m, t + k * 0.13, 0.26 - k * 0.05, pan=(k - 1) * 0.35, decay=3.2, send=0.8)
         bell(62, t, 0.2, 0, 3.5, 0.6)
 
 # ---------------- narration ----------------
@@ -224,8 +224,6 @@ for ln in L['lines']:
     if x.ndim > 1: x = x.mean(1)
     x = signal.resample_poly(x, SR, sr)
     x = hp(x, 75, 4)
-    # presence and warmth: a little body at 180 Hz, clarity at 3 kHz
-    x = x + 0.25 * bp(x, 2400, 4200) + 0.15 * bp(x, 140, 260)
     env = np.sqrt(signal.sosfilt(signal.butter(1, 8, fs=SR, output='sos'), x ** 2) + 1e-9)
     g = np.minimum(1, (0.12 / env) ** 0.35); x = x * g
     x = x / (np.max(np.abs(x)) + 1e-9) * 0.75
@@ -243,11 +241,11 @@ v = np.abs(vo).max(1); fr = int(0.01 * SR); nf = len(v) // fr
 venv = v[:nf * fr].reshape(nf, fr).max(1)
 gm = np.ones(nf); g = 1.0
 for i in range(nf):
-    tgt = 0.42 if venv[i] > 0.02 else 1.0
+    tgt = 0.33 if venv[i] > 0.02 else 1.0
     g += (tgt - g) * (0.35 if tgt < g else 0.04)
     gm[i] = g
 gain = np.interp(np.arange(N), np.arange(nf) * fr + fr / 2, gm)[:, None]
-mix = (music * 0.9 + wet * 0.55) * gain + sfx * (0.6 + 0.4 * gain) + vo * 1.0
+mix = (music * 0.9 + wet * 0.55) * gain + sfx * (0.3 + 0.7 * gain) + vo * 1.0
 mix = hp(mix, 25, 2)
 # soft limiter
 pk = np.max(np.abs(mix)); mix = mix / pk * 0.98
