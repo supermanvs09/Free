@@ -22,7 +22,7 @@ test.describe('desktop details', () => {
   test('the header search button opens search and Escape closes it', async ({ page }) => {
     await page.goto('/why-deep-algorithms');
     await hydrated(page);
-    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    await page.getByRole('button', { name: 'Search the site' }).first().click();
     await expect(page.getByRole('dialog', { name: 'Search the site' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -57,35 +57,35 @@ test('a missing page names the address and offers search', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Search the site' }).last()).toBeVisible();
 });
 
-test('the home hero says what we stop, names who we secure and shows proof before any scroll', async ({ page, isMobile }) => {
+test('the home hero says what we stop, who we secure, and shows a decision before any scroll', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1, name: 'Identity security for the AI era.' })).toBeVisible();
-  await expect(page.getByText('Learn how each one should behave', { exact: false }).first()).toBeVisible();
-  if (!isMobile) await expect(page.getByRole('img', { name: 'Canara Bank' }).first()).toBeInViewport();
+  await expect(page.getByRole('heading', { level: 1, name: 'Stop the attack that logs in.' })).toBeVisible();
+  await expect(page.getByText('Banks, government and enterprises').first()).toBeVisible();
+  await expect(page.getByRole('link', { name: /Book a demo/ }).first()).toBeVisible();
+  await expect(page.getByRole('tablist', { name: 'Identity types' })).toBeInViewport();
 });
 
-test('the utility bar carries search and the language menu, and folds away on scroll', async ({ page, isMobile }) => {
+test('the utility bar carries contact, phone and the language menu, and folds away on scroll', async ({ page, isMobile }) => {
   test.skip(isMobile, 'desktop only');
   await page.goto('/');
   const bar = page.locator('.ubar');
-  await expect(bar.getByRole('button', { name: 'Search', exact: true })).toBeVisible();
+  await expect(bar.getByRole('link', { name: 'Contact' })).toBeVisible();
   await expect(bar.getByRole('button', { name: /Language: English/ })).toBeVisible();
   await page.evaluate(() => window.scrollTo(0, 600));
-  await expect(bar).toHaveClass(/away/);
+  await expect(page.locator('header.site-hdr')).toHaveClass(/scrolled/);
 });
 
-test('a picture that leaves and comes straight back still plays its steps', async ({ page, isMobile }) => {
+test('a demo that leaves and comes straight back keeps playing its steps', async ({ page, isMobile }) => {
   test.skip(isMobile, 'one viewport is enough');
-  await page.goto('/adapid-ai');
+  await page.goto('/adapid-ai/continuous-identity-risk-management');
   await hydrated(page);
-  const vz = page.locator('section:has(#blast-h) .vz');
-  const to = (sel) => page.evaluate((s) => document.querySelector(s).scrollIntoView({ block: 'start', behavior: 'instant' }), sel);
-  await to('#blast-h');
-  await expect(vz).not.toHaveClass(/\bk1\b/); // rewound to step 0 on entering
-  await to('#fam-h');                          // out of view before step 1…
-  await page.waitForTimeout(150);
-  await to('#blast-h');                        // …and straight back
-  await expect(vz).toHaveClass(/\bk2\b/, { timeout: 5000 });
+  await page.locator('#wf-h').scrollIntoViewIfNeeded();
+  const tabs = page.getByRole('tablist', { name: 'CIRM stages' }).getByRole('tab');
+  await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true', { timeout: 8000 });
+  await page.locator('#faq-h').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(200);
+  await page.locator('#wf-h').scrollIntoViewIfNeeded();
+  await expect(tabs.nth(2)).toHaveAttribute('aria-selected', 'true', { timeout: 8000 });
 });
 
 test('there is no Trust center page, and nothing links to one', async ({ page }) => {

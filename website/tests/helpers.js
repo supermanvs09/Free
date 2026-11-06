@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 export const ROUTES = readFileSync(new URL('../dist/sitemap.xml', import.meta.url), 'utf8')
   .match(/<loc>[^<]+<\/loc>/g).map((l) => new URL(l.slice(5, -6)).pathname);
 
-export const PRODUCT_PAGES = ['/agentic-ai/agentic-identity', '/adapid-ai', '/adapid-ai/nhi-security', '/adapid-ai/fraud-prevention', '/ad-security', '/dpdpa-compliance'];
+export const PRODUCT_PAGES = ['/agentic-ai/agentic-identity', '/adapid-ai/continuous-identity-risk-management', '/adapid-ai/nhi-security', '/adapid-ai/fraud-prevention', '/adapid-ai/active-directory-security', '/dpdpa-compliance'];
 
 /* Record console and page errors for a test. */
 export function watch(page) {

@@ -254,6 +254,7 @@ export default function Header() {
     if (!open && !mobile) return undefined;
     const onKey = (e) => {
       if (e.key !== 'Escape') return;
+      clearTimeout(timer.current);
       if (open) triggers.current[open]?.focus();
       setOpen(null); setMobile(false);
     };
@@ -300,7 +301,7 @@ export default function Header() {
                   return (
                     <li key={n.label}>
                       <button type="button" ref={(el) => { triggers.current[n.label] = el; }} aria-expanded={open === n.label} aria-controls="mega" onMouseEnter={() => enter(n.label)}
-                        onClick={() => setOpen(open === n.label ? null : n.label)} className={cx('nav-btn', active && 'is-cur')}>
+                        onClick={() => { clearTimeout(timer.current); setOpen(open === n.label ? null : n.label); }} className={cx('nav-btn', active && 'is-cur')}>
                         {n.label}<Icon name="CaretDown" size={12} weight="bold" className="car" />
                       </button>
                     </li>

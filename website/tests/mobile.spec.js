@@ -1,70 +1,51 @@
 import { test, expect } from '@playwright/test';
 import { hydrated } from './helpers.js';
 
-/* Phones get their own layout: controls at the bottom, a bar of sections on
-   long pages, rails to swipe, a footer that folds. */
 test.describe('phone layout', () => {
   test.skip(({ isMobile }) => !isMobile, 'phone only');
 
-  test('the bottom bar holds menu, search and the one Book a demo, which steps aside at the end', async ({ page }) => {
+  test('one bottom bar with the menu and Book a demo, which steps aside at the footer', async ({ page }) => {
     await page.goto('/adapid-ai');
     await hydrated(page);
     const bar = page.getByRole('navigation', { name: 'Quick actions' });
-    await expect(bar).toBeVisible();
+    await expect(bar.getByRole('button', { name: 'Menu' })).toBeVisible();
     await expect(bar.getByRole('link', { name: 'Book a demo' })).toBeVisible();
-    await expect(page.locator('header').getByRole('link', { name: 'Book a demo' })).toBeHidden();
+    await bar.getByRole('button', { name: 'Menu' }).click();
+    await expect(page.getByRole('dialog', { name: 'Menu' })).toBeVisible();
+    await page.getByRole('button', { name: 'Close menu' }).click();
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await expect(bar.locator('.mbar-cta')).toHaveClass(/is-away/);
-    await bar.getByRole('button', { name: 'Search' }).click();
-    await expect(page.getByRole('dialog', { name: 'Search the site' })).toBeVisible();
-  });
-
-  test('the menu sheet is never covered by the bar', async ({ page }) => {
-    await page.goto('/');
-    await hydrated(page);
-    await page.getByRole('navigation', { name: 'Quick actions' }).getByRole('button', { name: 'Menu' }).click();
-    const sheet = page.locator('#mobile-menu');
-    await expect(sheet).toBeVisible();
-    await sheet.getByRole('link', { name: 'Book a demo' }).scrollIntoViewIfNeeded();
-    await expect(sheet.getByRole('link', { name: 'Book a demo' })).toBeInViewport();
     await expect(page.locator('.mbar')).toHaveClass(/is-down/);
-    await sheet.getByRole('button', { name: 'Close menu' }).click();
-    await expect(page.locator('.mbar')).not.toHaveClass(/is-down/);
   });
 
-  test('long pages get a bar of their sections that jumps to each', async ({ page }) => {
-    await page.goto('/dpdpa-compliance');
-    await hydrated(page);
-    await page.evaluate(() => window.scrollTo(0, innerHeight * 1.6));
-    const jump = page.getByRole('navigation', { name: 'On this page' });
-    await expect(jump).toBeVisible();
-    await jump.getByRole('button', { name: 'FAQ' }).click();
-    await expect(page.locator('#faq-h')).toBeInViewport();
+  for (const route of ['/', '/adapid-ai/fraud-prevention', '/agentic-ai/agentic-identity', '/adapid-ai/nhi-security', '/request-demo']) {
+    test(`${route} has no sideways scroll at 360px`, async ({ page }) => {
+      await page.setViewportSize({ width: 360, height: 780 });
+      await page.goto(route);
+      const [sw, cw] = await page.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]);
+      expect(sw).toBeLessThanOrEqual(cw + 1);
+    });
+  }
+
+  test('the demo form comes first on the Book a demo page', async ({ page }) => {
+    await page.goto('/request-demo');
+    const form = await page.getByLabel('Full name').boundingBox();
+    expect(form.y).toBeLessThan(844);
   });
 
-  test('card grids become rails you swipe, and the footer folds', async ({ page }) => {
-    await page.goto('/adapid-ai');
-    await hydrated(page);
-    const rail = page.locator('.m-rail').first();
-    await rail.scrollIntoViewIfNeeded();
-    expect(await rail.evaluate((el) => el.scrollWidth > el.clientWidth + 40)).toBe(true);
-    const foot = page.locator('footer');
-    await foot.scrollIntoViewIfNeeded();
-    await expect(foot.getByRole('link', { name: 'Leadership' })).toBeHidden();
-    await foot.getByRole('button', { name: 'Company' }).click();
-    await expect(foot.getByRole('link', { name: 'Leadership' })).toBeVisible();
+  test('the footer columns fold into rows you open', async ({ page }) => {
+    await page.goto('/');
+    const btn = page.locator('footer').getByRole('button', { name: 'Products' });
+    await btn.click();
+    await expect(page.locator('footer').getByRole('link', { name: 'adapID AI' })).toBeVisible();
   });
 });
 
-test('desktop keeps its own controls: no bottom bar, a section bar with the page name', async ({ page, isMobile }) => {
-  test.skip(isMobile, 'desktop check');
-  await page.goto('/adapid-ai');
-  await hydrated(page);
-  await expect(page.getByRole('navigation', { name: 'Quick actions' })).toBeHidden();
-  await page.evaluate(() => window.scrollTo(0, innerHeight * 2));
-  const bar = page.getByRole('navigation', { name: 'On this page' });
-  await expect(bar).toBeVisible();
-  await expect(bar).toContainText('adapID AI');
-  await expect(bar.getByRole('link', { name: 'Book a demo' })).toHaveCount(0); // the header already offers it
-  await expect(page.locator('header').getByRole('link', { name: 'Book a demo' })).toBeVisible();
+test('desktop keeps its own controls: no bottom bar, and a sticky section bar on product pages', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'desktop only');
+  await page.goto('/adapid-ai/nhi-security');
+  await expect(page.locator('.mbar')).toBeHidden();
+  const sub = page.getByRole('navigation', { name: 'NHI Security for AWS sections' });
+  await expect(sub).toBeVisible();
+  await sub.getByRole('link', { name: 'Secrets in code' }).click();
+  await expect(page).toHaveURL(/#secrets$/);
 });

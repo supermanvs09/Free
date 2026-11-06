@@ -51,6 +51,8 @@ export const PATHS = [
 /* Scroll to top on navigation, or to the #hash target. */
 function PageEffects() {
   const { pathname, hash } = useLocation();
+  // marks the page as hydrated (motion styles and the e2e suite key off it)
+  useEffect(() => { document.documentElement.classList.add('io'); }, []);
   useEffect(() => {
     if (hash) {
       const t = setTimeout(() => document.getElementById(decodeURIComponent(hash.slice(1)))?.scrollIntoView(), 60);
