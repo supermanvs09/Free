@@ -90,7 +90,19 @@ What remains on demo-heavy pages is the product-UI scale (12–14.5 px for dense
 | L7 | All product UI in the demos is illustrative sample data, labelled as such. Real product screenshots can replace any demo panel one for one | By design (brief: "do not create fictional functionality"; every demo shows a capability documented on the previous site) |
 | L8 | The previous e2e expectations about the old design (sheets, role cards, logo marquee) were replaced with tests of the new behaviour | `tests/*.spec.js` |
 
-## 6. How to re-run
+## 6. Addendum: Prompt Heist banner, launcher and practice lab
+
+See `PROMPT_HEIST_DESIGN.md`. Re-tested after adding them:
+
+| Check | Result |
+|---|---|
+| End-to-end suite | **197 passed, 0 failed**, 13 skipped (14 new runs in `tests/heist-lab.spec.js`) |
+| Viewports 1440, 1280, 1024, 390, 360, 320 | 282 page loads, 0 console errors, 0 horizontal overflow, one H1 on every page |
+| Lab panel at each of those widths | Inside the viewport, input visible, no sideways scroll; modal sheet below 640 px |
+| On-screen keyboard (simulated `visualViewport`) | The sheet rides above the keyboard and the input stays visible |
+| Navbar | `Header.jsx`, the menus and their styles, and `MobileBar.jsx` unchanged |
+
+## 7. How to re-run
 
 ```bash
 npm ci && npm run build

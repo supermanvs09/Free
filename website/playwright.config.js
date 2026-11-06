@@ -20,7 +20,7 @@ export default defineConfig({
   },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } },
-    { name: 'phone', use: { ...devices['Pixel 7'], viewport: { width: 390, height: 844 } }, testMatch: /responsive|navigation|mobile/ },
+    { name: 'phone', use: { ...devices['Pixel 7'], viewport: { width: 390, height: 844 } }, testMatch: /responsive|navigation|mobile|heist-lab/ },
   ],
   webServer: process.env.BASE_URL ? undefined : { command: `node scripts/serve.mjs ${PORT}`, url: `http://127.0.0.1:${PORT}/healthz`, reuseExistingServer: !process.env.CI },
 });

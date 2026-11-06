@@ -4,6 +4,7 @@ import Header from './components/Header.jsx';
 import MobileBar from './components/MobileBar.jsx';
 import Footer from './components/Footer.jsx';
 import CommandLauncher from './components/CommandLauncher.jsx';
+import HeistLauncher from './components/heist-lab/HeistLauncher.jsx';
 import { PRODUCTS } from './data/products.js';
 import { ZCAPS } from './data/zenstra.js';
 import { INDUSTRIES } from './data/ia.js';
@@ -126,6 +127,8 @@ export default function App() {
       </main>
       <Footer />
       <MobileBar />
+      {/* after the quick-action bar: its CSS keys off the bar's state */}
+      <HeistLauncher />
     </>
   );
 }

@@ -1,9 +1,16 @@
 import { Seo } from '../lib/head.jsx';
-import { CERTS } from '../data/site.js';
+import { CERTS, SITE } from '../data/site.js';
 import { BELIEFS } from '../data/company.js';
-import { Icon, Reveal, SectionHead } from '../components/ui.jsx';
+import { Button, Icon, Reveal, SectionHead } from '../components/ui.jsx';
 import { ArrowLink, CtaBand, FeatureCard, PageHero, Section } from '../components/ds.jsx';
 import Architecture from '../components/demos/Architecture.jsx';
+import HeistBanner from '../components/heist-lab/HeistBanner.jsx';
+
+const TEAMS = [
+  ['Cpu', 'AI engineering', 'Behaviour models that score people, machine identities and AI agents, and explain every score.'],
+  ['Detective', 'Security research', 'Attack paths, mule networks and new identity attacks, studied in the field.'],
+  ['Code', 'Product engineering', 'Gateways, connectors and consoles that run inside customers’ own clouds.'],
+];
 
 const ROWS = [
   ['Catches valid logins used by the wrong person', 'No', 'No', 'Yes'],
@@ -61,6 +68,30 @@ export default function Why() {
             <ArrowLink to="/contact" className="mt-4 text-[14.5px]">Request documentation</ArrowLink>
           </div>
         </div>
+      </Section>
+      <Section id="careers" labelledby="car-h">
+        <Reveal className="card overflow-hidden p-5 sm:p-8 md:p-10">
+          <div className="grid items-end gap-6 lg:grid-cols-[minmax(0,1.4fr)_auto]">
+            <div>
+              <p className="eyebrow">Careers</p>
+              <h2 id="car-h" className="t-h2 mt-4">Build the defence attackers have to think about.</h2>
+              <p className="t-lead mt-4 max-w-[60ch]">We are looking for AI engineers, security researchers and product engineers. Tell us what you want to work on, or show us first in the Prompt Heist.</p>
+            </div>
+            <div className="flex flex-col items-start gap-2 lg:items-end">
+              <Button href={`mailto:${SITE.careersEmail}?subject=${encodeURIComponent('Working at Deep Algorithms')}`} variant="secondary"><Icon name="EnvelopeSimple" size={18} /><span className="sm:hidden">Write to us</span><span className="hidden sm:inline">Write to {SITE.careersEmail}</span></Button>
+              <ArrowLink to="/careers" className="text-[14.5px]">Life at Deep Algorithms</ArrowLink>
+            </div>
+          </div>
+          <div className="mt-8"><HeistBanner /></div>
+          <ul className="mt-8 grid gap-x-8 gap-y-5 border-t border-line pt-7 md:grid-cols-3">
+            {TEAMS.map(([ic, t, b]) => (
+              <li key={t}>
+                <p className="flex items-center gap-2 t-h4"><Icon name={ic} size={18} className="text-brand" />{t}</p>
+                <p className="mt-1.5 t-small !text-ink-2">{b}</p>
+              </li>
+            ))}
+          </ul>
+        </Reveal>
       </Section>
       <CtaBand title="See the difference on your own identities." />
     </>
