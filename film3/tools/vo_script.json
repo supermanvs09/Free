@@ -1,0 +1,72 @@
+{
+ "voice": {
+  "am_fenrir": 1.0
+ },
+ "speed": 1.15,
+ "lines": [
+  {
+   "id": "o1",
+   "text": "Every business today runs on trust.",
+   "say": "Every business today runs on trust."
+  },
+  {
+   "id": "o2",
+   "text": "An employee signs in. A cloud service calls another. A customer sends money. A team asks AI for help.",
+   "say": "An employee signs in. A cloud service calls another. A customer sends money. A team asks AI for help."
+  },
+  {
+   "id": "o3",
+   "text": "Behind every one of these moments is an identity.",
+   "say": "Behind every one of these moments, is an identity."
+  },
+  {
+   "id": "a0",
+   "text": "Meet adapID AI. It protects those identities, human and machine.",
+   "say": "Meet Adap ID AI. It protects those identities, human and machine."
+  },
+  {
+   "id": "a1",
+   "text": "It keeps reading every session after the login. When the device, the network or the behaviour changes, trust adapts with it.",
+   "say": "It keeps reading every session after the login. When the device, the network, or the behaviour changes, trust adapts with it."
+  },
+  {
+   "id": "a2",
+   "text": "It finds the machine identities across your AWS accounts, shows what each one can reach and what it really uses, and proposes the least privilege it needs.",
+   "say": "It finds the machine identities across your A-W-S accounts, shows what each one can reach, and what it really uses, and proposes the least privilege it needs."
+  },
+  {
+   "id": "a3",
+   "text": "And in digital banking, it recognises the customer, not just the password: how they type, tap and pay.",
+   "say": "And in digital banking, it recognises the customer, not just the password. How they type, tap, and pay."
+  },
+  {
+   "id": "a4",
+   "text": "Even an impostor with valid credentials stands out.",
+   "say": "Even an impostor with valid credentials stands out."
+  },
+  {
+   "id": "z1",
+   "text": "As teams bring AI into their daily work, sensitive data can travel with every prompt.",
+   "say": "As teams bring AI into their daily work, sensitive data can travel with every prompt."
+  },
+  {
+   "id": "z2",
+   "text": "Zenstra AI checks what is about to leave, and stops credentials and secrets before they are sent.",
+   "say": "Zenstra AI checks what is about to leave, and stops credentials and secrets before they are sent.",
+   "ph": {
+    "Zenstra": "z\u02c8\u025bnst\u0279\u0259"
+   }
+  },
+  {
+   "id": "z3",
+   "text": "Your teams get the power of AI, without the exposure.",
+   "say": "Your teams get the power of AI, without the exposure."
+  },
+  {
+   "id": "f1",
+   "text": "Deep Algorithms Solutions. Securing identity and AI in the connected world.",
+   "say": "Deep Algorithms, Solutions. Securing identity and AI in the connected world.",
+   "speed": 1.2
+  }
+ ]
+}
