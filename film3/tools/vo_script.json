@@ -11,8 +11,8 @@
   },
   {
    "id": "o2",
-   "text": "An employee signs in. A cloud service calls another. A customer sends money. A team asks AI for help.",
-   "say": "An employee signs in. A cloud service calls another. A customer sends money. A team asks AI for help."
+   "text": "An employee signs in. Two cloud services exchange data. A customer sends money. A team asks AI for help.",
+   "say": "An employee signs in. Two cloud services exchange data. A customer sends money. A team asks AI for help."
   },
   {
    "id": "o3",
@@ -66,7 +66,7 @@
    "id": "f1",
    "text": "Deep Algorithms Solutions. Securing identity and AI in the connected world.",
    "say": "Deep Algorithms, Solutions. Securing identity and AI in the connected world.",
-   "speed": 1.2
+   "speed": 1.05
   }
  ]
 }

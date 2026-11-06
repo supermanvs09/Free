@@ -31,16 +31,19 @@ function shot(id, at, len, o = {}) {
 }
 
 /* ---------- light lower-third naming a capability ---------- */
-function lowerThird(a, b, text) {
+function lowerThird(a, b, text, prod = 'adap') {
   sfx(a + 0.1, 'lockup');
   return layer(a, b, (root) => {
     const w = el('div', 'abs', root);
-    S(w, { left: '96px', bottom: '92px', display: 'flex', alignItems: 'center', gap: '16px', padding: '14px 26px 14px 14px', borderRadius: '20px', background: 'rgba(255,255,255,.96)', boxShadow: '0 24px 50px -20px rgba(15,23,42,.45)' });
-    w.innerHTML = `<span style="width:52px;height:52px;border-radius:14px;overflow:hidden;box-shadow:0 0 0 1px #e8edf3"><img src="assets/adapid.png" style="width:100%;height:100%;object-fit:contain"></span>
-      <b style="font:700 26px/1 var(--disp);letter-spacing:-.02em;color:${INK}">adapID AI</b><i style="width:1.5px;height:30px;background:#cbd5e1"></i><span class="lt" style="font:500 25px/1 var(--sans);color:#334155;white-space:nowrap">${text}</span>`;
+    S(w, { left: '96px', bottom: '96px', display: 'flex', alignItems: 'center', gap: '22px', padding: '18px 36px 18px 18px', borderRadius: '26px', background: 'rgba(255,255,255,.97)', boxShadow: '0 30px 60px -24px rgba(15,23,42,.5)' });
+    const mark = prod === 'zen'
+      ? '<span style="width:78px;height:78px;border-radius:20px;background:#14162b;display:grid;place-items:center"><img src="assets/zen-mark.png" style="width:50px;height:46px;object-fit:contain"></span>'
+      : '<span style="width:78px;height:78px;border-radius:20px;overflow:hidden;box-shadow:0 0 0 1px #e8edf3"><img src="assets/adapid.png" style="width:100%;height:100%;object-fit:contain"></span>';
+    const name = prod === 'zen' ? 'Zenstra AI' : 'adapID AI';
+    w.innerHTML = `${mark}<b style="font:700 42px/1 var(--disp);letter-spacing:-.025em;color:${INK};white-space:nowrap">${name}</b><i style="width:2px;height:46px;background:#cbd5e1"></i><span class="lt" style="font:500 36px/1 var(--sans);letter-spacing:-.01em;color:#334155;white-space:nowrap">${text}</span>`;
     const lt = w.querySelector('.lt');
     const tl = gsap.timeline({ paused: true });
-    tl.fromTo(w, { opacity: 0, y: 24, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: 'back.out(1.5)' }, 0)
+    tl.fromTo(w, { opacity: 0, y: 26, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: 'back.out(1.5)' }, 0)
       .fromTo(lt, { opacity: 0, x: -14, filter: 'blur(6px)' }, { opacity: 1, x: 0, filter: 'blur(0px)', duration: 0.5, ease: 'power3.out' }, 0.25)
       .to(w, { opacity: 0, y: 12, duration: 0.35, ease: 'power2.in' }, b - a - 0.35);
     return (t) => tl.seek(clamp(t - a, 0, b - a), false);
@@ -205,7 +208,7 @@ signalChip(51.75, 53.55, 'How they type', 'Typing rhythm matches'); signalChip(5
 signalChip(57.7, 59.75, 'Genuine customer', 'No extra step');
 UI.fraud(59.8, 66.05);
 // Zenstra AI · Secure AI Interactions
-shot('s12', 65.5, 3.8, { in: 'wipe' });
+shot('s12', 65.5, 3.8, { in: 'wipe' }); lowerThird(66.0, 68.6, 'Secure AI Interactions', 'zen');
 UI.ai(68.7, 80.45);
 UI.zenConsole(79.9, 84.3);
 titleCard(84.2, 89.9, 't2', { tint: '#4f46e5', eyebrow: 'Secure AI interactions', lines: [[300, 'Use AI freely.'], [700, 'Keep secrets inside.']], barBg: 'linear-gradient(90deg,#14162b,#3b3f8f)',

@@ -1,7 +1,8 @@
 # Deep Algorithms Solutions — Brand Advertisement (Final Revision)
 
-**Master:** `deepalgorithms-brand-ad-v3-1080p.mp4` · 1:44 (104 s) · 1920×1080 · 30 fps · H.264 + AAC 48 kHz stereo, −16 LUFS integrated
-**Captions:** `captions-en.vtt`, `captions-en.srt` (29 cues, timed to the narration)
+**Final film (approved pace, 1.15×):** `deepalgorithms-brand-ad-v3-1080p-x1.15.mp4` · 1:30 (90.5 s) · 1920×1080 · 30 fps · H.264 + AAC 48 kHz stereo, −16 LUFS integrated
+**Captions for the final film:** `captions-en-x1.15.vtt`, `captions-en-x1.15.srt` (29 cues)
+**Edit master (1×, source timing):** `deepalgorithms-brand-ad-v3-1080p.mp4` · 1:44, with `captions-en.vtt` / `.srt`. All timings in this book are on this 1× timeline; divide by 1.15 for the final film.
 **Source:** `film3/` in this repository (deterministic: every frame is a function of time; it can be re-rendered exactly)
 
 ---
@@ -10,10 +11,10 @@
 
 | Brief requirement | How this cut answers it |
 |---|---|
-| 90–120 s, length driven by the story | 104 s. Opening 0–14 s · adapID AI 14–65 s · Zenstra AI 65–90 s · reveal 92–104 s |
+| 90–120 s, length driven by the story | 90.5 s at the approved 1.15× pace. Opening, then adapID AI, Zenstra AI and the logo reveal in the brief's proportions |
 | Light, clean, premium compositions with strong typography (PhonePe-level polish, not copied) | Every product screen, title card and the logo reveal are now light. Large type, white space, a single accent colour per product. Nothing is borrowed from the reference ad's layouts or assets |
 | Say "adapID AI" once and "Zenstra AI" once | Each name is spoken exactly once (14.8 s and 74.4 s). The three adapID capabilities are introduced with "It…", not the product name |
-| The three adapID capabilities: CIRM, NHI for AWS, Identity Fraud Prevention | Each one gets a lower third, a live-action lead-in and a light dashboard explainer. A ring and caption walk the viewer through three steps per screen |
+| The three adapID capabilities: CIRM, NHI for AWS, Identity Fraud Prevention | Each one gets a large product name tag (product icon, "adapID AI" and the capability name), Zenstra AI gets the same tag with its own mark, a live-action lead-in and a light dashboard explainer. A ring and caption walk the viewer through three steps per screen |
 | Light-themed product explainers | The dashboards are rebuilt on white, with readable 1080p type. There are no dark dashboards, glow, particles, holograms or hacker imagery |
 | Fraud section: real banking activity on a smartphone | Five real payment moments, cut to the line "how they type, tap and pay": a customer entering card details on her phone at home, a close-up of card details typed into a phone, a contactless phone tap at a café counter (with the terminal's beep), a card payment at an outdoor café, and a card-in-hand online purchase. A light chip names what is read in each moment: typing rhythm, device recognised, usual place and amount, then "Genuine customer · No extra step". The fraud dashboard follows |
 | Zenstra: realistic AI-assistant interaction | A Claude-style chat with a pasted `.env` holding AWS keys and a production database password. Zenstra flags the three secrets, blocks the prompt before it is sent and records the decision |
@@ -27,7 +28,7 @@
 | In | Line |
 |---|---|
 | 0.6 | Every business today runs on trust. |
-| 2.9 | An employee signs in. A cloud service calls another. A customer sends money. A team asks AI for help. |
+| 2.9 | An employee signs in. Two cloud services exchange data. A customer sends money. A team asks AI for help. |
 | 10.6 | Behind every one of these moments is an identity. |
 | 14.8 | Meet adapID AI. It protects those identities, human and machine. |
 | 20.0 | It keeps reading every session after the login. When the device, the network or the behaviour changes, trust adapts with it. |
@@ -39,7 +40,7 @@
 | 85.2 | Your teams get the power of AI, without the exposure. |
 | 95.0 | Deep Algorithms Solutions. Securing identity and AI in the connected world. |
 
-I checked the speech-to-text transcript of the final mix against this script. Every line transcribes correctly. "adapID" is voiced as "Adap ID", a single word plus I-D.
+I checked the speech-to-text transcript of the final 1.15× film against this script. Every line transcribes correctly. The closing line is voiced a little slower (speed 1.05 rather than 1.15) so that "Deep Algorithms" stays clear at the final pace. "adapID" is voiced as "Adap ID", a single word plus I-D.
 
 ## 3. Edit
 
@@ -51,7 +52,7 @@ I checked the speech-to-text transcript of the final mix against this script. Ev
 | 19.7–33.2 | Live lead-in → CIRM dashboard → live | Session context changes → reasons for risk → policy response |
 | 33.2–47.0 | Live lead-in → NHI for AWS dashboard → live | Machine identities → reach versus use → least-privilege proposal |
 | 47.0–65.6 | Live lead-in → five real payment shots (type, tap, pay) with behaviour chips → fraud dashboard | The customer is recognised by behaviour, not just credentials |
-| 65.5–84.3 | Live lead-in → Claude-style chat with secrets → Zenstra block → Zenstra detection record | AI used safely |
+| 65.5–84.3 | Live lead-in with the Zenstra AI · Secure AI Interactions name tag → Claude-style chat with secrets → Zenstra block → Zenstra detection record | AI used safely |
 | 84.2–89.9 | Title card · "Use AI freely. Keep secrets inside." | Zenstra promise |
 | 89.8–92.6 | Grid collapses · "Every identity deserves protection." | Transition to brand |
 | 92.45–104 | D mark → lockup → name, positioning line, products, URL | Logo reveal |
