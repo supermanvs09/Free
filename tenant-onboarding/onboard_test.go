@@ -125,6 +125,11 @@ func TestNormalizeUser(t *testing.T) {
 	}
 }
 
+// wantTables is the number of tables in sql/tenant_schema.sql (the partitions
+// are made per company at run time and are not counted). Update it, and only
+// it, when the template is regenerated from a new reference schema.
+const wantTables = 98
+
 func TestTemplates(t *testing.T) {
 	for _, s := range []string{schemaSQL, seedSQL, string(mustRead(t, "web/index.html")), string(mustRead(t, "web/app.js")), string(mustRead(t, "README.md"))} {
 		if strings.Contains(strings.ToLower(s), "bima"+"sugam") {
@@ -134,8 +139,8 @@ func TestTemplates(t *testing.T) {
 	if strings.Contains(schemaSQL, "OWNER TO") || strings.Contains(schemaSQL, "COPY ") {
 		t.Error("the template holds structure only")
 	}
-	if n := len(expectedTables()); n != 72 {
-		t.Errorf("expectedTables() = %d, want 72", n)
+	if n := len(expectedTables()); n != wantTables {
+		t.Errorf("expectedTables() = %d, want %d", n, wantTables)
 	}
 	// The page must not talk about storage. Markup is stripped first, so the
 	// HTML table element and its ids don't count; only words a person reads do.
@@ -288,8 +293,8 @@ func TestOnboardCreatesEverything(t *testing.T) {
 		tn.ExternalID != req.ExternalID || tn.AWSAccountID != req.AWSAccountID || tn.EventBridgeARN != req.EventBridgeARN || strings.Join(tn.Regions, ",") != "ap-south-1" {
 		t.Fatalf("tenant = %+v", tn)
 	}
-	if got := tablesIn(t, db, "acme_corp"); got != 72 {
-		t.Errorf("workspace has %d tables, want 72", got)
+	if got := tablesIn(t, db, "acme_corp"); got != wantTables {
+		t.Errorf("workspace has %d tables, want 98", got)
 	}
 	if n := count(t, db, `SELECT count(*) FROM acme_corp.ispm_rule_weights`); n == 0 {
 		t.Error("reference rows are missing")
@@ -389,7 +394,7 @@ func TestConcurrentSubmissionsOfOneCompany(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	if created != 1 || count(t, db, `SELECT count(*) FROM nhi_global.tenants`) != 1 || tablesIn(t, db, "acme_corp") != 72 {
+	if created != 1 || count(t, db, `SELECT count(*) FROM nhi_global.tenants`) != 1 || tablesIn(t, db, "acme_corp") != wantTables {
 		t.Fatalf("created = %d", created)
 	}
 }
@@ -490,7 +495,7 @@ func TestRowAddedByHandGetsItsWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Outcome != OutcomeAlreadyExists || res.Setup != "created" || res.Tenant.TenantID != id || tablesIn(t, db, "acme_corp") != 72 {
+	if res.Outcome != OutcomeAlreadyExists || res.Setup != "created" || res.Tenant.TenantID != id || tablesIn(t, db, "acme_corp") != wantTables {
 		t.Fatalf("result = %+v", res)
 	}
 	var utid string
@@ -523,7 +528,7 @@ func TestLongNamesWork(t *testing.T) {
 	r := valid()
 	r.CompanyName = "International Business Machines Corporation Europe"
 	res, err := svc.Onboard(context.Background(), r)
-	if err != nil || len(res.Tenant.DBName) > maxNameLength || tablesIn(t, db, res.Tenant.DBName) != 72 {
+	if err != nil || len(res.Tenant.DBName) > maxNameLength || tablesIn(t, db, res.Tenant.DBName) != wantTables {
 		t.Fatalf("%+v %v", res, err)
 	}
 }

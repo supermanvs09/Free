@@ -2,6 +2,15 @@
 -- from a reference tenant schema of nhi_db. __SCHEMA__ is replaced by the tenant's db_name.
 -- Do not edit by hand: change the source schema and regenerate.
 
+-- FUNCTION: remediation_audit_immutable()
+CREATE FUNCTION __SCHEMA__.remediation_audit_immutable() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    RAISE EXCEPTION 'remediation_audit_log is append-only';
+END;
+$$;
+
 -- FUNCTION: update_updated_at()
 CREATE FUNCTION __SCHEMA__.update_updated_at() RETURNS trigger
     LANGUAGE plpgsql
@@ -11,6 +20,12 @@ BEGIN
     RETURN NEW;
 END;
 $$;
+
+
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
 
 -- TABLE: accounts
 CREATE TABLE __SCHEMA__.accounts (
@@ -44,6 +59,21 @@ CREATE TABLE __SCHEMA__.accounts (
     sync_started_at timestamp with time zone,
     last_synced_at timestamp with time zone,
     last_sync_error text DEFAULT ''::text NOT NULL,
+    remediation_enabled boolean DEFAULT false NOT NULL,
+    auto_remediation_enabled boolean DEFAULT false NOT NULL,
+    remediation_role_arn text,
+    remediation_external_id text,
+    remediation_allowed_actions text[] DEFAULT '{}'::text[] NOT NULL,
+    remediation_regions text[] DEFAULT '{}'::text[] NOT NULL,
+    remediation_approval_policy jsonb DEFAULT '{"low": 1, "high": 1, "medium": 1}'::jsonb NOT NULL,
+    remediation_grace_days jsonb DEFAULT '{}'::jsonb NOT NULL,
+    remediation_access_status text DEFAULT 'UNKNOWN'::text NOT NULL,
+    remediation_access_detail text,
+    remediation_access_checked_at timestamp with time zone,
+    remediation_enabled_by text,
+    remediation_enabled_at timestamp with time zone,
+    remediation_updated_at timestamp with time zone,
+    jira_project_key text,
     approval_status text,
     approval_requested_at timestamp with time zone,
     approval_requested_by text,
@@ -63,6 +93,7 @@ CREATE TABLE __SCHEMA__.alert_feedback (
     baseline_version character varying(128),
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    account_id character varying(12) DEFAULT ''::character varying NOT NULL,
     CONSTRAINT alert_feedback_decision_check CHECK (((decision)::text = ANY ((ARRAY['legitimate'::character varying, 'malicious'::character varying, 'unknown'::character varying])::text[])))
 );
 
@@ -83,7 +114,8 @@ CREATE TABLE __SCHEMA__.alerts (
     window_start timestamp with time zone NOT NULL,
     window_end timestamp with time zone NOT NULL,
     status character varying(32) DEFAULT 'open'::character varying NOT NULL,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    account_id character varying(12) DEFAULT ''::character varying NOT NULL
 );
 
 -- SEQUENCE: alerts_id_seq
@@ -104,7 +136,8 @@ CREATE TABLE __SCHEMA__.baseline_versions (
     version bigint NOT NULL,
     published_at timestamp with time zone NOT NULL,
     profile_json jsonb NOT NULL,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    account_id character varying(12) DEFAULT ''::character varying NOT NULL
 );
 
 -- TABLE: baselines
@@ -118,33 +151,9 @@ CREATE TABLE __SCHEMA__.baselines (
     first_seen_date date,
     active_since timestamp with time zone,
     profile_json jsonb DEFAULT '{}'::jsonb NOT NULL,
-    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    account_id character varying(12) DEFAULT ''::character varying NOT NULL
 );
-
--- TABLE: change_log
-CREATE TABLE __SCHEMA__.change_log (
-    id bigint NOT NULL,
-    entity_arn text NOT NULL,
-    account_id text NOT NULL,
-    identity_type text,
-    change_type text NOT NULL,
-    field_name text,
-    old_value text,
-    new_value text,
-    scan_id text NOT NULL,
-    detected_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
--- SEQUENCE: change_log_id_seq
-CREATE SEQUENCE __SCHEMA__.change_log_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
--- SEQUENCE OWNED BY: change_log_id_seq
-ALTER SEQUENCE __SCHEMA__.change_log_id_seq OWNED BY __SCHEMA__.change_log.id;
 
 -- TABLE: compliance_findings
 CREATE TABLE __SCHEMA__.compliance_findings (
@@ -164,30 +173,168 @@ CREATE TABLE __SCHEMA__.compliance_findings (
     CONSTRAINT chk_severity CHECK ((severity = ANY (ARRAY['critical'::text, 'high'::text, 'medium'::text, 'low'::text])))
 );
 
--- TABLE: credential_change_log
-CREATE TABLE __SCHEMA__.credential_change_log (
-    id bigint NOT NULL,
-    entity_arn text NOT NULL,
-    account_id text NOT NULL,
-    credential_type text,
-    change_type text NOT NULL,
-    field_name text,
-    old_value text,
-    new_value text,
-    scan_id text NOT NULL,
-    detected_at timestamp with time zone DEFAULT now() NOT NULL
+-- TABLE: correlation_composition_rules
+CREATE TABLE __SCHEMA__.correlation_composition_rules (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    rule_id text NOT NULL,
+    rule_type text NOT NULL,
+    prerequisites jsonb DEFAULT '[]'::jsonb NOT NULL,
+    join_key text NOT NULL,
+    result_type text NOT NULL,
+    result_semantics text NOT NULL,
+    bidirectional boolean DEFAULT false NOT NULL,
+    detection_key text NOT NULL,
+    resolution_strategy text DEFAULT 'keep_strongest'::text NOT NULL,
+    flag_always boolean DEFAULT false NOT NULL,
+    conditions jsonb DEFAULT '[]'::jsonb NOT NULL,
+    description text DEFAULT ''::text NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    connectivity_entity_compatibility jsonb,
+    dependency_type text,
+    dependency_order integer,
+    dependency_strength text,
+    overlap_type text,
+    evidence_validation_type text,
+    evidence_strength_rank integer,
+    evidence_temporal_alignment text,
+    consequence_type text,
+    path_type text,
+    path_min_hops integer,
+    path_max_hops integer,
+    path_confidence_formula text,
+    path_limitations jsonb,
+    path_security_significance text,
+    max_hops_per_phase jsonb,
+    super_node_protection boolean
 );
 
--- SEQUENCE: credential_change_log_id_seq
-CREATE SEQUENCE __SCHEMA__.credential_change_log_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+-- TABLE: correlation_definitions
+CREATE TABLE __SCHEMA__.correlation_definitions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    rule_id text NOT NULL,
+    category text NOT NULL,
+    source_entity_type text NOT NULL,
+    source_entity_identifiers jsonb NOT NULL,
+    source_table text NOT NULL,
+    target_entity_type text NOT NULL,
+    target_entity_identifiers jsonb NOT NULL,
+    target_table text NOT NULL,
+    relationship_type text NOT NULL,
+    edge_type text NOT NULL,
+    evidence_source text NOT NULL,
+    evidence_type text NOT NULL,
+    phase integer DEFAULT 1 NOT NULL,
+    max_hops integer DEFAULT 1 NOT NULL,
+    description text DEFAULT ''::text NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    security_significance text,
+    confidence_level text,
+    confidence_formula text,
+    evidence_strength_rank integer,
+    temporal_alignment text,
+    session_duration text,
+    condition_keys jsonb,
+    trust_policy_field text,
+    policy_field text,
+    resource_field text,
+    account_scope text,
+    region_scope text,
+    prerequisites jsonb,
+    limitations jsonb,
+    complexity text,
+    use_cases jsonb,
+    temporal_behavior text,
+    freshness_requirement text,
+    valid_from timestamp with time zone,
+    valid_until timestamp with time zone,
+    services jsonb,
+    apis jsonb,
+    permissions jsonb,
+    data_source text,
+    collection_method text,
+    direction text,
+    entity_compatibility jsonb,
+    consequence_type text,
+    disposition text
+);
 
--- SEQUENCE OWNED BY: credential_change_log_id_seq
-ALTER SEQUENCE __SCHEMA__.credential_change_log_id_seq OWNED BY __SCHEMA__.credential_change_log.id;
+-- TABLE: correlation_engine_runs
+CREATE TABLE __SCHEMA__.correlation_engine_runs (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    source_arn text NOT NULL,
+    status text DEFAULT 'pending'::text NOT NULL,
+    refresh boolean DEFAULT true NOT NULL,
+    error text,
+    total_paths integer,
+    requested_at timestamp with time zone DEFAULT now() NOT NULL,
+    started_at timestamp with time zone,
+    finished_at timestamp with time zone,
+    CONSTRAINT correlation_engine_runs_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'running'::text, 'completed'::text, 'failed'::text])))
+);
+
+-- TABLE: correlation_entity_aliases
+CREATE TABLE __SCHEMA__.correlation_entity_aliases (
+    alias text NOT NULL,
+    canonical text NOT NULL
+);
+
+-- TABLE: correlation_path_types
+CREATE TABLE __SCHEMA__.correlation_path_types (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    path_id text NOT NULL,
+    path_name text NOT NULL,
+    min_hops integer DEFAULT 1 NOT NULL,
+    max_hops integer DEFAULT 1 NOT NULL,
+    confidence_formula text DEFAULT ''::text NOT NULL,
+    limitations jsonb DEFAULT '[]'::jsonb NOT NULL,
+    security_significance text DEFAULT 'conditional'::text NOT NULL,
+    phase integer DEFAULT 1 NOT NULL,
+    description text DEFAULT ''::text NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+-- TABLE: correlation_results
+CREATE TABLE __SCHEMA__.correlation_results (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tenant_id uuid NOT NULL,
+    run_id uuid NOT NULL,
+    correlation_id text NOT NULL,
+    category text NOT NULL,
+    severity text NOT NULL,
+    identity_arn text NOT NULL,
+    resource_arn text,
+    path_found jsonb NOT NULL,
+    path_depth integer NOT NULL,
+    evidence_event_ids text[],
+    confidence numeric(5,2),
+    status text DEFAULT 'open'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_correlation_results_confidence CHECK (((confidence IS NULL) OR ((confidence >= (0)::numeric) AND (confidence <= (100)::numeric)))),
+    CONSTRAINT chk_correlation_results_path_depth CHECK ((path_depth >= 0)),
+    CONSTRAINT chk_correlation_results_status CHECK ((status = ANY (ARRAY['open'::text, 'investigating'::text, 'resolved'::text, 'false_positive'::text])))
+);
+
+-- TABLE: correlation_runs
+CREATE TABLE __SCHEMA__.correlation_runs (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tenant_id text NOT NULL,
+    correlation_id text NOT NULL,
+    status text DEFAULT 'pending'::text NOT NULL,
+    started_at timestamp with time zone,
+    completed_at timestamp with time zone,
+    correlations_loaded integer DEFAULT 0 NOT NULL,
+    correlations_executed integer DEFAULT 0 NOT NULL,
+    findings_count integer DEFAULT 0 NOT NULL,
+    error_message text,
+    parameters jsonb,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
 
 -- TABLE: credentials
 CREATE TABLE __SCHEMA__.credentials (
@@ -231,7 +378,8 @@ CREATE TABLE __SCHEMA__.daily_stats (
     period_start timestamp with time zone NOT NULL,
     event_count integer DEFAULT 0 NOT NULL,
     dimensions_json jsonb DEFAULT '{}'::jsonb NOT NULL,
-    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    account_id character varying(12) DEFAULT ''::character varying NOT NULL
 );
 
 -- TABLE: drift_config
@@ -240,7 +388,8 @@ CREATE TABLE __SCHEMA__.drift_config (
     scope_key character varying(512) NOT NULL,
     config jsonb DEFAULT '{}'::jsonb NOT NULL,
     note text,
-    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    account_id character varying(12) DEFAULT ''::character varying NOT NULL
 );
 
 -- TABLE: drift_feedback_stats
@@ -261,7 +410,8 @@ CREATE TABLE __SCHEMA__.drift_feedback_stats (
     probation boolean DEFAULT false NOT NULL,
     baseline_version_at_review bigint,
     last_reviewed_at timestamp with time zone,
-    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    account_id character varying(12) DEFAULT ''::character varying NOT NULL
 );
 
 -- TABLE: drift_fleet_snapshots
@@ -289,7 +439,8 @@ CREATE TABLE __SCHEMA__.drift_fleet_snapshots (
     mean_drift double precision,
     mean_identity_risk double precision,
     fleet_risk smallint,
-    computed_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    computed_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    account_id character varying(12) DEFAULT ''::character varying NOT NULL
 );
 
 -- SEQUENCE: drift_fleet_snapshots_snapshot_id_seq
@@ -397,6 +548,22 @@ CREATE TABLE __SCHEMA__.ecs_task_registry (
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
+-- TABLE: effective_permission_entries
+CREATE TABLE __SCHEMA__.effective_permission_entries (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    credential_id uuid NOT NULL,
+    action text NOT NULL,
+    effect text NOT NULL,
+    service text NOT NULL,
+    policy_type text,
+    resource_arn text NOT NULL,
+    policy_source text,
+    is_wildcard boolean DEFAULT false NOT NULL,
+    tenant_id text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
 -- TABLE: effective_permissions
 CREATE TABLE __SCHEMA__.effective_permissions (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -407,7 +574,8 @@ CREATE TABLE __SCHEMA__.effective_permissions (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     credential_arn text,
-    account_id text
+    account_id text,
+    tenant_id text
 );
 
 -- TABLE: event_processing_log
@@ -419,8 +587,12 @@ CREATE TABLE __SCHEMA__.event_processing_log (
     error_message text,
     processed_at timestamp with time zone NOT NULL,
     claim_token character varying(64),
-    claim_started_at timestamp with time zone
+    claim_started_at timestamp with time zone,
+    account_id character varying(12) DEFAULT ''::character varying NOT NULL
 );
+
+-- COMMENT: COLUMN event_processing_log.state
+COMMENT ON COLUMN __SCHEMA__.event_processing_log.state IS 'processing, stored, scored, matched, duplicate, filtered, pending, or failed';
 
 -- TABLE: identities
 CREATE TABLE __SCHEMA__.identities (
@@ -514,7 +686,8 @@ CREATE TABLE __SCHEMA__.identity_dimension_drift (
     fp_rate double precision,
     fp_damping double precision,
     top_movers_json jsonb DEFAULT '[]'::jsonb NOT NULL,
-    computed_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    computed_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    account_id character varying(12) DEFAULT ''::character varying NOT NULL
 );
 
 -- TABLE: identity_drift_scores
@@ -563,6 +736,7 @@ CREATE TABLE __SCHEMA__.identity_drift_scores (
     reasons_json jsonb DEFAULT '[]'::jsonb NOT NULL,
     explanation_json jsonb DEFAULT '{}'::jsonb NOT NULL,
     computed_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    account_id character varying(12) DEFAULT ''::character varying NOT NULL,
     CONSTRAINT identity_drift_scores_dq_chk CHECK (((data_quality_status)::text = ANY ((ARRAY['ok'::character varying, 'degraded'::character varying])::text[]))),
     CONSTRAINT identity_drift_scores_drift_chk CHECK (((drift IS NULL) OR (drift >= (0.0)::double precision))),
     CONSTRAINT identity_drift_scores_drift_raw_chk CHECK (((drift_raw IS NULL) OR (drift_raw >= (0.0)::double precision))),
@@ -598,7 +772,8 @@ CREATE TABLE __SCHEMA__.identity_risk_scores (
     max_event_risk_score smallint,
     mean_event_risk_score double precision,
     score_details jsonb DEFAULT '{}'::jsonb NOT NULL,
-    computed_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    computed_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    account_id character varying(12) DEFAULT ''::character varying NOT NULL
 );
 
 -- SEQUENCE: identity_risk_scores_snapshot_id_seq
@@ -656,6 +831,29 @@ CREATE TABLE __SCHEMA__.ispm_access_edges (
     CONSTRAINT ispm_access_edges_edge_type_check CHECK (((edge_type)::text = ANY ((ARRAY['BOUND_TO'::character varying, 'CAN_ASSUME'::character varying, 'TRUSTED_BY'::character varying, 'CAN_PASS'::character varying, 'CAN_ACCESS'::character varying, 'CROSS_ACCOUNT'::character varying])::text[])))
 );
 
+-- TABLE: ispm_auto_policies
+CREATE TABLE __SCHEMA__.ispm_auto_policies (
+    policy_id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tenant_id uuid NOT NULL,
+    name text NOT NULL,
+    rule_ids text[] NOT NULL,
+    action_type text NOT NULL,
+    params jsonb DEFAULT '{}'::jsonb NOT NULL,
+    filters jsonb DEFAULT '{}'::jsonb NOT NULL,
+    min_open_days integer DEFAULT 3 NOT NULL,
+    min_scans integer DEFAULT 2 NOT NULL,
+    mode text DEFAULT 'DRY_RUN'::text NOT NULL,
+    grace_hours integer DEFAULT 24 NOT NULL,
+    max_per_run integer DEFAULT 10 NOT NULL,
+    max_per_account_per_day integer DEFAULT 20 NOT NULL,
+    created_by text NOT NULL,
+    approved_by text,
+    approved_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT ispm_auto_policies_mode_check CHECK ((mode = ANY (ARRAY['DRY_RUN'::text, 'APPROVAL'::text, 'AUTO'::text, 'PAUSED'::text])))
+);
+
 -- TABLE: ispm_categories
 CREATE TABLE __SCHEMA__.ispm_categories (
     category_code character varying(48) NOT NULL,
@@ -684,6 +882,9 @@ CREATE TABLE __SCHEMA__.ispm_rule_weights (
     fix_label character varying(255),
     penalty_points integer,
     check_title character varying(255),
+    remediation_action_type text,
+    remediation_alt_actions text[] DEFAULT '{}'::text[] NOT NULL,
+    remediation_params jsonb DEFAULT '{}'::jsonb NOT NULL,
     CONSTRAINT ispm_rule_weights_penalty_check CHECK (((penalty_points IS NULL) OR ((penalty_points >= 0) AND (penalty_points <= 100))))
 );
 
@@ -728,6 +929,14 @@ CREATE VIEW __SCHEMA__.ispm_effective_weights AS
         END)::numeric * category_weight) / ( SELECT max(cats.category_weight) AS max
            FROM cats)) * rule_weight) / max(rule_weight) OVER (PARTITION BY category_code)), 1) AS rule_risk_score
    FROM r;
+
+-- TABLE: ispm_email_sync
+CREATE TABLE __SCHEMA__.ispm_email_sync (
+    tenant_id uuid NOT NULL,
+    cursor_at timestamp with time zone,
+    cursor_id text,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
 
 -- TABLE: ispm_finding_history
 CREATE TABLE __SCHEMA__.ispm_finding_history (
@@ -834,6 +1043,26 @@ CREATE TABLE __SCHEMA__.ispm_identity_posture_hourly (
 )
 PARTITION BY RANGE (captured_at);
 
+-- TABLE: ispm_jira_sync
+CREATE TABLE __SCHEMA__.ispm_jira_sync (
+    tenant_id uuid NOT NULL,
+    cursor_at timestamp with time zone,
+    cursor_id text,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+-- TABLE: ispm_jira_tickets
+CREATE TABLE __SCHEMA__.ispm_jira_tickets (
+    finding_id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    issue_key text NOT NULL,
+    issue_url text,
+    state text NOT NULL,
+    last_event text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
 -- TABLE: ispm_nhi_dashboard_cache
 CREATE TABLE __SCHEMA__.ispm_nhi_dashboard_cache (
     tenant_id uuid NOT NULL,
@@ -881,7 +1110,15 @@ CREATE TABLE __SCHEMA__.ispm_nhi_dashboard_cache (
     quick_wins jsonb DEFAULT '[]'::jsonb NOT NULL,
     weakest_identities jsonb DEFAULT '[]'::jsonb NOT NULL,
     by_functional_class jsonb DEFAULT '{}'::jsonb NOT NULL,
-    by_account_mean jsonb DEFAULT '{}'::jsonb NOT NULL
+    by_account_mean jsonb DEFAULT '{}'::jsonb NOT NULL,
+    posture_encryption_keys numeric(5,1),
+    posture_multi_region numeric(5,1),
+    posture_third_party numeric(5,1),
+    posture_service_misconfig numeric(5,1),
+    posture_logging_detection numeric(5,1),
+    posture_session_controls numeric(5,1),
+    posture_federation_trust numeric(5,1),
+    posture_dependency_chain numeric(5,1)
 );
 
 -- TABLE: ispm_nhi_findings
@@ -994,6 +1231,112 @@ CREATE TABLE __SCHEMA__.ispm_schema_migrations (
     applied_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
+-- TABLE: jenkins_connections
+CREATE TABLE __SCHEMA__.jenkins_connections (
+    name text NOT NULL,
+    url text NOT NULL,
+    username text NOT NULL,
+    token_secret_ref text NOT NULL,
+    hosting text,
+    aws_role_arn text,
+    enabled boolean DEFAULT true NOT NULL,
+    last_scan_at timestamp with time zone,
+    last_status text,
+    last_error text,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+-- TABLE: jenkins_credentials
+CREATE TABLE __SCHEMA__.jenkins_credentials (
+    jenkins_name text NOT NULL,
+    credential_ref text NOT NULL,
+    credential_type text,
+    aws_access_key_id text,
+    aws_role_arn text,
+    used_by_jobs jsonb,
+    aws_account_id text,
+    aws_identity_arn text,
+    match_type text,
+    scan_id text,
+    last_seen_at timestamp with time zone,
+    deleted_at timestamp with time zone
+);
+
+-- TABLE: jenkins_instances
+CREATE TABLE __SCHEMA__.jenkins_instances (
+    jenkins_name text NOT NULL,
+    url text NOT NULL,
+    version text,
+    hosting text,
+    aws_account_id text,
+    ec2_instance_id text,
+    ec2_details jsonb,
+    onprem_details jsonb,
+    nodes jsonb,
+    job_count integer,
+    connect_status text,
+    scan_id text,
+    first_seen_at timestamp with time zone DEFAULT now(),
+    last_seen_at timestamp with time zone,
+    deleted_at timestamp with time zone
+);
+
+-- VIEW: jenkins_credentials_named
+CREATE VIEW __SCHEMA__.jenkins_credentials_named AS
+ SELECT c.jenkins_name,
+    i.url AS jenkins_url,
+    i.hosting,
+    (j.value ->> 'job'::text) AS job,
+    (j.value ->> 'usage'::text) AS how_used,
+    c.credential_ref AS credential,
+    c.credential_type,
+    (j.value ->> 'last_build_at'::text) AS last_build,
+    c.aws_identity_arn AS aws_identity,
+    c.match_type
+   FROM ((__SCHEMA__.jenkins_credentials c
+     JOIN __SCHEMA__.jenkins_instances i ON ((i.jenkins_name = c.jenkins_name)))
+     CROSS JOIN LATERAL jsonb_array_elements(c.used_by_jobs) j(value))
+  WHERE ((c.deleted_at IS NULL) AND (i.deleted_at IS NULL));
+
+-- TABLE: nhi_blast_radius
+CREATE TABLE __SCHEMA__.nhi_blast_radius (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    source_arn text NOT NULL,
+    source_name text DEFAULT ''::text NOT NULL,
+    source_type text DEFAULT ''::text NOT NULL,
+    total_paths integer DEFAULT 0 NOT NULL,
+    total_resources integer DEFAULT 0 NOT NULL,
+    direct_paths integer DEFAULT 0 NOT NULL,
+    chain_paths integer DEFAULT 0 NOT NULL,
+    cross_account_paths integer DEFAULT 0 NOT NULL,
+    compute_paths integer DEFAULT 0 NOT NULL,
+    secrets_access_found integer DEFAULT 0 NOT NULL,
+    converging_paths_found integer DEFAULT 0 NOT NULL,
+    computed_at timestamp with time zone DEFAULT now() NOT NULL,
+    expires_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+-- TABLE: nhi_blast_radius_paths
+CREATE TABLE __SCHEMA__.nhi_blast_radius_paths (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    blast_radius_id uuid NOT NULL,
+    source_arn text NOT NULL,
+    target_arn text NOT NULL,
+    target_type text DEFAULT ''::text NOT NULL,
+    target_name text DEFAULT ''::text NOT NULL,
+    path_type text NOT NULL,
+    path_description text DEFAULT ''::text NOT NULL,
+    hops jsonb DEFAULT '[]'::jsonb NOT NULL,
+    evidence_rank integer DEFAULT 1 NOT NULL,
+    confidence text DEFAULT 'LOW'::text NOT NULL,
+    security_significance text DEFAULT 'conditional'::text NOT NULL,
+    limitations jsonb DEFAULT '[]'::jsonb NOT NULL,
+    phase integer DEFAULT 1 NOT NULL,
+    is_reverse_access boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
 -- TABLE: nhi_events_aws
 CREATE TABLE __SCHEMA__.nhi_events_aws (
     id integer NOT NULL,
@@ -1021,6 +1364,100 @@ CREATE SEQUENCE __SCHEMA__.nhi_events_aws_id_seq
 
 -- SEQUENCE OWNED BY: nhi_events_aws_id_seq
 ALTER SEQUENCE __SCHEMA__.nhi_events_aws_id_seq OWNED BY __SCHEMA__.nhi_events_aws.id;
+
+-- TABLE: nhi_fetch_status
+CREATE TABLE __SCHEMA__.nhi_fetch_status (
+    id bigint NOT NULL,
+    scan_id text NOT NULL,
+    account_id text NOT NULL,
+    region text NOT NULL,
+    source text NOT NULL,
+    status text NOT NULL,
+    rows_written integer DEFAULT 0 NOT NULL,
+    items_failed integer DEFAULT 0 NOT NULL,
+    items_denied integer DEFAULT 0 NOT NULL,
+    message text,
+    started_at timestamp with time zone NOT NULL,
+    finished_at timestamp with time zone NOT NULL,
+    CONSTRAINT nhi_fetch_status_status_check CHECK ((status = ANY (ARRAY['ok'::text, 'partial'::text, 'not_permitted'::text, 'error'::text])))
+);
+
+-- SEQUENCE: nhi_fetch_status_id_seq
+CREATE SEQUENCE __SCHEMA__.nhi_fetch_status_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+-- SEQUENCE OWNED BY: nhi_fetch_status_id_seq
+ALTER SEQUENCE __SCHEMA__.nhi_fetch_status_id_seq OWNED BY __SCHEMA__.nhi_fetch_status.id;
+
+-- TABLE: nhi_genome_identities
+CREATE TABLE __SCHEMA__.nhi_genome_identities (
+    id bigint NOT NULL,
+    arn text NOT NULL,
+    name character varying(512) NOT NULL,
+    identity_type character varying(128) NOT NULL,
+    functional_class character varying(128),
+    account_id character varying(64),
+    region character varying(64),
+    status character varying(32) DEFAULT 'active'::character varying NOT NULL,
+    created_at_aws timestamp with time zone,
+    first_seen_at timestamp with time zone,
+    last_seen_at timestamp with time zone,
+    last_activity_at timestamp with time zone,
+    deleted_at timestamp with time zone,
+    vpc_id character varying(128),
+    subnet_id character varying(128),
+    security_group_ids jsonb DEFAULT '[]'::jsonb NOT NULL,
+    is_publicly_accessible boolean,
+    tags jsonb DEFAULT '{}'::jsonb NOT NULL,
+    owner character varying(255),
+    environment character varying(128),
+    parent_arn text,
+    cloudtrail_creator_arn text,
+    discovery_source character varying(128),
+    scan_id character varying(255),
+    type_attributes jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    nhi_type character varying(32),
+    identity_name character varying(512),
+    display_name character varying(512),
+    workload_key character varying(512),
+    actor_id character varying(255),
+    service_name character varying(255),
+    role_name character varying(255),
+    role_arn text,
+    role_principal_id character varying(255),
+    role_type character varying(64),
+    cluster_name character varying(255),
+    task_id character varying(255),
+    task_definition text,
+    instance_id character varying(128),
+    instance_arn text,
+    instance_profile_arn text,
+    instance_type character varying(128),
+    image_id character varying(128),
+    availability_zone character varying(64),
+    private_ip_address inet,
+    public_ip_address inet,
+    metadata_json jsonb DEFAULT '{}'::jsonb NOT NULL,
+    baseline_period_minutes integer,
+    baseline_required_periods integer
+);
+
+-- SEQUENCE: nhi_genome_identities_id_seq
+CREATE SEQUENCE __SCHEMA__.nhi_genome_identities_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+-- SEQUENCE OWNED BY: nhi_genome_identities_id_seq
+ALTER SEQUENCE __SCHEMA__.nhi_genome_identities_id_seq OWNED BY __SCHEMA__.nhi_genome_identities.id;
 
 -- TABLE: nhi_identities
 CREATE TABLE __SCHEMA__.nhi_identities (
@@ -1197,6 +1634,114 @@ CREATE SEQUENCE __SCHEMA__.nhi_lineage_aws_id_seq
 -- SEQUENCE OWNED BY: nhi_lineage_aws_id_seq
 ALTER SEQUENCE __SCHEMA__.nhi_lineage_aws_id_seq OWNED BY __SCHEMA__.nhi_lineage_aws.id;
 
+-- TABLE: nhi_org_policies
+CREATE TABLE __SCHEMA__.nhi_org_policies (
+    id bigint NOT NULL,
+    account_id text NOT NULL,
+    source text NOT NULL,
+    fetch_unit text NOT NULL,
+    scan_id text NOT NULL,
+    policy_id text NOT NULL,
+    policy_arn text,
+    name text,
+    policy_type text NOT NULL,
+    aws_managed boolean DEFAULT false NOT NULL,
+    document jsonb NOT NULL,
+    targets jsonb DEFAULT '[]'::jsonb NOT NULL,
+    collected_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+-- SEQUENCE: nhi_org_policies_id_seq
+CREATE SEQUENCE __SCHEMA__.nhi_org_policies_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+-- SEQUENCE OWNED BY: nhi_org_policies_id_seq
+ALTER SEQUENCE __SCHEMA__.nhi_org_policies_id_seq OWNED BY __SCHEMA__.nhi_org_policies.id;
+
+-- TABLE: nhi_resource_links
+CREATE TABLE __SCHEMA__.nhi_resource_links (
+    id bigint NOT NULL,
+    account_id text NOT NULL,
+    source text NOT NULL,
+    fetch_unit text NOT NULL,
+    scan_id text NOT NULL,
+    region text NOT NULL,
+    link_type text NOT NULL,
+    from_arn text NOT NULL,
+    to_arn text NOT NULL,
+    attributes jsonb DEFAULT '{}'::jsonb NOT NULL,
+    collected_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+-- SEQUENCE: nhi_resource_links_id_seq
+CREATE SEQUENCE __SCHEMA__.nhi_resource_links_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+-- SEQUENCE OWNED BY: nhi_resource_links_id_seq
+ALTER SEQUENCE __SCHEMA__.nhi_resource_links_id_seq OWNED BY __SCHEMA__.nhi_resource_links.id;
+
+-- TABLE: nhi_resource_policies
+CREATE TABLE __SCHEMA__.nhi_resource_policies (
+    id bigint NOT NULL,
+    account_id text NOT NULL,
+    source text NOT NULL,
+    fetch_unit text NOT NULL,
+    scan_id text NOT NULL,
+    region text NOT NULL,
+    resource_arn text NOT NULL,
+    policy_type text NOT NULL,
+    policy_name text,
+    document jsonb NOT NULL,
+    collected_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT nhi_resource_policies_policy_type_check CHECK ((policy_type = ANY (ARRAY['resource_policy'::text, 'key_policy'::text, 'kms_grant'::text])))
+);
+
+-- SEQUENCE: nhi_resource_policies_id_seq
+CREATE SEQUENCE __SCHEMA__.nhi_resource_policies_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+-- SEQUENCE OWNED BY: nhi_resource_policies_id_seq
+ALTER SEQUENCE __SCHEMA__.nhi_resource_policies_id_seq OWNED BY __SCHEMA__.nhi_resource_policies.id;
+
+-- TABLE: nhi_resources
+CREATE TABLE __SCHEMA__.nhi_resources (
+    id bigint NOT NULL,
+    account_id text NOT NULL,
+    source text NOT NULL,
+    fetch_unit text NOT NULL,
+    scan_id text NOT NULL,
+    region text NOT NULL,
+    service text NOT NULL,
+    resource_type text NOT NULL,
+    resource_arn text NOT NULL,
+    name text,
+    attributes jsonb DEFAULT '{}'::jsonb NOT NULL,
+    collected_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+-- SEQUENCE: nhi_resources_id_seq
+CREATE SEQUENCE __SCHEMA__.nhi_resources_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+-- SEQUENCE OWNED BY: nhi_resources_id_seq
+ALTER SEQUENCE __SCHEMA__.nhi_resources_id_seq OWNED BY __SCHEMA__.nhi_resources.id;
+
 -- TABLE: nhi_scans_aws
 CREATE TABLE __SCHEMA__.nhi_scans_aws (
     id integer NOT NULL,
@@ -1212,7 +1757,8 @@ CREATE TABLE __SCHEMA__.nhi_scans_aws (
     total_effective_permissions integer DEFAULT 0,
     total_identity_usage integer DEFAULT 0,
     total_trust_edges integer DEFAULT 0,
-    total_changes integer DEFAULT 0 NOT NULL
+    total_changes integer DEFAULT 0 NOT NULL,
+    regions text[]
 );
 
 -- SEQUENCE: nhi_scans_aws_id_seq
@@ -1227,28 +1773,33 @@ CREATE SEQUENCE __SCHEMA__.nhi_scans_aws_id_seq
 -- SEQUENCE OWNED BY: nhi_scans_aws_id_seq
 ALTER SEQUENCE __SCHEMA__.nhi_scans_aws_id_seq OWNED BY __SCHEMA__.nhi_scans_aws.id;
 
--- TABLE: nhi_users
-CREATE TABLE __SCHEMA__.nhi_users (
-    id integer NOT NULL,
-    email character varying(200) NOT NULL,
-    password character varying(500) NOT NULL,
-    full_name character varying(200),
-    team character varying(100),
-    role character varying(50) DEFAULT 'developer'::character varying,
-    created_at timestamp with time zone DEFAULT now()
+-- TABLE: nhi_service_last_accessed
+CREATE TABLE __SCHEMA__.nhi_service_last_accessed (
+    id bigint NOT NULL,
+    account_id text NOT NULL,
+    source text NOT NULL,
+    fetch_unit text NOT NULL,
+    scan_id text NOT NULL,
+    role_arn text NOT NULL,
+    service_namespace text NOT NULL,
+    service_name text,
+    last_authenticated timestamp with time zone,
+    last_authenticated_entity text,
+    last_authenticated_region text,
+    total_authenticated_entities integer,
+    collected_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
--- SEQUENCE: nhi_users_id_seq
-CREATE SEQUENCE __SCHEMA__.nhi_users_id_seq
-    AS integer
+-- SEQUENCE: nhi_service_last_accessed_id_seq
+CREATE SEQUENCE __SCHEMA__.nhi_service_last_accessed_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
     NO MAXVALUE
     CACHE 1;
 
--- SEQUENCE OWNED BY: nhi_users_id_seq
-ALTER SEQUENCE __SCHEMA__.nhi_users_id_seq OWNED BY __SCHEMA__.nhi_users.id;
+-- SEQUENCE OWNED BY: nhi_service_last_accessed_id_seq
+ALTER SEQUENCE __SCHEMA__.nhi_service_last_accessed_id_seq OWNED BY __SCHEMA__.nhi_service_last_accessed.id;
 
 -- TABLE: permission_usage
 CREATE TABLE __SCHEMA__.permission_usage (
@@ -1265,6 +1816,204 @@ CREATE TABLE __SCHEMA__.permission_usage (
     scan_id text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+-- TABLE: remediation_approvals
+CREATE TABLE __SCHEMA__.remediation_approvals (
+    approval_id uuid NOT NULL,
+    plan_id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    approver text NOT NULL,
+    approver_role text NOT NULL,
+    decision text NOT NULL,
+    comment text,
+    plan_hash text NOT NULL,
+    decided_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT remediation_approvals_decision_check CHECK ((decision = ANY (ARRAY['APPROVED'::text, 'REJECTED'::text])))
+);
+
+-- TABLE: remediation_audit_log
+CREATE TABLE __SCHEMA__.remediation_audit_log (
+    id bigint NOT NULL,
+    tenant_id uuid NOT NULL,
+    plan_id uuid,
+    execution_id uuid,
+    batch_id uuid,
+    event text NOT NULL,
+    actor text NOT NULL,
+    details jsonb DEFAULT '{}'::jsonb NOT NULL,
+    at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+-- SEQUENCE: remediation_audit_log_id_seq
+CREATE SEQUENCE __SCHEMA__.remediation_audit_log_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+-- SEQUENCE OWNED BY: remediation_audit_log_id_seq
+ALTER SEQUENCE __SCHEMA__.remediation_audit_log_id_seq OWNED BY __SCHEMA__.remediation_audit_log.id;
+
+-- TABLE: remediation_batches
+CREATE TABLE __SCHEMA__.remediation_batches (
+    batch_id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    mode text NOT NULL,
+    requested_by text NOT NULL,
+    plan_count integer DEFAULT 0 NOT NULL,
+    status text DEFAULT 'RUNNING'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    completed_at timestamp with time zone,
+    CONSTRAINT remediation_batches_mode_check CHECK ((mode = ANY (ARRAY['INDEPENDENT'::text, 'ALL_OR_NOTHING'::text]))),
+    CONSTRAINT remediation_batches_status_check CHECK ((status = ANY (ARRAY['RUNNING'::text, 'COMPLETED'::text, 'PARTIAL'::text, 'FAILED'::text, 'ROLLED_BACK'::text, 'ROLLBACK_FAILED'::text, 'CANCELLED'::text])))
+);
+
+-- TABLE: remediation_executions
+CREATE TABLE __SCHEMA__.remediation_executions (
+    execution_id uuid NOT NULL,
+    plan_id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    kind text NOT NULL,
+    rollback_of uuid,
+    attempt integer DEFAULT 0 NOT NULL,
+    triggered_by text NOT NULL,
+    status text NOT NULL,
+    scheduled_for timestamp with time zone DEFAULT now() NOT NULL,
+    started_at timestamp with time zone,
+    completed_at timestamp with time zone,
+    assumed_role_arn text,
+    session_name text,
+    steps jsonb DEFAULT '[]'::jsonb NOT NULL,
+    rollback_state jsonb DEFAULT '{}'::jsonb NOT NULL,
+    result jsonb DEFAULT '{}'::jsonb NOT NULL,
+    verify_result jsonb DEFAULT '{}'::jsonb NOT NULL,
+    error_code text,
+    error_message text,
+    rescan_job_id text,
+    grace_notified boolean DEFAULT false NOT NULL,
+    locked_by text,
+    locked_until timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT remediation_executions_kind_check CHECK ((kind = ANY (ARRAY['EXECUTE'::text, 'ROLLBACK'::text, 'FINALIZE'::text]))),
+    CONSTRAINT remediation_executions_status_check CHECK ((status = ANY (ARRAY['QUEUED'::text, 'RUNNING'::text, 'SUCCEEDED'::text, 'FAILED'::text, 'ROLLED_BACK'::text, 'ROLLBACK_FAILED'::text, 'CANCELLED'::text])))
+);
+
+-- TABLE: remediation_integrations
+CREATE TABLE __SCHEMA__.remediation_integrations (
+    integration_id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    type text NOT NULL,
+    enabled boolean DEFAULT false NOT NULL,
+    config jsonb DEFAULT '{}'::jsonb NOT NULL,
+    secret_ref text,
+    cursor_at timestamp with time zone,
+    cursor_id text,
+    audit_cursor bigint DEFAULT 0 NOT NULL,
+    last_sync_at timestamp with time zone,
+    last_error text,
+    CONSTRAINT remediation_integrations_type_check CHECK ((type = ANY (ARRAY['JIRA'::text, 'SMTP'::text, 'SES'::text])))
+);
+
+-- TABLE: remediation_notifications
+CREATE TABLE __SCHEMA__.remediation_notifications (
+    id bigint NOT NULL,
+    tenant_id uuid NOT NULL,
+    type text NOT NULL,
+    plan_id uuid,
+    recipients text[] DEFAULT '{}'::text[] NOT NULL,
+    subject text NOT NULL,
+    body_html text NOT NULL,
+    body_text text NOT NULL,
+    status text DEFAULT 'PENDING'::text NOT NULL,
+    attempts integer DEFAULT 0 NOT NULL,
+    next_attempt_at timestamp with time zone DEFAULT now() NOT NULL,
+    sent_at timestamp with time zone,
+    last_error text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT remediation_notifications_status_check CHECK ((status = ANY (ARRAY['PENDING'::text, 'SENT'::text, 'FAILED'::text]))),
+    CONSTRAINT remediation_notifications_type_check CHECK ((type = ANY (ARRAY['APPROVAL_REQUESTED'::text, 'EXECUTED'::text, 'FAILED'::text, 'ROLLED_BACK'::text, 'GRACE_ENDING'::text, 'DIGEST'::text])))
+);
+
+-- SEQUENCE: remediation_notifications_id_seq
+CREATE SEQUENCE __SCHEMA__.remediation_notifications_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+-- SEQUENCE OWNED BY: remediation_notifications_id_seq
+ALTER SEQUENCE __SCHEMA__.remediation_notifications_id_seq OWNED BY __SCHEMA__.remediation_notifications.id;
+
+-- TABLE: remediation_plans
+CREATE TABLE __SCHEMA__.remediation_plans (
+    plan_id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    batch_id uuid,
+    finding_ids uuid[] DEFAULT '{}'::uuid[] NOT NULL,
+    rule_ids text[] DEFAULT '{}'::text[] NOT NULL,
+    identity_ids text[] DEFAULT '{}'::text[] NOT NULL,
+    action_type text NOT NULL,
+    platform text DEFAULT 'aws'::text NOT NULL,
+    account_id text NOT NULL,
+    region text,
+    target_arn text NOT NULL,
+    target_type text NOT NULL,
+    params jsonb DEFAULT '{}'::jsonb NOT NULL,
+    before_state jsonb DEFAULT '{}'::jsonb NOT NULL,
+    after_state jsonb DEFAULT '{}'::jsonb NOT NULL,
+    diff jsonb DEFAULT '[]'::jsonb NOT NULL,
+    live_state_hash text DEFAULT ''::text NOT NULL,
+    steps jsonb DEFAULT '[]'::jsonb NOT NULL,
+    prechecks jsonb DEFAULT '[]'::jsonb NOT NULL,
+    usage_basis jsonb DEFAULT '{}'::jsonb NOT NULL,
+    risk_level text NOT NULL,
+    required_approvals integer DEFAULT 1 NOT NULL,
+    score_current numeric(6,1),
+    score_gain numeric(6,1),
+    score_projected numeric(6,1),
+    fleet_gain numeric(6,2),
+    mode text NOT NULL,
+    status text NOT NULL,
+    status_reason text,
+    plan_hash text DEFAULT ''::text NOT NULL,
+    superseded_by uuid,
+    valid_until timestamp with time zone,
+    created_by text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    policy_id uuid,
+    target_key text,
+    follow_up_of uuid,
+    scan_id text,
+    CONSTRAINT remediation_plans_mode_check CHECK ((mode = ANY (ARRAY['GUIDED'::text, 'ONE_CLICK'::text]))),
+    CONSTRAINT remediation_plans_risk_level_check CHECK ((risk_level = ANY (ARRAY['LOW'::text, 'MEDIUM'::text, 'HIGH'::text]))),
+    CONSTRAINT remediation_plans_status_check CHECK ((status = ANY (ARRAY['DRAFT'::text, 'READY'::text, 'WAITING_EXTERNAL'::text, 'PENDING_APPROVAL'::text, 'APPROVED'::text, 'SCHEDULED'::text, 'EXECUTING'::text, 'EXECUTED'::text, 'VERIFIED'::text, 'RESOLVED'::text, 'REJECTED'::text, 'FAILED'::text, 'ROLLED_BACK'::text, 'MANUALLY_DONE'::text, 'EXPIRED'::text, 'SUPERSEDED'::text, 'CANCELLED'::text, 'DRY_RUN'::text, 'SKIPPED'::text])))
+);
+
+-- TABLE: remediation_schema_migrations
+CREATE TABLE __SCHEMA__.remediation_schema_migrations (
+    version character varying(16) NOT NULL,
+    file text NOT NULL,
+    applied_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+-- TABLE: remediation_ticket_links
+CREATE TABLE __SCHEMA__.remediation_ticket_links (
+    finding_id uuid NOT NULL,
+    tenant_id uuid NOT NULL,
+    integration_id uuid NOT NULL,
+    external_key text NOT NULL,
+    external_id text,
+    url text,
+    ticket_state text DEFAULT 'OPEN'::text NOT NULL,
+    last_event text,
+    last_synced_at timestamp with time zone,
+    last_checked_at timestamp with time zone,
+    last_error text,
+    CONSTRAINT remediation_ticket_links_ticket_state_check CHECK ((ticket_state = ANY (ARRAY['OPEN'::text, 'CLOSED'::text])))
 );
 
 -- TABLE: resources
@@ -1320,6 +2069,12 @@ CREATE TABLE __SCHEMA__.scan_changes (
     detected_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
+-- TABLE: schema_migrations
+CREATE TABLE __SCHEMA__.schema_migrations (
+    filename text NOT NULL,
+    applied_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
 -- TABLE: secscan_allowlist_codecommit
 CREATE TABLE __SCHEMA__.secscan_allowlist_codecommit (
     client_id character varying(200) NOT NULL,
@@ -1351,6 +2106,70 @@ CREATE TABLE __SCHEMA__.secscan_allowlist_github (
     reason character varying(1000) DEFAULT ''::character varying NOT NULL,
     dismissed_by character varying(200) DEFAULT ''::character varying NOT NULL,
     dismissed_at character varying(50) NOT NULL
+);
+
+-- TABLE: secscan_bitbucket_connection
+CREATE TABLE __SCHEMA__.secscan_bitbucket_connection (
+    tenant_id character varying(64) NOT NULL,
+    base_url character varying(1000) NOT NULL,
+    projects text DEFAULT '[]'::text NOT NULL,
+    repositories text DEFAULT '[]'::text NOT NULL,
+    sensitive_repositories text DEFAULT '[]'::text NOT NULL,
+    ca_cert_pem text,
+    token_enc text NOT NULL,
+    webhook_secret_enc text NOT NULL,
+    token_expires_at character varying(10),
+    created_by character varying(300),
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_by character varying(300),
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+-- TABLE: secscan_deep_findings_codecommit
+CREATE TABLE __SCHEMA__.secscan_deep_findings_codecommit (
+    finding_id character varying(1000) NOT NULL,
+    client_id character varying(200) NOT NULL,
+    repository character varying(500) NOT NULL,
+    branch character varying(500) NOT NULL,
+    commit_id character varying(100) NOT NULL,
+    author character varying(300) NOT NULL,
+    created_at character varying(50) NOT NULL,
+    detector character varying(100) NOT NULL,
+    severity character varying(50) NOT NULL,
+    file_path character varying(1000) NOT NULL,
+    line_number integer NOT NULL,
+    redacted character varying(4000) NOT NULL,
+    verification_status character varying(50) NOT NULL,
+    risk_tier character varying(50) NOT NULL,
+    recommended_action character varying(200) NOT NULL,
+    codecommit_uri character varying(2000),
+    platform character varying(50),
+    github_uri character varying(2000),
+    bitbucket_uri character varying(2000),
+    line_preview character varying(4000),
+    confidence character varying(50),
+    category character varying(100),
+    committer character varying(300),
+    commit_message character varying(4000),
+    commit_authored_at character varying(50),
+    files_changed integer,
+    additions integer,
+    deletions integer,
+    repo_visibility character varying(50),
+    repo_stars integer,
+    repo_forks integer,
+    repo_pushed_at character varying(50),
+    ml_score double precision,
+    ml_decision character varying(50),
+    ml_model_version character varying(100),
+    analyst_decision character varying(50),
+    analyst_decided_at character varying(50),
+    analyst_decided_by character varying(300),
+    value_fingerprint character varying(64),
+    noise_flags character varying(500),
+    ml_veto_score double precision,
+    ml_veto_model_version character varying(100),
+    ml_features text
 );
 
 -- TABLE: secscan_deepscan_codecommit
@@ -1473,6 +2292,27 @@ CREATE TABLE __SCHEMA__.secscan_findings_github (
     bitbucket_uri character varying(2000)
 );
 
+-- TABLE: secscan_jobs_bitbucket
+CREATE TABLE __SCHEMA__.secscan_jobs_bitbucket (
+    id bigint NOT NULL,
+    payload text NOT NULL,
+    status character varying(50) DEFAULT 'pending'::character varying NOT NULL,
+    error text,
+    created_at character varying(50) NOT NULL,
+    updated_at character varying(50) NOT NULL
+);
+
+-- SEQUENCE: secscan_jobs_bitbucket_id_seq
+CREATE SEQUENCE __SCHEMA__.secscan_jobs_bitbucket_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+-- SEQUENCE OWNED BY: secscan_jobs_bitbucket_id_seq
+ALTER SEQUENCE __SCHEMA__.secscan_jobs_bitbucket_id_seq OWNED BY __SCHEMA__.secscan_jobs_bitbucket.id;
+
 -- TABLE: secscan_jobs_codecommit
 CREATE TABLE __SCHEMA__.secscan_jobs_codecommit (
     id bigint NOT NULL,
@@ -1566,12 +2406,6 @@ CREATE TABLE __SCHEMA__.user_settings (
 -- DEFAULT: alerts id
 ALTER TABLE ONLY __SCHEMA__.alerts ALTER COLUMN id SET DEFAULT nextval('__SCHEMA__.alerts_id_seq'::regclass);
 
--- DEFAULT: change_log id
-ALTER TABLE ONLY __SCHEMA__.change_log ALTER COLUMN id SET DEFAULT nextval('__SCHEMA__.change_log_id_seq'::regclass);
-
--- DEFAULT: credential_change_log id
-ALTER TABLE ONLY __SCHEMA__.credential_change_log ALTER COLUMN id SET DEFAULT nextval('__SCHEMA__.credential_change_log_id_seq'::regclass);
-
 -- DEFAULT: drift_fleet_snapshots snapshot_id
 ALTER TABLE ONLY __SCHEMA__.drift_fleet_snapshots ALTER COLUMN snapshot_id SET DEFAULT nextval('__SCHEMA__.drift_fleet_snapshots_snapshot_id_seq'::regclass);
 
@@ -1583,6 +2417,12 @@ ALTER TABLE ONLY __SCHEMA__.identity_risk_scores ALTER COLUMN snapshot_id SET DE
 
 -- DEFAULT: nhi_events_aws id
 ALTER TABLE ONLY __SCHEMA__.nhi_events_aws ALTER COLUMN id SET DEFAULT nextval('__SCHEMA__.nhi_events_aws_id_seq'::regclass);
+
+-- DEFAULT: nhi_fetch_status id
+ALTER TABLE ONLY __SCHEMA__.nhi_fetch_status ALTER COLUMN id SET DEFAULT nextval('__SCHEMA__.nhi_fetch_status_id_seq'::regclass);
+
+-- DEFAULT: nhi_genome_identities id
+ALTER TABLE ONLY __SCHEMA__.nhi_genome_identities ALTER COLUMN id SET DEFAULT nextval('__SCHEMA__.nhi_genome_identities_id_seq'::regclass);
 
 -- DEFAULT: nhi_identities id
 ALTER TABLE ONLY __SCHEMA__.nhi_identities ALTER COLUMN id SET DEFAULT nextval('__SCHEMA__.nhi_identities_id_seq'::regclass);
@@ -1596,11 +2436,32 @@ ALTER TABLE ONLY __SCHEMA__.nhi_identity_activity_aws ALTER COLUMN id SET DEFAUL
 -- DEFAULT: nhi_lineage_aws id
 ALTER TABLE ONLY __SCHEMA__.nhi_lineage_aws ALTER COLUMN id SET DEFAULT nextval('__SCHEMA__.nhi_lineage_aws_id_seq'::regclass);
 
+-- DEFAULT: nhi_org_policies id
+ALTER TABLE ONLY __SCHEMA__.nhi_org_policies ALTER COLUMN id SET DEFAULT nextval('__SCHEMA__.nhi_org_policies_id_seq'::regclass);
+
+-- DEFAULT: nhi_resource_links id
+ALTER TABLE ONLY __SCHEMA__.nhi_resource_links ALTER COLUMN id SET DEFAULT nextval('__SCHEMA__.nhi_resource_links_id_seq'::regclass);
+
+-- DEFAULT: nhi_resource_policies id
+ALTER TABLE ONLY __SCHEMA__.nhi_resource_policies ALTER COLUMN id SET DEFAULT nextval('__SCHEMA__.nhi_resource_policies_id_seq'::regclass);
+
+-- DEFAULT: nhi_resources id
+ALTER TABLE ONLY __SCHEMA__.nhi_resources ALTER COLUMN id SET DEFAULT nextval('__SCHEMA__.nhi_resources_id_seq'::regclass);
+
 -- DEFAULT: nhi_scans_aws id
 ALTER TABLE ONLY __SCHEMA__.nhi_scans_aws ALTER COLUMN id SET DEFAULT nextval('__SCHEMA__.nhi_scans_aws_id_seq'::regclass);
 
--- DEFAULT: nhi_users id
-ALTER TABLE ONLY __SCHEMA__.nhi_users ALTER COLUMN id SET DEFAULT nextval('__SCHEMA__.nhi_users_id_seq'::regclass);
+-- DEFAULT: nhi_service_last_accessed id
+ALTER TABLE ONLY __SCHEMA__.nhi_service_last_accessed ALTER COLUMN id SET DEFAULT nextval('__SCHEMA__.nhi_service_last_accessed_id_seq'::regclass);
+
+-- DEFAULT: remediation_audit_log id
+ALTER TABLE ONLY __SCHEMA__.remediation_audit_log ALTER COLUMN id SET DEFAULT nextval('__SCHEMA__.remediation_audit_log_id_seq'::regclass);
+
+-- DEFAULT: remediation_notifications id
+ALTER TABLE ONLY __SCHEMA__.remediation_notifications ALTER COLUMN id SET DEFAULT nextval('__SCHEMA__.remediation_notifications_id_seq'::regclass);
+
+-- DEFAULT: secscan_jobs_bitbucket id
+ALTER TABLE ONLY __SCHEMA__.secscan_jobs_bitbucket ALTER COLUMN id SET DEFAULT nextval('__SCHEMA__.secscan_jobs_bitbucket_id_seq'::regclass);
 
 -- DEFAULT: secscan_jobs_codecommit id
 ALTER TABLE ONLY __SCHEMA__.secscan_jobs_codecommit ALTER COLUMN id SET DEFAULT nextval('__SCHEMA__.secscan_jobs_codecommit_id_seq'::regclass);
@@ -1616,65 +2477,97 @@ ALTER TABLE ONLY __SCHEMA__.accounts
 ALTER TABLE ONLY __SCHEMA__.accounts
     ADD CONSTRAINT accounts_pkey PRIMARY KEY (id);
 
--- CONSTRAINT: alert_feedback alert_feedback_pkey
+-- CONSTRAINT: alert_feedback alert_feedback_account_pk
 ALTER TABLE ONLY __SCHEMA__.alert_feedback
-    ADD CONSTRAINT alert_feedback_pkey PRIMARY KEY (source_type, event_id);
+    ADD CONSTRAINT alert_feedback_account_pk PRIMARY KEY (account_id, source_type, event_id);
+
+-- CONSTRAINT: alerts alerts_account_event_dimension_key
+ALTER TABLE ONLY __SCHEMA__.alerts
+    ADD CONSTRAINT alerts_account_event_dimension_key UNIQUE (account_id, source_type, event_id, dimension);
 
 -- CONSTRAINT: alerts alerts_pkey
 ALTER TABLE ONLY __SCHEMA__.alerts
     ADD CONSTRAINT alerts_pkey PRIMARY KEY (id);
 
--- CONSTRAINT: alerts alerts_source_type_event_id_dimension_key
-ALTER TABLE ONLY __SCHEMA__.alerts
-    ADD CONSTRAINT alerts_source_type_event_id_dimension_key UNIQUE (source_type, event_id, dimension);
-
--- CONSTRAINT: baseline_versions baseline_versions_pkey
+-- CONSTRAINT: baseline_versions baseline_versions_account_pk
 ALTER TABLE ONLY __SCHEMA__.baseline_versions
-    ADD CONSTRAINT baseline_versions_pkey PRIMARY KEY (source_type, identity_name, version);
+    ADD CONSTRAINT baseline_versions_account_pk PRIMARY KEY (account_id, source_type, identity_name, version);
 
--- CONSTRAINT: baselines baselines_pkey
+-- CONSTRAINT: baselines baselines_account_pk
 ALTER TABLE ONLY __SCHEMA__.baselines
-    ADD CONSTRAINT baselines_pkey PRIMARY KEY (source_type, identity_name);
-
--- CONSTRAINT: change_log change_log_pkey
-ALTER TABLE ONLY __SCHEMA__.change_log
-    ADD CONSTRAINT change_log_pkey PRIMARY KEY (id);
+    ADD CONSTRAINT baselines_account_pk PRIMARY KEY (account_id, source_type, identity_name);
 
 -- CONSTRAINT: compliance_findings compliance_findings_pkey
 ALTER TABLE ONLY __SCHEMA__.compliance_findings
     ADD CONSTRAINT compliance_findings_pkey PRIMARY KEY (id);
 
--- CONSTRAINT: credential_change_log credential_change_log_pkey
-ALTER TABLE ONLY __SCHEMA__.credential_change_log
-    ADD CONSTRAINT credential_change_log_pkey PRIMARY KEY (id);
+-- CONSTRAINT: correlation_composition_rules correlation_composition_rules_pkey
+ALTER TABLE ONLY __SCHEMA__.correlation_composition_rules
+    ADD CONSTRAINT correlation_composition_rules_pkey PRIMARY KEY (id);
+
+-- CONSTRAINT: correlation_composition_rules correlation_composition_rules_rule_id_key
+ALTER TABLE ONLY __SCHEMA__.correlation_composition_rules
+    ADD CONSTRAINT correlation_composition_rules_rule_id_key UNIQUE (rule_id);
+
+-- CONSTRAINT: correlation_definitions correlation_definitions_pkey
+ALTER TABLE ONLY __SCHEMA__.correlation_definitions
+    ADD CONSTRAINT correlation_definitions_pkey PRIMARY KEY (id);
+
+-- CONSTRAINT: correlation_definitions correlation_definitions_rule_id_key
+ALTER TABLE ONLY __SCHEMA__.correlation_definitions
+    ADD CONSTRAINT correlation_definitions_rule_id_key UNIQUE (rule_id);
+
+-- CONSTRAINT: correlation_engine_runs correlation_engine_runs_pkey
+ALTER TABLE ONLY __SCHEMA__.correlation_engine_runs
+    ADD CONSTRAINT correlation_engine_runs_pkey PRIMARY KEY (id);
+
+-- CONSTRAINT: correlation_entity_aliases correlation_entity_aliases_pkey
+ALTER TABLE ONLY __SCHEMA__.correlation_entity_aliases
+    ADD CONSTRAINT correlation_entity_aliases_pkey PRIMARY KEY (alias);
+
+-- CONSTRAINT: correlation_path_types correlation_path_types_path_id_key
+ALTER TABLE ONLY __SCHEMA__.correlation_path_types
+    ADD CONSTRAINT correlation_path_types_path_id_key UNIQUE (path_id);
+
+-- CONSTRAINT: correlation_path_types correlation_path_types_pkey
+ALTER TABLE ONLY __SCHEMA__.correlation_path_types
+    ADD CONSTRAINT correlation_path_types_pkey PRIMARY KEY (id);
+
+-- CONSTRAINT: correlation_results correlation_results_pkey
+ALTER TABLE ONLY __SCHEMA__.correlation_results
+    ADD CONSTRAINT correlation_results_pkey PRIMARY KEY (id);
+
+-- CONSTRAINT: correlation_runs correlation_runs_pkey
+ALTER TABLE ONLY __SCHEMA__.correlation_runs
+    ADD CONSTRAINT correlation_runs_pkey PRIMARY KEY (id);
 
 -- CONSTRAINT: credentials credentials_pkey
 ALTER TABLE ONLY __SCHEMA__.credentials
     ADD CONSTRAINT credentials_pkey PRIMARY KEY (id);
 
--- CONSTRAINT: daily_stats daily_stats_pkey
+-- CONSTRAINT: daily_stats daily_stats_account_pk
 ALTER TABLE ONLY __SCHEMA__.daily_stats
-    ADD CONSTRAINT daily_stats_pkey PRIMARY KEY (nhi_type, identity_name, period_start);
+    ADD CONSTRAINT daily_stats_account_pk PRIMARY KEY (account_id, nhi_type, identity_name, period_start);
 
 -- CONSTRAINT: ispm_nhi_dashboard_cache dashboard_cache_pkey
 ALTER TABLE ONLY __SCHEMA__.ispm_nhi_dashboard_cache
     ADD CONSTRAINT dashboard_cache_pkey PRIMARY KEY (tenant_id, snapshot_date);
 
--- CONSTRAINT: drift_config drift_config_pkey
+-- CONSTRAINT: drift_config drift_config_account_pk
 ALTER TABLE ONLY __SCHEMA__.drift_config
-    ADD CONSTRAINT drift_config_pkey PRIMARY KEY (scope, scope_key);
+    ADD CONSTRAINT drift_config_account_pk PRIMARY KEY (account_id, scope, scope_key);
 
--- CONSTRAINT: drift_feedback_stats drift_feedback_stats_pkey
+-- CONSTRAINT: drift_feedback_stats drift_feedback_stats_account_pk
 ALTER TABLE ONLY __SCHEMA__.drift_feedback_stats
-    ADD CONSTRAINT drift_feedback_stats_pkey PRIMARY KEY (source_type, identity_name, dimension);
+    ADD CONSTRAINT drift_feedback_stats_account_pk PRIMARY KEY (account_id, source_type, identity_name, dimension);
+
+-- CONSTRAINT: drift_fleet_snapshots drift_fleet_snapshots_account_key
+ALTER TABLE ONLY __SCHEMA__.drift_fleet_snapshots
+    ADD CONSTRAINT drift_fleet_snapshots_account_key UNIQUE (account_id, source_type, window_end);
 
 -- CONSTRAINT: drift_fleet_snapshots drift_fleet_snapshots_pkey
 ALTER TABLE ONLY __SCHEMA__.drift_fleet_snapshots
     ADD CONSTRAINT drift_fleet_snapshots_pkey PRIMARY KEY (snapshot_id);
-
--- CONSTRAINT: drift_fleet_snapshots drift_fleet_snapshots_source_type_window_end_key
-ALTER TABLE ONLY __SCHEMA__.drift_fleet_snapshots
-    ADD CONSTRAINT drift_fleet_snapshots_source_type_window_end_key UNIQUE (source_type, window_end);
 
 -- CONSTRAINT: dummy_credentials dummy_credentials_pkey
 ALTER TABLE ONLY __SCHEMA__.dummy_credentials
@@ -1684,9 +2577,13 @@ ALTER TABLE ONLY __SCHEMA__.dummy_credentials
 ALTER TABLE ONLY __SCHEMA__.dummy_identities
     ADD CONSTRAINT dummy_identities_pkey PRIMARY KEY (id);
 
--- CONSTRAINT: ecs_task_registry ecs_task_registry_pkey
+-- CONSTRAINT: ecs_task_registry ecs_task_registry_account_pk
 ALTER TABLE ONLY __SCHEMA__.ecs_task_registry
-    ADD CONSTRAINT ecs_task_registry_pkey PRIMARY KEY (task_arn);
+    ADD CONSTRAINT ecs_task_registry_account_pk PRIMARY KEY (account_id, task_arn);
+
+-- CONSTRAINT: effective_permission_entries effective_permission_entries_pkey
+ALTER TABLE ONLY __SCHEMA__.effective_permission_entries
+    ADD CONSTRAINT effective_permission_entries_pkey PRIMARY KEY (id);
 
 -- CONSTRAINT: effective_permissions effective_permissions_credential_id_key
 ALTER TABLE ONLY __SCHEMA__.effective_permissions
@@ -1696,9 +2593,9 @@ ALTER TABLE ONLY __SCHEMA__.effective_permissions
 ALTER TABLE ONLY __SCHEMA__.effective_permissions
     ADD CONSTRAINT effective_permissions_pkey PRIMARY KEY (id);
 
--- CONSTRAINT: event_processing_log event_processing_log_pkey
+-- CONSTRAINT: event_processing_log event_processing_account_pk
 ALTER TABLE ONLY __SCHEMA__.event_processing_log
-    ADD CONSTRAINT event_processing_log_pkey PRIMARY KEY (event_id);
+    ADD CONSTRAINT event_processing_account_pk PRIMARY KEY (account_id, event_id);
 
 -- CONSTRAINT: ispm_finding_history finding_history_pkey
 ALTER TABLE ONLY __SCHEMA__.ispm_finding_history
@@ -1720,25 +2617,25 @@ ALTER TABLE ONLY __SCHEMA__.identities
 ALTER TABLE ONLY __SCHEMA__.identity_credentials
     ADD CONSTRAINT identity_credentials_pkey PRIMARY KEY (id);
 
--- CONSTRAINT: identity_dimension_drift identity_dimension_drift_pkey
+-- CONSTRAINT: identity_dimension_drift identity_dimension_drift_account_pk
 ALTER TABLE ONLY __SCHEMA__.identity_dimension_drift
-    ADD CONSTRAINT identity_dimension_drift_pkey PRIMARY KEY (source_type, identity_name, window_end, dimension);
+    ADD CONSTRAINT identity_dimension_drift_account_pk PRIMARY KEY (account_id, source_type, identity_name, window_end, dimension);
+
+-- CONSTRAINT: identity_drift_scores identity_drift_scores_account_key
+ALTER TABLE ONLY __SCHEMA__.identity_drift_scores
+    ADD CONSTRAINT identity_drift_scores_account_key UNIQUE (account_id, source_type, identity_name, window_end);
 
 -- CONSTRAINT: identity_drift_scores identity_drift_scores_pkey
 ALTER TABLE ONLY __SCHEMA__.identity_drift_scores
     ADD CONSTRAINT identity_drift_scores_pkey PRIMARY KEY (drift_id);
 
--- CONSTRAINT: identity_drift_scores identity_drift_scores_source_type_identity_name_window_end_key
-ALTER TABLE ONLY __SCHEMA__.identity_drift_scores
-    ADD CONSTRAINT identity_drift_scores_source_type_identity_name_window_end_key UNIQUE (source_type, identity_name, window_end);
+-- CONSTRAINT: identity_risk_scores identity_risk_scores_account_key
+ALTER TABLE ONLY __SCHEMA__.identity_risk_scores
+    ADD CONSTRAINT identity_risk_scores_account_key UNIQUE (account_id, source_type, identity_name, window_end);
 
 -- CONSTRAINT: identity_risk_scores identity_risk_scores_pkey
 ALTER TABLE ONLY __SCHEMA__.identity_risk_scores
     ADD CONSTRAINT identity_risk_scores_pkey PRIMARY KEY (snapshot_id);
-
--- CONSTRAINT: identity_risk_scores identity_risk_scores_source_type_identity_name_window_end_key
-ALTER TABLE ONLY __SCHEMA__.identity_risk_scores
-    ADD CONSTRAINT identity_risk_scores_source_type_identity_name_window_end_key UNIQUE (source_type, identity_name, window_end);
 
 -- CONSTRAINT: identity_runtime_config identity_runtime_config_pkey
 ALTER TABLE ONLY __SCHEMA__.identity_runtime_config
@@ -1752,6 +2649,14 @@ ALTER TABLE ONLY __SCHEMA__.identity_usage
 ALTER TABLE ONLY __SCHEMA__.ispm_access_edges
     ADD CONSTRAINT ispm_access_edges_pkey PRIMARY KEY (tenant_id, source_arn, edge_type, target_arn);
 
+-- CONSTRAINT: ispm_auto_policies ispm_auto_policies_pkey
+ALTER TABLE ONLY __SCHEMA__.ispm_auto_policies
+    ADD CONSTRAINT ispm_auto_policies_pkey PRIMARY KEY (policy_id);
+
+-- CONSTRAINT: ispm_auto_policies ispm_auto_policies_tenant_id_name_key
+ALTER TABLE ONLY __SCHEMA__.ispm_auto_policies
+    ADD CONSTRAINT ispm_auto_policies_tenant_id_name_key UNIQUE (tenant_id, name);
+
 -- CONSTRAINT: ispm_categories ispm_categories_category_name_key
 ALTER TABLE ONLY __SCHEMA__.ispm_categories
     ADD CONSTRAINT ispm_categories_category_name_key UNIQUE (category_name);
@@ -1759,6 +2664,10 @@ ALTER TABLE ONLY __SCHEMA__.ispm_categories
 -- CONSTRAINT: ispm_categories ispm_categories_pkey
 ALTER TABLE ONLY __SCHEMA__.ispm_categories
     ADD CONSTRAINT ispm_categories_pkey PRIMARY KEY (category_code);
+
+-- CONSTRAINT: ispm_email_sync ispm_email_sync_pkey
+ALTER TABLE ONLY __SCHEMA__.ispm_email_sync
+    ADD CONSTRAINT ispm_email_sync_pkey PRIMARY KEY (tenant_id);
 
 -- CONSTRAINT: ispm_identity_checks ispm_identity_checks_pkey
 ALTER TABLE ONLY __SCHEMA__.ispm_identity_checks
@@ -1775,6 +2684,14 @@ ALTER TABLE __SCHEMA__.ispm_identity_posture_hourly
 -- CONSTRAINT: ispm_identity_posture ispm_identity_posture_pkey
 ALTER TABLE ONLY __SCHEMA__.ispm_identity_posture
     ADD CONSTRAINT ispm_identity_posture_pkey PRIMARY KEY (tenant_id, identity_id);
+
+-- CONSTRAINT: ispm_jira_sync ispm_jira_sync_pkey
+ALTER TABLE ONLY __SCHEMA__.ispm_jira_sync
+    ADD CONSTRAINT ispm_jira_sync_pkey PRIMARY KEY (tenant_id);
+
+-- CONSTRAINT: ispm_jira_tickets ispm_jira_tickets_pkey
+ALTER TABLE ONLY __SCHEMA__.ispm_jira_tickets
+    ADD CONSTRAINT ispm_jira_tickets_pkey PRIMARY KEY (finding_id);
 
 -- CONSTRAINT: ispm_pillars ispm_pillars_pillar_name_key
 ALTER TABLE ONLY __SCHEMA__.ispm_pillars
@@ -1796,9 +2713,49 @@ ALTER TABLE ONLY __SCHEMA__.ispm_role_use
 ALTER TABLE ONLY __SCHEMA__.ispm_schema_migrations
     ADD CONSTRAINT ispm_schema_migrations_pkey PRIMARY KEY (version);
 
+-- CONSTRAINT: jenkins_connections jenkins_connections_pkey
+ALTER TABLE ONLY __SCHEMA__.jenkins_connections
+    ADD CONSTRAINT jenkins_connections_pkey PRIMARY KEY (name);
+
+-- CONSTRAINT: jenkins_connections jenkins_connections_url_key
+ALTER TABLE ONLY __SCHEMA__.jenkins_connections
+    ADD CONSTRAINT jenkins_connections_url_key UNIQUE (url);
+
+-- CONSTRAINT: jenkins_credentials jenkins_credentials_pkey
+ALTER TABLE ONLY __SCHEMA__.jenkins_credentials
+    ADD CONSTRAINT jenkins_credentials_pkey PRIMARY KEY (jenkins_name, credential_ref);
+
+-- CONSTRAINT: jenkins_instances jenkins_instances_pkey
+ALTER TABLE ONLY __SCHEMA__.jenkins_instances
+    ADD CONSTRAINT jenkins_instances_pkey PRIMARY KEY (jenkins_name);
+
+-- CONSTRAINT: jenkins_instances jenkins_instances_url_key
+ALTER TABLE ONLY __SCHEMA__.jenkins_instances
+    ADD CONSTRAINT jenkins_instances_url_key UNIQUE (url);
+
+-- CONSTRAINT: nhi_blast_radius_paths nhi_blast_radius_paths_pkey
+ALTER TABLE ONLY __SCHEMA__.nhi_blast_radius_paths
+    ADD CONSTRAINT nhi_blast_radius_paths_pkey PRIMARY KEY (id);
+
+-- CONSTRAINT: nhi_blast_radius nhi_blast_radius_pkey
+ALTER TABLE ONLY __SCHEMA__.nhi_blast_radius
+    ADD CONSTRAINT nhi_blast_radius_pkey PRIMARY KEY (id);
+
 -- CONSTRAINT: nhi_events_aws nhi_events_aws_pkey
 ALTER TABLE ONLY __SCHEMA__.nhi_events_aws
     ADD CONSTRAINT nhi_events_aws_pkey PRIMARY KEY (id);
+
+-- CONSTRAINT: nhi_fetch_status nhi_fetch_status_pkey
+ALTER TABLE ONLY __SCHEMA__.nhi_fetch_status
+    ADD CONSTRAINT nhi_fetch_status_pkey PRIMARY KEY (id);
+
+-- CONSTRAINT: nhi_genome_identities nhi_genome_identities_legacy_key
+ALTER TABLE ONLY __SCHEMA__.nhi_genome_identities
+    ADD CONSTRAINT nhi_genome_identities_legacy_key UNIQUE (nhi_type, identity_name);
+
+-- CONSTRAINT: nhi_genome_identities nhi_genome_identities_pkey
+ALTER TABLE ONLY __SCHEMA__.nhi_genome_identities
+    ADD CONSTRAINT nhi_genome_identities_pkey PRIMARY KEY (id);
 
 -- CONSTRAINT: nhi_identities_aws nhi_identities_aws_pkey
 ALTER TABLE ONLY __SCHEMA__.nhi_identities_aws
@@ -1820,6 +2777,22 @@ ALTER TABLE ONLY __SCHEMA__.nhi_identity_activity_aws
 ALTER TABLE ONLY __SCHEMA__.nhi_lineage_aws
     ADD CONSTRAINT nhi_lineage_aws_pkey PRIMARY KEY (id);
 
+-- CONSTRAINT: nhi_org_policies nhi_org_policies_pkey
+ALTER TABLE ONLY __SCHEMA__.nhi_org_policies
+    ADD CONSTRAINT nhi_org_policies_pkey PRIMARY KEY (id);
+
+-- CONSTRAINT: nhi_resource_links nhi_resource_links_pkey
+ALTER TABLE ONLY __SCHEMA__.nhi_resource_links
+    ADD CONSTRAINT nhi_resource_links_pkey PRIMARY KEY (id);
+
+-- CONSTRAINT: nhi_resource_policies nhi_resource_policies_pkey
+ALTER TABLE ONLY __SCHEMA__.nhi_resource_policies
+    ADD CONSTRAINT nhi_resource_policies_pkey PRIMARY KEY (id);
+
+-- CONSTRAINT: nhi_resources nhi_resources_pkey
+ALTER TABLE ONLY __SCHEMA__.nhi_resources
+    ADD CONSTRAINT nhi_resources_pkey PRIMARY KEY (id);
+
 -- CONSTRAINT: nhi_scans_aws nhi_scans_aws_pkey
 ALTER TABLE ONLY __SCHEMA__.nhi_scans_aws
     ADD CONSTRAINT nhi_scans_aws_pkey PRIMARY KEY (id);
@@ -1828,13 +2801,57 @@ ALTER TABLE ONLY __SCHEMA__.nhi_scans_aws
 ALTER TABLE ONLY __SCHEMA__.nhi_scans_aws
     ADD CONSTRAINT nhi_scans_aws_scan_id_key UNIQUE (scan_id);
 
--- CONSTRAINT: nhi_users nhi_users_pkey
-ALTER TABLE ONLY __SCHEMA__.nhi_users
-    ADD CONSTRAINT nhi_users_pkey PRIMARY KEY (id);
+-- CONSTRAINT: nhi_service_last_accessed nhi_service_last_accessed_pkey
+ALTER TABLE ONLY __SCHEMA__.nhi_service_last_accessed
+    ADD CONSTRAINT nhi_service_last_accessed_pkey PRIMARY KEY (id);
 
 -- CONSTRAINT: permission_usage permission_usage_pkey
 ALTER TABLE ONLY __SCHEMA__.permission_usage
     ADD CONSTRAINT permission_usage_pkey PRIMARY KEY (id);
+
+-- CONSTRAINT: remediation_approvals remediation_approvals_pkey
+ALTER TABLE ONLY __SCHEMA__.remediation_approvals
+    ADD CONSTRAINT remediation_approvals_pkey PRIMARY KEY (approval_id);
+
+-- CONSTRAINT: remediation_approvals remediation_approvals_plan_id_approver_plan_hash_key
+ALTER TABLE ONLY __SCHEMA__.remediation_approvals
+    ADD CONSTRAINT remediation_approvals_plan_id_approver_plan_hash_key UNIQUE (plan_id, approver, plan_hash);
+
+-- CONSTRAINT: remediation_audit_log remediation_audit_log_pkey
+ALTER TABLE ONLY __SCHEMA__.remediation_audit_log
+    ADD CONSTRAINT remediation_audit_log_pkey PRIMARY KEY (id);
+
+-- CONSTRAINT: remediation_batches remediation_batches_pkey
+ALTER TABLE ONLY __SCHEMA__.remediation_batches
+    ADD CONSTRAINT remediation_batches_pkey PRIMARY KEY (batch_id);
+
+-- CONSTRAINT: remediation_executions remediation_executions_pkey
+ALTER TABLE ONLY __SCHEMA__.remediation_executions
+    ADD CONSTRAINT remediation_executions_pkey PRIMARY KEY (execution_id);
+
+-- CONSTRAINT: remediation_integrations remediation_integrations_pkey
+ALTER TABLE ONLY __SCHEMA__.remediation_integrations
+    ADD CONSTRAINT remediation_integrations_pkey PRIMARY KEY (integration_id);
+
+-- CONSTRAINT: remediation_integrations remediation_integrations_tenant_id_type_key
+ALTER TABLE ONLY __SCHEMA__.remediation_integrations
+    ADD CONSTRAINT remediation_integrations_tenant_id_type_key UNIQUE (tenant_id, type);
+
+-- CONSTRAINT: remediation_notifications remediation_notifications_pkey
+ALTER TABLE ONLY __SCHEMA__.remediation_notifications
+    ADD CONSTRAINT remediation_notifications_pkey PRIMARY KEY (id);
+
+-- CONSTRAINT: remediation_plans remediation_plans_pkey
+ALTER TABLE ONLY __SCHEMA__.remediation_plans
+    ADD CONSTRAINT remediation_plans_pkey PRIMARY KEY (plan_id);
+
+-- CONSTRAINT: remediation_schema_migrations remediation_schema_migrations_pkey
+ALTER TABLE ONLY __SCHEMA__.remediation_schema_migrations
+    ADD CONSTRAINT remediation_schema_migrations_pkey PRIMARY KEY (version);
+
+-- CONSTRAINT: remediation_ticket_links remediation_ticket_links_pkey
+ALTER TABLE ONLY __SCHEMA__.remediation_ticket_links
+    ADD CONSTRAINT remediation_ticket_links_pkey PRIMARY KEY (finding_id);
 
 -- CONSTRAINT: resources resources_arn_key
 ALTER TABLE ONLY __SCHEMA__.resources
@@ -1860,6 +2877,10 @@ ALTER TABLE ONLY __SCHEMA__.scan_changes
 ALTER TABLE ONLY __SCHEMA__.ispm_scan_history
     ADD CONSTRAINT scan_history_pkey PRIMARY KEY (scan_id);
 
+-- CONSTRAINT: schema_migrations schema_migrations_pkey
+ALTER TABLE ONLY __SCHEMA__.schema_migrations
+    ADD CONSTRAINT schema_migrations_pkey PRIMARY KEY (filename);
+
 -- CONSTRAINT: secscan_allowlist_codecommit secscan_allowlist_codecommit_pkey
 ALTER TABLE ONLY __SCHEMA__.secscan_allowlist_codecommit
     ADD CONSTRAINT secscan_allowlist_codecommit_pkey PRIMARY KEY (client_id, file_path, detector, redacted);
@@ -1871,6 +2892,14 @@ ALTER TABLE ONLY __SCHEMA__.secscan_allowlist_dashboard
 -- CONSTRAINT: secscan_allowlist_github secscan_allowlist_github_pkey
 ALTER TABLE ONLY __SCHEMA__.secscan_allowlist_github
     ADD CONSTRAINT secscan_allowlist_github_pkey PRIMARY KEY (client_id, file_path, detector, redacted);
+
+-- CONSTRAINT: secscan_bitbucket_connection secscan_bitbucket_connection_pkey
+ALTER TABLE ONLY __SCHEMA__.secscan_bitbucket_connection
+    ADD CONSTRAINT secscan_bitbucket_connection_pkey PRIMARY KEY (tenant_id);
+
+-- CONSTRAINT: secscan_deep_findings_codecommit secscan_deep_findings_codecommit_pkey
+ALTER TABLE ONLY __SCHEMA__.secscan_deep_findings_codecommit
+    ADD CONSTRAINT secscan_deep_findings_codecommit_pkey PRIMARY KEY (finding_id);
 
 -- CONSTRAINT: secscan_deepscan_codecommit secscan_deepscan_codecommit_pkey
 ALTER TABLE ONLY __SCHEMA__.secscan_deepscan_codecommit
@@ -1887,6 +2916,10 @@ ALTER TABLE ONLY __SCHEMA__.secscan_findings_codecommit
 -- CONSTRAINT: secscan_findings_github secscan_findings_github_pkey
 ALTER TABLE ONLY __SCHEMA__.secscan_findings_github
     ADD CONSTRAINT secscan_findings_github_pkey PRIMARY KEY (finding_id);
+
+-- CONSTRAINT: secscan_jobs_bitbucket secscan_jobs_bitbucket_pkey
+ALTER TABLE ONLY __SCHEMA__.secscan_jobs_bitbucket
+    ADD CONSTRAINT secscan_jobs_bitbucket_pkey PRIMARY KEY (id);
 
 -- CONSTRAINT: secscan_jobs_codecommit secscan_jobs_codecommit_pkey
 ALTER TABLE ONLY __SCHEMA__.secscan_jobs_codecommit
@@ -1924,10 +2957,6 @@ ALTER TABLE ONLY __SCHEMA__.identity_credentials
 ALTER TABLE ONLY __SCHEMA__.identity_usage
     ADD CONSTRAINT uq_identity_usage_scan UNIQUE (credential_id, event_name, service, resource_arn, window_start, scan_id);
 
--- CONSTRAINT: nhi_users uq_nhi_users_email
-ALTER TABLE ONLY __SCHEMA__.nhi_users
-    ADD CONSTRAINT uq_nhi_users_email UNIQUE (email);
-
 -- CONSTRAINT: permission_usage uq_perm_usage
 ALTER TABLE ONLY __SCHEMA__.permission_usage
     ADD CONSTRAINT uq_perm_usage UNIQUE (credential_id, service, action, resource_arn);
@@ -1948,6 +2977,9 @@ ALTER TABLE ONLY __SCHEMA__.user_settings
 ALTER TABLE ONLY __SCHEMA__.user_settings
     ADD CONSTRAINT user_settings_user_id_key UNIQUE (user_id);
 
+-- INDEX: accounts_sync_queue
+CREATE INDEX accounts_sync_queue ON __SCHEMA__.accounts USING btree (sync_requested_at) WHERE (sync_status = 'queued'::text);
+
 -- INDEX: alert_feedback_baseline_idx
 CREATE INDEX alert_feedback_baseline_idx ON __SCHEMA__.alert_feedback USING btree (source_type, approved_for_baseline, updated_at DESC);
 
@@ -1966,6 +2998,9 @@ CREATE INDEX __SCHEMA___ecs_task_registry_cluster_status_idx ON __SCHEMA__.ecs_t
 -- INDEX: __SCHEMA___ecs_task_registry_workload_idx
 CREATE INDEX __SCHEMA___ecs_task_registry_workload_idx ON __SCHEMA__.ecs_task_registry USING btree (account_id, region, service_name, task_definition_arn);
 
+-- INDEX: drift_feedback_stats_account_rate_idx
+CREATE INDEX drift_feedback_stats_account_rate_idx ON __SCHEMA__.drift_feedback_stats USING btree (account_id, source_type, fp_rate DESC);
+
 -- INDEX: drift_feedback_stats_rate_idx
 CREATE INDEX drift_feedback_stats_rate_idx ON __SCHEMA__.drift_feedback_stats USING btree (source_type, fp_rate DESC);
 
@@ -1978,11 +3013,29 @@ CREATE INDEX dummy_credentials_owner_principal_arn_idx ON __SCHEMA__.dummy_crede
 -- INDEX: dummy_identities_account_id_idx
 CREATE INDEX dummy_identities_account_id_idx ON __SCHEMA__.dummy_identities USING btree (account_id) WHERE (deleted_at IS NULL);
 
+-- INDEX: ecs_task_registry_account_region_id_idx
+CREATE INDEX ecs_task_registry_account_region_id_idx ON __SCHEMA__.ecs_task_registry USING btree (account_id, region, task_id);
+
+-- INDEX: ecs_task_registry_cluster_status_idx
+CREATE INDEX ecs_task_registry_cluster_status_idx ON __SCHEMA__.ecs_task_registry USING btree (account_id, region, cluster_arn, last_status);
+
+-- INDEX: ecs_task_registry_workload_idx
+CREATE INDEX ecs_task_registry_workload_idx ON __SCHEMA__.ecs_task_registry USING btree (account_id, region, service_name, task_definition_arn);
+
 -- INDEX: event_processing_claim_idx
 CREATE INDEX event_processing_claim_idx ON __SCHEMA__.event_processing_log USING btree (claim_started_at) WHERE ((state)::text = 'processing'::text);
 
+-- INDEX: identity_dimension_drift_account_psi_idx
+CREATE INDEX identity_dimension_drift_account_psi_idx ON __SCHEMA__.identity_dimension_drift USING btree (account_id, source_type, window_end, psi DESC);
+
 -- INDEX: identity_dimension_drift_psi_idx
 CREATE INDEX identity_dimension_drift_psi_idx ON __SCHEMA__.identity_dimension_drift USING btree (source_type, window_end, psi DESC);
+
+-- INDEX: identity_drift_scores_account_status_idx
+CREATE INDEX identity_drift_scores_account_status_idx ON __SCHEMA__.identity_drift_scores USING btree (account_id, source_type, status, drift DESC);
+
+-- INDEX: identity_drift_scores_account_window_idx
+CREATE INDEX identity_drift_scores_account_window_idx ON __SCHEMA__.identity_drift_scores USING btree (account_id, source_type, window_end DESC);
 
 -- INDEX: identity_drift_scores_status_idx
 CREATE INDEX identity_drift_scores_status_idx ON __SCHEMA__.identity_drift_scores USING btree (source_type, status, drift DESC);
@@ -1999,20 +3052,8 @@ CREATE INDEX identity_runtime_workload_idx ON __SCHEMA__.identity_runtime_config
 -- INDEX: idx_acc_tenant
 CREATE INDEX idx_acc_tenant ON __SCHEMA__.accounts USING btree (tenant_id);
 
--- INDEX: idx___SCHEMA___change_log_arn
-CREATE INDEX idx___SCHEMA___change_log_arn ON __SCHEMA__.change_log USING btree (entity_arn);
-
--- INDEX: idx___SCHEMA___change_log_scan
-CREATE INDEX idx___SCHEMA___change_log_scan ON __SCHEMA__.change_log USING btree (scan_id);
-
 -- INDEX: idx___SCHEMA___cred_arn
 CREATE INDEX idx___SCHEMA___cred_arn ON __SCHEMA__.credentials USING btree (arn);
-
--- INDEX: idx___SCHEMA___cred_change_log_arn
-CREATE INDEX idx___SCHEMA___cred_change_log_arn ON __SCHEMA__.credential_change_log USING btree (entity_arn);
-
--- INDEX: idx___SCHEMA___cred_change_log_scan
-CREATE INDEX idx___SCHEMA___cred_change_log_scan ON __SCHEMA__.credential_change_log USING btree (scan_id);
 
 -- INDEX: idx___SCHEMA___cred_scan
 CREATE INDEX idx___SCHEMA___cred_scan ON __SCHEMA__.credentials USING btree (scan_id);
@@ -2032,6 +3073,21 @@ CREATE INDEX idx___SCHEMA___identities_status ON __SCHEMA__.identities USING btr
 -- INDEX: idx___SCHEMA___identities_type
 CREATE INDEX idx___SCHEMA___identities_type ON __SCHEMA__.identities USING btree (identity_type);
 
+-- INDEX: idx_blast_radius_expires
+CREATE INDEX idx_blast_radius_expires ON __SCHEMA__.nhi_blast_radius USING btree (expires_at);
+
+-- INDEX: idx_blast_radius_paths_br
+CREATE INDEX idx_blast_radius_paths_br ON __SCHEMA__.nhi_blast_radius_paths USING btree (blast_radius_id);
+
+-- INDEX: idx_blast_radius_paths_phase
+CREATE INDEX idx_blast_radius_paths_phase ON __SCHEMA__.nhi_blast_radius_paths USING btree (phase);
+
+-- INDEX: idx_blast_radius_paths_target
+CREATE INDEX idx_blast_radius_paths_target ON __SCHEMA__.nhi_blast_radius_paths USING btree (target_arn);
+
+-- INDEX: idx_blast_radius_source
+CREATE INDEX idx_blast_radius_source ON __SCHEMA__.nhi_blast_radius USING btree (source_arn);
+
 -- INDEX: idx_cf_credential
 CREATE INDEX idx_cf_credential ON __SCHEMA__.compliance_findings USING btree (credential_id);
 
@@ -2050,26 +3106,56 @@ CREATE INDEX idx_cf_severity ON __SCHEMA__.compliance_findings USING btree (seve
 -- INDEX: idx_cf_status
 CREATE INDEX idx_cf_status ON __SCHEMA__.compliance_findings USING btree (status);
 
--- INDEX: idx_change_log_arn
-CREATE INDEX idx_change_log_arn ON __SCHEMA__.change_log USING btree (entity_arn, account_id);
+-- INDEX: idx_composition_rules_active
+CREATE INDEX idx_composition_rules_active ON __SCHEMA__.correlation_composition_rules USING btree (is_active);
 
--- INDEX: idx_change_log_detected
-CREATE INDEX idx_change_log_detected ON __SCHEMA__.change_log USING btree (detected_at);
+-- INDEX: idx_composition_rules_type
+CREATE INDEX idx_composition_rules_type ON __SCHEMA__.correlation_composition_rules USING btree (rule_type);
 
--- INDEX: idx_change_log_scan
-CREATE INDEX idx_change_log_scan ON __SCHEMA__.change_log USING btree (scan_id);
+-- INDEX: idx_correlation_definitions_active
+CREATE INDEX idx_correlation_definitions_active ON __SCHEMA__.correlation_definitions USING btree (is_active);
 
--- INDEX: idx_cred_change_log_arn
-CREATE INDEX idx_cred_change_log_arn ON __SCHEMA__.credential_change_log USING btree (entity_arn, account_id);
+-- INDEX: idx_correlation_definitions_category
+CREATE INDEX idx_correlation_definitions_category ON __SCHEMA__.correlation_definitions USING btree (category);
 
--- INDEX: idx_cred_change_log_detected
-CREATE INDEX idx_cred_change_log_detected ON __SCHEMA__.credential_change_log USING btree (detected_at);
+-- INDEX: idx_correlation_definitions_disposition
+CREATE INDEX idx_correlation_definitions_disposition ON __SCHEMA__.correlation_definitions USING btree (disposition);
 
--- INDEX: idx_cred_change_log_scan
-CREATE INDEX idx_cred_change_log_scan ON __SCHEMA__.credential_change_log USING btree (scan_id);
+-- INDEX: idx_correlation_definitions_source_table
+CREATE INDEX idx_correlation_definitions_source_table ON __SCHEMA__.correlation_definitions USING btree (source_table);
+
+-- INDEX: idx_correlation_definitions_target_table
+CREATE INDEX idx_correlation_definitions_target_table ON __SCHEMA__.correlation_definitions USING btree (target_table);
+
+-- INDEX: idx_correlation_engine_runs_source
+CREATE INDEX idx_correlation_engine_runs_source ON __SCHEMA__.correlation_engine_runs USING btree (source_arn);
+
+-- INDEX: idx_correlation_engine_runs_status
+CREATE INDEX idx_correlation_engine_runs_status ON __SCHEMA__.correlation_engine_runs USING btree (status, requested_at);
+
+-- INDEX: idx_correlation_results_tenant
+CREATE INDEX idx_correlation_results_tenant ON __SCHEMA__.correlation_results USING btree (tenant_id);
+
+-- INDEX: idx_correlation_runs_corr_id
+CREATE INDEX idx_correlation_runs_corr_id ON __SCHEMA__.correlation_runs USING btree (correlation_id);
+
+-- INDEX: idx_correlation_runs_started
+CREATE INDEX idx_correlation_runs_started ON __SCHEMA__.correlation_runs USING btree (started_at);
+
+-- INDEX: idx_correlation_runs_status
+CREATE INDEX idx_correlation_runs_status ON __SCHEMA__.correlation_runs USING btree (status);
+
+-- INDEX: idx_correlation_runs_tenant
+CREATE INDEX idx_correlation_runs_tenant ON __SCHEMA__.correlation_runs USING btree (tenant_id);
 
 -- INDEX: idx_dashboard_cache_latest
 CREATE INDEX idx_dashboard_cache_latest ON __SCHEMA__.ispm_nhi_dashboard_cache USING btree (tenant_id, snapshot_date DESC);
+
+-- INDEX: idx_ecs_task_registry_exec_role
+CREATE INDEX idx_ecs_task_registry_exec_role ON __SCHEMA__.ecs_task_registry USING btree (execution_role_arn);
+
+-- INDEX: idx_ecs_task_registry_task_role
+CREATE INDEX idx_ecs_task_registry_task_role ON __SCHEMA__.ecs_task_registry USING btree (task_role_arn);
 
 -- INDEX: idx_ep_credential
 CREATE INDEX idx_ep_credential ON __SCHEMA__.effective_permissions USING btree (credential_id);
@@ -2079,6 +3165,27 @@ CREATE INDEX idx_ep_granted_count ON __SCHEMA__.effective_permissions USING btre
 
 -- INDEX: idx_ep_permissions_gin
 CREATE INDEX idx_ep_permissions_gin ON __SCHEMA__.effective_permissions USING gin (permissions);
+
+-- INDEX: idx_epe_action
+CREATE INDEX idx_epe_action ON __SCHEMA__.effective_permission_entries USING btree (action);
+
+-- INDEX: idx_epe_credential_id
+CREATE INDEX idx_epe_credential_id ON __SCHEMA__.effective_permission_entries USING btree (credential_id);
+
+-- INDEX: idx_epe_effect
+CREATE INDEX idx_epe_effect ON __SCHEMA__.effective_permission_entries USING btree (effect);
+
+-- INDEX: idx_epe_resource_arn
+CREATE INDEX idx_epe_resource_arn ON __SCHEMA__.effective_permission_entries USING btree (resource_arn);
+
+-- INDEX: idx_epe_resource_effect
+CREATE INDEX idx_epe_resource_effect ON __SCHEMA__.effective_permission_entries USING btree (resource_arn, effect);
+
+-- INDEX: idx_epe_service
+CREATE INDEX idx_epe_service ON __SCHEMA__.effective_permission_entries USING btree (service);
+
+-- INDEX: idx_epe_tenant_id
+CREATE INDEX idx_epe_tenant_id ON __SCHEMA__.effective_permission_entries USING btree (tenant_id);
 
 -- INDEX: idx_events_arn
 CREATE INDEX idx_events_arn ON __SCHEMA__.nhi_events_aws USING btree (scan_id, identity_arn);
@@ -2131,6 +3238,12 @@ CREATE INDEX idx_ic_identity ON __SCHEMA__.identity_credentials USING btree (ide
 -- INDEX: idx_ic_scan
 CREATE INDEX idx_ic_scan ON __SCHEMA__.identity_credentials USING btree (scan_id);
 
+-- INDEX: idx_ispm_access_edges_source
+CREATE INDEX idx_ispm_access_edges_source ON __SCHEMA__.ispm_access_edges USING btree (source_arn);
+
+-- INDEX: idx_ispm_access_edges_target
+CREATE INDEX idx_ispm_access_edges_target ON __SCHEMA__.ispm_access_edges USING btree (target_arn);
+
 -- INDEX: idx_ispm_checks_failing
 CREATE INDEX idx_ispm_checks_failing ON __SCHEMA__.ispm_identity_checks USING btree (tenant_id, identity_id, points_lost DESC) WHERE ((status)::text = 'FAIL'::text);
 
@@ -2145,6 +3258,9 @@ CREATE INDEX idx_ispm_edges_account ON __SCHEMA__.ispm_access_edges USING btree 
 
 -- INDEX: idx_ispm_edges_target
 CREATE INDEX idx_ispm_edges_target ON __SCHEMA__.ispm_access_edges USING btree (tenant_id, target_arn);
+
+-- INDEX: idx_ispm_jira_tickets_key
+CREATE INDEX idx_ispm_jira_tickets_key ON __SCHEMA__.ispm_jira_tickets USING btree (issue_key);
 
 -- INDEX: idx_ispm_posture_account
 CREATE INDEX idx_ispm_posture_account ON __SCHEMA__.ispm_identity_posture USING btree (tenant_id, account_id, score);
@@ -2224,8 +3340,89 @@ CREATE INDEX idx_lineage_source ON __SCHEMA__.nhi_lineage_aws USING btree (scan_
 -- INDEX: idx_lineage_type
 CREATE INDEX idx_lineage_type ON __SCHEMA__.nhi_lineage_aws USING btree (scan_id, rel_type);
 
+-- INDEX: idx_nhi_fetch_status_latest
+CREATE INDEX idx_nhi_fetch_status_latest ON __SCHEMA__.nhi_fetch_status USING btree (account_id, source, region, finished_at DESC);
+
+-- INDEX: idx_nhi_org_policies_unit
+CREATE INDEX idx_nhi_org_policies_unit ON __SCHEMA__.nhi_org_policies USING btree (account_id, source, fetch_unit);
+
+-- INDEX: idx_nhi_resource_links_from
+CREATE INDEX idx_nhi_resource_links_from ON __SCHEMA__.nhi_resource_links USING btree (from_arn);
+
+-- INDEX: idx_nhi_resource_links_to
+CREATE INDEX idx_nhi_resource_links_to ON __SCHEMA__.nhi_resource_links USING btree (to_arn);
+
+-- INDEX: idx_nhi_resource_links_unit
+CREATE INDEX idx_nhi_resource_links_unit ON __SCHEMA__.nhi_resource_links USING btree (account_id, source, fetch_unit);
+
+-- INDEX: idx_nhi_resource_policies_arn
+CREATE INDEX idx_nhi_resource_policies_arn ON __SCHEMA__.nhi_resource_policies USING btree (resource_arn);
+
+-- INDEX: idx_nhi_resource_policies_unit
+CREATE INDEX idx_nhi_resource_policies_unit ON __SCHEMA__.nhi_resource_policies USING btree (account_id, source, fetch_unit);
+
+-- INDEX: idx_nhi_resources_arn
+CREATE INDEX idx_nhi_resources_arn ON __SCHEMA__.nhi_resources USING btree (resource_arn);
+
+-- INDEX: idx_nhi_resources_unit
+CREATE INDEX idx_nhi_resources_unit ON __SCHEMA__.nhi_resources USING btree (account_id, source, fetch_unit);
+
+-- INDEX: idx_nhi_service_last_accessed_role
+CREATE INDEX idx_nhi_service_last_accessed_role ON __SCHEMA__.nhi_service_last_accessed USING btree (role_arn);
+
+-- INDEX: idx_nhi_service_last_accessed_unit
+CREATE INDEX idx_nhi_service_last_accessed_unit ON __SCHEMA__.nhi_service_last_accessed USING btree (account_id, source, fetch_unit);
+
+-- INDEX: idx_path_types_active
+CREATE INDEX idx_path_types_active ON __SCHEMA__.correlation_path_types USING btree (is_active);
+
+-- INDEX: idx_path_types_phase
+CREATE INDEX idx_path_types_phase ON __SCHEMA__.correlation_path_types USING btree (phase);
+
 -- INDEX: idx_pu_credential
 CREATE INDEX idx_pu_credential ON __SCHEMA__.permission_usage USING btree (credential_id);
+
+-- INDEX: idx_rem_approvals_plan
+CREATE INDEX idx_rem_approvals_plan ON __SCHEMA__.remediation_approvals USING btree (plan_id);
+
+-- INDEX: idx_rem_audit_plan
+CREATE INDEX idx_rem_audit_plan ON __SCHEMA__.remediation_audit_log USING btree (plan_id, id);
+
+-- INDEX: idx_rem_audit_tenant
+CREATE INDEX idx_rem_audit_tenant ON __SCHEMA__.remediation_audit_log USING btree (tenant_id, id);
+
+-- INDEX: idx_rem_exec_plan
+CREATE INDEX idx_rem_exec_plan ON __SCHEMA__.remediation_executions USING btree (plan_id, created_at DESC);
+
+-- INDEX: idx_rem_exec_queue
+CREATE INDEX idx_rem_exec_queue ON __SCHEMA__.remediation_executions USING btree (scheduled_for) WHERE (status = 'QUEUED'::text);
+
+-- INDEX: idx_rem_notif_pending
+CREATE INDEX idx_rem_notif_pending ON __SCHEMA__.remediation_notifications USING btree (next_attempt_at) WHERE (status = 'PENDING'::text);
+
+-- INDEX: idx_rem_plans_batch
+CREATE INDEX idx_rem_plans_batch ON __SCHEMA__.remediation_plans USING btree (batch_id) WHERE (batch_id IS NOT NULL);
+
+-- INDEX: idx_rem_plans_findings
+CREATE INDEX idx_rem_plans_findings ON __SCHEMA__.remediation_plans USING gin (finding_ids);
+
+-- INDEX: idx_rem_plans_policy
+CREATE INDEX idx_rem_plans_policy ON __SCHEMA__.remediation_plans USING btree (tenant_id, policy_id, target_key) WHERE (policy_id IS NOT NULL);
+
+-- INDEX: idx_rem_plans_policy_finding
+CREATE INDEX idx_rem_plans_policy_finding ON __SCHEMA__.remediation_plans USING btree (tenant_id, policy_id, created_at DESC) WHERE (policy_id IS NOT NULL);
+
+-- INDEX: idx_rem_plans_policy_target
+CREATE INDEX idx_rem_plans_policy_target ON __SCHEMA__.remediation_plans USING btree (tenant_id, policy_id, target_key) WHERE (policy_id IS NOT NULL);
+
+-- INDEX: idx_rem_plans_target
+CREATE INDEX idx_rem_plans_target ON __SCHEMA__.remediation_plans USING btree (tenant_id, target_arn);
+
+-- INDEX: idx_rem_plans_tenant_status
+CREATE INDEX idx_rem_plans_tenant_status ON __SCHEMA__.remediation_plans USING btree (tenant_id, status, created_at DESC);
+
+-- INDEX: idx_rem_tickets_tenant
+CREATE INDEX idx_rem_tickets_tenant ON __SCHEMA__.remediation_ticket_links USING btree (tenant_id, ticket_state);
 
 -- INDEX: idx_res_arn
 CREATE INDEX idx_res_arn ON __SCHEMA__.resources USING btree (arn);
@@ -2272,6 +3469,18 @@ CREATE INDEX idx_te_target ON __SCHEMA__.trust_edges USING btree (target_arn);
 -- INDEX: idx_te_type
 CREATE INDEX idx_te_type ON __SCHEMA__.trust_edges USING btree (edge_type);
 
+-- INDEX: nhi_genome_identities_active_type_idx
+CREATE INDEX nhi_genome_identities_active_type_idx ON __SCHEMA__.nhi_genome_identities USING btree (identity_type, deleted_at);
+
+-- INDEX: nhi_genome_identities_name_lookup_idx
+CREATE INDEX nhi_genome_identities_name_lookup_idx ON __SCHEMA__.nhi_genome_identities USING btree (name, account_id, region) WHERE (deleted_at IS NULL);
+
+-- INDEX: nhi_genome_identities_role_idx
+CREATE INDEX nhi_genome_identities_role_idx ON __SCHEMA__.nhi_genome_identities USING btree (role_arn) WHERE (role_arn IS NOT NULL);
+
+-- INDEX: nhi_genome_identities_type_arn_idx
+CREATE INDEX nhi_genome_identities_type_arn_idx ON __SCHEMA__.nhi_genome_identities USING btree (identity_type, arn, account_id);
+
 -- INDEX: nhi_identities_active_type_idx
 CREATE INDEX nhi_identities_active_type_idx ON __SCHEMA__.nhi_identities USING btree (identity_type, deleted_at);
 
@@ -2290,12 +3499,35 @@ CREATE UNIQUE INDEX uq___SCHEMA___usage_scan ON __SCHEMA__.identity_usage USING 
 -- INDEX: uq_usage_scan
 CREATE UNIQUE INDEX uq_usage_scan ON __SCHEMA__.identity_usage USING btree (credential_id, event_name, service, COALESCE(resource_arn, ''::text), window_start, scan_id);
 
+-- TRIGGER: remediation_audit_log remediation_audit_no_change
+CREATE TRIGGER remediation_audit_no_change BEFORE DELETE OR UPDATE ON __SCHEMA__.remediation_audit_log FOR EACH ROW EXECUTE FUNCTION __SCHEMA__.remediation_audit_immutable();
+
+-- TRIGGER: correlation_composition_rules trg_correlation_composition_rules_updated_at
+CREATE TRIGGER trg_correlation_composition_rules_updated_at BEFORE UPDATE ON __SCHEMA__.correlation_composition_rules FOR EACH ROW EXECUTE FUNCTION __SCHEMA__.update_updated_at();
+
+-- TRIGGER: correlation_definitions trg_correlation_definitions_updated_at
+CREATE TRIGGER trg_correlation_definitions_updated_at BEFORE UPDATE ON __SCHEMA__.correlation_definitions FOR EACH ROW EXECUTE FUNCTION __SCHEMA__.update_updated_at();
+
+-- TRIGGER: correlation_path_types trg_correlation_path_types_updated_at
+CREATE TRIGGER trg_correlation_path_types_updated_at BEFORE UPDATE ON __SCHEMA__.correlation_path_types FOR EACH ROW EXECUTE FUNCTION __SCHEMA__.update_updated_at();
+
+-- TRIGGER: ecs_task_registry trg_ecs_task_registry_updated_at
+CREATE TRIGGER trg_ecs_task_registry_updated_at BEFORE UPDATE ON __SCHEMA__.ecs_task_registry FOR EACH ROW EXECUTE FUNCTION __SCHEMA__.update_updated_at();
+
 -- TRIGGER: identities trg_identities_updated_at
 CREATE TRIGGER trg_identities_updated_at BEFORE UPDATE ON __SCHEMA__.identities FOR EACH ROW EXECUTE FUNCTION __SCHEMA__.update_updated_at();
+
+-- FK CONSTRAINT: effective_permission_entries effective_permission_entries_credential_id_fkey
+ALTER TABLE ONLY __SCHEMA__.effective_permission_entries
+    ADD CONSTRAINT effective_permission_entries_credential_id_fkey FOREIGN KEY (credential_id) REFERENCES __SCHEMA__.credentials(id) ON DELETE CASCADE;
 
 -- FK CONSTRAINT: ispm_finding_history finding_history_finding_id_fkey
 ALTER TABLE ONLY __SCHEMA__.ispm_finding_history
     ADD CONSTRAINT finding_history_finding_id_fkey FOREIGN KEY (finding_id) REFERENCES __SCHEMA__.ispm_nhi_findings(finding_id) ON DELETE CASCADE;
+
+-- FK CONSTRAINT: correlation_results fk_correlation_results_run
+ALTER TABLE ONLY __SCHEMA__.correlation_results
+    ADD CONSTRAINT fk_correlation_results_run FOREIGN KEY (run_id) REFERENCES __SCHEMA__.correlation_runs(id) ON DELETE CASCADE;
 
 -- FK CONSTRAINT: identity_runtime_config identity_runtime_config_identity_id_fkey
 ALTER TABLE ONLY __SCHEMA__.identity_runtime_config
@@ -2305,247 +3537,14 @@ ALTER TABLE ONLY __SCHEMA__.identity_runtime_config
 ALTER TABLE ONLY __SCHEMA__.ispm_categories
     ADD CONSTRAINT ispm_categories_pillar_fk FOREIGN KEY (pillar_code) REFERENCES __SCHEMA__.ispm_pillars(pillar_code) ON UPDATE CASCADE;
 
+-- FK CONSTRAINT: jenkins_credentials jenkins_credentials_jenkins_name_fkey
+ALTER TABLE ONLY __SCHEMA__.jenkins_credentials
+    ADD CONSTRAINT jenkins_credentials_jenkins_name_fkey FOREIGN KEY (jenkins_name) REFERENCES __SCHEMA__.jenkins_instances(jenkins_name) ON UPDATE CASCADE ON DELETE CASCADE;
+
+-- FK CONSTRAINT: nhi_blast_radius_paths nhi_blast_radius_paths_blast_radius_id_fkey
+ALTER TABLE ONLY __SCHEMA__.nhi_blast_radius_paths
+    ADD CONSTRAINT nhi_blast_radius_paths_blast_radius_id_fkey FOREIGN KEY (blast_radius_id) REFERENCES __SCHEMA__.nhi_blast_radius(id) ON DELETE CASCADE;
+
 -- FK CONSTRAINT: permission_usage permission_usage_credential_id_fkey
 ALTER TABLE ONLY __SCHEMA__.permission_usage
     ADD CONSTRAINT permission_usage_credential_id_fkey FOREIGN KEY (credential_id) REFERENCES __SCHEMA__.credentials(id) ON DELETE CASCADE;
-
--- Secret scanner v2 (2026-11-05): Bitbucket stack and deep-scan findings.
--- TABLE: secscan_findings_bitbucket
-CREATE TABLE __SCHEMA__.secscan_findings_bitbucket (
-    finding_id character varying(1000) NOT NULL,
-    client_id character varying(200) NOT NULL,
-    repository character varying(500) NOT NULL,
-    branch character varying(500) NOT NULL,
-    commit_id character varying(100) NOT NULL,
-    author character varying(300) NOT NULL,
-    created_at character varying(50) NOT NULL,
-    detector character varying(100) NOT NULL,
-    severity character varying(50) NOT NULL,
-    file_path character varying(1000) NOT NULL,
-    line_number integer NOT NULL,
-    redacted character varying(4000) NOT NULL,
-    verification_status character varying(50) NOT NULL,
-    risk_tier character varying(50) NOT NULL,
-    recommended_action character varying(200) NOT NULL,
-    codecommit_uri character varying(2000),
-    platform character varying(50),
-    github_uri character varying(2000),
-    line_preview character varying(4000),
-    confidence character varying(50),
-    category character varying(100),
-    committer character varying(300),
-    commit_message character varying(4000),
-    commit_authored_at character varying(50),
-    files_changed integer,
-    additions integer,
-    deletions integer,
-    repo_visibility character varying(50),
-    repo_stars integer,
-    repo_forks integer,
-    repo_pushed_at character varying(50),
-    ml_score double precision,
-    ml_decision character varying(50),
-    ml_model_version character varying(100),
-    analyst_decision character varying(50),
-    analyst_decided_at character varying(50),
-    analyst_decided_by character varying(300),
-    value_fingerprint character varying(64),
-    noise_flags character varying(500),
-    ml_veto_score double precision,
-    ml_veto_model_version character varying(100),
-    ml_features text,
-    bitbucket_uri character varying(2000),
-    PRIMARY KEY (finding_id)
-);
-
--- TABLE: secscan_deep_findings_codecommit
-CREATE TABLE __SCHEMA__.secscan_deep_findings_codecommit (
-    finding_id character varying(1000) NOT NULL,
-    client_id character varying(200) NOT NULL,
-    repository character varying(500) NOT NULL,
-    branch character varying(500) NOT NULL,
-    commit_id character varying(100) NOT NULL,
-    author character varying(300) NOT NULL,
-    created_at character varying(50) NOT NULL,
-    detector character varying(100) NOT NULL,
-    severity character varying(50) NOT NULL,
-    file_path character varying(1000) NOT NULL,
-    line_number integer NOT NULL,
-    redacted character varying(4000) NOT NULL,
-    verification_status character varying(50) NOT NULL,
-    risk_tier character varying(50) NOT NULL,
-    recommended_action character varying(200) NOT NULL,
-    codecommit_uri character varying(2000),
-    platform character varying(50),
-    github_uri character varying(2000),
-    line_preview character varying(4000),
-    confidence character varying(50),
-    category character varying(100),
-    committer character varying(300),
-    commit_message character varying(4000),
-    commit_authored_at character varying(50),
-    files_changed integer,
-    additions integer,
-    deletions integer,
-    repo_visibility character varying(50),
-    repo_stars integer,
-    repo_forks integer,
-    repo_pushed_at character varying(50),
-    ml_score double precision,
-    ml_decision character varying(50),
-    ml_model_version character varying(100),
-    analyst_decision character varying(50),
-    analyst_decided_at character varying(50),
-    analyst_decided_by character varying(300),
-    value_fingerprint character varying(64),
-    noise_flags character varying(500),
-    ml_veto_score double precision,
-    ml_veto_model_version character varying(100),
-    ml_features text,
-    bitbucket_uri character varying(2000),
-    PRIMARY KEY (finding_id)
-);
-
--- TABLE: secscan_deep_findings_github
-CREATE TABLE __SCHEMA__.secscan_deep_findings_github (
-    finding_id character varying(1000) NOT NULL,
-    client_id character varying(200) NOT NULL,
-    repository character varying(500) NOT NULL,
-    branch character varying(500) NOT NULL,
-    commit_id character varying(100) NOT NULL,
-    author character varying(300) NOT NULL,
-    created_at character varying(50) NOT NULL,
-    detector character varying(100) NOT NULL,
-    severity character varying(50) NOT NULL,
-    file_path character varying(1000) NOT NULL,
-    line_number integer NOT NULL,
-    redacted character varying(4000) NOT NULL,
-    verification_status character varying(50) NOT NULL,
-    risk_tier character varying(50) NOT NULL,
-    recommended_action character varying(200) NOT NULL,
-    codecommit_uri character varying(2000),
-    platform character varying(50),
-    github_uri character varying(2000),
-    line_preview character varying(4000),
-    confidence character varying(50),
-    category character varying(100),
-    committer character varying(300),
-    commit_message character varying(4000),
-    commit_authored_at character varying(50),
-    files_changed integer,
-    additions integer,
-    deletions integer,
-    repo_visibility character varying(50),
-    repo_stars integer,
-    repo_forks integer,
-    repo_pushed_at character varying(50),
-    ml_score double precision,
-    ml_decision character varying(50),
-    ml_model_version character varying(100),
-    analyst_decision character varying(50),
-    analyst_decided_at character varying(50),
-    analyst_decided_by character varying(300),
-    value_fingerprint character varying(64),
-    noise_flags character varying(500),
-    ml_veto_score double precision,
-    ml_veto_model_version character varying(100),
-    ml_features text,
-    bitbucket_uri character varying(2000),
-    PRIMARY KEY (finding_id)
-);
-
--- TABLE: secscan_deep_findings_bitbucket
-CREATE TABLE __SCHEMA__.secscan_deep_findings_bitbucket (
-    finding_id character varying(1000) NOT NULL,
-    client_id character varying(200) NOT NULL,
-    repository character varying(500) NOT NULL,
-    branch character varying(500) NOT NULL,
-    commit_id character varying(100) NOT NULL,
-    author character varying(300) NOT NULL,
-    created_at character varying(50) NOT NULL,
-    detector character varying(100) NOT NULL,
-    severity character varying(50) NOT NULL,
-    file_path character varying(1000) NOT NULL,
-    line_number integer NOT NULL,
-    redacted character varying(4000) NOT NULL,
-    verification_status character varying(50) NOT NULL,
-    risk_tier character varying(50) NOT NULL,
-    recommended_action character varying(200) NOT NULL,
-    codecommit_uri character varying(2000),
-    platform character varying(50),
-    github_uri character varying(2000),
-    line_preview character varying(4000),
-    confidence character varying(50),
-    category character varying(100),
-    committer character varying(300),
-    commit_message character varying(4000),
-    commit_authored_at character varying(50),
-    files_changed integer,
-    additions integer,
-    deletions integer,
-    repo_visibility character varying(50),
-    repo_stars integer,
-    repo_forks integer,
-    repo_pushed_at character varying(50),
-    ml_score double precision,
-    ml_decision character varying(50),
-    ml_model_version character varying(100),
-    analyst_decision character varying(50),
-    analyst_decided_at character varying(50),
-    analyst_decided_by character varying(300),
-    value_fingerprint character varying(64),
-    noise_flags character varying(500),
-    ml_veto_score double precision,
-    ml_veto_model_version character varying(100),
-    ml_features text,
-    bitbucket_uri character varying(2000),
-    PRIMARY KEY (finding_id)
-);
-
--- TABLE: secscan_ledger_bitbucket
-CREATE TABLE __SCHEMA__.secscan_ledger_bitbucket (
-    client_id character varying(200) NOT NULL,
-    repo_key character varying(500) NOT NULL,
-    platform character varying(50) NOT NULL,
-    last_commit_id character varying(100),
-    updated_at character varying(50),
-    pending_commit_id character varying(100),
-    pending_since character varying(50),
-    PRIMARY KEY (client_id, repo_key, platform)
-);
-
--- TABLE: secscan_deepscan_bitbucket
-CREATE TABLE __SCHEMA__.secscan_deepscan_bitbucket (
-    client_id character varying(200) NOT NULL,
-    repo_key character varying(500) NOT NULL,
-    platform character varying(50) NOT NULL,
-    requested_at character varying(50) NOT NULL,
-    completed_at character varying(50),
-    commits_scanned integer,
-    findings integer,
-    failed_at character varying(50),
-    error character varying(4000),
-    PRIMARY KEY (client_id, repo_key, platform)
-);
-
--- TABLE: secscan_allowlist_bitbucket
-CREATE TABLE __SCHEMA__.secscan_allowlist_bitbucket (
-    client_id character varying(200) NOT NULL,
-    file_path character varying(1000) NOT NULL,
-    detector character varying(200) NOT NULL,
-    redacted character varying(500) NOT NULL,
-    reason character varying(1000) DEFAULT ''::character varying NOT NULL,
-    dismissed_by character varying(200) DEFAULT ''::character varying NOT NULL,
-    dismissed_at character varying(50) NOT NULL,
-    PRIMARY KEY (client_id, file_path, detector, redacted)
-);
-
--- TABLE: secscan_jobs_bitbucket
-CREATE TABLE __SCHEMA__.secscan_jobs_bitbucket (
-    id bigserial PRIMARY KEY,
-    payload text NOT NULL,
-    status character varying(50) DEFAULT 'pending'::character varying NOT NULL,
-    error text,
-    created_at character varying(50) NOT NULL,
-    updated_at character varying(50) NOT NULL
-);

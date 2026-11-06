@@ -23,7 +23,7 @@ it only needs to reach the platform's Postgres.
    | `collector_aws_account_id`, `collector_external_id`, `collector_event_bridge_arn`, `collector_regions` | what you typed - all four are required |
 
 2. **Company workspace.** Creates the schema named `db_name` with every tenant table
-   (64 tables, the two time-partitioned posture tables with their first partitions, and the
+   (98 tables, the two time-partitioned posture tables with their first partitions, and the
    reference rows the posture engine needs: pillars, categories, rule weights, drift config).
    An existing schema is never altered.
 3. **Customer account (optional field).** If you enter the customer's AWS account ID, a row is added
@@ -207,8 +207,25 @@ DB_HOST=localhost DB_USER=postgres DB_PASSWORD=... go test ./...   # plus Postgr
 python3 scripts/extract_tenant_schema.py nhi_db.sql <a_tenant_schema_name>
 ```
 
-Run it after the tenant tables change, review the diff, run the tests (they expect 64 tables - update
-the number in `TestTemplates` if the count changed on purpose).
+Run it after the tenant tables change, review the diff, run the tests (they expect `wantTables`
+tables - update that one constant in `onboard_test.go` if the count changed on purpose).
+
+What the script leaves out, on purpose:
+
+- row data, owners and sequence positions (structure only; the reference rows in `sql/tenant_seed.sql`
+  are kept as they are when the dump has no data);
+- the dated partitions of the two posture tables (the tool creates them per company, around today);
+- `remediation_actions` and `remediation_rule_actions`: the API server creates and fills the
+  remediation tables itself on a company's first use;
+- a stray empty table called `"BitBucket"`;
+- `psql` commands that newer `pg_dump` versions add (`\restrict`, `\unrestrict`).
+
+Two foreign keys that pointed outside the source schema (into `public` and `nhi_scanner`) are
+rewritten to point at the company's own tables.
+
+The Bitbucket and deep-scan tables of the secret scanner are not in the template unless the reference
+schema has them: the scanner creates them on first use, or run the API's
+`migrations/tenant/010_secret_scanner_v2.sql` for the company.
 
 
 ## Connection approvals

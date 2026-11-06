@@ -22,7 +22,7 @@ KEEP = {"FUNCTION", "TABLE", "SEQUENCE", "SEQUENCE OWNED BY", "DEFAULT", "CONSTR
 # the remediation service creates its own remediation_actions (the fix catalog,
 # keyed on action_type). Copying the old table would make that migration fail,
 # so remediation could never start for the new company.
-SKIP_TABLES = {"remediation_actions"}
+SKIP_TABLES = {"remediation_actions", "BitBucket"}  # "BitBucket": a stray table with no columns
 # Partition children (and their indexes) are created per tenant at run time.
 CHILD = re.compile(r"^ispm_identity_posture_(daily|hourly)_(\d|default)")
 PARENT = r"ispm_identity_posture_(?:daily|hourly)"
@@ -56,6 +56,8 @@ for b in blocks:
     body = re.sub(r"^ALTER (TABLE|SEQUENCE|FUNCTION|VIEW)[^\n]* OWNER TO [^\n]*\n", "", body, flags=re.M)
     body = re.sub(r"\n--\s*$", "", body.strip("\n") + "\n").strip("\n")
     body = re.sub(r"(?m)^--.*\n?", "", body).strip("\n")
+    # pg_dump 17.6+ wraps the dump in \restrict / \unrestrict: psql commands, not SQL.
+    body = re.sub(r"(?m)^\\.*\n?", "", body).strip("\n")
     if not body:
         continue
     # Every mention, including the tenant name inside index and constraint names
@@ -65,6 +67,9 @@ for b in blocks:
     # schema (a table of one tenant must not depend on another schema's rows).
     # A new tenant's keys point at its own identities and credentials.
     body = body.replace("REFERENCES nhi_scanner.", "REFERENCES __SCHEMA__.")
+    # Likewise a key into the shared public schema (effective_permission_entries
+    # -> credentials): in a new tenant it must point at the tenant's own table.
+    body = body.replace("REFERENCES public.", "REFERENCES __SCHEMA__.")
     # Constraints and indexes on the partitioned parents: no ONLY, so they
     # propagate to the partitions created afterwards.
     body = re.sub(r"ALTER TABLE ONLY (__SCHEMA__\." + PARENT + r")\b", r"ALTER TABLE \1", body)
