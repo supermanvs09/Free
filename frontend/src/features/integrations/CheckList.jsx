@@ -197,7 +197,7 @@ export function VerifyResult({ running, result, setup, onShowStep }) {
       copy={{
         running: 'Checking your role…',
         watching: 'Role works - now watching for your events',
-        watchingDetail: 'The role checks passed. Events from each region are counted below as they arrive.',
+        watchingDetail: 'The role checks passed. One event from any region below is enough; each is counted as it arrives.',
         ok: 'Connection verified',
         okDetail: 'Read access works and your events are arriving.',
       }}
@@ -399,7 +399,7 @@ export function ApprovalWait({ run, checkingNow, onCheckNow, onRetry }) {
     );
   }
   const steps = [
-    { label: 'Checks passed', detail: 'Role, read access and events from every region', state: 'done' },
+    { label: 'Checks passed', detail: 'Role, read access and events from your account', state: 'done' },
     {
       label: 'Review by adapID',
       detail: approval.requestedAt ? `Requested ${formatRelative(approval.requestedAt)}${approval.requestedBy ? ` by ${approval.requestedBy}` : ''}` : 'Requested just now',

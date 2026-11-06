@@ -436,8 +436,9 @@ func TestRecheckOfApprovedAccountNeedsNoApproval(t *testing.T) {
 	}
 }
 
-// The events check waits for every region, and us-east-1 for IAM's global
-// events. At the time limit, some regions seen is a warning, none a failure.
+// The events check passes on the first region that delivers; the regions not
+// heard from (here us-east-1, for IAM's global events) are named. None by the
+// time limit is a failure.
 func TestEventsCheckRegions(t *testing.T) {
 	store := newFakeAWSStore()
 	svc := newTestService(store, &fakeVerifier{}, nil, fakeEvents{found: true, regions: []string{"ap-south-1"}})
@@ -446,11 +447,11 @@ func TestEventsCheckRegions(t *testing.T) {
 	}
 	rec := settle(t, svc, store, "222222222222")
 	ev := rec.Checks[2]
-	if ev.State != AWSCheckWarn || !strings.Contains(ev.Message, "us-east-1") || len(ev.Regions) != 2 {
+	if ev.State != AWSCheckPass || !strings.Contains(ev.Message, "us-east-1") || len(ev.Regions) != 2 {
 		t.Fatalf("partial events: %+v", ev)
 	}
 	if rec.Approval.Status != ApprovalPending {
-		t.Fatal("a warning still goes to approval, with the missing regions shown")
+		t.Fatal("one region is enough to go to approval, with the missing regions shown")
 	}
 
 	store = newFakeAWSStore()

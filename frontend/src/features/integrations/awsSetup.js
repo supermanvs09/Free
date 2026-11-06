@@ -216,7 +216,7 @@ export function roleNameOfArn(value) {
 export const AWS_CHECKS = [
   { key: 'assume_role', label: 'The role can be assumed', step: 2, proves: 'sts:AssumeRole with your External ID' },
   { key: 'read_access', label: 'Your configuration is readable', step: 2, proves: 'One read with SecurityAudit and ViewOnlyAccess' },
-  { key: 'events', label: 'Events arrive from each region', step: 4, proves: 'An event from every region, and IAM events from us-east-1' },
+  { key: 'events', label: 'Events arrive from each region', step: 4, proves: 'An event from at least one of your regions' },
 ];
 
 /** Workspace-level state, from `status` on the integration. */
@@ -336,7 +336,7 @@ In the console's Integrations page, paste the role ARN, choose the regions${regi
 
 - the role can be assumed
 - your configuration is readable
-- events are arriving from each region (including IAM events from us-east-1)
+- events are arriving from at least one of the chosen regions
 
 When all checks pass, adapID reviews the new connection; once approved it shows as **Connected** and scanning begins.
 `;

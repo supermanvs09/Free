@@ -99,7 +99,7 @@ func (s *AWSIntegrationService) startWatch(caller AWSCaller, p awsconnect.Platfo
 	deadline := now.Add(s.waitLimit())
 	check := AWSCheck{
 		Key: AWSCheckEvents, Label: "Events arrive from each region", State: AWSCheckRunning,
-		Message:   "Watching for events from your account. Every region in the list should deliver one; this usually takes a few minutes.",
+		Message:   "Watching for events from your account. One event from any of the listed regions is enough; this usually takes a few minutes.",
 		Regions:   expectedRegions(rec.Regions),
 		StartedAt: &now, Deadline: &deadline,
 	}
@@ -169,8 +169,14 @@ func (s *AWSIntegrationService) watch(ctx context.Context, entry *watchEntry, ke
 			}
 		}
 		seen, missing := regionSplit(check.Regions)
-		if len(missing) == 0 {
-			pass(&check, "Events are arriving from every region: "+strings.Join(seen, ", ")+".")
+		// One region delivering is enough: the forwarding works. Regions not
+		// heard from yet are named, not held against the account.
+		if len(seen) > 0 {
+			msg := "Events are arriving from " + strings.Join(seen, ", ") + "."
+			if len(missing) > 0 {
+				msg += " Not yet from " + strings.Join(missing, ", ") + ": a region with no API activity sends nothing until something happens there."
+			}
+			pass(&check, msg)
 			check.Fix = ""
 			s.finishWatch(caller, settings, rec, check, true)
 			return
