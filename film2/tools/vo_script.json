@@ -1,0 +1,143 @@
+{
+ "voice": {
+  "hm_omega": 0.75,
+  "am_fenrir": 0.25
+ },
+ "speed": 0.94,
+ "lines": [
+  {
+   "id": "v01",
+   "scene": 1,
+   "text": "Every second, businesses make thousands of digital connections.",
+   "say": "Every second, businesses make thousands of digital connections."
+  },
+  {
+   "id": "v02",
+   "scene": 1,
+   "text": "People access systems.",
+   "say": "People access systems."
+  },
+  {
+   "id": "v03",
+   "scene": 1,
+   "text": "Applications communicate.",
+   "say": "Applications communicate."
+  },
+  {
+   "id": "v04",
+   "scene": 1,
+   "text": "Customers move money.",
+   "say": "Customers move money."
+  },
+  {
+   "id": "v05",
+   "scene": 1,
+   "text": "And AI is changing how work gets done.",
+   "say": "And A.I. is changing how work gets done."
+  },
+  {
+   "id": "v06",
+   "scene": 2,
+   "text": "But a successful login doesn't guarantee continuous trust.",
+   "say": "But a successful login doesn't guarantee continuous trust."
+  },
+  {
+   "id": "v07",
+   "scene": 2,
+   "text": "Identity risk can change throughout a session.",
+   "say": "Identity risk can change throughout a session."
+  },
+  {
+   "id": "v08",
+   "scene": 2,
+   "text": "Understanding who is accessing what, how they behave, and when that behaviour changes, is essential.",
+   "say": "Understanding who is accessing what, how they behave, and when that behaviour changes... is essential."
+  },
+  {
+   "id": "v09",
+   "scene": 2,
+   "text": "adapID AI. Continuous Identity Risk Management.",
+   "say": "Adap I.D. A.I. Continuous Identity Risk Management."
+  },
+  {
+   "id": "v10",
+   "scene": 3,
+   "text": "Identities aren't limited to people.",
+   "say": "Identities aren't limited to people."
+  },
+  {
+   "id": "v11",
+   "scene": 3,
+   "text": "Applications, workloads and services have identities of their own.",
+   "say": "Applications, workloads, and services have identities of their own."
+  },
+  {
+   "id": "v12",
+   "scene": 3,
+   "text": "Their permissions and access relationships can create risks that are difficult to see.",
+   "say": "Their permissions and access relationships can create risks that are difficult to see."
+  },
+  {
+   "id": "v13",
+   "scene": 3,
+   "text": "adapID AI. Non-Human Identity Security for AWS.",
+   "say": "Adap I.D. A.I. Non-human identity security, for A.W.S."
+  },
+  {
+   "id": "v14",
+   "scene": 4,
+   "text": "In financial services, even valid credentials can hide a fraudulent interaction.",
+   "say": "In financial services, even valid credentials can hide a fraudulent interaction."
+  },
+  {
+   "id": "v15",
+   "scene": 4,
+   "text": "Protecting customers means looking beyond the login, and understanding the identity and behaviour behind the transaction.",
+   "say": "Protecting customers means looking beyond the login... and understanding the identity and behaviour behind the transaction."
+  },
+  {
+   "id": "v16",
+   "scene": 4,
+   "text": "adapID AI. Identity Fraud Prevention.",
+   "say": "Adap I.D. A.I. Identity fraud prevention."
+  },
+  {
+   "id": "v17",
+   "scene": 5,
+   "text": "And as organisations embrace AI, another challenge emerges.",
+   "say": "And as organisations embrace A.I., another challenge emerges."
+  },
+  {
+   "id": "v18",
+   "scene": 5,
+   "text": "Employees need the power of AI without exposing sensitive business information.",
+   "say": "Employees need the power of A.I., without exposing sensitive business information."
+  },
+  {
+   "id": "v19",
+   "scene": 5,
+   "text": "Security must become part of the interaction itself.",
+   "say": "Security must become part of the interaction itself."
+  },
+  {
+   "id": "v20",
+   "scene": 5,
+   "text": "Zenstra AI. Secure AI Interactions.",
+   "say": "Zen-stra, A.I.  Secure, A.I. interactions."
+  },
+  {
+   "id": "v21",
+   "scene": 6,
+   "text": "Because the future of business depends on identities we can understand, interactions we can trust, and technology we can secure.",
+   "say": "Because the future of business depends on identities we can understand, interactions we can trust, and technology we can secure.",
+   "speed": 1.08
+  },
+  {
+   "id": "v22",
+   "scene": 6,
+   "text": "Deep Algorithms Solutions. Securing identity and AI in the connected world.",
+   "say": "Deep Algorithms. Solutions. Securing identity and AI in the connected world.",
+   "speed": 1.04
+  }
+ ]
+}
