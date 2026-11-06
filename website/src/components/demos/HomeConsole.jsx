@@ -79,7 +79,7 @@ export default function HomeConsole() {
               </div>
               {score != null && (
                 <div className="text-right">
-                  <p className="app-label !text-[10.5px]">Risk</p>
+                  <p className="app-label">Risk</p>
                   <p className={cx('num text-[22px] font-semibold leading-none transition-colors', tone === 'crit' ? 'text-crit' : tone === 'hold' ? 'text-hold' : 'text-ok')}>{score}</p>
                 </div>
               )}

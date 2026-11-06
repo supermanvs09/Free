@@ -279,7 +279,7 @@ export default function Header() {
         <div className="ubar hidden border-b border-line bg-bg-1 lg:block" aria-hidden={scrolled || undefined}>
           <div className="container flex h-10 items-center justify-between gap-6 text-[13px] text-ink-3">
             <p className="truncate">
-              <span className="badge badge-brand mr-2 !h-5 !text-[11px] uppercase tracking-[.06em]">New</span>
+              <span className="badge badge-brand mr-2 !h-5 !text-[12px] uppercase tracking-[.06em]">New</span>
               <span className="font-semibold text-ink-2">Prompt Heist</span>: crack five AI vaults with words, win internships and goodies.
               <Link to="/prompt-heist" tabIndex={t} className="ml-2 font-semibold text-brand hover:underline">Take the challenge</Link>
             </p>

@@ -3,8 +3,8 @@ import { Link, useSearchParams } from 'react-router';
 import { Seo } from '../lib/head.jsx';
 import { SITE } from '../data/site.js';
 import { POSTS, formatDate } from '../data/posts.js';
-import { Icon, Breadcrumb, cx } from '../components/ui.jsx';
-import { PostCard, CtaBand, NewsCards } from '../components/blocks.jsx';
+import { Icon, cx } from '../components/ui.jsx';
+import { PostCard, CtaBand, PageHero } from '../components/ds.jsx';
 import { NEWS } from '../data/company.js';
 import Cover, { TOPIC } from '../components/Cover.jsx';
 import { topicSlug } from '../components/Header.jsx';
@@ -32,18 +32,9 @@ export default function Blog() {
     <>
       <Seo title="Blogs: Identity, AI Agent and Fraud Security" path="/blogs" description="Field notes and analysis from Deep Algorithms on identity attacks, AI agent security, financial crime and DPDPA compliance." crumbs={[{ name: 'Research', path: '/blogs' }]} />
 
-      <section className="stage band-brand hero-under relative overflow-hidden">
-        <div className="wrap relative pb-14 pt-12 md:pt-16">
-          <Breadcrumb items={[{ name: 'Blogs' }]} className="rise" />
-          <div className="mt-10 max-w-[760px]">
-            <div>
-              <p className="eyebrow rise">Deep Algorithms Blogs</p>
-              <h1 className="t-h1 rise mt-6" style={{ '--d': '80ms' }}>How identities get attacked, and how to stop it.</h1>
-              <p className="t-lead rise mt-6 max-w-[620px]" style={{ '--d': '160ms' }}>Field notes and analysis on identity attacks, AI agents, financial crime and the regulation that shapes them. {POSTS.length} posts across {TOPICS.length} topics.</p>
-            </div>
-          </div>
-        </div>
-      </section>
+      <PageHero crumbs={[{ name: 'Resources' }, { name: 'Blog and research' }]} overline="Blog and research" size="h1"
+        title="How identities get attacked, and how to stop it."
+        lead={`Field notes and analysis on identity attacks, AI agents, financial crime and the regulation that shapes them. ${POSTS.length} articles.`} />
 
       <section className="sec pt-12 md:pt-14" aria-labelledby="all-h">
         <div className="wrap">
@@ -62,9 +53,9 @@ export default function Blog() {
           )}
           <div className="grid gap-10 lg:grid-cols-[250px_1fr] lg:gap-12">
             {/* filters: a sidebar on desktop, chip rows on phones */}
-            <aside className="lg:sticky lg:top-28 lg:self-start" aria-label="Filter blogs">
+            <aside className="lg:sticky lg:top-[calc(var(--hdr-now,var(--hdr))+24px)] lg:self-start" aria-label="Filter blogs">
               <label htmlFor="rs" className="mb-2 block text-[13px] font-medium text-ink-3">Search the blogs</label>
-              <div className="flex h-11 items-center gap-2.5 rounded-[12px] border border-line-2 bg-white px-3.5 focus-within:border-[#1e88d8] focus-within:shadow-[0_0_0_3px_rgb(30_136_216/.15)]">
+              <div className="flex h-11 items-center gap-2.5 rounded-[12px] border border-line-2 bg-white px-3.5 focus-within:border-brand focus-within:shadow-[0_0_0_3px_var(--color-brand-100)]">
                 <Icon name="MagnifyingGlass" size={17} className="text-ink-3" />
                 <input id="rs" type="search" value={q} onChange={(e) => set('q', e.target.value)} placeholder="Mule accounts, MCP, AI agents…" className="h-full w-full bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-3" />
               </div>
@@ -76,7 +67,7 @@ export default function Blog() {
                     {opts.map(([v, label, n]) => (
                       <button key={label} type="button" aria-pressed={cur === v} onClick={() => set(key, v)}
                         className={cx('flex items-center justify-between gap-3 rounded-full border px-3.5 py-1.5 text-left text-[14px] transition-colors lg:rounded-[10px] lg:border-transparent lg:px-3 lg:py-2',
-                          cur === v ? 'border-transparent bg-[#0a6dbb] font-medium text-white lg:bg-[#e8f1fb] lg:text-[#0a5ea3]' : 'border-line-2 text-ink-2 hover:bg-[#f2f6fb] hover:text-ink')}>
+                          cur === v ? 'border-transparent bg-brand font-medium text-white lg:bg-brand-50 lg:text-brand' : 'border-line-2 text-ink-2 hover:bg-bg-1 hover:text-ink')}>
                         <span className="flex items-center gap-2.5"><span aria-hidden="true" className={cx('hidden h-4 w-4 shrink-0 place-items-center rounded-[5px] border lg:grid', cur === v ? 'border-[#0a6dbb] bg-[#0a6dbb] text-white' : 'border-line-2 bg-white')}>{cur === v && <Icon name="Check" size={11} weight="bold" />}</span>{label}</span>
                         <span className="text-[12px] opacity-60 num">{n}</span>
                       </button>
@@ -84,7 +75,7 @@ export default function Blog() {
                   </div>
                 </fieldset>
               ))}
-              {filtering && <button type="button" onClick={() => setParams(new URLSearchParams(), { replace: true, preventScrollReset: true })} className="mt-6 text-[14px] font-medium text-[#0a6dbb] hover:text-ink">Clear filters</button>}
+              {filtering && <button type="button" onClick={() => setParams(new URLSearchParams(), { replace: true, preventScrollReset: true })} className="mt-6 text-[14px] font-medium text-brand hover:text-ink">Clear filters</button>}
             </aside>
             <div>
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
@@ -111,13 +102,17 @@ export default function Blog() {
         </div>
       </section>
 
-      <section className="sec-tight" aria-labelledby="news-h">
-        <div className="wrap">
+      <section className="sec-sm bd-t" aria-labelledby="news-h">
+        <div className="container">
           <div className="flex flex-wrap items-end justify-between gap-4">
-            <div><p className="kicker">Newsroom</p><h2 id="news-h" className="t-h2 mt-4">In the news</h2></div>
-            <Link to="/why-deep-algorithms#news" className="link">All news<Icon name="ArrowRight" size={14} weight="bold" /></Link>
+            <h2 id="news-h" className="t-h2">In the news</h2>
+            <Link to="/about-us#news" className="alink">All news<Icon name="ArrowRight" size={14} weight="bold" className="arr" /></Link>
           </div>
-          <div className="mt-10"><NewsCards items={NEWS.slice(0, 3)} /></div>
+          <ul className="mt-8 grid gap-4 md:grid-cols-3">
+            {NEWS.slice(0, 3).map((n) => (
+              <li key={n.title}><a href={n.href} target="_blank" rel="noreferrer" className="card card-link group flex h-full flex-col p-6"><p className="flex items-center gap-2 t-caption"><span className="badge badge-brand">{n.kind}</span>{n.date}</p><p className="mt-3 t-h4 group-hover:text-brand">{n.title}</p><span className="mt-auto pt-4 text-[13.5px] font-semibold text-brand">{n.cta} ↗<span className="sr-only"> (opens in a new tab)</span></span></a></li>
+            ))}
+          </ul>
         </div>
       </section>
 

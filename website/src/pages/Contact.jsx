@@ -1,7 +1,6 @@
 import { Seo } from '../lib/head.jsx';
 import { SITE } from '../data/site.js';
 import { Breadcrumb, CopyButton, Icon, Reveal } from '../components/ui.jsx';
-import { FormTrust } from '../components/blocks.jsx';
 import { Field, Honeypot, SubmitRow, Sent, useLeadForm, EMAIL_RE } from '../components/Form.jsx';
 
 const validate = (v) => {
@@ -20,13 +19,13 @@ export default function Contact() {
     <>
       <Seo title="Contact Us" path="/contact" crumbs={[{ name: 'Contact', path: '/contact' }]}
         description="Contact Deep Algorithms in Hyderabad, Bengaluru or Plano, Texas. Email info@deepalgorithms.in or call +91 77028 46856." />
-      <section className="stage band-brand hero-under relative overflow-hidden">
-        <div className="wrap relative grid grid-cols-1 gap-12 pb-20 pt-10 md:pt-14 lg:grid-cols-[1fr_1.05fr] lg:gap-20">
+      <section className="border-b border-line bg-[linear-gradient(180deg,#f6f8fb_0%,#fff_60%)]">
+        <div className="container grid grid-cols-1 gap-10 pb-16 pt-8 md:pt-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-16 lg:pb-24">
           <div>
             <Breadcrumb items={[{ name: 'Contact' }]} className="rise" />
             <p className="eyebrow rise mt-8">Contact</p>
-            <h1 className="t-h1 rise mt-6" style={{ '--d': '80ms' }}>Talk to the people who build it.</h1>
-            <p className="t-lead rise mt-5 max-w-[520px]" style={{ '--d': '160ms' }}>Questions about a product, a partnership or a press request. We read every message and usually reply within one business day.</p>
+            <h1 className="t-h1 rise mt-4" style={{ '--d': '80ms' }}>Talk to the people who build it.</h1>
+            <p className="t-lead rise mt-5 max-w-[520px]" style={{ '--d': '160ms' }}>Questions about a product, a partnership or a press request. We usually reply within one business day.</p>
             <ul className="rise mt-10 grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3" style={{ '--d': '240ms' }}>
               {[['EnvelopeSimple', 'Email', SITE.email, `mailto:${SITE.email}`], ['Phone', 'Phone', SITE.phone, SITE.phoneHref], ['LinkedinLogo', 'LinkedIn', 'Deep Algorithms', SITE.linkedin]].map(([ic, k, v, href]) => (
                 <li key={k} className="relative">
@@ -44,9 +43,10 @@ export default function Contact() {
               ))}
             </div>
           </div>
-          <Reveal className="tone-l glass relative self-start rounded-[26px] p-6 shadow-[0_40px_100px_-40px_rgba(0,0,0,.6)] md:p-10">
+          <Reveal className="card self-start p-6 max-lg:order-first md:p-8">
             {status === 'sent' ? <Sent title="Message sent" body="Thank you. We usually reply within one business day." /> : (
               <form noValidate onSubmit={onSubmit} className="space-y-5">
+                <h2 className="t-h4">Send us a message</h2>
                 <Honeypot />
                 <div className="grid gap-5 md:grid-cols-2">
                   <Field label="Name" name="name" autoComplete="name" required error={errors.name} {...bind('name')} />
@@ -58,7 +58,7 @@ export default function Contact() {
                 <p className="text-[13px] text-ink-3">We use your details only to reply. See our <a href="/privacy-policy" className="underline underline-offset-2 hover:text-ink">privacy policy</a>.</p>
               </form>
             )}
-            <FormTrust />
+            <p className="mt-5 flex items-center gap-2 border-t border-line pt-4 t-caption"><Icon name="Clock" size={15} />A reply within one business day</p>
           </Reveal>
         </div>
       </section>

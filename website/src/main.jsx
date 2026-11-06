@@ -4,7 +4,6 @@ import { BrowserRouter } from 'react-router';
 import App from './App.jsx';
 import { bootTranslate } from './lib/translate.js';
 import './styles.css';
-import './components/viz/viz.css';
 
 const root = document.getElementById('root');
 const app = <StrictMode><BrowserRouter><App /></BrowserRouter></StrictMode>;

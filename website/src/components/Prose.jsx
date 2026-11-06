@@ -1,4 +1,5 @@
 /* Renders article and legal block arrays: p, h2, h3, list, quote, table, sources, links. */
+import { Icon } from './ui.jsx';
 import { useState } from 'react';
 
 export const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -15,15 +16,15 @@ export function HeadingLink({ id }) {
     navigator.clipboard?.writeText(url).then(() => { setDone(true); setTimeout(() => setDone(false), 1800); }).catch(() => {});
   };
   return (
-    <a href={`#${id}`} onClick={copy} aria-label="Copy a link to this section" className="hd-link ml-2 inline-block align-middle text-[.7em] font-medium text-ink-3 no-underline opacity-0 transition-opacity hover:text-cyan-2 focus-visible:opacity-100 group-hover:opacity-100">
-      {done ? <span className="text-[.6em] tracking-normal text-[#3fd98f]">Link copied</span> : '#'}
+    <a href={`#${id}`} onClick={copy} aria-label={done ? 'Link copied' : 'Copy a link to this section'} className="hd-link absolute -left-7 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-[6px] text-ink-4 no-underline opacity-0 transition-opacity hover:text-brand focus-visible:opacity-100 group-hover:opacity-100 max-md:hidden">
+      <Icon name={done ? 'Check' : 'LinkSimple'} size={15} />
     </a>
   );
 }
 
 function H2({ text }) {
   const id = slugify(text);
-  return <h2 id={id} className="group relative scroll-mt-28">{text}<HeadingLink id={id} /></h2>;
+  return <div className="group relative"><h2 id={id} className="scroll-mt-28">{text}</h2><HeadingLink id={id} /></div>;
 }
 
 export default function Prose({ blocks }) {

@@ -38,18 +38,18 @@ function Phone({ children, call }) {
   return (
     <div className="mx-auto w-[288px] shrink-0 rounded-[44px] bg-[#0f1726] p-[10px] shadow-[var(--e-3)]" role="img" aria-label="Mobile banking app">
       <div className="relative h-[560px] overflow-hidden rounded-[35px] bg-white">
-        <div className="flex h-9 items-center justify-between px-6 pt-1 text-[11.5px] font-semibold text-ink">
+        <div className="flex h-9 items-center justify-between px-6 pt-1 text-[12px] font-semibold text-ink">
           <span className="num">11:4{call ? '4' : '0'}</span>
           <span className="absolute left-1/2 top-2 h-5 w-[86px] -translate-x-1/2 rounded-full bg-[#0f1726]" />
           <span className="flex items-center gap-1"><Icon name="Broadcast" size={12} /><span className="inline-block h-2.5 w-5 rounded-[3px] border border-ink"><span className="block h-full w-3/4 bg-ink" /></span></span>
         </div>
-        {call && <div className="mx-3 flex items-center gap-2 rounded-full bg-ok px-3 py-1 text-[11px] font-semibold text-white"><Icon name="Phone" size={12} weight="fill" />On a call · +91 70•• ••91 · {call}</div>}
+        {call && <div className="mx-3 flex items-center gap-2 rounded-full bg-ok px-3 py-1 text-[12px] font-semibold text-white"><Icon name="Phone" size={12} weight="fill" />On a call · +91 70•• ••91 · {call}</div>}
         {children}
       </div>
     </div>
   );
 }
-const Field = ({ l, v, mono }) => <div className="rounded-[10px] border border-line px-3 py-2"><p className="text-[10.5px] font-medium text-ink-3">{l}</p><p className={cx('text-[13.5px] font-semibold text-ink', mono && 'num')}>{v}</p></div>;
+const Field = ({ l, v, mono }) => <div className="rounded-[10px] border border-line px-3 py-2"><p className="text-[12px] font-medium text-ink-3">{l}</p><p className={cx('text-[13.5px] font-semibold text-ink', mono && 'num')}>{v}</p></div>;
 
 function Screen({ i, x, scam }) {
   if (i === 0) return (
@@ -65,7 +65,7 @@ function Screen({ i, x, scam }) {
     <div className="px-5 pt-5">
       <p className="text-[16px] font-semibold text-ink">Add a payee</p>
       <div className="mt-4 space-y-2.5"><Field l="Payee name" v={x.payee} /><Field l="Account number · IFSC" v={x.acct} mono /><Field l="Nickname" v={scam ? 'KYC' : 'Mehta'} /></div>
-      <p className="mt-3 rounded-[10px] bg-bg-1 p-2.5 text-[11.5px] leading-snug text-ink-3">Name at bank: <span className="font-semibold text-ink">{scam ? 'R K TRADERS' : 'MEHTA INTERIORS LLP'}</span></p>
+      <p className="mt-3 rounded-[10px] bg-bg-1 p-2.5 text-[12px] leading-snug text-ink-3">Name at bank: <span className="font-semibold text-ink">{scam ? 'R K TRADERS' : 'MEHTA INTERIORS LLP'}</span></p>
       <span className="btn btn-primary mt-5 w-full !h-11">Save payee</span>
     </div>
   );
@@ -137,8 +137,8 @@ export default function FraudJourney() {
                 const v = vals[Math.min(s.i, vals.length - 1)] || vals.slice(0, s.i + 1).filter(Boolean).pop();
                 const t = Array.isArray(tones) ? tones[s.i] : tones;
                 return (
-                  <li key={name} className="flex items-center justify-between gap-4 px-4 py-3">
-                    <span className="w-[120px] shrink-0 text-[13.5px] text-ink-3">{name}</span>
+                  <li key={name} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3">
+                    <span className="w-full shrink-0 text-[13.5px] text-ink-3 sm:w-[120px]">{name}</span>
                     <span className={cx('flex-1 text-[13.5px] font-medium', v ? 'text-ink' : 'text-ink-4')}>{v || 'Not yet'}</span>
                     {v && <Badge tone={t} dot>{t === 'ok' ? 'Normal' : t === 'warn' ? 'Unusual' : t === 'hold' ? 'High' : 'Risk'}</Badge>}
                   </li>

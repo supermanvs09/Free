@@ -1,27 +1,19 @@
-import { FixClick } from '../../lib/nullmotion.jsx';
-import { ItdrFlow } from '../../components/viz/refs.jsx';
 import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
-import { Icon, Reveal, SectionHead, Check3 } from '../../components/ui.jsx';
-import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import { Hero, Stats, Faq, Steps, LINKS, ACC } from '../../components/ProductKit.jsx';
-import { AdTierGraph } from '../../components/viz/adapid.jsx';
-import { AdWorkbench } from '../../components/viz/workbench.jsx';
-import Stage3D from '../../components/Stage3D.jsx';
-import { Gl } from '../../components/viz/kit.jsx';
-import { STORIES } from '../../data/stories.js';
+import { trail } from '../../data/ia.js';
+import { Button, Icon, Reveal, SectionHead } from '../../components/ui.jsx';
+import { Badge, CtaBand, Faq, FeatureCard, PageHero, ProductLabel, ResearchCards, Section, StatTile, SubNav, SampleNote } from '../../components/ds.jsx';
+import AdPathExplorer from '../../components/demos/AdPathExplorer.jsx';
 
 const p = PRODUCTS.ad;
-const A = ACC.adap;
 
 const TECH = [
   ['Kerberoasting', 'Service account tickets requested for offline cracking', 'Password rotated'],
   ['Pass-the-hash', 'A stolen hash used to sign in as someone else', 'Sessions revoked'],
   ['DCSync attempt', 'A workstation asks a domain controller for password data', 'Host isolated'],
-  ['AS-REP roasting', 'Accounts without pre-authentication targeted', 'Pre-auth enforced'],
+  ['AS-REP roasting', 'Accounts without pre-authentication targeted', 'Pre-authentication enforced'],
   ['Golden ticket', 'Forged tickets that grant domain-wide access', 'Covered'],
 ];
-
 const FAQ = [
   { title: 'What does the assessment need from us?', body: 'Read access to the directory. Users, groups, computers, service accounts, GPOs and trusts are mapped, and the paths to high-value identities ranked.' },
   { title: 'Do you only report, or also respond?', body: 'Both. Weak access is removed at the source, and live abuse such as Kerberoasting or pass-the-hash is contained automatically by policy.' },
@@ -32,72 +24,49 @@ const FAQ = [
 export default function AdSecurity() {
   return (
     <>
-      <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Active Directory Security', path: p.path }]} />
-      <Hero glance={[['Protects', 'Active Directory: users, groups, service accounts and trusts'], ['Stops', 'Paths to Domain Admins, Kerberoasting and DCSync'], ['Deploys', 'Read-only access to your directory'], ['Shows', 'The one change that closes the most paths']]} layout="stack" acc="adap" crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Active Directory Security' }]} eyebrow="adapID AI · Active Directory Security"
-        title={<>Close the path to Domain Admins <span style={{ color: 'var(--acc)' }}>before anyone takes it.</span></>}
-        lead="See every account, privilege and path through Active Directory, cut the routes attackers would use, and catch the account that starts behaving unlike itself.">
-        <Stage3D tilt={[10, 0]} range={[2, 4]} className="mx-auto max-w-[1060px]"><AdTierGraph /></Stage3D>
-      </Hero>
-
-      {/* how it sits: between your identities and Tier 0 */}
-      <section className="sec" aria-labelledby="how-h">
-        <div className="wrap">
-          <div className="island tone-d px-4 py-14 md:px-10 md:py-20">
-            <SectionHead id="how-h" eyebrow="How it works" title="Between every identity and Tier 0." lead="See every path an attacker could take, fix the weak access behind it, and contain live abuse before it reaches a domain controller." />
-            <Reveal up className="mx-auto mt-14 max-w-[1120px]"><ItdrFlow /></Reveal>
-  </div>
-        </div>
-      </section>
-
-      <section className="sec" aria-labelledby="tech-h">
-        <div className="wrap">
-          <SectionHead id="tech-h" acc={A} eyebrow="Live detection" title="Caught mid-attack, not in the post-mortem." lead="Baselines for every identity across Kerberos, NTLM and LDAP, with automatic containment. Ten core techniques are covered, including:" />
-          <div className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-            {TECH.map(([t, d, r], i) => (
-              <Reveal key={t} delay={i * 70} className="card flex flex-col p-6">
-                <span className="inline-flex h-10 w-10 items-center justify-center rounded-[12px] bg-crit/10 text-crit"><Icon name="Crosshair" size={20} /></span>
-                <h3 className="mt-5 text-[18px] font-semibold tracking-[-0.015em]">{t}</h3>
-                <p className="mt-2 flex-1 text-[14.5px] leading-relaxed text-ink-2">{d}</p>
-                <p className="mt-5 inline-flex items-center gap-2 text-[13.5px] font-medium text-ok"><Icon name="CheckCircle" size={16} weight="fill" />{r}</p>
-              </Reveal>
-            ))}
+      <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: p.name, path: p.path }]} />
+      <PageHero crumbs={trail(p.path)} mark={<ProductLabel p="adapid" name="Active Directory Security" sub="adapID AI" />}
+        title="Close the path to Domain Admins before anyone takes it."
+        lead="adapID maps every account, group, privilege and trust in your directory, ranks the paths an attacker would take to Tier 0, closes the weakest links first and catches the accounts being abused while it happens."
+        actions={<><Button to="/request-demo?product=adapid" size="lg" arrow>Book an attack path assessment</Button><Button href="#paths" variant="secondary" size="lg">Close a path</Button></>}
+        media={(
+          <div className="grid gap-4 sm:grid-cols-2">
+            <StatTile {...p.stats[0]} />
+            <StatTile {...p.stats[1]} />
+            <div className="card flex items-center gap-4 p-5 sm:col-span-2"><span className="ptile"><Icon name="ListChecks" size={20} /></span><p className="t-body">The fix list is ranked by how many paths one change closes, and every fix is checked again.</p></div>
           </div>
-        </div>
-      </section>
+        )} />
+      <SubNav title="AD Security" items={[['paths', 'Attack paths'], ['detect', 'Live detection'], ['assess', 'Assessment'], ['faq', 'FAQ']]} />
 
-      <section className="stage sec" aria-labelledby="fix-h">
-        <div className="wrap">
-          <SectionHead id="fix-h" acc={A} eyebrow="Two ways to act" title="Remove weak access. Contain live abuse." />
-          <div className="mt-12 grid gap-5 md:grid-cols-2">
-            <Reveal className="card p-7 md:p-9">
-              <span className="inline-flex h-12 w-12 items-center justify-center rounded-[14px] bg-adap/12 text-adap"><Gl g="tree" className="h-6 w-6" /></span>
-              <h3 className="mt-6 text-[24px] font-semibold tracking-[-0.02em]">Fix at the source</h3>
-              <p className="mt-2 text-[16px] text-ink-2">Paths ranked by how far they reach, with the one change that closes the most.</p>
-              <ul className="mt-6 space-y-3"><Check3 acc={A}>Nested privilege and delegation</Check3><Check3 acc={A}>Stale and orphaned accounts</Check3><Check3 acc={A}>GPO and trust weaknesses</Check3></ul>
-            </Reveal>
-            <Reveal delay={100} className="card p-7 md:p-9">
-              <span className="inline-flex h-12 w-12 items-center justify-center rounded-[14px] bg-ok/10 text-ok"><Gl g="shield" className="h-6 w-6" /></span>
-              <h3 className="mt-6 text-[24px] font-semibold tracking-[-0.02em]">Contain in seconds</h3>
-              <p className="mt-2 text-[16px] text-ink-2">Each identity is profiled by when, where and against what. Abuse is stopped by policy.</p>
-              <ul className="mt-6 space-y-3"><Check3 acc="var(--color-ok)">Passwords rotated, sessions revoked</Check3><Check3 acc="var(--color-ok)">Hosts isolated when a domain controller is targeted</Check3><Check3 acc="var(--color-ok)">Every action logged with its evidence</Check3></ul>
-            </Reveal>
-          </div>
-          <FixClick />
-        </div>
-      </section>
+      <Section id="paths" labelledby="paths-h">
+        <SectionHead id="paths-h" eyebrow="Attack paths" title="Between every identity and Tier 0." lead="Choose where an attacker starts. See the path, the weakest link and the one fix that closes it. Apply the fix and the path is checked again." />
+        <Reveal className="mt-10"><AdPathExplorer /><SampleNote /></Reveal>
+      </Section>
 
-      <section className="sec" aria-labelledby="as-h">
-        <div className="wrap">
-          <SectionHead id="as-h" acc={A} eyebrow="Attack path assessment" title="Understand your directory in a day." lead="Every path to Tier 0, ranked by how far it reaches, with the one change that closes the most and the detections that catch anyone who tries it anyway." />
-          <Reveal up className="mx-auto mt-12 max-w-[920px]"><AdWorkbench /></Reveal>
-          <div className="mt-12"><Steps acc="adap" items={[{ h: 'Map the directory', p: 'Users, groups, computers, service accounts, GPOs and trusts, read-only.' }, { h: 'Rank every path', p: 'Each route to a high-value identity, ordered by how far it reaches.' }, { h: 'Get the fix list', p: 'The changes that close the most paths, first, with their business impact checked.' }]} /></div>
-        </div>
-      </section>
+      <Section id="detect" labelledby="det-h" tone="subtle">
+        <SectionHead id="det-h" eyebrow="Live detection" title="Caught mid-attack, not in the post-mortem." lead="The core Active Directory techniques are watched as they happen, and the response runs by your policy." />
+        <Reveal className="card mt-10 overflow-x-auto">
+          <table className="dt min-w-[680px]">
+            <caption className="sr-only">Active Directory techniques, what they look like and the response</caption>
+            <thead><tr><th>Technique</th><th>What it looks like</th><th>Response by policy</th></tr></thead>
+            <tbody>{TECH.map(([t, w, r]) => <tr key={t}><td className="font-semibold !text-ink">{t}</td><td>{w}</td><td><Badge tone="ok" dot>{r}</Badge></td></tr>)}</tbody>
+          </table>
+        </Reveal>
+        <p className="mt-3 t-caption">Five of the ten core techniques covered are shown.</p>
+      </Section>
 
-      <Stats acc="adap" items={p.stats} {...STORIES.ad} />
-      <Faq items={FAQ} />
-      <ResearchRow slugs={p.research} />
-      <CtaBand related={[LINKS.cirm, LINKS.nhi, LINKS.icms]} accent="adap" title={p.cta.title} body={p.cta.body} primary={{ label: 'Book an assessment', to: '/request-demo' }} />
+      <Section id="assess" labelledby="as-h">
+        <SectionHead id="as-h" eyebrow="Assessment" title="Understand your directory in a day." />
+        <div className="mt-10 grid gap-4 md:grid-cols-3">
+          <FeatureCard icon="TreeStructure" acc="var(--color-adap)" title="Map">Users, groups, computers, service accounts, GPOs and trusts, with read access only.</FeatureCard>
+          <FeatureCard icon="ListChecks" acc="var(--color-adap)" title="Rank">Every path to a high-value identity, ranked by how many paths each fix closes.</FeatureCard>
+          <FeatureCard icon="ShieldCheck" acc="var(--color-adap)" title="Close and verify">Weak access removed at the source, and each fix checked again so you know it held.</FeatureCard>
+        </div>
+      </Section>
+
+      <Faq items={FAQ} title="Questions about AD Security" />
+      <ResearchCards slugs={p.research} />
+      <CtaBand title={p.cta.title} body={p.cta.body} primary={{ label: 'Book an attack path assessment', to: '/request-demo?product=adapid' }} />
     </>
   );
 }

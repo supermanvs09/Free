@@ -4,7 +4,7 @@ import { Seo } from '../lib/head.jsx';
 import { SITE } from '../data/site.js';
 import { POSTS, formatDate, authorOf } from '../data/posts.js';
 import { Breadcrumb, Button, Icon, cx } from '../components/ui.jsx';
-import { CtaBand, ResearchRow } from '../components/blocks.jsx';
+import { CtaBand, ResearchCards } from '../components/ds.jsx';
 import Cover, { TOPIC } from '../components/Cover.jsx';
 import ProductMark from '../components/ProductMark.jsx';
 import Prose, { HeadingLink, slugify } from '../components/Prose.jsx';
@@ -33,7 +33,7 @@ function useReadProgress() {
    re-renders two small components, not the whole article. */
 function ReadBar({ h }) {
   const progress = useReadProgress();
-  return <div aria-hidden="true" className="noprint fixed inset-x-0 top-[72px] z-40 h-[2px]"><div className="h-full origin-left" style={{ transform: `scaleX(${progress.toFixed(3)})`, background: `linear-gradient(90deg, hsl(${h} 100% 60%), hsl(${h} 100% 80%))` }} /></div>;
+  return <div aria-hidden="true" className="noprint fixed inset-x-0 z-[61] h-[2px]" style={{ top: 'var(--hdr-now, var(--hdr))' }}><div className="h-full origin-left" style={{ transform: `scaleX(${progress.toFixed(3)})`, background: `linear-gradient(90deg, hsl(${h} 100% 60%), hsl(${h} 100% 80%))` }} /></div>;
 }
 function ReadPct() {
   return <span className="num">{Math.round(useReadProgress() * 100)}%</span>;
@@ -90,7 +90,7 @@ function Body({ slug, post, onToc }) {
     const card = i === midIdx ? <ProductCallout key={`c${i}`} post={post} /> : null;
     let el;
     if (b.type === 'h2') {
-      el = <h2 key={i} id={slugify(b.text)} data-sec className="group scroll-mt-28 pt-8 text-[27px] font-semibold leading-[1.18] tracking-[-0.028em] text-ink md:text-[33px]">{b.text}<HeadingLink id={slugify(b.text)} /></h2>;
+      el = <div key={i} className="group relative pt-8"><h2 id={slugify(b.text)} data-sec className="scroll-mt-28 text-[26px] font-semibold leading-[1.2] tracking-[-0.024em] text-ink md:text-[30px]">{b.text}</h2><HeadingLink id={slugify(b.text)} /></div>;
     } else if (b.type === 'h3') {
       el = <h3 key={i} className="pt-2 text-[21px] font-semibold leading-snug tracking-[-0.018em] text-ink">{b.text}</h3>;
     } else if (i === 0 && b.type === 'p') {
@@ -104,7 +104,7 @@ function Body({ slug, post, onToc }) {
         </figure>
       );
     } else if (b.type === 'p') {
-      el = <p key={i} className="text-[18.5px] leading-[1.8] text-ink-2">{b.text}</p>;
+      el = <p key={i} className="text-[18px] leading-[1.75] text-ink-2">{b.text}</p>;
     } else if (b.type === 'list') {
       el = <ul key={i} className="space-y-3">{b.items.map((t, k) => <li key={k} className="flex gap-3 text-[18px] leading-[1.7] text-ink-2"><span className="mt-[12px] h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: `hsl(${h} 100% var(--hl))` }} />{t}</li>)}</ul>;
     } else {
@@ -229,7 +229,7 @@ export default function Article() {
         </div>
       </article>
 
-      <ResearchRow slugs={related.map((p) => p.slug)} title="Keep reading" />
+      <ResearchCards slugs={related.map((p) => p.slug)} title="Keep reading" />
       <CtaBand title={`Put ${post.product.name} to work in your environment.`} body="Book a demo and we will show you what this looks like where you work." />
     </>
   );

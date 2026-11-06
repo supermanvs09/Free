@@ -44,7 +44,7 @@ function Graph({ x }) {
       <foreignObject x="190" y={H / 2 - 32} width="110" height="64"><div className="flex h-full flex-col justify-center rounded-[10px] border-2 border-brand bg-brand-50 px-2.5 text-[12px] leading-tight"><span className="font-semibold text-ink">{x.name}</span><span className="text-ink-3">{x.type}</span></div></foreignObject>
       {x.res.map((r, i) => (
         <foreignObject key={r[1]} x="410" y={y(i) - 20} width="150" height="40">
-          <div className={cx('flex h-full items-center gap-2 rounded-[8px] border bg-white px-2 text-[11.5px] leading-tight', r[3] && x.risk >= 50 ? 'border-crit/50' : 'border-line')}>
+          <div className={cx('flex h-full items-center gap-2 rounded-[8px] border bg-white px-2 text-[12px] leading-tight', r[3] && x.risk >= 50 ? 'border-crit/50' : 'border-line')}>
             <Logo k={r[0]} size="16px" /><span className={cx('min-w-0', r[2] ? 'text-ink' : 'text-ink-3')}>{r[1]}</span>
           </div>
         </foreignObject>

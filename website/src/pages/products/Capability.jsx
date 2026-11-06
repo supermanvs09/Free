@@ -1,70 +1,79 @@
 import { Link } from 'react-router';
 import { Seo } from '../../lib/head.jsx';
 import { ZCAPS } from '../../data/zenstra.js';
-import { Icon, Reveal, SectionHead, cx } from '../../components/ui.jsx';
-import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import Stage3D from '../../components/Stage3D.jsx';
-import { Hero, Steps, Points, ACC } from '../../components/ProductKit.jsx';
-import { ZenApproval, ZenInventory, ZenGrant, ZenMcp, ZenDetect, ZenRecord } from '../../components/viz/zenstra.jsx';
+import { PLATFORMS, trail } from '../../data/ia.js';
+import { Button, Icon, Reveal, SectionHead, cx } from '../../components/ui.jsx';
+import { ArrowLink, CtaBand, FeatureCard, PageHero, ProductLabel, ResearchCards, Section, SampleNote } from '../../components/ds.jsx';
+import ZenConsole from '../../components/demos/ZenConsole.jsx';
+import { McpPanel, DetectPanel } from '../../components/demos/ZenPanels.jsx';
 
-const VIS = { discovery: ZenInventory, identity: ZenGrant, enforce: ZenApproval, mcp: ZenMcp, detect: ZenDetect, record: ZenRecord };
-const ICON = { discovery: 'MagnifyingGlass', identity: 'Fingerprint', enforce: 'ShieldCheck', mcp: 'PlugsConnected', detect: 'Pulse', record: 'ClipboardText' };
-const STAGE = { discovery: 'Discover', identity: 'Scope', enforce: 'Enforce', mcp: 'Trust', detect: 'Detect', record: 'Prove' };
-const A = ACC.zen;
-
-function Rail({ current }) {
-  return (
-    <nav aria-label="Zenstra capabilities" className="no-scrollbar -mx-5 overflow-x-auto px-5 md:mx-0 md:px-0">
-      <ol className="flex min-w-max gap-2 md:grid md:min-w-0 md:grid-cols-6">
-        {Object.values(ZCAPS).map((c, i) => {
-          const on = c.kind === current;
-          return (
-            <li key={c.path}>
-              <Link to={c.path} aria-current={on ? 'page' : undefined} className={cx('card card-hover flex h-full w-[170px] flex-col p-4 md:w-auto', on && '!border-zen/50')} style={on ? { background: 'rgb(147 162 255 / .1)' } : undefined}>
-                <span className="flex items-center justify-between text-[12px] font-semibold uppercase tracking-[.08em]" style={{ color: on ? A : 'var(--color-ink-3)' }}>{STAGE[c.kind]}<span className="num">{String(i + 1).padStart(2, '0')}</span></span>
-                <span className="mt-3 flex items-center gap-2 text-[15px] font-semibold"><Icon name={ICON[c.kind]} size={17} style={{ color: A }} />{c.name}</span>
-              </Link>
-            </li>
-          );
-        })}
-      </ol>
-    </nav>
-  );
-}
+/* The six Zenstra capabilities share one layout; each gets its own focused,
+   interactive view of the console. */
+const VIEW = {
+  discovery: { V: () => <ZenConsole mode="discovery" />, hint: 'Run the discovery scan. A shadow agent appears with no owner; assign one.' },
+  identity: { V: () => <ZenConsole mode="identity" initial="support" />, hint: 'Pick an agent to see its owner, declared task and the grant that expires with the task.' },
+  enforce: { V: () => <ZenConsole mode="enforce" />, hint: 'Fire a tool call. Watch each check, then the decision: allow, hold for an approver or block.' },
+  mcp: { V: McpPanel, hint: 'A tool changed after it was approved. Review the difference and decide.' },
+  detect: { V: DetectPanel, hint: 'An agent with valid access reads far more than usual. Contain it.' },
+  record: { V: () => <ZenConsole mode="record" />, hint: 'Fire a few tool calls, then verify the chain of decisions.' },
+};
+const Z = PLATFORMS[1];
 
 export default function Capability({ id }) {
   const c = ZCAPS[id];
-  const V = VIS[c.kind];
+  const { V, hint } = VIEW[c.kind];
+  const me = Z.items.find((x) => x.path === c.path);
   return (
     <>
       <Seo title={c.seoTitle.replace(/ \| Zenstra AI$/, '')} description={c.description} path={c.path} crumbs={[{ name: 'Zenstra AI', path: c.parent }, { name: c.name, path: c.path }]} />
-      <Hero acc="zen" crumbs={[{ name: 'Zenstra AI', path: c.parent }, { name: c.name }]} eyebrow={`Zenstra AI · ${c.name}`}
-        title={<>{c.hero.lead} <span style={{ color: 'var(--acc)' }}>{c.hero.accent}.</span></>} lead={c.hero.sub}>
-        <Stage3D tilt={[6, -14]}><V /></Stage3D>
-      </Hero>
+      <PageHero crumbs={trail(c.path)} mark={<ProductLabel p="zenstra" name={c.name} sub="Zenstra AI capability" />}
+        title={`${c.hero.lead} ${c.hero.accent}.`} lead={c.hero.sub}
+        actions={<><Button to="/request-demo?product=zenstra" size="lg" arrow>Book a demo</Button><Button to={c.parent} variant="secondary" size="lg">Zenstra AI overview</Button></>} />
 
-      <section className="sec-tight" aria-label="All Zenstra capabilities"><div className="wrap"><Rail current={c.kind} /></div></section>
-
-      <section className="sec" aria-labelledby="how-h">
-        <div className="wrap">
-          <SectionHead id="how-h" acc={A} eyebrow="How it works" title="Three steps. No agent rewritten." />
-          <div className="mt-12"><Steps acc="zen" items={c.steps.map(([h, p]) => ({ h, p }))} /></div>
+      <Section id="view" labelledby="view-h">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <SectionHead id="view-h" eyebrow="Try it" title={me?.desc || c.short} lead={hint} />
         </div>
-      </section>
+        <Reveal className="mt-10"><V /><SampleNote /></Reveal>
+      </Section>
 
-      <section className="sec" aria-labelledby="gain-h">
-        <div className="wrap">
-          <SectionHead align="left" id="gain-h" acc={A} eyebrow="What changes" title="What you stop worrying about." />
-          <div className="mt-12"><Points acc="zen" items={c.gains.map(([h, p], i) => ({ h, p, icon: ['CheckCircle', 'Eye', 'Users'][i] }))} /></div>
-          <Reveal className="mt-12 flex flex-wrap items-center justify-between gap-6 rounded-[22px] border border-line p-6 md:p-8" style={{ background: 'linear-gradient(90deg, rgb(147 162 255 / .1), transparent)' }}>
-            <p className="max-w-[640px] text-[17px] text-ink-2"><span className="font-semibold text-ink">{c.name}</span> is one of six Zenstra AI capabilities. They share one inventory, one policy and one decision record.</p>
-            <Link to={c.parent} className="link" style={{ '--acc': A }}>See Zenstra AI<Icon name="ArrowRight" size={14} weight="bold" /></Link>
-          </Reveal>
+      <Section id="how" labelledby="how-h" tone="subtle">
+        <SectionHead id="how-h" eyebrow="How it works" title="Three steps. No agent rewritten." />
+        <ol className="mt-10 grid gap-4 md:grid-cols-3">
+          {c.steps.map(([h, p], i) => (
+            <Reveal as="li" key={h} delay={i * 50} className="card p-6"><span className="num text-[13px] font-semibold text-brand">0{i + 1}</span><p className="mt-2 t-h4">{h}</p><p className="mt-1.5 t-small !text-ink-2">{p}</p></Reveal>
+          ))}
+        </ol>
+        <h3 className="mt-14 t-h3">What changes</h3>
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          {c.gains.map(([h, p], i) => <FeatureCard key={h} icon={['CheckCircle', 'Eye', 'Users'][i]} acc="var(--color-zen)" title={h}>{p}</FeatureCard>)}
         </div>
-      </section>
+      </Section>
 
-      <ResearchRow slugs={c.research} />
-      <CtaBand accent="zen" title="Run it against your own agents." body={`A 30-minute session on Zenstra ${c.name}, with your platforms and your questions.`} />
+      <Section id="all" labelledby="all-h">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <h2 id="all-h" className="t-h3">All six Zenstra AI capabilities</h2>
+          <ArrowLink to={c.parent}>How they work together</ArrowLink>
+        </div>
+        <nav aria-label="Zenstra capabilities" className="mt-6">
+          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {Z.items.map((it) => {
+              const on = it.path === c.path;
+              return (
+                <li key={it.key}>
+                  <Link to={it.path} aria-current={on ? 'page' : undefined} className={cx('card card-link flex items-center gap-3 p-4', on && '!border-zen bg-[color-mix(in_oklab,var(--color-zen)_5%,#fff)]')}>
+                    <span className="ptile ptile-sm" style={{ '--acc': 'var(--color-zen)' }}><Icon name={it.icon} size={16} /></span>
+                    <span className="min-w-0"><span className="block text-[14.5px] font-semibold text-ink">{it.name}</span><span className="block truncate t-caption">{on ? 'You are here' : it.desc}</span></span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      </Section>
+
+      <ResearchCards slugs={c.research} title="Research on AI agent security" />
+      <CtaBand title="Run it against your own agents." body={`A 30-minute session on Zenstra ${c.name}, with your platforms and your questions.`} primary={{ label: 'Book a demo', to: '/request-demo?product=zenstra' }} />
     </>
   );
 }

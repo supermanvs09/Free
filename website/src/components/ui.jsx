@@ -8,7 +8,7 @@ import {
   PlugsConnected, Pulse, SpeakerHigh, SpeakerSlash, ClosedCaptioning, CornersOut, Funnel, BookOpen, Newspaper, Briefcase, Medal, Buildings as Office,
   ArrowsClockwise, FlowArrow, Lock, ShieldWarning, Code, Laptop, ChatCircleText, Calendar, Check, Circle, Hourglass, Infinity as Loop,
   UserCircle, IdentificationCard, CreditCard, DeviceMobile, Bug, Cpu, WebhooksLogo, TreeView, Export, SealCheck, Barcode, CursorClick, ListChecks,
-  Copy, TerminalWindow, Prohibit, ArrowsLeftRight, EyeSlash, ChartBar, Desktop, Sliders, Tag, Trash, Gift, Trophy, LockOpen, PaperPlaneTilt, Timer, Flag, ArrowUp, Info, Plus, Minus, ArrowCounterClockwise, Fire, Lightbulb, GitBranch, Hash, SignIn, UserPlus, Bell, SealWarning, ShieldSlash, Wrench, Folder, FileLock,
+  Copy, TerminalWindow, Prohibit, ArrowsLeftRight, EyeSlash, ChartBar, Desktop, Sliders, Tag, Trash, Gift, Trophy, LockOpen, PaperPlaneTilt, Timer, Flag, ArrowUp, Info, Plus, Minus, ArrowCounterClockwise, Fire, Lightbulb, GitBranch, Hash, SignIn, UserPlus, Bell, SealWarning, ShieldSlash, Wrench, Folder, FileLock, XCircle,
 } from '@phosphor-icons/react/dist/ssr';
 import { cx, useIsoLayoutEffect } from '../lib/motion.js';
 
@@ -22,7 +22,7 @@ const ICONS = {
   PlugsConnected, Pulse, SpeakerHigh, SpeakerSlash, ClosedCaptioning, CornersOut, Funnel, BookOpen, Newspaper, Briefcase, Medal, Office,
   ArrowsClockwise, FlowArrow, Lock, ShieldWarning, Code, Laptop, ChatCircleText, Calendar, Check, Circle, Hourglass, Loop,
   UserCircle, IdentificationCard, CreditCard, DeviceMobile, Bug, Cpu, WebhooksLogo, TreeView, Export, SealCheck, Barcode, CursorClick, ListChecks,
-  Copy, TerminalWindow, Prohibit, ArrowsLeftRight, EyeSlash, ChartBar, Desktop, Sliders, Tag, Trash, Gift, Trophy, LockOpen, PaperPlaneTilt, Timer, Flag, ArrowUp, Info, Plus, Minus, ArrowCounterClockwise, Fire, Lightbulb, GitBranch, Hash, SignIn, UserPlus, Bell, SealWarning, ShieldSlash, Wrench, Folder, FileLock,
+  Copy, TerminalWindow, Prohibit, ArrowsLeftRight, EyeSlash, ChartBar, Desktop, Sliders, Tag, Trash, Gift, Trophy, LockOpen, PaperPlaneTilt, Timer, Flag, ArrowUp, Info, Plus, Minus, ArrowCounterClockwise, Fire, Lightbulb, GitBranch, Hash, SignIn, UserPlus, Bell, SealWarning, ShieldSlash, Wrench, Folder, FileLock, XCircle,
 };
 export function Icon({ name, size = 20, weight = 'regular', className, style }) {
   const C = ICONS[name];

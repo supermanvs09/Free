@@ -106,7 +106,7 @@ export default function Fraud() {
             <div className="flex items-center justify-between border-b border-line px-4 py-3"><p className="text-[14.5px] font-semibold text-ink">Payee check · R K TRADERS ••4410</p><Badge tone="crit" dot>Mule risk 91</Badge></div>
             <ul className="divide-y divide-line">
               {[['Account opened', '9 days ago', 'crit'], ['Inbound senders today', '13, from 6 banks', 'crit'], ['Money out', '92% within 30 minutes, to 4 accounts and a wallet', 'crit'], ['Remarks on inbound payments', '“KYC fee”, “refund”, “verification”', 'hold'], ['Payer’s history with payee', 'None', 'warn']].map(([k, v, t]) => (
-                <li key={k} className="flex items-center justify-between gap-4 px-4 py-3"><span className="w-[170px] shrink-0 text-[13.5px] text-ink-3">{k}</span><span className="flex-1 text-[13.5px] font-medium text-ink">{v}</span><Badge tone={t} dot>{t === 'crit' ? 'Risk' : t === 'hold' ? 'High' : 'Unusual'}</Badge></li>
+                <li key={k} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3"><span className="w-full shrink-0 text-[13.5px] text-ink-3 sm:w-[170px]">{k}</span><span className="flex-1 text-[13.5px] font-medium text-ink">{v}</span><Badge tone={t} dot>{t === 'crit' ? 'Risk' : t === 'hold' ? 'High' : 'Unusual'}</Badge></li>
               ))}
             </ul>
             <p className="border-t border-line bg-bg-1 px-4 py-2.5 t-caption">Sample data</p>

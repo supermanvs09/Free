@@ -11,9 +11,9 @@ export default function Legal({ id }) {
     <>
       <Seo title={l.title} description={l.description} path={path} crumbs={[{ name: l.title, path }]} />
       <article className="calm">
-        <div className="wrap grid gap-12 py-14 md:py-20 lg:grid-cols-[220px_minmax(0,760px)] lg:gap-20">
+        <div className="container grid gap-12 py-10 md:py-14 lg:grid-cols-[220px_minmax(0,760px)] lg:gap-20">
           <aside className="hidden lg:block">
-            <nav aria-label="Legal pages" className="sticky top-28">
+            <nav aria-label="Legal pages" className="sticky top-[calc(var(--hdr-now,var(--hdr))+24px)]">
               <p className="text-[12.5px] font-semibold uppercase tracking-[.1em] text-ink-3">Legal</p>
               <ul className="mt-4 space-y-1 border-l border-line text-[14.5px]">
                 {Object.entries(LEGAL).map(([k, x]) => <li key={k}><Link to={`/${k}`} aria-current={k === id ? 'page' : undefined} className={`-ml-px block border-l-2 py-1.5 pl-4 ${k === id ? 'border-cyan text-ink' : 'border-transparent text-ink-3 hover:text-ink'}`}>{x.title}</Link></li>)}

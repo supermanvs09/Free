@@ -1,74 +1,122 @@
-import { useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 import { Seo } from '../lib/head.jsx';
 import { SOLUTION_PAGES } from '../data/solutions.js';
-import { Reveal, SectionHead } from '../components/ui.jsx';
-import { CtaBand, ResearchRow } from '../components/blocks.jsx';
-import Stage3D from '../components/Stage3D.jsx';
-import { Hero, Stats, LINKS } from '../components/ProductKit.jsx';
-import { MuleCheck } from '../components/viz/fraud.jsx';
-import { AdTierGraph } from '../components/viz/adapid.jsx';
-import { KeyLineage } from '../components/viz/refs.jsx';
-import { PatientAccess } from '../components/viz/icms.jsx';
+import { PLATFORMS, INDUSTRIES } from '../data/ia.js';
+import { Button, Icon, Reveal, SectionHead, cx } from '../components/ui.jsx';
+import { AppFrame, CtaBand, Decision, DemoControls, PageHero, ResearchCards, Section, StatTile, Stepper } from '../components/ds.jsx';
 import ProductMark from '../components/ProductMark.jsx';
+import { useSteps } from '../lib/useSteps.js';
 import NotFound from './NotFound.jsx';
 
-/* Each industry opens on a real photograph of the people it protects, with
-   the number that matters most to it; the scene that shows the risk follows. */
-const SCENE = { bfsi: MuleCheck, healthcare: PatientAccess, government: AdTierGraph, 'digital-platforms': KeyLineage };
-const FRAMED = new Set(['bfsi']);
-const SEE = {
-  bfsi: 'A stolen payment, followed to the mule.',
-  healthcare: 'Every patient record opened, with the reason.',
-  government: 'The paths to Domain Admins, mapped and closed.',
-  'digital-platforms': 'One leaked key, traced from commit to customer data.',
-};
-const KEY = { fraud: 'fraud', nhi: 'nhi', zenstra: 'zenstra', icms: 'icms', adapid: 'cirm', ad: 'ad' };
+/* Each industry: its own risks, a workflow across the products that fit it,
+   the product combination, sourced outcomes and its own call to action. */
+const ITEMS = Object.fromEntries(PLATFORMS.flatMap((p) => [[p.key, { ...p, platform: p }], ...p.items.map((i) => [i.key, { ...i, platform: p }])]));
+const HELP_PRODUCT = { bfsi: ['fraud', 'nhi', 'zenstra', 'icms'], healthcare: ['icms', 'cirm', 'ad', 'icms'], government: ['ad', 'cirm', 'icms', 'zenstra'], 'digital-platforms': ['fraud', 'nhi', 'nhi', 'zenstra'] };
+const DEMO = { bfsi: 'adapid', healthcare: 'dpdpa', government: 'all', 'digital-platforms': 'nhi' };
+
+function Workflow({ flow, name }) {
+  const s = useSteps(flow.length, { ms: 3400 });
+  const [t, what, d, label, k] = flow[s.i];
+  const it = ITEMS[k];
+  return (
+    <div ref={s.ref} onPointerDown={s.pause}>
+      <Stepper steps={flow.map((f) => f[0])} s={s} label={`${name} workflow`} className="max-sm:!grid-cols-3 max-sm:gap-y-4" />
+      <AppFrame title="Deep Algorithms" crumb={`${name} · one incident, end to end`} className="mt-6" status={<Decision d={d}>{label}</Decision>}>
+        <div key={s.i} className="fadein grid gap-5 p-5 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] md:p-6" aria-live="polite">
+          <div>
+            <p className="app-label">Step {s.i + 1} · {t}</p>
+            <p className="mt-2 t-h4">{what}</p>
+            <div className="mt-4 flex items-center gap-2"><Decision d={d}>{label}</Decision><span className="t-caption">decided before the action completed</span></div>
+          </div>
+          <Link to={it.path} className="card card-link flex items-center gap-3 self-start p-4">
+            <ProductMark p={it.platform.key} size={30} />
+            <span className="min-w-0"><span className="block t-caption">Decided by</span><span className="block text-[14.5px] font-semibold text-ink">{it.name}</span></span>
+            <Icon name="ArrowRight" size={15} className="ml-auto shrink-0 text-ink-4" />
+          </Link>
+        </div>
+      </AppFrame>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><p className="t-caption">Sample incident. Names and values are illustrative.</p><DemoControls s={s} n={flow.length} label={`Step ${s.i + 1} of ${flow.length}`} /></div>
+    </div>
+  );
+}
 
 export default function Solution() {
   const { slug } = useParams();
   const s = SOLUTION_PAGES[slug];
   if (!s) return <NotFound />;
-  const V = SCENE[slug];
-  const path = `/solutions/${slug}`;
-  const products = s.products.map((k) => LINKS[KEY[k]]).filter(Boolean);
+  const ind = INDUSTRIES.find((x) => x.slug === slug);
+  const path = ind.path;
+  const products = HELP_PRODUCT[slug].map((k) => ITEMS[k]);
+  const stats = s.stats.filter((x) => x.s && x.v !== 'Certified');
+  const lead = stats[0] || s.stats[0];
   return (
     <>
       <Seo title={s.seoTitle} description={s.description} path={path} crumbs={[{ name: s.name, path }]} />
-      <Hero crumbs={[{ name: 'Solutions' }, { name: s.name }]} eyebrow={`Solutions · ${s.name}`} title={s.title} lead={s.sub}>
-        <figure className="relative mx-auto w-full max-w-[600px]">
-          <img src={`/img/photos/${slug}.webp`} alt="" width="1200" height="800" className="aspect-[4/3] w-full rounded-[24px] border border-white/15 object-cover shadow-[0_40px_90px_-40px_rgba(0,0,0,.8)]" fetchPriority="high" decoding="async" />
-          <figcaption className="absolute bottom-[6%] left-[-4%] w-[64%] min-w-[240px] rounded-[16px] bg-white p-4 text-left text-[#0e1116] shadow-[0_28px_60px_-22px_rgba(0,0,0,.7)] max-sm:relative max-sm:inset-auto max-sm:mt-3 max-sm:w-full max-sm:min-w-0">
-            <span className="block text-[26px] font-semibold leading-none tracking-[-0.03em] text-[#0a6dbb] num">{s.stats[0].v}</span>
-            <span className="mt-1.5 block text-[14px] leading-snug text-[#3f4a5a]">{s.stats[0].l}</span>
-            <span className="mt-3 flex items-center gap-2 border-t border-[#e3e8ee] pt-3 text-[12.5px] text-[#5c6777]">Protected by{[...new Set(products.map((x) => x.line))].map((l) => <ProductMark key={l} p={l} size={22} alt />)}</span>
-          </figcaption>
-        </figure>
-      </Hero>
+      <PageHero crumbs={[{ name: 'Solutions' }, { name: s.name }]} overline={`Solutions · ${s.name}`} title={s.title} lead={s.sub}
+        actions={<><Button to={`/request-demo?product=${DEMO[slug]}`} size="lg" arrow>{slug === 'bfsi' ? 'Book a fraud signals session' : 'Book a demo'}</Button><Button href="#workflow" variant="secondary" size="lg">See it end to end</Button></>}
+        media={(
+          <figure className="relative">
+            <img src={`/img/photos/${slug}.webp`} alt="" width="1200" height="800" className="aspect-[4/3] w-full rounded-[16px] object-cover" fetchPriority="high" decoding="async" />
+            <figcaption className="card absolute bottom-4 left-4 right-4 p-4 sm:right-auto sm:max-w-[320px]">
+              <p className="num text-[24px] font-semibold leading-none text-brand">{lead.v}</p>
+              <p className="mt-1.5 text-[13.5px] leading-snug text-ink-2">{lead.l}</p>
+              {lead.s && <p className="mt-2 t-caption">Source: {lead.s}</p>}
+            </figcaption>
+          </figure>
+        )} />
 
-      <section className="stage sec" aria-labelledby="see-h">
-        <div className="wrap">
-          <SectionHead id="see-h" eyebrow="What it looks like" title={SEE[slug]} />
-          <Reveal className="mx-auto mt-12 max-w-[980px]"><Stage3D tilt={FRAMED.has(slug) ? [4, -9] : [6, -13]}>{FRAMED.has(slug) ? <div className="scn-frame"><V /></div> : <V />}</Stage3D></Reveal>
+      <Section id="risks" labelledby="risk-h">
+        <SectionHead id="risk-h" eyebrow="The risks" title={`What keeps ${s.short === 'BFSI' ? 'banks and fintechs' : s.short === 'Government' ? 'public-sector teams' : s.short === 'Healthcare' ? 'hospitals and health platforms' : 'platform teams'} up at night.`} />
+        <div className="mt-10 grid gap-4 md:grid-cols-3">
+          {s.risks.map(([ic, t, b], i) => (
+            <Reveal key={t} delay={i * 50} className="card p-6"><span className="ptile"><Icon name={ic} size={20} /></span><h3 className="mt-5 t-h4">{t}</h3><p className="mt-2 t-small !text-ink-2">{b}</p></Reveal>
+          ))}
         </div>
-      </section>
+      </Section>
 
-      <Stats items={s.stats} title="Why it matters now" />
+      <Section id="workflow" labelledby="wf-h" tone="subtle">
+        <SectionHead id="wf-h" eyebrow="How it works" title={s.helpTitle} lead="One incident, followed across the products that see it. Pick a step, or let it play." />
+        <Reveal className="mt-10"><Workflow flow={s.flow} name={s.short} /></Reveal>
+      </Section>
 
-      <section className="sec" aria-labelledby="help-h">
-        <div className="wrap">
-          <SectionHead align="left" id="help-h" eyebrow="How we help" title={s.helpTitle} />
-          <ol className="mt-12 grid gap-4 md:grid-cols-2">
-            {s.help.map((h, i) => (
-              <Reveal as="li" key={h.title} delay={i * 70} className="card flex gap-5 p-6 md:p-8">
-                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line-2 text-[15px] font-semibold text-cyan-2 num">{i + 1}</span>
-                <span><span className="block text-[20px] font-semibold tracking-[-0.02em]">{h.title}</span><span className="mt-2 block text-[15.5px] leading-relaxed text-ink-2">{h.body}</span></span>
+      <Section id="products" labelledby="pr-h">
+        <SectionHead id="pr-h" eyebrow="Products to start with" title={`The combination for ${s.name.toLowerCase().replace('&', 'and')}.`} />
+        <ol className="mt-10 grid gap-4 md:grid-cols-2">
+          {s.help.map((h, i) => {
+            const it = products[i];
+            return (
+              <Reveal as="li" key={h.title} delay={i * 40} className="card flex flex-col p-6">
+                <div className="flex items-start gap-4">
+                  <span className="num inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-50 text-[13px] font-semibold text-brand">{i + 1}</span>
+                  <div><h3 className="t-h4">{h.title}</h3><p className="mt-2 t-small !text-ink-2">{h.body}</p></div>
+                </div>
+                {it && <Link to={it.path} className="alink ml-12 mt-4 text-[14px]"><ProductMark p={it.platform.key} size={18} />{it.name}<Icon name="ArrowRight" size={13} weight="bold" className="arr" /></Link>}
               </Reveal>
-            ))}
-          </ol>
-        </div>
-      </section>
-      <ResearchRow slugs={s.research} />
-      <CtaBand related={products.slice(0, 3)} relatedTitle="Products to start with" title={s.cta.title} body={s.cta.body} />
+            );
+          })}
+        </ol>
+      </Section>
+
+      <Section id="outcomes" labelledby="out-h" tone="subtle">
+        {stats.length > 0 ? (
+          <>
+            <SectionHead id="out-h" eyebrow="Why it matters now" title="The numbers behind the risk." />
+            <div className={cx('mt-10 grid gap-4', stats.length > 2 ? 'md:grid-cols-3' : stats.length === 2 ? 'md:grid-cols-2' : 'md:max-w-[420px]')}>{stats.map((st) => <StatTile key={st.v} {...st} />)}</div>
+          </>
+        ) : (
+          <>
+            <SectionHead id="out-h" eyebrow="Outcomes" title="What changes for your team." />
+            <div className="mt-10 grid gap-4 md:grid-cols-2">{s.stats.filter((x) => x.v !== 'Certified').map((st) => <div key={st.v} className="card p-6"><p className="t-h3 !text-brand">{st.v}</p><p className="mt-2 t-body">{st.l}</p></div>)}</div>
+          </>
+        )}
+        <nav aria-label="Other industries" className="mt-12 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-line pt-6 t-small">
+          <span className="font-semibold text-ink">Other industries:</span>
+          {INDUSTRIES.filter((x) => x.slug !== slug).map((x) => <Link key={x.slug} to={x.path} className="ilink">{x.name}</Link>)}
+        </nav>
+      </Section>
+
+      <ResearchCards slugs={s.research} />
+      <CtaBand title={s.cta.title} body={s.cta.body} primary={{ label: slug === 'bfsi' ? 'Book a fraud signals session' : 'Book a demo', to: `/request-demo?product=${DEMO[slug]}` }} />
     </>
   );
 }

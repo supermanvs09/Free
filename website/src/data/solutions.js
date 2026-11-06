@@ -1,6 +1,14 @@
 /* Industry pages (one template: pages/Solution.jsx). */
 export const SOLUTION_PAGES = {
   bfsi: {
+    risks: [['Wallet', 'Mule accounts', 'Money leaves through accounts opened days earlier, faster than any review queue.'], ['Fingerprint', 'Account takeover', 'A fraudster with the customer’s password and OTP passes every login check.'], ['Phone', 'Coached payments', 'The real customer pays, on their own phone, while a scammer talks them through it.']],
+    flow: [
+      ['Login', 'A customer signs in on her registered phone. Typing and grip match her.', 'allow', 'Allowed silently', 'fraud'],
+      ['Payee', 'She adds a payee whose account was opened 9 days ago and received money from 13 senders today.', 'review', 'Mule risk 91', 'fraud'],
+      ['Payment', 'She types ₹48,000 while on a call with an unknown number for 6 minutes.', 'hold', 'Held, bank calls back', 'fraud'],
+      ['Back office', 'The payments service account reads the KYC store outside its baseline at 02:14.', 'review', 'Right-sized', 'nhi'],
+      ['Evidence', 'Every decision, with its reason and the consent check, is kept for RBI and DPDPA review.', 'pass', 'Evidence ready', 'icms'],
+    ],
     name: 'Banking & Financial Services', short: 'BFSI',
     who: 'BFSI', cta: { title: 'Stop the mule before the money moves.', body: 'See how banks, NBFCs and fintechs stop account takeover and mule accounts at the payee, and keep RBI and DPDPA evidence ready.' },
     seoTitle: 'Identity Security and Fraud Prevention for Banks and Financial Services',
@@ -23,6 +31,14 @@ export const SOLUTION_PAGES = {
     research: ['india-mule-account-crisis', 'mythos-ai-banking-threat', 'trusted-identities-attack-surface'],
   },
   healthcare: {
+    risks: [['Users', 'Shared logins', 'Shared workstations and accounts make it hard to know who opened a record.'], ['Key', 'Privileged misuse', 'Administrators and contractors can read far more than their work needs.'], ['Clock', 'Breach deadlines', 'The DPDP Rules give 72 hours to report a breach in full.']],
+    flow: [
+      ['Access', 'A clinician opens a patient record at a shared ward workstation. The read is tied to her identity.', 'allow', 'Identity recorded', 'icms'],
+      ['Purpose', 'A record is opened with no appointment or referral behind it.', 'review', 'Flagged to the owner', 'icms'],
+      ['Behaviour', 'An administrator exports 4,000 records at 02:00, far outside his baseline.', 'hold', 'Session held', 'cirm'],
+      ['Domain', 'A lab workstation has a three-hop path to Domain Admins. The weakest link is removed.', 'fixed', 'Path closed', 'ad'],
+      ['Regulator', 'Scope, timeline and notices are drafted from evidence already held.', 'pass', 'Breach file ready', 'icms'],
+    ],
     name: 'Healthcare', short: 'Healthcare',
     who: 'healthcare', cta: { title: 'See every access to patient data, explained.', body: 'See how hospitals and health platforms catch privileged misuse and keep DPDPA evidence ready.' },
     seoTitle: 'Patient Data Protection and Identity Security for Healthcare',
@@ -45,6 +61,13 @@ export const SOLUTION_PAGES = {
     research: ['identity-security', 'ctem-dpdpa-india-2026', 'confessions-entry-01'],
   },
   government: {
+    risks: [['TreeStructure', 'Tier 0 compromise', 'One compromised account is often a few hops from Domain Admins.'], ['LockKey', 'Administrator credential theft', 'Phished administrator logins pass every password and MFA check.'], ['IdentificationCard', 'Citizen personal data', 'Citizen PII spreads into shared drives and exports across departments.']],
+    flow: [
+      ['Phish', 'An administrator’s credentials are used from a location and device never seen for him.', 'stepup', 'Step-up required', 'cirm'],
+      ['Path', 'From a helpdesk account, a four-hop path reaches Domain Admins. The top fix closes 41 paths.', 'fixed', 'Path closed', 'ad'],
+      ['Citizen data', 'Aadhaar numbers are found in a shared spreadsheet. Access is checked against purpose and masked.', 'review', 'Masked and flagged', 'icms'],
+      ['AI agents', 'A citizen-services agent tries to read records outside the forms it is tasked with.', 'block', 'Blocked', 'zenstra'],
+    ],
     name: 'Government & Public Sector', short: 'Government',
     who: 'government', cta: { title: 'Keep citizen services trusted.', body: 'See how public-sector teams secure the identities behind their services and keep citizen data in their own environment.' },
     seoTitle: 'Identity Security for Government and Public Sector',
@@ -67,6 +90,13 @@ export const SOLUTION_PAGES = {
     research: ['threat-intelligence', 'identity-security', 'ctem-dpdpa-india-2026'],
   },
   'digital-platforms': {
+    risks: [['GitBranch', 'Keys in code', 'Cloud keys end up in repositories, and attackers scan for them within minutes.'], ['Fingerprint', 'Account takeover', 'Credential stuffing works when the password is right and nothing else is checked.'], ['Robot', 'AI features with access', 'Agents shipped in the product act with real access to customer data.']],
+    flow: [
+      ['Commit', 'An engineer commits an AWS access key to a public repository.', 'critical', 'Real secret', 'nhi'],
+      ['Use', 'Minutes later the key is used from a new region to start instances.', 'block', 'Key disabled', 'nhi'],
+      ['Login', 'A customer account signs in with the right password from a credential-stuffing source.', 'hold', 'Session held', 'fraud'],
+      ['AI feature', 'The support agent in the product tries to read another customer’s data.', 'block', 'Blocked', 'zenstra'],
+    ],
     name: 'Digital Platforms', short: 'Digital platforms',
     who: 'digital platform', cta: { title: 'Grow fast. Keep the attack surface small.', body: 'See how SaaS, e-commerce and EdTech teams catch account takeover and govern the keys and agents behind their product.' },
     seoTitle: 'Account Security, Cloud Identity and AI Agent Security for Digital Platforms',

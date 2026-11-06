@@ -4,8 +4,8 @@ import { Seo } from '../lib/head.jsx';
 import { Button, Icon } from '../components/ui.jsx';
 
 const POPULAR = [
-  ['Zenstra AI', '/agentic-ai/agentic-identity'], ['adapID AI', '/adapid-ai'], ['NHI Security for AWS', '/adapid-ai/nhi-security'],
-  ['ICMS Compliance Suite', '/dpdpa-compliance'], ['Blogs', '/blogs'],
+  ['All products', '/products'], ['adapID AI', '/adapid-ai'], ['Zenstra AI', '/agentic-ai/agentic-identity'],
+  ['ICMS Compliance Suite', '/dpdpa-compliance'], ['Solutions', '/solutions/bfsi'], ['Blog and research', '/blogs'], ['Contact', '/contact'],
 ];
 
 export default function NotFound() {
@@ -15,8 +15,8 @@ export default function NotFound() {
   return (
     <>
       <Seo title="Page not found" path="/404" noindex description="The page you are looking for does not exist or has moved." />
-      <section className="stage band-brand hero-under relative overflow-hidden">
-        <div className="wrap relative py-28 text-center md:py-40">
+      <section className="border-b border-line bg-[linear-gradient(180deg,#f6f8fb_0%,#fff_70%)]">
+        <div className="container py-20 text-center md:py-28">
           <p className="eyebrow mx-auto">Error 404</p>
           <h1 className="t-h1 mx-auto mt-6 max-w-[760px]">This page does not exist.</h1>
           <p className="t-lead mx-auto mt-5 max-w-[560px]">It may have moved when we rebuilt the site. Try one of these, search, or head back home.</p>
@@ -25,12 +25,12 @@ export default function NotFound() {
           </p>
           <ul className="mx-auto mt-10 flex max-w-[760px] flex-wrap justify-center gap-3">
             {POPULAR.map(([n, to]) => (
-              <li key={to}><Link to={to} className="inline-flex items-center gap-1.5 rounded-full border border-line-2 px-4 py-2 text-[15px] text-ink hover:border-fg/40">{n}<Icon name="CaretRight" size={12} weight="bold" /></Link></li>
+              <li key={to}><Link to={to} className="inline-flex items-center gap-1.5 rounded-full border border-line-2 px-4 py-2 text-[15px] text-ink hover:border-brand hover:text-brand">{n}<Icon name="CaretRight" size={12} weight="bold" /></Link></li>
             ))}
           </ul>
           <div className="mt-10 flex flex-wrap justify-center gap-3">
             <Button to="/" size="lg">Back to home</Button>
-            <Button variant="ghost" size="lg" type="button" onClick={() => window.dispatchEvent(new CustomEvent('da:command', { detail: 'search' }))}><Icon name="MagnifyingGlass" size={16} />Search the site</Button>
+            <Button variant="secondary" size="lg" type="button" onClick={() => window.dispatchEvent(new CustomEvent('da:command', { detail: 'search' }))}><Icon name="MagnifyingGlass" size={16} />Search the site</Button>
           </div>
         </div>
       </section>
