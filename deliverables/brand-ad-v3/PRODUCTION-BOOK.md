@@ -15,10 +15,10 @@
 | Say "adapID AI" once and "Zenstra AI" once | Each name is spoken exactly once (14.8 s and 74.4 s). The three adapID capabilities are introduced with "It…", not the product name |
 | The three adapID capabilities: CIRM, NHI for AWS, Identity Fraud Prevention | Each one gets a lower third, a live-action lead-in and a light dashboard explainer. A ring and caption walk the viewer through three steps per screen |
 | Light-themed product explainers | The dashboards are rebuilt on white, with readable 1080p type. There are no dark dashboards, glow, particles, holograms or hacker imagery |
-| Fraud section: real banking activity on a smartphone | Three live-action handheld phone shots. The green screens are replaced with a fictional "Your Bank" UPI flow, timed to the real finger taps: choose Amma, enter ₹12,500 on the keypad, review, tap Pay, processing, paid. The fraud dashboard follows |
+| Fraud section: real banking activity on a smartphone | Five real payment moments, cut to the line "how they type, tap and pay": a customer entering card details on her phone at home, a close-up of card details typed into a phone, a contactless phone tap at a café counter (with the terminal's beep), a card payment at an outdoor café, and a card-in-hand online purchase. A light chip names what is read in each moment: typing rhythm, device recognised, usual place and amount, then "Genuine customer · No extra step". The fraud dashboard follows |
 | Zenstra: realistic AI-assistant interaction | A Claude-style chat with a pasted `.env` holding AWS keys and a production database password. Zenstra flags the three secrets, blocks the prompt before it is sent and records the decision |
 | Logo reveal: the D icon first, then the full logo, name and positioning line, light background, no 3D glow | The diagonal stroke slides in and the bowl draws on. The mark settles with a soft sheen, then moves into its place in the official lockup. Then come the company name, "Securing identity and AI in the connected world.", both products and deepalgorithms.io |
-| 50–60% live action | About 56 s of 104 s (≈54%) is live action: full-frame shots, phone composites, grids of live clips, and title cards over moving footage |
+| 50–60% live action | About 56 s of 104 s (≈54%) is live action: full-frame shots including five real payment moments, grids of live clips, and title cards over moving footage |
 | Official logos | The company lockup, the D mark and the Zenstra wordmark are the files from the website build. They are not redrawn |
 | No invented customers, certifications, integrations, statistics or claims | None appear. Product capabilities are worded from the website copy. The bank, the people and the transaction are fictional and generic |
 
@@ -50,7 +50,7 @@ I checked the speech-to-text transcript of the final mix against this script. Ev
 | 14.3–19.8 | Title card over a city walk · "Every identity, human and machine." + three capability chips | Introduces adapID AI |
 | 19.7–33.2 | Live lead-in → CIRM dashboard → live | Session context changes → reasons for risk → policy response |
 | 33.2–47.0 | Live lead-in → NHI for AWS dashboard → live | Machine identities → reach versus use → least-privilege proposal |
-| 47.0–65.6 | Live lead-in → three phone shots of the payment → fraud dashboard | The customer is recognised by behaviour, not just credentials |
+| 47.0–65.6 | Live lead-in → five real payment shots (type, tap, pay) with behaviour chips → fraud dashboard | The customer is recognised by behaviour, not just credentials |
 | 65.5–84.3 | Live lead-in → Claude-style chat with secrets → Zenstra block → Zenstra detection record | AI used safely |
 | 84.2–89.9 | Title card · "Use AI freely. Keep secrets inside." | Zenstra promise |
 | 89.8–92.6 | Grid collapses · "Every identity deserves protection." | Transition to brand |
@@ -58,16 +58,16 @@ I checked the speech-to-text transcript of the final mix against this script. Ev
 
 ## 4. Sound
 
-The score is an original synthesised piece (pads, plucks, mallets, light percussion) in D minor. It lifts through B♭, G minor and A into D major on the logo. Location ambience follows each shot. UI and phone-tap sounds sit on the on-screen actions. The music holds its breath during the payment's "Processing…" beat and in the second before Zenstra blocks the prompt. Music ducks under every narration line. The master is normalised to −16 LUFS integrated with −1.5 dBTP.
+The score is an original synthesised piece (pads, plucks, mallets, light percussion) in D minor. It lifts through B♭, G minor and A into D major on the logo. Location ambience follows each shot. UI and phone-tap sounds sit on the on-screen actions. A contactless terminal beep lands on the café tap, and a small lift marks the genuine customer passing with no extra step. The music holds its breath in the second before Zenstra blocks the prompt. Music ducks under every narration line. The master is normalised to −16 LUFS integrated with −1.5 dBTP.
 
 ## 5. Production notes — please read before release
 
 1. **The voice is synthetic, not a recorded human Indian-English artist.** After the earlier feedback, the narration uses the same deep, natural-paced voice character as your reference video (a text-to-speech voice at that pace). The brief asks for a professionally directed human voiceover, so this track is a guide. For broadcast, re-record the script in section 2 with a voice artist; the timings in the table are the slots to fit.
-2. **Live action is licensed stock, not a commissioned shoot.** All clips come from Coverr and Mixkit free licences (list below). The three phone shots are green-screen stock with the banking interface composited in. A commissioned shoot with a real device would look better still and allow Indian locations and talent.
+2. **Live action is licensed stock, not a commissioned shoot.** All clips come from Coverr and Mixkit free licences (list below). The payment shots are real card and phone payments; incidental card-scheme marks (a Visa card, a wallet screen on the phone) are visible as in everyday life. A commissioned shoot could show UPI QR payments with Indian talent and locations.
 3. **The product screens are rebuilt motion graphics.** They are based on the documented product workflows on the website, not screen recordings of the products. Please have product owners confirm each screen's wording, especially the Zenstra banner text ("Blocked! This prompt contains credentials, API keys and tokens.").
 4. **Claude interface and name.** The Zenstra section shows a Claude-style chat and names "Claude (claude.ai)" in the detection record. Confirm with legal that third-party product names and UI may appear in the ad. If not, the chat can be made generic in a few minutes.
 5. **Credentials on screen are not real.** The AWS keys are AWS's documented example keys (`AKIAIOSFODNN7EXAMPLE`). The database host and password are invented.
-6. **Resolution.** The delivery is 1080p. Some sources are 720p (mk_9078, mk_9181), upscaled with Lanczos. A 4K version needs 4K source footage. The graphics already render at any resolution.
+6. **Resolution.** The delivery is 1080p. Some sources are 720p (mk_8875, mk_8994), upscaled with Lanczos. A 4K version needs 4K source footage. The graphics already render at any resolution.
 
 ## 6. Footage credits
 
@@ -78,19 +78,21 @@ The score is an original synthesised piece (pads, plucks, mallets, light percuss
 | cv_OQsjEZ4kND | Businesswoman Answering Phone Call Outdoors in City | Coverr |
 | cv_bY6MmxNA8Q | Confident Businesswoman Walking Outdoors in City | Coverr |
 | cv_7Ly15I4p2C | Young Businesswoman Contemplating in City Setting | Coverr |
-| cv_9DfpggkcyD | Swiping on iPhone green screen | Coverr |
 | mk_918 | Busy office space | Mixkit |
 | mk_1805 | A woman using her smartphone | Mixkit |
 | mk_4806 | Young woman writes a list on her work schedule | Mixkit |
 | mk_41637 / 41639 / 41642 / 41645 | Programmer working at a computer (series) | Mixkit |
-| mk_9078 | Woman holding greenscreen mobile phone taps screen | Mixkit |
-| mk_9181 | Man touching mobile phone greenscreen | Mixkit |
+| mk_8875 | Woman buying groceries with mobile phone | Mixkit |
+| mk_8994 | Man uses credit card on POS to pay for meal | Mixkit |
+| cv_DfP6PtRDZ3 | Transferring card details | Coverr |
+| cv_4gPFPneW9Q | A Customer Pays with Apple Pay at the Café | Coverr |
+| cv_lUU3bmV8Uh | Close-Up of Online Shopping on Tablet with Credit Card | Coverr |
 
 ## 7. Rebuilding
 
 ```
-# phone composites (green-screen replacement), per shot
-python3 film3/tools/phone_comp.py <clip> <in> <dur> <ui-frames> <out> [dark]
+# shots (cut and graded from the sources listed in film3/tools/edl.json)
+python3 film3/tools/prep_shots.py <source-dir> film3/src/shots
 # frames, sound, captions
 node film3/tools/render.cjs http://127.0.0.1:8767/index.html <frames-dir> 0 "" 3
 python3 film3/tools/mix.py events.json <vo-dir> film3/tools/edl.json mix.wav

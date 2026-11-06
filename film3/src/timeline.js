@@ -47,6 +47,24 @@ function lowerThird(a, b, text) {
   });
 }
 
+/* ---------- behaviour signal over live action: what adapID reads in this moment ---------- */
+function signalChip(a, b, label, value) {
+  sfx(a + 0.2, 'tick');
+  return layer(a, b, (root) => {
+    const w = el('div', 'abs', root);
+    S(w, { left: '96px', bottom: '92px', display: 'flex', alignItems: 'center', gap: '16px', padding: '16px 28px 16px 16px', borderRadius: '20px', background: 'rgba(255,255,255,.96)', boxShadow: '0 24px 50px -20px rgba(15,23,42,.45)' });
+    w.innerHTML = `<span class="ck" style="width:44px;height:44px;border-radius:50%;background:#ecfdf5;display:grid;place-items:center"><svg width="24" height="24" viewBox="0 0 24 24"><path class="tk" d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="#047857" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="24" stroke-dashoffset="24"/></svg></span>
+      <span style="display:grid;gap:6px"><span style="font:600 15px/1 var(--sans);letter-spacing:.12em;text-transform:uppercase;color:#64748b">${label}</span><b class="vl" style="font:600 27px/1.05 var(--disp);letter-spacing:-.015em;color:${INK};white-space:nowrap">${value}</b></span>`;
+    const tk = w.querySelector('.tk'), vl = w.querySelector('.vl');
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo(w, { opacity: 0, y: 22, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: 'back.out(1.5)' }, 0)
+      .to(tk, { strokeDashoffset: 0, duration: 0.4, ease: 'power2.out' }, 0.25)
+      .fromTo(vl, { opacity: 0, x: -12, filter: 'blur(6px)' }, { opacity: 1, x: 0, filter: 'blur(0px)', duration: 0.45, ease: 'power3.out' }, 0.2)
+      .to(w, { opacity: 0, y: 10, duration: 0.3, ease: 'power2.in' }, b - a - 0.3);
+    return (t) => tl.seek(clamp(t - a, 0, b - a), false);
+  });
+}
+
 /* ---------- PhonePe-clear title card: framed live shot + two-weight headline + brand bar ---------- */
 function titleCard(a, b, footId, o) {
   sfx(a + 0.05, 'gridIn'); sfx(a + 0.9, 'lockup');
@@ -182,7 +200,9 @@ UI.nhi(36.1, 45.05);
 shot('s10', 44.5, 2.6, { in: 'wipe' });
 // C · Identity Fraud Prevention: a real payment, then what the bank can see
 shot('s11', 47.0, 2.5); lowerThird(47.2, 49.4, 'Identity Fraud Prevention');
-shot('p1', 49.5, 3.6); shot('p2', 53.1, 3.2); shot('p3', 56.3, 4.1);
+shot('f1', 49.5, 2.1); shot('f2', 51.6, 2.0); shot('f3', 53.6, 1.9); shot('f4', 55.5, 2.0); shot('f5', 57.5, 2.8);
+signalChip(51.75, 53.55, 'How they type', 'Typing rhythm matches'); signalChip(53.95, 55.45, 'How they tap', 'Device recognised'); signalChip(55.6, 57.45, 'How they pay', 'Usual place, usual amount');
+signalChip(57.7, 59.75, 'Genuine customer', 'No extra step');
 UI.fraud(59.8, 66.05);
 // Zenstra AI · Secure AI Interactions
 shot('s12', 65.5, 3.8, { in: 'wipe' });

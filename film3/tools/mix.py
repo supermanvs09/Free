@@ -104,7 +104,7 @@ SECT = [
 ]
 PAT = [3, 4, 2, 4, 3, 5, 2, 4]
 def duck(t0, t1): return lambda te: not (t0 <= te < t1)
-HOLDS = [(57.6, 58.7), (73.6, 75.3)]          # the payment processing, and the moment before the Zenstra block
+HOLDS = [(73.6, 75.3)]                        # the moment before the Zenstra block
 def held(te): return any(a <= te < b for a, b in HOLDS)
 for (a, b, kind, pg, padg, kick, hats, octv, bass) in SECT:
     t = a
@@ -126,8 +126,8 @@ for (a, b, kind, pg, padg, kick, hats, octv, bass) in SECT:
         t += BAR
 # tension swells where risk rises
 for t0, d in ((26.0, 4.5), (61.0, 3.0), (71.6, 2.0)): noise_sweep(t0, d, 200, 6000, 0.22, 'up', send=0.6); pad([63, 75], t0, d, 0.25, bright=0.6, att=d * 0.7, rel=0.3)
-# the payment resolves; the Zenstra moment holds its breath
-pad([50, 57, 62], 57.6, 1.1, 0.3, bright=0.2, att=0.2, rel=0.4); pad(CH['F'][1:5], 58.7, 2.5, 0.4, bright=0.6, att=0.1, rel=1.2)
+# the genuine customer passes: a small lift; the Zenstra moment holds its breath
+pad(CH['F'][1:5], 57.5, 2.5, 0.32, bright=0.6, att=0.15, rel=1.2)
 pad([38, 50], 73.6, 1.8, 0.25, bright=0.1, att=0.3, rel=0.4)
 # the company: Bb, Gm, A under the closing line and the grid, landing on D major with the logo
 for t0, L, chn in ((87.5, 2.3, 'Bb'), (89.8, 2.2, 'Gm'), (92.0, 2.2, 'A')):
@@ -150,17 +150,13 @@ def bed(t0, t1, kind, g):
     place(sfx, y * env[:, None] * 0.05, t0, g)
 PLACE = [('city', 0.0, 2.8), ('office', 2.8, 1.8), ('office', 4.6, 1.9), ('room', 6.5, 1.7), ('office', 8.2, 2.2),
          ('city', 14.3, 5.5), ('room', 19.7, 3.1), ('city', 30.9, 2.4), ('office', 33.2, 3.0), ('office', 44.5, 2.6),
-         ('room', 47.0, 2.5), ('room', 49.5, 3.6), ('cafe', 53.1, 3.2), ('room', 56.3, 3.6), ('office', 65.5, 3.3), ('office', 84.2, 5.7)]
+         ('room', 47.0, 2.5), ('room', 49.5, 2.1), ('city', 51.6, 2.0), ('cafe', 53.6, 1.9), ('cafe', 55.5, 2.0), ('city', 57.5, 2.8), ('office', 65.5, 3.3), ('office', 84.2, 5.7)]
 for kind, at, ln in PLACE:
     bed(at, at + ln, kind, 1.0 if kind != 'room' else 0.8)
     if kind == 'cafe':
         for k in range(int(ln / 0.9)): bell(96 + rs.integers(0, 5), at + 0.3 + k * 0.9 + rs.random() * 0.4, 0.04, pan=rs.random() - 0.5, decay=0.25, send=0.3)
-# the bank app: the contact tap, five keypad taps, Pay, and the paid confirmation (timed to phone.html)
-def phone_tap(t): click(t, 0.22, f=4200, dec=0.002); tone(91, t + 0.01, 0.05, 0.12, send=0.15)
-phone_tap(49.5 + 1.95)
-for k in (0.45, 1.0, 1.6, 2.2, 2.75): phone_tap(53.1 + k)
-phone_tap(56.3 + 1.45)
-tone(86, 56.3 + 2.35, 0.12, 0.3, send=0.4); tone(93, 56.3 + 2.44, 0.3, 0.3, send=0.5)
+# the contactless tap at the café counter: the terminal's confirmation beep
+tone(95, 53.75, 0.09, 0.22, send=0.25); tone(95, 53.87, 0.12, 0.2, send=0.3)
 
 # ---------------- sound design from the film's events ----------------
 events = json.load(open(ev_path))
