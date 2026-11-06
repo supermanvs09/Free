@@ -192,9 +192,9 @@ export default function HeistPlay() {
           <input ref={input} id="ph-in" value={text} maxLength={600} autoComplete="off" spellCheck={!key}
             onChange={(e) => setText(e.target.value)} onFocus={() => setFocus(true)} onBlur={() => setFocus(false)}
             placeholder={key ? 'Enter the passphrase' : 'Say something to the Guardian…'} className={cx(key && 'mono uppercase tracking-[.2em]')} />
-          {!key && <button type="button" className="ph-icon max-sm:hidden" aria-pressed={ideas} onClick={() => setIdeas((v) => !v)} title="Ideas"><Icon name="Sparkle" size={19} /></button>}
+          {!key && <button type="button" className="ph-icon max-sm:hidden" aria-pressed={ideas} onClick={() => setIdeas((v) => !v)} title="Ideas" aria-label="Show ideas"><Icon name="Sparkle" size={19} /></button>}
           <button type="button" className="ph-icon" aria-pressed={key} onClick={() => { setKey((v) => !v); setText(''); input.current?.focus(); }} title={key ? 'Back to talking' : 'Try a passphrase'} aria-label={key ? 'Back to talking' : 'Try a passphrase'}><Icon name={key ? 'ChatCircleText' : 'Key'} size={19} /></button>
-          <button type="submit" className="ph-send" disabled={!text.trim() || busy}>{key ? 'Unlock' : <Icon name="ArrowUp" size={20} weight="bold" />}</button>
+          <button type="submit" className="ph-send" aria-label={key ? undefined : 'Send message'} disabled={!text.trim() || busy}>{key ? 'Unlock' : <Icon name="ArrowUp" size={20} weight="bold" />}</button>
         </form>
         <p className="mt-2.5 text-center text-[12px] text-[var(--ink3)]">{key ? 'One word. Fewer tries score higher.' : `Got the passphrase? Press the key. Vault ${level} is worth +${lv.points}.`}</p>
       </div>

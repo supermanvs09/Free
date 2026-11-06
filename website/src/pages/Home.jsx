@@ -111,7 +111,7 @@ export default function Home() {
             </Reveal>
           ))}
         </div>
-        <Reveal className="mt-14">
+        <Reveal className="mt-14 hidden md:block">
           <h3 className="t-h4">How they fit into your environment</h3>
           <p className="mt-1 t-small">Read from the sources you already run. Decide in the middle. Act through the tools you already use.</p>
           <div className="mt-6"><Architecture compact /></div>

@@ -92,7 +92,7 @@ export default function App() {
     <>
       <Header />
       <CommandLauncher />
-      <main id="main" className="pt-[var(--hdr)]">
+      <main id="main" tabIndex={-1} className="pt-[var(--hdr)] outline-none">
         <PageEffects />
         <Suspense fallback={<div className="page"><div className="min-h-screen" /></div>}>
           <Page>

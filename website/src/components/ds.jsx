@@ -219,9 +219,9 @@ export function LogoWall({ title = 'Organisations we work with', lead, groups = 
         {groups.map(([g, keys]) => (
           <div key={g} className="grid gap-3 py-5 md:grid-cols-[220px_minmax(0,1fr)] md:items-center md:gap-8">
             <dt className="app-label">{g}</dt>
-            <dd className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            <dd className="grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-6">
               {keys.map((k) => (
-                <span key={k} className="flex h-16 items-center justify-center rounded-[10px] border border-line bg-white px-4">
+                <span key={k} className="flex h-14 items-center justify-center rounded-[10px] border border-line bg-white px-2 sm:h-16 sm:px-4">
                   <img src={`/img/logos/${k}.webp`} alt={ORG[k]} title={ORG[k]} loading="lazy" decoding="async" className="max-h-9 w-auto max-w-full object-contain opacity-80 grayscale transition duration-200 hover:opacity-100 hover:grayscale-0" />
                 </span>
               ))}

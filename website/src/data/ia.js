@@ -72,7 +72,7 @@ export const RESOURCES = {
     { name: 'Financial crime', path: '/blogs?topic=financial-crime', icon: 'Bank' },
   ],
   explore: [
-    { name: 'Product tour', desc: 'Ten steps, no call needed', path: '/product-tour', icon: 'Play' },
+    { name: 'Product tour', desc: 'Seven steps, no call needed', path: '/product-tour', icon: 'Play' },
     { name: 'Prompt Heist', desc: 'Our prompt-injection challenge', path: '/prompt-heist', icon: 'Trophy' },
     { name: 'In the news', desc: 'Press, interviews and events', path: '/about-us#news', icon: 'Newspaper' },
   ],
