@@ -275,20 +275,31 @@ func main() {
 	} else {
 		slog.Warn("approval e-mail: off, approvals are only shown in the tenant-onboarding tool", "problem", approvalMailer.Problem())
 	}
+	awsRepo := awsintegration.NewAWSIntegrationRepository(db)
+	// Approve or reject from the e-mail: public routes, enabled only when the
+	// API's public address is configured (there are no links without it).
+	var approvalLinkHandler *awsintegration.ApprovalLinkHandler
+	if cfg.AWSIntegration.ApprovalLinkBaseURL != "" {
+		approvalLinkHandler = awsintegration.NewApprovalLinkHandler(awsRepo)
+		slog.Info("approval e-mail: decision links on", "base", cfg.AWSIntegration.ApprovalLinkBaseURL)
+	} else {
+		slog.Info("approval e-mail: no decision links (set APPROVAL_LINK_BASE_URL to approve from the e-mail)")
+	}
 	awsIntegrationHandler := awsintegration.NewAWSIntegrationHandler(awsintegration.NewAWSIntegrationService(
-		awsintegration.NewAWSIntegrationRepository(db),
+		awsRepo,
 		awsVerifier,
 		githubcheck.New(cfg.AWSIntegration.GitHubAPIURL),
 		awsEvents,
 		awsintegration.AWSIntegrationOptions{
-			AssumerRoleName:    cfg.AWSIntegration.AssumerRoleName,
-			CollectorRoleName:  cfg.AWSIntegration.CollectorRoleName,
-			ForwardRuleName:    cfg.AWSIntegration.ForwardRuleName,
-			GitHubSecretPrefix: cfg.AWSIntegration.GitHubSecretPrefix,
-			ForwardRoleName:    cfg.AWSIntegration.ForwardRoleName,
-			TrailName:          cfg.AWSIntegration.TrailName,
-			EventPollInterval:  time.Duration(cfg.AWSIntegration.EventPollSeconds) * time.Second,
-			EventWaitLimit:     time.Duration(cfg.AWSIntegration.EventWaitMinutes) * time.Minute,
+			AssumerRoleName:     cfg.AWSIntegration.AssumerRoleName,
+			CollectorRoleName:   cfg.AWSIntegration.CollectorRoleName,
+			ForwardRuleName:     cfg.AWSIntegration.ForwardRuleName,
+			GitHubSecretPrefix:  cfg.AWSIntegration.GitHubSecretPrefix,
+			ForwardRoleName:     cfg.AWSIntegration.ForwardRoleName,
+			TrailName:           cfg.AWSIntegration.TrailName,
+			EventPollInterval:   time.Duration(cfg.AWSIntegration.EventPollSeconds) * time.Second,
+			EventWaitLimit:      time.Duration(cfg.AWSIntegration.EventWaitMinutes) * time.Minute,
+			ApprovalLinkBaseURL: cfg.AWSIntegration.ApprovalLinkBaseURL,
 			// The approval notice, through Amazon SES: EMAIL_FROM and
 			// SES_REGION, to CONNECTION_APPROVAL_EMAILS.
 			Mailer: approvalMailer,
@@ -334,6 +345,7 @@ func main() {
 		AuthMiddleware:                 authMiddleware,
 		UsersHandler:                   usersHandler,
 		AuditLogHandler:                auditLogHandler,
+		ApprovalLinkHandler:            approvalLinkHandler,
 		AuditSink:                      auditStore,
 		AuditReads:                     cfg.AuditReads,
 		NewAPIFilterHandler:            filterHandler,

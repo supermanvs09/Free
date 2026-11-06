@@ -245,6 +245,14 @@ seconds, and the bell, the sidebar badge, the tab title and a toast announce
 each new pending request; desktop alerts can be turned on per browser. The
 e-mail is only an extra heads-up and says to open this tool.
 
+**Approving from the e-mail.** When the API's `APPROVAL_LINK_BASE_URL` is set, each approver's e-mail
+has a "Review and decide" link of their own. It opens a page on the API server (the only part of the
+system that is deployed) with Approve and Reject buttons, and opening it decides nothing, because mail
+scanners open links. A link works once, expires after 72 hours, and is recorded as the address it was
+sent to (`decided_by` reads `name@example.com (e-mail link)`). Whoever decides first wins: a request
+decided in the e-mail shows as decided here, and the other way round. Past 72 hours, or with no
+address configured, decide here.
+
 A super admin approves or rejects with a reason the company sees on its Integrations
 page. Approving does not connect the account by itself: the API server then lets the
 account onto its event bus and watches for its first event, and the account becomes

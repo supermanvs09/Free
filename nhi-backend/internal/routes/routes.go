@@ -50,6 +50,9 @@ type HandlerContainer struct {
 	NewAPICredentialDetailHandler *credentials.CredentialDetailHandler
 	NewAPIPermissionSourceHandler *permissionsource.PermissionSourceHandler
 	AWSIntegrationHandler         *awsintegration.AWSIntegrationHandler
+	// ApprovalLinkHandler: the public page and calls behind the "approve from
+	// the e-mail" link. Nil unless APPROVAL_LINK_BASE_URL is set.
+	ApprovalLinkHandler *awsintegration.ApprovalLinkHandler
 
 	// ISPM posture dashboard API (16 endpoints), mounted under PostureBasePath.
 	PostureHandlers *posture.Handlers
@@ -118,6 +121,11 @@ func SetupRoutes(h HandlerContainer) *mux.Router {
 		r.HandleFunc("/api/auth/refresh", h.AuthHandler.Refresh).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/logout", h.AuthHandler.Logout).Methods(http.MethodPost)
 		r.HandleFunc("/api/auth/logout", h.AuthHandler.Logout).Methods(http.MethodPost)
+	}
+	if h.ApprovalLinkHandler != nil { // no login: the link's token is the credential
+		r.HandleFunc("/api/v1/approvals/email", h.ApprovalLinkHandler.Page).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/approvals/email/lookup", h.ApprovalLinkHandler.Lookup).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/approvals/email/decide", h.ApprovalLinkHandler.Decide).Methods(http.MethodPost)
 	}
 	if h.Scans != nil { // no login: the worker validates the caller's key
 		// Own prefix: /api/v1/scans is the discovery scan history (and its /changes).
