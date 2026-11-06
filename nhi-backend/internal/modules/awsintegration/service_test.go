@@ -3,7 +3,6 @@ package awsintegration
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -32,8 +31,6 @@ type fakeAWSStore struct {
 	approvals []ApprovalRequest
 	emails    map[int64]string
 	withdrawn []string
-	linkErr   error                       // CreateApprovalLinks fails with it
-	links     map[int64]map[string]string // approval id -> address -> token
 }
 
 func newFakeAWSStore() *fakeAWSStore {
@@ -98,24 +95,6 @@ func (f *fakeAWSStore) WithdrawApprovals(_ context.Context, _, accountID string)
 	defer f.mu.Unlock()
 	f.withdrawn = append(f.withdrawn, accountID)
 	return nil
-}
-
-// CreateApprovalLinks hands out a distinct token per address, as the real one does.
-func (f *fakeAWSStore) CreateApprovalLinks(_ context.Context, id int64, emails []string, _ time.Duration) (map[string]string, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if f.linkErr != nil {
-		return nil, f.linkErr
-	}
-	if f.links == nil {
-		f.links = map[int64]map[string]string{}
-	}
-	out := map[string]string{}
-	for _, e := range emails {
-		out[e] = fmt.Sprintf("tok-%d-%s", id, strings.ToLower(e))
-	}
-	f.links[id] = out
-	return out, nil
 }
 
 func (f *fakeAWSStore) account(id string) AWSAccountRecord {
@@ -340,38 +319,13 @@ func (e fakeEvents) PollEvents(context.Context, awsconnect.Platform, string) (aw
 }
 
 type fakeMailer struct {
-	mu         sync.Mutex
-	sent       []string          // subject of every message
-	err        error             // Send / SendTo fail with it
-	recipients []string          // default: one approver
-	bodies     map[string]string // address -> html + text of what it was sent (SendTo)
-	failFor    map[string]bool   // SendTo fails for these addresses
+	mu   sync.Mutex
+	sent []string
+	err  error
 }
 
 func (m *fakeMailer) Configured() bool { return true }
-func (m *fakeMailer) To() []string {
-	if len(m.recipients) > 0 {
-		return m.recipients
-	}
-	return []string{"approver@platform.test"}
-}
-
-func (m *fakeMailer) SendTo(_ context.Context, to, subject, html, text string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.failFor[to] {
-		return errors.New("rejected by the mail service")
-	}
-	if m.err != nil {
-		return m.err
-	}
-	if m.bodies == nil {
-		m.bodies = map[string]string{}
-	}
-	m.bodies[to] = subject + "\n" + html + "\n" + text
-	m.sent = append(m.sent, subject)
-	return nil
-}
+func (m *fakeMailer) To() []string     { return []string{"approver@platform.test"} }
 func (m *fakeMailer) Send(_ context.Context, subject, _, _ string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -472,9 +426,7 @@ func mailArrives(t *testing.T, m *fakeMailer, store *fakeAWSStore) {
 		store.mu.Lock()
 		status := store.emails[1]
 		store.mu.Unlock()
-		// The outcome is recorded last, whether or not anyone could be reached.
-		if status != "" {
-			_ = n
+		if n > 0 && status != "" {
 			return
 		}
 		time.Sleep(10 * time.Millisecond)

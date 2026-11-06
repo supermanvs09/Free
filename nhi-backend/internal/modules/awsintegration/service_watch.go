@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"html"
-	"log/slog"
 	"sort"
 	"strings"
 	"time"
@@ -319,22 +318,17 @@ func (s *AWSIntegrationService) notifyApprovers(ctx context.Context, id int64, c
 		_ = s.store.SetApprovalEmail(ctx, id, "not_configured", why)
 		return
 	}
-
-	// With a public address configured, each approver gets an e-mail of their
-	// own with a link only they hold, to approve or reject from the e-mail.
-	if rm, ok := s.mailer.(recipientMailer); ok && s.opts.ApprovalLinkBaseURL != "" {
-		to := s.mailer.To()
-		tokens, err := s.store.CreateApprovalLinks(ctx, id, to, approvalLinkTTL)
-		if err != nil {
-			log.Error("aws integration: approval links could not be created, e-mailing without them", "err", err)
-		} else {
-			s.sendApprovalLinks(ctx, log, rm, id, caller, domain, rec, to, tokens)
-			return
+	subject, htmlBody, text := approvalEmail(caller, domain, rec)
+	var err error
+	for attempt := 0; attempt < 3; attempt++ {
+		sendCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+		err = s.mailer.Send(sendCtx, subject, htmlBody, text)
+		cancel()
+		if err == nil {
+			break
 		}
+		time.Sleep(time.Duration(attempt+1) * 2 * time.Second)
 	}
-
-	subject, htmlBody, text := approvalEmail(caller, domain, rec, "")
-	err := s.sendWithRetry(ctx, func(c context.Context) error { return s.mailer.Send(c, subject, htmlBody, text) })
 	if err != nil {
 		log.Error("aws integration: approval e-mail failed", "err", err, "to", s.mailer.To())
 		_ = s.store.SetApprovalEmail(context.Background(), id, "failed", err.Error())
@@ -344,84 +338,11 @@ func (s *AWSIntegrationService) notifyApprovers(ctx context.Context, id int64, c
 	_ = s.store.SetApprovalEmail(context.Background(), id, "sent", "")
 }
 
-// recipientMailer is a mailer that can send to one recipient at a time.
-type recipientMailer interface {
-	SendTo(ctx context.Context, to, subject, html, text string) error
-}
-
-// sendApprovalLinks e-mails every approver their own link. The request counts
-// as e-mailed when at least one approver was reached; the ones that were not
-// are logged (the tenant-onboarding tool still shows the request).
-func (s *AWSIntegrationService) sendApprovalLinks(ctx context.Context, log *slog.Logger, rm recipientMailer, id int64, caller AWSCaller, domain string, rec AWSAccountRecord, to []string, tokens map[string]string) {
-	var sent, failed []string
-	var lastErr error
-	for _, addr := range to {
-		token, ok := tokens[addr]
-		if !ok {
-			failed = append(failed, addr)
-			continue
-		}
-		subject, htmlBody, text := approvalEmail(caller, domain, rec, s.approvalURL(token))
-		err := s.sendWithRetry(ctx, func(c context.Context) error { return rm.SendTo(c, addr, subject, htmlBody, text) })
-		if err != nil {
-			log.Error("aws integration: approval e-mail failed for one approver", "to", addr, "err", err)
-			failed = append(failed, addr)
-			lastErr = err
-			continue
-		}
-		sent = append(sent, addr)
-	}
-	switch {
-	case len(sent) == 0:
-		why := "no approver could be e-mailed"
-		if lastErr != nil {
-			why = lastErr.Error()
-		}
-		log.Error("aws integration: approval e-mail failed", "to", to, "err", why)
-		_ = s.store.SetApprovalEmail(context.Background(), id, "failed", why)
-	default:
-		log.Info("aws integration: approval e-mail with decision links sent", "sent_to", sent, "failed_for", failed)
-		_ = s.store.SetApprovalEmail(context.Background(), id, "sent", "")
-	}
-}
-
-// approvalURL is the address of the decision page for one approver. The token
-// is in the fragment, which browsers never send to any server.
-func (s *AWSIntegrationService) approvalURL(token string) string {
-	return strings.TrimRight(s.opts.ApprovalLinkBaseURL, "/") + "/api/v1/approvals/email#t=" + token
-}
-
-// sendWithRetry tries a send up to three times, backing off between tries.
-func (s *AWSIntegrationService) sendWithRetry(ctx context.Context, send func(context.Context) error) error {
-	var err error
-	for attempt := 0; attempt < 3; attempt++ {
-		sendCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
-		err = send(sendCtx)
-		cancel()
-		if err == nil {
-			return nil
-		}
-		select {
-		case <-ctx.Done():
-			return err
-		case <-time.After(s.retryPause(attempt)):
-		}
-	}
-	return err
-}
-
-func (s *AWSIntegrationService) retryPause(attempt int) time.Duration {
-	if s.testPoll > 0 { // tests: do not wait seconds between tries
-		return s.testPoll
-	}
-	return time.Duration(attempt+1) * 2 * time.Second
-}
-
 // approvalReviewHint: the onboarding tool runs on the approver's own machine,
 // so the e-mail says where to look instead of linking to it.
 const approvalReviewHint = "Review it in the tenant-onboarding tool on your computer: Approvals tab (it lists every waiting request from the database)."
 
-func approvalEmail(caller AWSCaller, domain string, rec AWSAccountRecord, link string) (subject, htmlBody, text string) {
+func approvalEmail(caller AWSCaller, domain string, rec AWSAccountRecord) (subject, htmlBody, text string) {
 	workspace := caller.Schema
 	if domain != "" {
 		workspace = domain
@@ -437,15 +358,8 @@ func approvalEmail(caller AWSCaller, domain string, rec AWSAccountRecord, link s
 		"Regions:     " + strings.Join(rec.Regions, ", "),
 		"Requested by " + caller.Actor,
 		"",
+		approvalReviewHint,
 	}
-	if link != "" {
-		lines = append(lines,
-			"Review and decide (approve or reject) with this link:",
-			link,
-			"The link is yours alone, works once and expires in 72 hours. Do not forward it. Opening it decides nothing: you confirm on the page.",
-			"")
-	}
-	lines = append(lines, approvalReviewHint)
 	text = strings.Join(lines, "\n")
 	esc := html.EscapeString
 	var b strings.Builder
@@ -458,10 +372,6 @@ func approvalEmail(caller AWSCaller, domain string, rec AWSAccountRecord, link s
 		b.WriteString(`<tr><td style="color:#64748b">` + esc(row[0]) + `</td><td><b>` + esc(row[1]) + `</b></td></tr>`)
 	}
 	b.WriteString(`</table>`)
-	if link != "" {
-		b.WriteString(`<p><a href="` + esc(link) + `" style="display:inline-block;background:#1668b0;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:bold">Review and decide</a></p>`)
-		b.WriteString(`<p style="color:#64748b;font-size:13px">The link is yours alone, works once and expires in 72 hours. Do not forward it. Opening it decides nothing: you confirm on the page.</p>`)
-	}
 	b.WriteString(`<p>` + esc(approvalReviewHint) + `</p>`)
 	b.WriteString(`</div>`)
 	return subject, b.String(), text

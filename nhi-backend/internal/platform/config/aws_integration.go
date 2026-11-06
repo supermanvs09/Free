@@ -53,11 +53,6 @@ type AWSIntegrationConfig struct {
 	// before concluding (default 15).
 	EventPollSeconds int `yaml:"event_poll_seconds"`
 	EventWaitMinutes int `yaml:"event_wait_minutes"`
-	// ApprovalLinkBaseURL is this API's public address (APPROVAL_LINK_BASE_URL,
-	// e.g. https://nhi.example.com). When set, the approval e-mail carries a link
-	// to approve or reject from it. Read from configuration only - never from a
-	// request - so nobody can point the link at another host.
-	ApprovalLinkBaseURL string `yaml:"approval_link_base_url"`
 }
 
 var awsSecretPrefixRE = regexp.MustCompile(`^[A-Za-z0-9/_+=.@-]{1,256}$`)
@@ -77,7 +72,6 @@ func (a *AWSIntegrationConfig) load() error {
 	set(&a.EventQueueURL, "NHI_AWS_EVENT_QUEUE_URL")
 	set(&a.ForwardRoleName, "NHI_AWS_FORWARD_ROLE_NAME")
 	set(&a.TrailName, "NHI_AWS_TRAIL_NAME")
-	set(&a.ApprovalLinkBaseURL, "APPROVAL_LINK_BASE_URL")
 	for _, kv := range []struct {
 		key string
 		dst *int
@@ -116,11 +110,6 @@ func (a *AWSIntegrationConfig) load() error {
 	if a.TrailName = strings.TrimSpace(a.TrailName); a.TrailName == "" {
 		a.TrailName = "adapid-nhi-trail"
 	}
-	base, err := NormalizeApprovalLinkBase(a.ApprovalLinkBaseURL)
-	if err != nil {
-		return err
-	}
-	a.ApprovalLinkBaseURL = base
 	if a.EventPollSeconds == 0 {
 		a.EventPollSeconds = 7
 	}
@@ -152,21 +141,4 @@ func (a *AWSIntegrationConfig) load() error {
 		return fmt.Errorf("config: aws_integration.github_api_url must be an https URL")
 	}
 	return nil
-}
-
-// NormalizeApprovalLinkBase checks the address the approval e-mail's links
-// start with: an origin only (https://host[:port], no path, query, fragment or
-// credentials). Plain http is accepted for localhost, for development.
-func NormalizeApprovalLinkBase(raw string) (string, error) {
-	raw = strings.TrimRight(strings.TrimSpace(raw), "/")
-	if raw == "" {
-		return "", nil
-	}
-	u, err := url.Parse(raw)
-	local := err == nil && (u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1")
-	if err != nil || u.Host == "" || u.Hostname() == "" || u.User != nil || u.Path != "" || u.RawQuery != "" || u.Fragment != "" ||
-		(u.Scheme != "https" && !(u.Scheme == "http" && local)) {
-		return "", fmt.Errorf("config: APPROVAL_LINK_BASE_URL must be the API's public origin, like https://nhi.example.com (https, no path)")
-	}
-	return u.Scheme + "://" + u.Host, nil
 }

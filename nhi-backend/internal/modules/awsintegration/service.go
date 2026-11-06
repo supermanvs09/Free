@@ -77,9 +77,6 @@ type AWSIntegrationStore interface {
 	RequestApproval(ctx context.Context, req ApprovalRequest) (int64, *AWSAccountRecord, error)
 	SetApprovalEmail(ctx context.Context, id int64, status, errText string) error
 	WithdrawApprovals(ctx context.Context, tenantID, accountID string) error
-	// CreateApprovalLinks issues one single-use token per recipient of request
-	// approvalID (only their hashes are stored), keyed by the address given.
-	CreateApprovalLinks(ctx context.Context, approvalID int64, emails []string, ttl time.Duration) (map[string]string, error)
 }
 
 // AWSVerifier is the AWS side (awsconnect.Client in production).
@@ -135,11 +132,6 @@ type AWSIntegrationOptions struct {
 	EventPollInterval time.Duration
 	// EventWaitLimit is how long it watches before concluding.
 	EventWaitLimit time.Duration
-	// ApprovalLinkBaseURL is this API's public address (https://host, no path).
-	// When set, each approver's e-mail carries a link to approve or reject from
-	// it. It comes from configuration, never from the request, so a customer
-	// cannot point the link somewhere else. Empty: e-mail without links.
-	ApprovalLinkBaseURL string
 	// Mailer sends the approval notice; nil or unconfigured records
 	// "not_configured" on the request.
 	Mailer AWSMailer
@@ -1011,7 +1003,7 @@ func (s *AWSIntegrationService) askApproval(ctx context.Context, caller AWSCalle
 	}
 	log.Info("aws integration: connection waits for approval; its events are checked after it", "approval_id", id)
 	go func() {
-		nctx, ncancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Minute)
+		nctx, ncancel := context.WithTimeout(context.WithoutCancel(ctx), 90*time.Second)
 		defer ncancel()
 		s.notifyApprovers(nctx, id, caller, domain, rec)
 	}()

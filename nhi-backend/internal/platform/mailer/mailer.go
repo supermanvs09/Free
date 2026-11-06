@@ -126,29 +126,6 @@ func (m *Mailer) To() []string {
 	return append([]string(nil), m.to...)
 }
 
-// SendTo delivers one message to a single recipient, who must be one of the
-// configured ones. Each approver gets a message of their own because each has
-// a link of their own.
-func (m *Mailer) SendTo(ctx context.Context, to, subject, html, text string) error {
-	if !m.Configured() {
-		return ErrNotConfigured
-	}
-	listed := false
-	for _, addr := range m.to {
-		if strings.EqualFold(addr, to) {
-			listed = true
-			break
-		}
-	}
-	if !listed {
-		return fmt.Errorf("%s is not one of the configured recipients", to)
-	}
-	if err := m.sender.Send(ctx, m.from, []string{to}, subject, html, text); err != nil {
-		return fmt.Errorf("ses (%s): %w", m.region, err)
-	}
-	return nil
-}
-
 // Send delivers one message to the configured recipients.
 func (m *Mailer) Send(ctx context.Context, subject, html, text string) error {
 	if !m.Configured() {
