@@ -132,7 +132,7 @@ func newExposureSession(t *testing.T, f *fakeExposureAWS) (*Client, *Session) {
 		HTTPClient:       srv.Client(),
 		RetryMaxAttempts: 1,
 	}
-	return NewClient(cfg, false, ""), &Session{config: cfg}
+	return NewClient(cfg, false), &Session{config: cfg}
 }
 
 func TestListCodeCommit(t *testing.T) {

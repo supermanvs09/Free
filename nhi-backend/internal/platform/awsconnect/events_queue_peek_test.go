@@ -56,7 +56,7 @@ func newQueueClient(t *testing.T, f *fakeSQS, queueURL string) (*Client, Platfor
 	if err != nil {
 		t.Fatal(err)
 	}
-	return NewClient(base, false, "").WithEventQueue(queueURL), p
+	return NewClient(base, false).WithEventQueue(queueURL), p
 }
 
 const testQueueURL = "https://sqs.ap-south-1.amazonaws.com/999999999999/nhi-events"

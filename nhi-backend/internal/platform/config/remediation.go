@@ -25,7 +25,7 @@ import (
 //	DIGEST_ENABLED               false  DIGEST_HOUR_UTC 6
 //	AWS_REGION                   ap-south-1  AWS_SESSION_DURATION 15m  AWS_PLATFORM_ROLE_ARN (optional)
 //	DASHBOARD_BASE_URL           http://localhost:3000 (links in e-mails and Jira tickets)
-//	JIRA_* / EMAIL_* / SMTP_* / SES_REGION   platform defaults of the Jira and e-mail integrations
+//	JIRA_* / EMAIL_* / SES_REGION   platform defaults of the Jira and e-mail (Amazon SES) integrations
 type RemediationConfig struct {
 	Enabled     bool
 	AutoMigrate bool
@@ -67,8 +67,9 @@ type RemediationSafetyConfig struct {
 }
 
 // RemediationIntegrationsConfig holds the Jira / e-mail defaults read from the
-// environment. Secrets (JIRA_API_TOKEN, SMTP_PASSWORD) are never copied into
-// the database: the tenant row stores the reference env:JIRA_API_TOKEN / env:SMTP_PASSWORD.
+// environment. Secrets (JIRA_API_TOKEN) are never copied into
+// the database: the tenant row stores the reference env:JIRA_API_TOKEN. E-mail
+// needs no secret: SES uses the server's own AWS credentials.
 type RemediationIntegrationsConfig struct {
 	Jira  RemediationJiraEnv
 	Email RemediationEmailEnv
@@ -88,17 +89,13 @@ type RemediationJiraEnv struct {
 	Labels           []string
 }
 
+// RemediationEmailEnv: e-mail goes through Amazon SES only, and is on when
+// EMAIL_FROM is set.
 type RemediationEmailEnv struct {
-	Provider    string // EMAIL_PROVIDER: smtp | ses | none
-	From        string // EMAIL_FROM
-	Approvers   []string
-	Notify      []string
-	SMTPHost    string
-	SMTPPort    int
-	SMTPUser    string
-	PasswordRef string // SMTP_PASSWORD_REF (default env:SMTP_PASSWORD)
-	SMTPTLS     string // starttls | tls | none
-	SESRegion   string
+	From      string // EMAIL_FROM (an address or domain verified in SES)
+	Approvers []string
+	Notify    []string
+	SESRegion string // SES_REGION (default AWS_REGION)
 }
 
 // Remediation reads the remediation settings from the environment. With
@@ -143,10 +140,8 @@ func Remediation() (RemediationConfig, error) {
 				WontDoTransition: e.str("JIRA_WONTDO_TRANSITION", "Won't Do"), Labels: e.list("JIRA_LABELS", []string{"ispm"}),
 			},
 			Email: RemediationEmailEnv{
-				Provider: strings.ToLower(e.str("EMAIL_PROVIDER", "none")), From: e.str("EMAIL_FROM", ""),
+				From:      e.str("EMAIL_FROM", ""),
 				Approvers: e.list("EMAIL_APPROVERS", nil), Notify: e.list("EMAIL_NOTIFY", nil),
-				SMTPHost: e.str("SMTP_HOST", ""), SMTPPort: e.int("SMTP_PORT", 587), SMTPUser: e.str("SMTP_USERNAME", ""),
-				PasswordRef: e.str("SMTP_PASSWORD_REF", "env:SMTP_PASSWORD"), SMTPTLS: e.str("SMTP_TLS", "starttls"),
 				SESRegion: e.str("SES_REGION", e.str("AWS_REGION", "ap-south-1")),
 			},
 		},
@@ -167,19 +162,6 @@ func (c RemediationConfig) validate() error {
 	}
 	if j := c.Integrations.Jira; j.Enabled && (j.BaseURL == "" || j.ProjectKey == "" || j.Email == "") {
 		errs = append(errs, "JIRA_ENABLED=true needs JIRA_BASE_URL, JIRA_EMAIL and JIRA_PROJECT_KEY")
-	}
-	switch em := c.Integrations.Email; em.Provider {
-	case "none", "":
-	case "smtp":
-		if em.SMTPHost == "" || em.From == "" {
-			errs = append(errs, "EMAIL_PROVIDER=smtp needs SMTP_HOST and EMAIL_FROM")
-		}
-	case "ses":
-		if em.From == "" {
-			errs = append(errs, "EMAIL_PROVIDER=ses needs EMAIL_FROM")
-		}
-	default:
-		errs = append(errs, "EMAIL_PROVIDER must be smtp, ses or none")
 	}
 	if len(errs) > 0 {
 		return fmt.Errorf("config: %s", strings.Join(errs, "; "))

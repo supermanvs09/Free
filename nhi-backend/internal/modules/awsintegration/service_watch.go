@@ -319,7 +319,7 @@ func (s *AWSIntegrationService) notifyApprovers(ctx context.Context, id int64, c
 		log = log.With("provider", d.Provider())
 	}
 	if s.mailer == nil || !s.mailer.Configured() {
-		why := "set EMAIL_PROVIDER with SMTP_HOST or SES_REGION, EMAIL_FROM and CONNECTION_APPROVAL_EMAILS"
+		why := "set EMAIL_FROM, SES_REGION and CONNECTION_APPROVAL_EMAILS"
 		if d, ok := s.mailer.(described); ok && s.mailer != nil && d.Problem() != "" {
 			why = d.Problem()
 		}
@@ -327,7 +327,7 @@ func (s *AWSIntegrationService) notifyApprovers(ctx context.Context, id int64, c
 		_ = s.store.SetApprovalEmail(ctx, id, "not_configured", why)
 		return
 	}
-	subject, htmlBody, text := approvalEmail(caller, domain, rec, check, s.opts.ApprovalsURL)
+	subject, htmlBody, text := approvalEmail(caller, domain, rec, check)
 	var err error
 	for attempt := 0; attempt < 3; attempt++ {
 		sendCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
@@ -347,7 +347,11 @@ func (s *AWSIntegrationService) notifyApprovers(ctx context.Context, id int64, c
 	_ = s.store.SetApprovalEmail(context.Background(), id, "sent", "")
 }
 
-func approvalEmail(caller AWSCaller, domain string, rec AWSAccountRecord, check AWSCheck, approvalsURL string) (subject, htmlBody, text string) {
+// approvalReviewHint: the onboarding tool runs on the approver's own machine,
+// so the e-mail says where to look instead of linking to it.
+const approvalReviewHint = "Review it in the tenant-onboarding tool on your computer: Approvals tab (it lists every waiting request from the database)."
+
+func approvalEmail(caller AWSCaller, domain string, rec AWSAccountRecord, check AWSCheck) (subject, htmlBody, text string) {
 	workspace := caller.Schema
 	if domain != "" {
 		workspace = domain
@@ -367,9 +371,7 @@ func approvalEmail(caller AWSCaller, domain string, rec AWSAccountRecord, check 
 	if len(missing) > 0 {
 		lines = append(lines, "No events yet from: "+strings.Join(missing, ", "))
 	}
-	if approvalsURL != "" {
-		lines = append(lines, "", "Review it: "+approvalsURL)
-	}
+	lines = append(lines, "", approvalReviewHint)
 	text = strings.Join(lines, "\n")
 	esc := html.EscapeString
 	var b strings.Builder
@@ -385,9 +387,7 @@ func approvalEmail(caller AWSCaller, domain string, rec AWSAccountRecord, check 
 	if len(missing) > 0 {
 		b.WriteString(`<p style="color:#b45309">No events yet from ` + esc(strings.Join(missing, ", ")) + `.</p>`)
 	}
-	if approvalsURL != "" {
-		b.WriteString(`<p><a href="` + esc(approvalsURL) + `" style="background:#1668b0;color:#fff;padding:8px 14px;border-radius:6px;text-decoration:none">Review the request</a></p>`)
-	}
+	b.WriteString(`<p>` + esc(approvalReviewHint) + `</p>`)
 	b.WriteString(`</div>`)
 	return subject, b.String(), text
 }

@@ -1,20 +1,16 @@
-// Package notify renders remediation e-mails and sends them through SMTP or
-// Amazon SES. Mail is never sent inline: the engine writes remediation_notifications
+// Package notify renders remediation e-mails and sends them through Amazon SES
+// (the only mail service). Mail is never sent inline: the engine writes remediation_notifications
 // and a worker sends it with retries, so a mail outage never blocks a remediation.
 package notify
 
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	htmltpl "html/template"
-	"net"
-	"net/smtp"
 	"strings"
 	texttpl "text/template"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -24,18 +20,12 @@ import (
 	"nhi-backend-api/internal/remediation/domain"
 )
 
-// Config is remediation_integrations.config for type SMTP / SES.
+// Config is remediation_integrations.config for type SES.
 type Config struct {
 	From      string   `json:"from"`
 	Approvers []string `json:"approvers"` // get APPROVAL_REQUESTED and GRACE_ENDING
 	Notify    []string `json:"notify"`    // get results and the digest
-	// SMTP
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	Username string `json:"username"`
-	TLS      string `json:"tls"` // starttls (default) | tls | none
-	// SES
-	Region string `json:"region"`
+	Region    string   `json:"region"`    // SES region (default AWS_REGION)
 }
 
 func ParseConfig(raw json.RawMessage) (Config, error) {
@@ -137,72 +127,6 @@ func Render(d Data) (subject, html, text string, err error) {
 // Sender sends one message.
 type Sender interface {
 	Send(ctx context.Context, from string, to []string, subject, html, text string) error
-}
-
-// ---- SMTP ----
-
-type SMTP struct {
-	Host, Username, Password, TLS string
-	Port                          int
-}
-
-func (s *SMTP) Send(ctx context.Context, from string, to []string, subject, html, text string) error {
-	addr := net.JoinHostPort(s.Host, fmt.Sprint(s.Port))
-	d := net.Dialer{Timeout: 15 * time.Second}
-	conn, err := d.DialContext(ctx, "tcp", addr)
-	if err != nil {
-		return err
-	}
-	if s.TLS == "tls" {
-		conn = tls.Client(conn, &tls.Config{ServerName: s.Host, MinVersion: tls.VersionTLS12})
-	}
-	c, err := smtp.NewClient(conn, s.Host)
-	if err != nil {
-		conn.Close()
-		return err
-	}
-	defer c.Close()
-	if s.TLS == "" || s.TLS == "starttls" {
-		if ok, _ := c.Extension("STARTTLS"); ok {
-			if err := c.StartTLS(&tls.Config{ServerName: s.Host, MinVersion: tls.VersionTLS12}); err != nil {
-				return err
-			}
-		}
-	}
-	if s.Username != "" {
-		if err := c.Auth(smtp.PlainAuth("", s.Username, s.Password, s.Host)); err != nil {
-			return err
-		}
-	}
-	if err := c.Mail(from); err != nil {
-		return err
-	}
-	for _, r := range to {
-		if err := c.Rcpt(r); err != nil {
-			return err
-		}
-	}
-	w, err := c.Data()
-	if err != nil {
-		return err
-	}
-	if _, err := w.Write(buildMIME(from, to, subject, html, text)); err != nil {
-		return err
-	}
-	if err := w.Close(); err != nil {
-		return err
-	}
-	return c.Quit()
-}
-
-func buildMIME(from string, to []string, subject, html, text string) []byte {
-	const boundary = "ispm-boundary-7f3a"
-	var b bytes.Buffer
-	fmt.Fprintf(&b, "From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\n", from, strings.Join(to, ", "), mimeHeader(subject))
-	fmt.Fprintf(&b, "Content-Type: multipart/alternative; boundary=%s\r\n\r\n", boundary)
-	fmt.Fprintf(&b, "--%s\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s\r\n", boundary, text)
-	fmt.Fprintf(&b, "--%s\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n%s\r\n--%s--\r\n", boundary, html, boundary)
-	return b.Bytes()
 }
 
 func mimeHeader(s string) string {

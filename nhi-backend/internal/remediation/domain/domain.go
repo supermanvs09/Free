@@ -306,7 +306,7 @@ type Account struct {
 type Integration struct {
 	ID          string          `json:"integration_id"`
 	TenantID    string          `json:"tenant_id"`
-	Type        string          `json:"type"` // JIRA | SMTP | SES
+	Type        string          `json:"type"` // JIRA | SES
 	Enabled     bool            `json:"enabled"`
 	Config      json.RawMessage `json:"config"`
 	SecretRef   string          `json:"secret_ref"`

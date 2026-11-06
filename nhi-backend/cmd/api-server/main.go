@@ -244,7 +244,7 @@ func main() {
 	if err != nil {
 		slog.Warn("aws integration: AWS configuration unavailable, connection checks disabled", "err", err)
 	} else {
-		awsClient = awsconnect.NewClient(awsBase, cfg.AWSIntegration.AssumeAssumerRole, cfg.AWSIntegration.EventLogGroup).WithEventQueue(cfg.AWSIntegration.EventQueueURL)
+		awsClient = awsconnect.NewClient(awsBase, cfg.AWSIntegration.AssumeAssumerRole).WithEventQueue(cfg.AWSIntegration.EventQueueURL)
 		awsVerifier = awsClient
 	}
 	// "Receive your events" peeks at the central SQS queue only: the tenant's
@@ -271,9 +271,9 @@ func main() {
 	}
 	approvalMailer := mailer.FromEnv()
 	if approvalMailer.Configured() {
-		slog.Info("approval e-mail: ready", "provider", approvalMailer.Provider(), "to", approvalMailer.To())
+		slog.Info("approval e-mail: ready (Amazon SES)", "region", approvalMailer.Region(), "to", approvalMailer.To())
 	} else {
-		slog.Warn("approval e-mail: not configured, approvals will not be e-mailed", "provider", approvalMailer.Provider(), "problem", approvalMailer.Problem())
+		slog.Warn("approval e-mail: off, approvals are only shown in the tenant-onboarding tool", "problem", approvalMailer.Problem())
 	}
 	awsIntegrationHandler := awsintegration.NewAWSIntegrationHandler(awsintegration.NewAWSIntegrationService(
 		awsintegration.NewAWSIntegrationRepository(db),
@@ -285,14 +285,12 @@ func main() {
 			CollectorRoleName:  cfg.AWSIntegration.CollectorRoleName,
 			ForwardRuleName:    cfg.AWSIntegration.ForwardRuleName,
 			GitHubSecretPrefix: cfg.AWSIntegration.GitHubSecretPrefix,
-			EventLookback:      time.Duration(cfg.AWSIntegration.EventLookbackHours) * time.Hour,
 			ForwardRoleName:    cfg.AWSIntegration.ForwardRoleName,
 			TrailName:          cfg.AWSIntegration.TrailName,
 			EventPollInterval:  time.Duration(cfg.AWSIntegration.EventPollSeconds) * time.Second,
 			EventWaitLimit:     time.Duration(cfg.AWSIntegration.EventWaitMinutes) * time.Minute,
-			ApprovalsURL:       cfg.AWSIntegration.ApprovalsURL,
-			// The approval notice: EMAIL_PROVIDER (smtp | ses), EMAIL_FROM and
-			// SMTP_* or SES_REGION, to CONNECTION_APPROVAL_EMAILS.
+			// The approval notice, through Amazon SES: EMAIL_FROM and
+			// SES_REGION, to CONNECTION_APPROVAL_EMAILS.
 			Mailer: approvalMailer,
 		},
 	))

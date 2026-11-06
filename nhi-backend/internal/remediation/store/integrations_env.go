@@ -45,15 +45,8 @@ func SetEnvIntegrations(c config.RemediationIntegrationsConfig) {
 	}
 	e := c.Email
 	base := map[string]any{"from_env": true, "from": e.From, "approvers": nonNil(e.Approvers), "notify": nonNil(e.Notify)}
-	switch e.Provider {
-	case "smtp":
-		base["host"], base["port"], base["username"], base["tls"] = e.SMTPHost, e.SMTPPort, e.SMTPUser, e.SMTPTLS
-		ref := ""
-		if e.SMTPUser != "" {
-			ref = e.PasswordRef
-		}
-		m["SMTP"] = envIntegration{Config: mustJSON(base), SecretRef: ref}
-	case "ses":
+	// E-mail is Amazon SES only; it is on when EMAIL_FROM is set.
+	if e.From != "" {
 		base["region"] = e.SESRegion
 		m["SES"] = envIntegration{Config: mustJSON(base)}
 	}
@@ -108,7 +101,7 @@ func EnvIntegrationTypes() []string {
 	envMu.RLock()
 	defer envMu.RUnlock()
 	var out []string
-	for _, t := range []string{"JIRA", "SMTP", "SES"} {
+	for _, t := range []string{"JIRA", "SES"} {
 		if _, ok := envDefaults[t]; ok {
 			out = append(out, t)
 		}

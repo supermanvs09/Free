@@ -1,15 +1,18 @@
 /* The Approvals tab and its notifications.
 
    A company's AWS account that passes every connection check in the console
-   waits here for a super admin. Requests also arrive by e-mail; while any page
-   of this app is open, the bell, the sidebar badge, the tab title, a toast and
-   (when allowed) a desktop notification announce new ones. */
+   waits here for a super admin. This tool runs on the admin's own computer, so
+   the database is the source of truth: while any page of it is open, it checks
+   nhi_global.connection_approvals every few seconds, and the bell, the sidebar
+   badge, the tab title, a toast and (when allowed) a desktop notification
+   announce each new pending request. The e-mail (Amazon SES, when set up on
+   the API server) is only an extra heads-up. */
 (() => {
   'use strict';
 
   const { $, el, api, sendJSON, toast, copy } = NHI;
 
-  const POLL_MS = 20000;
+  const POLL_MS = 10000;
   const SEEN_KEY = 'nhi.approvals.seen';     // the newest request this browser has announced
   const DESK_KEY = 'nhi.approvals.desktop';  // 'no' once the admin declined desktop alerts
 
@@ -239,7 +242,7 @@
     switch (a.email_status) {
       case 'sent': return el('span', { class: 'mail ok' }, 'E-mail sent to approvers ', a.emailed_at ? when(a.emailed_at) : '');
       case 'failed': return el('span', { class: 'mail bad', title: a.email_error || '' }, 'E-mail to approvers failed' + (a.email_error ? ': ' + a.email_error : ''));
-      case 'not_configured': return el('span', { class: 'mail warn', title: a.email_error || '' }, 'No e-mail sent: SMTP is not configured on the API server');
+      case 'not_configured': return el('span', { class: 'mail warn', title: a.email_error || '' }, 'No e-mail sent (e-mail is off on the API server)' + (a.email_error ? ': ' + a.email_error : ''));
       default: return el('span', { class: 'mail' }, 'Sending e-mail to approvers…');
     }
   }

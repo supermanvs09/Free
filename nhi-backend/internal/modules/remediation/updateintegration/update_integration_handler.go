@@ -33,7 +33,7 @@ func (h *UpdateIntegrationHandler) Put(w http.ResponseWriter, r *http.Request) {
 	}
 	typ := strings.ToUpper(strings.TrimSpace(mux.Vars(r)["type"]))
 	if !integrationTypes[typ] {
-		common.Invalid(w, "type", "type must be jira, smtp or ses")
+		common.Invalid(w, "type", "type must be jira or ses")
 		return
 	}
 	var req UpdateIntegrationRequest

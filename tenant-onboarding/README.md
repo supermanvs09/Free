@@ -218,13 +218,19 @@ it) does not go live on its own: once the console's checks pass - the role can
 be assumed, the configuration is readable, and events arrive from every chosen
 region plus us-east-1 - the API server records a request in
 `nhi_global.connection_approvals` (API migration `global/007`) and e-mails the
-people in its `CONNECTION_APPROVAL_EMAILS` (SMTP settings in the API's `.env`).
+people in its `CONNECTION_APPROVAL_EMAILS`, through Amazon SES (`EMAIL_FROM` and `SES_REGION` in the API's `.env`).
 
-The **Approvals** page here lists them. A super admin approves (the account
-becomes `active`, connected, and its first scan is queued) or rejects with a
-reason the company sees on its Integrations page. While any page of this app
-is open, the bell, the sidebar badge, the tab title and a toast announce new
-requests within 20 seconds; desktop alerts can be turned on per browser.
+This tool is meant to run on a super admin's own computer (it is not
+deployed), pointed at the same database. The **Approvals** page reads the
+requests straight from `nhi_global.connection_approvals`, so it never depends
+on e-mail: while any page of this app is open it checks the table every 10
+seconds, and the bell, the sidebar badge, the tab title and a toast announce
+each new pending request; desktop alerts can be turned on per browser. The
+e-mail is only an extra heads-up and says to open this tool.
+
+A super admin approves (the account becomes `active`, connected, and its first
+scan is queued) or rejects with a reason the company sees on its Integrations
+page.
 
 New tenant schemas get the connection and approval columns on `accounts`
 from `sql/tenant_schema.sql`; older ones get them from the API's

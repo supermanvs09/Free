@@ -143,9 +143,9 @@ func (s *Service) PutIntegration(ctx context.Context, actor domain.Actor, typ st
 		return nil, err
 	}
 	switch typ {
-	case "JIRA", "SMTP", "SES":
+	case "JIRA", "SES":
 	default:
-		return nil, badRequest("type must be JIRA, SMTP or SES")
+		return nil, badRequest("type must be JIRA or SES")
 	}
 	var cfg map[string]any
 	if err := json.Unmarshal(req.Config, &cfg); err != nil {
@@ -172,8 +172,7 @@ func (s *Service) PutIntegration(ctx context.Context, actor domain.Actor, typ st
 	} else if v, _ := cfg["from"].(string); v == "" && req.Enabled {
 		return nil, badRequest("e-mail config needs \"from\"")
 	}
-	user, _ := cfg["username"].(string)
-	if req.Enabled && req.SecretRef == "" && (typ == "JIRA" || (typ == "SMTP" && user != "")) {
+	if req.Enabled && req.SecretRef == "" && typ == "JIRA" {
 		return nil, badRequest("secret_ref is required (env:NAME, file:/path or aws-sm:id): the secret itself is never stored")
 	}
 	st, err := s.Store(ctx, actor.TenantID)

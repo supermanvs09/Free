@@ -11,7 +11,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -114,7 +113,7 @@ func (f *fakeAWS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func newTestClient(t *testing.T, f *fakeAWS, logGroup string) (*Client, Platform) {
+func newTestClient(t *testing.T, f *fakeAWS, _ string) (*Client, Platform) {
 	t.Helper()
 	srv := httptest.NewServer(f)
 	t.Cleanup(srv.Close)
@@ -131,7 +130,7 @@ func newTestClient(t *testing.T, f *fakeAWS, logGroup string) (*Client, Platform
 	if err != nil {
 		t.Fatal(err)
 	}
-	return NewClient(base, false, logGroup), p
+	return NewClient(base, false), p
 }
 
 func TestClientAssumeRoleAndRead(t *testing.T) {
@@ -200,33 +199,6 @@ func TestClientAllowAccountOnBus(t *testing.T) {
 	}
 	if err := c.AllowAccountOnBus(ctx, p, "12"); err == nil {
 		t.Fatal("malformed account id accepted")
-	}
-}
-
-func TestClientHasEventsFrom(t *testing.T) {
-	ctx := context.Background()
-	since := time.Unix(1_700_000_000, 0)
-
-	c, p := newTestClient(t, &fakeAWS{}, "")
-	if _, err := c.HasEventsFrom(ctx, p, "222222222222", since); !errors.Is(err, ErrEventSourceNotConfigured) {
-		t.Fatalf("no log group = %v, want ErrEventSourceNotConfigured", err)
-	}
-
-	f := &fakeAWS{events: true}
-	c, p = newTestClient(t, f, "/aws/events/nhi-central-bus")
-	found, err := c.HasEventsFrom(ctx, p, "222222222222", since)
-	if err != nil || !found {
-		t.Fatalf("HasEventsFrom = %v, %v", found, err)
-	}
-	if f.filterBody["logGroupName"] != "/aws/events/nhi-central-bus" ||
-		f.filterBody["filterPattern"] != `{ $.account = "222222222222" }` ||
-		f.filterBody["startTime"] != float64(since.UnixMilli()) {
-		t.Fatalf("FilterLogEvents sent %v", f.filterBody)
-	}
-
-	f.events = false
-	if found, err := c.HasEventsFrom(ctx, p, "222222222222", since); err != nil || found {
-		t.Fatalf("no events = %v, %v", found, err)
 	}
 }
 

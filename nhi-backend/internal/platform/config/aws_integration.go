@@ -10,9 +10,8 @@ import (
 )
 
 var (
-	awsIAMNameRE      = regexp.MustCompile(`^[\w+=,.@-]{1,64}$`)
-	awsRuleNameRE     = regexp.MustCompile(`^[.\-_A-Za-z0-9]{1,64}$`)
-	awsLogGroupNameRE = regexp.MustCompile(`^[.\-_/#A-Za-z0-9]{1,512}$`)
+	awsIAMNameRE  = regexp.MustCompile(`^[\w+=,.@-]{1,64}$`)
+	awsRuleNameRE = regexp.MustCompile(`^[.\-_A-Za-z0-9]{1,64}$`)
 )
 
 // AWSIntegrationConfig is how this process reaches AWS to verify a customer's
@@ -40,15 +39,10 @@ type AWSIntegrationConfig struct {
 	// GitHubAPIURL is where GitHub tokens are checked: https://api.github.com,
 	// or https://<host>/api/v3 for GitHub Enterprise Server.
 	GitHubAPIURL string `yaml:"github_api_url"`
-	// EventLogGroup is no longer used by the "events received" check, which
-	// reads the SQS queue only; kept so older configs still load.
-	EventLogGroup string `yaml:"event_log_group"`
 	// EventQueueURL is an SQS queue in our account that a rule on the central
 	// bus delivers to. The "events received" check peeks at it (nothing is
 	// deleted) and at nothing else.
 	EventQueueURL string `yaml:"event_queue_url"`
-	// EventLookbackHours is unused by the SQS peek; kept so older configs load.
-	EventLookbackHours int `yaml:"event_lookback_hours"`
 	// ForwardRoleName is the role customers create for EventBridge to put
 	// events on our bus. Default NHIEventBridgeForwardRole.
 	ForwardRoleName string `yaml:"forward_role_name"`
@@ -59,9 +53,6 @@ type AWSIntegrationConfig struct {
 	// before concluding (default 15).
 	EventPollSeconds int `yaml:"event_poll_seconds"`
 	EventWaitMinutes int `yaml:"event_wait_minutes"`
-	// ApprovalsURL is the tenant-onboarding console's Approvals page, linked
-	// from the "approval needed" e-mail (APPROVALS_URL).
-	ApprovalsURL string `yaml:"approvals_url"`
 }
 
 var awsSecretPrefixRE = regexp.MustCompile(`^[A-Za-z0-9/_+=.@-]{1,256}$`)
@@ -78,11 +69,9 @@ func (a *AWSIntegrationConfig) load() error {
 	set(&a.ForwardRuleName, "NHI_AWS_FORWARD_RULE_NAME")
 	set(&a.GitHubSecretPrefix, "NHI_AWS_GITHUB_SECRET_PREFIX")
 	set(&a.GitHubAPIURL, "NHI_GITHUB_API_URL")
-	set(&a.EventLogGroup, "NHI_AWS_EVENT_LOG_GROUP")
 	set(&a.EventQueueURL, "NHI_AWS_EVENT_QUEUE_URL")
 	set(&a.ForwardRoleName, "NHI_AWS_FORWARD_ROLE_NAME")
 	set(&a.TrailName, "NHI_AWS_TRAIL_NAME")
-	set(&a.ApprovalsURL, "APPROVALS_URL")
 	for _, kv := range []struct {
 		key string
 		dst *int
@@ -94,13 +83,6 @@ func (a *AWSIntegrationConfig) load() error {
 			}
 			*kv.dst = n
 		}
-	}
-	if v, ok := os.LookupEnv("NHI_AWS_EVENT_LOOKBACK_HOURS"); ok && strings.TrimSpace(v) != "" {
-		n, err := strconv.Atoi(strings.TrimSpace(v))
-		if err != nil {
-			return fmt.Errorf("config: NHI_AWS_EVENT_LOOKBACK_HOURS must be an integer")
-		}
-		a.EventLookbackHours = n
 	}
 	if v, ok := os.LookupEnv("NHI_AWS_ASSUME_ASSUMER_ROLE"); ok && strings.TrimSpace(v) != "" {
 		b, err := strconv.ParseBool(strings.TrimSpace(v))
@@ -145,10 +127,6 @@ func (a *AWSIntegrationConfig) load() error {
 	if a.GitHubAPIURL == "" {
 		a.GitHubAPIURL = "https://api.github.com"
 	}
-	a.EventLogGroup = strings.TrimSpace(a.EventLogGroup)
-	if a.EventLookbackHours == 0 {
-		a.EventLookbackHours = 24
-	}
 
 	if !awsIAMNameRE.MatchString(a.AssumerRoleName) || !awsIAMNameRE.MatchString(a.CollectorRoleName) {
 		return fmt.Errorf("config: aws_integration role names must be valid IAM role names")
@@ -161,12 +139,6 @@ func (a *AWSIntegrationConfig) load() error {
 	}
 	if u, err := url.Parse(a.GitHubAPIURL); err != nil || (u.Scheme != "https" && u.Hostname() != "127.0.0.1" && u.Hostname() != "localhost") || u.Host == "" {
 		return fmt.Errorf("config: aws_integration.github_api_url must be an https URL")
-	}
-	if a.EventLogGroup != "" && !awsLogGroupNameRE.MatchString(a.EventLogGroup) {
-		return fmt.Errorf("config: aws_integration.event_log_group must be a valid CloudWatch log group name")
-	}
-	if a.EventLookbackHours < 1 || a.EventLookbackHours > 24*14 {
-		return fmt.Errorf("config: aws_integration.event_lookback_hours must be between 1 and 336")
 	}
 	return nil
 }

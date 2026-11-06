@@ -47,7 +47,7 @@ cors:
 # No AWS keys here: the SDK default chain supplies the identity (ECS task role /
 # EC2 instance profile running as NHIPlatformAssumer in production). Per-tenant
 # values (our account, External ID, event bus, allowed regions) live in
-# nhi_global.tenants. Every key has an NHI_AWS_* override (see .env.example).
+# nhi_global.tenants. Every key has an NHI_AWS_* override (NHI_AWS_<KEY>).
 aws_integration:
   assume_assumer_role: false          # true locally, when AWS_PROFILE is not the assumer role
   assumer_role_name: NHIPlatformAssumer
@@ -56,5 +56,3 @@ aws_integration:
   github_secret_prefix: nhi/github     # customers' GitHub token secret name must start with this
   github_api_url: https://api.github.com
   event_queue_url: ""                 # SQS queue the central bus delivers to (NHI_AWS_EVENT_QUEUE_URL); checked first
-  event_log_group: ""                 # only when ClickHouse is not configured
-  event_lookback_hours: 24

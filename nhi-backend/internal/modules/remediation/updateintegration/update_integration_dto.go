@@ -2,10 +2,10 @@ package updateintegration
 
 import "encoding/json"
 
-// PUT /remediation/integrations/{type} (admin), type = jira | smtp | ses
+// PUT /remediation/integrations/{type} (admin), type = jira | ses
 //
 // Stores the tenant's own settings. {"config":{"from_env":true}} goes back to
-// the platform defaults from the environment (JIRA_* / EMAIL_* / SMTP_*).
+// the platform defaults from the environment (JIRA_* / EMAIL_* / SES_REGION).
 
 // UpdateIntegrationRequest is the body.
 type UpdateIntegrationRequest struct {
@@ -15,4 +15,4 @@ type UpdateIntegrationRequest struct {
 }
 
 // integrationTypes are the accepted {type} values (case-insensitive).
-var integrationTypes = map[string]bool{"JIRA": true, "SMTP": true, "SES": true}
+var integrationTypes = map[string]bool{"JIRA": true, "SES": true}

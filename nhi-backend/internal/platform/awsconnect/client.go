@@ -7,12 +7,10 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
-	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
@@ -26,9 +24,6 @@ var (
 	ErrAccessDenied = errors.New("aws denied access")
 	// ErrNothingRead: the read succeeded but returned nothing.
 	ErrNothingRead = errors.New("aws read returned no data")
-	// ErrEventSourceNotConfigured: this deployment has no event log group, so
-	// the events check cannot run.
-	ErrEventSourceNotConfigured = errors.New("event log group is not configured")
 	// ErrPlatformCredentials: the platform's own AWS credentials were refused
 	// (InvalidClientTokenId, an expired token, no credentials at all). Nothing
 	// the customer did can cause this, so it must never be reported as a
@@ -80,7 +75,6 @@ func classify(err error) error {
 type Client struct {
 	base              aws.Config
 	assumeAssumerRole bool
-	eventLogGroup     string
 	eventQueueURL     string // SQS queue a rule on the central bus delivers to
 
 	mu        sync.Mutex
@@ -91,11 +85,10 @@ type Client struct {
 // assumeAssumerRole set, every call is made as the platform's assumer role
 // (assumed from the process's own identity); otherwise the process must
 // already be running as that role.
-func NewClient(base aws.Config, assumeAssumerRole bool, eventLogGroup string) *Client {
+func NewClient(base aws.Config, assumeAssumerRole bool) *Client {
 	return &Client{
 		base:              base,
 		assumeAssumerRole: assumeAssumerRole,
-		eventLogGroup:     strings.TrimSpace(eventLogGroup),
 		providers:         make(map[string]aws.CredentialsProvider),
 	}
 }
@@ -241,35 +234,4 @@ func policyHasStatement(policy, sid string) bool {
 		}
 	}
 	return false
-}
-
-// HasEventsFrom reports whether the central bus has delivered any event from
-// accountID since `since`. It searches the CloudWatch Logs group that a rule
-// on the central bus writes every event to; each log message is the event
-// JSON, whose top-level "account" is set by AWS and cannot be forged.
-func (c *Client) HasEventsFrom(ctx context.Context, p Platform, accountID string, since time.Time) (bool, error) {
-	if c.eventLogGroup == "" {
-		return false, ErrEventSourceNotConfigured
-	}
-	if !accountIDRE.MatchString(accountID) {
-		return false, fmt.Errorf("invalid account id")
-	}
-	paginator := cloudwatchlogs.NewFilterLogEventsPaginator(cloudwatchlogs.NewFromConfig(c.platformConfig(p)), &cloudwatchlogs.FilterLogEventsInput{
-		LogGroupName:  aws.String(c.eventLogGroup),
-		StartTime:     aws.Int64(since.UnixMilli()),
-		FilterPattern: aws.String(fmt.Sprintf(`{ $.account = "%s" }`, accountID)),
-		Limit:         aws.Int32(1),
-	})
-	// A sparse match in a large group can take several empty pages; the
-	// caller's deadline bounds the search.
-	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(ctx)
-		if err != nil {
-			return false, fmt.Errorf("search event log: %w", err)
-		}
-		if len(page.Events) > 0 {
-			return true, nil
-		}
-	}
-	return false, nil
 }

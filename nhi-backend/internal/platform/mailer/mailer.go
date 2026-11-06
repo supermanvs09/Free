@@ -1,18 +1,15 @@
 // Package mailer sends the platform's own e-mail (not a tenant's): today, the
 // notice to the platform admins that a new AWS connection waits for their
-// approval. It sends through SMTP or Amazon SES, chosen by EMAIL_PROVIDER, and
-// reuses the remediation module's senders and settings:
+// approval. Mail goes through Amazon SES only, with the same settings as the
+// remediation notifications:
 //
-//	EMAIL_PROVIDER   smtp | ses | empty (smtp when SMTP_HOST is set, else ses
-//	                 when SES_REGION or AWS_REGION is set)
-//	EMAIL_FROM       the sender (for SES, a verified address or domain)
-//	SMTP_HOST, SMTP_PORT (587), SMTP_USERNAME, SMTP_PASSWORD,
-//	SMTP_TLS (starttls | tls | none)                         for smtp
-//	SES_REGION (else AWS_REGION)                             for ses; the
-//	                 credentials are the API server's own AWS credentials
-//	                 (its IAM role), which need ses:SendEmail
+//	EMAIL_FROM                  the sender: an address or domain verified in SES.
+//	                            Empty turns e-mail off.
+//	SES_REGION                  the SES region (default AWS_REGION)
+//	CONNECTION_APPROVAL_EMAILS  who is told (comma-separated)
 //
-// and lists who is told in CONNECTION_APPROVAL_EMAILS (comma-separated).
+// No keys are configured: the API server's own AWS credentials (its IAM role)
+// are used and need ses:SendEmail.
 package mailer
 
 import (
@@ -21,40 +18,33 @@ import (
 	"fmt"
 	"net/mail"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
 	"nhi-backend-api/internal/remediation/notify"
 )
 
-// ErrNotConfigured: no provider, sender or recipients are set.
-var ErrNotConfigured = errors.New("e-mail is not configured (set EMAIL_PROVIDER with SMTP_HOST or SES_REGION, EMAIL_FROM and CONNECTION_APPROVAL_EMAILS)")
+// ErrNotConfigured: e-mail is off or incomplete.
+var ErrNotConfigured = errors.New("e-mail is not configured (set EMAIL_FROM, SES_REGION and CONNECTION_APPROVAL_EMAILS)")
 
-// Providers.
-const (
-	ProviderSMTP = "smtp"
-	ProviderSES  = "ses"
-)
-
-// sender is one way of delivering mail (notify.SMTP, notify.SES).
+// sender delivers one message (notify.SES).
 type sender interface {
 	Send(ctx context.Context, from string, to []string, subject, html, text string) error
 }
 
-// Mailer sends to a fixed list of platform recipients.
+// Mailer sends to a fixed list of platform recipients through SES.
 type Mailer struct {
-	provider string
-	sender   sender
-	from     string
-	to       []string
-	problem  string // why it cannot send, for the log and the Approvals page
+	region  string
+	sender  sender
+	from    string
+	to      []string
+	problem string // why it cannot send, for the log and the Approvals page
 }
 
 // FromEnv reads the settings. It never fails: an incomplete configuration
 // gives a mailer whose Send returns ErrNotConfigured, and Problem says what is
-// missing, so the caller can record that and carry on (the approval still
-// shows in the onboarding console).
+// missing, so the caller can record that and carry on (the approval is still
+// in the database, where the onboarding tool's Approvals page reads it).
 func FromEnv() *Mailer {
 	return fromLookup(os.Getenv, func(region string) (sender, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -65,62 +55,24 @@ func FromEnv() *Mailer {
 
 func fromLookup(env func(string) string, newSES func(region string) (sender, error)) *Mailer {
 	get := func(k string) string { return strings.TrimSpace(env(k)) }
-	m := &Mailer{from: get("EMAIL_FROM"), to: Recipients(env("CONNECTION_APPROVAL_EMAILS"))}
-	sesRegion := get("SES_REGION")
-	if sesRegion == "" {
-		sesRegion = get("AWS_REGION")
+	m := &Mailer{from: get("EMAIL_FROM"), to: Recipients(env("CONNECTION_APPROVAL_EMAILS")), region: get("SES_REGION")}
+	if m.region == "" {
+		m.region = get("AWS_REGION")
 	}
-
-	provider := strings.ToLower(get("EMAIL_PROVIDER"))
-	if provider == "" {
-		switch {
-		case get("SMTP_HOST") != "":
-			provider = ProviderSMTP
-		case sesRegion != "":
-			provider = ProviderSES
-		}
-	}
-	m.provider = provider
-
-	switch provider {
-	case ProviderSMTP:
-		host := get("SMTP_HOST")
-		if host == "" {
-			m.problem = "EMAIL_PROVIDER is smtp but SMTP_HOST is not set"
-			break
-		}
-		port, err := strconv.Atoi(get("SMTP_PORT"))
-		if err != nil || port <= 0 {
-			port = 587
-		}
-		tls := strings.ToLower(get("SMTP_TLS"))
-		if tls == "" {
-			tls = "starttls"
-		}
-		m.sender = &notify.SMTP{Host: host, Port: port, Username: get("SMTP_USERNAME"), Password: env("SMTP_PASSWORD"), TLS: tls}
-	case ProviderSES:
-		if sesRegion == "" {
-			m.problem = "EMAIL_PROVIDER is ses but neither SES_REGION nor AWS_REGION is set"
-			break
-		}
-		s, err := newSES(sesRegion)
+	switch {
+	case m.from == "":
+		m.problem = "e-mail is off: EMAIL_FROM is not set"
+	case len(m.to) == 0:
+		m.problem = "CONNECTION_APPROVAL_EMAILS has no valid address"
+	case m.region == "":
+		m.problem = "neither SES_REGION nor AWS_REGION is set"
+	default:
+		s, err := newSES(m.region)
 		if err != nil {
-			m.problem = fmt.Sprintf("Amazon SES (%s) could not be set up: %v", sesRegion, err)
+			m.problem = fmt.Sprintf("Amazon SES (%s) could not be set up: %v", m.region, err)
 			break
 		}
 		m.sender = s
-	case "":
-		m.problem = "no e-mail provider: set SMTP_HOST (smtp) or SES_REGION (ses)"
-	default:
-		m.problem = fmt.Sprintf("EMAIL_PROVIDER %q is not smtp or ses", provider)
-	}
-	if m.problem == "" {
-		switch {
-		case m.from == "":
-			m.problem = "EMAIL_FROM is not set"
-		case len(m.to) == 0:
-			m.problem = "CONNECTION_APPROVAL_EMAILS has no valid address"
-		}
 	}
 	return m
 }
@@ -147,12 +99,15 @@ func Recipients(raw string) []string {
 // Configured reports whether Send can work.
 func (m *Mailer) Configured() bool { return m != nil && m.sender != nil && m.problem == "" }
 
-// Provider is "smtp", "ses" or "" (for logs).
-func (m *Mailer) Provider() string {
+// Provider names the mail service, for logs.
+func (m *Mailer) Provider() string { return "ses" }
+
+// Region is the SES region in use.
+func (m *Mailer) Region() string {
 	if m == nil {
 		return ""
 	}
-	return m.provider
+	return m.region
 }
 
 // Problem says why the mailer cannot send ("" when it can).
@@ -177,7 +132,7 @@ func (m *Mailer) Send(ctx context.Context, subject, html, text string) error {
 		return ErrNotConfigured
 	}
 	if err := m.sender.Send(ctx, m.from, m.to, subject, html, text); err != nil {
-		return fmt.Errorf("%s: %w", m.provider, err)
+		return fmt.Errorf("ses (%s): %w", m.region, err)
 	}
 	return nil
 }

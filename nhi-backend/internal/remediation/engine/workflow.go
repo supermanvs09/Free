@@ -329,11 +329,8 @@ func isEmail(s string) bool { return strings.Contains(s, "@") }
 // notifyPlan writes an e-mail to the outbox (best effort).
 func (s *Service) notifyPlan(ctx context.Context, st *store.Store, kind string, p *domain.Plan, errMsg string) {
 	var integ *domain.Integration
-	for _, typ := range []string{"SMTP", "SES"} {
-		if i, err := st.GetIntegration(ctx, typ); err == nil && i.Enabled {
-			integ = i
-			break
-		}
+	if i, err := st.GetIntegration(ctx, "SES"); err == nil && i.Enabled {
+		integ = i
 	}
 	if integ == nil {
 		return
@@ -391,11 +388,8 @@ func (s *Service) QueueDigest(ctx context.Context, st *store.Store) error {
 		return nil
 	}
 	var integ *domain.Integration
-	for _, typ := range []string{"SMTP", "SES"} {
-		if i, err := st.GetIntegration(ctx, typ); err == nil && i.Enabled {
-			integ = i
-			break
-		}
+	if i, err := st.GetIntegration(ctx, "SES"); err == nil && i.Enabled {
+		integ = i
 	}
 	if integ == nil {
 		return nil

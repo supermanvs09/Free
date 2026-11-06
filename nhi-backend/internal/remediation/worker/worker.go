@@ -103,38 +103,22 @@ func (w *Worker) syncJira(ctx context.Context) {
 	w.svc.EachTenant(ctx, func(ctx context.Context, st *store.Store) error { return w.jira.SyncTenant(ctx, st) })
 }
 
-// sender builds the e-mail sender and settings of a tenant (SMTP first, then SES).
+// sender builds the tenant's e-mail sender: Amazon SES, the only mail service.
 func (w *Worker) sender(ctx context.Context, st *store.Store) (notify.Sender, notify.Config, error) {
-	for _, typ := range []string{"SMTP", "SES"} {
-		integ, err := st.GetIntegration(ctx, typ)
-		if err != nil || !integ.Enabled {
-			continue
-		}
-		cfg, err := notify.ParseConfig(integ.Config)
-		if err != nil {
-			return nil, cfg, err
-		}
-		if typ == "SES" {
-			region := cfg.Region
-			if region == "" {
-				region = w.cfg.AWS.Region
-			}
-			s, err := notify.NewSES(ctx, region)
-			return s, cfg, err
-		}
-		pw := ""
-		if integ.SecretRef != "" {
-			if pw, err = w.secrets.Get(ctx, integ.SecretRef); err != nil {
-				return nil, cfg, err
-			}
-		}
-		port := cfg.Port
-		if port == 0 {
-			port = 587
-		}
-		return &notify.SMTP{Host: cfg.Host, Port: port, Username: cfg.Username, Password: pw, TLS: cfg.TLS}, cfg, nil
+	integ, err := st.GetIntegration(ctx, "SES")
+	if err != nil || !integ.Enabled {
+		return nil, notify.Config{}, fmt.Errorf("e-mail (SES) is not enabled")
 	}
-	return nil, notify.Config{}, fmt.Errorf("no e-mail integration is enabled")
+	cfg, err := notify.ParseConfig(integ.Config)
+	if err != nil {
+		return nil, cfg, err
+	}
+	region := cfg.Region
+	if region == "" {
+		region = w.cfg.AWS.Region
+	}
+	s, err := notify.NewSES(ctx, region)
+	return s, cfg, err
 }
 
 // sendMail drains the outbox with retries; a mail outage never blocks a remediation.

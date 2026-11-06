@@ -123,7 +123,6 @@ type AWSIntegrationOptions struct {
 	CollectorRoleName  string
 	ForwardRuleName    string
 	GitHubSecretPrefix string
-	EventLookback      time.Duration
 	// ForwardRoleName is the customer's role EventBridge uses to put events
 	// on our bus (NHIEventBridgeForwardRole).
 	ForwardRoleName string
@@ -133,9 +132,6 @@ type AWSIntegrationOptions struct {
 	EventPollInterval time.Duration
 	// EventWaitLimit is how long it watches before concluding.
 	EventWaitLimit time.Duration
-	// ApprovalsURL is the onboarding console's Approvals page, linked from
-	// the e-mail.
-	ApprovalsURL string
 	// Mailer sends the approval notice; nil or unconfigured records
 	// "not_configured" on the request.
 	Mailer AWSMailer
@@ -168,9 +164,6 @@ type AWSIntegrationService struct {
 // ErrAWSUnavailable), and events may be nil when there is no event store (the
 // events check then reports it cannot run).
 func NewAWSIntegrationService(store AWSIntegrationStore, verifier AWSVerifier, github GitHubChecker, events AWSEventSource, opts AWSIntegrationOptions) *AWSIntegrationService {
-	if opts.EventLookback <= 0 {
-		opts.EventLookback = 24 * time.Hour
-	}
 	opts.AssumerRoleName = orDefault(opts.AssumerRoleName, "NHIPlatformAssumer")
 	opts.CollectorRoleName = orDefault(opts.CollectorRoleName, "NHIPlatformCollector")
 	opts.ForwardRuleName = orDefault(opts.ForwardRuleName, "nhi-forward-activity")

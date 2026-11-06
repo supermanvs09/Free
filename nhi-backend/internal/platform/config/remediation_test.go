@@ -4,7 +4,7 @@ import "testing"
 
 func TestRemediationDisabledIgnoresOtherKeys(t *testing.T) {
 	t.Setenv("REMEDIATION_ENABLED", "false")
-	t.Setenv("EMAIL_PROVIDER", "smtp") // no SMTP_HOST / EMAIL_FROM: invalid when enabled
+	t.Setenv("JIRA_ENABLED", "true") // no JIRA_BASE_URL / JIRA_PROJECT_KEY: invalid when enabled
 	t.Setenv("EXECUTION_LEASE", "soon")
 	c, err := Remediation()
 	if err != nil || c.Enabled {
