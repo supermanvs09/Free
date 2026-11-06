@@ -11,6 +11,24 @@
         ],
         "createdAt": "2026-11-05T23:07:28.210Z",
         "reason": "Claude decided: red severity stripe on the Zenstra 'Blocked!' error banner in the rendered film is an intentional alert-state pattern, not a decorative card accent"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "film2/src/ui.js"
+        ],
+        "createdAt": "2026-11-06T05:03:54.303Z",
+        "reason": "Claude decided: severity stripe on the Zenstra 'Blocked!' alert banner in the rendered film, an intentional alert-state pattern"
+      },
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "files": [
+          "film2/src/ui.js"
+        ],
+        "createdAt": "2026-11-06T05:03:54.317Z",
+        "reason": "Claude decided: Inter is the film's established type system and stands in for Claude's interface sans in the recreated Claude screen"
       }
     ]
   }
