@@ -1,146 +1,53 @@
 import { useState } from 'react';
-import { Link } from 'react-router';
 import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
-import { Icon, Reveal, SectionHead, Tabs } from '../../components/ui.jsx';
-import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import { Hero, Stats, Faq, Points, LINKS, ACC } from '../../components/ProductKit.jsx';
-import { CapabilityPhone, MuleCheck, WebStepUp } from '../../components/viz/fraud.jsx';
-import SessionJourney from '../../components/viz/journey.jsx';
-import { FraudGate } from '../../components/viz/fraudgate.jsx';
-
-/* Identity Fraud Prevention: one platform for mobile and internet banking, from
-   login to payment. The page follows the platform's own logic: three questions
-   in every session, the capabilities that answer them, and the explanation that
-   comes with every decision. */
+import { trail } from '../../data/ia.js';
+import { Button, Icon, Reveal, SectionHead, Tabs } from '../../components/ui.jsx';
+import { Badge, CtaBand, Faq, FeatureCard, PageHero, ProductLabel, ResearchCards, Section, StatTile, SubNav, SampleNote } from '../../components/ds.jsx';
+import FraudJourney from '../../components/demos/FraudJourney.jsx';
 
 const p = PRODUCTS.fraud;
-const A = ACC.adap;
 
-/* how we differ from the fraud tools a bank already runs: four things a buyer
-   checks, side by side */
-const VERSUS = [
-  ['What it judges', 'The payment, against fixed rules', 'The customer, their device and the payment, together', 'Fingerprint'],
-  ['When it decides', 'After the transaction, in a review queue', 'Before the money moves, in under 80 ms', 'Lightning'],
-  ['A scam where the real customer pays', 'Passes: right person, right OTP', 'Caught: a call in progress, a pasted account, a new payee', 'Phone'],
-  ['Why a payment was stopped', 'A score, with no reason', 'Every decision in plain words, for the analyst and the auditor', 'ChatCircleText'],
-];
-
-function Versus() {
-  return (
-    <div className="grid gap-x-4 md:grid-cols-[.8fr_1fr_1.15fr]">
-      <span className="hidden md:block" />
-      <p className="chg-without hidden px-6 py-4 text-[13px] font-semibold uppercase tracking-[.1em] text-crit md:block" style={{ borderRadius: '18px 18px 0 0' }}>Typical fraud tools</p>
-      <p className="chg-with hidden px-6 py-4 text-[13px] font-semibold uppercase tracking-[.1em] md:block" style={{ '--acc': A, color: A, borderRadius: '18px 18px 0 0', boxShadow: 'none' }}>adapID AI</p>
-      {VERSUS.map(([q, them, us, icon], i) => (
-        <Reveal key={q} delay={i * 60} className="contents">
-          <p className="flex items-center gap-3 border-t border-line py-5 text-[16px] font-semibold text-ink max-md:pt-6 md:pr-4"><span className="ico grid h-9 w-9 shrink-0 place-items-center rounded-[11px]" style={{ '--acc': A }}><Icon name={icon} size={18} /></span>{q}</p>
-          <p className="flex items-start gap-2.5 border-t border-line px-6 py-5 text-[15.5px] leading-snug text-ink-3 md:bg-[color-mix(in_oklab,var(--color-crit)_4%,var(--color-bg-1))]"><Icon name="X" size={15} weight="bold" className="mt-[3px] shrink-0 text-crit" />{them}</p>
-          <p className="flex items-start gap-2.5 border-t border-line px-6 py-5 text-[15.5px] font-medium leading-snug text-ink md:bg-[color-mix(in_oklab,var(--color-adap)_7%,#fff)]"><Icon name="CheckCircle" size={17} weight="fill" className="mt-[2px] shrink-0" style={{ color: A }} />{us}</p>
-        </Reveal>
-      ))}
-    </div>
-  );
-}
-
-/* mobile banking: one phone, five capabilities */
 const MOBILE = [
-  { key: 'biometrics', tab: 'Behavioural biometrics', gap: 'A fraudster with the customer’s password and OTP looks exactly like the customer.',
-    how: ['Our SDK measures how the customer types, taps, holds and moves the phone, never what they type.', 'It learns each customer’s own normal from their first sessions.', 'Every new session is compared with that profile, and a risk score from 0 to 100 comes back in real time, with the reasons.'],
+  { tab: 'Behavioural biometrics', icon: 'Fingerprint', gap: 'A fraudster with the customer’s password and OTP looks exactly like the customer.',
+    how: ['The SDK measures how the customer types, taps, holds and moves the phone, never what they type.', 'It learns each customer’s own normal from their first sessions.', 'Every new session is compared with that profile, and a 0 to 100 risk score comes back in real time, with the reasons.'],
     result: 'Account takeover is caught even when the password and OTP are correct, with no extra step for genuine customers.' },
-  { key: 'totp', tab: 'Silent TOTP', gap: 'SMS OTPs are phished, forwarded by malware and stolen through SIM swaps.',
+  { tab: 'Silent TOTP', icon: 'Key', gap: 'SMS OTPs are phished, forwarded by malware and stolen through SIM swaps.',
     how: ['The customer’s phone is registered and bound to the account once.', 'A one-time code is generated silently on that phone.', 'The platform verifies the code over an encrypted channel.'],
     result: 'No SMS to intercept, and nothing for the customer to type.' },
-  { key: 'face', tab: 'Face verification', gap: 'High-risk actions need proof that the real customer is present.',
+  { tab: 'Face verification', icon: 'UserCircle', gap: 'High-risk actions need proof that the real customer is present.',
     how: ['Face verification runs only at high-risk moments, such as a new device or a large payment.', 'Every attempt is logged with the session.'],
     result: 'Strong proof of presence, only when it matters.' },
-  { key: 'rasp', tab: 'Device security', gap: 'Fraudsters watch or control the customer’s phone through malware and remote-access apps.',
+  { tab: 'Device security', icon: 'DeviceMobile', gap: 'Fraudsters watch or control the customer’s phone through malware and remote-access apps.',
     how: ['The app checks the device continuously during the session.', 'It detects remote control (screen sharing, overlays), malware (banking trojans, SMS forwarders), tampering (rooting, hooking, cloned apps) and fake devices (emulators, failed attestation).', 'The bank’s policy decides the response: log, warn or block.'],
     result: 'The banking session runs only on a safe device.' },
-  { key: 'scam', tab: 'Scam signals', gap: 'In a payment scam the real customer is paying, coached by a fraudster on the phone. Identity checks pass.',
-    how: ['We collect evidence around the payment: behaviour (bursts of typing, long pauses), device (a call during the payment, a pasted account number), security (remote access, mule lists, SIM swap) and history (an unusual amount, a new payee).', 'Each piece adds points by how strongly it points to a scam, giving a scam risk score from 0 to 100.', 'The analyst sees the suspected scam type and why every point was added.'],
+  { tab: 'Scam signals', icon: 'Phone', gap: 'In a payment scam the real customer is paying, coached by a fraudster on the phone. Identity checks pass.',
+    how: ['Evidence is collected around the payment: behaviour (bursts of typing, long pauses), device (a call during the payment, a pasted account number), security (remote access, mule lists, SIM swap) and history (an unusual amount, a new payee).', 'Each piece adds points by how strongly it points to a scam, giving a scam risk score from 0 to 100.', 'The analyst sees the suspected scam type and why every point was added.'],
     result: 'Scams are stopped before the money leaves, with a clear reason for every hold.' },
 ];
-
-function MobileCaps() {
+function Capabilities() {
   const [i, setI] = useState(0);
   const m = MOBILE[i];
   return (
     <div>
-      <Tabs items={MOBILE.map((x) => x.tab)} value={i} onChange={setI} acc={A} label="Mobile banking capabilities" />
-      <div className="mt-10 grid items-center gap-10 lg:grid-cols-[1fr_1.15fr] lg:gap-16">
-        <div key={m.key} className="fadein">
-          <p className="text-[13px] font-semibold uppercase tracking-[.08em] text-adap">The gap</p>
-          <p className="mt-2 text-[21px] font-semibold leading-snug tracking-[-0.02em] md:text-[24px]">{m.gap}</p>
-          <p className="mt-7 text-[13px] font-semibold uppercase tracking-[.08em] text-ink-3">How we solve it</p>
-          <ol className="mt-3 space-y-3">{m.how.map((h, k) => <li key={k} className="flex gap-3 text-[15.5px] leading-relaxed text-ink-2"><span className="num mt-[2px] grid h-6 w-6 shrink-0 place-items-center rounded-full border border-line-2 text-[12px] font-semibold">{k + 1}</span>{h}</li>)}</ol>
-          <p className="mt-7 flex items-start gap-3 rounded-[16px] border border-line p-4 text-[15.5px] leading-relaxed"><Icon name="CheckCircle" size={20} className="mt-[2px] shrink-0 text-ok" /><span><span className="font-semibold">Result. </span><span className="text-ink-2">{m.result}</span></span></p>
+      <Tabs variant="u" items={MOBILE.map((x) => x.tab)} value={i} onChange={setI} label="Capabilities" ids={MOBILE.map((_, k) => `cap-t${k}`)} />
+      <div key={i} role="tabpanel" aria-labelledby={`cap-t${i}`} className="fadein mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+        <div className="card-flat p-6">
+          <span className="ptile" style={{ '--acc': 'var(--color-adap)' }}><Icon name={m.icon} size={20} /></span>
+          <p className="mt-5 app-label">The gap</p>
+          <p className="mt-2 t-h4">{m.gap}</p>
         </div>
-        <div className="mx-auto w-full max-w-[560px]"><CapabilityPhone cap={m.key} /></div>
+        <div className="card p-6">
+          <p className="app-label">How it works</p>
+          <ol className="mt-3 space-y-3">{m.how.map((h, k) => <li key={h} className="flex gap-3 t-body"><span className="num mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-50 text-[12px] font-semibold text-brand">{k + 1}</span>{h}</li>)}</ol>
+          <p className="mt-5 flex gap-2 border-t border-line pt-4 text-[15px] font-semibold text-ink"><Icon name="CheckCircle" size={18} weight="fill" className="mt-0.5 shrink-0 text-ok" />{m.result}</p>
+        </div>
       </div>
     </div>
   );
 }
 
-const WEB = [
-  { icon: 'CursorClick', h: 'Behavioural biometrics on the web', p: 'Internet banking credentials are the most phished in banking. Our web SDK learns each customer’s typing and mouse behaviour and scores every login against it, so stolen credentials alone are not enough.' },
-  { icon: 'Gauge', h: 'Risk-based step-up and trusted devices', p: 'Below the bank’s threshold the customer continues with no OTP; above it, a step-up check, logged for review. The bank sets the thresholds for desktop and mobile web, the extra factors and each customer’s trusted devices.' },
-  { icon: 'Key', h: 'Passwordless login', p: 'Device-based authentication replaces the password. No password to phish, reuse or forget.' },
-];
-
-const TXN = [
-  { icon: 'Pulse', h: 'Anomaly detection', p: 'Each payment compared with the customer’s own past, with similar customers, and with everyone paying the same payee.' },
-  { icon: 'Bank', h: 'Beneficiary profiling', p: 'Every receiving account profiled, and likely mules flagged before the money arrives.' },
-  { icon: 'ChatCircleText', h: 'Remark analysis', p: 'The payment note read for scam purposes such as “KYC update” or “refund”.' },
-  { icon: 'UserCircle', h: 'New-customer scoring', p: 'Customers with little history protected by comparing them with their peers.' },
-];
-
-const CASE = [
-  ['Alert', 'A held payment or a risky login'],
-  ['Case created', 'With the score and every reason attached'],
-  ['Analyst reviews', 'Calls the customer, decides, records why'],
-];
-
-function CaseFlow() {
-  return (
-    <ol className="relative space-y-3">
-      {CASE.map(([h, s], i) => (
-        <Reveal as="li" key={h} delay={i * 70} className="card flex items-center gap-4 p-4">
-          <span className="num grid h-9 w-9 shrink-0 place-items-center rounded-full text-[14px] font-semibold" style={{ background: `color-mix(in oklab, ${A} 14%, transparent)`, color: A }}>{i + 1}</span>
-          <span><span className="block text-[16px] font-semibold">{h}</span><span className="block text-[14px] text-ink-3">{s}</span></span>
-        </Reveal>
-      ))}
-      <Reveal as="li" delay={220} className="grid gap-3 sm:grid-cols-2">
-        <span className="card flex items-start gap-3 p-4"><Icon name="CheckCircle" size={20} className="mt-[2px] shrink-0 text-ok" /><span><span className="block text-[15px] font-semibold">Resolved in time</span><span className="block text-[13.5px] text-ink-3">Closed with the decision on record</span></span></span>
-        <span className="card flex items-start gap-3 p-4"><Icon name="ArrowUpRight" size={20} className="mt-[2px] shrink-0 text-warn" /><span><span className="block text-[15px] font-semibold">Not resolved in time</span><span className="block text-[13.5px] text-ink-3">Escalated to L2, then L3, then closed</span></span></span>
-      </Reveal>
-      <Reveal as="li" delay={280} className="card flex items-center gap-4 p-4">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-ink-2" style={{ background: 'color-mix(in oklab, var(--color-fg) 6%, transparent)' }}><Icon name="FileText" size={18} /></span>
-        <span><span className="block text-[16px] font-semibold">Reports</span><span className="block text-[14px] text-ink-3">Every alert with an owner, a decision and a record</span></span>
-      </Reveal>
-    </ol>
-  );
-}
-
-function Explanation() {
-  return (
-    <div className="overflow-hidden rounded-[24px] border border-line bg-bg-1 p-7 shadow-[0_40px_80px_-60px_rgb(11_42_82/.4)] md:p-9">
-      <p className="text-[12.5px] font-semibold uppercase tracking-[.1em] text-ink-3">One reason, as the analyst sees it</p>
-      <div className="mt-6 flex items-start justify-between gap-6">
-        <p className="text-[22px] font-semibold leading-snug tracking-[-0.02em] text-ink md:text-[26px]">Phone call during the payment</p>
-        <span className="shrink-0 rounded-full px-3 py-1 text-[16px] font-semibold num" style={{ background: '#fff4e0', color: '#a86400' }}>+9 points</span>
-      </div>
-      <p className="mt-4 text-[16px] leading-relaxed text-ink-2">Seen about 7.5× more often in scams than in genuine sessions.</p>
-      <div className="mt-7 flex flex-wrap items-center gap-3 border-t border-line pt-6 text-[15px]">
-        <span className="text-ink-3">Score</span><span className="num font-semibold text-ink">26</span><Icon name="ArrowRight" size={14} className="text-ink-3" /><span className="num font-semibold" style={{ color: '#a86400' }}>35</span>
-        <span className="ml-2 rounded-full border border-line-2 px-2.5 py-0.5 text-[13px] text-ink-2">Low → Medium</span>
-      </div>
-      <p className="mt-6 text-[14.5px] leading-relaxed text-ink-3">The bank can explain every decision to the customer, to management and to regulators.</p>
-    </div>
-  );
-}
-
-
+const CASE = [['Alert', 'A held payment or a risky login, with its score and reasons'], ['Case', 'Created automatically, owner assigned by queue'], ['Review', 'The analyst calls the customer and records the decision and why'], ['Resolve', 'Released, blocked or escalated to L2 and L3, with a deadline'], ['Report', 'Every alert has an owner, a decision and a record']];
 const FAQ = [
   { title: 'Where does it sit in the banking journey?', body: 'From login to payment. The SDK in your mobile app and internet banking scores each session as it happens, and your channel applies the decision: allow, step-up or hold.' },
   { title: 'Do you read what customers type?', body: 'No. The SDK measures how the device is used, such as timing, pressure and movement, never the characters typed.' },
@@ -153,97 +60,70 @@ const FAQ = [
 export default function Fraud() {
   return (
     <>
-      <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Identity Fraud Prevention', path: p.path }]} />
-      <Hero glance={[['Protects', 'Mobile banking, internet banking and UPI'], ['Stops', 'Account takeover, payment scams and mule accounts'], ['Deploys', 'An SDK in your app and on your web channel'], ['Shows', 'Every decision in under 80 ms, with its reason']]} acc="adap" crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Identity Fraud Prevention' }]} eyebrow="adapID AI · Identity Fraud Prevention"
-        title={<>Stop fraud <span style={{ color: 'var(--acc)' }}>before the money moves.</span></>}
-        layout="stack"
-        lead="adapID reads how each customer types, taps, holds the phone and moves the mouse, from the moment they open the app to the moment they pay. When the session is not them, or not their decision, the money stays put."
-        note="Mobile banking, internet banking and UPI. One SDK, decisions in under 80 ms.">
-        <SessionJourney />
-      </Hero>
+      <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: p.name, path: p.path }]} />
+      <PageHero crumbs={trail(p.path)} mark={<ProductLabel p="adapid" name="Identity Fraud Prevention" sub="adapID AI · for mobile and internet banking" />}
+        title="Stop fraud before the money moves."
+        lead="adapID recognises the customer, not just the password: how they type, tap and hold the phone, the device they use and what surrounds each payment. Account takeover, payment scams and mule accounts are stopped at the payee, with a reason for every decision."
+        actions={<><Button to="/request-demo?product=adapid" size="lg" arrow>Book a fraud signals session</Button><Button href="#journey" variant="secondary" size="lg">Watch a payment</Button></>}
+        media={(
+          <div className="grid gap-4 sm:grid-cols-2">
+            <StatTile v="₹36,014 Cr" l="involved in bank frauds reported in India in 2024–25" s="RBI Annual Report, 2024–25" />
+            <StatTile {...p.stats[0]} />
+            <div className="card flex items-center gap-4 p-5 sm:col-span-2">
+              <span className="ptile"><Icon name="Lightning" size={20} /></span>
+              <p className="t-body"><span className="font-semibold text-ink">Decisions in under 80 ms</span> at every login, payee and payment (Deep Algorithms benchmark).</p>
+            </div>
+          </div>
+        )} />
+      <SubNav title="Fraud Prevention" items={[['journey', 'A payment'], ['capabilities', 'Capabilities'], ['web', 'Internet banking'], ['mules', 'Mule accounts'], ['cases', 'Case management'], ['faq', 'FAQ']]} />
 
-      <section className="sec" aria-labelledby="q-h">
-        <div className="wrap">
-          <SectionHead id="q-h" acc={A} eyebrow="Unified fraud prevention" title="Three checks. One decision." lead="Every session is read three times over. A fraudster has to get past all three; a genuine customer never feels any of them." />
-          <Reveal className="mx-auto mt-14 max-w-[840px]"><FraudGate /></Reveal>
+      <Section id="journey" labelledby="jr-h">
+        <SectionHead id="jr-h" eyebrow="A payment, step by step" title="The same customer. The same app. Two very different payments." lead="Switch between a genuine payment and a payment made during a scam call, and watch what adapID reads at each step, before the customer taps Pay." />
+        <Reveal className="mt-10"><FraudJourney /><SampleNote /></Reveal>
+      </Section>
+
+      <Section id="capabilities" labelledby="cap-h" tone="subtle">
+        <SectionHead id="cap-h" eyebrow="Inside the app" title="Five capabilities in one SDK." lead="From the first tap to the last payment, in your mobile app." />
+        <Reveal className="mt-10"><Capabilities /></Reveal>
+      </Section>
+
+      <Section id="web" labelledby="web-h">
+        <SectionHead id="web-h" eyebrow="Internet banking" title="Stolen credentials alone are not enough." />
+        <div className="mt-10 grid gap-4 md:grid-cols-3">
+          <FeatureCard icon="CursorClick" acc="var(--color-adap)" title="Behavioural biometrics on the web">Internet banking credentials are the most phished in banking. The web SDK learns each customer’s typing and mouse behaviour and scores every login against it.</FeatureCard>
+          <FeatureCard icon="ShieldCheck" acc="var(--color-adap)" title="Risk-based step-up">Below the bank’s threshold the customer continues with no OTP; above it, a step-up check, logged for review. The bank sets the thresholds.</FeatureCard>
+          <FeatureCard icon="Desktop" acc="var(--color-adap)" title="Trusted devices">Device-based authentication replaces the password. There is no password to phish, reuse or forget.</FeatureCard>
         </div>
-      </section>
+      </Section>
 
-      {/* the stakes, in figures (Anita's story is told just above; the mule figures come with the mule section) */}
-      <Stats acc="adap" items={[{ v: '₹36,014 Cr', l: 'involved in bank frauds reported in India in 2024–25', s: 'RBI Annual Report, 2024–25' }, p.stats[2], { v: '1 in 1', l: 'decisions with a reason an analyst and an auditor can read', s: 'adapID AI' }]} />
-
-      <section className="sec" aria-labelledby="gap-h">
-        <div className="wrap">
-          <SectionHead align="left" id="gap-h" acc={A} eyebrow="What is different" title="Where fraud tools stop, adapID keeps going." lead="Four things to compare with what you run today." />
-          <div className="mt-12"><Versus /></div>
-        </div>
-      </section>
-
-      <section className="stage sec" aria-labelledby="mob-h">
-        <div className="wrap">
-          <SectionHead align="left" id="mob-h" acc={A} eyebrow="Mobile banking" title="Inside the app, from the first tap to the last payment." lead="Five capabilities in one SDK. Pick one to see what the customer sees, and what the bank sees." />
-          <div className="mt-12"><MobileCaps /></div>
-        </div>
-      </section>
-
-      <section className="sec" aria-labelledby="web-h">
-        <div className="wrap grid items-center gap-12 lg:grid-cols-[1fr_1.1fr] lg:gap-20">
+      <Section id="mules" labelledby="mule-h" tone="subtle">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-center lg:gap-16">
           <div>
-            <SectionHead align="left" id="web-h" acc={A} eyebrow="Internet banking" title="Stolen credentials alone are not enough." />
-            <ul className="mt-10 space-y-6">
-              {WEB.map((w, i) => (
-                <Reveal as="li" key={w.h} delay={i * 70} className="flex gap-4">
-                  <span className="ico grid h-10 w-10 shrink-0 place-items-center rounded-[12px]" style={{ '--acc': A }}><Icon name={w.icon} size={20} /></span>
-                  <span><span className="block text-[18px] font-semibold tracking-[-0.015em]">{w.h}</span><span className="mt-1 block text-[15.5px] leading-relaxed text-ink-2">{w.p}</span></span>
-                </Reveal>
+            <SectionHead id="mule-h" eyebrow="India’s mule account crisis" title="Stop the mule at the payee, not after the money is gone." lead="Each payment can look normal; the pattern does not. Payees are scored on account age, inbound senders and how fast money leaves, and fraudulent payments are flagged with the reason why." />
+            <div className="mt-8 grid gap-4 sm:grid-cols-2"><StatTile {...p.stats[0]} /><StatTile {...p.stats[1]} /></div>
+          </div>
+          <Reveal className="card overflow-hidden">
+            <div className="flex items-center justify-between border-b border-line px-4 py-3"><p className="text-[14.5px] font-semibold text-ink">Payee check · R K TRADERS ••4410</p><Badge tone="crit" dot>Mule risk 91</Badge></div>
+            <ul className="divide-y divide-line">
+              {[['Account opened', '9 days ago', 'crit'], ['Inbound senders today', '13, from 6 banks', 'crit'], ['Money out', '92% within 30 minutes, to 4 accounts and a wallet', 'crit'], ['Remarks on inbound payments', '“KYC fee”, “refund”, “verification”', 'hold'], ['Payer’s history with payee', 'None', 'warn']].map(([k, v, t]) => (
+                <li key={k} className="flex items-center justify-between gap-4 px-4 py-3"><span className="w-[170px] shrink-0 text-[13.5px] text-ink-3">{k}</span><span className="flex-1 text-[13.5px] font-medium text-ink">{v}</span><Badge tone={t} dot>{t === 'crit' ? 'Risk' : t === 'hold' ? 'High' : 'Unusual'}</Badge></li>
               ))}
             </ul>
-          </div>
-          <Reveal up className="mx-auto w-full max-w-[540px]"><WebStepUp /></Reveal>
+            <p className="border-t border-line bg-bg-1 px-4 py-2.5 t-caption">Sample data</p>
+          </Reveal>
         </div>
-      </section>
+      </Section>
 
-      <section className="sec" aria-labelledby="txn-h">
-        <div className="wrap">
-          <SectionHead align="left" id="txn-h" acc={A} eyebrow="Transaction intelligence" title="Each payment looks normal. The pattern does not." lead="In mobile and internet banking, fraudulent payments and mule accounts hide in ordinary traffic. Each is flagged with the reason why, and the models can run in shadow mode before going live." />
-          <div className="mt-12"><Points items={TXN} acc="adap" cols={4} /></div>
-          <div className="mt-16 grid items-center gap-12 lg:grid-cols-[.78fr_1.22fr] lg:gap-16">
-            <Reveal>
-              <p className="eyebrow" style={{ '--acc': A }}>India’s mule account crisis</p>
-              <h3 className="t-h2 mt-6">Stop the mule at the payee, not after the money is gone.</h3>
-              <div className="mt-8 grid grid-cols-2 gap-4">
-                {p.stats.slice(0, 2).map((s) => (
-                  <div key={s.v} className="card p-5">
-                    <p className="whitespace-nowrap text-[clamp(24px,6.4vw,32px)] font-semibold tracking-[-0.04em] text-[#0a6dbb] num">{s.v}</p>
-                    <p className="mt-2 text-[14px] leading-snug text-ink-2">{s.l}</p>
-                    <p className="mt-3 text-[12px] text-ink-3">Source: {s.s}</p>
-                  </div>
-                ))}
-              </div>
-              <Link to="/blogs/india-mule-account-crisis" className="link mt-8" style={{ '--acc': A }}>Read the blog<Icon name="ArrowRight" size={14} weight="bold" /></Link>
-            </Reveal>
-            <Reveal delay={120}><MuleCheck /><p className="mt-3 text-[12.5px] text-ink-3">An example payee check. Names and numbers are illustrations.</p></Reveal>
-          </div>
-        </div>
-      </section>
+      <Section id="cases" labelledby="case-h">
+        <SectionHead id="case-h" eyebrow="Case management" title="Every alert has an owner, a decision and a record." />
+        <ol className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          {CASE.map(([t, b], i) => <Reveal as="li" key={t} delay={i * 40} className="card p-5"><span className="num text-[13px] font-semibold text-brand">0{i + 1}</span><p className="mt-2 t-h4">{t}</p><p className="mt-1.5 t-small">{b}</p></Reveal>)}
+        </ol>
+      </Section>
 
-      <section className="sec" aria-labelledby="case-h">
-        <div className="wrap grid gap-12 lg:grid-cols-2 lg:gap-16">
-          <div>
-            <SectionHead align="left" id="case-h" acc={A} eyebrow="Case management" title="Every alert has an owner, a decision and a record." />
-            <div className="mt-10"><CaseFlow /></div>
-          </div>
-          <div>
-            <SectionHead align="left" id="exp-h" acc={A} eyebrow="Explainable by design" title="Every score comes with its reasons." />
-            <Reveal className="mt-10"><Explanation /></Reveal>
-          </div>
-        </div>
-      </section>
-
-
-      <Faq items={FAQ} />
-      <ResearchRow slugs={p.research} />
-      <CtaBand related={[LINKS.cirm, LINKS.zenstra, LINKS.icms]} accent="adap" title={p.cta.title} body={p.cta.body} />
+      <Faq items={FAQ} title="Questions about Fraud Prevention" />
+      <ResearchCards slugs={p.research} title="Research on financial crime" />
+      <CtaBand title={p.cta.title} body={p.cta.body} primary={{ label: 'Book a fraud signals session', to: '/request-demo?product=adapid' }} />
     </>
   );
 }

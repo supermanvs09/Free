@@ -2,13 +2,11 @@ import { lazy, Suspense, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router';
 import Header from './components/Header.jsx';
 import MobileBar from './components/MobileBar.jsx';
-import JumpBar from './components/JumpBar.jsx';
 import Footer from './components/Footer.jsx';
-import Backdrop from './components/Backdrop.jsx';
 import CommandLauncher from './components/CommandLauncher.jsx';
 import { PRODUCTS } from './data/products.js';
 import { ZCAPS } from './data/zenstra.js';
-import { SOLUTIONS } from './data/site.js';
+import { INDUSTRIES } from './data/ia.js';
 import { POSTS } from './data/posts.js';
 import { LEGAL } from './data/legal.js';
 
@@ -16,6 +14,8 @@ const Home = lazy(() => import('./pages/Home.jsx'));
 const Products = lazy(() => import('./pages/Products.jsx'));
 const Solution = lazy(() => import('./pages/Solution.jsx'));
 const Why = lazy(() => import('./pages/Why.jsx'));
+const About = lazy(() => import('./pages/About.jsx'));
+const Careers = lazy(() => import('./pages/Careers.jsx'));
 const Blog = lazy(() => import('./pages/Blog.jsx'));
 const Article = lazy(() => import('./pages/Article.jsx'));
 const Demo = lazy(() => import('./pages/Demo.jsx'));
@@ -27,12 +27,12 @@ const NotFound = lazy(() => import('./pages/NotFound.jsx'));
 const Capability = lazy(() => import('./pages/products/Capability.jsx'));
 const Heist = lazy(() => import('./pages/Heist.jsx'));
 const HeistPlay = lazy(() => import('./pages/HeistPlay.jsx'));
-const HeistTeaser = lazy(() => import('./components/challenge/Heist.jsx').then((m) => ({ default: m.HeistTeaser })));
 
 /* Every product has its own page; the six Zenstra capabilities share one. */
 const PRODUCT_PAGES = {
   zenstra: lazy(() => import('./pages/products/Zenstra.jsx')),
-  adapid: lazy(() => import('./pages/products/Cirm.jsx')),
+  adapid: lazy(() => import('./pages/products/Adapid.jsx')),
+  cirm: lazy(() => import('./pages/products/Cirm.jsx')),
   nhi: lazy(() => import('./pages/products/Nhi.jsx')),
   fraud: lazy(() => import('./pages/products/Fraud.jsx')),
   ad: lazy(() => import('./pages/products/AdSecurity.jsx')),
@@ -43,8 +43,8 @@ const PRODUCT_PAGES = {
 export const PATHS = [
   '/', '/products',
   ...Object.values(PRODUCTS).map((p) => p.path),
-  ...SOLUTIONS.map((s) => `/solutions/${s.slug}`),
-  '/why-deep-algorithms', '/blogs', ...POSTS.map((p) => `/blogs/${p.slug}`),
+  ...INDUSTRIES.map((s) => s.path),
+  '/about-us', '/why-deep-algorithms', '/careers', '/blogs', ...POSTS.map((p) => `/blogs/${p.slug}`),
   '/product-tour', '/request-demo', '/contact', '/sitemap', '/prompt-heist', '/prompt-heist/play', ...Object.keys(LEGAL).map((k) => `/${k}`),
 ];
 
@@ -88,7 +88,6 @@ function Page({ children }) {
 export default function App() {
   return (
     <>
-      <Backdrop />
       <Header />
       <CommandLauncher />
       <main id="main" className="pt-[var(--hdr)]">
@@ -97,16 +96,18 @@ export default function App() {
           <Page>
           <Routes>
             <Route path="/" element={<Home />} />
-            {/* the company page and the old Why page are now one page */}
-            <Route path="/platform" element={<Navigate to="/why-deep-algorithms" replace />} />
-            <Route path="/about-us" element={<Navigate to="/why-deep-algorithms" replace />} />
+            {/* moved pages (also redirected with a 301 in nginx, vercel.json and _redirects) */}
+            <Route path="/platform" element={<Navigate to="/products" replace />} />
+            <Route path="/ad-security" element={<Navigate to="/adapid-ai/active-directory-security" replace />} />
             <Route path="/botshield-ai/*" element={<Navigate to="/products" replace />} />
             <Route path="/botshield-ai" element={<Navigate to="/products" replace />} />
             <Route path="/products" element={<Products />} />
             {Object.entries(PRODUCT_PAGES).map(([k, P]) => <Route key={k} path={PRODUCTS[k].path} element={<P />} />)}
             {Object.entries(ZCAPS).map(([k, c]) => <Route key={k} path={c.path} element={<Capability id={k} />} />)}
             <Route path="/solutions/:slug" element={<Solution />} />
+            <Route path="/about-us" element={<About />} />
             <Route path="/why-deep-algorithms" element={<Why />} />
+            <Route path="/careers" element={<Careers />} />
             <Route path="/blogs" element={<Blog />} />
             <Route path="/blogs/:slug" element={<Article />} />
             <Route path="/product-tour" element={<Tour />} />
@@ -122,9 +123,7 @@ export default function App() {
         </Suspense>
       </main>
       <Footer />
-      <JumpBar />
       <MobileBar />
-      <Suspense fallback={null}><HeistTeaser /></Suspense>
     </>
   );
 }

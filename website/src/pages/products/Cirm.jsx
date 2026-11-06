@@ -1,182 +1,131 @@
-import CirmPipeline from '../../components/CirmPipeline.jsx';
 import { useState } from 'react';
-import { Link } from 'react-router';
 import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
-import { Icon, Reveal, SectionHead, cx } from '../../components/ui.jsx';
-import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import Stage3D from '../../components/Stage3D.jsx';
-import { Hero, Stats, Faq, Compare, Points, LINKS, ACC } from '../../components/ProductKit.jsx';
-import { AdapRiskTimeline, Connectors, IdentityGraph, RiskScoreCard } from '../../components/viz/adapid.jsx';
-import { NhiWorkbench, AdWorkbench } from '../../components/viz/workbench.jsx';
-import { ScamCatch } from '../../components/viz/fraud.jsx';
-import { IdentityTimelines } from '../../components/Changes.jsx';
-import { STORIES } from '../../data/stories.js';
+import { trail } from '../../data/ia.js';
+import { Button, Icon, Reveal, SectionHead, cx } from '../../components/ui.jsx';
+import { CtaBand, DecisionCard, Faq, FeatureCard, PageHero, ProductLabel, ResearchCards, Section, StatTile, SubNav } from '../../components/ds.jsx';
+import CirmWorkflow from '../../components/demos/CirmWorkflow.jsx';
 
-const p = PRODUCTS.adapid;
-
-const FAMILY = [
-  { name: 'Continuous Identity Risk Management', tag: 'You are here', body: 'A live, explainable risk score for every person, acted on the moment behaviour changes.', to: null, V: RiskScoreCard },
-  { name: 'NHI Security for AWS', body: 'Every IAM role, key and workload identity found, scored for posture and watched for new behaviour.', to: '/adapid-ai/nhi-security', V: NhiWorkbench },
-  { name: 'Identity Fraud Prevention', body: 'Mobile and internet banking protected from login to payment: takeover, scams and mules.', to: '/adapid-ai/fraud-prevention', V: ScamCatch },
-  { name: 'Active Directory Security', body: 'Paths to Domain Admins mapped and cut, and live abuse contained in seconds.', to: '/ad-security', V: AdWorkbench },
-];
-
-const SIGNALS = [
-  { icon: 'Pulse', h: 'Behaviour baseline', p: 'When, where and how each person usually works: hours, apps, volumes and sequences.' },
-  { icon: 'TreeStructure', h: 'Access and privilege', p: 'What each identity can reach, what it actually uses, and new privilege it has gained.' },
-  { icon: 'DeviceMobile', h: 'Device and location', p: 'First-seen devices, impossible travel and sessions that change hands.' },
-  { icon: 'IdentificationCard', h: 'HR and lifecycle', p: 'Context from your HR systems, such as joiners, movers and leavers, so access is read against role.' },
-  { icon: 'ChatCircleText', h: 'Explained in plain language', p: 'A 0 to 100 score where every point of risk carries its reason, for analysts and auditors alike.' },
-  { icon: 'Lightning', h: 'Day-one detection', p: 'Transfer learning means scoring starts on day one, without a long learning period.' },
-];
+const p = PRODUCTS.cirm;
 
 const ZONES = [
-  { to: 40, label: 'Allow', tone: 'var(--color-ok)', act: 'Normal work continues. Nothing is interrupted.' },
-  { to: 70, label: 'Step-up', tone: 'var(--color-warn)', act: 'Ask for a stronger check before the next sensitive action.' },
-  { to: 90, label: 'Hold session', tone: 'var(--color-hold)', act: 'Pause the session and notify the identity owner and the SOC.' },
-  { to: 101, label: 'Block and revoke', tone: 'var(--color-crit)', act: 'End sessions, revoke tokens and open a case with the evidence attached.' },
+  { to: 40, label: 'Allow', tone: 'var(--color-ok)', act: 'Work continues. Nothing is interrupted.' },
+  { to: 60, label: 'Watch', tone: 'var(--color-warn)', act: 'Scored more often; the owner sees the reasons.' },
+  { to: 80, label: 'Step-up', tone: 'var(--color-hold)', act: 'A stronger check through your identity provider before the next sensitive action.' },
+  { to: 101, label: 'Hold and contain', tone: 'var(--color-crit)', act: 'Sessions held or revoked, the SOC notified with the evidence attached.' },
 ];
-function RiskPolicy() {
+function PolicySlider() {
   const [v, setV] = useState(81);
   const z = ZONES.find((x) => v < x.to);
   return (
-    <div className="card p-6 md:p-9">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+    <div className="card p-6 md:p-8">
+      <div className="flex flex-wrap items-end justify-between gap-6">
         <div>
-          <p className="text-[13px] font-semibold uppercase tracking-[.08em] text-ink-3">Risk score</p>
-          <p className="mt-1 text-[56px] font-semibold leading-none tracking-[-0.05em] num" style={{ color: z.tone }}>{v}</p>
+          <label htmlFor="risk-v" className="app-label">Risk score</label>
+          <p className="num mt-1 text-[56px] font-semibold leading-none" style={{ color: z.tone }}>{v}</p>
         </div>
-        <div className="max-w-[420px] text-right">
-          <p className="text-[22px] font-semibold tracking-[-0.02em]" style={{ color: z.tone }}>{z.label}</p>
-          <p className="mt-1 text-[15px] text-ink-2">{z.act}</p>
+        <div className="max-w-[440px] sm:text-right" aria-live="polite">
+          <p className="t-h3" style={{ color: z.tone }}>{z.label}</p>
+          <p className="mt-1 t-body">{z.act}</p>
         </div>
       </div>
-      <div className="relative mt-8">
-        <div className="flex h-3 overflow-hidden rounded-full">
-          {ZONES.map((x, i) => <span key={x.label} style={{ flex: (x.to - (i ? ZONES[i - 1].to : 0)), background: x.tone, opacity: x === z ? 1 : 0.35 }} />)}
+      <div className="mt-8">
+        <div className="flex h-2.5 overflow-hidden rounded-full" aria-hidden="true">
+          {ZONES.map((x, i) => <span key={x.label} style={{ flex: x.to - (i ? ZONES[i - 1].to : 0), background: x.tone, opacity: x === z ? 1 : 0.28 }} />)}
         </div>
-        <input type="range" min="0" max="100" value={v} onChange={(e) => setV(+e.target.value)} aria-label="Drag to set a risk score" className="absolute inset-x-0 -top-2 h-7 w-full cursor-pointer appearance-none bg-transparent [&::-webkit-slider-thumb]:h-7 [&::-webkit-slider-thumb]:w-7 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-4 [&::-webkit-slider-thumb]:border-[#0f141b] [&::-webkit-slider-thumb]:bg-white [&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:w-6 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white" />
-        <div className="mt-4 grid grid-cols-4 text-[12.5px] text-ink-3">{ZONES.map((x) => <span key={x.label}>{x.label}</span>)}</div>
+        <input id="risk-v" type="range" min="0" max="100" value={v} onChange={(e) => setV(+e.target.value)} aria-valuetext={`${v}: ${z.label}`}
+          className="mt-3 w-full accent-[var(--color-brand)]" />
+        <div className="mt-1 grid grid-cols-4 t-caption">{ZONES.map((x) => <span key={x.label}>{x.label}</span>)}</div>
       </div>
-      <p className="mt-6 text-[13.5px] text-ink-3">Drag the score. Thresholds and responses are your policy; these are an example.</p>
+      <p className="mt-6 t-caption">Move the score. Thresholds and responses are your policy; these are an example.</p>
     </div>
   );
 }
 
+const SIGNALS = [
+  ['Pulse', 'Behaviour baseline', 'When, where and how each person usually works: hours, apps, volumes and sequences.'],
+  ['TreeStructure', 'Access and privilege', 'What each identity can reach, what it actually uses, and privilege it has newly gained.'],
+  ['DeviceMobile', 'Device and location', 'First-seen devices, impossible travel and sessions that change hands.'],
+  ['IdentificationCard', 'HR and lifecycle', 'Joiners, movers and leavers from your HR systems, so access is read against role.'],
+  ['ChatCircleText', 'Explained in plain language', 'A 0 to 100 score where every point of risk carries its reason.'],
+  ['Lightning', 'Day-one detection', 'Transfer learning means scoring starts on day one, without a long learning period.'],
+];
+
+const WITHOUT = [['Day 0, 02:14', 'Login from a new device. Password and MFA both pass.'], ['Day 3', 'A mailbox rule starts forwarding invoices outside.'], ['Day 12', 'Three years of finance files are exported.'], ['Day 47', 'Found during an audit. The data is long gone.']];
+const WITH = [['02:14:07', 'The same login. Risk jumps to 64: new country and device.'], ['02:16:31', 'Forwarding rule created. Risk 81.'], ['02:16:52', 'Step-up denied by Kavya on her own phone.'], ['02:17:04', 'Sessions revoked, rule removed, SOC case opened.']];
+
 const FAQ = [
-  { title: 'How is this different from ITDR?', body: 'Identity threat detection tells you an attack happened. adapID scores every identity continuously and acts when behaviour changes, before the stolen login is used for anything that matters.' },
+  { title: 'How is this different from ITDR?', body: 'Identity threat detection tells you an attack happened. CIRM scores every identity continuously and acts when behaviour changes, before the stolen login is used for anything that matters.' },
   { title: 'How long before it is useful?', body: 'Scoring starts on day one. Transfer learning means there is no long baselining period before detection begins.' },
-  { title: 'What does it connect to?', body: 'Read-only connectors to your identity provider, IAM, HR systems, SaaS and application logs.' },
+  { title: 'What does it connect to?', body: 'Read-only connectors to your identity provider, IAM, HR systems, SaaS and application logs. Responses go through your identity provider and SOC tooling.' },
   { title: 'Can my analysts see why a score changed?', body: 'Yes. Every point of risk comes with its reason in plain language, and every action is logged for review and audit.' },
-  { title: 'Does it cover machine identities too?', body: 'People are scored here. Machine identities in AWS are covered by NHI Security for AWS, part of the same adapID family.' },
+  { title: 'Does it cover machine identities too?', body: 'People are scored here. Machine identities in AWS are covered by NHI Security for AWS, part of the same adapID AI platform.' },
 ];
 
 export default function Cirm() {
   return (
     <>
-      <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'adapID AI', path: p.path }]} />
-      <Hero glance={[['Protects', 'People and machine identities across your IdP, cloud and SaaS'], ['Stops', 'Account takeover, insider misuse and over-privileged keys'], ['Deploys', 'Read-only connectors; one read-only role per AWS account'], ['Shows', 'A live risk score with the reason for every point']]} layout="stack" acc="adap" crumbs={[{ name: 'Products', path: '/products' }, { name: 'adapID AI' }]} eyebrow="adapID AI · Continuous identity risk management"
-        title={<>A live risk score for every identity. <span style={{ color: 'var(--acc)' }}>Acted on the moment it changes.</span></>}
-        lead="adapID AI learns how each person normally works across your identity provider, cloud and SaaS, and acts when that changes, before a stolen login becomes a breach.">
-        <Stage3D tilt={[12, 0]} range={[3, 5]} className="mx-auto max-w-[860px]"><AdapRiskTimeline /></Stage3D>
-      </Hero>
-
-      {/* the platform view: every stage CIRM runs on every identity */}
-      <section className="sec" aria-labelledby="pipe-h">
-        <div className="wrap">
-          <div className="island tone-d px-4 py-14 md:px-10 md:py-20">
-            <SectionHead id="pipe-h" eyebrow="One platform view" title="Seven stages. Every identity. Always on." lead="Pick a stage to see what adapID CIRM does there. It runs all seven on every person, key and agent, all the time." />
-            <Reveal up className="mx-auto mt-12 max-w-[1120px]"><CirmPipeline /></Reveal>
+      <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: p.name, path: p.path }]} />
+      <PageHero crumbs={trail(p.path)} mark={<ProductLabel p="adapid" name="Continuous Identity Risk Management" sub="adapID AI" />}
+        title="A live risk score for every identity, acted on the moment it changes."
+        lead="CIRM learns how each person normally works across your identity provider, cloud and SaaS, scores every session continuously with the reasons attached, and steps up, holds or contains the identity when behaviour changes."
+        actions={<><Button to="/request-demo?product=adapid" size="lg" arrow>Book a demo</Button><Button href="#workflow" variant="secondary" size="lg">See the seven stages</Button></>}
+        media={(
+          <div className="relative mx-auto max-w-[520px]">
+            <DecisionCard subject="Kavya Reddy · Treasury analyst" sub="Decided by adapID CIRM" d="hold" label="Session held" reasons={[['Sign-in from Lagos at 02:14, new device', '+46'], ['Forwarding rule to an outside domain', '+17'], 'Step-up through Okta denied; sessions revoked']} policy="Treasury · score ≥ 80" id="DEC-7F2A91" time="02:17" />
+            <div className="card mt-4 grid grid-cols-3 divide-x divide-line p-0 text-center">
+              {[['18', 'baseline'], ['81', 'at 02:16'], ['2 min', 'to contain']].map(([v, l]) => <div key={l} className="p-4"><p className="num text-[22px] font-semibold text-ink">{v}</p><p className="t-caption">{l}</p></div>)}
+            </div>
+            <p className="mt-2 t-caption">Sample data</p>
           </div>
-        </div>
-      </section>
+        )} />
+      <SubNav title="CIRM" items={[['workflow', 'How it works'], ['policy', 'Policy'], ['signals', 'Signals'], ['endings', 'Before and after'], ['faq', 'FAQ']]} />
 
-      <section className="sec" aria-labelledby="itdr-h">
-        <div className="wrap">
-          <SectionHead id="itdr-h" acc={ACC.adap} eyebrow="Continuous identity risk management" title="ITDR tells you what happened. CIRM stops what’s next." />
-          <Reveal className="mt-12">
-            <Compare acc="adap" caption="adapID CIRM compared with SIEM rules and ITDR" cols={['SIEM rules', 'ITDR', 'adapID CIRM']} rows={[
-              ['When it acts', 'After an alert', 'After detection', 'Continuously, before misuse'],
-              ['Learns each identity’s normal', false, 'Partly', 'From day one'],
-              ['Explains the score', false, 'Partly', 'In plain language'],
-              ['Responds', 'A ticket', 'An alert', 'Step-up, hold or block'],
-              ['Machine identities', false, 'Limited', 'With NHI Security'],
-            ]} />
-          </Reveal>
-        </div>
-      </section>
+      <Section id="workflow" labelledby="wf-h">
+        <SectionHead id="wf-h" eyebrow="How it works" title="Seven stages. Every identity. Always on." lead="Follow one stolen login from discovery to evidence. Pick any stage, or let it play." />
+        <Reveal className="mt-10"><CirmWorkflow /></Reveal>
+      </Section>
 
-      <section className="stage sec" aria-labelledby="blast-h">
-        <div className="wrap">
-          <SectionHead id="blast-h" acc={ACC.adap} eyebrow="Identity graph and blast radius" title="See what a stolen identity can reach, before the attacker does." lead="Every identity is mapped to the systems it opens and the data behind them. When one is compromised, adapID shows the blast radius, the paths to admin, and closes them in one move." />
-          <Reveal up className="mx-auto mt-14 max-w-[1120px]"><IdentityGraph /></Reveal>
+      <Section id="policy" labelledby="policy-h" tone="subtle">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] lg:items-center lg:gap-16">
+          <SectionHead id="policy-h" eyebrow="From score to action" title="Your policy decides what each score does." lead="adapID produces the score and the reasons. You decide the thresholds and the response, per group, application or action." />
+          <Reveal><PolicySlider /></Reveal>
         </div>
-      </section>
+      </Section>
 
-      <section className="sec" aria-labelledby="chg-h">
-        <div className="wrap">
-          <SectionHead align="left" id="chg-h" acc={ACC.adap} eyebrow="What changes" title="The same stolen password. Two endings." lead="One login that MFA lets through. What happens next depends on whether anyone is watching how the identity behaves." />
-          <div className="mt-12"><IdentityTimelines /></div>
+      <Section id="signals" labelledby="signals-h">
+        <SectionHead id="signals-h" eyebrow="What it watches" title="A valid password proves nothing. Behaviour does." />
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {SIGNALS.map(([ic, t, b], i) => <Reveal key={t} delay={i * 40}><FeatureCard icon={ic} acc="var(--color-adap)" title={t}>{b}</FeatureCard></Reveal>)}
         </div>
-      </section>
+      </Section>
 
-      <section className="sec" aria-labelledby="fam-h">
-        <div className="wrap">
-          <SectionHead id="fam-h" acc={ACC.adap} eyebrow="The adapID family" title="Four products for human and machine identities." lead="Each runs on its own. Together they cover people, machine identities, payments and the directory that holds it all." />
-          <div className="m-rail mt-14 grid gap-5 md:grid-cols-2">
-            {FAMILY.map((f, i) => {
-              const inner = (
-                <>
-                  <div className="relative h-[260px] overflow-hidden rounded-[16px] border border-line md:h-[300px]" style={{ background: 'radial-gradient(70% 60% at 50% 0%, rgb(30 136 216 / .12), transparent 70%), linear-gradient(160deg, #f4f8fd, #e8f0f9)' }}>
-                    {f.V ? <div className="pointer-events-none absolute left-1/2 top-4 w-[118%] -translate-x-1/2 md:w-[104%]"><f.V /></div>
-                      : <div className="absolute inset-0 flex items-center justify-center"><span className="text-[64px] font-semibold tracking-[-0.05em] text-[#c4352a] num">94</span><span className="ml-3 text-[15px] text-ink-3">risk score,<br />with the reasons</span></div>}
-                    <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-24" style={{ background: 'linear-gradient(rgb(232 240 249 / 0), #e8f0f9)' }} />
-                  </div>
-                  <div className="mt-6 flex items-center gap-3"><h3 className="t-h3">{f.name}</h3>{f.tag && <span className="rounded-full border border-adap/40 px-2.5 py-0.5 text-[12px] font-medium text-adap">{f.tag}</span>}</div>
-                  <p className="mt-2 text-[15.5px] leading-relaxed text-ink-2">{f.body}</p>
-                  {f.to && <span className="link mt-4 text-[14.5px]" style={{ '--acc': ACC.adap }}>Explore<Icon name="ArrowRight" size={14} weight="bold" /></span>}
-                </>
-              );
-              return (
-                <Reveal key={f.name} delay={i * 80}>
-                  {f.to ? <Link to={f.to} className="card card-hover block h-full p-5 md:p-6">{inner}</Link> : <div className="card h-full p-5 md:p-6" style={{ borderColor: 'rgb(60 200 246 / .35)' }}>{inner}</div>}
-                </Reveal>
-              );
-            })}
-          </div>
+      <Section id="endings" labelledby="endings-h" tone="subtle">
+        <SectionHead id="endings-h" eyebrow="Before and after" title="The same stolen password. Two endings." />
+        <div className="mt-10 grid gap-5 lg:grid-cols-2">
+          {[['Without CIRM', 'Found after 47 days, with no alerts', WITHOUT, 'crit'], ['With CIRM', 'Contained in under 3 minutes', WITH, 'ok']].map(([t, sub, rows, tone]) => (
+            <Reveal key={t} className="card p-6 md:p-7">
+              <div className="flex items-center justify-between gap-3"><h3 className="t-h4">{t}</h3><span className={cx('badge', `badge-${tone}`)}>{sub}</span></div>
+              <ol className="mt-5 space-y-4 border-l-2 border-line pl-5">
+                {rows.map(([when, what]) => (
+                  <li key={when} className="relative">
+                    <span className={cx('absolute -left-[27px] top-1.5 h-3 w-3 rounded-full border-2 border-white', tone === 'ok' ? 'bg-ok' : 'bg-crit')} />
+                    <p className="mono text-ink-3">{when}</p><p className="mt-0.5 t-body !text-ink">{what}</p>
+                  </li>
+                ))}
+              </ol>
+            </Reveal>
+          ))}
         </div>
-      </section>
-
-      <section className="sec" aria-labelledby="sig-h">
-        <div className="wrap">
-          <SectionHead align="left" id="sig-h" acc={ACC.adap} eyebrow="How the score is built" title="A valid password proves nothing. Behaviour does." lead="A baseline for every person from your identity provider, IAM, HR and SaaS logs. Departures raise the score, with the reasons attached." />
-          <div className="mt-12"><Points items={SIGNALS} acc="adap" /></div>
+        <div className="mt-10 grid gap-5 md:grid-cols-2">
+          <StatTile {...p.stats[0]} />
+          <div className="card flex flex-col justify-center p-6"><Icon name="Info" size={20} className="text-brand" /><p className="mt-3 t-body">The two timelines are an illustration of how a stolen-credential attack unfolds, not a customer case.</p></div>
         </div>
-      </section>
+      </Section>
 
-      <section className="sec" aria-labelledby="pol-h">
-        <div className="wrap grid items-center gap-12 lg:grid-cols-[.8fr_1.2fr] lg:gap-16">
-          <Reveal>
-            <p className="eyebrow" style={{ '--acc': ACC.adap }}>From score to action</p>
-            <h2 id="pol-h" className="t-h2 mt-6">Your policy decides what each score does.</h2>
-            <p className="t-lead mt-5">Low risk passes silently. Rising risk asks for proof. High risk is held or blocked, by policy, in seconds.</p>
-          </Reveal>
-          <Reveal delay={100}><RiskPolicy /></Reveal>
-        </div>
-      </section>
-
-      <section className="sec-tight" aria-labelledby="con-h">
-        <div className="wrap">
-          <Reveal><p className="kicker mb-6" id="con-h">Connects to your identity sources, read-only</p></Reveal>
-          <Reveal delay={80}><Connectors keys={['okta', 'entra', 'ad', 'm365', 'google', 'aws', 'github', 'atlassian', 'salesforce', 'slack']} /></Reveal>
-        </div>
-      </section>
-
-      <Stats acc="adap" items={p.stats} title="The cost of a login nobody questioned" {...STORIES.cirm} />
-      <Faq items={FAQ} />
-      <ResearchRow slugs={p.research} title="Blogs on identity attacks" />
-      <CtaBand related={[LINKS.zenstra, LINKS.nhi, LINKS.icms]} relatedTitle="Other Deep Algorithms products" accent="adap" title={p.cta.title} body={p.cta.body} />
+      <Faq items={FAQ} title="Questions about CIRM" />
+      <ResearchCards slugs={p.research} title="Research on identity attacks" />
+      <CtaBand title={p.cta.title} body={p.cta.body} primary={{ label: 'Book a demo', to: '/request-demo?product=adapid' }} />
     </>
   );
 }
