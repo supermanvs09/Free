@@ -155,6 +155,9 @@ type AWSIntegrationService struct {
 
 	running sync.Map // tenantID -> struct{}: one check per tenant at a time
 	watches sync.Map // watchKey -> *watchEntry: the events checks running now
+	// resuming guards starting the events check of an approved account, so two
+	// requests reading the page at once start one watch.
+	resuming sync.Map // watchKey -> struct{}
 	// testPoll overrides the 5-10s poll interval in tests.
 	testPoll time.Duration
 }
@@ -243,6 +246,9 @@ func (s *AWSIntegrationService) Get(ctx context.Context, caller AWSCaller, canMa
 		Accounts:  make([]AWSConnectedAccount, 0, len(records)),
 	}
 	for _, rec := range records {
+		// An admin approved this connection since the last read: its events
+		// check starts now.
+		s.resumeApproved(ctx, caller, &rec)
 		// An events check saved as running whose watcher is not in this
 		// process stopped with it (a restart, a deploy): say so, rather than
 		// show a check that will never finish.
@@ -328,17 +334,20 @@ func (s *AWSIntegrationService) begin(tenantID string) (func(), error) {
 	return func() { s.running.Delete(tenantID) }, nil
 }
 
-// Verify runs the three checks for a pasted role ARN and the regions the
-// customer allows, in order:
+// Verify runs the checks for a pasted role ARN and the regions the customer
+// allows, in this order:
 //
 //  1. sts:AssumeRole with the ARN and the tenant's External ID
 //  2. iam:ListRoles with the assumed role (one test read)
-//  3. an event from the account has reached us
+//  3. approval: a first connection is put in front of the platform admins
+//  4. an event from the account has reached us
 //
-// Before (3) the account is allowed to put events on the central bus. Nothing
+// Events come last because the account is only allowed to put events on the
+// central bus (the queue the check reads) once an admin has approved it. An
+// account that is already approved (a re-check) goes straight to (4). Nothing
 // is stored or granted until (1) passes, because only then has the tenant
-// shown it controls the account. The first time all three pass, a sync is
-// queued and the account joins the tenant's scope.
+// shown it controls the account. When (4) passes a sync is queued and the
+// account joins the tenant's scope.
 func (s *AWSIntegrationService) Verify(ctx context.Context, caller AWSCaller, rawRoleARN string, rawRegions []string) (*AWSVerifyResponse, error) {
 	log := logging.FromContext(ctx).With("role_arn", strings.TrimSpace(rawRoleARN))
 	log.Info("aws integration: connection check started", "regions", rawRegions, "by", caller.Actor)
@@ -437,10 +446,11 @@ func (s *AWSIntegrationService) verify(ctx context.Context, caller AWSCaller, ra
 		unavailable(&checks[1])
 	}
 
-	// 3. Events. Allow the account on the bus first (idempotent); EventBridge
-	// retries refused deliveries, so events sent before this still arrive.
-	// The events check then runs in the background (service_watch.go): it
-	// watches the queue for a few minutes instead of peeking once.
+	// 3. Approval, then 4. events. A first connection is asked for approval as
+	// soon as the role can read the account; the account is let onto the bus
+	// and watched for its first event only once approved (resumeApproved), or
+	// at once when it is approved already. EventBridge retries refused
+	// deliveries, so events sent before the approval still arrive.
 	rec := AWSAccountRecord{
 		AccountID:      role.AccountID,
 		RoleARN:        role.ARN,
@@ -453,35 +463,27 @@ func (s *AWSIntegrationService) verify(ctx context.Context, caller AWSCaller, ra
 	saveCtx, saveCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	defer saveCancel()
 	if checks[1].State != AWSCheckPass {
-		// No point watching for events while the role cannot read the account.
+		// No point asking for approval or watching for events while the role
+		// cannot read the account.
 		checks[2].State, checks[2].Message, checks[2].Fix = AWSCheckSkipped, "Runs once the checks above pass.", ""
 	} else {
-		stepCtx, stepCancel = context.WithTimeout(ctx, awsPermissionBudget)
-		err = s.verifier.AllowAccountOnBus(stepCtx, p, role.AccountID)
-		stepCancel()
-		switch {
-		case err != nil:
-			logCheckError(ctx, caller.TenantID, role.AccountID, "bus_permission", err)
-			if errors.Is(err, awsconnect.ErrPlatformCredentials) {
-				platformError(&checks[2], err)
-			} else {
-				unavailable(&checks[2])
-			}
-		case s.events == nil:
-			logCheckError(ctx, caller.TenantID, role.AccountID, checks[2].Key, errors.New("no event queue: set NHI_AWS_EVENT_QUEUE_URL"))
-			unavailable(&checks[2])
-		default:
-			rec.Checks = checks
-			saved, err := s.store.SaveCheckStart(saveCtx, caller.TenantID, caller.Schema, rec)
-			if errors.Is(err, ErrAWSAccountClaimedByTenant) {
-				return nil, ErrAWSAccountClaimed
-			}
-			if err != nil {
-				return nil, err
-			}
-			rec.Checks = append([]AWSCheck(nil), checks...) // the watcher's own copy
-			checks[2] = s.startWatch(caller, p, settings, rec)
-			rec.Checks = checks
+		waitingForApproval(&checks[2])
+		rec.Checks = checks
+		saved, err := s.store.SaveCheckStart(saveCtx, caller.TenantID, caller.Schema, rec)
+		if errors.Is(err, ErrAWSAccountClaimedByTenant) {
+			return nil, ErrAWSAccountClaimed
+		}
+		if err != nil {
+			return nil, err
+		}
+		if !isApproved(saved) {
+			return s.askApproval(ctx, caller, settings, rec, saved, result)
+		}
+		// Approved already: the events check starts now.
+		check, started := s.startEvents(ctx, caller, p, settings, rec)
+		checks[2] = check
+		rec.Checks = checks
+		if started {
 			if err := s.store.SaveChecks(saveCtx, caller.Schema, rec.AccountID, checks); err != nil {
 				return nil, err
 			}
@@ -491,6 +493,7 @@ func (s *AWSIntegrationService) verify(ctx context.Context, caller AWSCaller, ra
 			result.Watching = true
 			return result, nil
 		}
+		// It could not start (our bus or queue): save the checks as they are.
 	}
 
 	// Saved even if the caller has gone: the checks really ran.
@@ -924,7 +927,152 @@ func newChecks() []AWSCheck {
 	return []AWSCheck{
 		{Key: AWSCheckAssumeRole, Label: "The role can be assumed"},
 		{Key: AWSCheckReadAccess, Label: "Your configuration is readable"},
-		{Key: AWSCheckEvents, Label: "Events arrive from each region"},
+		{Key: AWSCheckEvents, Label: "Events arrive from your account"},
+	}
+}
+
+// waitingForApproval is the events check of a connection that has not been
+// approved yet: it has not run, and says why.
+func waitingForApproval(c *AWSCheck) {
+	c.State, c.Fix = AWSCheckSkipped, ""
+	c.Message = "Runs after adapID approves this connection: we then open our event queue to your account and wait for its first event."
+}
+
+// isApproved: an admin approved the account, or it was connected before
+// approvals existed.
+func isApproved(rec *AWSAccountRecord) bool {
+	return rec != nil && (rec.Approval.Status == ApprovalApproved || (rec.Approval.Status == "" && rec.ConnectedAt != nil))
+}
+
+// awaitingEvents: approved, readable, not connected yet, and its events
+// check has been waiting for the approval.
+func awaitingEvents(rec AWSAccountRecord) bool {
+	if rec.Approval.Status != ApprovalApproved || rec.IsConnected {
+		return false
+	}
+	var read, events bool
+	for _, c := range rec.Checks {
+		switch c.Key {
+		case AWSCheckReadAccess:
+			read = c.State == AWSCheckPass
+		case AWSCheckEvents:
+			events = c.State == AWSCheckSkipped
+		}
+	}
+	return read && events
+}
+
+func withEventsCheck(checks []AWSCheck, check AWSCheck) []AWSCheck {
+	out := append([]AWSCheck(nil), checks...)
+	for i := range out {
+		if out[i].Key == AWSCheckEvents {
+			out[i] = check
+			return out
+		}
+	}
+	return append(out, check)
+}
+
+// askApproval puts a first connection in front of the platform admins and
+// e-mails them (in the background: a slow mail service must not hold the
+// customer's page). The account waits as pending_approval; nothing is let onto
+// the bus and no events are watched until an admin approves.
+func (s *AWSIntegrationService) askApproval(ctx context.Context, caller AWSCaller, settings *AWSTenantSettings, rec AWSAccountRecord, saved *AWSAccountRecord, result *AWSVerifyResponse) (*AWSVerifyResponse, error) {
+	log := logging.FromContext(ctx).With("tenant_id", caller.TenantID, "account_id", rec.AccountID)
+	result.Checks = rec.Checks
+	result.Saved = true
+	result.Status = AWSStatusPendingApproval
+	if saved.Approval.Status == ApprovalPending {
+		// Asked already: nobody is e-mailed twice for one request.
+		log.Info("aws integration: connection already waits for approval")
+		return result, nil
+	}
+	domain := ""
+	if settings != nil {
+		domain = settings.Domain
+	}
+	reqCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+	defer cancel()
+	id, _, err := s.store.RequestApproval(reqCtx, ApprovalRequest{
+		TenantID: caller.TenantID, Schema: caller.Schema, Domain: domain, Account: rec,
+		Events: map[string]any{"stage": "after role and read access"}, RequestedBy: caller.Actor,
+	})
+	if err != nil {
+		log.Error("aws integration: recording the approval request failed", "err", err)
+		return nil, err
+	}
+	log.Info("aws integration: connection waits for approval; its events are checked after it", "approval_id", id)
+	go func() {
+		nctx, ncancel := context.WithTimeout(context.WithoutCancel(ctx), 90*time.Second)
+		defer ncancel()
+		s.notifyApprovers(nctx, id, caller, domain, rec)
+	}()
+	return result, nil
+}
+
+// startEvents lets the account put events on the central bus (the queue the
+// check reads is fed from it) and starts watching for its first event. It
+// returns the events check as it now stands: running, or in error when our bus
+// or queue is the problem (never a fix for the customer).
+func (s *AWSIntegrationService) startEvents(ctx context.Context, caller AWSCaller, p awsconnect.Platform, settings *AWSTenantSettings, rec AWSAccountRecord) (AWSCheck, bool) {
+	check := AWSCheck{Key: AWSCheckEvents, Label: "Events arrive from your account"}
+	stepCtx, cancel := context.WithTimeout(ctx, awsPermissionBudget)
+	err := s.verifier.AllowAccountOnBus(stepCtx, p, rec.AccountID)
+	cancel()
+	switch {
+	case err != nil:
+		logCheckError(ctx, caller.TenantID, rec.AccountID, "bus_permission", err)
+		if errors.Is(err, awsconnect.ErrPlatformCredentials) {
+			platformError(&check, err)
+		} else {
+			unavailable(&check)
+		}
+		return check, false
+	case s.events == nil:
+		logCheckError(ctx, caller.TenantID, rec.AccountID, check.Key, errors.New("no event queue: set NHI_AWS_EVENT_QUEUE_URL"))
+		unavailable(&check)
+		return check, false
+	}
+	logging.FromContext(ctx).Info("aws integration: account allowed on the event bus, watching for its first event",
+		"tenant_id", caller.TenantID, "account_id", rec.AccountID)
+	rec.Checks = withEventsCheck(rec.Checks, check) // the watcher's own copy
+	return s.startWatch(caller, p, settings, rec), true
+}
+
+// resumeApproved starts the events check of an account an admin has approved
+// since its last read: until then the check waits ("skipped"). The first read
+// of the account after the approval - the page polls while it waits - starts it.
+func (s *AWSIntegrationService) resumeApproved(ctx context.Context, caller AWSCaller, rec *AWSAccountRecord) {
+	if !awaitingEvents(*rec) || s.verifier == nil || s.watching(caller.TenantID, rec.AccountID) {
+		return
+	}
+	key := watchKey{caller.TenantID, rec.AccountID}
+	if _, busy := s.resuming.LoadOrStore(key, struct{}{}); busy {
+		return
+	}
+	defer s.resuming.Delete(key)
+	log := logging.FromContext(ctx).With("tenant_id", caller.TenantID, "account_id", rec.AccountID)
+	// Another request may have started it while this one waited its turn.
+	cur, err := s.store.GetAccount(ctx, caller.Schema, rec.AccountID)
+	if err != nil || cur == nil || !awaitingEvents(*cur) {
+		if err != nil {
+			log.Warn("aws integration: could not re-read the approved account", "err", err)
+		} else if cur != nil {
+			*rec = *cur
+		}
+		return
+	}
+	p, settings, err := s.platform(ctx, caller.TenantID)
+	if err != nil {
+		return // platform() has logged why
+	}
+	log.Info("aws integration: connection approved, starting the events check", "approved_by", cur.Approval.DecidedBy)
+	check, _ := s.startEvents(ctx, caller, p, settings, *cur)
+	rec.Checks = withEventsCheck(cur.Checks, check)
+	saveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	if err := s.store.SaveChecks(saveCtx, caller.Schema, rec.AccountID, rec.Checks); err != nil {
+		log.Error("aws integration: saving the events check failed", "err", err)
 	}
 }
 

@@ -30,7 +30,7 @@ func requestApproval(t *testing.T, db *sql.DB, tn Tenant, account string) int64 
 	err := db.QueryRow(`INSERT INTO nhi_global.connection_approvals
 		(tenant_id, db_name, tenant_domain, account_id, role_arn, regions, checks, events, requested_by, email_status)
 		VALUES ($1::uuid, $2, $3, $4, 'arn:aws:iam::'||$4||':role/NHIPlatformCollector', '{ap-south-1,global}',
-		  '[{"key":"role","label":"Role can be assumed","state":"pass"}]', '{"regions_seen":["ap-south-1","us-east-1"],"messages_scanned":12}',
+		  '[{"key":"role","label":"Role can be assumed","state":"pass"}]', '{"stage":"after role and read access"}',
 		  'priya@acme_corp', 'sent') RETURNING id`, tn.TenantID, tn.DBName, tn.DomainName, account).Scan(&id)
 	if err != nil {
 		t.Fatal(err)
@@ -64,7 +64,10 @@ func TestApprovalsWithoutTheTable(t *testing.T) {
 	}
 }
 
-func TestApproveConnectsTheAccount(t *testing.T) {
+// Approving records the decision and lets the events check run; it does not
+// connect the account or queue a scan - that happens when the first event
+// arrives, on the API server.
+func TestApproveDoesNotConnectTheAccountYet(t *testing.T) {
 	db := scratchDB(t)
 	approvalsTable(t, db)
 	svc := mustService(t, db)
@@ -78,7 +81,7 @@ func TestApproveConnectsTheAccount(t *testing.T) {
 	}
 	a := list.Approvals[0]
 	if a.Domain != tn.DomainName || a.Workspace != "acme_corp" || strings.Join(a.Regions, ",") != "ap-south-1,global" || a.EmailStatus != "sent" ||
-		!strings.Contains(string(a.Checks), `"role"`) || !strings.Contains(string(a.Events), "messages_scanned") {
+		!strings.Contains(string(a.Checks), `"role"`) || !strings.Contains(string(a.Events), "after role and read access") {
 		t.Fatalf("approval = %+v", a)
 	}
 
@@ -95,7 +98,7 @@ func TestApproveConnectsTheAccount(t *testing.T) {
 		FROM acme_corp.accounts WHERE account_id = '210987654321'`).Scan(&status, &connected, &approval, &sync, &by, &hasConnectedAt); err != nil {
 		t.Fatal(err)
 	}
-	if status != "active" || !connected || approval != "approved" || sync != "queued" || !hasConnectedAt || !strings.Contains(by, "superadmin") {
+	if status != "pending" || connected || approval != "approved" || sync == "queued" || hasConnectedAt || !strings.Contains(by, "superadmin") {
 		t.Fatalf("account = %s %v %s %s %s %v", status, connected, approval, sync, by, hasConnectedAt)
 	}
 	if n, _, _, _ := svc.PendingApprovals(ctx); n != 0 {
@@ -107,7 +110,7 @@ func TestApproveConnectsTheAccount(t *testing.T) {
 	if _, err := svc.Decide(ctx, id, false, "no", "other"); !errors.As(err, &derr) || derr.Status != ApprovalApproved {
 		t.Fatalf("second decision err = %v", err)
 	}
-	if n := count(t, db, `SELECT count(*) FROM acme_corp.accounts WHERE account_status = 'active'`); n != 1 {
+	if n := count(t, db, `SELECT count(*) FROM acme_corp.accounts WHERE approval_status = 'approved'`); n != 1 {
 		t.Error("the second decision changed the account")
 	}
 	if _, err := svc.Decide(ctx, 99999, true, "", "x"); !errors.Is(err, NotFoundError{}) {

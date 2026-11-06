@@ -50,7 +50,7 @@ const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.
 /* How often the page reads the account while the events check watches, and
    while a connection waits for approval. */
 const WATCH_POLL_MS = 4000;
-const APPROVAL_POLL_MS = 20000;
+const APPROVAL_POLL_MS = 10000;
 
 /* Which steps the admin has marked done, and the options chosen, per
    workspace. A convenience only: the API's checks decide what is connected. */

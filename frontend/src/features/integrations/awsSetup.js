@@ -216,7 +216,7 @@ export function roleNameOfArn(value) {
 export const AWS_CHECKS = [
   { key: 'assume_role', label: 'The role can be assumed', step: 2, proves: 'sts:AssumeRole with your External ID' },
   { key: 'read_access', label: 'Your configuration is readable', step: 2, proves: 'One read with SecurityAudit and ViewOnlyAccess' },
-  { key: 'events', label: 'Events arrive from each region', step: 4, proves: 'An event from at least one of your regions' },
+  { key: 'events', label: 'Events arrive from your account', step: 4, proves: 'An event from at least one of your regions' },
 ];
 
 /** Workspace-level state, from `status` on the integration. */

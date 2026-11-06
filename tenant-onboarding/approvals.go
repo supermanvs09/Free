@@ -15,11 +15,16 @@ import (
 // check in the console and now waits for a super admin. The API server writes
 // these rows (nhi_global.connection_approvals); this service decides them.
 //
-// Approving marks the request approved and, in the same transaction, turns the
-// company's accounts row on: approval_status 'approved', account_status
-// 'active', is_connected, and a first sync queued, which is the moment the
-// console starts scanning. Rejecting leaves the account disconnected with the
-// reason, which the console shows to the company.
+// The order of a connection is: the role can be assumed, it can read the
+// account, an admin approves, then events arrive from the account. A request
+// is therefore made BEFORE the events check.
+//
+// Approving marks the request approved and, in the same transaction, records it
+// on the company's accounts row (approval_status 'approved'). It does not
+// connect the account: the API server sees the approval, lets the account onto
+// its event bus and watches for the first event, and the account connects (and
+// its first sync is queued) when that event arrives. Rejecting leaves the
+// account disconnected with the reason, which the console shows to the company.
 
 // Approval is one request as the Approvals page shows it.
 type Approval struct {
@@ -261,16 +266,12 @@ func (s *Service) Decide(ctx context.Context, id int64, approve bool, note, who 
 	}
 	var res sql.Result
 	if approve {
-		// Connected from now on; the first sync is queued unless one already
-		// runs. connected_at is kept if the account was connected before.
+		// Approved, not connected: the events check runs next, on the API
+		// server, and connects the account when the first event arrives. An
+		// account that is somehow connected already stays so.
 		res, err = tx.ExecContext(ctx, `UPDATE `+accounts+` SET
 				approval_status = 'approved', approved_at = now(), approved_by = $2, approval_note = $3,
-				account_status = 'active', is_connected = true,
-				connected_at = COALESCE(connected_at, now()),
-				sync_status = CASE WHEN sync_status IN ('queued', 'running') THEN sync_status ELSE 'queued' END,
-				sync_requested_at = CASE WHEN sync_status IN ('queued', 'running') THEN sync_requested_at ELSE now() END,
-				sync_requested_by = CASE WHEN sync_status IN ('queued', 'running') THEN sync_requested_by ELSE $2 END,
-				last_sync_error = CASE WHEN sync_status IN ('queued', 'running') THEN last_sync_error ELSE '' END,
+				account_status = CASE WHEN is_connected THEN 'active' ELSE 'pending' END,
 				updated_at = now()
 			WHERE account_id = $1`, accountID, "super admin "+who, note)
 	} else {

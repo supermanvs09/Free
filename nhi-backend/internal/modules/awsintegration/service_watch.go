@@ -98,7 +98,7 @@ func (s *AWSIntegrationService) startWatch(caller AWSCaller, p awsconnect.Platfo
 	now := s.now().UTC()
 	deadline := now.Add(s.waitLimit())
 	check := AWSCheck{
-		Key: AWSCheckEvents, Label: "Events arrive from each region", State: AWSCheckRunning,
+		Key: AWSCheckEvents, Label: "Events arrive from your account", State: AWSCheckRunning,
 		Message:   "Watching for events from your account. One event from any of the listed regions is enough; this usually takes a few minutes.",
 		Regions:   expectedRegions(rec.Regions),
 		StartedAt: &now, Deadline: &deadline,
@@ -255,9 +255,10 @@ func (s *AWSIntegrationService) saveEventsCheck(ctx context.Context, schema stri
 	return s.store.SaveChecks(ctx, schema, rec.AccountID, checks)
 }
 
-// finishWatch concludes the check. ok: every region (or, at the time limit,
-// some) delivered. A first connection then waits for approval; an account
-// already approved is connected (or stays connected) at once.
+// finishWatch concludes the check. ok: an event arrived. The account was
+// approved before the watch began, so it is connected (and its first sync
+// queued) at once; without an event by the time limit it stays unconnected
+// and the check can be run again.
 func (s *AWSIntegrationService) finishWatch(caller AWSCaller, settings *AWSTenantSettings, rec AWSAccountRecord, check AWSCheck, ok bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
@@ -277,44 +278,28 @@ func (s *AWSIntegrationService) finishWatch(caller AWSCaller, settings *AWSTenan
 		log.Warn("aws integration: events watch finished but the account is gone", "err", err)
 		return
 	}
-	approved := current.Approval.Status == ApprovalApproved || (current.Approval.Status == "" && current.ConnectedAt != nil)
-	if !ok || approved {
-		status := AWSStatusPending
-		if ok {
-			status = AWSStatusConnected
-		}
-		rec.Status = status
-		saved, queued, err := s.store.SaveVerification(ctx, caller.TenantID, caller.Schema, rec)
-		if err != nil {
-			log.Error("aws integration: saving the finished check failed", "err", err)
-			return
-		}
-		log.Info("aws integration: account status after the events check", "status", saved.Status, "sync_queued", queued, "already_approved", approved)
-		return
+	// The watch only runs for an approved account, so a first event connects
+	// it. (An account somehow not approved is never connected here.)
+	approved := isApproved(current)
+	status := AWSStatusPending
+	switch {
+	case ok && approved:
+		status = AWSStatusConnected
+	case ok:
+		log.Warn("aws integration: events arrived for an account that is not approved, not connecting it")
 	}
-	seen, _ := regionSplit(check.Regions)
-	events := map[string]any{
-		"regions_seen": seen, "regions": check.Regions, "messages_scanned": check.Scanned,
-		"started_at": check.StartedAt, "finished_at": s.now().UTC(),
-	}
-	domain := ""
-	if settings != nil {
-		domain = settings.Domain
-	}
-	id, _, err := s.store.RequestApproval(ctx, ApprovalRequest{
-		TenantID: caller.TenantID, Schema: caller.Schema, Domain: domain, Account: rec, Events: events, RequestedBy: caller.Actor,
-	})
+	rec.Status = status
+	saved, queued, err := s.store.SaveVerification(ctx, caller.TenantID, caller.Schema, rec)
 	if err != nil {
-		log.Error("aws integration: recording the approval request failed", "err", err)
+		log.Error("aws integration: saving the finished check failed", "err", err)
 		return
 	}
-	log.Info("aws integration: connection waits for approval", "approval_id", id)
-	s.notifyApprovers(ctx, id, caller, domain, rec, check)
+	log.Info("aws integration: account status after the events check", "status", saved.Status, "sync_queued", queued, "approved", approved)
 }
 
 // notifyApprovers e-mails the platform admins. The outcome is recorded on the
 // request either way, so the Approvals page can say whether mail went out.
-func (s *AWSIntegrationService) notifyApprovers(ctx context.Context, id int64, caller AWSCaller, domain string, rec AWSAccountRecord, check AWSCheck) {
+func (s *AWSIntegrationService) notifyApprovers(ctx context.Context, id int64, caller AWSCaller, domain string, rec AWSAccountRecord) {
 	log := logging.FromContext(ctx).With("tenant_id", caller.TenantID, "account_id", rec.AccountID, "approval_id", id)
 	// Mailers that can say which provider they use and why they cannot send.
 	type described interface {
@@ -333,7 +318,7 @@ func (s *AWSIntegrationService) notifyApprovers(ctx context.Context, id int64, c
 		_ = s.store.SetApprovalEmail(ctx, id, "not_configured", why)
 		return
 	}
-	subject, htmlBody, text := approvalEmail(caller, domain, rec, check)
+	subject, htmlBody, text := approvalEmail(caller, domain, rec)
 	var err error
 	for attempt := 0; attempt < 3; attempt++ {
 		sendCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
@@ -357,42 +342,36 @@ func (s *AWSIntegrationService) notifyApprovers(ctx context.Context, id int64, c
 // so the e-mail says where to look instead of linking to it.
 const approvalReviewHint = "Review it in the tenant-onboarding tool on your computer: Approvals tab (it lists every waiting request from the database)."
 
-func approvalEmail(caller AWSCaller, domain string, rec AWSAccountRecord, check AWSCheck) (subject, htmlBody, text string) {
+func approvalEmail(caller AWSCaller, domain string, rec AWSAccountRecord) (subject, htmlBody, text string) {
 	workspace := caller.Schema
 	if domain != "" {
 		workspace = domain
 	}
-	seen, missing := regionSplit(check.Regions)
 	subject = fmt.Sprintf("Approval needed: AWS account %s for %s", rec.AccountID, workspace)
+	const lead = "A new AWS connection passed the role and read checks and waits for your approval. After you approve it, its events are checked, and the account connects when the first event arrives."
 	lines := []string{
-		"A new AWS connection passed every check and waits for your approval.",
+		lead,
 		"",
 		"Workspace:   " + workspace + " (" + caller.Schema + ")",
 		"AWS account: " + rec.AccountID,
 		"Role:        " + rec.RoleARN,
 		"Regions:     " + strings.Join(rec.Regions, ", "),
-		"Events from: " + strings.Join(seen, ", "),
 		"Requested by " + caller.Actor,
+		"",
+		approvalReviewHint,
 	}
-	if len(missing) > 0 {
-		lines = append(lines, "No events yet from: "+strings.Join(missing, ", "))
-	}
-	lines = append(lines, "", approvalReviewHint)
 	text = strings.Join(lines, "\n")
 	esc := html.EscapeString
 	var b strings.Builder
 	b.WriteString(`<div style="font-family:Arial,sans-serif;font-size:14px;color:#0f172a">`)
-	b.WriteString(`<p>A new AWS connection passed every check and waits for your approval.</p><table cellpadding="4" style="border-collapse:collapse">`)
+	b.WriteString(`<p>` + esc(lead) + `</p><table cellpadding="4" style="border-collapse:collapse">`)
 	for _, row := range [][2]string{
 		{"Workspace", workspace + " (" + caller.Schema + ")"}, {"AWS account", rec.AccountID}, {"Role", rec.RoleARN},
-		{"Regions", strings.Join(rec.Regions, ", ")}, {"Events from", strings.Join(seen, ", ")}, {"Requested by", caller.Actor},
+		{"Regions", strings.Join(rec.Regions, ", ")}, {"Requested by", caller.Actor},
 	} {
 		b.WriteString(`<tr><td style="color:#64748b">` + esc(row[0]) + `</td><td><b>` + esc(row[1]) + `</b></td></tr>`)
 	}
 	b.WriteString(`</table>`)
-	if len(missing) > 0 {
-		b.WriteString(`<p style="color:#b45309">No events yet from ` + esc(strings.Join(missing, ", ")) + `.</p>`)
-	}
 	b.WriteString(`<p>` + esc(approvalReviewHint) + `</p>`)
 	b.WriteString(`</div>`)
 	return subject, b.String(), text

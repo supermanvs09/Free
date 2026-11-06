@@ -187,6 +187,9 @@ export function CheckResult({ running, checks, verifiedAt, ok, definitions, copy
 
 /** The AWS connection checks' result, with the console steps that fix each failure. */
 export function VerifyResult({ running, result, setup, onShowStep }) {
+  /* The order is role, read access, approval, then events: an account that is
+     being watched for events has been approved (or was approved before). */
+  const approved = result?.approval?.status === 'approved';
   return (
     <CheckResult
       running={running}
@@ -196,8 +199,10 @@ export function VerifyResult({ running, result, setup, onShowStep }) {
       definitions={AWS_CHECKS}
       copy={{
         running: 'Checking your role…',
-        watching: 'Role works - now watching for your events',
-        watchingDetail: 'The role checks passed. One event from any region below is enough; each is counted as it arrives.',
+        watching: approved ? 'Approved - now watching for your events' : 'Role works - now watching for your events',
+        watchingDetail: approved
+          ? 'adapID approved this connection. One event from any region below is enough; each is counted as it arrives, and the account connects with the first.'
+          : 'The role checks passed. One event from any region below is enough; each is counted as it arrives.',
         ok: 'Connection verified',
         okDetail: 'Read access works and your events are arriving.',
       }}
@@ -393,29 +398,30 @@ export function ApprovalWait({ run, checkingNow, onCheckNow, onRetry }) {
         <CheckCircle2 aria-hidden="true" className="animate-pop mt-0.5 size-5 shrink-0 text-low" />
         <div>
           <p className="text-[13.5px] font-semibold text-ink">Connected</p>
-          <p className="text-[12px] text-ink-2">Every check passed and the connection is approved. The first scan is on its way.</p>
+          <p className="text-[12px] text-ink-2">The connection is approved and events are arriving. The first scan is on its way.</p>
         </div>
       </div>
     );
   }
   const steps = [
-    { label: 'Checks passed', detail: 'Role, read access and events from your account', state: 'done' },
+    { label: 'Role and read access', detail: 'The role can be assumed and reads your account', state: 'done' },
     {
       label: 'Review by adapID',
       detail: approval.requestedAt ? `Requested ${formatRelative(approval.requestedAt)}${approval.requestedBy ? ` by ${approval.requestedBy}` : ''}` : 'Requested just now',
       state: 'current',
     },
-    { label: 'Scanning starts', detail: 'Identities and activity appear within minutes of approval', state: 'todo' },
+    { label: 'Events from your account', detail: 'After approval: one event from any chosen region connects the account', state: 'todo' },
+    { label: 'Scanning starts', detail: 'Identities and activity appear within minutes of the first event', state: 'todo' },
   ];
   return (
     <div role="status" aria-live="polite" className="animate-rise overflow-hidden rounded-[var(--radius-panel)] border border-info/30">
       <div className="flex items-start gap-3 bg-info-soft px-4 py-3">
         <Clock3 aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-info" />
         <div className="min-w-0 flex-1">
-          <p className="text-[13.5px] font-semibold text-ink">All checks passed - waiting for approval</p>
+          <p className="text-[13.5px] font-semibold text-ink">Role and read access passed - waiting for approval</p>
           <p className="text-[12px] leading-relaxed text-ink-2">
-            adapID reviews every new connection before scanning starts. Our team has been notified; you do not need to do anything else. You can leave
-            this page - the request is kept, and this page opens your dashboard once it is approved.
+            adapID reviews every new connection first. Our team has been notified; you do not need to do anything else. Once it is approved we check for
+            your events, which usually takes a few minutes, and then open your dashboard. You can leave this page - the request is kept.
           </p>
         </div>
       </div>
@@ -445,7 +451,7 @@ export function ApprovalWait({ run, checkingNow, onCheckNow, onRetry }) {
         ))}
       </ol>
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line bg-surface-2 px-4 py-2.5">
-        <span className="text-[12px] text-ink-3">Checked automatically every 20 seconds.</span>
+        <span className="text-[12px] text-ink-3">Checked automatically every 10 seconds.</span>
         <Button variant="secondary" size="sm" icon={RotateCw} loading={checkingNow} onClick={onCheckNow}>
           Check now
         </Button>

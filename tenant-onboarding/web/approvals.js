@@ -260,7 +260,7 @@
       ['Events', ev.messages_scanned != null
         ? el('span', {}, (Array.isArray(ev.regions_seen) ? ev.regions_seen.length : 0) + ' of ' + (Array.isArray(ev.regions) ? ev.regions.length : 0) +
           ' regions delivered events · ' + ev.messages_scanned + ' message(s) read')
-        : el('span', { class: 'none' }, 'No detail')],
+        : el('span', { class: 'none' }, 'Checked after you approve')],
       ['Requested', el('span', {}, 'by ', el('strong', {}, a.requested_by || 'unknown'), ' ', when(a.requested_at))],
       ['Workspace', el('span', { class: 'idline' }, el('code', {}, a.workspace), el('code', { title: a.tenant_id }, a.tenant_id.slice(0, 8)))],
     ];
@@ -327,10 +327,10 @@
     $('decide-title').textContent = approve ? 'Approve connection' : 'Reject connection';
     $('decide-sub').textContent = name + ' · AWS account ' + a.account_id;
     $('decide-lead').textContent = approve
-      ? 'Approving connects this account for ' + name + ' straight away:'
+      ? 'Approving lets this account move on to its last check:'
       : 'Rejecting leaves this account disconnected:';
     const effects = approve
-      ? ['The account shows as Connected on the company’s Integrations page.', 'Its first scan is queued; identities and activity start to appear within minutes.', 'Events already forwarded by the account are kept.']
+      ? ['We open our event queue to this account, and its events check starts on the company’s Integrations page.', 'The account connects, and its first scan is queued, when the first event from it arrives.', 'The company sees “Approved” and what is still being checked.']
       : ['The company sees “Rejected” and your reason on its Integrations page.', 'Nothing is scanned. The company can fix the setup and verify again, which sends a new request.'];
     $('decide-effects').replaceChildren(...effects.map((t) => el('li', {}, t)));
     $('decide-note-label').replaceChildren(approve ? 'Note ' : 'Reason ', approve ? el('span', { class: 'opt' }, 'optional') : el('span', { class: 'opt' }, 'required'));
@@ -381,7 +381,7 @@
     if (ok) {
       dlg.close();
       deciding = null;
-      toast(approve ? (approval.domain || approval.workspace) + ' is connected; its first scan is queued' : 'Request rejected; the company can see your reason');
+      toast(approve ? 'Approved. ' + (approval.domain || approval.workspace) + ' now waits for its first event, then connects' : 'Request rejected; the company can see your reason');
       load();
       poll();
       return;
