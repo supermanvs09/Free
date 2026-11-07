@@ -23,6 +23,19 @@ Shared patterns:
 6. Resource/news strip (reports, events, blog) high on the page.
 7. One strong brand color on white or dark navy; small-radius buttons.
 
+## Option 3 - Templates closest to the competitor look (reference)
+
+Screenshots in `option-3-competitor-style/`. `rejected-batch-*.jpg` = everything else reviewed.
+
+| Rank | Template | Platform | Live demo | Closest competitor |
+|---|---|---|---|---|
+| 1 | Techbit X (Home) | Webflow (BRIX) | https://techbittemplate.webflow.io/home | Microsoft Entra / SailPoint: light, product UI hero, logo row |
+| 2 | Flowis | Webflow | https://flowis-b2b-saas-software-template.webflow.io/ | Palo Alto / CyberArk: dark hero, product UI, video |
+| 3 | Salient | Tailwind Plus (Next.js) | https://salient.tailwindui.com/ | Okta-style simple light marketing page, in code |
+| 4 | Untitled UI React (sections, not a full site) | React + Tailwind | https://untitledui.com/react/marketing | Mega-menu headers, logo walls, heroes to assemble a custom site |
+
+Rejected: Saasful (too playful), Saasable (demo pages did not load), Quantra (red hacker look), Planar (small-business, warm), SecureWeb (purple), Cipher (demo timed out).
+
 ## Option 1 - Minimalist, cinematic, sharp edges (cyber-specific)
 
 Screenshots in `option-1-cyber-cinematic/`. `all-10-candidates.jpg` shows every template reviewed.
