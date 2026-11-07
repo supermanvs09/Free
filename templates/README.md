@@ -34,7 +34,7 @@ Screenshots in `option-3-competitor-style/`. `rejected-batch-*.jpg` = everything
 | 3 | Salient | Tailwind Plus (Next.js) | https://salient.tailwindui.com/ | Okta-style simple light marketing page, in code |
 | 4 | Untitled UI React (sections, not a full site) | React + Tailwind | https://untitledui.com/react/marketing | Mega-menu headers, logo walls, heroes to assemble a custom site |
 
-Rejected: Saasful (too playful), Saasable (demo pages did not load), Quantra (red hacker look), Planar (small-business, warm), SecureWeb (purple), Cipher (demo timed out).
+Rejected: Saasful (too playful), Saasable (demo pages did not load), Planar (small-business, warm), SecureWeb (purple), Cipher (demo timed out).
 
 ## Option 1 - Minimalist, cinematic, sharp edges (cyber-specific)
 
@@ -42,9 +42,10 @@ Screenshots in `option-1-cyber-cinematic/`. `all-10-candidates.jpg` shows every 
 
 | Rank | Template | Platform | Live demo | Why |
 |---|---|---|---|---|
-| 1 | Regulink | Webflow | https://regulink-db-template.webflow.io/ | Sharpest: square boxed nav, mono type, thin-line detailing, lots of negative space |
-| 2 | Retinax | Framer | https://retinax.framer.website/ | Most cinematic: full-bleed photographic hero, quiet type |
-| 3 | Protex | Webflow | https://protex-template.webflow.io/ | Dark grid-light atmosphere, square buttons, one-page |
+| 1 | Quantra | Webflow | https://quantra-security.webflow.io/ | Sharp corners, corner-bracket detailing, cinematic particle imagery. Dribbble: https://dribbble.com/shots/27364876-Quantra-Cyber-Security-Website |
+| 2 | Regulink | Webflow | https://regulink-db-template.webflow.io/ | Sharpest: square boxed nav, mono type, thin-line detailing, lots of negative space |
+| 3 | Retinax | Framer | https://retinax.framer.website/ | Most cinematic: full-bleed photographic hero, quiet type |
+| 4 | Protex | Webflow | https://protex-template.webflow.io/ | Dark grid-light atmosphere, square buttons, one-page |
 
 Rejected: Vanguard Cyber, Cyberix (dashboard-heavy, not minimal), Cyvex (matrix + purple cliche), ShieldOS, Hexon (rounded, generic), Axionet (light, rounded), Nicaea (not evaluated; demo blocked by a popup).
 
