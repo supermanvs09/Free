@@ -68,3 +68,16 @@ Screenshots in `option-2-enterprise/`. BRIX demo links open a sales showcase; cl
 | Techbit X | Webflow (BRIX) | https://techbittemplate.webflow.io/ |
 
 Screenshots taken 2026-11-07 at 1440px wide. Prices and availability not verified.
+
+## Designer review: Emon (https://dribbble.com/emon_pixels)
+
+96 shots reviewed (2026-11-07). Full contact sheets in `emon-pixels/all-shots-*.jpg`, shot index in `emon-pixels/shots.txt`.
+Only one shot is cybersecurity (Quantra). Most are fintech, agency, dental, crypto and dashboards. These are Dribbble design shots; a buyable template is not confirmed for each.
+
+| Rank | Shot | Link | Fit |
+|---|---|---|---|
+| 1 | Quantra | https://dribbble.com/shots/27364876-Quantra-Cyber-Security-Website | Only cyber design; sharp, cinematic. Live Webflow template: https://quantra-security.webflow.io/ |
+| 2 | Outnex | https://dribbble.com/shots/27011740-Outnex-Saas-Website-Design | Dark navy, product UI hero, logo row: closest to Palo Alto / CyberArk |
+| 3 | Markiq | https://dribbble.com/shots/26976660-Mariq-Saas-website-design | Dark, centered headline over real dashboard, logo strip |
+| 4 | Payco | https://dribbble.com/shots/26123217-Payco-SAAS-Website-Design | Light, "AI infrastructure" platform hero: closest to Entra / SailPoint |
+| 5 | Mindraft | https://dribbble.com/shots/27636694-Mindraft-Consulting-website | Photography-led corporate hero, like Entra's person photo |
