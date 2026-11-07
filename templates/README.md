@@ -2,6 +2,27 @@
 
 Company: cybersecurity + AI solutions. Site maintained by both developers and the marketing team.
 
+## Competitor research (target look)
+
+Screenshots in `competitors/` (taken 2026-11-07, 1440px). `all-competitors.jpg` = all five first screens.
+
+| Site | URL | Font | Brand color | Hero visual | CMS detected |
+|---|---|---|---|---|---|
+| SailPoint | https://www.sailpoint.com/ | Poppins | Navy + magenta | Real product UI | not detected |
+| CyberArk (now redirects to Palo Alto "Idira") | https://www.paloaltonetworks.com/idira | TT Hoves | Deep blue | Gartner MQ chart | Adobe Experience Manager |
+| Okta | https://www.okta.com/ | Aeonik | Blue/indigo | Illustrated people scene | Adobe Experience Manager |
+| Microsoft Entra | https://www.microsoft.com/en-us/security/business/microsoft-entra | Segoe UI Variable | Microsoft blue | Real photo of a person | Adobe Experience Manager |
+| Palo Alto Networks | https://www.paloaltonetworks.com/ | TT Hoves | Black + orange | Person photo + light waves | Adobe Experience Manager |
+
+Shared patterns:
+1. Thin announcement bar above the nav.
+2. Mega-menu nav: Products / Solutions / Resources / Partners / Company, "Demo" button top-right.
+3. Hero: one plain sans headline (1-2 lines), one sentence, two buttons (demo + secondary).
+4. Hero visual is real: product UI, analyst chart, or real photography. No abstract blobs.
+5. Proof right under the hero: customer logos or analyst awards (Gartner, KuppingerCole).
+6. Resource/news strip (reports, events, blog) high on the page.
+7. One strong brand color on white or dark navy; small-radius buttons.
+
 ## Option 1 - Minimalist, cinematic, sharp edges (cyber-specific)
 
 Screenshots in `option-1-cyber-cinematic/`. `all-10-candidates.jpg` shows every template reviewed.
