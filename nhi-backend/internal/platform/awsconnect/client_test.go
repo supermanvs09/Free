@@ -163,8 +163,15 @@ func TestClientAssumeRoleAndRead(t *testing.T) {
 	}
 
 	f.assumeDenied = true
-	if _, err := c.AssumeRole(ctx, p, role, "wrong"); !errors.Is(err, ErrAccessDenied) {
+	_, err = c.AssumeRole(ctx, p, role, "wrong")
+	if !errors.Is(err, ErrAccessDenied) {
 		t.Fatalf("denied AssumeRole = %v, want ErrAccessDenied", err)
+	}
+	// What AWS said is kept for the log: its code, its message and the request id.
+	for _, want := range []string{"AccessDenied", "not authorized", "aws request id 1", "http 403"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("denied AssumeRole error %q lacks %q", err, want)
+		}
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
@@ -51,6 +52,23 @@ var accessDeniedCodes = map[string]struct{}{
 	"NotAuthorized":         {},
 }
 
+// awsDetail is everything AWS said about a refusal: the code, its own message
+// (which usually names the principal, the action and the resource, and so says
+// whether our policy or the customer's trust policy refused) and the request
+// id to find the call in CloudTrail. It goes to the API log only: customers are
+// shown fixed texts, never this.
+func awsDetail(err error, apiErr smithy.APIError) string {
+	detail := apiErr.ErrorCode()
+	if msg := strings.TrimSpace(apiErr.ErrorMessage()); msg != "" {
+		detail += ": " + msg
+	}
+	var resp *awshttp.ResponseError
+	if errors.As(err, &resp) {
+		detail += fmt.Sprintf(" (aws request id %s, http %d)", resp.ServiceRequestID(), resp.HTTPStatusCode())
+	}
+	return detail
+}
+
 func classify(err error) error {
 	if err == nil {
 		return nil
@@ -58,10 +76,10 @@ func classify(err error) error {
 	var apiErr smithy.APIError
 	if errors.As(err, &apiErr) {
 		if _, denied := accessDeniedCodes[apiErr.ErrorCode()]; denied {
-			return fmt.Errorf("%w: %s", ErrAccessDenied, apiErr.ErrorCode())
+			return fmt.Errorf("%w: %s", ErrAccessDenied, awsDetail(err, apiErr))
 		}
 		if _, ours := platformCredentialCodes[apiErr.ErrorCode()]; ours {
-			return fmt.Errorf("%w: %s", ErrPlatformCredentials, apiErr.ErrorCode())
+			return fmt.Errorf("%w: %s", ErrPlatformCredentials, awsDetail(err, apiErr))
 		}
 	}
 	// The SDK found no credentials at all (no role, no profile, no keys).
