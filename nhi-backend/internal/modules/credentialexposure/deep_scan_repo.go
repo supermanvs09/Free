@@ -82,9 +82,16 @@ func (r *DeepScanRepository) ClientPlatforms(ctx context.Context, resolved *scop
 	var out []string
 	for _, p := range ScannerPlatforms {
 		checks := []string{}
-		for _, t := range []string{"secscan_ledger_" + p, "secscan_findings_" + p, "secscan_deep_findings_" + p} {
-			if cat.has(t) {
-				checks = append(checks, `EXISTS (SELECT 1 FROM `+schema+`.`+t+` WHERE client_id = $1)`)
+		if t := "secscan_ledger_" + p; cat.has(t) {
+			checks = append(checks, `EXISTS (SELECT 1 FROM `+schema+`.`+t+` f WHERE client_id = $1)`)
+		}
+		for _, kind := range []string{kindFindings, kindDeepFindings} {
+			if pt, ok := cat.platformTable(kind, p); ok {
+				cond := ""
+				if pt.where != "" {
+					cond = " AND " + pt.where
+				}
+				checks = append(checks, `EXISTS (SELECT 1 FROM `+schema+`.`+pt.table+` f WHERE client_id = $1`+cond+`)`)
 			}
 		}
 		if len(checks) == 0 {

@@ -14,24 +14,30 @@ import (
 
 // Timeline item types (API constants chosen by source table, §10.3).
 const (
-	TimelineTypeAnomaly                  = "anomaly"                    // alerts.created_at
-	TimelineTypeBaselineVersionPublished = "baseline_version_published" // baseline_versions.published_at
-	TimelineTypeLearningStarted          = "learning_started"           // baselines.first_seen_date
-	TimelineTypeBaselineEstablished      = "baseline_established"       // baselines.active_since
+	TimelineTypeAnomalyDimension = "anomaly_dimension"
+
+	TimelineTypeBaselineVersionPublished = "baseline_version_published"
+
+	TimelineTypeLearningStarted = "learning_started"
+
+	TimelineTypeBaselineEstablished = "baseline_established"
 )
 
-// IdentityTimelineResponse is the data block of §5.6.
 type IdentityTimelineResponse struct {
 	Items []IdentityTimelineItem `json:"items"`
 }
 
-// IdentityTimelineItem is one §5.6 entry, newest first. description is
-// omitted for the milestone types that carry none; status is only present
-// on anomaly items (the stored alerts.status).
 type IdentityTimelineItem struct {
 	Type        string    `json:"type"`
 	Title       string    `json:"title"`
-	Description *string   `json:"description,omitempty"`
 	OccurredAt  time.Time `json:"occurred_at"`
+	Description *string   `json:"description,omitempty"`
 	Status      *string   `json:"status,omitempty"`
+
+	Dimension     *string `json:"dimension,omitempty"`
+	Count         *int64  `json:"count,omitempty"`
+	OpenCount     *int64  `json:"open_count,omitempty"`
+	LatestAlertID *int64  `json:"latest_alert_id,omitempty"`
+
+	Version *int64 `json:"version,omitempty"`
 }

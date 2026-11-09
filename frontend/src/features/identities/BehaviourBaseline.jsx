@@ -33,7 +33,7 @@ export function BehaviourBaseline({ identity }) {
   const learning = items.find((item) => item.type === 'learning_started');
   const open = items
     .filter((item) => item.type === 'anomaly' && String(item.status).toLowerCase() === 'open')
-    .reduce((sum, item) => sum + (Number(/^(\d+)/.exec(item.title ?? '')?.[1]) || 1), 0);
+    .reduce((sum, item) => sum + (item.openCount ?? 1), 0);
 
   if (established) {
     return (

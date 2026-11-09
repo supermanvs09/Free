@@ -154,13 +154,20 @@ func (r *DeepScanRepository) Inventory(ctx context.Context, resolved *scope.Data
 		}
 		// Findings and deep findings, counted per branch.
 		for _, kind := range []string{kindFindings, kindDeepFindings} {
-			t := "secscan_" + kind + "_" + p
-			if !cat.has(t) {
+			pt, ok := cat.platformTable(kind, p)
+			if !ok {
 				continue
 			}
 			args := []any{}
 			where := filter("f.", "f.repository", &args)
-			q := `SELECT f.client_id, f.repository, f.branch, COUNT(*)::int FROM ` + schema + `.` + t + ` f` + where
+			if pt.where != "" {
+				if where == "" {
+					where = " WHERE " + pt.where
+				} else {
+					where += " AND " + pt.where
+				}
+			}
+			q := `SELECT f.client_id, f.repository, f.branch, COUNT(*)::int FROM ` + schema + `.` + pt.table + ` f` + where
 			if cat.has("secscan_allowlist_dashboard") {
 				join := " WHERE "
 				if where != "" {

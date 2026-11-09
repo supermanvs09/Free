@@ -128,7 +128,7 @@ func TestNormalizeUser(t *testing.T) {
 // wantTables is the number of tables in sql/tenant_schema.sql (the partitions
 // are made per company at run time and are not counted). Update it, and only
 // it, when the template is regenerated from a new reference schema.
-const wantTables = 98
+const wantTables = 97
 
 func TestTemplates(t *testing.T) {
 	for _, s := range []string{schemaSQL, seedSQL, string(mustRead(t, "web/index.html")), string(mustRead(t, "web/app.js")), string(mustRead(t, "README.md"))} {
@@ -294,7 +294,7 @@ func TestOnboardCreatesEverything(t *testing.T) {
 		t.Fatalf("tenant = %+v", tn)
 	}
 	if got := tablesIn(t, db, "acme_corp"); got != wantTables {
-		t.Errorf("workspace has %d tables, want 98", got)
+		t.Errorf("workspace has %d tables, want %d", got, wantTables)
 	}
 	if n := count(t, db, `SELECT count(*) FROM acme_corp.ispm_rule_weights`); n == 0 {
 		t.Error("reference rows are missing")

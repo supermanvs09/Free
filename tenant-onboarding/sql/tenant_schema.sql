@@ -2125,53 +2125,6 @@ CREATE TABLE __SCHEMA__.secscan_bitbucket_connection (
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
--- TABLE: secscan_deep_findings_codecommit
-CREATE TABLE __SCHEMA__.secscan_deep_findings_codecommit (
-    finding_id character varying(1000) NOT NULL,
-    client_id character varying(200) NOT NULL,
-    repository character varying(500) NOT NULL,
-    branch character varying(500) NOT NULL,
-    commit_id character varying(100) NOT NULL,
-    author character varying(300) NOT NULL,
-    created_at character varying(50) NOT NULL,
-    detector character varying(100) NOT NULL,
-    severity character varying(50) NOT NULL,
-    file_path character varying(1000) NOT NULL,
-    line_number integer NOT NULL,
-    redacted character varying(4000) NOT NULL,
-    verification_status character varying(50) NOT NULL,
-    risk_tier character varying(50) NOT NULL,
-    recommended_action character varying(200) NOT NULL,
-    codecommit_uri character varying(2000),
-    platform character varying(50),
-    github_uri character varying(2000),
-    bitbucket_uri character varying(2000),
-    line_preview character varying(4000),
-    confidence character varying(50),
-    category character varying(100),
-    committer character varying(300),
-    commit_message character varying(4000),
-    commit_authored_at character varying(50),
-    files_changed integer,
-    additions integer,
-    deletions integer,
-    repo_visibility character varying(50),
-    repo_stars integer,
-    repo_forks integer,
-    repo_pushed_at character varying(50),
-    ml_score double precision,
-    ml_decision character varying(50),
-    ml_model_version character varying(100),
-    analyst_decision character varying(50),
-    analyst_decided_at character varying(50),
-    analyst_decided_by character varying(300),
-    value_fingerprint character varying(64),
-    noise_flags character varying(500),
-    ml_veto_score double precision,
-    ml_veto_model_version character varying(100),
-    ml_features text
-);
-
 -- TABLE: secscan_deepscan_codecommit
 CREATE TABLE __SCHEMA__.secscan_deepscan_codecommit (
     client_id character varying(200) NOT NULL,
@@ -2198,8 +2151,8 @@ CREATE TABLE __SCHEMA__.secscan_deepscan_github (
     error character varying(4000)
 );
 
--- TABLE: secscan_findings_codecommit
-CREATE TABLE __SCHEMA__.secscan_findings_codecommit (
+-- TABLE: secscan_deep_findings  (every platform's deep-scan findings, one row per branch)
+CREATE TABLE __SCHEMA__.secscan_deep_findings (
     finding_id character varying(1000) NOT NULL,
     client_id character varying(200) NOT NULL,
     repository character varying(500) NOT NULL,
@@ -2245,8 +2198,8 @@ CREATE TABLE __SCHEMA__.secscan_findings_codecommit (
     bitbucket_uri character varying(2000)
 );
 
--- TABLE: secscan_findings_github
-CREATE TABLE __SCHEMA__.secscan_findings_github (
+-- TABLE: secscan_findings  (every platform's findings; column platform says which)
+CREATE TABLE __SCHEMA__.secscan_findings (
     finding_id character varying(1000) NOT NULL,
     client_id character varying(200) NOT NULL,
     repository character varying(500) NOT NULL,
@@ -2881,6 +2834,14 @@ ALTER TABLE ONLY __SCHEMA__.ispm_scan_history
 ALTER TABLE ONLY __SCHEMA__.schema_migrations
     ADD CONSTRAINT schema_migrations_pkey PRIMARY KEY (filename);
 
+-- CONSTRAINT: secscan_deep_findings secscan_deep_findings_pkey
+ALTER TABLE ONLY __SCHEMA__.secscan_deep_findings
+    ADD CONSTRAINT secscan_deep_findings_pkey PRIMARY KEY (finding_id);
+
+-- CONSTRAINT: secscan_findings secscan_findings_pkey
+ALTER TABLE ONLY __SCHEMA__.secscan_findings
+    ADD CONSTRAINT secscan_findings_pkey PRIMARY KEY (finding_id);
+
 -- CONSTRAINT: secscan_allowlist_codecommit secscan_allowlist_codecommit_pkey
 ALTER TABLE ONLY __SCHEMA__.secscan_allowlist_codecommit
     ADD CONSTRAINT secscan_allowlist_codecommit_pkey PRIMARY KEY (client_id, file_path, detector, redacted);
@@ -2897,10 +2858,6 @@ ALTER TABLE ONLY __SCHEMA__.secscan_allowlist_github
 ALTER TABLE ONLY __SCHEMA__.secscan_bitbucket_connection
     ADD CONSTRAINT secscan_bitbucket_connection_pkey PRIMARY KEY (tenant_id);
 
--- CONSTRAINT: secscan_deep_findings_codecommit secscan_deep_findings_codecommit_pkey
-ALTER TABLE ONLY __SCHEMA__.secscan_deep_findings_codecommit
-    ADD CONSTRAINT secscan_deep_findings_codecommit_pkey PRIMARY KEY (finding_id);
-
 -- CONSTRAINT: secscan_deepscan_codecommit secscan_deepscan_codecommit_pkey
 ALTER TABLE ONLY __SCHEMA__.secscan_deepscan_codecommit
     ADD CONSTRAINT secscan_deepscan_codecommit_pkey PRIMARY KEY (client_id, repo_key, platform);
@@ -2908,14 +2865,6 @@ ALTER TABLE ONLY __SCHEMA__.secscan_deepscan_codecommit
 -- CONSTRAINT: secscan_deepscan_github secscan_deepscan_github_pkey
 ALTER TABLE ONLY __SCHEMA__.secscan_deepscan_github
     ADD CONSTRAINT secscan_deepscan_github_pkey PRIMARY KEY (client_id, repo_key, platform);
-
--- CONSTRAINT: secscan_findings_codecommit secscan_findings_codecommit_pkey
-ALTER TABLE ONLY __SCHEMA__.secscan_findings_codecommit
-    ADD CONSTRAINT secscan_findings_codecommit_pkey PRIMARY KEY (finding_id);
-
--- CONSTRAINT: secscan_findings_github secscan_findings_github_pkey
-ALTER TABLE ONLY __SCHEMA__.secscan_findings_github
-    ADD CONSTRAINT secscan_findings_github_pkey PRIMARY KEY (finding_id);
 
 -- CONSTRAINT: secscan_jobs_bitbucket secscan_jobs_bitbucket_pkey
 ALTER TABLE ONLY __SCHEMA__.secscan_jobs_bitbucket
@@ -3548,3 +3497,14 @@ ALTER TABLE ONLY __SCHEMA__.nhi_blast_radius_paths
 -- FK CONSTRAINT: permission_usage permission_usage_credential_id_fkey
 ALTER TABLE ONLY __SCHEMA__.permission_usage
     ADD CONSTRAINT permission_usage_credential_id_fkey FOREIGN KEY (credential_id) REFERENCES __SCHEMA__.credentials(id) ON DELETE CASCADE;
+
+-- VIEWS: the secret scanner's former per-platform table names, kept as
+-- read-only views of the merged tables (DATABASE_HANDOVER, "WHAT CHANGED" 1)
+-- so queries written against them keep working. A row the scanner wrote
+-- without a platform is CodeCommit.
+CREATE VIEW __SCHEMA__.secscan_findings_codecommit AS SELECT * FROM __SCHEMA__.secscan_findings WHERE COALESCE(NULLIF(platform, ''), 'codecommit') = 'codecommit';
+CREATE VIEW __SCHEMA__.secscan_findings_github AS SELECT * FROM __SCHEMA__.secscan_findings WHERE COALESCE(NULLIF(platform, ''), 'codecommit') = 'github';
+CREATE VIEW __SCHEMA__.secscan_findings_bitbucket AS SELECT * FROM __SCHEMA__.secscan_findings WHERE COALESCE(NULLIF(platform, ''), 'codecommit') = 'bitbucket';
+CREATE VIEW __SCHEMA__.secscan_deep_findings_codecommit AS SELECT * FROM __SCHEMA__.secscan_deep_findings WHERE COALESCE(NULLIF(platform, ''), 'codecommit') = 'codecommit';
+CREATE VIEW __SCHEMA__.secscan_deep_findings_github AS SELECT * FROM __SCHEMA__.secscan_deep_findings WHERE COALESCE(NULLIF(platform, ''), 'codecommit') = 'github';
+CREATE VIEW __SCHEMA__.secscan_deep_findings_bitbucket AS SELECT * FROM __SCHEMA__.secscan_deep_findings WHERE COALESCE(NULLIF(platform, ''), 'codecommit') = 'bitbucket';

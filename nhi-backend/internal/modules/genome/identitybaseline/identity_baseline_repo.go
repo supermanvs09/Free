@@ -46,11 +46,22 @@ func (r *Repository) Baseline(ctx context.Context, resolved *scope.DataScope, ke
 		return nil, nil
 	}
 	types, names := common.KeyArrays(keys)
-	q := `SELECT b.source_type, b.identity_name, b.status, b.required_days, b.built_days, b.days_remaining,
-	             b.first_seen_date, b.active_since, b.updated_at, b.profile_json
-	      FROM ` + resolved.Table("baselines") + ` b` + common.KeyPreferenceJoin("b") + `
-	      ORDER BY k.preference
-	      LIMIT 1`
+	q := `SELECT
+          b.source_type,
+          b.identity_name,
+          b.status,
+          b.required_days,
+          b.built_days,
+          b.days_remaining,
+          b.first_seen_date,
+          b.active_since,
+          b.updated_at,
+          b.profile_json
+      FROM ` + resolved.Table("baselines") + ` b` +
+		common.KeyPreferenceJoin("b") + `
+      WHERE LOWER(TRIM(b.status)) = 'active'
+      ORDER BY k.preference
+      LIMIT 1`
 	var (
 		row       BaselineRow
 		firstSeen sql.NullTime

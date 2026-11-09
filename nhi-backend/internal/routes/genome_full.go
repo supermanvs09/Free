@@ -58,7 +58,7 @@ func NewGenomeFull(resolver *scope.Resolver, events *common.MonitoringEvents) *G
 		identityBaseline:    identitybaseline.NewHandler(identitybaseline.NewService(lookup, identitybaseline.NewRepository(), driftRepo)),
 		identityPeers:       identitypeers.NewHandler(identitypeers.NewService(lookup, identitypeers.NewRepository(), events)),
 		identityDrift:       identitydrift.NewHandler(identitydrift.NewService(lookup, driftRepo)),
-		identityContainment: identitycontainment.NewHandler(identitycontainment.NewService(lookup)),
+		identityContainment: identitycontainment.NewHandler(identitycontainment.NewService(lookup, identitycontainment.NewRepository(), events)),
 		containmentFreeze:   containmentfreeze.NewHandler(containmentfreeze.NewService(lookup)),
 		containmentList:     containmentlist.NewHandler(containmentlist.NewService()),
 		anomalyList:         anomalylist.NewHandler(anomalylist.NewService(lookup, anomalylist.NewRepository(), events)),

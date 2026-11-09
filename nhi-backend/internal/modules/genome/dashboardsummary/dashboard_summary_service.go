@@ -2,91 +2,174 @@ package dashboardsummary
 
 import (
 	"context"
+	"nhi-backend-api/internal/modules/genome/summarycommon"
 	"sort"
 	"strings"
-
-	"nhi-backend-api/internal/modules/genome/summarycommon"
 )
 
-// DashboardSummaryService implements GET /api/v1/dashboard/summary
-// (backend_api_contract.md §4.1 / §10.1) on top of the caller's tenant
-// schema in PostgreSQL, resolved through scope.Resolver like every other
-// data API.
-//
-// Flow (the contract's two-step process):
-//  1. read the latest non-deleted discovery snapshot per resource from the
-//     tenant's identities table inside the caller's account/region scope;
-//  2. normalize every row to the monitoring key (source_type, identity_name,
-//     workload_key) with the §1.4 registry rules — never by joining raw
-//     discovery columns in SQL;
-//  3. look the keys up in baselines / identity_risk_scores / alerts and
-//     aggregate the cards and panels.
-//
-// Nothing is invented: every value is a query result or null. A card whose
-// table cannot be read is null (the failure is logged server-side); the
-// ClickHouse-backed cards (critical_anomalies, mean_provenance_confidence)
-// are null until log_events is connected; mean_confidence_percent and
-// drifting_baselines are null because the pipeline does not persist them.
+// DashboardSummaryService implements GET /api/v1/dashboard/summary.
 type DashboardSummaryService struct {
 	repo     *summarycommon.DashboardSummaryRepository
 	resolver summarycommon.ScopeResolver
 }
 
-// NewDashboardSummaryService wires the service (pass the shared scope.Resolver).
-func NewDashboardSummaryService(repo *summarycommon.DashboardSummaryRepository, resolver summarycommon.ScopeResolver) *DashboardSummaryService {
-	return &DashboardSummaryService{repo: repo, resolver: resolver}
+func NewDashboardSummaryService(
+	repo *summarycommon.DashboardSummaryRepository,
+	resolver summarycommon.ScopeResolver,
+) *DashboardSummaryService {
+	return &DashboardSummaryService{
+		repo:     repo,
+		resolver: resolver,
+	}
 }
 
-// DashboardSummaryParams are the parsed query parameters (§4.1).
 type DashboardSummaryParams struct {
-	Charts     summarycommon.TimeWindow // departures, anomalies_by_day (default: last 14 days)
-	Cards      summarycommon.TimeWindow // open-anomaly cards (default: last 24 hours)
-	SourceType string                   // optional upper-case service family, e.g. ECS
-	AccountID  string                   // optional
-	Region     string                   // optional
+	Charts     summarycommon.TimeWindow
+	Cards      summarycommon.TimeWindow
+	SourceType string
+	AccountID  string
+	Region     string
 }
 
 const (
-	summaryTopN           = 10 // §4.1: top 10 / most recent 10
-	summaryRecentFeedRows = 50 // raw baseline events read before collapsing to 10 identities
+	summaryTopN           = 10
+	summaryRecentFeedRows = 50
 )
 
-// GetSummary builds the dashboard summary for the caller's tenant scope.
-func (s *DashboardSummaryService) GetSummary(ctx context.Context, userID, tenantID, dbName string, p DashboardSummaryParams) (*DashboardSummaryResponse, error) {
-	sc, err := s.resolver.Resolve(ctx, userID, tenantID, dbName)
+func (s *DashboardSummaryService) GetSummary(
+	ctx context.Context,
+	userID string,
+	tenantID string,
+	dbName string,
+	p DashboardSummaryParams,
+) (*DashboardSummaryResponse, error) {
+	sc, err := s.resolver.Resolve(
+		ctx,
+		userID,
+		tenantID,
+		dbName,
+	)
 	if err != nil {
-		return nil, &summarycommon.StoreUnavailableError{Op: "resolve tenant scope", Err: err}
-	}
-	rows, err := s.repo.LatestIdentities(ctx, sc)
-	if err != nil {
-		return nil, &summarycommon.StoreUnavailableError{Op: "read discovery identities", Err: err}
+		return nil, &summarycommon.StoreUnavailableError{
+			Op:  "resolve tenant scope",
+			Err: err,
+		}
 	}
 
-	// ---- step 2: normalize + filter ----------------------------------------
-	var ids []summarycommon.MonitoredIdentity
-	for _, row := range rows {
-		id, ok := summarycommon.NormalizeDiscoveryRow(row)
-		if !ok {
-			continue // deferred (EKS), human/resource-only or unknown type
+	rows, err := s.repo.LatestIdentities(
+		ctx,
+		sc,
+	)
+	if err != nil {
+		return nil, &summarycommon.StoreUnavailableError{
+			Op:  "read discovery identities",
+			Err: err,
 		}
-		if p.SourceType != "" && id.Key.SourceType != p.SourceType {
-			continue
-		}
-		if p.AccountID != "" && id.AccountID != p.AccountID {
-			continue
-		}
-		if p.Region != "" && !strings.EqualFold(id.Region, p.Region) {
-			continue
-		}
-		ids = append(ids, id)
 	}
-	sort.SliceStable(ids, func(i, j int) bool {
-		a, b := strings.ToLower(ids[i].DisplayName), strings.ToLower(ids[j].DisplayName)
-		if a != b {
-			return a < b
+
+	// Load all credentials in one query. ECS rows can then be expanded into
+	// separate task-role and execution-role monitored identities.
+	identityIDs := uniqueDiscoveryIdentityIDs(rows)
+
+	credentialsByIdentity, err := s.repo.IdentityCredentials(
+		ctx,
+		sc,
+		identityIDs,
+	)
+	if err != nil {
+		return nil, &summarycommon.StoreUnavailableError{
+			Op:  "read identity credentials",
+			Err: err,
 		}
-		return ids[i].Key.IdentityName < ids[j].Key.IdentityName
-	})
+	}
+
+	ids := make(
+		[]summarycommon.MonitoredIdentity,
+		0,
+		len(rows),
+	)
+
+	for _, row := range rows {
+		base, ok := summarycommon.NormalizeDiscoveryRow(row)
+		if !ok {
+			continue
+		}
+
+		identityID := strings.TrimSpace(row.ID)
+
+		credentials := credentialsByIdentity[identityID]
+
+		// ECS discovery can contain task and execution role credentials
+		// even when identity_credentials has not been populated.
+		if base.Subtype == "ecs_task" {
+			discoveryCredentials :=
+				summarycommon.ECSCredentialsFromAttributes(
+					row.TypeAttributes,
+				)
+
+			credentials = mergeECSCredentials(
+				credentials,
+				discoveryCredentials,
+			)
+		}
+
+		normalized := summarycommon.ExpandCredentialIdentities(
+			base,
+			credentials,
+		)
+		for _, id := range normalized {
+			if p.SourceType != "" &&
+				!strings.EqualFold(
+					strings.TrimSpace(id.Key.SourceType),
+					strings.TrimSpace(p.SourceType),
+				) {
+				continue
+			}
+
+			if p.AccountID != "" &&
+				strings.TrimSpace(id.AccountID) !=
+					strings.TrimSpace(p.AccountID) {
+				continue
+			}
+
+			if p.Region != "" &&
+				!strings.EqualFold(
+					strings.TrimSpace(id.Region),
+					strings.TrimSpace(p.Region),
+				) {
+				continue
+			}
+
+			ids = append(ids, id)
+		}
+	}
+
+	sort.SliceStable(
+		ids,
+		func(i int, j int) bool {
+			leftName := strings.ToLower(
+				strings.TrimSpace(ids[i].DisplayName),
+			)
+
+			rightName := strings.ToLower(
+				strings.TrimSpace(ids[j].DisplayName),
+			)
+
+			if leftName != rightName {
+				return leftName < rightName
+			}
+
+			if ids[i].Key.SourceType !=
+				ids[j].Key.SourceType {
+				return ids[i].Key.SourceType <
+					ids[j].Key.SourceType
+			}
+
+			return ids[i].Key.IdentityName <
+				ids[j].Key.IdentityName
+		},
+	)
+
 	set := newIdentityIndex(ids)
 	keys := set.lookupKeys()
 
@@ -96,189 +179,491 @@ func (s *DashboardSummaryService) GetSummary(ctx context.Context, userID, tenant
 		MostAnomalousIdentities: []DashboardAnomalousIdentity{},
 		RecentlyBaselined:       []DashboardRecentlyBaselined{},
 	}
-	out.Cards.WindowHours = int(p.Cards.To.Sub(p.Cards.From).Hours())
-	out.Cards.IdentitiesWatched = summarycommon.IntPtr(len(ids))
 
-	// ---- baseline cards ----------------------------------------------------
-	baselines, err := s.repo.BaselineStates(ctx, sc, keys)
-	if summarycommon.ReadOK(ctx, "dashboard summary baselines", err) {
+	out.Cards.WindowHours = int(
+		p.Cards.To.Sub(
+			p.Cards.From,
+		).Hours(),
+	)
+
+	out.Cards.IdentitiesWatched =
+		summarycommon.IntPtr(len(ids))
+
+	baselines, err := s.repo.BaselineStates(
+		ctx,
+		sc,
+		keys,
+	)
+	if summarycommon.ReadOK(
+		ctx,
+		"dashboard summary baselines",
+		err,
+	) {
 		established := 0
+
 		for _, id := range ids {
-			if b, ok := set.baselineFor(baselines, id); ok && strings.EqualFold(b.Status, "active") {
+			if _, ok := set.activeBaselineFor(
+				baselines,
+				id,
+			); ok {
 				established++
 			}
 		}
-		out.Cards.BaselinesEstablished = summarycommon.IntPtr(established)
-		out.Cards.StillLearning = summarycommon.IntPtr(len(ids) - established)
-		if len(ids) > 0 { // §4.1: baselines_established / identities_watched * 100
-			out.Cards.BaselineCoveragePercent = summarycommon.FloatPtr(summarycommon.Round1(float64(established) / float64(len(ids)) * 100))
+
+		out.Cards.BaselinesEstablished =
+			summarycommon.IntPtr(established)
+
+		out.Cards.StillLearning =
+			summarycommon.IntPtr(
+				len(ids) - established,
+			)
+
+		if len(ids) > 0 {
+			coverage :=
+				float64(established) /
+					float64(len(ids)) *
+					100
+
+			out.Cards.BaselineCoveragePercent =
+				summarycommon.FloatPtr(
+					summarycommon.Round1(
+						coverage,
+					),
+				)
 		}
 	}
 
-	// ---- open anomalies (cards window) -------------------------------------
-	if n, err := s.repo.CountOpenAlerts(ctx, sc, keys, p.Cards.From, p.Cards.To); summarycommon.ReadOK(ctx, "dashboard summary open alerts", err) {
-		out.Cards.OpenAnomalies = summarycommon.IntPtr(n)
-	}
-	// critical_anomalies and mean_provenance_confidence come from ClickHouse
-	// log_events (§10.1) and stay null until that store is connected.
-	// mean_confidence_percent (no product formula) and drifting_baselines
-	// (not persisted) are null; drifting_baselines_available is false (§4.1).
-
-	// ---- most anomalous identities -----------------------------------------
-	risk, err := s.repo.LatestRiskScores(ctx, sc, keys)
-	riskOK := summarycommon.ReadOK(ctx, "dashboard summary risk scores", err)
-	if riskOK {
-		type scored struct {
-			idx int
-			row summarycommon.IdentityRiskRow
-		}
-		var list []scored
-		for i, id := range ids {
-			if rr, ok := set.riskFor(risk, id); ok && rr.RiskScore != nil {
-				list = append(list, scored{i, rr})
-			}
-		}
-		sort.SliceStable(list, func(i, j int) bool {
-			a, b := list[i], list[j]
-			if *a.row.RiskScore != *b.row.RiskScore {
-				return *a.row.RiskScore > *b.row.RiskScore
-			}
-			if a.row.AnomalousEventCount != b.row.AnomalousEventCount {
-				return a.row.AnomalousEventCount > b.row.AnomalousEventCount
-			}
-			return ids[a.idx].DisplayName < ids[b.idx].DisplayName
-		})
-		for i, item := range list {
-			if i >= summaryTopN {
-				break
-			}
-			id := ids[item.idx]
-			out.MostAnomalousIdentities = append(out.MostAnomalousIdentities, DashboardAnomalousIdentity{
-				DashboardIdentityRef: id.Ref(),
-				AccountID:            id.AccountID,
-				Region:               id.Region,
-				ServiceName:          id.ServiceName,
-				WorkloadKey:          id.WorkloadKey,
-				RiskScore:            item.row.RiskScore,
-				Severity:             item.row.Severity,
-				ScoreStatus:          item.row.ScoreStatus,
-				EventCount:           item.row.EventCount,
-				AnomalousEventCount:  item.row.AnomalousEventCount,
-				WindowStart:          item.row.WindowStart.UTC(),
-				WindowEnd:            item.row.WindowEnd.UTC(),
-				ComputedAt:           item.row.ComputedAt.UTC(),
-			})
-		}
+	if openAlerts, readErr := s.repo.CountOpenAlerts(
+		ctx,
+		sc,
+		keys,
+		p.Cards.From,
+		p.Cards.To,
+	); summarycommon.ReadOK(
+		ctx,
+		"dashboard summary open alerts",
+		readErr,
+	) {
+		out.Cards.OpenAnomalies =
+			summarycommon.IntPtr(openAlerts)
 	}
 
-	// ---- departures by dimension / anomalies per day (charts window) -------
-	dims, err := s.repo.OpenAlertsByDimension(ctx, sc, keys, p.Charts.From, p.Charts.To)
-	if summarycommon.ReadOK(ctx, "dashboard summary alerts by dimension", err) {
-		for _, d := range dims {
-			out.DeparturesByDimension = append(out.DeparturesByDimension, DashboardDimensionCount{Dimension: d.Dimension, Count: d.Count})
+	riskRows, err := s.repo.LatestRiskScores(
+		ctx,
+		sc,
+		keys,
+	)
+	if summarycommon.ReadOK(
+		ctx,
+		"dashboard summary risk scores",
+		err,
+	) {
+		type scoredIdentity struct {
+			Index int
+			Row   summarycommon.IdentityRiskRow
 		}
-	}
-	days, err := s.repo.AlertsByDay(ctx, sc, keys, p.Charts.From, p.Charts.To)
-	if summarycommon.ReadOK(ctx, "dashboard summary alerts by day", err) {
-		for _, d := range days {
-			out.AnomaliesByDay = append(out.AnomaliesByDay, DashboardDayCount{Day: d.Day.Format("2006-01-02"), Count: d.Count})
-		}
-	}
 
-	// ---- recently baselined ------------------------------------------------
-	// §4.1: "the most recent 10 identities where the baseline became active
-	// or a new version was published" — one row per identity, newest event.
-	recent, err := s.repo.RecentlyBaselined(ctx, sc, keys, summaryRecentFeedRows)
-	if summarycommon.ReadOK(ctx, "dashboard summary recently baselined", err) {
-		seen := map[int]struct{}{}
-		for _, ev := range recent {
-			idx, known := set.indexOf(ev.Key)
-			if !known {
+		scoredIdentities := make(
+			[]scoredIdentity,
+			0,
+			len(ids),
+		)
+
+		for index, id := range ids {
+			riskRow, ok := set.riskFor(
+				riskRows,
+				id,
+			)
+			if !ok || riskRow.RiskScore == nil {
 				continue
 			}
-			if _, dup := seen[idx]; dup {
+
+			scoredIdentities = append(
+				scoredIdentities,
+				scoredIdentity{
+					Index: index,
+					Row:   riskRow,
+				},
+			)
+		}
+
+		sort.SliceStable(
+			scoredIdentities,
+			func(i int, j int) bool {
+				left := scoredIdentities[i]
+				right := scoredIdentities[j]
+
+				if *left.Row.RiskScore !=
+					*right.Row.RiskScore {
+					return *left.Row.RiskScore >
+						*right.Row.RiskScore
+				}
+
+				if left.Row.AnomalousEventCount !=
+					right.Row.AnomalousEventCount {
+					return left.Row.AnomalousEventCount >
+						right.Row.AnomalousEventCount
+				}
+
+				return ids[left.Index].DisplayName <
+					ids[right.Index].DisplayName
+			},
+		)
+
+		for index, item := range scoredIdentities {
+			if index >= summaryTopN {
+				break
+			}
+
+			id := ids[item.Index]
+
+			out.MostAnomalousIdentities = append(
+				out.MostAnomalousIdentities,
+				DashboardAnomalousIdentity{
+					DashboardIdentityRef: id.Ref(),
+					AccountID:            id.AccountID,
+					Region:               id.Region,
+					ServiceName:          id.ServiceName,
+					WorkloadKey:          id.WorkloadKey,
+					RiskScore:            item.Row.RiskScore,
+					Severity:             item.Row.Severity,
+					ScoreStatus:          item.Row.ScoreStatus,
+					EventCount:           item.Row.EventCount,
+					AnomalousEventCount:  item.Row.AnomalousEventCount,
+					WindowStart:          item.Row.WindowStart.UTC(),
+					WindowEnd:            item.Row.WindowEnd.UTC(),
+					ComputedAt:           item.Row.ComputedAt.UTC(),
+				},
+			)
+		}
+	}
+
+	dimensions, err := s.repo.OpenAlertsByDimension(
+		ctx,
+		sc,
+		keys,
+		p.Charts.From,
+		p.Charts.To,
+	)
+	if summarycommon.ReadOK(
+		ctx,
+		"dashboard summary alerts by dimension",
+		err,
+	) {
+		for _, row := range dimensions {
+			out.DeparturesByDimension = append(
+				out.DeparturesByDimension,
+				DashboardDimensionCount{
+					Dimension: row.Dimension,
+					Count:     row.Count,
+				},
+			)
+		}
+	}
+
+	days, err := s.repo.AlertsByDay(
+		ctx,
+		sc,
+		keys,
+		p.Charts.From,
+		p.Charts.To,
+	)
+	if summarycommon.ReadOK(
+		ctx,
+		"dashboard summary alerts by day",
+		err,
+	) {
+		for _, row := range days {
+			out.AnomaliesByDay = append(
+				out.AnomaliesByDay,
+				DashboardDayCount{
+					Day: row.Day.Format(
+						"2006-01-02",
+					),
+					Count: row.Count,
+				},
+			)
+		}
+	}
+
+	recentEvents, err := s.repo.RecentlyBaselined(
+		ctx,
+		sc,
+		keys,
+		summaryRecentFeedRows,
+	)
+	if summarycommon.ReadOK(
+		ctx,
+		"dashboard summary recently baselined",
+		err,
+	) {
+		seenIdentities := make(
+			map[int]struct{},
+		)
+
+		for _, event := range recentEvents {
+			identityIndex, ok := set.indexOf(
+				event.Key,
+			)
+			if !ok {
 				continue
 			}
-			seen[idx] = struct{}{}
-			id := ids[idx]
-			out.RecentlyBaselined = append(out.RecentlyBaselined, DashboardRecentlyBaselined{
-				DashboardIdentityRef: id.Ref(), AccountID: id.AccountID, Region: id.Region,
-				Event: ev.Event, OccurredAt: ev.OccurredAt, Version: ev.Version,
-			})
-			if len(out.RecentlyBaselined) >= summaryTopN {
+
+			if _, duplicate :=
+				seenIdentities[identityIndex]; duplicate {
+				continue
+			}
+
+			seenIdentities[identityIndex] = struct{}{}
+
+			id := ids[identityIndex]
+
+			baselineRef := summarycommon.DashboardIdentityRef{
+				ID: event.Key.SourceType + ":" +
+					event.Key.IdentityName,
+				SourceType:   event.Key.SourceType,
+				IdentityName: event.Key.IdentityName,
+				DisplayName:  id.DisplayName,
+			}
+
+			out.RecentlyBaselined = append(
+				out.RecentlyBaselined,
+				DashboardRecentlyBaselined{
+					DashboardIdentityRef: baselineRef,
+					AccountID:            id.AccountID,
+					Region:               id.Region,
+					Event:                event.Event,
+					OccurredAt:           event.OccurredAt,
+					Version:              event.Version,
+				},
+			)
+
+			if len(out.RecentlyBaselined) >=
+				summaryTopN {
 				break
 			}
 		}
 	}
+
 	return out, nil
 }
 
-// ---------------------------------------------------------------------------
-// Identity index: lookups by identity key with workload-key fallback
-// ---------------------------------------------------------------------------
+// uniqueDiscoveryIdentityIDs produces the discovery IDs used to load
+// identity_credentials in one PostgreSQL query.
+func uniqueDiscoveryIdentityIDs(
+	rows []summarycommon.DiscoveryIdentityRow,
+) []string {
+	ids := make(
+		[]string,
+		0,
+		len(rows),
+	)
 
+	seen := make(
+		map[string]struct{},
+		len(rows),
+	)
+
+	for _, row := range rows {
+		identityID := strings.TrimSpace(row.ID)
+		if identityID == "" {
+			continue
+		}
+
+		if _, exists := seen[identityID]; exists {
+			continue
+		}
+
+		seen[identityID] = struct{}{}
+		ids = append(ids, identityID)
+	}
+
+	return ids
+}
+
+// identityIndex maps principal identity keys and workload baseline keys back
+// to the corresponding monitored identity.
 type identityIndex struct {
 	ids        []summarycommon.MonitoredIdentity
 	byKey      map[summarycommon.MonitoringKey]int
-	byWorkload map[summarycommon.MonitoringKey]int // first identity sharing the workload key
+	byWorkload map[summarycommon.MonitoringKey]int
 }
 
-func newIdentityIndex(ids []summarycommon.MonitoredIdentity) *identityIndex {
-	set := &identityIndex{ids: ids, byKey: map[summarycommon.MonitoringKey]int{}, byWorkload: map[summarycommon.MonitoringKey]int{}}
-	for i, id := range ids {
-		if _, dup := set.byKey[id.Key]; !dup {
-			set.byKey[id.Key] = i
-		}
-		if wk, ok := id.MonitoringWorkloadKey(); ok {
-			if _, dup := set.byWorkload[wk]; !dup {
-				set.byWorkload[wk] = i
-			}
-		}
+func newIdentityIndex(
+	ids []summarycommon.MonitoredIdentity,
+) *identityIndex {
+	set := &identityIndex{
+		ids: ids,
+		byKey: make(
+			map[summarycommon.MonitoringKey]int,
+		),
+		byWorkload: make(
+			map[summarycommon.MonitoringKey]int,
+		),
 	}
+
+	for index, id := range ids {
+		if _, duplicate :=
+			set.byKey[id.Key]; !duplicate {
+			set.byKey[id.Key] = index
+		}
+
+		workloadKey, ok :=
+			id.MonitoringWorkloadKey()
+		if !ok {
+			continue
+		}
+
+		if _, duplicate :=
+			set.byWorkload[workloadKey]; duplicate {
+			continue
+		}
+
+		set.byWorkload[workloadKey] = index
+	}
+
 	return set
 }
 
-// lookupKeys returns every key worth querying: identity keys plus workload
-// keys (the pipeline may store a shared profile under the workload key).
 func (s *identityIndex) lookupKeys() []summarycommon.MonitoringKey {
-	out := make([]summarycommon.MonitoringKey, 0, len(s.byKey)+len(s.byWorkload))
-	seen := map[summarycommon.MonitoringKey]struct{}{}
+	capacity := len(s.byKey) +
+		len(s.byWorkload)
+
+	keys := make(
+		[]summarycommon.MonitoringKey,
+		0,
+		capacity,
+	)
+
+	seen := make(
+		map[summarycommon.MonitoringKey]struct{},
+		capacity,
+	)
+
 	for _, id := range s.ids {
-		for _, k := range id.AllKeys() {
-			if _, ok := seen[k]; !ok {
-				seen[k] = struct{}{}
-				out = append(out, k)
+		for _, key := range id.AllKeys() {
+			if _, duplicate := seen[key]; duplicate {
+				continue
 			}
+
+			seen[key] = struct{}{}
+			keys = append(keys, key)
 		}
 	}
-	return out
+
+	return keys
 }
 
-// indexOf resolves a monitoring key (identity key first, then workload key).
-func (s *identityIndex) indexOf(k summarycommon.MonitoringKey) (int, bool) {
-	if i, ok := s.byKey[k]; ok {
-		return i, true
+func (s *identityIndex) indexOf(
+	key summarycommon.MonitoringKey,
+) (int, bool) {
+	if index, ok := s.byKey[key]; ok {
+		return index, true
 	}
-	if i, ok := s.byWorkload[k]; ok {
-		return i, true
+
+	if index, ok := s.byWorkload[key]; ok {
+		return index, true
 	}
+
 	return 0, false
 }
 
-func (s *identityIndex) baselineFor(m map[summarycommon.MonitoringKey]summarycommon.BaselineStateRow, id summarycommon.MonitoredIdentity) (summarycommon.BaselineStateRow, bool) {
-	for _, k := range id.AllKeys() {
-		if b, ok := m[k]; ok {
-			return b, true
+// activeBaselineFor returns an active baseline associated with the monitored
+// principal.
+//
+// ECS task and execution roles are separate monitored identities, so each can
+// independently contribute to identities_watched and baselines_established.
+func (s *identityIndex) activeBaselineFor(
+	baselines map[summarycommon.MonitoringKey]summarycommon.BaselineStateRow,
+	id summarycommon.MonitoredIdentity,
+) (summarycommon.BaselineStateRow, bool) {
+	for _, key := range id.AllKeys() {
+		baseline, ok := baselines[key]
+		if !ok {
+			continue
+		}
+
+		if strings.EqualFold(
+			strings.TrimSpace(baseline.Status),
+			"active",
+		) {
+			return baseline, true
 		}
 	}
+
 	return summarycommon.BaselineStateRow{}, false
 }
 
-func (s *identityIndex) riskFor(m map[summarycommon.MonitoringKey]summarycommon.IdentityRiskRow, id summarycommon.MonitoredIdentity) (summarycommon.IdentityRiskRow, bool) {
-	for _, k := range id.AllKeys() {
-		if r, ok := m[k]; ok {
-			return r, true
+func (s *identityIndex) riskFor(
+	riskRows map[summarycommon.MonitoringKey]summarycommon.IdentityRiskRow,
+	id summarycommon.MonitoredIdentity,
+) (summarycommon.IdentityRiskRow, bool) {
+	for _, key := range id.AllKeys() {
+		riskRow, ok := riskRows[key]
+		if ok {
+			return riskRow, true
 		}
 	}
+
 	return summarycommon.IdentityRiskRow{}, false
+}
+
+func mergeECSCredentials(
+	existing []summarycommon.IdentityCredentialRow,
+	discovered []summarycommon.IdentityCredentialRow,
+) []summarycommon.IdentityCredentialRow {
+	out := make(
+		[]summarycommon.IdentityCredentialRow,
+		0,
+		len(existing)+len(discovered),
+	)
+
+	seen := make(
+		map[string]struct{},
+		len(existing)+len(discovered),
+	)
+
+	add := func(
+		credential summarycommon.IdentityCredentialRow,
+	) {
+		bindingType := strings.ToLower(
+			strings.TrimSpace(
+				credential.BindingType,
+			),
+		)
+
+		credentialARN := strings.TrimSpace(
+			credential.CredentialARN,
+		)
+
+		if bindingType == "" ||
+			credentialARN == "" {
+			return
+		}
+
+		key := bindingType + ":" + credentialARN
+
+		if _, duplicate := seen[key]; duplicate {
+			return
+		}
+
+		seen[key] = struct{}{}
+
+		credential.BindingType = bindingType
+		credential.CredentialARN = credentialARN
+
+		out = append(out, credential)
+	}
+
+	// Database credentials have priority.
+	for _, credential := range existing {
+		add(credential)
+	}
+
+	// Discovery credentials fill missing bindings.
+	for _, credential := range discovered {
+		add(credential)
+	}
+
+	return out
 }

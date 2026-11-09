@@ -3,6 +3,7 @@ package summarycommon
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"time"
 
 	"github.com/lib/pq"
@@ -48,6 +49,16 @@ type DiscoveryIdentityRow struct {
 	LastSeenAt     *time.Time
 }
 
+// IdentityCredentialRow describes one credential or IAM principal bound to a
+// discovery identity.
+type IdentityCredentialRow struct {
+	IdentityID    string
+	BindingType   string
+	BindingSource string
+	CredentialARN string
+	IsPrimary     bool
+}
+
 // LatestIdentities returns the latest non-deleted discovery snapshot per
 // (identity_type, arn, account_id) inside the scope's accounts/regions —
 // the contract's step 1. Unlike the inventory endpoints it is not pinned to
@@ -88,6 +99,128 @@ FROM ranked WHERE row_rank = 1`
 		out = append(out, row)
 	}
 	return out, WrapMonitoringErr("latest identities", rows.Err())
+}
+
+// IdentityCredentials returns credential bindings grouped by discovery
+// identity ID.
+//
+// The query is intentionally batched to avoid one PostgreSQL query per
+// identity. The dashboard can use the returned bindings to expand one ECS
+// discovery row into separate task-role and execution-role principals.
+func (r *DashboardSummaryRepository) IdentityCredentials(
+	ctx context.Context,
+	resolved *scope.DataScope,
+	identityIDs []string,
+) (
+	map[string][]IdentityCredentialRow,
+	error,
+) {
+	out := make(
+		map[string][]IdentityCredentialRow,
+	)
+
+	if len(identityIDs) == 0 {
+		return out, nil
+	}
+
+	query := `
+		SELECT
+			c.identity_id::text,
+			COALESCE(c.binding_type, ''),
+			COALESCE(c.binding_source, ''),
+			COALESCE(c.credential_arn, ''),
+			COALESCE(c.is_primary, false)
+		FROM ` + resolved.Table("identity_credentials") + ` AS c
+		WHERE c.identity_id::text = ANY($1::text[])
+		  AND NULLIF(TRIM(c.credential_arn), '') IS NOT NULL
+		  AND c.binding_type IN (
+    'instance_profile',
+    'task_role',
+    'execution_role',
+    'function_role',
+    'service_role',
+    'target_role',
+    'invocation_role',
+    'pipe_role',
+    'scheduler_role',
+    'automation_role',
+    'action_role',
+    'job_role',
+    'instance_role',
+    'compute_role',
+    'access_key',
+    'roles_anywhere'
+)
+		ORDER BY
+			c.identity_id,
+			c.is_primary DESC,
+			c.binding_type,
+			c.credential_arn`
+
+	rows, err := resolved.DB.QueryContext(
+		ctx,
+		query,
+		pq.Array(identityIDs),
+	)
+	if err != nil {
+		return nil, WrapMonitoringErr(
+			"identity credentials",
+			err,
+		)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var row IdentityCredentialRow
+
+		if err := rows.Scan(
+			&row.IdentityID,
+			&row.BindingType,
+			&row.BindingSource,
+			&row.CredentialARN,
+			&row.IsPrimary,
+		); err != nil {
+			return nil, WrapMonitoringErr(
+				"identity credentials",
+				err,
+			)
+		}
+
+		row.IdentityID = strings.TrimSpace(
+			row.IdentityID,
+		)
+
+		row.BindingType = strings.ToLower(
+			strings.TrimSpace(row.BindingType),
+		)
+
+		row.BindingSource = strings.TrimSpace(
+			row.BindingSource,
+		)
+
+		row.CredentialARN = strings.TrimSpace(
+			row.CredentialARN,
+		)
+
+		if row.IdentityID == "" ||
+			row.CredentialARN == "" {
+			continue
+		}
+
+		out[row.IdentityID] = append(
+			out[row.IdentityID],
+			row,
+		)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, WrapMonitoringErr(
+			"identity credentials",
+			err,
+		)
+	}
+
+	return out, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -239,7 +372,7 @@ func (r *DashboardSummaryRepository) CountOpenAlerts(ctx context.Context, resolv
 	}
 	types, names := KeyArrays(keys)
 	q := `SELECT COUNT(*) FROM ` + resolved.Table("alerts") + ` a` + KeyJoin("a") + `
-	      WHERE lower(a.status) = 'open' AND a.created_at >= $3 AND a.created_at < $4`
+	      WHERE a.status = 'open' AND a.created_at >= $3 AND a.created_at < $4`
 	var n int
 	if err := resolved.DB.QueryRowContext(ctx, q, types, names, from, to).Scan(&n); err != nil {
 		return 0, WrapMonitoringErr("count open alerts", err)
@@ -261,7 +394,7 @@ func (r *DashboardSummaryRepository) OpenAlertsByDimension(ctx context.Context, 
 	}
 	types, names := KeyArrays(keys)
 	q := `SELECT a.dimension, COUNT(*) FROM ` + resolved.Table("alerts") + ` a` + KeyJoin("a") + `
-	      WHERE lower(a.status) = 'open' AND a.created_at >= $3 AND a.created_at < $4
+	      WHERE a.status = 'open' AND a.created_at >= $3 AND a.created_at < $4
 	      GROUP BY a.dimension ORDER BY COUNT(*) DESC, a.dimension`
 	rows, err := resolved.DB.QueryContext(ctx, q, types, names, from, to)
 	if err != nil {

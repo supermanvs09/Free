@@ -201,7 +201,7 @@ function GenomeIdentity({ sourceType, identityName }) {
     [timeline.items],
   );
   const timelineOpen = useMemo(
-    () => openAnomalies.reduce((sum, item) => sum + (Number(/^(\d+)/.exec(item.title ?? '')?.[1]) || 1), 0),
+    () => openAnomalies.reduce((sum, item) => sum + (item.openCount ?? 1), 0),
     [openAnomalies],
   );
   // The summary counts open alerts directly; the timeline count stands in while it loads.

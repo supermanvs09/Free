@@ -786,6 +786,12 @@ func purgeAccountData(ctx context.Context, tx *sql.Tx, schema, accountID string)
 			if err := exec(t.name, `DELETE FROM `+database.Table(schema, t.name)+` WHERE account_id::text = $1`); err != nil {
 				return nil, err
 			}
+		case t.hasClient && (t.name == "secscan_findings" || t.name == "secscan_deep_findings"):
+			// The scanner's merged tables hold every platform; only CodeCommit
+			// is keyed by the AWS account (a row without platform is CodeCommit).
+			if err := exec(t.name, `DELETE FROM `+database.Table(schema, t.name)+` WHERE client_id = $1 AND COALESCE(NULLIF(platform, ''), 'codecommit') = 'codecommit'`); err != nil {
+				return nil, err
+			}
 		case t.hasClient && strings.HasPrefix(t.name, "secscan_") && strings.HasSuffix(t.name, "_codecommit"):
 			// The credential-exposure scanner keys CodeCommit by the AWS account.
 			if err := exec(t.name, `DELETE FROM `+database.Table(schema, t.name)+` WHERE client_id = $1`); err != nil {

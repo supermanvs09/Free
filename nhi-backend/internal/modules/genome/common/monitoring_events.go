@@ -190,9 +190,11 @@ type AlertEventRow struct {
 	EventSource          string
 	EventName            string
 	RequestID            string
+	RequestParameters    string
 	ResourceARNs         string // joined string as stored; the service splits it
+	RoleARN              string
 	ProvenanceConfidence uint8
-	EventRiskScore       *uint8 // Nullable
+	EventRiskScore       *uint8
 	EventRiskSeverity    string
 	RiskStatus           string
 	RiskReasonsJSON      string
@@ -203,39 +205,106 @@ type AlertEventRow struct {
 // requested event in ONE query and returns them keyed by event_id; events
 // that are not in the table are simply absent. It is how the anomaly
 // endpoints join alerts to log_events without a ClickHouse query per alert.
-func (e *MonitoringEvents) EventsByID(ctx context.Context, eventIDs []string) (map[string]AlertEventRow, error) {
+func (e *MonitoringEvents) EventsByID(
+	ctx context.Context,
+	eventIDs []string,
+) (map[string]AlertEventRow, error) {
 	if !e.Enabled() {
 		return nil, ErrMonitoringEventsNotConfigured
 	}
+
 	out := map[string]AlertEventRow{}
+
 	if len(eventIDs) == 0 {
 		return out, nil
 	}
-	q := `SELECT event_id, event_time, source_type, identity_name, account_id, region, source_ip, user_agent,
-	             event_source, event_name, request_id, resource_arns, provenance_confidence, event_risk_score,
-	             event_risk_severity, risk_status, risk_reasons_json, risk_components_json
-	      FROM ` + e.tbl(ctx) + ` FINAL
-	      WHERE event_id IN {ids:Array(String)}`
-	ctx, cancel := e.queryContext(ctx)
+
+	q := `
+		SELECT
+			event_id,
+			event_time,
+			source_type,
+			identity_name,
+			account_id,
+			region,
+			source_ip,
+			user_agent,
+			event_source,
+			event_name,
+			request_id,
+			toString(request_parameters) AS request_parameters,
+			resource_arns,
+			toString(role_arn) AS role_arn,
+			provenance_confidence,
+			event_risk_score,
+			event_risk_severity,
+			risk_status,
+			risk_reasons_json,
+			risk_components_json
+		FROM ` + e.tbl(ctx) + ` FINAL
+		WHERE event_id IN {ids:Array(String)}`
+
+	queryCtx, cancel := e.queryContext(ctx)
 	defer cancel()
-	rows, err := e.conn.Query(ctx, q, ch.Named("ids", eventIDs))
+
+	rows, err := e.conn.Query(
+		queryCtx,
+		q,
+		ch.Named("ids", eventIDs),
+	)
 	if err != nil {
-		return nil, wrapEventsErr(ctx, "Genome ClickHouse events by id", err)
+		return nil, wrapEventsErr(
+			queryCtx,
+			"Genome ClickHouse events by id",
+			err,
+		)
 	}
 	defer rows.Close()
+
 	for rows.Next() {
-		var r AlertEventRow
-		if err := rows.Scan(&r.EventID, &r.EventTime, &r.SourceType, &r.IdentityName, &r.AccountID, &r.Region, &r.SourceIP, &r.UserAgent,
-			&r.EventSource, &r.EventName, &r.RequestID, &r.ResourceARNs, &r.ProvenanceConfidence, &r.EventRiskScore,
-			&r.EventRiskSeverity, &r.RiskStatus, &r.RiskReasonsJSON, &r.RiskComponentsJSON); err != nil {
-			return nil, wrapEventsErr(ctx, "Genome ClickHouse events by id", err)
+		var row AlertEventRow
+
+		if err := rows.Scan(
+			&row.EventID,
+			&row.EventTime,
+			&row.SourceType,
+			&row.IdentityName,
+			&row.AccountID,
+			&row.Region,
+			&row.SourceIP,
+			&row.UserAgent,
+			&row.EventSource,
+			&row.EventName,
+			&row.RequestID,
+			&row.RequestParameters,
+			&row.ResourceARNs,
+			&row.RoleARN,
+			&row.ProvenanceConfidence,
+			&row.EventRiskScore,
+			&row.EventRiskSeverity,
+			&row.RiskStatus,
+			&row.RiskReasonsJSON,
+			&row.RiskComponentsJSON,
+		); err != nil {
+			return nil, wrapEventsErr(
+				queryCtx,
+				"Genome ClickHouse events by id",
+				err,
+			)
 		}
-		r.EventTime = r.EventTime.UTC()
-		out[r.EventID] = r
+
+		row.EventTime = row.EventTime.UTC()
+		out[row.EventID] = row
 	}
+
 	if err := rows.Err(); err != nil {
-		return nil, wrapEventsErr(ctx, "Genome ClickHouse events by id", err)
+		return nil, wrapEventsErr(
+			queryCtx,
+			"Genome ClickHouse events by id",
+			err,
+		)
 	}
+
 	return out, nil
 }
 

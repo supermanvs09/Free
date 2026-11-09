@@ -23,7 +23,7 @@ it only needs to reach the platform's Postgres.
    | `collector_aws_account_id`, `collector_external_id`, `collector_event_bridge_arn`, `collector_regions` | what you typed - all four are required |
 
 2. **Company workspace.** Creates the schema named `db_name` with every tenant table
-   (98 tables, the two time-partitioned posture tables with their first partitions, and the
+   (97 tables (the secret scanner's findings in two merged tables, its old per-platform names as views), the two time-partitioned posture tables with their first partitions, and the
    reference rows the posture engine needs: pillars, categories, rule weights, drift config).
    An existing schema is never altered.
 3. **Customer account (optional field).** If you enter the customer's AWS account ID, a row is added

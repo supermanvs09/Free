@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"nhi-backend-api/internal/platform/scope"
@@ -217,8 +218,18 @@ func (r *FindingsRepository) Summary(ctx context.Context, resolved *scope.DataSc
 	}
 	out.ListCounts = out.Lists
 	out.Platforms = make([]string, 0, 3)
-	for _, pt := range cat.platformTables(kindFindings) {
-		out.Platforms = append(out.Platforms, pt.platform)
+	if cat.unified(kindFindings) {
+		// One table for every platform: a platform is listed once it has findings.
+		for p, n := range map[string]int{"codecommit": out.ByPlatform.CodeCommit, "github": out.ByPlatform.GitHub, "bitbucket": out.ByPlatform.Bitbucket} {
+			if n > 0 {
+				out.Platforms = append(out.Platforms, p)
+			}
+		}
+		sortPlatforms(out.Platforms)
+	} else {
+		for _, pt := range cat.platformTables(kindFindings) {
+			out.Platforms = append(out.Platforms, pt.platform)
+		}
 	}
 	deepTables := cat.platformTables(kindDeepFindings)
 	out.DeepAvailable = len(deepTables) > 0
@@ -229,6 +240,15 @@ func (r *FindingsRepository) Summary(ctx context.Context, resolved *scope.DataSc
 		}
 	}
 	return out, nil
+}
+
+// sortPlatforms puts platforms in display order (ScannerPlatforms).
+func sortPlatforms(ps []string) {
+	rank := map[string]int{}
+	for i, p := range ScannerPlatforms {
+		rank[p] = i
+	}
+	sort.Slice(ps, func(i, j int) bool { return rank[ps[i]] < rank[ps[j]] })
 }
 
 func scanFinding(row interface{ Scan(...any) error }) (Finding, error) {

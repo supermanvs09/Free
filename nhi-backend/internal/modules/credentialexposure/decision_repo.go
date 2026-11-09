@@ -19,7 +19,8 @@ type DecisionRepository struct{}
 func NewDecisionRepository() *DecisionRepository { return &DecisionRepository{} }
 
 // Save writes a person's label on one finding. deep labels a deep-scan
-// finding (secscan_deep_findings_*), as the scanner's "deep": true does.
+// finding (secscan_deep_findings, or secscan_deep_findings_* before the
+// scanner's table merge), as the scanner's "deep": true does.
 func (r *DecisionRepository) Save(ctx context.Context, resolved *scope.DataScope, findingID, decision, decidedBy string, deep bool) error {
 	cat, err := loadCatalog(ctx, resolved)
 	if err != nil {
@@ -39,9 +40,15 @@ func (r *DecisionRepository) Save(ctx context.Context, resolved *scope.DataScope
 		return fmt.Errorf("begin finding decision: %w", err)
 	}
 	defer tx.Rollback()
-	// Which platform table holds it: exactly one may.
+	// Which platform table holds it: exactly one may. After the scanner's
+	// merge every platform names the same table, so each is checked once.
 	var found []string
+	seen := map[string]bool{}
 	for _, pt := range tables {
+		if seen[pt.table] {
+			continue
+		}
+		seen[pt.table] = true
 		var exists bool
 		if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM `+schema+`.`+pt.table+` WHERE finding_id=$1)`, findingID).Scan(&exists); err != nil {
 			return fmt.Errorf("locate finding for decision: %w", err)

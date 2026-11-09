@@ -3,220 +3,413 @@ package identitybaseline
 import (
 	"context"
 	"encoding/json"
-	"sort"
+	"strings"
 
 	"nhi-backend-api/internal/modules/genome/common"
 	"nhi-backend-api/internal/modules/genome/identitydrift"
+	"nhi-backend-api/internal/platform/scope"
 )
 
-// Service implements
-// GET /api/v1/genome/identities/{source_type}/{identity_name}/baseline —
-// the baseline provenance panel:
+// Service implements:
 //
-//   - state fields     baselines (status, required/built/remaining days, dates)  (PostgreSQL)
-//   - data_points      SUM(daily_stats.event_count) over the baseline window     (PostgreSQL)
-//   - dimensions       safe summaries of baselines.profile_json                  (PostgreSQL)
-//   - versions         baseline_versions with safe selected profile fields       (PostgreSQL)
-//   - model confidence identity_drift_scores.model_confidence when available
+// GET /api/v1/genome/identities/{source_type}/{identity_name}/baseline
 //
-// The baseline row is looked up by the identity key first and the shared
-// workload key second (the fallback); data points and versions are then
-// read under the key the baseline is actually stored under. Nothing is
-// invented: without a baselines row every field is null and the lists are
-// empty — the legitimate "still learning" state.
+// The exact key supplied in the request is checked first. This is important
+// for credential-specific ECS identities because the dashboard returns the
+// normalized key stored in the baselines table.
+//
+// Only baselines with status active are returned. If an inactive row exists
+// under a canonical role ARN, the service continues checking the normalized
+// workload key for an active row.
 type Service struct {
 	lookup    *common.MonitoredIdentityLookup
 	repo      *Repository
 	driftRepo *identitydrift.Repository
 }
 
-// NewService wires the service.
-func NewService(lookup *common.MonitoredIdentityLookup, repo *Repository, driftRepo *identitydrift.Repository) *Service {
-	return &Service{lookup: lookup, repo: repo, driftRepo: driftRepo}
+// NewService creates the identity baseline service.
+func NewService(
+	lookup *common.MonitoredIdentityLookup,
+	repo *Repository,
+	driftRepo *identitydrift.Repository,
+) *Service {
+	return &Service{
+		lookup:    lookup,
+		repo:      repo,
+		driftRepo: driftRepo,
+	}
 }
 
-// Params are the parsed query parameters.
+// Params contains the parsed baseline endpoint query parameters.
 type Params struct {
-	VersionsLimit int // limit: rows of versions (newest first)
+	VersionsLimit int
 }
 
-// GetBaseline builds the response. Unknown identities are
-// common.ErrIdentityNotFound; scope/discovery failures are
-// *common.StoreUnavailableError.
-func (s *Service) GetBaseline(ctx context.Context, userID, tenantID, dbName, sourceType, identityName string, p Params) (*Response, error) {
-	res, err := s.lookup.Resolve(ctx, userID, tenantID, dbName, sourceType, identityName)
+// GetBaseline returns the active baseline associated with the requested
+// normalized identity key.
+//
+// The method uses the following lookup order:
+//
+//  1. Exact source_type and identity_name received from the route.
+//  2. Canonical identity and workload fallback keys from the discovery fleet.
+//  3. Only baseline rows having status active are accepted.
+//
+// The exact key under which the active baseline is found is then used for
+// profile, daily statistics, version history, and future model-confidence
+// lookup.
+func (s *Service) GetBaseline(
+	ctx context.Context,
+	userID string,
+	tenantID string,
+	dbName string,
+	sourceType string,
+	identityName string,
+	params Params,
+) (*Response, error) {
+	sourceType = strings.ToUpper(
+		strings.TrimSpace(sourceType),
+	)
+
+	identityName = strings.TrimSpace(
+		identityName,
+	)
+
+	if sourceType == "" || identityName == "" {
+		return nil, common.ErrIdentityNotFound
+	}
+
+	// Fleet resolves the tenant scope and provides any canonical or workload
+	// keys that can be reconstructed from discovery data.
+	resolvedScope, fleet, err := s.lookup.Fleet(
+		ctx,
+		userID,
+		tenantID,
+		dbName,
+	)
 	if err != nil {
 		return nil, err
 	}
-	sc := res.Scope
-	keys := res.Identity.AllKeys() // identity key, then the workload key when it differs
 
-	out := &Response{
+	requestedKey := common.MonitoringKey{
+		SourceType:   sourceType,
+		IdentityName: identityName,
+	}
+
+	// The exact requested key receives the highest preference.
+	keys := []common.MonitoringKey{
+		requestedKey,
+	}
+
+	// If the requested key belongs to an identity in the discovery fleet,
+	// append that identity's canonical and workload keys as fallbacks.
+	for _, identity := range fleet {
+		if !identityContainsKey(
+			identity,
+			requestedKey,
+		) {
+			continue
+		}
+
+		keys = append(
+			keys,
+			identity.AllKeys()...,
+		)
+
+		break
+	}
+
+	keys = uniquePreferredKeys(keys)
+
+	response := &Response{
 		ModelConfidencePercent:   nil,
 		ModelConfidenceAvailable: false,
 		Dimensions:               []DimensionSummary{},
 		Versions:                 []Version{},
 	}
-	if s.driftRepo != nil {
-		if drift, err := s.driftRepo.Latest(ctx, sc, keys); common.ReadOK("identity baseline model confidence", err) && drift != nil && drift.ModelConfidence != nil {
-			out.ModelConfidencePercent = drift.ModelConfidence
-			out.ModelConfidenceAvailable = true
-		}
-	}
 
-	row, err := s.repo.Baseline(ctx, sc, keys)
-	if !common.ReadOK("identity baseline", err) || row == nil {
-		if err := common.BudgetExceeded(ctx, "identity baseline"); err != nil {
-			return nil, err
+	// Check candidate keys individually. Repository.Baseline returns the first
+	// existing row for the supplied keys, regardless of status. Querying one
+	// key at a time prevents an inactive canonical role row from hiding an
+	// active ECS task-role or execution-role workload row.
+	baselineRow, err := s.activeBaseline(
+		ctx,
+		resolvedScope,
+		keys,
+	)
+	if err != nil {
+		if budgetErr := common.BudgetExceeded(
+			ctx,
+			"identity baseline",
+		); budgetErr != nil {
+			return nil, budgetErr
 		}
-		return out, nil
-	}
-	out.Status = common.OptionalString(row.Status)
-	out.RequiredDays = common.IntPtr(row.RequiredDays)
-	out.BuiltDays = common.IntPtr(row.BuiltDays)
-	out.DaysRemaining = common.IntPtr(row.DaysRemaining)
-	if row.FirstSeenDate != nil {
-		d := row.FirstSeenDate.Format("2006-01-02")
-		out.FirstSeenDate = &d
-	}
-	out.ActiveSince = row.ActiveSince
-	updated := row.UpdatedAt
-	out.UpdatedAt = &updated
-	out.Dimensions = profileDimensions(row.Profile)
 
-	if n, err := s.repo.DataPoints(ctx, sc, row.Key, row.RequiredDays); common.ReadOK("identity baseline data points", err) {
-		out.DataPoints = &n
-	}
-	if versions, err := s.repo.Versions(ctx, sc, []common.MonitoringKey{row.Key}, p.VersionsLimit); common.ReadOK("identity baseline versions", err) {
-		for _, v := range versions {
-			out.Versions = append(out.Versions, Version{
-				Version:     v.Version,
-				PublishedAt: v.PublishedAt,
-				Profile:     VersionProfile{Meta: profileMeta(v.Profile), Dimensions: profileDimensions(v.Profile)},
-			})
-		}
-	}
-	if err := common.BudgetExceeded(ctx, "identity baseline"); err != nil {
 		return nil, err
 	}
-	return out, nil
-}
 
-// ---- safe profile summaries ---------------------------------------------------
-//
-// profile_json holds "dimension models, frequency model, and _meta
-// version/training metadata" (schema guide §7); its exact layout is not
-// documented and may contain internal counters, which the endpoint must
-// not return. Only the following is extracted:
-//
-//   - dimension models: the JSON members (top level, or one level below a
-//     wrapper object) named like a monitoring dimension — the list the
-//     fingerprint endpoint uses, i.e. the names alerts.dimension carries —
-//     summarized as name, `ready` flag and, when the model is a plain
-//     value → count map, the number of distinct values;
-//   - `_meta`: its scalar members only (version, timestamps, configuration).
+	if baselineRow == nil {
+		return nil, common.ErrIdentityNotFound
+	}
 
-// profileDimensions returns the safe dimension summaries of a profile, in
-// the fingerprint dimension order. Empty for an empty/unparseable profile.
-func profileDimensions(raw []byte) []DimensionSummary {
-	out := []DimensionSummary{}
-	root, ok := parseProfile(raw)
-	if !ok {
-		return out
+	// All dependent reads must use the key under which the active baseline was
+	// actually found.
+	activeKey := baselineRow.Key
+
+	activeKeys := []common.MonitoringKey{
+		activeKey,
 	}
-	wanted := make(map[string]int, len(common.FingerprintDimensions))
-	for i, d := range common.FingerprintDimensions {
-		wanted[d] = i
+
+	// Keep future model-confidence support. Until the research pipeline
+	// supplies a value, the response remains:
+	//
+	// model_confidence_percent: null
+	// model_confidence_available: false
+	if s.driftRepo != nil {
+		drift, driftErr := s.driftRepo.Latest(
+			ctx,
+			resolvedScope,
+			activeKeys,
+		)
+
+		if common.ReadOK(
+			"identity baseline model confidence",
+			driftErr,
+		) &&
+			drift != nil &&
+			drift.ModelConfidence != nil {
+			response.ModelConfidencePercent =
+				drift.ModelConfidence
+
+			response.ModelConfidenceAvailable = true
+		}
 	}
-	found := map[string]any{}
-	for name, v := range root {
-		if name == "_meta" {
-			continue
-		}
-		if _, ok := wanted[name]; ok {
-			found[name] = v
-			continue
-		}
-		if wrapper, ok := v.(map[string]any); ok { // e.g. {"dimensions": {"api_operation": {...}}}
-			for inner, iv := range wrapper {
-				if _, ok := wanted[inner]; ok {
-					if _, dup := found[inner]; !dup {
-						found[inner] = iv
-					}
-				}
+
+	response.Status = common.OptionalString(
+		baselineRow.Status,
+	)
+
+	response.RequiredDays = common.IntPtr(
+		baselineRow.RequiredDays,
+	)
+
+	response.BuiltDays = common.IntPtr(
+		baselineRow.BuiltDays,
+	)
+
+	response.DaysRemaining = common.IntPtr(
+		baselineRow.DaysRemaining,
+	)
+
+	if baselineRow.FirstSeenDate != nil {
+		firstSeenDate :=
+			baselineRow.FirstSeenDate.Format(
+				"2006-01-02",
+			)
+
+		response.FirstSeenDate = &firstSeenDate
+	}
+
+	response.ActiveSince =
+		baselineRow.ActiveSince
+
+	updatedAt := baselineRow.UpdatedAt
+	response.UpdatedAt = &updatedAt
+
+	// Return baselines.profile_json exactly as stored in PostgreSQL.
+	if len(baselineRow.Profile) > 0 {
+		response.Profile = json.RawMessage(
+			append(
+				[]byte(nil),
+				baselineRow.Profile...,
+			),
+		)
+	}
+
+	// Data points come from daily_stats.event_count and must use the active
+	// baseline's actual monitoring key.
+	dataPoints, dataPointsErr := s.repo.DataPoints(
+		ctx,
+		resolvedScope,
+		activeKey,
+		baselineRow.RequiredDays,
+	)
+
+	if common.ReadOK(
+		"identity baseline data points",
+		dataPointsErr,
+	) {
+		response.DataPoints = &dataPoints
+	}
+
+	// Version history must also use the key under which the active baseline
+	// was found.
+	versions, versionsErr := s.repo.Versions(
+		ctx,
+		resolvedScope,
+		activeKeys,
+		params.VersionsLimit,
+	)
+
+	if common.ReadOK(
+		"identity baseline versions",
+		versionsErr,
+	) {
+		for _, versionRow := range versions {
+			version := Version{
+				Version: versionRow.Version,
+				PublishedAt: versionRow.
+					PublishedAt,
 			}
+
+			if len(versionRow.Profile) > 0 {
+				version.Profile = json.RawMessage(
+					append(
+						[]byte(nil),
+						versionRow.Profile...,
+					),
+				)
+			}
+
+			response.Versions = append(
+				response.Versions,
+				version,
+			)
 		}
 	}
-	for name, v := range found {
-		out = append(out, summarizeDimensionModel(name, v))
+
+	if budgetErr := common.BudgetExceeded(
+		ctx,
+		"identity baseline",
+	); budgetErr != nil {
+		return nil, budgetErr
 	}
-	sort.Slice(out, func(i, j int) bool { return wanted[out[i].Dimension] < wanted[out[j].Dimension] })
-	return out
+
+	return response, nil
 }
 
-// summarizeDimensionModel reduces one dimension model to its safe summary.
-func summarizeDimensionModel(name string, v any) DimensionSummary {
-	d := DimensionSummary{Dimension: name}
-	switch m := v.(type) {
-	case map[string]any:
-		if ready, ok := m["ready"].(bool); ok {
-			d.Ready = &ready
+// activeBaseline checks candidate monitoring keys in preference order and
+// returns the first baseline whose status is active.
+//
+// This prevents an inactive row stored under an IAM role ARN from hiding an
+// active row stored under a normalized ECS workload key.
+func (s *Service) activeBaseline(
+	ctx context.Context,
+	resolvedScope *scope.DataScope,
+	keys []common.MonitoringKey,
+) (*BaselineRow, error) {
+	for _, key := range keys {
+		row, err := s.repo.Baseline(
+			ctx,
+			resolvedScope,
+			[]common.MonitoringKey{
+				key,
+			},
+		)
+		if err != nil {
+			return nil, err
 		}
-		if n, ok := valueCountOf(m); ok {
-			d.ValueCount = &n
+
+		if row == nil {
+			continue
 		}
-	case []any:
-		n := len(m)
-		d.ValueCount = &n
+
+		if !strings.EqualFold(
+			strings.TrimSpace(row.Status),
+			"active",
+		) {
+			continue
+		}
+
+		return row, nil
 	}
-	return d
+
+	return nil, nil
 }
 
-// valueCountOf reports the size of m when it is a plain value → count map
-// (every member numeric); other layouts are not interpreted.
-func valueCountOf(m map[string]any) (int, bool) {
-	if len(m) == 0 {
-		return 0, false
-	}
-	for _, v := range m {
-		if _, isNumber := v.(float64); !isNumber {
-			return 0, false
+// identityContainsKey reports whether the requested monitoring key belongs to
+// one of the normalized identity's canonical or workload keys.
+func identityContainsKey(
+	identity common.MonitoredIdentity,
+	requested common.MonitoringKey,
+) bool {
+	requestedSourceType := strings.ToUpper(
+		strings.TrimSpace(
+			requested.SourceType,
+		),
+	)
+
+	requestedIdentityName := strings.TrimSpace(
+		requested.IdentityName,
+	)
+
+	for _, key := range identity.AllKeys() {
+		keySourceType := strings.ToUpper(
+			strings.TrimSpace(
+				key.SourceType,
+			),
+		)
+
+		keyIdentityName := strings.TrimSpace(
+			key.IdentityName,
+		)
+
+		if keySourceType != requestedSourceType {
+			continue
 		}
+
+		if keyIdentityName != requestedIdentityName {
+			continue
+		}
+
+		return true
 	}
-	return len(m), true
+
+	return false
 }
 
-// profileMeta returns the scalar members of the profile's `_meta` object
-// (nil when there is none).
-func profileMeta(raw []byte) map[string]any {
-	root, ok := parseProfile(raw)
-	if !ok {
-		return nil
-	}
-	meta, ok := root["_meta"].(map[string]any)
-	if !ok {
-		return nil
-	}
-	out := map[string]any{}
-	for k, v := range meta {
-		switch v.(type) {
-		case string, float64, bool, nil:
-			out[k] = v
-		}
-	}
-	if len(out) == 0 {
-		return nil
-	}
-	return out
-}
+// uniquePreferredKeys normalizes and deduplicates monitoring keys while
+// preserving their original preference order.
+func uniquePreferredKeys(
+	keys []common.MonitoringKey,
+) []common.MonitoringKey {
+	output := make(
+		[]common.MonitoringKey,
+		0,
+		len(keys),
+	)
 
-func parseProfile(raw []byte) (map[string]any, bool) {
-	if len(raw) == 0 {
-		return nil, false
+	seen := make(
+		map[common.MonitoringKey]struct{},
+		len(keys),
+	)
+
+	for _, key := range keys {
+		key.SourceType = strings.ToUpper(
+			strings.TrimSpace(
+				key.SourceType,
+			),
+		)
+
+		key.IdentityName = strings.TrimSpace(
+			key.IdentityName,
+		)
+
+		if key.SourceType == "" ||
+			key.IdentityName == "" {
+			continue
+		}
+
+		if _, duplicate := seen[key]; duplicate {
+			continue
+		}
+
+		seen[key] = struct{}{}
+
+		output = append(
+			output,
+			key,
+		)
 	}
-	var root map[string]any
-	if err := json.Unmarshal(raw, &root); err != nil || len(root) == 0 {
-		return nil, false
-	}
-	return root, true
+
+	return output
 }

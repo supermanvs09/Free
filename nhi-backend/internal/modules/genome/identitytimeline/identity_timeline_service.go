@@ -46,7 +46,7 @@ type IdentityTimelineParams struct {
 
 // Display titles per item type (§10.3: "API display text from the timeline type").
 var timelineTitles = map[string]string{
-	TimelineTypeAnomaly:                  "Anomaly detected",
+	TimelineTypeAnomalyDimension:         "Anomalies by dimension",
 	TimelineTypeBaselineVersionPublished: "Baseline version published",
 	TimelineTypeLearningStarted:          "Learning started",
 	TimelineTypeBaselineEstablished:      "Baseline established",
@@ -68,8 +68,22 @@ func (s *IdentityTimelineService) GetTimeline(ctx context.Context, userID, tenan
 	keys := id.AllKeys() // identity key, then the shared workload key
 
 	var entries []timelineEntry
-	if alerts, err := s.repo.Alerts(ctx, sc, keys); summarycommon.ReadOK(ctx, "identity timeline alerts", err) {
-		entries = append(entries, anomalyEntries(alerts)...)
+	if dimensions, err :=
+		s.repo.AlertDimensions(
+			ctx,
+			sc,
+			keys,
+		); summarycommon.ReadOK(
+		ctx,
+		"identity timeline alert dimensions",
+		err,
+	) {
+		entries = append(
+			entries,
+			anomalyDimensionEntries(
+				dimensions,
+			)...,
+		)
 	}
 	versionsKey := id.Key
 	if row, err := s.repo.BaselineMilestones(ctx, sc, keys); summarycommon.ReadOK(ctx, "identity timeline baseline", err) && row != nil {
@@ -113,48 +127,77 @@ func (s *IdentityTimelineService) GetTimeline(ctx context.Context, userID, tenan
 // same dimension and status into one item: one window usually raises several
 // alerts on one dimension, and the reviewer reads them as one departure.
 // alerts arrive newest first; the group's Ref is its newest alert id.
-func anomalyEntries(alerts []TimelineAlertRow) []timelineEntry {
-	type groupKey struct {
-		at                int64
-		dimension, status string
-	}
-	type group struct {
-		first   TimelineAlertRow
-		count   int
-		reasons map[string]struct{}
-	}
-	order := []groupKey{}
-	groups := map[groupKey]*group{}
-	for _, a := range alerts {
-		at := a.WindowEnd
-		if at.IsZero() {
-			at = a.CreatedAt
+func anomalyDimensionEntries(
+	rows []TimelineDimensionRow,
+) []timelineEntry {
+	output := make(
+		[]timelineEntry,
+		0,
+		len(rows),
+	)
+
+	for _, row := range rows {
+		dimension := strings.TrimSpace(
+			row.Dimension,
+		)
+
+		count := row.AlertCount
+		openCount := row.OpenCount
+		latestAlertID := row.LatestAlertID
+
+		status := "closed"
+		if openCount > 0 {
+			status = "open"
 		}
-		k := groupKey{at.UnixMilli(), a.Dimension, strings.ToLower(strings.TrimSpace(a.Status))}
-		g := groups[k]
-		if g == nil {
-			g = &group{first: a, reasons: map[string]struct{}{}}
-			groups[k] = g
-			order = append(order, k)
+
+		title := fmt.Sprintf(
+			"%d %s %s",
+			count,
+			dimension,
+			plural(
+				int(count),
+				"anomaly",
+				"anomalies",
+			),
+		)
+
+		var description *string
+
+		if reason := strings.TrimSpace(
+			row.LatestReason,
+		); reason != "" {
+			value := "Latest reason: " + reason
+			description = &value
 		}
-		g.count++
-		g.reasons[a.Reason] = struct{}{}
+
+		output = append(
+			output,
+			timelineEntry{
+				key: timelineKey{
+					At: row.LatestOccurredAt.
+						UnixMilli(),
+					Type: TimelineTypeAnomalyDimension,
+					Ref: strconv.FormatInt(
+						latestAlertID,
+						10,
+					),
+				},
+				item: IdentityTimelineItem{
+					Type:          TimelineTypeAnomalyDimension,
+					Title:         title,
+					Description:   description,
+					OccurredAt:    row.LatestOccurredAt,
+					Status:        &status,
+					Dimension:     &dimension,
+					Count:         &count,
+					OpenCount:     &openCount,
+					LatestAlertID: &latestAlertID,
+				},
+			},
+		)
 	}
-	out := make([]timelineEntry, 0, len(order))
-	for _, k := range order {
-		g := groups[k]
-		desc := "Dimension: " + g.first.Dimension + "; " + g.first.Reason
-		if extra := len(g.reasons) - 1; extra > 0 {
-			desc += fmt.Sprintf(" (and %d other %s)", extra, plural(extra, "reason", "reasons"))
-		}
-		status := g.first.Status
-		out = append(out, timelineEntry{
-			key: timelineKey{At: k.at, Type: TimelineTypeAnomaly, Ref: strconv.FormatInt(g.first.ID, 10)},
-			item: IdentityTimelineItem{Type: TimelineTypeAnomaly, Title: anomalyTitle(g.count, k.status),
-				Description: &desc, OccurredAt: time.UnixMilli(k.at).UTC(), Status: &status},
-		})
-	}
-	return out
+
+	return output
 }
 
 // anomalyTitle: "1 active anomaly", "3 active anomalies", "2 resolved anomalies".

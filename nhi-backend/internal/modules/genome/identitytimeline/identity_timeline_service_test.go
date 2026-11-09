@@ -5,28 +5,23 @@ import (
 	"time"
 )
 
-func TestAnomalyEntriesGroupsPerWindow(t *testing.T) {
-	w1 := time.Date(2026, 10, 13, 2, 0, 0, 0, time.UTC)
-	w0 := w1.Add(-time.Hour)
-	alerts := []TimelineAlertRow{ // newest first, as the repository returns them
-		{ID: 9, Dimension: "api_operation", Reason: "new operation", Status: "open", WindowEnd: w1, CreatedAt: w1.Add(time.Minute)},
-		{ID: 8, Dimension: "api_operation", Reason: "rare operation", Status: "open", WindowEnd: w1, CreatedAt: w1.Add(time.Minute)},
-		{ID: 7, Dimension: "region", Reason: "new region", Status: "open", WindowEnd: w1, CreatedAt: w1},
-		{ID: 5, Dimension: "api_operation", Reason: "new operation", Status: "resolved", WindowEnd: w0, CreatedAt: w0},
+func TestAnomalyDimensionEntriesOnePerDimension(t *testing.T) {
+	at := time.Date(2026, 10, 13, 2, 0, 0, 0, time.UTC)
+	rows := []TimelineDimensionRow{
+		{Dimension: "api_operation", AlertCount: 3, OpenCount: 2, LatestOccurredAt: at, LatestAlertID: 9, LatestReason: "new operation"},
+		{Dimension: "region", AlertCount: 1, OpenCount: 0, LatestOccurredAt: at.Add(-time.Hour), LatestAlertID: 5},
 	}
-	got := anomalyEntries(alerts)
-	if len(got) != 3 {
-		t.Fatalf("got %d items, want 3: %+v", len(got), got)
+	got := anomalyDimensionEntries(rows)
+	if len(got) != 2 {
+		t.Fatalf("got %d items, want 2", len(got))
 	}
 	first := got[0].item
-	if first.Title != "2 active anomalies" || !first.OccurredAt.Equal(w1) || *first.Status != "open" ||
-		*first.Description != "Dimension: api_operation; new operation (and 1 other reason)" || got[0].key.Ref != "9" {
-		t.Errorf("first item = %+v (%s / %s), key %+v", first, *first.Description, *first.Status, got[0].key)
+	if first.Type != TimelineTypeAnomalyDimension || first.Title != "3 api_operation anomalies" || *first.Status != "open" ||
+		*first.Description != "Latest reason: new operation" || *first.Count != 3 || *first.OpenCount != 2 || got[0].key.Ref != "9" {
+		t.Errorf("first item = %+v", first)
 	}
-	if got[1].item.Title != "1 active anomaly" || *got[1].item.Description != "Dimension: region; new region" {
-		t.Errorf("second item = %s / %s", got[1].item.Title, *got[1].item.Description)
-	}
-	if got[2].item.Title != "1 resolved anomaly" || !got[2].item.OccurredAt.Equal(w0) {
-		t.Errorf("third item = %s at %s", got[2].item.Title, got[2].item.OccurredAt)
+	second := got[1].item
+	if second.Title != "1 region anomaly" || *second.Status != "closed" || second.Description != nil {
+		t.Errorf("second item = %+v", second)
 	}
 }

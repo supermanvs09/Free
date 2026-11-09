@@ -291,6 +291,12 @@ func TestAWSIntegrationRepositoryAgainstPostgres(t *testing.T) {
 	mustExec(t, db, `CREATE TABLE `+database.Table(schemaA, "secscan_findings_codecommit")+` (client_id text, file_path text)`)
 	mustExec(t, db, `INSERT INTO `+database.Table(schemaA, "secscan_findings_codecommit")+` VALUES ($1, 'a'), ($2, 'b')`, acct, otherAcct)
 	mustExec(t, db, `INSERT INTO `+database.Table(schemaA, "identities")+` VALUES ($1, 'a'), ($2, 'b')`, acct, otherAcct)
+	// The scanner's merged findings table: only this account's CodeCommit rows
+	// go; a row of another platform under the same client_id stays, and the
+	// view of the old name is left alone.
+	mustExec(t, db, `CREATE TABLE `+database.Table(schemaA, "secscan_findings")+` (client_id text, file_path text, platform text)`)
+	mustExec(t, db, `INSERT INTO `+database.Table(schemaA, "secscan_findings")+` VALUES ($1, 'a', 'codecommit'), ($2, 'b', 'codecommit'), ($1, 'c', 'github')`, acct, otherAcct)
+	mustExec(t, db, `CREATE VIEW `+database.Table(schemaA, "secscan_findings_github")+` AS SELECT * FROM `+database.Table(schemaA, "secscan_findings")+` WHERE platform = 'github'`)
 	mustExec(t, db, `INSERT INTO `+database.Table(schemaA, "nhi_events_aws")+` VALUES ($1), ($2)`,
 		"arn:aws:iam::"+acct+":role/a", "arn:aws:iam::"+otherAcct+":role/b")
 	mustExec(t, db, `INSERT INTO `+database.Table(schemaA, "ispm_identity_posture")+` VALUES ('i-a', $1), ('i-b', $2)`, acct, otherAcct)
@@ -315,6 +321,13 @@ func TestAWSIntegrationRepositoryAgainstPostgres(t *testing.T) {
 		if err := db.QueryRow(`SELECT count(*) FROM ` + database.Table(schemaA, table)).Scan(&left); err != nil || left != 1 {
 			t.Fatalf("%s rows left = %d (%v), want the other account's 1", table, left, err)
 		}
+	}
+	var merged int
+	if err := db.QueryRow(`SELECT count(*) FROM ` + database.Table(schemaA, "secscan_findings")).Scan(&merged); err != nil || purged["secscan_findings"] != 1 || merged != 2 {
+		t.Fatalf("merged findings: purged %d, left %d (%v); want 1 and 2", purged["secscan_findings"], merged, err)
+	}
+	if _, viewTouched := purged["secscan_findings_github"]; viewTouched {
+		t.Fatal("a view was purged")
 	}
 	if got := scope(schemaA, acct); len(got) != 0 {
 		t.Fatalf("scope after delete: %v", got)

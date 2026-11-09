@@ -42,7 +42,8 @@ CREATE TABLE IF NOT EXISTS :"schema".credentials (
 
 CREATE TABLE IF NOT EXISTS :"schema".identity_credentials (
   identity_id text, credential_id text, binding_type text,
-  binding_source text, trust_principal text, is_primary boolean DEFAULT false);
+  binding_source text, trust_principal text, is_primary boolean DEFAULT false,
+  identity_arn text, credential_arn text, account_id text);
 
 CREATE TABLE IF NOT EXISTS :"schema".effective_permissions (
   credential_id text, granted_count int DEFAULT 0,

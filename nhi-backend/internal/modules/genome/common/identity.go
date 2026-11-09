@@ -18,16 +18,7 @@ import (
 // ---------------------------------------------------------------------------
 // Discovery row → monitoring identity
 // ---------------------------------------------------------------------------
-//
-// ASSUMPTION NOTICE: the discovery pipeline's exact subtype catalog and
-// identity_discovery logic were not available while this normalizer was
-// written. The families named below are believed exact; the workload-key
-// formats are best-effort. Everything lives in this block so reconciling
-// with the real pipeline is a change to this file only. source_type values
-// must fit the VARCHAR(16) monitoring columns.
 
-// SupportedSourceTypes returns the compact source families NHI Genome shows
-// (all of them, or the ones NHI_GENOME_WORKLOAD_TYPES lists), sorted.
 func SupportedSourceTypes() []string {
 	list, _ := workloadtypes.Enabled()
 	return list
@@ -37,9 +28,7 @@ func resolveMonitoringType(identityType string) (subtype, family string, ok bool
 	return workloadtypes.Resolve(identityType)
 }
 
-// DashboardIdentityRef is the small identity block embedded in several list
-// rows: id = source_type + ':' + identity_name, display_name from the
-// normalizer.
+// DashboardIdentityRef is the small identity block embedded in list rows.
 type DashboardIdentityRef struct {
 	ID           string `json:"id"`
 	SourceType   string `json:"source_type"`
@@ -49,58 +38,85 @@ type DashboardIdentityRef struct {
 
 // MonitoredIdentity is the normalized shape of one discovery row.
 type MonitoredIdentity struct {
-	Key            MonitoringKey // (source_type, identity_name)
+	Key            MonitoringKey
 	Subtype        string
 	DisplayName    string
-	Status         string // raw identities.status (lifecycle values NEED CONFIRMATION)
+	Status         string
 	AccountID      string
 	Region         string
 	ServiceName    string
 	ClusterName    string
-	RoleARN        string // first matching role ARN in type_attributes
+	RoleARN        string
 	RoleName       string
 	RoleType       string
 	TaskDefinition string
 	InstanceID     string
 	WorkloadKey    string
+
+	DiscoveryIdentityID string
+
+	ClusterARN string
+	TaskGroup  string
+
+	PrincipalARN     string
+	RoleKind         string
+	TaskRoleARN      string
+	ExecutionRoleARN string
 }
 
-// Ref renders the identity as its small dashboard reference.
+// Ref renders the identity as its dashboard reference.
 func (i MonitoredIdentity) Ref() DashboardIdentityRef {
-	return DashboardIdentityRef{ID: i.Key.SourceType + ":" + i.Key.IdentityName, SourceType: i.Key.SourceType, IdentityName: i.Key.IdentityName, DisplayName: i.DisplayName}
+	return DashboardIdentityRef{
+		ID:           i.Key.SourceType + ":" + i.Key.IdentityName,
+		SourceType:   i.Key.SourceType,
+		IdentityName: i.Key.IdentityName,
+		DisplayName:  i.DisplayName,
+	}
 }
 
-// PeerKey is the MVP peer key:
-// source_type + account_id + region + service_name + cluster_name + role_type.
-// EventKey is the key log_events knows this identity by: an ECS identity is
-// its task role (read from request_parameters.roleArn there), every other
-// family its own key.
+// EventKey returns the key log_events uses for this identity.
 func (i MonitoredIdentity) EventKey() MonitoringKey {
 	if i.Key.SourceType == "ECS" && i.RoleARN != "" {
-		return MonitoringKey{SourceType: i.Key.SourceType, IdentityName: i.RoleARN}
+		return MonitoringKey{
+			SourceType:   i.Key.SourceType,
+			IdentityName: i.RoleARN,
+		}
 	}
 	return i.Key
 }
 
+// PeerKey returns the identity's peer grouping key.
 func (i MonitoredIdentity) PeerKey() string {
-	return strings.Join([]string{i.Key.SourceType, i.AccountID, i.Region, i.ServiceName, i.ClusterName, i.RoleType}, "|")
+	return strings.Join([]string{
+		i.Key.SourceType,
+		i.AccountID,
+		i.Region,
+		i.ServiceName,
+		i.ClusterName,
+		i.RoleType,
+	}, "|")
 }
 
-// WorkloadMonitoringKey returns the shared workload key as a MonitoringKey,
-// when it differs from the identity's own key.
+// WorkloadMonitoringKey returns the shared workload key when available.
 func (i MonitoredIdentity) WorkloadMonitoringKey() (MonitoringKey, bool) {
 	if i.WorkloadKey == "" || i.WorkloadKey == i.Key.IdentityName {
 		return MonitoringKey{}, false
 	}
-	return MonitoringKey{SourceType: i.Key.SourceType, IdentityName: i.WorkloadKey}, true
+
+	return MonitoringKey{
+		SourceType:   i.Key.SourceType,
+		IdentityName: i.WorkloadKey,
+	}, true
 }
 
-// AllKeys returns the keys to try, in order: identity key, then workload key.
+// AllKeys returns the identity key followed by its workload key.
 func (i MonitoredIdentity) AllKeys() []MonitoringKey {
 	keys := []MonitoringKey{i.Key}
+
 	if wk, ok := i.WorkloadMonitoringKey(); ok {
 		keys = append(keys, wk)
 	}
+
 	return keys
 }
 
@@ -127,10 +143,55 @@ func NormalizeDiscoveryRow(row DiscoveryIdentityRow) (MonitoredIdentity, bool) {
 		id.Region = arnField(canonical, 3)
 	}
 	// Runtime metadata from type_attributes (key names vary by scanner version).
-	id.ClusterName = lastPathSegment(attrString(attrs, "cluster_name", "clusterName", "cluster", "cluster_arn", "clusterArn"))
-	id.ServiceName = attrString(attrs, "service_name", "serviceName", "service")
-	id.TaskDefinition = attrString(attrs, "task_definition", "taskDefinition", "task_definition_arn", "taskDefinitionArn", "task_definition_family")
-	id.InstanceID = attrString(attrs, "instance_id", "instanceId")
+	id.ClusterName = lastPathSegment(attrString(
+		attrs,
+		"cluster_name",
+		"clusterName",
+		"cluster",
+		"cluster_arn",
+		"clusterArn",
+	))
+
+	id.ClusterARN = attrString(
+		attrs,
+		"cluster_arn",
+		"clusterArn",
+	)
+
+	id.TaskGroup = attrString(
+		attrs,
+		"group",
+		"task_group",
+	)
+
+	id.ServiceName = attrString(
+		attrs,
+		"service_name",
+		"serviceName",
+		"service",
+	)
+
+	if sub == "ecs_task" && id.ServiceName == "" {
+		id.ServiceName = strings.TrimPrefix(
+			id.TaskGroup,
+			"service:",
+		)
+	}
+
+	id.TaskDefinition = attrString(
+		attrs,
+		"task_definition",
+		"taskDefinition",
+		"task_definition_arn",
+		"taskDefinitionArn",
+		"task_definition_family",
+	)
+
+	id.InstanceID = attrString(
+		attrs,
+		"instance_id",
+		"instanceId",
+	)
 	if roleARN := attrString(attrs, "bound_role_arn", "role_arn", "roleArn", "task_role_arn", "taskRoleArn",
 		"execution_role_arn", "executionRoleArn", "iam_role_arn", "service_role_arn", "serviceRoleArn",
 		"service_role", "execution_role", "role", "instance_profile_role_arn", "job_role_arn"); roleARN != "" {
@@ -197,34 +258,294 @@ func serverlessName(sub string, attrs map[string]any, resource string) string {
 	return FirstNonEmpty(attrString(attrs, "name", "resource_name"), resource)
 }
 
+func normalizeECSGroup(
+	value string,
+) (
+	mode string,
+	name string,
+) {
+	value = strings.TrimSpace(value)
+
+	switch {
+	case strings.HasPrefix(value, "service:"):
+		return "service",
+			strings.TrimSpace(
+				strings.TrimPrefix(
+					value,
+					"service:",
+				),
+			)
+
+	case strings.HasPrefix(value, "family:"):
+		return "standalone",
+			strings.TrimSpace(
+				strings.TrimPrefix(
+					value,
+					"family:",
+				),
+			)
+
+	default:
+		return "standalone", value
+	}
+}
+
 // workloadKeyFor derives the shared workload key. The identity key is
 // always tried first, so a mismatch only disables the shared-profile
 // fallback.
-func workloadKeyFor(id MonitoredIdentity, sub, resource string) string {
-	acct, region := id.AccountID, id.Region
-	switch sub {
+func workloadKeyFor(
+	id MonitoredIdentity,
+	subtype string,
+	resource string,
+) string {
+	accountID := id.AccountID
+	region := id.Region
+
+	name := dashed(
+		FirstNonEmpty(
+			id.ServiceName,
+			resource,
+			id.DisplayName,
+		),
+	)
+
+	switch subtype {
 	case "ecs_task":
-		family := lastPathSegment(id.TaskDefinition)
-		if i := strings.LastIndexByte(family, ':'); i > 0 {
-			family = family[:i]
+		family := lastPathSegment(
+			id.TaskDefinition,
+		)
+
+		if revisionIndex := strings.LastIndexByte(
+			family,
+			':',
+		); revisionIndex > 0 {
+			family = family[:revisionIndex]
 		}
-		parts := []string{"ecs", acct, region, dashed(id.ClusterName), dashed(FirstNonEmpty(id.ServiceName, family)), dashed(family)}
-		if id.RoleName != "" {
-			parts = append(parts, id.RoleName)
-		}
-		return strings.Join(parts, ":")
+
+		_, groupName := normalizeECSGroup(
+			FirstNonEmpty(
+				id.TaskGroup,
+				id.ServiceName,
+			),
+		)
+
+		return strings.Join(
+			[]string{
+				"ecs",
+				accountID,
+				region,
+				dashed(id.ClusterName),
+				dashed(
+					FirstNonEmpty(
+						groupName,
+						id.ServiceName,
+						family,
+					),
+				),
+				dashed(family),
+			},
+			":",
+		)
+
 	case "lambda_function":
-		return "lambda:" + acct + ":" + region + ":" + dashed(FirstNonEmpty(id.ServiceName, resource))
+		return strings.Join(
+			[]string{
+				"lambda",
+				accountID,
+				region,
+				name,
+			},
+			":",
+		)
+
 	case "step_function":
-		return "step_functions:" + acct + ":" + region + ":" + dashed(FirstNonEmpty(id.ServiceName, resource))
+		return strings.Join(
+			[]string{
+				"step_functions",
+				accountID,
+				region,
+				name,
+			},
+			":",
+		)
+
 	case "ec2_instance":
-		return "ec2:" + acct + ":" + region + ":" + dashed(FirstNonEmpty(id.RoleName, id.InstanceID, resource))
-	case "glue_job":
-		return "glue:" + acct + ":" + region + ":job:" + dashed(FirstNonEmpty(id.ServiceName, resource))
-	case "glue_crawler":
-		return "glue:" + acct + ":" + region + ":crawler:" + dashed(FirstNonEmpty(id.ServiceName, resource))
+		roleName := dashed(
+			FirstNonEmpty(
+				id.RoleName,
+				id.InstanceID,
+				resource,
+			),
+		)
+
+		return strings.Join(
+			[]string{
+				"ec2",
+				accountID,
+				region,
+				roleName,
+				roleName,
+			},
+			":",
+		)
+
+	case "glue_job", "glue_crawler":
+		return strings.Join(
+			[]string{
+				"glue",
+				accountID,
+				region,
+				name,
+			},
+			":",
+		)
+
+	case "eventbridge_rule",
+		"eventbridge_target",
+		"eventbridge_pipe",
+		"eventbridge_scheduler":
+		return strings.Join(
+			[]string{
+				"eventbridge",
+				accountID,
+				region,
+				name,
+			},
+			":",
+		)
+
+	case "ssm_managed_node", "ssm_automation":
+		ssmName := dashed(
+			FirstNonEmpty(
+				id.ServiceName,
+				id.InstanceID,
+				resource,
+			),
+		)
+
+		return strings.Join(
+			[]string{
+				"ssm",
+				accountID,
+				region,
+				ssmName,
+			},
+			":",
+		)
+
+	case "codebuild_project":
+		return strings.Join(
+			[]string{
+				"codebuild",
+				accountID,
+				region,
+				name,
+			},
+			":",
+		)
+
+	case "codedeploy_application",
+		"codedeploy_deployment_group",
+		"codedeploy_service_role":
+		return strings.Join(
+			[]string{
+				"codedeploy",
+				accountID,
+				region,
+				name,
+			},
+			":",
+		)
+
+	case "codepipeline":
+		return strings.Join(
+			[]string{
+				"codepipeline",
+				accountID,
+				region,
+				name,
+			},
+			":",
+		)
+
+	case "cloudformation_stack",
+		"cloudformation_stack_role",
+		"cloudformation_stackset":
+		return strings.Join(
+			[]string{
+				"cloudformation",
+				accountID,
+				region,
+				name,
+			},
+			":",
+		)
+
+	case "batch_job",
+		"batch_job_definition",
+		"batch_job_queue",
+		"batch_compute_environment":
+		return strings.Join(
+			[]string{
+				"batch",
+				accountID,
+				region,
+				name,
+			},
+			":",
+		)
+
+	case "amplify_app",
+		"amplify_branch",
+		"amplify_backend_environment":
+		return strings.Join(
+			[]string{
+				"amplify",
+				accountID,
+				region,
+				name,
+			},
+			":",
+		)
+
+	case "iam_role",
+		"iam_user",
+		"iam_user_service_account",
+		"iam_access_key",
+		"iam_roles_anywhere_session",
+		"saas_vendor_role":
+		principalName := dashed(
+			FirstNonEmpty(
+				id.RoleName,
+				id.ServiceName,
+				resource,
+			),
+		)
+
+		return strings.Join(
+			[]string{
+				"iam",
+				accountID,
+				"global",
+				subtype,
+				principalName,
+			},
+			":",
+		)
 	}
-	return strings.ToLower(id.Key.SourceType) + ":" + acct + ":" + region + ":" + sub + ":" + dashed(FirstNonEmpty(id.ServiceName, resource, id.DisplayName))
+
+	return strings.Join(
+		[]string{
+			strings.ToLower(
+				id.Key.SourceType,
+			),
+			accountID,
+			region,
+			subtype,
+			name,
+		},
+		":",
+	)
 }
 
 // ---- small helpers ----------------------------------------------------------
@@ -428,16 +749,59 @@ func NewMonitoredIdentityLookup(resolver ScopeResolver) *MonitoredIdentityLookup
 // *StoreUnavailableError (503); an unknown identity is ErrIdentityNotFound.
 // When several snapshots normalize to the same key, the most recently seen
 // one is used.
-func (l *MonitoredIdentityLookup) Resolve(ctx context.Context, userID, tenantID, dbName, sourceType, identityName string) (ResolvedIdentity, error) {
-	sc, fleet, err := l.Fleet(ctx, userID, tenantID, dbName)
+func (l *MonitoredIdentityLookup) Resolve(
+	ctx context.Context,
+	userID string,
+	tenantID string,
+	dbName string,
+	sourceType string,
+	identityName string,
+) (ResolvedIdentity, error) {
+	resolvedScope, fleet, err := l.Fleet(
+		ctx,
+		userID,
+		tenantID,
+		dbName,
+	)
 	if err != nil {
 		return ResolvedIdentity{}, err
 	}
-	for _, id := range fleet {
-		if id.Key.SourceType == sourceType && id.Key.IdentityName == identityName {
-			return ResolvedIdentity{Scope: sc, Identity: id}, nil
+
+	sourceType = strings.ToUpper(
+		strings.TrimSpace(sourceType),
+	)
+
+	identityName = strings.TrimSpace(
+		identityName,
+	)
+
+	for _, identity := range fleet {
+		for _, key := range identity.AllKeys() {
+			keySourceType := strings.ToUpper(
+				strings.TrimSpace(
+					key.SourceType,
+				),
+			)
+
+			keyIdentityName := strings.TrimSpace(
+				key.IdentityName,
+			)
+
+			if keySourceType != sourceType {
+				continue
+			}
+
+			if keyIdentityName != identityName {
+				continue
+			}
+
+			return ResolvedIdentity{
+				Scope:    resolvedScope,
+				Identity: identity,
+			}, nil
 		}
 	}
+
 	return ResolvedIdentity{}, ErrIdentityNotFound
 }
 

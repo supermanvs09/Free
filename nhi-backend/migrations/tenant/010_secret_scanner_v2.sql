@@ -1,14 +1,31 @@
 -- Secret scanner v2 (DATABASE_HANDOVER 2026-11-05). Run per tenant schema
 -- (psql -v schema=...). Safe to run again; the scanner itself creates the same
 -- tables the first time it needs them, so this only makes them exist up front.
+-- On a schema whose findings tables the scanner has merged, the per-platform
+-- names are views: CREATE TABLE IF NOT EXISTS skips them and the ALTERs below
+-- touch only real tables. Nothing here creates the merged tables: in a
+-- schema that still has per-platform tables, an empty secscan_findings would
+-- make the API read it instead of the real data.
 --
 --   * bitbucket_uri on every findings table (the third platform's link)
 --   * the Bitbucket stack's tables (secscan_*_bitbucket)
 --   * secscan_deep_findings_<platform>: deep-scan findings, one row per branch
 --     (finding_id ends in "@<branch>"); no longer written to secscan_findings_*
 BEGIN;
-ALTER TABLE IF EXISTS :"schema".secscan_findings_codecommit ADD COLUMN IF NOT EXISTS bitbucket_uri character varying(2000);
-ALTER TABLE IF EXISTS :"schema".secscan_findings_github ADD COLUMN IF NOT EXISTS bitbucket_uri character varying(2000);
+-- Only on real tables: after the scanner merged its findings tables
+-- (secscan_findings / secscan_deep_findings) these names are views, which
+-- ALTER TABLE refuses, and this file must still run again cleanly.
+SELECT set_config('nhi.schema', :'schema', true);
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['secscan_findings_codecommit', 'secscan_findings_github'] LOOP
+    IF EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+               WHERE n.nspname = current_setting('nhi.schema') AND c.relname = t AND c.relkind = 'r') THEN
+      EXECUTE format('ALTER TABLE %I.%I ADD COLUMN IF NOT EXISTS bitbucket_uri character varying(2000)', current_setting('nhi.schema'), t);
+    END IF;
+  END LOOP;
+END $$;
 -- TABLE: secscan_findings_bitbucket
 CREATE TABLE IF NOT EXISTS :"schema".secscan_findings_bitbucket (
     finding_id character varying(1000) NOT NULL,

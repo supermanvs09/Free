@@ -15,8 +15,11 @@ import (
 // columns in place over time (bitbucket_uri on 2026-11-04, the ML/noise
 // columns on 2026-10-16). So a tenant schema can hold any subset of
 //
-//	secscan_findings_<platform>       the normal scans' findings
-//	secscan_deep_findings_<platform>  deep-scan findings, one row per branch
+//	secscan_findings                  every platform's findings, column platform
+//	secscan_deep_findings             every platform's deep-scan findings
+//	secscan_findings_<platform>       the same, before the scanner's table merge
+//	secscan_deep_findings_<platform>  (afterwards these names are read-only
+//	                                  views of the merged table and are not read)
 //	secscan_ledger_<platform>         last scanned commit per branch
 //	secscan_deepscan_<platform>       deep-scan requests and results
 //	secscan_allowlist_dashboard       "marked safe"
@@ -84,10 +87,25 @@ func (c *schemaCatalog) hasColumn(table, column string) bool {
 	return c.tables[table][column]
 }
 
-// platformTables returns, per platform in display order, the tables of kind
-// that exist ("findings" -> secscan_findings_<platform>).
+// unified reports whether the schema has the merged table of kind
+// (secscan_findings / secscan_deep_findings, one table for every platform).
+// When it has, the per-platform names are views of it and are never read:
+// reading both would count every finding twice.
+func (c *schemaCatalog) unified(kind string) bool {
+	return c.has("secscan_" + kind)
+}
+
+// platformTables returns, per platform in display order, where that
+// platform's findings of kind are: its own table (secscan_findings_<platform>)
+// or, after the merge, the merged table filtered on platform.
 func (c *schemaCatalog) platformTables(kind string) []platformTable {
 	out := make([]platformTable, 0, len(ScannerPlatforms))
+	if c.unified(kind) {
+		for _, p := range ScannerPlatforms {
+			out = append(out, platformTable{platform: p, table: "secscan_" + kind, where: platformIs(c, "secscan_"+kind, p)})
+		}
+		return out
+	}
 	for _, p := range ScannerPlatforms {
 		name := "secscan_" + kind + "_" + p
 		if c.has(name) {
@@ -97,7 +115,32 @@ func (c *schemaCatalog) platformTables(kind string) []platformTable {
 	return out
 }
 
-type platformTable struct{ platform, table string }
+// platformTable returns where platform p's findings of kind are, if anywhere.
+func (c *schemaCatalog) platformTable(kind, p string) (platformTable, bool) {
+	for _, pt := range c.platformTables(kind) {
+		if pt.platform == p {
+			return pt, true
+		}
+	}
+	return platformTable{}, false
+}
+
+// platformTable is one platform's findings: a table and, for the merged
+// table, the condition on alias f that selects the platform's rows.
+type platformTable struct{ platform, table, where string }
+
+// platformOf is a row's platform in the merged table. A row the scanner wrote
+// before it recorded platforms is CodeCommit (API guide, "SPLITTING BY PLATFORM").
+func platformOf(c *schemaCatalog, table string) string {
+	if !c.hasColumn(table, "platform") {
+		return "'codecommit'::text"
+	}
+	return "COALESCE(NULLIF(f.platform,''),'codecommit')"
+}
+
+func platformIs(c *schemaCatalog, table, p string) string {
+	return platformOf(c, table) + " = '" + p + "'"
+}
 
 // catalogTTL: the scanner adds tables rarely (a new platform, the first deep
 // scan); a minute's delay before they are read is fine.
@@ -150,6 +193,8 @@ func platformSelect(cat *schemaCatalog, schema string, pt platformTable) (string
 	cols := make([]string, len(findingCols))
 	for i, col := range findingCols {
 		switch {
+		case col.name == "platform" && pt.platform == "":
+			cols[i] = platformOf(cat, pt.table) + " AS platform"
 		case col.name == "platform" && cat.hasColumn(pt.table, "platform"):
 			cols[i] = `COALESCE(NULLIF(f.platform,''),'` + pt.platform + `') AS platform`
 		case col.name == "platform":
@@ -163,9 +208,16 @@ func platformSelect(cat *schemaCatalog, schema string, pt platformTable) (string
 		}
 	}
 	q := " SELECT " + strings.Join(cols, ",") + " FROM " + schema + "." + pt.table + " f"
+	conds := []string{}
+	if pt.where != "" {
+		conds = append(conds, pt.where)
+	}
 	if cat.has("secscan_allowlist_dashboard") {
-		q += " WHERE NOT EXISTS (SELECT 1 FROM " + schema + `.secscan_allowlist_dashboard a
-		 WHERE a.client_id=f.client_id AND a.file_path=f.file_path AND a.detector=f.detector AND a.redacted=f.redacted)`
+		conds = append(conds, "NOT EXISTS (SELECT 1 FROM "+schema+`.secscan_allowlist_dashboard a
+		 WHERE a.client_id=f.client_id AND a.file_path=f.file_path AND a.detector=f.detector AND a.redacted=f.redacted)`)
+	}
+	if len(conds) > 0 {
+		q += " WHERE " + strings.Join(conds, " AND ")
 	}
 	return q, true
 }
@@ -182,6 +234,13 @@ func emptyFindings() string {
 
 // unionOf is every non-allowlisted row of the kind's tables.
 func unionOf(cat *schemaCatalog, schema, kind string) string {
+	if cat.unified(kind) {
+		// One read of the merged table; platform comes from its column.
+		if q, ok := platformSelect(cat, schema, platformTable{table: "secscan_" + kind}); ok {
+			return q
+		}
+		return emptyFindings()
+	}
 	parts := make([]string, 0, 3)
 	for _, pt := range cat.platformTables(kind) {
 		if q, ok := platformSelect(cat, schema, pt); ok {

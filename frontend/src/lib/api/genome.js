@@ -182,7 +182,26 @@ export async function fetchGenomeTimeline(sourceType, identityName, { limit, cur
     }),
   );
   if (!data || !Array.isArray(data.items)) throw unexpected();
-  return { items: data.items, nextCursor: meta.next_cursor || null };
+  return { items: data.items.map(timelineItem), nextCursor: meta.next_cursor || null };
+}
+
+/* The service groups anomalies into one item per dimension
+   (type anomaly_dimension: dimension, count, open_count, latest reason).
+   The screens read one anomaly shape, so it is mapped onto it here:
+   openCount is how many of the item's alerts are still open. */
+function timelineItem(item) {
+  if (item?.type !== 'anomaly_dimension') {
+    return item?.type === 'anomaly' && String(item.status).toLowerCase() === 'open'
+      ? { ...item, openCount: Number(/^(\d+)/.exec(item.title ?? '')?.[1]) || 1 }
+      : item;
+  }
+  const reason = String(item.description ?? '').replace(/^Latest reason:\s*/, '');
+  return {
+    ...item,
+    type: 'anomaly',
+    description: `Dimension: ${item.dimension ?? ''}; ${reason}`,
+    openCount: Number(item.open_count) || 0,
+  };
 }
 
 /**
@@ -229,8 +248,17 @@ export function loadWorkloadTypes() {
 
 const dataOf = (response) => unwrapGenome(response).data ?? {};
 
+/* 404 here means no ACTIVE baseline yet (the service returns only active
+   ones): the identity is still learning, which the panel shows as such. A
+   page for an identity that is not monitored at all is caught by the summary
+   and timeline requests, which 404 too. */
 export async function fetchGenomeBaseline(sourceType, identityName, signal) {
-  return dataOf(await client.get(identityPath(sourceType, identityName, '/baseline'), { signal }));
+  try {
+    return dataOf(await client.get(identityPath(sourceType, identityName, '/baseline'), { signal }));
+  } catch (error) {
+    if (error?.status === 404) return { status: null, versions: [], dimensions: [] };
+    throw error;
+  }
 }
 
 export async function fetchGenomeDrift(sourceType, identityName, signal) {

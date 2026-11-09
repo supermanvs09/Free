@@ -126,7 +126,7 @@ func TestPlatformSelectFillsMissingColumns(t *testing.T) {
 		}
 	}
 	cat.tables["secscan_findings_github"] = cols
-	q, ok := platformSelect(cat, `"s"`, platformTable{"github", "secscan_findings_github"})
+	q, ok := platformSelect(cat, `"s"`, platformTable{platform: "github", table: "secscan_findings_github"})
 	if !ok {
 		t.Fatal("table should be readable")
 	}
@@ -139,10 +139,41 @@ func TestPlatformSelectFillsMissingColumns(t *testing.T) {
 		t.Error("no allowlist table: nothing to exclude by")
 	}
 	delete(cols, "redacted")
-	if _, ok := platformSelect(cat, `"s"`, platformTable{"github", "secscan_findings_github"}); ok {
+	if _, ok := platformSelect(cat, `"s"`, platformTable{platform: "github", table: "secscan_findings_github"}); ok {
 		t.Error("a table without a required column must be skipped")
 	}
 	if got := unionOf(&schemaCatalog{tables: map[string]map[string]bool{}}, `"s"`, kindDeepFindings); !strings.Contains(got, "WHERE false") {
 		t.Errorf("no tables: %s", got)
+	}
+}
+
+// After the scanner's merge the old per-platform names are views of
+// secscan_findings: reading them as well would count every finding twice.
+func TestMergedFindingsTableIsReadOnce(t *testing.T) {
+	cols := map[string]bool{}
+	for _, c := range findingCols {
+		cols[c.name] = true
+	}
+	cat := &schemaCatalog{tables: map[string]map[string]bool{
+		"secscan_findings":            cols,
+		"secscan_findings_codecommit": cols, // views
+		"secscan_findings_github":     cols,
+		"secscan_findings_bitbucket":  cols,
+	}}
+	q := unionOf(cat, `"s"`, kindFindings)
+	if strings.Contains(q, "secscan_findings_") || strings.Count(q, `"s".secscan_findings f`) != 1 {
+		t.Fatalf("merged table must be read once and the views never:\n%s", q)
+	}
+	if !strings.Contains(q, "COALESCE(NULLIF(f.platform,''),'codecommit') AS platform") {
+		t.Errorf("a row without platform is CodeCommit:\n%s", q)
+	}
+	pts := cat.platformTables(kindFindings)
+	if len(pts) != 3 || pts[1].table != "secscan_findings" || !strings.Contains(pts[1].where, "= 'github'") {
+		t.Fatalf("per-platform view of the merged table = %+v", pts)
+	}
+	// Before the merge: the per-platform tables, unfiltered.
+	old := &schemaCatalog{tables: map[string]map[string]bool{"secscan_findings_github": cols}}
+	if pts := old.platformTables(kindFindings); len(pts) != 1 || pts[0].table != "secscan_findings_github" || pts[0].where != "" {
+		t.Fatalf("pre-merge tables = %+v", pts)
 	}
 }

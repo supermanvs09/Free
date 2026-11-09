@@ -18,33 +18,164 @@ import (
 // (GitHub Actions, GitLab CI, Terraform) or attributed only conditionally (IoT
 // things, Greengrass) are not monitored.
 var families = map[string]string{
-	"ec2_instance": "EC2", "lambda_function": "LAMBDA", "ecs_task": "ECS",
-	"app_runner_service": "APP_RUNNER", "elastic_beanstalk_environment": "ELASTIC_BEAN",
-	"ssm_managed_node": "SSM", "ssm_automation": "SSM",
-	"glue_job": "GLUE", "glue_crawler": "GLUE", "emr_cluster": "EMR", "batch_job": "BATCH",
-	"dms_replication_instance": "DMS", "kinesis_firehose": "KINESIS", "kinesis_analytics_app": "KINESIS",
-	"datasync_task":      "DATASYNC",
-	"sagemaker_notebook": "SAGEMAKER", "sagemaker_training_job": "SAGEMAKER",
-	"sagemaker_processing_job": "SAGEMAKER", "sagemaker_endpoint": "SAGEMAKER",
-	"bedrock_agent": "BEDROCK", "bedrock_knowledge_base": "BEDROCK",
-	"codebuild_project": "CODEBUILD", "codepipeline": "CODEPIPELINE", "codedeploy_service_role": "CODEDEPLOY",
-	"cloudformation_stack_role": "CLOUDFORMATION", "mwaa_environment": "MWAA",
-	"step_function": "STEP_FUNCTIONS", "eventbridge_scheduler": "EVENTBRIDGE", "synthetics_canary": "SYNTHETICS",
-	"iot_role_alias": "IOT", "transfer_server": "TRANSFER",
-	"iam_roles_anywhere_session": "IAM", "saas_vendor_role": "IAM", "aws_service_linked_role": "AWS_SLR",
+	// Core compute and serverless.
+	"ec2_instance":    "EC2",
+	"lambda_function": "LAMBDA",
+	"ecs_task":        "ECS",
+
+	// Application platforms.
+	"app_runner_service":            "APP_RUNNER",
+	"elastic_beanstalk_environment": "ELASTIC_BEAN",
+	"amplify_app":                   "AMPLIFY",
+	"amplify_branch":                "AMPLIFY",
+	"amplify_backend_environment":   "AMPLIFY",
+
+	// Systems Manager.
+	"ssm_managed_node": "SSM",
+	"ssm_automation":   "SSM",
+
+	// Data and analytics.
+	"glue_job":                  "GLUE",
+	"glue_crawler":              "GLUE",
+	"emr_cluster":               "EMR",
+	"batch_job":                 "BATCH",
+	"batch_job_definition":      "BATCH",
+	"batch_job_queue":           "BATCH",
+	"batch_compute_environment": "BATCH",
+	"dms_replication_instance":  "DMS",
+	"kinesis_firehose":          "KINESIS",
+	"kinesis_analytics_app":     "KINESIS",
+	"datasync_task":             "DATASYNC",
+
+	// AI and ML.
+	"sagemaker_notebook":       "SAGEMAKER",
+	"sagemaker_training_job":   "SAGEMAKER",
+	"sagemaker_processing_job": "SAGEMAKER",
+	"sagemaker_endpoint":       "SAGEMAKER",
+	"bedrock_agent":            "BEDROCK",
+	"bedrock_knowledge_base":   "BEDROCK",
+
+	// CI/CD and infrastructure.
+	"codebuild_project":           "CODEBUILD",
+	"codepipeline":                "CODEPIPELINE",
+	"codedeploy_service_role":     "CODEDEPLOY",
+	"codedeploy_application":      "CODEDEPLOY",
+	"codedeploy_deployment_group": "CODEDEPLOY",
+	"cloudformation_stack_role":   "CLOUDFORMATION",
+	"cloudformation_stack":        "CLOUDFORMATION",
+	"cloudformation_stackset":     "CLOUDFORMATION",
+	"mwaa_environment":            "MWAA",
+
+	// Orchestration and event-driven workloads.
+	"step_function":         "STEP_FUNCTIONS",
+	"eventbridge_rule":      "EVENTBRIDGE",
+	"eventbridge_target":    "EVENTBRIDGE",
+	"eventbridge_pipe":      "EVENTBRIDGE",
+	"eventbridge_scheduler": "EVENTBRIDGE",
+	"synthetics_canary":     "SYNTHETICS",
+
+	// IoT and transfer.
+	"iot_role_alias":  "IOT",
+	"transfer_server": "TRANSFER",
+
+	// IAM and external trust.
+	"iam_role":                   "IAM",
+	"iam_user":                   "IAM",
+	"iam_user_service_account":   "IAM",
+	"iam_access_key":             "IAM",
+	"iam_roles_anywhere_session": "IAM",
+	"saas_vendor_role":           "IAM",
+
+	// Service-linked roles remain separate from ordinary IAM principals.
+	"aws_service_linked_role": "AWS_SLR",
 }
 
 // aliases maps other spellings seen in scanner output to the identity type.
 var aliases = map[string]string{
-	"aws::ec2::instance": "ec2_instance", "aws::lambda::function": "lambda_function",
-	"aws::ecs::task": "ecs_task", "aws::ecs::service": "ecs_task", "ecs_service": "ecs_task",
-	"aws::stepfunctions::statemachine": "step_function", "step_functions": "step_function",
-	"aws::glue::job": "glue_job", "aws::glue::crawler": "glue_crawler",
-	"aws::codebuild::project": "codebuild_project", "aws::codepipeline::pipeline": "codepipeline",
-	"aws::sagemaker::notebookinstance": "sagemaker_notebook", "aws::ssm::managedinstance": "ssm_managed_node",
+	// EC2.
+	"aws::ec2::instance": "ec2_instance",
+	"ec2":                "ec2_instance",
+
+	// Lambda.
+	"aws::lambda::function": "lambda_function",
+	"lambda":                "lambda_function",
+
+	// ECS.
+	"aws::ecs::task":    "ecs_task",
+	"aws::ecs::service": "ecs_task",
+	"ecs_service":       "ecs_task",
+	"ecs":               "ecs_task",
+
+	// Step Functions.
+	"aws::stepfunctions::statemachine": "step_function",
+	"aws::states::statemachine":        "step_function",
+	"step_functions":                   "step_function",
+	"stepfunctions":                    "step_function",
+	"stepfunction":                     "step_function",
+
+	// Glue.
+	"aws::glue::job":     "glue_job",
+	"aws::glue::crawler": "glue_crawler",
+
+	// Systems Manager.
+	"aws::ssm::managedinstance": "ssm_managed_node",
+	"aws::ssm::managednode":     "ssm_managed_node",
+	"aws::ssm::automation":      "ssm_automation",
+
+	// EventBridge.
+	"aws::events::rule":        "eventbridge_rule",
+	"aws::eventbridge::rule":   "eventbridge_rule",
+	"aws::pipes::pipe":         "eventbridge_pipe",
+	"aws::scheduler::schedule": "eventbridge_scheduler",
+	"eventbridge_schedule":     "eventbridge_scheduler",
+
+	// CodeBuild.
+	"aws::codebuild::project": "codebuild_project",
+
+	// CodePipeline.
+	"aws::codepipeline::pipeline": "codepipeline",
+	"codepipeline_pipeline":       "codepipeline",
+
+	// CodeDeploy.
+	"aws::codedeploy::application": "codedeploy_application",
+
+	"aws::codedeploy::deploymentgroup": "codedeploy_deployment_group",
+
+	"codedeploy_deploymentgroup": "codedeploy_deployment_group",
+
+	// CloudFormation.
+	"aws::cloudformation::stack": "cloudformation_stack",
+
+	"aws::cloudformation::stackset": "cloudformation_stackset",
+
+	// Batch.
+	"aws::batch::job": "batch_job",
+
+	"aws::batch::jobdefinition": "batch_job_definition",
+
+	"aws::batch::jobqueue": "batch_job_queue",
+
+	"aws::batch::computeenvironment": "batch_compute_environment",
+
+	// Amplify.
+	"aws::amplify::app": "amplify_app",
+
+	"aws::amplify::branch": "amplify_branch",
+
+	"aws::amplify::backendenvironment": "amplify_backend_environment",
+
+	// IAM.
+	"aws::iam::role":  "iam_role",
+	"aws::iam::user":  "iam_user",
+	"iam_roles":       "iam_role",
+	"iam_users":       "iam_user",
+	"iam_access_keys": "iam_access_key",
+
+	// Other existing aliases.
+	"aws::sagemaker::notebookinstance": "sagemaker_notebook",
+
 	"aws::apprunner::service": "app_runner_service",
 }
-
 var (
 	mu      sync.RWMutex
 	enabled map[string]struct{} // nil: every family

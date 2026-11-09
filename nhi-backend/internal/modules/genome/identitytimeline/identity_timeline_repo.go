@@ -24,41 +24,145 @@ func NewIdentityTimelineRepository() *IdentityTimelineRepository {
 }
 
 // TimelineAlertRow is one alerts row of the identity (the "anomaly" item).
-type TimelineAlertRow struct {
-	ID        int64
-	Key       summarycommon.MonitoringKey
-	Dimension string
-	Reason    string
-	Status    string
-	WindowEnd time.Time // end of the detection window that raised it
-	CreatedAt time.Time
+type TimelineDimensionRow struct {
+	Dimension        string
+	AlertCount       int64
+	OpenCount        int64
+	LatestOccurredAt time.Time
+	LatestAlertID    int64
+	LatestReason     string
 }
 
 // Alerts returns every alert stored under the keys (identity key and shared
 // workload key), newest first (alerts_identity_created_idx order).
-func (r *IdentityTimelineRepository) Alerts(ctx context.Context, resolved *scope.DataScope, keys []summarycommon.MonitoringKey) ([]TimelineAlertRow, error) {
-	out := []TimelineAlertRow{}
+func (r *IdentityTimelineRepository) AlertDimensions(
+	ctx context.Context,
+	resolved *scope.DataScope,
+	keys []summarycommon.MonitoringKey,
+) ([]TimelineDimensionRow, error) {
+	output := []TimelineDimensionRow{}
+
 	if len(keys) == 0 {
-		return out, nil
+		return output, nil
 	}
-	types, names := summarycommon.KeyArrays(keys)
-	q := `SELECT a.id, a.source_type, a.identity_name, a.dimension, a.reason, a.status, a.window_end, a.created_at
-	      FROM ` + resolved.Table("alerts") + ` a` + summarycommon.KeyJoin("a") + `
-	      ORDER BY a.created_at DESC, a.id DESC`
-	rows, err := resolved.DB.QueryContext(ctx, q, types, names)
+
+	sourceTypes, identityNames :=
+		summarycommon.KeyArrays(keys)
+
+	query := `
+		WITH requested_keys AS (
+			SELECT
+				key.source_type,
+				key.identity_name,
+				key.preference
+			FROM unnest(
+				$1::text[],
+				$2::text[]
+			) WITH ORDINALITY AS key(
+				source_type,
+				identity_name,
+				preference
+			)
+		),
+		matching_alerts AS (
+			SELECT
+				alert.id,
+				alert.dimension,
+				alert.reason,
+				alert.status,
+				alert.created_at
+			FROM ` + resolved.Table("alerts") + ` AS alert
+			JOIN requested_keys AS requested
+			  ON requested.source_type =
+			     alert.source_type
+			 AND requested.identity_name =
+			     alert.identity_name
+		),
+		dimension_totals AS (
+			SELECT
+				dimension,
+				COUNT(*)::bigint AS alert_count,
+				COUNT(*) FILTER (
+					WHERE LOWER(
+						TRIM(status)
+					) = 'open'
+				)::bigint AS open_count,
+				MAX(created_at) AS latest_occurred_at
+			FROM matching_alerts
+			GROUP BY dimension
+		),
+		latest_alert AS (
+			SELECT DISTINCT ON (dimension)
+				dimension,
+				id,
+				reason,
+				created_at
+			FROM matching_alerts
+			ORDER BY
+				dimension,
+				created_at DESC,
+				id DESC
+		)
+		SELECT
+			totals.dimension,
+			totals.alert_count,
+			totals.open_count,
+			totals.latest_occurred_at,
+			latest.id,
+			COALESCE(latest.reason, '')
+		FROM dimension_totals AS totals
+		JOIN latest_alert AS latest
+		  ON latest.dimension = totals.dimension
+		ORDER BY
+			totals.latest_occurred_at DESC,
+			totals.dimension ASC`
+
+	rows, err := resolved.DB.QueryContext(
+		ctx,
+		query,
+		sourceTypes,
+		identityNames,
+	)
 	if err != nil {
-		return nil, summarycommon.WrapMonitoringErr("timeline alerts", err)
+		return nil, summarycommon.WrapMonitoringErr(
+			"timeline alert dimensions",
+			err,
+		)
 	}
 	defer rows.Close()
+
 	for rows.Next() {
-		var row TimelineAlertRow
-		if err := rows.Scan(&row.ID, &row.Key.SourceType, &row.Key.IdentityName, &row.Dimension, &row.Reason, &row.Status, &row.WindowEnd, &row.CreatedAt); err != nil {
-			return nil, summarycommon.WrapMonitoringErr("timeline alerts", err)
+		var row TimelineDimensionRow
+
+		if err := rows.Scan(
+			&row.Dimension,
+			&row.AlertCount,
+			&row.OpenCount,
+			&row.LatestOccurredAt,
+			&row.LatestAlertID,
+			&row.LatestReason,
+		); err != nil {
+			return nil,
+				summarycommon.WrapMonitoringErr(
+					"timeline alert dimension scan",
+					err,
+				)
 		}
-		row.CreatedAt, row.WindowEnd = row.CreatedAt.UTC(), row.WindowEnd.UTC()
-		out = append(out, row)
+
+		row.LatestOccurredAt =
+			row.LatestOccurredAt.UTC()
+
+		output = append(output, row)
 	}
-	return out, summarycommon.WrapMonitoringErr("timeline alerts", rows.Err())
+
+	if err := rows.Err(); err != nil {
+		return nil, summarycommon.WrapMonitoringErr(
+			"timeline alert dimensions",
+			err,
+		)
+	}
+
+	return output, nil
 }
 
 // BaselineMilestoneRow carries the two lifecycle timestamps of a baselines

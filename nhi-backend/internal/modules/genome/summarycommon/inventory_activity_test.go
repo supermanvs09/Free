@@ -38,7 +38,14 @@ func TestInventoryKeyIsTheGenomeKey(t *testing.T) {
 			t.Fatalf("%s: got %v, want %s/%s", tc.name, key, tc.wantSrc, tc.wantKey)
 		}
 	}
-	if _, ok := a.KeyFor(identitygraph.MonitoredIdentity{ARN: "arn:aws:iam::111111111111:user/alice", IdentityType: "iam_user"}); ok {
-		t.Fatal("an IAM user is not a monitored workload")
+	// IAM principals are monitored under the IAM family (reference genome).
+	if key, ok := a.KeyFor(identitygraph.MonitoredIdentity{ARN: "arn:aws:iam::111111111111:user/alice", IdentityType: "iam_user", AccountID: "111111111111"}); !ok || key.SourceType != "IAM" {
+		t.Fatalf("an IAM user is monitored under IAM, got %v %v", key, ok)
+	}
+	if key, ok := a.KeyFor(identitygraph.MonitoredIdentity{ARN: "arn:aws:iam::111111111111:user/svc-ci", IdentityType: "iam_user_service_account", AccountID: "111111111111"}); !ok || key.SourceType != "IAM" {
+		t.Fatalf("an IAM user service account is monitored under IAM, got %v %v", key, ok)
+	}
+	if _, ok := a.KeyFor(identitygraph.MonitoredIdentity{ARN: "arn:aws:s3:::bucket", IdentityType: "s3_bucket"}); ok {
+		t.Fatal("a bucket is not a monitored workload")
 	}
 }
