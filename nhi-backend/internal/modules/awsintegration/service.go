@@ -76,6 +76,9 @@ type AWSIntegrationStore interface {
 	SaveChecks(ctx context.Context, schema, accountID string, checks []AWSCheck) error
 	RequestApproval(ctx context.Context, req ApprovalRequest) (int64, *AWSAccountRecord, error)
 	SetApprovalEmail(ctx context.Context, id int64, status, errText string) error
+	RecordConnectionRequest(ctx context.Context, req ConnectionRequest) (id int64, recentlyEmailed bool, err error)
+	SetRequestEmail(ctx context.Context, id int64, status, errText string) error
+	FinishConnectionRequest(ctx context.Context, id int64, outcome, detail string, checks []AWSCheck) error
 	WithdrawApprovals(ctx context.Context, tenantID, accountID string) error
 }
 
@@ -361,7 +364,7 @@ func (s *AWSIntegrationService) Verify(ctx context.Context, caller AWSCaller, ra
 	return result, nil
 }
 
-func (s *AWSIntegrationService) verify(ctx context.Context, caller AWSCaller, rawRoleARN string, rawRegions []string) (*AWSVerifyResponse, error) {
+func (s *AWSIntegrationService) verify(ctx context.Context, caller AWSCaller, rawRoleARN string, rawRegions []string) (out *AWSVerifyResponse, retErr error) {
 	p, settings, err := s.platform(ctx, caller.TenantID)
 	if err != nil {
 		return nil, err
@@ -385,6 +388,12 @@ func (s *AWSIntegrationService) verify(ctx context.Context, caller AWSCaller, ra
 		return nil, err
 	}
 	defer done()
+
+	// The click is stored and the platform admins are told now, before any
+	// check runs, so a request is known even when its checks fail. The e-mail
+	// goes out in the background; nothing below waits for it.
+	requestID := s.recordRequest(ctx, caller, settings, role.AccountID, role.ARN, regions)
+	defer func() { s.finishRequest(ctx, requestID, out, retErr) }()
 
 	ctx, cancel := context.WithTimeout(ctx, awsVerifyBudget)
 	defer cancel()

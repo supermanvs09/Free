@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"log/slog"
 	"sort"
 	"strings"
 	"time"
@@ -297,10 +298,9 @@ func (s *AWSIntegrationService) finishWatch(caller AWSCaller, settings *AWSTenan
 	log.Info("aws integration: account status after the events check", "status", saved.Status, "sync_queued", queued, "approved", approved)
 }
 
-// notifyApprovers e-mails the platform admins. The outcome is recorded on the
-// request either way, so the Approvals page can say whether mail went out.
-func (s *AWSIntegrationService) notifyApprovers(ctx context.Context, id int64, caller AWSCaller, domain string, rec AWSAccountRecord) {
-	log := logging.FromContext(ctx).With("tenant_id", caller.TenantID, "account_id", rec.AccountID, "approval_id", id)
+// deliver sends one message to the platform admins, trying up to three times.
+// status is sent, failed or not_configured; detail says why when it is not sent.
+func (s *AWSIntegrationService) deliver(ctx context.Context, log *slog.Logger, what, subject, htmlBody, text string) (status, detail string) {
 	// Mailers that can say which provider they use and why they cannot send.
 	type described interface {
 		Provider() string
@@ -314,11 +314,9 @@ func (s *AWSIntegrationService) notifyApprovers(ctx context.Context, id int64, c
 		if d, ok := s.mailer.(described); ok && s.mailer != nil && d.Problem() != "" {
 			why = d.Problem()
 		}
-		log.Warn("aws integration: approval e-mail not sent: " + why)
-		_ = s.store.SetApprovalEmail(ctx, id, "not_configured", why)
-		return
+		log.Warn("aws integration: " + what + " not sent: " + why)
+		return "not_configured", why
 	}
-	subject, htmlBody, text := approvalEmail(caller, domain, rec)
 	var err error
 	for attempt := 0; attempt < 3; attempt++ {
 		sendCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
@@ -330,12 +328,154 @@ func (s *AWSIntegrationService) notifyApprovers(ctx context.Context, id int64, c
 		time.Sleep(time.Duration(attempt+1) * 2 * time.Second)
 	}
 	if err != nil {
-		log.Error("aws integration: approval e-mail failed", "err", err, "to", s.mailer.To())
-		_ = s.store.SetApprovalEmail(context.Background(), id, "failed", err.Error())
+		log.Error("aws integration: "+what+" failed", "err", err, "to", s.mailer.To())
+		return "failed", err.Error()
+	}
+	log.Info("aws integration: "+what+" sent", "to", s.mailer.To())
+	return "sent", ""
+}
+
+// notifyApprovers e-mails the platform admins. The outcome is recorded on the
+// request either way, so the Approvals page can say whether mail went out.
+func (s *AWSIntegrationService) notifyApprovers(ctx context.Context, id int64, caller AWSCaller, domain string, rec AWSAccountRecord) {
+	log := logging.FromContext(ctx).With("tenant_id", caller.TenantID, "account_id", rec.AccountID, "approval_id", id)
+	subject, htmlBody, text := approvalEmail(caller, domain, rec)
+	status, detail := s.deliver(ctx, log, "approval e-mail", subject, htmlBody, text)
+	saveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	_ = s.store.SetApprovalEmail(saveCtx, id, status, detail)
+}
+
+// recordRequest stores one click of "Verify connection" and starts the e-mail
+// to the platform admins. It returns the stored request's id, or 0 when it
+// could not be stored (the e-mail is still sent: being told matters more
+// than the record).
+func (s *AWSIntegrationService) recordRequest(ctx context.Context, caller AWSCaller, settings *AWSTenantSettings, accountID, roleARN string, regions []string) int64 {
+	log := logging.FromContext(ctx).With("tenant_id", caller.TenantID, "account_id", accountID)
+	domain := ""
+	if settings != nil {
+		domain = settings.Domain
+	}
+	requestID := ""
+	if ri := logging.RequestFrom(ctx); ri != nil {
+		requestID = ri.ID
+	}
+	saveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	id, recent, err := s.store.RecordConnectionRequest(saveCtx, ConnectionRequest{
+		TenantID: caller.TenantID, Schema: caller.Schema, Domain: domain, AccountID: accountID, RoleARN: roleARN,
+		Regions: regions, RequestedBy: caller.Actor, RequestID: requestID,
+	})
+	if err != nil {
+		log.Error("aws integration: recording the connection request failed", "err", err)
+		id, recent = 0, false
+	}
+	if recent {
+		// Clicked again within a minute: recorded, not e-mailed twice.
+		_ = s.store.SetRequestEmail(saveCtx, id, "suppressed", "the admins were e-mailed about this account less than a minute ago")
+		return id
+	}
+	go func() {
+		nctx, ncancel := context.WithTimeout(context.WithoutCancel(ctx), 90*time.Second)
+		defer ncancel()
+		subject, htmlBody, text := requestEmail(caller, domain, accountID, roleARN, regions, s.now())
+		status, detail := s.deliver(nctx, log.With("request_id", id), "connection request e-mail", subject, htmlBody, text)
+		if id != 0 {
+			_ = s.store.SetRequestEmail(nctx, id, status, detail)
+		}
+	}()
+	return id
+}
+
+// finishRequest records how the checks of a stored request ended.
+func (s *AWSIntegrationService) finishRequest(ctx context.Context, id int64, out *AWSVerifyResponse, verifyErr error) {
+	if id == 0 {
 		return
 	}
-	log.Info("aws integration: approval e-mail sent", "to", s.mailer.To())
-	_ = s.store.SetApprovalEmail(context.Background(), id, "sent", "")
+	outcome, detail := requestOutcome(out, verifyErr)
+	var checks []AWSCheck
+	if out != nil {
+		checks = out.Checks
+	}
+	saveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	if err := s.store.FinishConnectionRequest(saveCtx, id, outcome, detail, checks); err != nil {
+		logging.FromContext(ctx).Warn("aws integration: recording the connection request outcome failed", "request_id", id, "err", err)
+	}
+}
+
+// requestOutcome names how a click ended, for the connection_requests row.
+func requestOutcome(out *AWSVerifyResponse, verifyErr error) (outcome, detail string) {
+	if verifyErr != nil {
+		if errors.Is(verifyErr, ErrAWSAccountClaimed) {
+			return "refused", verifyErr.Error()
+		}
+		return "error", verifyErr.Error()
+	}
+	if out == nil {
+		return "error", "no result"
+	}
+	var problems []string
+	failed, errored := false, false
+	for _, c := range out.Checks {
+		switch c.State {
+		case AWSCheckFail:
+			failed = true
+			problems = append(problems, c.Key+": "+c.Message)
+		case AWSCheckError:
+			errored = true
+			problems = append(problems, c.Key+": "+c.Message)
+		}
+	}
+	detail = strings.Join(problems, " | ")
+	switch {
+	case failed:
+		return "failed", detail
+	case errored:
+		return "error", detail
+	case out.Status == AWSStatusPendingApproval:
+		return "pending_approval", ""
+	case out.Status == AWSStatusConnected:
+		return "connected", ""
+	case out.Watching:
+		return "watching_events", ""
+	}
+	return "started", ""
+}
+
+// requestEmail tells the platform admins that somebody clicked "Verify
+// connection". It is sent before the checks run, so it states what was asked
+// and nothing about how it went.
+func requestEmail(caller AWSCaller, domain, accountID, roleARN string, regions []string, at time.Time) (subject, htmlBody, text string) {
+	workspace := caller.Schema
+	if domain != "" {
+		workspace = domain
+	}
+	subject = fmt.Sprintf("AWS connection check started: account %s for %s", accountID, workspace)
+	const lead = "Someone clicked Verify connection. The role, read access and events checks are starting now. If the account then needs your approval you will get a second e-mail."
+	when := at.UTC().Format("2006-01-02 15:04:05 UTC")
+	rows := [][2]string{
+		{"Workspace", workspace + " (" + caller.Schema + ")"},
+		{"AWS account", accountID},
+		{"Role", roleARN},
+		{"Regions", strings.Join(regions, ", ")},
+		{"Clicked by", caller.Actor},
+		{"Time", when},
+	}
+	lines := []string{lead, ""}
+	for _, row := range rows {
+		lines = append(lines, fmt.Sprintf("%-12s %s", row[0]+":", row[1]))
+	}
+	text = strings.Join(lines, "\n")
+	esc := html.EscapeString
+	var b strings.Builder
+	b.WriteString(`<div style="font-family:Arial,sans-serif;font-size:14px;color:#0f172a">`)
+	b.WriteString(`<p>` + esc(lead) + `</p><table cellpadding="4" style="border-collapse:collapse">`)
+	for _, row := range rows {
+		b.WriteString(`<tr><td style="color:#64748b">` + esc(row[0]) + `</td><td><b>` + esc(row[1]) + `</b></td></tr>`)
+	}
+	b.WriteString(`</table></div>`)
+	return subject, b.String(), text
 }
 
 // approvalReviewHint: the onboarding tool runs on the approver's own machine,

@@ -1,6 +1,7 @@
 // Package mailer sends the platform's own e-mail (not a tenant's): today, the
-// notice to the platform admins that a new AWS connection waits for their
-// approval. Mail goes through Amazon SES only, with the same settings as the
+// notices to the platform admins that somebody clicked "Verify connection" for
+// an AWS account (sent before the checks run) and that a connection waits for
+// their approval. Mail goes through Amazon SES only, with the same settings as the
 // remediation notifications:
 //
 //	EMAIL_FROM                  the sender: an address or domain verified in SES.

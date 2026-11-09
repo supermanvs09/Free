@@ -63,6 +63,7 @@ import (
 	"nhi-backend-api/internal/platform/database"
 	"nhi-backend-api/internal/platform/fieldcrypt"
 	"nhi-backend-api/internal/platform/githubcheck"
+	"nhi-backend-api/internal/platform/globalschema"
 	"nhi-backend-api/internal/platform/logging"
 	"nhi-backend-api/internal/platform/mailer"
 	"nhi-backend-api/internal/platform/middleware"
@@ -170,6 +171,16 @@ func main() {
 	globalSchema := config.DefaultGlobalSchema
 	if s := strings.TrimSpace(db.GlobalSchema()); s != "" {
 		globalSchema = s
+	}
+	// Tables this process writes to must exist before it starts writing: a
+	// deployment whose migrations were not applied lost every audit entry.
+	// Failing here is logged and not fatal; the API still serves.
+	{
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		if _, err := globalschema.Ensure(ctx, db.DB, globalSchema); err != nil {
+			slog.Error("global tables are missing and could not be created", "err", err)
+		}
+		cancel()
 	}
 	auditStore := audit.NewStore(db.DB, globalSchema)
 	defer func() {
