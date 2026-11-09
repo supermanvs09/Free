@@ -23,3 +23,9 @@ Event date, registration link / QR code, and the host company logo. Add them in 
 - `src/halftone_lock.py`: generates `src/lock.png` (halftone padlock)
 - `src/render.js`: renders the PNGs with Playwright
 - `src/fonts/`: Big Shoulders, Geist Mono, Instrument Sans (SIL Open Font License)
+
+## v2 (current)
+`prompt-heist-v2-*.png`, source `src/banner-v2.html`. Render: `node src/render.js 2 banner-v2.html -v2`.
+- The AI guard "Vault" chat panel is the hero; "Try it now" replaces "Register now".
+- Giant halftone lock cropped by the frame, redacted job offer, partly revealed secret.
+- Live chat widget UI (no backend): `/chatbot/vault/index.html`.
