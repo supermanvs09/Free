@@ -1,0 +1,11 @@
+# Signal Collage
+
+A movement built on a single tension: the precise and the torn. Clean drafting-table geometry (hairline grids, registration crosshairs, dotted trajectories) lies underneath, and over it sit objects that look physically cut out of print. Halftone matter, scissored and stickered onto the plane, carries the weight. The grid is the system; the halftone object is the intruder. Meaning comes from that friction, not from explanation.
+
+Space is mostly darkness. A near-black field gives every mark the clarity of light in a vault, and negative space is held with discipline so the one dense object reads as precious. Composition is asymmetric but anchored: a monumental typographic block on one side, one halftone object on the other, joined by thin luminous lines that cross the field like beams. Nothing floats without a reason; every element sits on the underlying grid, and the alignment is the result of painstaking, repeated adjustment.
+
+Color is rationed to almost nothing. Off-white ink, a cool graphite, and one signal red that appears only where something is live: a beam, a cursor, a single filled tag. The red is never decorative; it marks the point of danger. Halftone dots carry all tonal modelling, so light and form come from accumulated marks rather than gradients. That patient accumulation of dots should look like countless hours of meticulous print work.
+
+Typography is architecture. The main word is built at monumental scale, one line hollow (stroke only, like a stencil waiting to be filled) and one line solid, so the type itself enacts transformation. Supporting text is set small in a clinical monospace, in the voice of an evidence label or a field note. Pill-shaped tags borrowed from street posters carry the few facts that matter. Text never explains; it labels, stamps and annotates.
+
+Ornament is restrained and systematic: a circular rubber stamp, a band of diagonal hazard stripes, tiny line icons scattered on the grid like specimens in a catalogue. Each is drawn with master-level care, consistent stroke weights, exact spacing, nothing overlapping, nothing touching an edge. The finished piece should feel like a meticulously crafted artifact from a specialist studio: playful in idea, uncompromising in execution.

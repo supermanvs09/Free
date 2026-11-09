@@ -1,0 +1,205 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+@font-face { font-family: "Shoulders"; src: url(fonts/BigShoulders-Bold.ttf); }
+@font-face { font-family: "GMono"; src: url(fonts/GeistMono-Regular.ttf); }
+@font-face { font-family: "GMono"; src: url(fonts/GeistMono-Bold.ttf); font-weight: 700; }
+@font-face { font-family: "ISans"; src: url(fonts/InstrumentSans-Regular.ttf); }
+@font-face { font-family: "ISans"; src: url(fonts/InstrumentSans-Bold.ttf); font-weight: 700; }
+
+:root {
+  --bg: #0e0f11;
+  --ink: #f2f0ea;
+  --mute: #8a8e96;
+  --line: rgba(242, 240, 234, 0.06);
+  --red: #ff3b2f;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { background: var(--bg); }
+.canvas {
+  position: relative; overflow: hidden; background: var(--bg); color: var(--ink);
+  font-family: "ISans", sans-serif;
+}
+.landscape { width: 1920px; height: 1080px; }
+.portrait  { width: 1080px; height: 1350px; }
+
+/* drafting grid */
+.grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 60px 60px;
+  background-position: -1px -1px;
+}
+/* hazard bands */
+.hazard { position: absolute; left: 0; right: 0; height: 14px;
+  background: repeating-linear-gradient(-45deg, var(--red) 0 14px, var(--bg) 14px 28px); }
+.hazard.top { top: 0; } .hazard.bot { bottom: 0; }
+
+/* beams */
+.beams { position: absolute; inset: 0; }
+.beams line { stroke: var(--red); stroke-width: 1.5; }
+.beams .glow { stroke: var(--red); stroke-width: 8; opacity: 0.12; filter: blur(4px); }
+
+/* crosshair + specimen icons */
+.mark { position: absolute; width: 22px; height: 22px; }
+.mark::before, .mark::after { content: ""; position: absolute; background: var(--mute); opacity: .55; }
+.mark::before { left: 10px; top: 0; width: 1px; height: 22px; }
+.mark::after  { top: 10px; left: 0; height: 1px; width: 22px; }
+.icon { position: absolute; width: 44px; height: 44px; stroke: var(--mute); fill: none; stroke-width: 1.5; opacity: .7; }
+
+/* labels */
+.mono { font-family: "GMono", monospace; letter-spacing: .14em; text-transform: uppercase; }
+.kicker { font-size: 20px; color: var(--mute); }
+.kicker b { color: var(--red); font-weight: 700; }
+
+.title { font-family: "Shoulders", sans-serif; text-transform: uppercase; line-height: .82; letter-spacing: .01em; }
+.title .hollow { color: transparent; -webkit-text-stroke: 3px var(--ink); display: block; }
+.title .solid  { color: var(--ink); display: block; }
+
+.sub { font-family: "ISans"; color: var(--ink); opacity: .86; }
+
+.prize-label { font-size: 18px; color: var(--mute); }
+.pills { display: flex; gap: 14px; flex-wrap: wrap; }
+.pill { font-family: "GMono"; font-weight: 700; text-transform: uppercase; letter-spacing: .1em;
+  border: 2px solid var(--ink); border-radius: 999px; padding: 14px 28px; font-size: 24px; white-space: nowrap; }
+.pill.hot { background: var(--red); border-color: var(--red); color: #fff; }
+
+.cta { display: inline-flex; align-items: center; gap: 18px; background: var(--ink); color: var(--bg);
+  font-family: "GMono"; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; font-size: 22px;
+  padding: 20px 30px; white-space: nowrap; }
+.cta svg { width: 26px; height: 26px; stroke: var(--bg); stroke-width: 2.5; fill: none; }
+
+/* art group */
+.art { position: absolute; }
+.art .lock { position: absolute; inset: 0; width: 100%; height: 100%; }
+.cursor { position: absolute; background: var(--red); display: flex; align-items: center; justify-content: center;
+  font-family: "GMono"; font-weight: 700; color: #fff; }
+.paper { position: absolute; background: #fbfaf6; box-shadow: 0 30px 60px rgba(0,0,0,.45);
+  padding: 7% 8%; display: flex; flex-direction: column; gap: 6%; }
+.paper h4 { font-family: "Shoulders"; color: #24262b; letter-spacing: .02em; line-height: 1; }
+.paper .rule { height: 6%; background: #d9d6ce; }
+.paper .rule.short { width: 62%; }
+.paper .cols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8%; flex: 1; }
+.paper .cols div { background: repeating-linear-gradient(#cfccc3 0 3px, transparent 3px 12px); }
+.paper .seal { position: absolute; right: 9%; bottom: 7%; width: 22%; aspect-ratio: 1; border-radius: 50%;
+  border: 3px solid var(--red); display: flex; align-items: center; justify-content: center;
+  font-family: "GMono"; font-weight: 700; color: var(--red); font-size: 11px; letter-spacing: .08em; text-align: center; transform: rotate(-14deg); }
+
+.stamp { position: absolute; }
+.stamp text { font-family: "GMono"; font-weight: 700; letter-spacing: .26em; fill: var(--ink); }
+.stamp circle { fill: none; stroke: var(--ink); }
+
+.dotpath { position: absolute; inset: 0; pointer-events: none; }
+.dotpath path { fill: none; stroke: var(--ink); stroke-width: 2; stroke-dasharray: 2 10; stroke-linecap: round; opacity: .7; }
+</style>
+</head>
+<body>
+
+<!-- ======================= LANDSCAPE 1920x1080 ======================= -->
+<div class="canvas landscape" id="landscape">
+  <div class="grid"></div>
+  <svg class="beams" viewBox="0 0 1920 1080">
+    <line class="glow" x1="980" y1="1080" x2="1920" y2="250"/><line x1="980" y1="1080" x2="1920" y2="250"/>
+    <line class="glow" x1="1060" y1="0" x2="1920" y2="760"/><line x1="1060" y1="0" x2="1920" y2="760"/>
+  </svg>
+  <div class="hazard top"></div><div class="hazard bot"></div>
+
+  <span class="mark" style="left:109px;top:109px"></span>
+  <span class="mark" style="left:1789px;top:949px"></span>
+  <span class="mark" style="left:989px;top:949px"></span>
+
+  <!-- specimen icons -->
+  <svg class="icon" style="left:1000px;top:120px" viewBox="0 0 44 44"><path d="M8 10h28v18H20l-8 7v-7H8z"/><path d="M15 17h14M15 22h9"/></svg>
+  <svg class="icon" style="left:1770px;top:118px" viewBox="0 0 44 44"><circle cx="15" cy="22" r="7"/><path d="M22 22h16M32 22v6M37 22v4"/></svg>
+  <svg class="icon" style="left:1120px;top:930px" viewBox="0 0 44 44"><path d="M22 6l13 5v10c0 9-6 14-13 17C15 35 9 30 9 21V11z"/></svg>
+
+  <!-- copy -->
+  <div style="position:absolute;left:120px;top:150px;width:860px">
+    <div class="mono kicker">AI Security Challenge <b>/</b> Capture the prompt</div>
+    <h1 class="title" style="font-size:250px;margin-top:34px">
+      <span class="hollow">Prompt</span><span class="solid">Heist</span>
+    </h1>
+    <p class="sub" style="font-size:34px;line-height:1.3;margin-top:40px;max-width:640px">Trick the AI. Steal the secret.<br>Walk away with the prize.</p>
+  </div>
+  <div style="position:absolute;left:120px;top:830px;width:860px;display:flex;align-items:flex-end;justify-content:space-between">
+    <div>
+      <div class="mono prize-label" style="margin-bottom:18px">Prizes</div>
+      <div class="pills"><span class="pill hot">Job offers</span><span class="pill">Goodies</span></div>
+    </div>
+    <span class="cta">Register now <svg viewBox="0 0 24 24"><path d="M4 12h15M13 6l6 6-6 6"/></svg></span>
+  </div>
+
+  <!-- art -->
+  <div class="art" style="left:1190px;top:150px;width:560px;height:680px">
+    <div class="paper" style="left:-150px;top:80px;width:300px;height:390px;transform:rotate(-12deg)">
+      <h4 style="font-size:46px">Job offer</h4>
+      <div class="rule"></div><div class="rule short"></div>
+      <div class="cols"><div></div><div></div><div></div></div>
+    </div>
+    <img class="lock" src="lock.png">
+    <div class="cursor" style="left:327px;top:418px;width:106px;height:66px;font-size:34px">&gt;_</div>
+  </div>
+  <svg class="dotpath" viewBox="0 0 1920 1080"><path d="M1640 600 C 1760 600, 1800 760, 1700 880"/></svg>
+  <svg class="icon" style="left:1660px;top:880px;stroke:var(--ink);opacity:1" viewBox="0 0 44 44"><path d="M12 38V6M12 8h20l-4 6 4 6H12"/></svg>
+
+  <svg class="stamp" style="left:1650px;top:160px;width:200px;height:200px;transform:rotate(-12deg)" viewBox="0 0 200 200">
+    <defs><path id="sc1" d="M100,100 m-74,0 a74,74 0 1,1 148,0 a74,74 0 1,1 -148,0"/></defs>
+    <circle cx="100" cy="100" r="96" stroke-width="2"/><circle cx="100" cy="100" r="56" stroke-width="1.5"/>
+    <text font-size="14.5"><textPath href="#sc1">AI SECURITY ✦ CAPTURE THE PROMPT ✦ </textPath></text>
+    <text x="100" y="110" text-anchor="middle" font-size="30" style="letter-spacing:.04em">&gt;_</text>
+  </svg>
+</div>
+
+<!-- ======================= PORTRAIT 1080x1350 ======================= -->
+<div class="canvas portrait" id="portrait">
+  <div class="grid"></div>
+  <svg class="beams" viewBox="0 0 1080 1350">
+    <line class="glow" x1="0" y1="1010" x2="1080" y2="640"/><line x1="0" y1="1010" x2="1080" y2="640"/>
+    <line class="glow" x1="1080" y1="300" x2="560" y2="1350"/><line x1="1080" y1="300" x2="560" y2="1350"/>
+  </svg>
+  <div class="hazard top"></div><div class="hazard bot"></div>
+
+  <span class="mark" style="left:69px;top:69px"></span>
+  <span class="mark" style="left:989px;top:1259px"></span>
+  <svg class="icon" style="left:960px;top:60px" viewBox="0 0 44 44"><path d="M8 10h28v18H20l-8 7v-7H8z"/><path d="M15 17h14M15 22h9"/></svg>
+  <svg class="icon" style="left:990px;top:960px" viewBox="0 0 44 44"><path d="M22 6l13 5v10c0 9-6 14-13 17C15 35 9 30 9 21V11z"/></svg>
+
+  <div style="position:absolute;left:80px;top:110px;width:920px">
+    <div class="mono kicker" style="font-size:18px">AI Security Challenge <b>/</b> Capture the prompt</div>
+    <h1 class="title" style="font-size:212px;margin-top:26px">
+      <span class="hollow">Prompt</span><span class="solid">Heist</span>
+    </h1>
+    <p class="sub" style="font-size:30px;line-height:1.3;margin-top:30px;max-width:620px">Trick the AI. Steal the secret.<br>Walk away with the prize.</p>
+  </div>
+
+  <div class="art" style="left:500px;top:640px;width:380px;height:462px">
+    <div class="paper" style="left:-130px;top:50px;width:215px;height:280px;transform:rotate(-12deg)">
+      <h4 style="font-size:33px">Job offer</h4>
+      <div class="rule"></div><div class="rule short"></div>
+      <div class="cols"><div></div><div></div><div></div></div>
+    </div>
+    <img class="lock" src="lock.png">
+    <div class="cursor" style="left:222px;top:284px;width:72px;height:45px;font-size:24px">&gt;_</div>
+  </div>
+
+  <svg class="stamp" style="left:90px;top:720px;width:170px;height:170px;transform:rotate(-12deg)" viewBox="0 0 200 200">
+    <defs><path id="sc2" d="M100,100 m-74,0 a74,74 0 1,1 148,0 a74,74 0 1,1 -148,0"/></defs>
+    <circle cx="100" cy="100" r="96" stroke-width="2"/><circle cx="100" cy="100" r="56" stroke-width="1.5"/>
+    <text font-size="14.5"><textPath href="#sc2">AI SECURITY ✦ CAPTURE THE PROMPT ✦ </textPath></text>
+    <text x="100" y="110" text-anchor="middle" font-size="30" style="letter-spacing:.04em">&gt;_</text>
+  </svg>
+
+  <div style="position:absolute;left:80px;top:1110px;width:920px;display:flex;align-items:flex-end;justify-content:space-between">
+    <div>
+      <div class="mono prize-label" style="margin-bottom:16px">Prizes</div>
+      <div class="pills"><span class="pill hot">Job offers</span><span class="pill">Goodies</span></div>
+    </div>
+    <span class="cta" style="font-size:20px;padding:18px 24px">Register now <svg viewBox="0 0 24 24"><path d="M4 12h15M13 6l6 6-6 6"/></svg></span>
+  </div>
+</div>
+</body>
+</html>
