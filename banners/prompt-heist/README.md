@@ -29,3 +29,17 @@ Event date, registration link / QR code, and the host company logo. Add them in 
 - The AI guard "Vault" chat panel is the hero; "Try it now" replaces "Register now".
 - Giant halftone lock cropped by the frame, redacted job offer, partly revealed secret.
 - Live chat widget UI (no backend): `/chatbot/vault/index.html`.
+
+## v3 (current)
+`prompt-heist-v3-*.png`, source `src/banner-v3.html`.
+Added from research (Lakera Gandalf, Wiz Prompt Airlines, HackAPrompt):
+- Level bar "Level 1 / 5" in the chat header (levels with escalating defenses). Change the count if the event has a different number of levels.
+- Attempt counter: "fewer attempts, higher rank" (leaderboard rule used by Gandalf-style games). Confirm this is your ranking rule.
+- "No coding. Just prompts." line.
+- Attack-technique stickers: Role-play, Context ignoring, Obfuscation.
+- QR slot "Scan to try": hidden unless a QR image is passed.
+
+Render with the real link:
+    python3 src/make_qr.py "https://YOUR-LINK" src/qr.png
+    node src/render.js 2 banner-v3.html -v3-final qr.png
+`prompt-heist-v3-qr-SAMPLE-*` uses https://example.com: layout preview only, do not publish.

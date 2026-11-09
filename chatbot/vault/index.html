@@ -40,7 +40,13 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .who b { display: block; font-size: 17px; letter-spacing: .02em; }
 .who span { font-family: "GMono"; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--mute); }
 .who span i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #3ddc84; margin-right: 6px; }
-.close { margin-left: auto; width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; }
+.lvl { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+.lvl span { font-family: "GMono"; font-size: 10px; letter-spacing: .14em; color: var(--mute); text-transform: uppercase; }
+.segs { display: flex; gap: 3px; }
+.segs i { width: 16px; height: 5px; background: #2f3238; }
+.segs i.on { background: var(--red); }
+.meta { font-family: "GMono"; font-size: 10px; letter-spacing: .14em; color: var(--mute); text-transform: uppercase; }
+.close { margin-left: 8px; width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; }
 .close:hover { background: var(--panel-2); }
 .close svg, .send svg, .chip svg { stroke: currentColor; fill: none; stroke-width: 2.2; }
 .close svg { width: 18px; height: 18px; color: var(--mute); }
@@ -95,6 +101,7 @@ input:focus { outline: none; }
   <header class="hd">
     <div class="av"><img src="avatar.png" alt=""></div>
     <div class="who"><b>VAULT</b><span><i aria-hidden="true"></i>AI guard</span></div>
+    <div class="lvl" aria-label="Level 1 of 5"><span>Level 1 / 5</span><div class="segs" aria-hidden="true"><i class="on"></i><i></i><i></i><i></i><i></i></div></div>
     <button class="close" id="close" aria-label="Close chat"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </header>
 
@@ -117,7 +124,7 @@ input:focus { outline: none; }
     <input id="q" placeholder="Make the AI talk" maxlength="500">
     <button class="send" id="send" aria-label="Send" disabled><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
   </form>
-  <div class="ft">Prompt Heist · AI security challenge</div>
+  <div class="ft" id="attempts">Attempts: 0 · fewer attempts, higher rank</div>
 </section>
 
 <script>
@@ -149,6 +156,7 @@ $('form').addEventListener('submit', (e) => {
   add(v, 'me');
   q.value = ''; send.disabled = true;
   guardReply(replies[n++ % replies.length]);
+  $('attempts').textContent = 'Attempts: ' + n + ' · fewer attempts, higher rank';
 });
 $('try').addEventListener('click', () => { q.focus(); q.placeholder = 'Type your best prompt…'; });
 $('prizes').addEventListener('click', () => guardReply('Crack me and win: a job offer, plus goodies.', 'ai'));

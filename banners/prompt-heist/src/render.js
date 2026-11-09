@@ -1,6 +1,6 @@
 const { chromium } = require('playwright'); const path=require('path');
 (async () => { const b=await chromium.launch(); const p=await b.newPage({ viewport:{width:1920,height:2500}, deviceScaleFactor: +(process.argv[2]||1) });
-await p.goto('file://'+path.resolve(__dirname,process.argv[3]||'banner.html')); await p.evaluate(()=>document.fonts.ready); await p.waitForTimeout(500);
+await p.goto('file://'+path.resolve(__dirname,process.argv[3]||'banner.html')+(process.argv[5]?'?qr='+encodeURIComponent(process.argv[5]):'')); await p.evaluate(()=>document.fonts.ready); await p.waitForTimeout(500);
 const sfx = process.argv[2]==='2' ? '@2x' : '';
 await p.locator('#landscape').screenshot({path:path.resolve(__dirname,'..',`prompt-heist${process.argv[4]||''}-landscape-1920x1080${sfx}.png`)});
 await p.locator('#portrait').screenshot({path:path.resolve(__dirname,'..',`prompt-heist${process.argv[4]||''}-portrait-1080x1350${sfx}.png`)});
