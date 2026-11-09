@@ -98,6 +98,7 @@ const runOf = (account) =>
     ? {
         phase: phaseOf(account),
         accountId: account.accountId,
+        roleArn: account.roleArn,
         status: account.status,
         checks: account.checks,
         verifiedAt: account.lastVerifiedAt,
@@ -265,6 +266,7 @@ export function AwsConnectWizard({ setup, previous, storageKey, title = 'Connect
       const next = {
         phase: outcome.watching ? 'watching' : phaseOf({ status: outcome.status, checks: outcome.checks }),
         accountId: outcome.accountId,
+        roleArn: outcome.roleArn,
         status: outcome.status,
         checks: outcome.checks,
         verifiedAt: outcome.verifiedAt,

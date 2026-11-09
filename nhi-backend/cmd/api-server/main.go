@@ -263,6 +263,13 @@ func main() {
 	} else {
 		awsClient = awsconnect.NewClient(awsBase, cfg.AWSIntegration.AssumeAssumerRole).WithEventQueue(cfg.AWSIntegration.EventQueueURL)
 		awsVerifier = awsClient
+		// Are we the account and role customers are told to trust? Checked in
+		// the background so start-up never waits on AWS.
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			awsintegration.CheckPlatformAtStart(ctx, awsintegration.NewAWSIntegrationRepository(db), awsClient, cfg.AWSIntegration.AssumerRoleName)
+		}()
 	}
 	// "Receive your events" peeks at the central SQS queue only: the tenant's
 	// ClickHouse database is created by another service once an account is

@@ -428,7 +428,12 @@ func requestOutcome(out *AWSVerifyResponse, verifyErr error) (outcome, detail st
 		}
 	}
 	detail = strings.Join(problems, " | ")
+	if out.diagnosis != "" {
+		detail += " | " + out.diagnosis
+	}
 	switch {
+	case out.ourSide:
+		return "platform_error", detail
 	case failed:
 		return "failed", detail
 	case errored:

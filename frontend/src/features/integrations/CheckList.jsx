@@ -138,7 +138,11 @@ export function CheckResult({ running, checks, verifiedAt, ok, definitions, copy
               copy.okDetail
             ) : (
               <>
-                Fix the {failing === 1 ? 'item' : 'items'} below, then check again
+                {/* Only checks that could not run (nothing failed in the
+                    customer's account): there is nothing for them to fix. */}
+                {(checks ?? []).some((c) => c?.state === 'fail')
+                  ? `Fix the ${failing === 1 ? 'item' : 'items'} below, then check again`
+                  : 'Nothing to change on your side. Check again in a minute'}
                 {verifiedAt ? ` · checked ${formatRelative(verifiedAt)}` : ''}.
               </>
             )}
@@ -206,10 +210,17 @@ export function VerifyResult({ running, result, setup, onShowStep }) {
         ok: 'Connection verified',
         okDetail: 'Read access works and your events are arriving.',
       }}
-      renderFix={setup ? (key) => connectionFix(key, setup) : undefined}
+      renderFix={setup ? (key) => connectionFix(key, withRoleName(setup, result)) : undefined}
       onShowStep={onShowStep}
     />
   );
+}
+
+/* The role the person actually pasted may not carry the suggested name (e.g.
+   NHIPlatformCollectorNew): the fix names the role they will find in IAM. */
+function withRoleName(setup, result) {
+  const pasted = String(result?.roleArn ?? '').split('/').pop();
+  return pasted ? { ...setup, roleName: pasted } : setup;
 }
 
 function connectionFix(key, setup) {

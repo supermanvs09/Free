@@ -23,6 +23,13 @@ type fakeAWS struct {
 
 	assumeDenied bool
 	rolesXML     string
+
+	// diagnosis: who GetCallerIdentity says we are, what the simulation decides
+	callerARN    string
+	simDecision  string
+	simDenied    bool // iam:SimulatePrincipalPolicy itself refused
+	simOrgDenied bool
+	simForm      url.Values
 	readDenied   bool
 	busPolicy    string
 	putErrCode   string
@@ -96,6 +103,29 @@ func (f *fakeAWS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			_, _ = io.WriteString(w, `<AssumeRoleResponse><AssumeRoleResult><Credentials><AccessKeyId>ASIACLIENT</AccessKeyId><SecretAccessKey>secret</SecretAccessKey><SessionToken>token</SessionToken><Expiration>2099-01-01T00:00:00Z</Expiration></Credentials><AssumedRoleUser><Arn>arn:aws:sts::222222222222:assumed-role/r/s</Arn><AssumedRoleId>AROA:s</AssumedRoleId></AssumedRoleUser></AssumeRoleResult></AssumeRoleResponse>`)
+		case "GetCallerIdentity":
+			arn := f.callerARN
+			if arn == "" {
+				arn = "arn:aws:sts::999999999999:assumed-role/NHIPlatformAssumer/s"
+			}
+			account := strings.Split(arn, ":")[4]
+			_, _ = io.WriteString(w, `<GetCallerIdentityResponse><GetCallerIdentityResult><Arn>`+arn+`</Arn><UserId>AROA:s</UserId><Account>`+account+`</Account></GetCallerIdentityResult></GetCallerIdentityResponse>`)
+		case "SimulatePrincipalPolicy":
+			f.simForm = form
+			if f.simDenied {
+				w.WriteHeader(http.StatusForbidden)
+				_, _ = io.WriteString(w, `<ErrorResponse><Error><Type>Sender</Type><Code>AccessDenied</Code><Message>not authorized to perform: iam:SimulatePrincipalPolicy</Message></Error><RequestId>2</RequestId></ErrorResponse>`)
+				return
+			}
+			decision := f.simDecision
+			if decision == "" {
+				decision = "allowed"
+			}
+			org := "true"
+			if f.simOrgDenied {
+				org = "false"
+			}
+			_, _ = io.WriteString(w, `<SimulatePrincipalPolicyResponse><SimulatePrincipalPolicyResult><IsTruncated>false</IsTruncated><EvaluationResults><member><EvalActionName>sts:AssumeRole</EvalActionName><EvalResourceName>`+form.Get("ResourceArns.member.1")+`</EvalResourceName><EvalDecision>`+decision+`</EvalDecision><OrganizationsDecisionDetail><AllowedByOrganizations>`+org+`</AllowedByOrganizations></OrganizationsDecisionDetail></member></EvaluationResults></SimulatePrincipalPolicyResult></SimulatePrincipalPolicyResponse>`)
 		case "ListRoles":
 			auth := r.Header.Get("Authorization")
 			if i := strings.Index(auth, "Credential="); i >= 0 {

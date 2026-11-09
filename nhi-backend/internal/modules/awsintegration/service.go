@@ -91,6 +91,8 @@ type AWSVerifier interface {
 	ListCodeCommit(ctx context.Context, s *awsconnect.Session, regions []string) (awsconnect.CodeCommitResult, error)
 	ProbeCodeCommit(ctx context.Context, s *awsconnect.Session, region, repository string) awsconnect.RepoProbe
 	ReadSecretToken(ctx context.Context, s *awsconnect.Session, arn awsconnect.SecretARN) (string, error)
+	// DiagnoseAssumeRole checks our own side after AWS refused AssumeRole.
+	DiagnoseAssumeRole(ctx context.Context, p awsconnect.Platform, role awsconnect.RoleARN) awsconnect.Diagnosis
 }
 
 // GitHubChecker validates a GitHub token (githubcheck.Checker in production).
@@ -414,8 +416,7 @@ func (s *AWSIntegrationService) verify(ctx context.Context, caller AWSCaller, ra
 	stepCancel()
 	if err != nil {
 		if errors.Is(err, awsconnect.ErrAccessDenied) {
-			logCustomerDenied(ctx, role.AccountID, checks[0].Key, err)
-			fail(&checks[0], "AWS would not let us use this role: the role ARN, its trust policy (our role NHIPlatformAssumer) or the External ID does not match.", "Check the trust policy names our role and your External ID exactly")
+			s.explainDenied(ctx, caller, p, role, err, &checks[0], result)
 		} else if errors.Is(err, awsconnect.ErrPlatformCredentials) {
 			logCheckError(ctx, caller.TenantID, role.AccountID, checks[0].Key, err)
 			platformError(&checks[0], err)
@@ -1087,6 +1088,45 @@ func (s *AWSIntegrationService) resumeApproved(ctx context.Context, caller AWSCa
 
 func pass(c *AWSCheck, message string) {
 	c.State, c.Message, c.Fix = AWSCheckPass, message, ""
+}
+
+// awsDiagnoseTimeout bounds the two AWS calls that check our own side after a
+// refusal (it runs inside awsVerifyBudget).
+const awsDiagnoseTimeout = 4 * time.Second
+
+// explainDenied turns AWS's refusal to let us assume the customer's role into
+// the right answer. STS says AccessDenied whatever the cause, so our own side
+// is checked first (who we call AWS as, in which account, and whether our own
+// policies allow assuming that role):
+//
+//   - something is wrong on our side: the customer is told it is not theirs
+//     to fix, and the log says exactly what to change;
+//   - our side is verified: the cause is in the customer's role, and the
+//     message says what must be true of it;
+//   - our side could not be checked: the general message, as before.
+func (s *AWSIntegrationService) explainDenied(ctx context.Context, caller AWSCaller, p awsconnect.Platform, role awsconnect.RoleARN, awsErr error, check *AWSCheck, result *AWSVerifyResponse) {
+	dctx, cancel := context.WithTimeout(ctx, awsDiagnoseTimeout)
+	d := s.verifier.DiagnoseAssumeRole(dctx, p, role)
+	cancel()
+	result.diagnosis = "aws: " + awsErr.Error() + " | " + d.Summary()
+	log := logging.FromContext(ctx).With("tenant_id", caller.TenantID, "account_id", role.AccountID, "role_arn", role.ARN,
+		"check", check.Key, "err", awsErr, "our_side", d.Summary(), "caller_arn", d.CallerARN)
+	switch {
+	case d.OurFault():
+		result.ourSide = true
+		log.Error("aws integration: AssumeRole refused because of OUR setup, not the customer's; no customer can connect until it is fixed")
+		check.State, check.Fix = AWSCheckError, ""
+		check.Message = "AWS refused because of a setting on adapID's side, not in your account. You do not need to change anything; contact adapID support if it does not clear soon."
+	case d.OurSideClear():
+		log.Info("aws integration: AssumeRole refused by the customer's role (our side checked and fine)")
+		roleName := role.ARN[strings.LastIndex(role.ARN, "/")+1:]
+		fail(check,
+			fmt.Sprintf("We checked our side and it is correct, so AWS refused because of the role %s in your account (%s): it does not exist under this ARN, or its trust policy does not allow sts:AssumeRole for %s with your External ID.", roleName, role.AccountID, p.AssumerRoleARN),
+			"Check the role ARN, and that its trust policy names our role and your External ID exactly")
+	default:
+		log.Info("aws integration: check failed in the customer's account (our side could not be fully checked)")
+		fail(check, "AWS would not let us use this role: the role ARN, its trust policy (our role NHIPlatformAssumer) or the External ID does not match.", "Check the trust policy names our role and your External ID exactly")
+	}
 }
 
 func fail(c *AWSCheck, message, fix string) {

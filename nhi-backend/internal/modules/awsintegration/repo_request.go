@@ -78,8 +78,8 @@ func (r *AWSIntegrationRepository) FinishConnectionRequest(ctx context.Context, 
 	if err != nil {
 		return err
 	}
-	if len(detail) > 500 {
-		detail = detail[:500]
+	if len(detail) > 4000 { // AWS's message and the check of our side fit
+		detail = detail[:4000]
 	}
 	_, err = db.ExecContext(ctx, `UPDATE `+database.Table(r.globalSchema, "connection_requests")+`
 		SET outcome = $2, outcome_detail = $3, checks = $4::jsonb, finished_at = now()
@@ -88,4 +88,29 @@ func (r *AWSIntegrationRepository) FinishConnectionRequest(ctx context.Context, 
 		return fmt.Errorf("finish connection request: %w", err)
 	}
 	return nil
+}
+
+// CollectorPlatforms is every distinct (collector account, event bus) the
+// tenants are set up with: what customers are told to trust.
+func (r *AWSIntegrationRepository) CollectorPlatforms(ctx context.Context) ([][2]string, error) {
+	db, err := r.pool()
+	if err != nil {
+		return nil, err
+	}
+	rows, err := db.QueryContext(ctx, `SELECT DISTINCT collector_aws_account_id, collector_event_bridge_arn
+		FROM `+database.Table(r.globalSchema, "tenants")+`
+		WHERE COALESCE(collector_aws_account_id, '') <> '' AND COALESCE(collector_event_bridge_arn, '') <> ''`)
+	if err != nil {
+		return nil, fmt.Errorf("list collector accounts: %w", err)
+	}
+	defer rows.Close()
+	var out [][2]string
+	for rows.Next() {
+		var p [2]string
+		if err := rows.Scan(&p[0], &p[1]); err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
 }

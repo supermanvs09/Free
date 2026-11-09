@@ -2,7 +2,9 @@ package awsintegration
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -289,6 +291,15 @@ type fakeVerifier struct {
 	secretToken string
 	secretErr   error
 	assumeGate  chan struct{} // when set, AssumeRole waits on it
+	diag        awsconnect.Diagnosis
+	diagCalls   int
+}
+
+func (v *fakeVerifier) DiagnoseAssumeRole(context.Context, awsconnect.Platform, awsconnect.RoleARN) awsconnect.Diagnosis {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.diagCalls++
+	return v.diag
 }
 
 func (v *fakeVerifier) AssumeRole(ctx context.Context, _ awsconnect.Platform, _ awsconnect.RoleARN, _ string) (*awsconnect.Session, error) {
@@ -1122,5 +1133,68 @@ func TestRequestEmailStatesWhatWasAsked(t *testing.T) {
 	_, h, _ := requestEmail(AWSCaller{Schema: "x", Actor: "<script>alert(1)</script>"}, "", "1", "r", nil, at)
 	if strings.Contains(h, "<script>") {
 		t.Error("the actor is not escaped in the HTML part")
+	}
+}
+
+// ── a refused AssumeRole: our side is checked before the customer is blamed ──
+
+func yes() *bool { b := true; return &b }
+func no() *bool  { b := false; return &b }
+
+func TestDeniedAssumeRoleIsExplainedByCheckingOurSide(t *testing.T) {
+	ourFault := awsconnect.Diagnosis{CallerARN: "arn:aws:sts::999999999999:assumed-role/nhi-task/s", RightAccount: yes(), RightIdentity: no(),
+		Problems: []string{"we call AWS as arn:aws:sts::999999999999:assumed-role/nhi-task/s, but customer trust policies name the role ..."}}
+	clear := awsconnect.Diagnosis{CallerARN: "arn:aws:sts::999999999999:assumed-role/NHIPlatformAssumer/s", RightAccount: yes(), RightIdentity: yes(), PolicyAllows: yes(), Decision: "allowed"}
+	unknown := awsconnect.Diagnosis{RightAccount: yes(), RightIdentity: yes(), NotChecked: []string{"our own policy: no permission to simulate"}}
+	cases := []struct {
+		name     string
+		diag     awsconnect.Diagnosis
+		state    string
+		message  string
+		outcome  string
+		inDetail string
+	}{
+		{"our side is wrong: not the customer's to fix", ourFault, AWSCheckError, "adapID's side, not in your account", "platform_error", "OUR SIDE"},
+		{"our side verified: the customer's role is the cause", clear, AWSCheckFail, "We checked our side and it is correct", "failed", "our side checked and fine"},
+		{"our side unknown: the general message", unknown, AWSCheckFail, "AWS would not let us use this role", "failed", "not checked"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			store := newFakeAWSStore()
+			v := &fakeVerifier{assumeErr: fmt.Errorf("%w: AccessDenied: User: x is not authorized", awsconnect.ErrAccessDenied), diag: tc.diag}
+			svc := newTestService(store, v, nil, nil)
+			res, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			c := res.Checks[0]
+			if v.diagCalls != 1 || c.State != tc.state || !strings.Contains(c.Message, tc.message) {
+				t.Fatalf("check = %+v (diagnosed %d times)", c, v.diagCalls)
+			}
+			if tc.state == AWSCheckError && c.Fix != "" {
+				t.Errorf("a fault on our side must not give the customer a fix: %q", c.Fix)
+			}
+			// Nothing internal reaches the browser.
+			raw, _ := json.Marshal(res)
+			if strings.Contains(string(raw), "not authorized") || strings.Contains(string(raw), "OUR SIDE") {
+				t.Fatalf("internal detail in the response: %s", raw)
+			}
+			_, _, fin, _ := store.request(1)
+			if fin.outcome != tc.outcome || !strings.Contains(fin.detail, tc.inDetail) || !strings.Contains(fin.detail, "not authorized") {
+				t.Fatalf("stored request = %+v", fin)
+			}
+		})
+	}
+}
+
+// Only a refusal is diagnosed: a role that works costs no extra AWS calls.
+func TestWorkingRoleIsNotDiagnosed(t *testing.T) {
+	v := &fakeVerifier{}
+	svc := newTestService(newFakeAWSStore(), v, nil, fakeEvents{found: true})
+	if _, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"}); err != nil {
+		t.Fatal(err)
+	}
+	if v.diagCalls != 0 {
+		t.Fatalf("diagnosed %d times", v.diagCalls)
 	}
 }

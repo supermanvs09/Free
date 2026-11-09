@@ -280,6 +280,11 @@ type AWSVerifyResponse struct {
 	// Watching is true when the events check runs on in the background: the
 	// console follows it on GET /integrations/aws.
 	Watching bool `json:"watching"`
+
+	// Never sent to the browser: AWS's own words and the check of our side
+	// after a refusal, kept for the stored connection request.
+	diagnosis string
+	ourSide   bool
 }
 
 type AWSSyncResponse struct {

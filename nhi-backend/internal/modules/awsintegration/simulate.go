@@ -69,6 +69,11 @@ func (s *SimulatedAWS) ProbeCodeCommit(_ context.Context, _ *awsconnect.Session,
 	return awsconnect.RepoProbe{Region: region, Repository: repository}
 }
 
+// DiagnoseAssumeRole: a simulator has no side of ours to check.
+func (s *SimulatedAWS) DiagnoseAssumeRole(context.Context, awsconnect.Platform, awsconnect.RoleARN) awsconnect.Diagnosis {
+	return awsconnect.Diagnosis{NotChecked: []string{"simulated AWS"}}
+}
+
 func (s *SimulatedAWS) ReadSecretToken(context.Context, *awsconnect.Session, awsconnect.SecretARN) (string, error) {
 	return "", awsconnect.ErrSecretNotFound
 }
