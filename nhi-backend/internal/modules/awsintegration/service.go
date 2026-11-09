@@ -450,7 +450,8 @@ func (s *AWSIntegrationService) verify(ctx context.Context, caller AWSCaller, ra
 		pass(&checks[1], "Read access works.")
 	case errors.Is(err, awsconnect.ErrAccessDenied), errors.Is(err, awsconnect.ErrNothingRead):
 		logCustomerDenied(ctx, role.AccountID, checks[1].Key, err)
-		fail(&checks[1], "The role cannot read your account.", "Attach SecurityAudit and ViewOnlyAccess to NHIPlatformCollector")
+		// The customer may have named the role anything: name the one they pasted.
+		fail(&checks[1], "The role cannot read your account.", "Attach SecurityAudit and ViewOnlyAccess to "+role.ARN[strings.LastIndex(role.ARN, "/")+1:])
 	default:
 		logCheckError(ctx, caller.TenantID, role.AccountID, checks[1].Key, err)
 		unavailable(&checks[1])

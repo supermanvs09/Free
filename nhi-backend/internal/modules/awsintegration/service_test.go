@@ -1198,3 +1198,16 @@ func TestWorkingRoleIsNotDiagnosed(t *testing.T) {
 		t.Fatalf("diagnosed %d times", v.diagCalls)
 	}
 }
+
+// Customers may name the role anything: the read-access fix names theirs.
+func TestReadAccessFixNamesTheCustomersOwnRole(t *testing.T) {
+	v := &fakeVerifier{readErr: awsconnect.ErrAccessDenied}
+	svc := newTestService(newFakeAWSStore(), v, nil, nil)
+	res, err := svc.Verify(context.Background(), awsTestCaller, "arn:aws:iam::222222222222:role/path/AcmeReadOnlyForAdapID", []string{"us-east-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := res.Checks[1]; c.State != AWSCheckFail || !strings.HasSuffix(c.Fix, "to AcmeReadOnlyForAdapID") {
+		t.Fatalf("read check = %+v", c)
+	}
+}
