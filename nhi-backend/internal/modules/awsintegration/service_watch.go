@@ -7,6 +7,7 @@ import (
 	"html"
 	"log/slog"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -339,7 +340,7 @@ func (s *AWSIntegrationService) deliver(ctx context.Context, log *slog.Logger, w
 // request either way, so the Approvals page can say whether mail went out.
 func (s *AWSIntegrationService) notifyApprovers(ctx context.Context, id int64, caller AWSCaller, domain string, rec AWSAccountRecord) {
 	log := logging.FromContext(ctx).With("tenant_id", caller.TenantID, "account_id", rec.AccountID, "approval_id", id)
-	subject, htmlBody, text := approvalEmail(caller, domain, rec)
+	subject, htmlBody, text := approvalEmail(caller, domain, rec, id, s.opts.ApprovalsLocation)
 	status, detail := s.deliver(ctx, log, "approval e-mail", subject, htmlBody, text)
 	saveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	defer cancel()
@@ -483,11 +484,20 @@ func requestEmail(caller AWSCaller, domain, accountID, roleARN string, regions [
 	return subject, b.String(), text
 }
 
+// where says which database the request was written to, for an approver whose
+// onboarding tool shows nothing: it must read the same one.
+func where(location string) string {
+	if location == "" {
+		return ""
+	}
+	return " (in " + location + ")"
+}
+
 // approvalReviewHint: the onboarding tool runs on the approver's own machine,
 // so the e-mail says where to look instead of linking to it.
 const approvalReviewHint = "Review it in the tenant-onboarding tool on your computer: Approvals tab (it lists every waiting request from the database)."
 
-func approvalEmail(caller AWSCaller, domain string, rec AWSAccountRecord) (subject, htmlBody, text string) {
+func approvalEmail(caller AWSCaller, domain string, rec AWSAccountRecord, id int64, location string) (subject, htmlBody, text string) {
 	workspace := caller.Schema
 	if domain != "" {
 		workspace = domain
@@ -502,6 +512,7 @@ func approvalEmail(caller AWSCaller, domain string, rec AWSAccountRecord) (subje
 		"Role:        " + rec.RoleARN,
 		"Regions:     " + strings.Join(rec.Regions, ", "),
 		"Requested by " + caller.Actor,
+		"Request:     #" + strconv.FormatInt(id, 10) + where(location),
 		"",
 		approvalReviewHint,
 	}
@@ -513,6 +524,7 @@ func approvalEmail(caller AWSCaller, domain string, rec AWSAccountRecord) (subje
 	for _, row := range [][2]string{
 		{"Workspace", workspace + " (" + caller.Schema + ")"}, {"AWS account", rec.AccountID}, {"Role", rec.RoleARN},
 		{"Regions", strings.Join(rec.Regions, ", ")}, {"Requested by", caller.Actor},
+		{"Request", "#" + strconv.FormatInt(id, 10) + where(location)},
 	} {
 		b.WriteString(`<tr><td style="color:#64748b">` + esc(row[0]) + `</td><td><b>` + esc(row[1]) + `</b></td></tr>`)
 	}

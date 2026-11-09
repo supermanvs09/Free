@@ -55,6 +55,10 @@ type ApprovalList struct {
 	Pending   int        `json:"pending"`
 	LatestID  int64      `json:"latest_pending_id"`
 	Ready     bool       `json:"ready"` // false until the API server's migration 007 has run
+	// Source is the database and schema these requests are read from. The API
+	// server must write to the same one (NHI_DB_HOST, NHI_DB_NAME,
+	// NHI_GLOBAL_SCHEMA), or its requests never show here.
+	Source string `json:"source"`
 }
 
 // Decision outcomes.
@@ -139,7 +143,7 @@ func isUndefinedTable(err error) bool {
 // ListApprovals returns the requests with the given status ("" = every
 // status; "decided" = approved, rejected and withdrawn), newest first.
 func (s *Service) ListApprovals(ctx context.Context, status string) (*ApprovalList, error) {
-	out := &ApprovalList{Approvals: []Approval{}, Ready: true}
+	out := &ApprovalList{Approvals: []Approval{}, Ready: true, Source: s.source}
 	where := ""
 	args := []any{}
 	switch status {

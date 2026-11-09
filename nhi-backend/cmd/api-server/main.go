@@ -307,6 +307,7 @@ func main() {
 		awsintegration.AWSIntegrationOptions{
 			AssumerRoleName:    cfg.AWSIntegration.AssumerRoleName,
 			CollectorRoleName:  cfg.AWSIntegration.CollectorRoleName,
+			ApprovalsLocation:  cfg.Database.DatabaseName + ", schema " + globalSchema + ", table connection_approvals",
 			ForwardRuleName:    cfg.AWSIntegration.ForwardRuleName,
 			GitHubSecretPrefix: cfg.AWSIntegration.GitHubSecretPrefix,
 			ForwardRoleName:    cfg.AWSIntegration.ForwardRoleName,

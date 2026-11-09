@@ -187,6 +187,27 @@ func (r *AWSIntegrationRepository) RequestApproval(ctx context.Context, req Appr
 	return id, saved, nil
 }
 
+// HasPendingApproval reports whether a pending request for the account is in
+// nhi_global.connection_approvals - what the onboarding tool's Approvals page
+// lists. The account's own approval_status can say "pending" without one (the
+// row was withdrawn or decided elsewhere, or never reached this table).
+func (r *AWSIntegrationRepository) HasPendingApproval(ctx context.Context, tenantID, accountID string) (bool, error) {
+	db, err := r.pool()
+	if err != nil {
+		return false, err
+	}
+	var ok bool
+	err = db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM `+database.Table(r.globalSchema, "connection_approvals")+`
+		WHERE tenant_id = $1::uuid AND account_id = $2 AND status = 'pending')`, tenantID, accountID).Scan(&ok)
+	if err != nil && strings.Contains(err.Error(), "42P01") {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("look up pending approval: %w", err)
+	}
+	return ok, nil
+}
+
 // SetApprovalEmail records how the e-mail to the approvers went.
 func (r *AWSIntegrationRepository) SetApprovalEmail(ctx context.Context, id int64, status, errText string) error {
 	db, err := r.pool()

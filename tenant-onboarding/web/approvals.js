@@ -19,6 +19,7 @@
   let filter = 'pending';
   let query = '';
   let list = [];
+  let source = ''; // which database this page reads (shown, and named when empty)
   let loaded = false;
   let visible = false;
   let pendingCount = 0;
@@ -187,6 +188,8 @@
     }
     list = data.approvals || [];
     loaded = true;
+    source = data.source || '';
+    $('ap-source').textContent = source ? 'Reading ' + source : '';
     lastLoadedAt = Date.now();
     setBadges(data.pending || 0);
     if (data.latest_pending_id) {
@@ -262,6 +265,7 @@
           ' regions delivered events · ' + ev.messages_scanned + ' message(s) read')
         : el('span', { class: 'none' }, 'Checked after you approve')],
       ['Requested', el('span', {}, 'by ', el('strong', {}, a.requested_by || 'unknown'), ' ', when(a.requested_at))],
+      ['Request', el('span', { class: 'mono' }, '#' + a.id)],
       ['Workspace', el('span', { class: 'idline' }, el('code', {}, a.workspace), el('code', { title: a.tenant_id }, a.tenant_id.slice(0, 8)))],
     ];
     const head = el('div', { class: 'ap-head' },
@@ -292,7 +296,8 @@
     } else if (q) {
       renderEmpty('No request matches “' + query.trim() + '”', 'Search by company domain, workspace, AWS account or the person who asked.');
     } else if (filter === 'pending') {
-      renderEmpty('Nothing is waiting', 'When a company verifies a new AWS connection, it appears here and the approvers get an e-mail.');
+      renderEmpty('Nothing is waiting', 'When a company verifies a new AWS connection, it appears here and the approvers get an e-mail.' +
+        (source ? ' This page reads ' + source + '. If a company is shown "waiting for approval" but nothing is here, the API server writes to another database: its NHI_DB_HOST, NHI_DB_NAME and NHI_GLOBAL_SCHEMA must point to this one. The approval e-mail names the request number and where it was stored.' : ''));
     } else {
       renderEmpty('No decisions yet', 'Approved and rejected requests are listed here.');
     }

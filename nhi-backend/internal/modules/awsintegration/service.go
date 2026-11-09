@@ -76,6 +76,7 @@ type AWSIntegrationStore interface {
 	SaveChecks(ctx context.Context, schema, accountID string, checks []AWSCheck) error
 	RequestApproval(ctx context.Context, req ApprovalRequest) (int64, *AWSAccountRecord, error)
 	SetApprovalEmail(ctx context.Context, id int64, status, errText string) error
+	HasPendingApproval(ctx context.Context, tenantID, accountID string) (bool, error)
 	RecordConnectionRequest(ctx context.Context, req ConnectionRequest) (id int64, recentlyEmailed bool, err error)
 	SetRequestEmail(ctx context.Context, id int64, status, errText string) error
 	FinishConnectionRequest(ctx context.Context, id int64, outcome, detail string, checks []AWSCheck) error
@@ -140,6 +141,10 @@ type AWSIntegrationOptions struct {
 	// Mailer sends the approval notice; nil or unconfigured records
 	// "not_configured" on the request.
 	Mailer AWSMailer
+	// ApprovalsLocation names where approval requests are written
+	// ("<database>, schema <schema>"), so the e-mail says where the onboarding
+	// tool must look.
+	ApprovalsLocation string
 }
 
 // AWSCaller is who is asking, from the signed token.
@@ -254,6 +259,9 @@ func (s *AWSIntegrationService) Get(ctx context.Context, caller AWSCaller, canMa
 		// An admin approved this connection since the last read: its events
 		// check starts now.
 		s.resumeApproved(ctx, caller, &rec)
+		// Shown as waiting for approval: make sure the admins have something
+		// to approve.
+		s.ensureApprovalRequest(ctx, caller, rec)
 		// An events check saved as running whose watcher is not in this
 		// process stopped with it (a restart, a deploy): say so, rather than
 		// show a check that will never finish.
@@ -994,9 +1002,15 @@ func (s *AWSIntegrationService) askApproval(ctx context.Context, caller AWSCalle
 	result.Saved = true
 	result.Status = AWSStatusPendingApproval
 	if saved.Approval.Status == ApprovalPending {
-		// Asked already: nobody is e-mailed twice for one request.
-		log.Info("aws integration: connection already waits for approval")
-		return result, nil
+		// Asked already: nobody is e-mailed twice for one request - provided
+		// the request really is there for the admins to see. The account's own
+		// status is not proof of that.
+		exists, err := s.store.HasPendingApproval(ctx, caller.TenantID, rec.AccountID)
+		if err == nil && exists {
+			log.Info("aws integration: connection already waits for approval")
+			return result, nil
+		}
+		log.Warn("aws integration: the account waits for approval but no pending request exists for the admins; asking again", "lookup_err", err)
 	}
 	domain := ""
 	if settings != nil {
@@ -1019,6 +1033,55 @@ func (s *AWSIntegrationService) askApproval(ctx context.Context, caller AWSCalle
 		s.notifyApprovers(nctx, id, caller, domain, rec)
 	}()
 	return result, nil
+}
+
+// ensureApprovalRequest repairs an account that waits for approval while no
+// pending request exists in connection_approvals: without this it would wait
+// forever, with nothing on the onboarding tool's Approvals page. The request is
+// recreated as it was asked (same role, regions, checks and requester) and the
+// admins are e-mailed. Runs at most once at a time per account.
+func (s *AWSIntegrationService) ensureApprovalRequest(ctx context.Context, caller AWSCaller, rec AWSAccountRecord) {
+	if rec.Status != AWSStatusPendingApproval || rec.Approval.Status != ApprovalPending {
+		return
+	}
+	key := watchKey{caller.TenantID, "approval:" + rec.AccountID}
+	if _, busy := s.resuming.LoadOrStore(key, struct{}{}); busy {
+		return
+	}
+	defer s.resuming.Delete(key)
+	log := logging.FromContext(ctx).With("tenant_id", caller.TenantID, "account_id", rec.AccountID)
+	exists, err := s.store.HasPendingApproval(ctx, caller.TenantID, rec.AccountID)
+	if err != nil || exists {
+		if err != nil {
+			log.Warn("aws integration: could not check the approval request", "err", err)
+		}
+		return
+	}
+	settings, _ := s.store.TenantSettings(ctx, caller.TenantID)
+	domain := ""
+	if settings != nil {
+		domain = settings.Domain
+	}
+	asker := caller
+	if rec.Approval.RequestedBy != "" {
+		asker.Actor = rec.Approval.RequestedBy
+	}
+	reqCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+	defer cancel()
+	id, _, err := s.store.RequestApproval(reqCtx, ApprovalRequest{
+		TenantID: caller.TenantID, Schema: caller.Schema, Domain: domain, Account: rec,
+		Events: map[string]any{"stage": "after role and read access", "recreated": true}, RequestedBy: asker.Actor,
+	})
+	if err != nil {
+		log.Error("aws integration: the account waits for approval but its request is missing, and recreating it failed", "err", err)
+		return
+	}
+	log.Warn("aws integration: the account waited for approval with no request for the admins; the request was recreated", "approval_id", id)
+	go func() {
+		nctx, ncancel := context.WithTimeout(context.WithoutCancel(ctx), 90*time.Second)
+		defer ncancel()
+		s.notifyApprovers(nctx, id, asker, domain, rec)
+	}()
 }
 
 // startEvents lets the account put events on the central bus (the queue the

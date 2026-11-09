@@ -48,6 +48,16 @@ func databaseURL() string {
 	return u.String()
 }
 
+// describeSource says which database and schema a connection string reads,
+// without the user or password.
+func describeSource(dsn, schema string) string {
+	u, err := url.Parse(dsn)
+	if err != nil || u.Host == "" {
+		return "schema " + schema
+	}
+	return strings.TrimPrefix(u.Path, "/") + " on " + u.Host + ", schema " + schema
+}
+
 func envBool(key string) bool {
 	switch strings.ToLower(strings.TrimSpace(os.Getenv(key))) {
 	case "1", "true", "yes", "on":
@@ -110,6 +120,7 @@ func serve() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	svc.SetSource(describeSource(databaseURL(), env("GLOBAL_SCHEMA", "nhi_global")))
 	srv := &http.Server{
 		Addr:              ":" + env("PORT", "8090"),
 		Handler:           NewHandler(svc, auth, db),

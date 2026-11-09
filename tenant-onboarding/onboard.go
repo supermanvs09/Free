@@ -309,7 +309,12 @@ type Service struct {
 	global string
 	suffix string // appended to the workspace name to make each company's domain
 	now    func() time.Time
+	source string // which database and schema this tool reads, for the Approvals page
 }
+
+// SetSource names the database this tool reads ("nhi_db on db.example:5432,
+// schema nhi_global"); never the password.
+func (s *Service) SetSource(v string) { s.source = v }
 
 // NewService returns a Service over the database holding the global schema.
 // domainSuffix ends every generated domain (acme-corp.<suffix>).

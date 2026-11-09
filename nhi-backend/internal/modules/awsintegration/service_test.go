@@ -34,6 +34,8 @@ type fakeAWSStore struct {
 	emails    map[int64]string
 	withdrawn []string
 
+	lostApprovals bool // the approvals table lost its rows (another database, a deletion)
+
 	// the stored clicks of "Verify connection"
 	requests []ConnectionRequest
 	reqMail  map[int64]string
@@ -122,6 +124,20 @@ func (f *fakeAWSStore) RequestApproval(_ context.Context, req ApprovalRequest) (
 	f.accounts[rec.AccountID] = rec
 	f.approvals = append(f.approvals, req)
 	return int64(len(f.approvals)), &rec, nil
+}
+
+func (f *fakeAWSStore) HasPendingApproval(_ context.Context, _, accountID string) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.lostApprovals {
+		return false, nil
+	}
+	for _, a := range f.approvals {
+		if a.Account.AccountID == accountID {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (f *fakeAWSStore) SetApprovalEmail(_ context.Context, id int64, status, _ string) error {
@@ -1209,5 +1225,78 @@ func TestReadAccessFixNamesTheCustomersOwnRole(t *testing.T) {
 	}
 	if c := res.Checks[1]; c.State != AWSCheckFail || !strings.HasSuffix(c.Fix, "to AcmeReadOnlyForAdapID") {
 		t.Fatalf("read check = %+v", c)
+	}
+}
+
+// An account that says "waiting for approval" while the admins have no
+// request to approve is repaired: Verify again asks again, and so does simply
+// opening the Integrations page.
+func TestWaitingAccountWithoutARequestIsAskedAgain(t *testing.T) {
+	for _, via := range []string{"verify", "page"} {
+		t.Run(via, func(t *testing.T) {
+			store := newFakeAWSStore()
+			svc := newTestService(store, &fakeVerifier{}, nil, fakeEvents{found: true})
+			mail := &fakeMailer{}
+			svc.mailer = mail
+			if _, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"}); err != nil {
+				t.Fatal(err)
+			}
+			waitFor(t, "the first approval e-mail", func() bool { return len(mail.subjects()) == 2 })
+			// The request disappears from the approvals table; the account still waits.
+			store.mu.Lock()
+			store.lostApprovals = true
+			store.mu.Unlock()
+			if via == "verify" {
+				if _, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"}); err != nil {
+					t.Fatal(err)
+				}
+			} else if _, err := svc.Get(context.Background(), awsTestCaller, true); err != nil {
+				t.Fatal(err)
+			}
+			store.mu.Lock()
+			asked := len(store.approvals)
+			store.mu.Unlock()
+			if asked != 2 {
+				t.Fatalf("approval requests = %d, want the lost one asked again", asked)
+			}
+			waitFor(t, "the approval e-mail for the new request", func() bool {
+				for _, s := range mail.subjects()[2:] {
+					if strings.HasPrefix(s, "Approval needed") {
+						return true
+					}
+				}
+				return false
+			})
+		})
+	}
+}
+
+// With the request in place, opening the page asks nothing and mails nobody.
+func TestWaitingAccountWithItsRequestIsLeftAlone(t *testing.T) {
+	store := newFakeAWSStore()
+	svc := newTestService(store, &fakeVerifier{}, nil, fakeEvents{found: true})
+	mail := &fakeMailer{}
+	svc.mailer = mail
+	if _, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"}); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "the e-mails", func() bool { return len(mail.subjects()) == 2 })
+	for i := 0; i < 3; i++ {
+		if _, err := svc.Get(context.Background(), awsTestCaller, true); err != nil {
+			t.Fatal(err)
+		}
+	}
+	time.Sleep(100 * time.Millisecond)
+	if len(store.approvals) != 1 || len(mail.subjects()) != 2 {
+		t.Fatalf("page reads changed something: %d requests, %d e-mails", len(store.approvals), len(mail.subjects()))
+	}
+}
+
+func TestApprovalEmailSaysWhereTheRequestIs(t *testing.T) {
+	_, h, text := approvalEmail(awsTestCaller, "acme.com", AWSAccountRecord{AccountID: "222222222222"}, 7, "nhi_db, schema nhi_global, table connection_approvals")
+	for _, body := range []string{h, text} {
+		if !strings.Contains(body, "#7 (in nhi_db, schema nhi_global, table connection_approvals)") {
+			t.Fatalf("e-mail lacks the request and where it is:\n%s", body)
+		}
 	}
 }
