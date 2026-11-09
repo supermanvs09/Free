@@ -63,12 +63,14 @@ server {
         application/manifest+json
         image/svg+xml;
 
-    include /etc/nginx/snippets/security-headers.conf;
+    # Security headers are included per location, not here: a location with
+    # no add_header of its own would inherit them, and /api must send only the
+    # API's own set (twice-sent headers are a finding of their own).
 
     # ── 1. NHI backend ────────────────────────────────────────────────
     # This upstream serves the /api prefix itself, so the path is forwarded
     # unchanged - no rewrite.
-    location /api/ {
+    location ^~ /api/ {
         set $api_upstream "${API_UPSTREAM}";
         proxy_pass $api_upstream$request_uri;
 
@@ -86,8 +88,9 @@ server {
         proxy_read_timeout 60s;
 
         proxy_buffering off;
-        include /etc/nginx/snippets/security-headers.conf;
-        add_header Cache-Control "no-store" always;
+        # The API sends its own security headers (stricter than the page's:
+        # default-src 'none') and Cache-Control: no-store. Adding nginx's here
+        # would send every one of them twice.
     }
 
     # ── 1b. Discovery scanner (scan start / status) ───────────────────
@@ -95,7 +98,7 @@ server {
     # browser stays same-origin (no CORS) and no host name is built into the
     # bundle. The user's bearer token is forwarded as it came; DISCOVERY_API_KEY,
     # when set, is added as X-API-Key for a scanner that wants one.
-    location /scan-api/ {
+    location ^~ /scan-api/ {
         set $scan_upstream "${DISCOVERY_UPSTREAM}";
         rewrite ^/scan-api/(.*)$ /$1 break;
         proxy_pass $scan_upstream;
@@ -110,6 +113,16 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-API-Key "${DISCOVERY_API_KEY}";
+        # The scanner's own copies of these are replaced by ours below, and
+        # nothing about the scanner's software is passed on.
+        proxy_hide_header Strict-Transport-Security;
+        proxy_hide_header X-Frame-Options;
+        proxy_hide_header X-Content-Type-Options;
+        proxy_hide_header Referrer-Policy;
+        proxy_hide_header Content-Security-Policy;
+        proxy_hide_header Cache-Control;
+        proxy_hide_header Server;
+        proxy_hide_header X-Powered-By;
 
         proxy_connect_timeout 10s;
         proxy_send_timeout 30s;
@@ -151,6 +164,7 @@ server {
     # anything not on disk is answered with the app shell.
     location / {
         try_files $uri $uri/ /index.html;
+        include /etc/nginx/snippets/security-headers.conf;
     }
 
     # ── Health ──────────────────────────────────────────────────────────────
@@ -161,12 +175,21 @@ server {
     location = /healthz {
         access_log off;
         default_type text/plain;
+        include /etc/nginx/snippets/security-headers.conf;
         add_header Cache-Control "no-store" always;
         return 200 "ok\n";
     }
 
+    # Source maps and source files are never built into the image; if one ever
+    # is, it is still not served.
+    location ~* \.(map|jsx|tsx?|mjs\.map|env|lock|log)$ {
+        include /etc/nginx/snippets/security-headers.conf;
+        return 404;
+    }
+
     # Do not serve dotfiles, whatever ends up in the image.
     location ~ /\. {
+        include /etc/nginx/snippets/security-headers.conf;
         deny all;
         access_log off;
         log_not_found off;

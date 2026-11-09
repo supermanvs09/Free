@@ -1,8 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { fetchMe, login as loginRequest, logout as logoutRequest, profileFrom } from '../lib/api/auth';
-import { onSessionExpired } from '../lib/api/client';
+import { onSessionExpired, renewSession } from '../lib/api/client';
 import { clearFacetRailState } from '../ui/FacetRail';
-import { adoptSession, clearLastActivity, clearSession, readStoredUser, readToken, subscribeSignOut, writeLastActivity, writeSession, writeStoredUser } from '../lib/api/session';
+import { clearLastActivity, clearSession, readStoredUser, readToken, subscribeSignOut, writeLastActivity, writeSession, writeStoredUser } from '../lib/api/session';
 
 const AuthContext = createContext(null);
 
@@ -16,14 +16,13 @@ const AuthContext = createContext(null);
  * that fails does the session end (`expired` tells the sign-in page why).
  */
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => {
-    adoptSession();
-    return readToken();
-  });
+  const [token, setToken] = useState(readToken);
   // Seeded from storage so a refresh renders the shell immediately and the
   // profile request only corrects it.
   const [user, setUser] = useState(readStoredUser);
-  const [status, setStatus] = useState(() => (readToken() ? 'verifying' : 'anonymous'));
+  /* A tab with no access token of its own (a new tab) still asks: the refresh
+     cookie may hold a session another tab started. */
+  const [status, setStatus] = useState('verifying');
   const [expired, setExpired] = useState(false);
   /* Why the last session ended, for the sign-in page: 'signout' (the person
      chose to), 'switch' (sign in as another user), 'idle' (no activity for
@@ -68,6 +67,27 @@ export function AuthProvider({ children }) {
     });
   }, [endSession]);
 
+  useEffect(() => {
+    if (token) return undefined;
+    let live = true;
+    renewSession().then((renewed) => {
+      if (!live) return;
+      if (!renewed) {
+        setStatus('anonymous');
+        return;
+      }
+      const profile = profileFrom(renewed.user);
+      writeStoredUser(profile);
+      setUser(profile);
+      setToken(readToken());
+    });
+    return () => {
+      live = false;
+    };
+    // Only on first load: afterwards a missing token means signed out.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /* Confirm a stored session and refresh the role/tenant from the server. */
   useEffect(() => {
     if (!token) return undefined;
@@ -104,7 +124,7 @@ export function AuthProvider({ children }) {
 
   const signIn = useCallback(async ({ email, password }) => {
     const result = await loginRequest({ email, password });
-    writeSession({ token: result.token, refreshToken: result.refreshToken, user: result.user });
+    writeSession({ token: result.token, user: result.user });
     writeLastActivity();
     setExpired(false);
     setEndReason(null);

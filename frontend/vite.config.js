@@ -35,6 +35,18 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
-    build: { outDir: 'dist', sourcemap: false },
+    // No source maps, no comments, no console output in the shipped bundle:
+    // what reaches the browser is the minified app and nothing that maps it
+    // back to the source tree.
+    build: {
+      outDir: 'dist',
+      sourcemap: false,
+      rolldownOptions: {
+        output: {
+          comments: false,
+          minify: { compress: { dropConsole: true, dropDebugger: true } },
+        },
+      },
+    },
   };
 });

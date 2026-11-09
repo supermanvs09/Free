@@ -61,6 +61,7 @@ import (
 	"nhi-backend-api/internal/platform/clickhouse"
 	"nhi-backend-api/internal/platform/config"
 	"nhi-backend-api/internal/platform/database"
+	"nhi-backend-api/internal/platform/fieldcrypt"
 	"nhi-backend-api/internal/platform/githubcheck"
 	"nhi-backend-api/internal/platform/logging"
 	"nhi-backend-api/internal/platform/mailer"
@@ -183,6 +184,11 @@ func main() {
 	resolver := scope.NewResolver(db)
 
 	authService := auth.NewAuthService(userRepo, cfg.JWT)
+	// Passwords arrive encrypted (see fieldcrypt); the key comes from the JWT secret.
+	if err := fieldcrypt.Init(cfg.JWT.Secret); err != nil {
+		slog.Error("password encryption key", "err", err)
+		os.Exit(1)
+	}
 	authHandler := auth.NewAuthHandler(authService)
 	authMiddleware := middleware.NewAuthMiddleware(cfg.JWT, userRepo)
 
@@ -386,7 +392,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:        fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),
-		Handler:     middleware.SetupCORS(cfg.CORS)(router),
+		Handler:     middleware.SecurityHeaders(middleware.SetupCORS(cfg.CORS)(router)),
 		ReadTimeout: 15 * time.Second,
 		// Above the slowest handler: AWS verify runs up to 12 s of checks and
 		// then a 5 s save; queries stop at the 25 s statement_timeout.

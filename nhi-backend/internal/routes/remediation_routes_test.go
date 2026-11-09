@@ -28,9 +28,9 @@ const (
 // from here, not from the token.
 type roleByEmail map[string]string
 
-func (m roleByEmail) ValidateAuthContext(_ context.Context, email, _, _, _ string) (bool, string, error) {
+func (m roleByEmail) ValidateAuthContext(_ context.Context, email, _, _ string) (bool, string, string, error) {
 	role, ok := m[email]
-	return ok, role, nil
+	return ok, role, "bimasugam", nil
 }
 
 // remediationRouter mounts the remediation endpoints behind the real auth
@@ -48,7 +48,7 @@ func remCall(t *testing.T, r http.Handler, user, method, path, body string) *htt
 	t.Helper()
 	req := httptest.NewRequest(method, path, strings.NewReader(body))
 	if user != "" {
-		tok, err := jwt.GenerateToken(user, remTestTenant, "bimasugam", "", remTestSession, remTestSecret, time.Minute)
+		tok, err := jwt.GenerateToken(user, remTestTenant, "", remTestSession, remTestSecret, time.Minute)
 		if err != nil {
 			t.Fatal(err)
 		}

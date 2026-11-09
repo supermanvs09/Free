@@ -43,7 +43,7 @@ type RefreshRequest struct {
 // access token; RefreshToken is opaque and single-use (rotated on refresh).
 type LoginResponse struct {
 	Token            string `json:"token"`
-	RefreshToken     string `json:"refresh_token"`
+	RefreshToken     string `json:"-"` // sent only as the HttpOnly nhi_refresh cookie
 	User             User   `json:"user"`
 	ExpiresIn        int    `json:"expires_in"`
 	RefreshExpiresIn int    `json:"refresh_expires_in"`

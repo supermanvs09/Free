@@ -11,6 +11,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"nhi-backend-api/internal/platform/authz"
+	"nhi-backend-api/internal/platform/fieldcrypt"
 	"nhi-backend-api/internal/platform/httpx"
 	"nhi-backend-api/internal/platform/middleware"
 )
@@ -101,6 +102,12 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &req) {
 		return
 	}
+	pw, err := fieldcrypt.Open(req.Password)
+	if err != nil {
+		invalid(w, "The password must be sent encrypted. Reload the page and try again.", "password")
+		return
+	}
+	req.Password = pw
 	req.Email = strings.ToLower(trim(req.Email, 320))
 	req.Role = strings.ToLower(trim(req.Role, 40))
 	req.Status = strings.ToLower(trim(req.Status, 20))
@@ -230,7 +237,11 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if req.Password != nil {
-		pw := *req.Password
+		pw, err := fieldcrypt.Open(*req.Password)
+		if err != nil {
+			invalid(w, "The password must be sent encrypted. Reload the page and try again.", "password")
+			return
+		}
 		if len(pw) < minPasswordLen || len(pw) > maxPasswordLen {
 			invalid(w, "Use a password of "+strconv.Itoa(minPasswordLen)+" to "+strconv.Itoa(maxPasswordLen)+" characters.", "password")
 			return

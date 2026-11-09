@@ -290,7 +290,7 @@ func (c *Config) applyDefaults() {
 		c.Database.Schema = DefaultGlobalSchema
 	}
 	if c.JWT.SessionMaxHours == 0 {
-		c.JWT.SessionMaxHours = max(720, c.JWT.RefreshTTLHours) // 30 days
+		c.JWT.SessionMaxHours = max(12, c.JWT.RefreshTTLHours) // one working day
 	}
 	if c.ClickHouse.Port == 0 {
 		c.ClickHouse.Port = 9000

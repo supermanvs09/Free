@@ -4,8 +4,9 @@ One Go service (`cmd/api-server`, port 8080) behind the NHI console. It serves
 every API the console uses - inventory, posture, NHI Genome, integrations,
 change tracking and credential exposure - from one process, behind one sign-in.
 
-- **Tenant** comes only from the signed JWT (`tenant_id`, `db_name` = the
-  tenant's PostgreSQL schema). Nothing a client sends can choose another tenant.
+- **Tenant** comes only from the signed JWT (`tenant_id`); the tenant's
+  PostgreSQL schema is looked up from it on every request and never sent to a
+  client. Nothing a client sends can choose another tenant.
 - **Scope**: inventory, genome and change tracking answer only for the accounts
   and regions the user selected (Settings; a saved `"all"` means every
   account or region of the tenant); posture covers the whole tenant. Genome
@@ -105,10 +106,13 @@ is not fully set up), every API answers **503 `TENANT_NOT_PROVISIONED`**.
 
 | Method | Path | What it does |
 |---|---|---|
-| POST | `/login` | Email + password → access token (1 h) and refresh token (7 d); starts a session. 429 `RATE_LIMITED` after 60 tries a minute per address or 5 per account; 403 `ACCOUNT_DISABLED` for a disabled account with the right password. |
-| POST | `/refresh` | Swaps a refresh token for a new pair (single use; reusing an old one ends every session of the user). Refused once the session is 30 days old. |
-| POST | `/logout` | Ends the session; its access token stops working everywhere at once. |
+| GET | `/auth/key` | The public key passwords are encrypted to (`internal/platform/fieldcrypt`). Every password field - login, `/me/password`, `/users` - must be sealed (`v1.…`); plain text is refused with 400. |
+| POST | `/login` | Email + sealed password → access token (15 min) in the body, refresh token (idle 1 h) only as the `nhi_refresh` cookie (HttpOnly, Secure, SameSite=Strict, Path=/api); starts a session. 429 `RATE_LIMITED` after 60 tries a minute per address or 5 per account; 403 `ACCOUNT_DISABLED` for a disabled account with the right password. |
+| POST | `/refresh` | Swaps the refresh cookie (or a `refresh_token` body, for non-browser clients) for a new pair (single use; reusing an old one ends every session of the user). Refused once the session is 12 hours old. |
+| POST | `/logout` | Ends the session and clears the cookie; its access token stops working everywhere at once. |
 | GET | `/me` | The signed-in user: email, role, tenant. |
+
+Every response carries HSTS, a `default-src 'none'` CSP, `nosniff`, `DENY` framing and `no-store` (`middleware.SecurityHeaders`).
 
 ### Workspace scope
 
@@ -364,8 +368,9 @@ nhi_db (config: database)
         └── identities, credentials, trust_edges, user_settings, …
 ```
 
-Login validates the user in `nhi_global`, looks up the tenant's schema name, and issues a
-JWT carrying `tenant_id` and `db_name` (the schema name). Every tenant query is
+Login validates the user in `nhi_global` and issues a JWT carrying `tenant_id`;
+the auth middleware looks up the tenant's schema name (`db_name`) from the
+registry on every request, so it never appears in a token or a response. Every tenant query is
 schema-qualified from `DataScope` (`resolved.QSchema()` / `resolved.Table("x")`);
 `search_path` is never changed. Schema names are validated (`config.ValidateSchemaName`)
 and quoted before use.

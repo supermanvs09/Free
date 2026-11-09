@@ -1,14 +1,17 @@
-import { REFRESH_KEY, TOKEN_KEY, USER_KEY } from './http';
+import { TOKEN_KEY, USER_KEY } from './http';
 
 /**
- * Where the signed-in session is kept: this tab first, then the browser.
+ * Where the signed-in session is kept.
  *
- * Signing in writes both, so a new tab opens signed in. The session is a
- * short-lived access token plus a single-use refresh token; the client swaps
- * the pair when the access token expires (see client.js).
+ *   access token + profile   this tab's sessionStorage (short-lived, 15 min)
+ *   refresh token            an HttpOnly, Secure, SameSite=Strict cookie the
+ *                            server sets; no script on the page can read it
  *
- * Signing out clears both, and every other tab holding that same session
- * signs out too (see `subscribeSignOut`).
+ * Nothing that grants access is written to localStorage. A new tab has no
+ * access token of its own and gets one by renewing through the cookie (see
+ * client.js `renewSession`). Signing out in one tab ends the session for all
+ * of them: the cookie is shared, and the other tabs are told (see
+ * `subscribeSignOut`).
  */
 function tabStore() {
   try {
@@ -20,7 +23,7 @@ function tabStore() {
 
 function read(key) {
   try {
-    return tabStore()?.getItem(key) ?? localStorage.getItem(key);
+    return tabStore()?.getItem(key) ?? null;
   } catch {
     return null;
   }
@@ -28,41 +31,6 @@ function read(key) {
 
 export function readToken() {
   return read(TOKEN_KEY);
-}
-
-export function readRefreshToken() {
-  return read(REFRESH_KEY);
-}
-
-/** The browser-wide copy of the refresh token (what another tab last stored). */
-export function readSharedRefreshToken() {
-  try {
-    return localStorage.getItem(REFRESH_KEY);
-  } catch {
-    return null;
-  }
-}
-
-export function readSharedToken() {
-  try {
-    return localStorage.getItem(TOKEN_KEY);
-  } catch {
-    return null;
-  }
-}
-
-/** A new tab starts from the browser copy. */
-export function adoptSession() {
-  const store = tabStore();
-  try {
-    if (!store || store.getItem(TOKEN_KEY)) return;
-    for (const key of [TOKEN_KEY, REFRESH_KEY, USER_KEY]) {
-      const value = localStorage.getItem(key);
-      if (value) store.setItem(key, value);
-    }
-  } catch {
-    /* see writeSession */
-  }
 }
 
 export function readStoredUser() {
@@ -74,67 +42,53 @@ export function readStoredUser() {
   }
 }
 
-export function writeSession({ token, refreshToken, user }) {
-  for (const store of [tabStore(), localStorage]) {
-    try {
-      if (token) store?.setItem(TOKEN_KEY, token);
-      if (refreshToken) store?.setItem(REFRESH_KEY, refreshToken);
-      if (user) store?.setItem(USER_KEY, JSON.stringify(user));
-    } catch {
-      /* A private window refuses storage; the session lasts for this page. */
-    }
+export function writeSession({ token, user }) {
+  try {
+    const store = tabStore();
+    if (token) store?.setItem(TOKEN_KEY, token);
+    if (user) store?.setItem(USER_KEY, JSON.stringify(user));
+  } catch {
+    /* A private window refuses storage; the session lasts for this page. */
   }
 }
 
-/** Refresh the stored profile without touching the tokens. */
+/** Refresh the stored profile without touching the token. */
 export function writeStoredUser(user) {
-  for (const store of [tabStore(), localStorage]) {
-    try {
-      if (store?.getItem(TOKEN_KEY) === readToken()) store.setItem(USER_KEY, JSON.stringify(user));
-    } catch {
-      /* see writeSession */
-    }
-  }
+  writeSession({ user });
+}
+
+/* Clean up what older builds kept browser-wide. */
+try {
+  for (const key of [TOKEN_KEY, USER_KEY, 'dna.refresh']) localStorage.removeItem(key);
+} catch {
+  /* nothing kept */
 }
 
 const SIGNED_OUT_KEY = 'dna.signedOut';
 
-export function clearSession() {
-  const token = readToken();
-  const refresh = readRefreshToken();
+export function clearSession({ broadcast = true } = {}) {
   try {
-    for (const key of [TOKEN_KEY, REFRESH_KEY, USER_KEY]) tabStore()?.removeItem(key);
+    for (const key of [TOKEN_KEY, USER_KEY]) tabStore()?.removeItem(key);
   } catch {
     /* see writeSession */
   }
+  if (!broadcast) return;
   try {
-    /* The browser copy goes only if it is this same session (or its rotated
-       successor); a different sign-in from another tab is theirs to keep. */
-    if (localStorage.getItem(TOKEN_KEY) === token || localStorage.getItem(REFRESH_KEY) === refresh) {
-      for (const key of [TOKEN_KEY, REFRESH_KEY, USER_KEY]) localStorage.removeItem(key);
-    }
-    if (token) {
-      localStorage.setItem(SIGNED_OUT_KEY, JSON.stringify({ token, refresh, at: Date.now() }));
-      localStorage.removeItem(SIGNED_OUT_KEY);
-    }
+    /* A notice only - no token is ever written here. */
+    localStorage.setItem(SIGNED_OUT_KEY, String(Date.now()));
+    localStorage.removeItem(SIGNED_OUT_KEY);
   } catch {
     /* see writeSession */
   }
 }
 
-/** Calls `handler` when another tab signs out of the session this tab holds. */
+/** Calls `handler` when another tab signs out (the shared session is over). */
 export function subscribeSignOut(handler) {
   const onStorage = (event) => {
     if (event.key !== SIGNED_OUT_KEY || !event.newValue) return;
-    try {
-      const { token, refresh } = JSON.parse(event.newValue);
-      if ((token && token === readToken()) || (refresh && refresh === readRefreshToken())) {
-        for (const key of [TOKEN_KEY, REFRESH_KEY, USER_KEY]) tabStore()?.removeItem(key);
-        handler();
-      }
-    } catch {
-      /* A malformed notice is ignored. */
-    }
+    if (!readToken()) return;
+    clearSession({ broadcast: false });
+    handler();
   };
   window.addEventListener('storage', onStorage);
   return () => window.removeEventListener('storage', onStorage);

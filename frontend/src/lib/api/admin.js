@@ -1,5 +1,6 @@
 import client from './client';
 import { ApiError, unwrapMain } from './http';
+import { seal } from './seal';
 
 /**
  * Administration of the console itself: the people who can sign in
@@ -39,7 +40,7 @@ export async function createUser(input) {
   return call(
     client.post('/api/v1/users', {
       email: input.email,
-      password: input.password,
+      password: await seal(input.password ?? ''),
       full_name: input.fullName || '',
       team: input.team || '',
       department: input.department || '',
@@ -57,7 +58,7 @@ export async function updateUser(id, changes) {
   if (changes.department !== undefined) body.department = changes.department;
   if (changes.role !== undefined) body.role = changes.role;
   if (changes.status !== undefined) body.status = changes.status;
-  if (changes.password !== undefined) body.password = changes.password;
+  if (changes.password !== undefined) body.password = await seal(changes.password);
   return call(client.patch(`/api/v1/users/${encodeURIComponent(id)}`, body));
 }
 
@@ -66,7 +67,12 @@ export async function deleteUser(id) {
 }
 
 export async function changeOwnPassword({ currentPassword, newPassword }) {
-  return call(client.patch('/api/v1/me/password', { current_password: currentPassword, new_password: newPassword }));
+  return call(
+    client.patch('/api/v1/me/password', {
+      current_password: await seal(currentPassword),
+      new_password: await seal(newPassword),
+    }),
+  );
 }
 
 /* ── Audit log ──────────────────────────────────────────────────────────── */

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"nhi-backend-api/internal/platform/audit"
+	"nhi-backend-api/internal/platform/fieldcrypt"
 	"nhi-backend-api/internal/platform/httpx"
 	"nhi-backend-api/internal/platform/logging"
 	"nhi-backend-api/internal/platform/middleware"
@@ -99,7 +100,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
-	if err := dec.Decode(&req); err != nil {
+	err := dec.Decode(&req)
+	if err != nil {
 		sendJSON(w, http.StatusBadRequest, httpx.APIResponse{
 			Success: false,
 			Message: "Invalid request payload",
@@ -108,6 +110,14 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.Password, err = fieldcrypt.Open(req.Password); err != nil {
+		sendJSON(w, http.StatusBadRequest, httpx.APIResponse{
+			Success: false,
+			Message: "The password must be sent encrypted. Reload the page and try again.",
+			Error:   "PASSWORD_NOT_ENCRYPTED",
+		})
+		return
+	}
 	if req.Login() == "" || req.Password == "" {
 		sendJSON(w, http.StatusBadRequest, httpx.APIResponse{
 			Success: false,
@@ -155,6 +165,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// Name the caller for the audit middleware. It sits outside authentication,
 	// so until a password has been checked there is nobody to name.
 	audit.SetCaller(r.Context(), audit.Caller{Actor: resp.User.Email, Role: resp.User.Role, TenantID: resp.User.TenantID})
+	setRefreshCookie(w, resp.RefreshToken, resp.RefreshExpiresIn)
 	sendJSON(w, http.StatusOK, httpx.APIResponse{
 		Success: true,
 		Message: "Login successful",
@@ -162,10 +173,34 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// decodeRefreshRequest reads and validates the {"refresh_token"} body.
+// refreshCookie holds the refresh token. HttpOnly keeps it out of reach of any
+// script on the page, Secure keeps it off plain HTTP, SameSite=Strict keeps
+// another site from making the browser send it. Path /api covers both the
+// /api/v1 and /api/auth spellings of refresh and logout.
+const refreshCookie = "nhi_refresh"
+
+func setRefreshCookie(w http.ResponseWriter, token string, maxAge int) {
+	http.SetCookie(w, &http.Cookie{
+		Name: refreshCookie, Value: token, Path: "/api", MaxAge: maxAge,
+		HttpOnly: true, Secure: true, SameSite: http.SameSiteStrictMode,
+	})
+}
+
+func clearRefreshCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name: refreshCookie, Value: "", Path: "/api", MaxAge: -1,
+		HttpOnly: true, Secure: true, SameSite: http.SameSiteStrictMode,
+	})
+}
+
+// decodeRefreshRequest returns the refresh token: the cookie a browser holds,
+// or, for a non-browser client, the {"refresh_token"} body.
 func decodeRefreshRequest(w http.ResponseWriter, r *http.Request) (string, bool) {
 	if rejectUnknownQuery(w, r, noQueryAllowed) {
 		return "", false
+	}
+	if c, err := r.Cookie(refreshCookie); err == nil && strings.TrimSpace(c.Value) != "" {
+		return strings.TrimSpace(c.Value), true
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	defer r.Body.Close()
@@ -197,6 +232,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logging.FromContext(r.Context()).Warn("refresh failed", "err", err)
 		logging.Audit(r.Context(), "refresh", "", "", "", "failure")
+		clearRefreshCookie(w)
 		sendJSON(w, http.StatusUnauthorized, httpx.APIResponse{
 			Success: false,
 			Message: "Invalid or expired refresh token",
@@ -204,6 +240,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+	setRefreshCookie(w, resp.RefreshToken, resp.RefreshExpiresIn)
 	sendJSON(w, http.StatusOK, httpx.APIResponse{
 		Success: true,
 		Message: "Token refreshed",
@@ -213,6 +250,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 
 // Logout handles POST /api/v1/logout
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	clearRefreshCookie(w) // whatever happens next, this browser is signed out
 	token, ok := decodeRefreshRequest(w, r)
 	if !ok {
 		return
@@ -228,6 +266,12 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 	logging.Audit(r.Context(), "logout", "", "", "", "success")
 	sendJSON(w, http.StatusOK, httpx.APIResponse{Success: true, Message: "Logged out"})
+}
+
+// PublicKey handles GET /api/v1/auth/key: the key the console encrypts
+// passwords to before sending them (see fieldcrypt).
+func (h *AuthHandler) PublicKey(w http.ResponseWriter, r *http.Request) {
+	sendJSON(w, http.StatusOK, httpx.APIResponse{Success: true, Message: "Key", Data: map[string]string{"alg": "ECDH-P256+A256GCM", "key": fieldcrypt.PublicKey()}})
 }
 
 // Me handles GET /api/v1/me
@@ -252,7 +296,6 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		Data: map[string]interface{}{
 			"user_id":   claims.UserID,
 			"tenant_id": claims.TenantID,
-			"db_name":   claims.DBName,
 			"role":      claims.Role,
 			// What the role means, from the same table the API enforces, so
 			// the console shows exactly the controls that will be allowed

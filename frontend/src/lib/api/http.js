@@ -1,7 +1,6 @@
 import axios from 'axios';
 
 export const TOKEN_KEY = 'dna.token';
-export const REFRESH_KEY = 'dna.refresh';
 export const USER_KEY = 'dna.user';
 
 /**

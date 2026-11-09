@@ -26,7 +26,7 @@ var tenantIDRE = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0
 var sessionIDRE = tenantIDRE
 
 type AuthContextValidator interface {
-	ValidateAuthContext(ctx context.Context, email, tenantID, dbName, sessionID string) (valid bool, role string, err error)
+	ValidateAuthContext(ctx context.Context, email, tenantID, sessionID string) (valid bool, role, dbName string, err error)
 }
 
 type AuthMiddleware struct {
@@ -52,13 +52,12 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 		}
 		claims.UserID = strings.TrimSpace(claims.UserID)
 		claims.TenantID = strings.TrimSpace(claims.TenantID)
-		claims.DBName = strings.TrimSpace(claims.DBName)
 		claims.ID = strings.TrimSpace(claims.ID)
 		if !sessionIDRE.MatchString(claims.ID) {
 			respondUnauthorized(w, r, "Token is missing a valid session id")
 			return
 		}
-		if claims.UserID == "" || claims.UserID != strings.TrimSpace(claims.Email) || claims.UserID != strings.TrimSpace(claims.Subject) || !tenantIDRE.MatchString(claims.TenantID) || config.ValidateSchemaName(claims.DBName) != nil {
+		if claims.UserID == "" || claims.UserID != strings.TrimSpace(claims.Email) || claims.UserID != strings.TrimSpace(claims.Subject) || !tenantIDRE.MatchString(claims.TenantID) {
 			respondUnauthorized(w, r, "Token is missing or has invalid tenant claims")
 			return
 		}
@@ -67,16 +66,17 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 			respondError(w, r, http.StatusServiceUnavailable, "Authentication state validation is unavailable", "AUTH_STATE_UNAVAILABLE")
 			return
 		}
-		valid, role, err := m.validator.ValidateAuthContext(r.Context(), claims.UserID, claims.TenantID, claims.DBName, claims.ID)
+		valid, role, dbName, err := m.validator.ValidateAuthContext(r.Context(), claims.UserID, claims.TenantID, claims.ID)
 		if err != nil {
 			logging.FromContext(r.Context()).Error("auth state check failed", "err", err, "tenant_id", claims.TenantID)
 			respondError(w, r, http.StatusServiceUnavailable, "Unable to verify account and tenant status", "AUTH_STATE_CHECK_FAILED")
 			return
 		}
-		if !valid {
+		if !valid || config.ValidateSchemaName(dbName) != nil {
 			respondUnauthorized(w, r, "Session has ended or account is no longer active")
 			return
 		}
+		claims.DBName = dbName                                             // from the registry, never from the token
 		claims.Role = role                                                 // the database's current role, not the token's
 		r = r.WithContext(chclient.WithTenant(r.Context(), claims.DBName)) // per-tenant ClickHouse database
 		logging.RequestFrom(r.Context()).SetActor(claims.TenantID, claims.UserID)

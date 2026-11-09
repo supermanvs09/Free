@@ -28,9 +28,9 @@ const httpTestSecret = "remediation-http-integration-secret-0123456789"
 
 type httpUsers map[string]string
 
-func (m httpUsers) ValidateAuthContext(_ context.Context, email, _, _, _ string) (bool, string, error) {
+func (m httpUsers) ValidateAuthContext(_ context.Context, email, _, _ string) (bool, string, string, error) {
 	role, ok := m[email]
-	return ok, role, nil
+	return ok, role, "bimasugam", nil
 }
 
 func TestOneClickFlowHTTP(t *testing.T) {
@@ -42,7 +42,7 @@ func TestOneClickFlowHTTP(t *testing.T) {
 	})
 	call := func(user, method, path, body string, want int) map[string]any {
 		t.Helper()
-		tok, err := jwt.GenerateToken(user, tenantID, "bimasugam", "", "44444444-4444-4444-4444-444444444444", httpTestSecret, time.Minute)
+		tok, err := jwt.GenerateToken(user, tenantID, "", "44444444-4444-4444-4444-444444444444", httpTestSecret, time.Minute)
 		if err != nil {
 			t.Fatal(err)
 		}

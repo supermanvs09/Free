@@ -17,9 +17,9 @@ database:
 # secret coming from .env
 jwt:
   secret: ""
-  access_ttl_minutes: 60   # access token: 1 hour
-  refresh_ttl_hours: 168   # refresh token: 7 days
-  session_max_hours: 720   # sign in again after 30 days, however often refreshed
+  access_ttl_minutes: 15   # access token: 15 minutes
+  refresh_ttl_hours: 1     # no request for an hour ends the session on the server too
+  session_max_hours: 12    # sign in again after 12 hours, however often refreshed
 
 # Structured logging to stdout (env: NHI_LOG_LEVEL, NHI_LOG_FORMAT, NHI_SLOW_QUERY_MS).
 logging:

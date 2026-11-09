@@ -11,6 +11,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"nhi-backend-api/internal/platform/database"
+	"nhi-backend-api/internal/platform/fieldcrypt"
 	"nhi-backend-api/internal/platform/httpx"
 	"nhi-backend-api/internal/platform/middleware"
 )
@@ -44,6 +45,14 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&req); err != nil {
 		sendJSON(w, http.StatusBadRequest, httpx.APIResponse{Success: false, Message: "Invalid JSON request body", Error: "INVALID_REQUEST"})
+		return
+	}
+	var errCur, errNew error
+	req.CurrentPassword, errCur = fieldcrypt.Open(req.CurrentPassword)
+	req.NewPassword, errNew = fieldcrypt.Open(req.NewPassword)
+	if errCur != nil || errNew != nil {
+		sendJSON(w, http.StatusBadRequest, httpx.APIResponse{Success: false,
+			Message: "Passwords must be sent encrypted. Reload the page and try again.", Error: "PASSWORD_NOT_ENCRYPTED"})
 		return
 	}
 	if len(req.NewPassword) < minOwnPasswordLen || len(req.NewPassword) > maxOwnPasswordLen {

@@ -112,6 +112,7 @@ func SetupRoutes(h HandlerContainer) *mux.Router {
 	}).Methods(http.MethodGet)
 
 	if h.AuthHandler != nil {
+		r.HandleFunc("/api/v1/auth/key", h.AuthHandler.PublicKey).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/login", h.AuthHandler.Login).Methods(http.MethodPost)
 		r.HandleFunc("/api/auth/login", h.AuthHandler.Login).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/refresh", h.AuthHandler.Refresh).Methods(http.MethodPost)
