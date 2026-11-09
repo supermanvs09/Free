@@ -48,7 +48,7 @@ func remCall(t *testing.T, r http.Handler, user, method, path, body string) *htt
 	t.Helper()
 	req := httptest.NewRequest(method, path, strings.NewReader(body))
 	if user != "" {
-		tok, err := jwt.GenerateToken(user, remTestTenant, "", remTestSession, remTestSecret, time.Minute)
+		tok, err := jwt.GenerateToken(user, remTestTenant, "bimasugam", "", remTestSession, remTestSecret, time.Minute)
 		if err != nil {
 			t.Fatal(err)
 		}

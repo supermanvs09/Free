@@ -14,16 +14,17 @@ type CustomClaims struct {
 	UserID   string `json:"user_id"` // Canonical email; this is also the user_settings key.
 	Email    string `json:"email"`
 	TenantID string `json:"tenant_id"`
-	// DBName is never written into the token (anyone holding a JWT can read
-	// its payload). The auth middleware fills it in from the tenant registry.
-	DBName string `json:"-"`
+	// DBName is in the token for the discovery scan service, which reads it from
+	// there. Our own API never trusts it: the auth middleware replaces it with
+	// the tenant registry's value on every request. It is not returned by /me.
+	DBName string `json:"db_name"`
 	Role   string `json:"role"`
 	jwtv5.RegisteredClaims
 }
 
-func GenerateToken(email, tenantID, role, sessionID, secret string, ttl time.Duration) (string, error) {
-	if strings.TrimSpace(email) == "" || strings.TrimSpace(tenantID) == "" {
-		return "", errors.New("JWT requires user_id and tenant_id")
+func GenerateToken(email, tenantID, dbName, role, sessionID, secret string, ttl time.Duration) (string, error) {
+	if strings.TrimSpace(email) == "" || strings.TrimSpace(tenantID) == "" || strings.TrimSpace(dbName) == "" {
+		return "", errors.New("JWT requires user_id, tenant_id and db_name")
 	}
 	if len(secret) < 32 {
 		return "", errors.New("JWT signing secret must be at least 32 characters")
@@ -39,6 +40,7 @@ func GenerateToken(email, tenantID, role, sessionID, secret string, ttl time.Dur
 		UserID:   email,
 		Email:    email,
 		TenantID: strings.TrimSpace(tenantID),
+		DBName:   strings.TrimSpace(dbName),
 		Role:     strings.TrimSpace(role),
 		RegisteredClaims: jwtv5.RegisteredClaims{
 			Issuer:    issuer,

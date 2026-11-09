@@ -123,7 +123,7 @@ func (s *AuthService) issueTokens(ctx context.Context, user *User, sessionID str
 	refreshTTL = min(refreshTTL, left)
 	accessTTL = min(accessTTL, left)
 
-	token, err := jwt.GenerateToken(user.Email, user.TenantID, user.Role, sessionID, s.jwtCfg.Secret, accessTTL)
+	token, err := jwt.GenerateToken(user.Email, user.TenantID, dbName, user.Role, sessionID, s.jwtCfg.Secret, accessTTL)
 	if err != nil {
 		return nil, fmt.Errorf("issue token: %w", err)
 	}

@@ -5,8 +5,9 @@ every API the console uses - inventory, posture, NHI Genome, integrations,
 change tracking and credential exposure - from one process, behind one sign-in.
 
 - **Tenant** comes only from the signed JWT (`tenant_id`); the tenant's
-  PostgreSQL schema is looked up from it on every request and never sent to a
-  client. Nothing a client sends can choose another tenant.
+  PostgreSQL schema is looked up from it on every request, and the token's own
+  `db_name` (kept for the discovery scan service) is never trusted. `/me` does
+  not return it. Nothing a client sends can choose another tenant.
 - **Scope**: inventory, genome and change tracking answer only for the accounts
   and regions the user selected (Settings; a saved `"all"` means every
   account or region of the tenant); posture covers the whole tenant. Genome
@@ -369,8 +370,9 @@ nhi_db (config: database)
 ```
 
 Login validates the user in `nhi_global` and issues a JWT carrying `tenant_id`;
-the auth middleware looks up the tenant's schema name (`db_name`) from the
-registry on every request, so it never appears in a token or a response. Every tenant query is
+the token also carries `db_name` for the discovery scan service, but the auth
+middleware looks the schema name up from the registry on every request and
+ignores the token's value; it is not returned in any response. Every tenant query is
 schema-qualified from `DataScope` (`resolved.QSchema()` / `resolved.Table("x")`);
 `search_path` is never changed. Schema names are validated (`config.ValidateSchemaName`)
 and quoted before use.

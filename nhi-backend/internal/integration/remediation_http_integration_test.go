@@ -42,7 +42,7 @@ func TestOneClickFlowHTTP(t *testing.T) {
 	})
 	call := func(user, method, path, body string, want int) map[string]any {
 		t.Helper()
-		tok, err := jwt.GenerateToken(user, tenantID, "", "44444444-4444-4444-4444-444444444444", httpTestSecret, time.Minute)
+		tok, err := jwt.GenerateToken(user, tenantID, "bimasugam", "", "44444444-4444-4444-4444-444444444444", httpTestSecret, time.Minute)
 		if err != nil {
 			t.Fatal(err)
 		}
