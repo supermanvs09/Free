@@ -246,34 +246,33 @@ func (s *Service) List(
 			ClusterARN:      common.OptionalString(identity.ClusterARN),
 		}
 
-		// Select only an active baseline. For ECS this checks the role ARN key
-		// and then the role-specific workload key.
+		// The identity's baseline: an active one if any of its keys has one
+		// (for ECS the role ARN key, then the role-specific workload key),
+		// otherwise the first inactive one. The console reads active as
+		// established and inactive as learning; dropping inactive rows left
+		// every learning identity reading "not started".
+		var chosen *BaselineSummaryRow
 		for _, key := range identity.AllKeys() {
 			baseline, exists := baselines[key]
 			if !exists {
 				continue
 			}
-
-			if !strings.EqualFold(
-				strings.TrimSpace(baseline.Status),
-				"active",
-			) {
-				continue
+			if strings.EqualFold(strings.TrimSpace(baseline.Status), "active") {
+				b := baseline
+				chosen = &b
+				break
 			}
-
+			if chosen == nil {
+				b := baseline
+				chosen = &b
+			}
+		}
+		if chosen != nil {
 			item.Baseline = BaselineSummary{
-				Status: common.OptionalString(
-					baseline.Status,
-				),
-				BuiltDays: common.IntPtr(
-					baseline.BuiltDays,
-				),
-				RequiredDays: common.IntPtr(
-					baseline.RequiredDays,
-				),
+				Status:       common.OptionalString(strings.ToLower(strings.TrimSpace(chosen.Status))),
+				BuiltDays:    common.IntPtr(chosen.BuiltDays),
+				RequiredDays: common.IntPtr(chosen.RequiredDays),
 			}
-
-			break
 		}
 
 		for _, key := range identity.AllKeys() {
