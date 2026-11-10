@@ -20,14 +20,14 @@ const STATE = {
   off: { icon: null, word: 'Off' },
 };
 
-/** GitHub and CodeCommit state for an account row, opening its settings when allowed. */
+/** CodeCommit scanning state for an account row, opening its settings when allowed.
+    GitHub is not part of AWS: it is set up on the Code & CI/CD side. */
 export function ExposureBadges({ account, onOpen }) {
   if (!account.connectedAt) {
     return <span className="text-[12px] text-ink-3">After the account connects</span>;
   }
-  const github = exposureState(account.exposure.github);
   const codecommit = exposureState(account.exposure.codecommit);
-  const none = github === 'off' && codecommit === 'off';
+  const none = codecommit === 'off';
 
   if (none) {
     return onOpen ? (
@@ -47,10 +47,7 @@ export function ExposureBadges({ account, onOpen }) {
 
   /* Two short lines like the other columns: the overall state, then which
      platforms it covers. */
-  const platforms = [
-    ['GitHub', github],
-    ['CodeCommit', codecommit],
-  ].filter(([, state]) => state !== 'off');
+  const platforms = [['CodeCommit', codecommit]].filter(([, state]) => state !== 'off');
   const failing = platforms.filter(([, state]) => state === 'failing');
   const lead = failing.length ? STATE.failing : STATE.on;
   const LeadIcon = lead.icon;
@@ -70,7 +67,7 @@ export function ExposureBadges({ account, onOpen }) {
       type="button"
       onClick={onOpen}
       className="-mx-1.5 -my-1 block max-w-full min-w-0 rounded-md px-1.5 py-1 text-left transition-colors hover:bg-surface-3"
-      aria-label={`Exposed-credential scanning for ${account.accountId}: GitHub ${STATE[github].word}, CodeCommit ${STATE[codecommit].word}. Manage`}
+      aria-label={`CodeCommit scanning for ${account.accountId}: ${STATE[codecommit].word}. Manage`}
     >
       {body}
     </button>

@@ -12,7 +12,7 @@ import { SYNC, syncBlockedReason, syncDetail, useAccountActions } from './Accoun
 import { ACCOUNT_STATUS } from './awsSetup';
 import { CheckList } from './CheckList';
 import { exposureState } from './ExposureBadges';
-import { AwsMark, CodeCommitMark, GitHubMark } from './parts';
+import { AwsMark, CodeCommitMark } from './parts';
 
 const TABS = [
   { value: 'overview', label: 'Overview' },
@@ -256,7 +256,6 @@ function SyncTab({ account, blocked }) {
 }
 
 const PLATFORMS = [
-  { key: 'github', name: 'GitHub', Mark: GitHubMark },
   { key: 'codecommit', name: 'AWS CodeCommit', Mark: CodeCommitMark },
 ];
 
@@ -321,11 +320,6 @@ function ActivityTab({ account }) {
     account.sync.requestedAt && { at: account.sync.requestedAt, text: 'Sync requested', by: account.sync.requestedBy },
     account.sync.startedAt && { at: account.sync.startedAt, text: 'Sync started' },
     account.sync.lastSyncedAt && { at: account.sync.lastSyncedAt, text: account.sync.status === 'failed' ? 'Sync failed' : 'Sync finished' },
-    account.exposure.github.verifiedAt && {
-      at: account.exposure.github.verifiedAt,
-      text: `GitHub scanning ${account.exposure.github.connected ? 'switched on' : 'checked - not on'}`,
-      by: account.exposure.updatedBy,
-    },
     account.exposure.codecommit.verifiedAt && {
       at: account.exposure.codecommit.verifiedAt,
       text: `CodeCommit scanning ${account.exposure.codecommit.connected ? 'switched on' : 'checked - not on'}`,

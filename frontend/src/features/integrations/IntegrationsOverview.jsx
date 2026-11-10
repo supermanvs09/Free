@@ -4,7 +4,7 @@ import { formatDateTime, formatNumber, formatRelative } from '../../lib/format';
 import { Button } from '../../ui/Button';
 import { cn } from '../../ui/cn';
 import { exposureState } from './ExposureBadges';
-import { AwsMark, CodeCommitMark, GitHubMark } from './parts';
+import { AwsMark, CodeCommitMark } from './parts';
 import { useSync } from '../sync/SyncContext';
 
 /*
@@ -112,7 +112,6 @@ export function OverviewTiles({ accounts, inventory, regionNames }) {
 }
 
 const CODE_SOURCES = [
-  { key: 'github', name: 'GitHub (token)', Mark: GitHubMark, what: 'Repositories a read-only token can see. The token stays in your own Secrets Manager. The GitHub App below replaces it once adapID enables it for your workspace.' },
   { key: 'codecommit', name: 'AWS CodeCommit', Mark: CodeCommitMark, what: 'Repositories in each account, read through the role you already created.' },
 ];
 

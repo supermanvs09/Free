@@ -14,6 +14,10 @@ export const GUIDES = {
     key: 'github',
     name: 'GitHub',
     kind: 'Code scanning · GitHub App',
+    minutes: 5,
+    reads: ['Contents: read', 'Metadata: read', 'push events'],
+    unlocks: ['Secrets found in every repository you choose', 'A scan on every push, changed files only', 'No tokens or passwords to manage'],
+    handoff: 'Nothing to send: the installation itself connects GitHub to adapID.',
     summary:
       'Install the adapID AI CIRM GitHub App. No personal access tokens or passwords: the App reads code, and GitHub tells us about every push.',
     intro:
@@ -57,6 +61,10 @@ export const GUIDES = {
     key: 'bitbucket',
     name: 'Bitbucket Data Center',
     kind: 'Code scanning · self-hosted',
+    minutes: 15,
+    reads: ['Project read', 'Repository read', 'push webhook'],
+    unlocks: ['Secrets found in every repository of a project', 'A scan on every push', 'Token expiry tracked and warned about'],
+    handoff: 'Send adapID the instance URL, the token and (for a self-signed certificate) the CA certificate, over your secure onboarding channel.',
     summary: 'A read-only HTTP access token for your self-hosted Bitbucket, plus a push webhook so scans follow every change.',
     intro:
       'adapID AI CIRM integrates with a self-hosted Bitbucket Data Center instance using an HTTP access token, the standard authentication method for Data Center integrations.',
@@ -111,7 +119,7 @@ export const GUIDES = {
       },
       {
         title: 'Give adapID the connection details',
-        body: 'Send through the adapID dashboard:',
+        body: 'Hand these to adapID over your secure onboarding channel (they are entered here once the connector is enabled for your workspace):',
         list: [
           'The Bitbucket instance URL (for example https://bitbucket.example.com)',
           'The HTTP access token',
@@ -125,7 +133,7 @@ export const GUIDES = {
         list: [
           'Repository settings → Webhooks → Create webhook (or at project level, to cover every repository in the project)',
           'Name: adapID AI CIRM',
-          'URL and Secret: the values adapID gives for your workspace once step 2 is done',
+          'URL and Secret: the values adapID gives you for your workspace once step 2 is done',
           'Events: Repository → Push only',
           'Save',
         ],
@@ -138,9 +146,9 @@ export const GUIDES = {
         list: [
           'Data Center tokens expire on the date set at creation and cannot be extended.',
           'Before expiry, create a new token with the same permissions in Bitbucket.',
-          'Update it in the adapID dashboard; the platform switches to it without a gap.',
+          'Hand the new token to adapID the same way; the platform switches to it without a gap.',
         ],
-        note: 'The dashboard shows the token’s expiry date and warns before it expires.',
+        note: 'adapID tracks the token’s expiry date and warns you before it expires.',
       },
       {
         title: 'Check the webhook is active',
@@ -158,6 +166,10 @@ export const GUIDES = {
     key: 'jenkins',
     name: 'Jenkins',
     kind: 'CI/CD · credential store',
+    minutes: 10,
+    reads: ['Overall: Read', 'Job: Read', 'Credentials: View'],
+    unlocks: ['Every credential Jenkins stores, with its age', 'Which pipelines use which credential', 'Unusual builds flagged (optional webhook)'],
+    handoff: 'Send adapID the Jenkins URL, the adapid-reader username and its API token, over your secure onboarding channel.',
     summary: 'A read-only Jenkins user shows which credentials Jenkins stores and which pipelines use them - metadata only, never values.',
     intro:
       'adapID AI CIRM connects to your Jenkins instance to discover the credentials Jenkins stores internally, adding visibility into Jenkins’ own credential store.',
@@ -199,7 +211,7 @@ export const GUIDES = {
       },
       {
         title: 'Give adapID the connection details',
-        body: 'Send through the adapID dashboard:',
+        body: 'Hand these to adapID over your secure onboarding channel (they are entered here once the connector is enabled for your workspace):',
         list: ['The Jenkins URL (for example https://jenkins.example.com)', 'Username: adapid-reader', 'The API token from step 3'],
         note: 'The token is stored encrypted and never shown again.',
       },

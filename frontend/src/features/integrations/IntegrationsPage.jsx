@@ -24,7 +24,6 @@ import { AWS_STATUS, isChecking, isWatching } from './awsSetup';
 import { AwsConnectWizard } from './AwsConnectWizard';
 import { ExposureDrawer } from './ExposureDrawer';
 import { OverviewTiles, SourceCards } from './IntegrationsOverview';
-import { IntegrationGuides } from './IntegrationGuides';
 import { AwsMark } from './parts';
 
 const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -45,7 +44,7 @@ const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.
  * (`useWorkspace`), so a change made here - an account connected or removed,
  * scanning switched on - moves the navigation with it.
  */
-export default function IntegrationsPage() {
+export default function IntegrationsPage({ areaSwitch = null }) {
   const { user } = useAuth();
   const workspace = useWorkspace();
   const { notify } = useToast();
@@ -188,11 +187,15 @@ export default function IntegrationsPage() {
   return (
     <div className="flex flex-col gap-6">
       {!manage ? (
-        <OnboardingIntro name={user?.name} canManage={data?.canManage ?? true} />
+        <>
+          {areaSwitch}
+          <OnboardingIntro name={user?.name} canManage={data?.canManage ?? true} />
+        </>
       ) : (
         <PageHeader
-          title="Integrations"
-          lede="The cloud accounts and code repositories this console reads. Every connection is read-only."
+          title={areaSwitch ? 'AWS cloud' : 'Integrations'}
+          lede="The AWS accounts this console reads, and CodeCommit secret scanning in them. Every connection is read-only."
+          meta={areaSwitch}
           actions={
             <>
               <Button variant="secondary" icon={RotateCw} loading={refreshing} onClick={reload} title="Reload this page. It does not read your AWS accounts again - Sync now does.">
@@ -286,8 +289,6 @@ export default function IntegrationsPage() {
               onExposure={(accountId) => setParam('exposure', accountId || exposureAccounts[0]?.accountId || '')}
             />
           )}
-
-          {manage && <IntegrationGuides />}
 
           {!manage &&
             (data.canManage && data.setup ? (
@@ -449,7 +450,7 @@ function OnboardingSuccess({ accountId, onOpen, onAnother }) {
           )}
         </p>
         <p className="mt-5 border-t border-line pt-4 text-[12px] leading-relaxed text-ink-3">
-          Want us to look for credentials leaked into GitHub or CodeCommit too? Switch it on from Integrations at any time.
+          Want us to look for credentials leaked into CodeCommit too? Switch it on from Integrations at any time.
         </p>
       </section>
     </div>

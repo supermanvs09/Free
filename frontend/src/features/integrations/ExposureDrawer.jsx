@@ -1,10 +1,10 @@
 import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, ArrowRight, Check, ExternalLink, EyeOff, Info, KeyRound, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Check, ExternalLink, EyeOff, Info, ShieldCheck } from 'lucide-react';
 import { setAwsExposure } from '../../lib/api/integrations';
 import { formatDateTime, formatRelative } from '../../lib/format';
 import { Button } from '../../ui/Button';
-import { Field, Input, Select } from '../../ui/Field';
+import { Field, Select } from '../../ui/Field';
 import { Drawer } from '../../ui/Overlay';
 import { SectionLabel } from '../../ui/Panel';
 import { InlineError } from '../../ui/States';
@@ -13,23 +13,19 @@ import { cn } from '../../ui/cn';
 import {
   AWS_CONSOLE,
   EXPOSURE_CHECKS,
-  GITHUB_NEW_TOKEN,
   codeCommitCli,
   codeCommitPolicyJson,
-  githubCli,
-  githubSecretPolicyJson,
-  kmsDecryptPolicyJson,
   roleNameOfArn,
-  secretArnProblem,
-  suggestedSecretName,
 } from './awsSetup';
 import { CheckResult } from './CheckList';
 import { exposureState } from './ExposureBadges';
-import { CodeBlock, CodeCommitMark, CopyChip, Disclosure, GitHubMark, Instructions } from './parts';
+import { CodeBlock, CodeCommitMark, CopyChip, Disclosure, Instructions } from './parts';
 
 /**
- * Turn exposed-credential scanning on or off for one connected AWS account,
- * per platform: GitHub, CodeCommit, or both.
+ * Turn CodeCommit scanning for leaked credentials on or off for one connected
+ * AWS account. GitHub, Bitbucket and Jenkins are not part of AWS: they are set
+ * up on the Code & CI/CD side. An account that already scans GitHub keeps
+ * that setting untouched when this is saved.
  *
  * Each platform needs one grant on the account's role, the same way the
  * read-only connection did:
@@ -55,8 +51,8 @@ export function ExposureDrawer({ accounts, accountId, setup, onClose, onSaved })
       open
       onClose={onClose}
       eyebrow="Exposed credentials"
-      title="Scan code for leaked credentials"
-      subtitle="Find access keys, tokens and passwords committed to your repositories, before someone else does."
+      title="Scan CodeCommit for leaked credentials"
+      subtitle="Find access keys, tokens and passwords committed to the CodeCommit repositories in this account, before someone else does."
       width="xl"
     >
       {account ? (
@@ -88,52 +84,28 @@ function ExposureForm({ account, accounts, onSelectAccount, setup, onClose, onSa
     [account],
   );
   const [want, setWant] = useState(initial);
-  const [secretArn, setSecretArn] = useState(account.exposure.github.secretArn || '');
-  const [touched, setTouched] = useState(false);
-  const [serverSecretError, setServerSecretError] = useState('');
+  /* GitHub is not offered on the AWS side: an account that already scans it
+     keeps its setting and secret exactly as they are when this is saved. */
+  const secretArn = account.exposure.github.secretArn || '';
   const [requestError, setRequestError] = useState(null);
   const [running, setRunning] = useState(false);
   /* Which platforms' results to show: what the last save checked, or - on
      opening - any platform whose last check failed, so the fix is in view. */
-  const [ran, setRan] = useState(() => {
-    const failing = {
-      github: exposureState(account.exposure.github) === 'failing',
-      codecommit: exposureState(account.exposure.codecommit) === 'failing',
-    };
-    return failing.github || failing.codecommit ? failing : null;
-  });
-  const secretRef = useRef(null);
+  const [ran, setRan] = useState(() => (exposureState(account.exposure.codecommit) === 'failing' ? { codecommit: true } : null));
   const resultRef = useRef(null);
 
   const roleName = roleNameOfArn(current.roleArn) || setup.roleName;
-  const prefix = setup.exposure.github.secretPrefix;
-  const localSecretProblem = want.github ? secretArnProblem(secretArn, current.accountId, prefix) : '';
-  const secretError = serverSecretError || (touched ? localSecretProblem : '');
 
-  const turningOff = ['github', 'codecommit'].filter((key) => initial[key] && !want[key]);
-  const changed = want.github !== initial.github || want.codecommit !== initial.codecommit || (want.github && secretArn.trim() !== (account.exposure.github.secretArn || ''));
-  const anyOn = want.github || want.codecommit;
+  const turningOff = ['codecommit'].filter((key) => initial[key] && !want[key]);
+  const changed = want.codecommit !== initial.codecommit;
+  const anyOn = want.codecommit;
   const canSubmit = anyOn || turningOff.length > 0;
 
   const submit = async (event) => {
     event?.preventDefault();
-    setTouched(true);
-    if (localSecretProblem) {
-      /* The field can be far down the panel: take the reader there and say
-         why nothing was checked, rather than stop silently. */
-      secretRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      secretRef.current?.focus({ preventScroll: true });
-      notify({
-        variant: 'error',
-        title: 'Nothing was checked yet',
-        description: 'GitHub needs the ARN of the secret that holds its token. Paste it, or untick GitHub to check CodeCommit on its own.',
-      });
-      return;
-    }
     setRunning(true);
     setRequestError(null);
-    setServerSecretError('');
-    setRan(want.github || want.codecommit ? { ...want } : null);
+    setRan(want.codecommit ? { codecommit: true } : null);
     requestAnimationFrame(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
     try {
       const outcome = await setAwsExposure({
@@ -145,7 +117,7 @@ function ExposureForm({ account, accounts, onSelectAccount, setup, onClose, onSa
       setCurrent(outcome.account);
       onSaved?.(outcome);
       const next = outcome.account.exposure;
-      const failed = ['github', 'codecommit'].filter((key) => want[key] && !next[key].connected);
+      const failed = ['codecommit'].filter((key) => want[key] && !next[key].connected);
       if (!anyOn) {
         notify({
           variant: 'success',
@@ -167,12 +139,7 @@ function ExposureForm({ account, accounts, onSelectAccount, setup, onClose, onSa
       }
     } catch (error) {
       setRan(null);
-      if (error?.code === 'INVALID_SECRET_ARN') {
-        setServerSecretError(error.message);
-        secretRef.current?.focus();
-      } else {
-        setRequestError(error);
-      }
+      setRequestError(error);
     } finally {
       setRunning(false);
     }
@@ -183,9 +150,8 @@ function ExposureForm({ account, accounts, onSelectAccount, setup, onClose, onSa
     setRan(null);
   };
 
-  const github = current.exposure.github;
   const codecommit = current.exposure.codecommit;
-  const allPassed = ran && ['github', 'codecommit'].every((key) => !ran[key] || current.exposure[key].connected);
+  const allPassed = ran && ['codecommit'].every((key) => !ran[key] || current.exposure[key].connected);
 
   return (
     <form onSubmit={submit} noValidate className="flex min-h-full flex-col">
@@ -217,17 +183,7 @@ function ExposureForm({ account, accounts, onSelectAccount, setup, onClose, onSa
         {/* What to scan */}
         <fieldset className="flex flex-col gap-2.5">
           <legend className="mb-2.5 text-[13.5px] font-semibold text-ink">Where should we look?</legend>
-          <div className="grid gap-2.5 @min-[38rem]:grid-cols-2">
-            <PlatformChoice
-              mark={<GitHubMark size="sm" />}
-              name="GitHub"
-              detail="Repositories a read-only token can see."
-              checked={want.github}
-              state={exposureState(github)}
-              verifiedAt={github.verifiedAt}
-              disabled={running}
-              onToggle={() => toggle('github')}
-            />
+          <div className="grid gap-2.5">
             <PlatformChoice
               mark={<CodeCommitMark size="sm" />}
               name="AWS CodeCommit"
@@ -288,104 +244,9 @@ function ExposureForm({ account, accounts, onSelectAccount, setup, onClose, onSa
           </SetupSection>
         )}
 
-        {want.github && (
-          <SetupSection
-            mark={<GitHubMark size="sm" />}
-            title="Give us a read-only GitHub token"
-            state={exposureState(github)}
-            minutes={5}
-          >
-            <Instructions
-              items={[
-                <>
-                  In GitHub, create a <b>fine-grained personal access token</b>. Resource owner: your organisation. Repository access: <b>All repositories</b>, or the ones to scan.
-                  Permissions:{' '}
-                  {setup.exposure.github.tokenPermissions.map((permission, index) => (
-                    <span key={permission}>
-                      {index > 0 && ', '}
-                      <b>{permission}</b>
-                    </span>
-                  ))}
-                  . Nothing else.
-                </>,
-                <>
-                  In AWS Secrets Manager in account <CopyChip value={current.accountId} label="account ID" />, choose <b>Store a new secret</b> →{' '}
-                  <b>Other type of secret</b> → <b>Plaintext</b>, and paste the token. Name it{' '}
-                  <CopyChip value={suggestedSecretName(prefix)} label="secret name" /> - the name must start with{' '}
-                  <span className="font-mono text-ink">{prefix}</span>.
-                </>,
-                <>
-                  Let the role read only that secret: IAM → <b>Roles</b> → <CopyChip value={roleName} label="role name" /> →{' '}
-                  <b>Add permissions</b> → <b>Create inline policy</b> → JSON, paste this and name it{' '}
-                  <CopyChip value="nhi-github-secret-read" label="policy name" />.
-                  <CodeBlock code={githubSecretPolicyJson(setup, current.accountId)} copyLabel="Copy the secret read policy" />
-                </>,
-                <>
-                  Copy the secret&rsquo;s <b>Secret ARN</b> from its page and paste it below.
-                </>,
-              ]}
-            />
-            <div className="mt-3.5 flex flex-wrap gap-2">
-              <ConsoleLink href={GITHUB_NEW_TOKEN} inline>
-                Create a GitHub token
-              </ConsoleLink>
-              <ConsoleLink href={AWS_CONSOLE.secretsManager} inline>
-                Open Secrets Manager
-              </ConsoleLink>
-            </div>
-            <Disclosure label="Secret encrypted with your own KMS key?">
-              <p className="mt-2 text-[12px] leading-relaxed text-ink-3">
-                Secrets Manager&rsquo;s default key needs nothing more. With a customer managed key, add this to the same inline policy, with
-                your key&rsquo;s ARN.
-              </p>
-              <CodeBlock code={kmsDecryptPolicyJson(current.accountId)} copyLabel="Copy the KMS statement" />
-            </Disclosure>
-            <Disclosure label="Prefer the AWS CLI?">
-              <CodeBlock
-                code={githubCli(setup, current.accountId, roleName, current.regions[0] || setup.region)}
-                copyLabel="Copy the commands"
-              />
-            </Disclosure>
-            <p className="mt-3.5 flex items-start gap-2 text-[12px] leading-relaxed text-ink-3">
-              <Info aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
-              <span>
-                If your organisation approves fine-grained tokens, an owner approves it under Settings → Personal access tokens. When the
-                token expires the check fails and this page tells you - replace the secret&rsquo;s value; the ARN stays the same.
-              </span>
-            </p>
-
-            <Field
-              label="Secret ARN"
-              htmlFor="exposure-secret-arn"
-              required
-              className="mt-4"
-              error={secretError || undefined}
-              hint="We read the token through your role when we scan, and never store it."
-            >
-              <Input
-                ref={secretRef}
-                id="exposure-secret-arn"
-                icon={KeyRound}
-                autoComplete="off"
-                spellCheck={false}
-                value={secretArn}
-                disabled={running}
-                placeholder={`arn:aws:secretsmanager:${current.regions[0] || setup.region}:${current.accountId}:secret:${suggestedSecretName(prefix)}-AbCdEf`}
-                onChange={(event) => {
-                  setSecretArn(event.target.value);
-                  setServerSecretError('');
-                }}
-                onBlur={() => secretArn.trim() && setTouched(true)}
-                invalid={Boolean(secretError)}
-                className="font-mono text-[12.5px]"
-              />
-            </Field>
-          </SetupSection>
-        )}
-
         {!anyOn && turningOff.length === 0 && (
           <p className="rounded-[var(--radius-control)] border border-dashed border-line-strong px-4 py-6 text-center text-[12.5px] text-ink-3">
-            Choose GitHub, CodeCommit or both to see what to set up.
+            Choose CodeCommit to see what to set up.
           </p>
         )}
 
@@ -409,16 +270,6 @@ function ExposureForm({ account, accounts, onSelectAccount, setup, onClose, onSa
               ok={codecommit.connected}
               definitions={EXPOSURE_CHECKS.codecommit}
               copy={{ running: 'Checking CodeCommit…', ok: 'CodeCommit scanning is on', okDetail: firstMessage(codecommit) }}
-            />
-          )}
-          {(running ? want : ran)?.github && (
-            <CheckResult
-              running={running}
-              checks={running ? null : github.checks}
-              verifiedAt={github.verifiedAt}
-              ok={github.connected}
-              definitions={EXPOSURE_CHECKS.github}
-              copy={{ running: 'Checking GitHub…', ok: 'GitHub scanning is on', okDetail: lastMessage(github) }}
             />
           )}
           {!running && allPassed && (
@@ -455,16 +306,12 @@ function ExposureForm({ account, accounts, onSelectAccount, setup, onClose, onSa
 }
 
 function platformList(want) {
-  const names = [want.github && 'GitHub', want.codecommit && 'CodeCommit'].filter(Boolean);
+  const names = [want.codecommit && 'CodeCommit'].filter(Boolean);
   return names.join(' and ');
 }
 
 function firstMessage(platform) {
   return platform.checks.find((check) => check.state === 'pass')?.message || 'The role can read your repositories.';
-}
-
-function lastMessage(platform) {
-  return [...platform.checks].reverse().find((check) => check.state === 'pass')?.message || 'GitHub accepts the token.';
 }
 
 const CHOICE_STATE = {

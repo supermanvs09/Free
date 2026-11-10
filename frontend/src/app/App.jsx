@@ -29,7 +29,7 @@ const AccessGraphPage = lazy(() => import('../features/access/AccessGraphPage'))
 const AccessDetailPage = lazy(() => import('../features/access/AccessDetailPage'));
 const GenomePage = lazy(() => import('../features/genome/GenomePage'));
 const GenomeDetailPage = lazy(() => import('../features/genome/GenomeDetailPage'));
-const IntegrationsPage = lazy(() => import('../features/integrations/IntegrationsPage'));
+const IntegrationsPage = lazy(() => import('../features/integrations/IntegrationsHub'));
 const UsersPage = lazy(() => import('../features/admin/UsersPage'));
 const AuditLogPage = lazy(() => import('../features/admin/AuditLogPage'));
 const RemediationPage = lazy(() => import('../features/remediation/RemediationPage'));

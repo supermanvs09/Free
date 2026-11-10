@@ -12,7 +12,6 @@ export const AWS_CONSOLE = {
   codeCommit: 'https://console.aws.amazon.com/codesuite/codecommit/repositories',
 };
 
-export const GITHUB_NEW_TOKEN = 'https://github.com/settings/personal-access-tokens/new';
 
 /** The trust policy for "Edit trust relationship", as an alternative to the clicks. */
 export function trustPolicyJson(setup) {
@@ -386,33 +385,6 @@ export const EXPOSURE_PLATFORMS = {
   codecommit: { key: 'codecommit', name: 'AWS CodeCommit', summary: 'Repositories in this AWS account, in the regions it reads.' },
 };
 
-const SECRET_ARN = /^arn:(aws[a-z-]*):secretsmanager:([a-z]{2}(-[a-z]+)+-\d):(\d{12}):secret:([A-Za-z0-9/_+=.@-]{1,512})$/;
-
-/**
- * Checks a pasted secret ARN with the API's rules
- * (`awsconnect.ParseSecretARN`), so a slip is named before the round trip.
- */
-export function secretArnProblem(value, accountId, prefix) {
-  const arn = String(value ?? '').trim();
-  if (!arn) return 'Paste the ARN of the secret that holds your GitHub token.';
-  const match = SECRET_ARN.exec(arn);
-  if (!match) {
-    if (/^arn:aws[\w-]*:secretsmanager:/.test(arn) && !arn.includes(':secret:')) {
-      return 'That is not a secret ARN. Copy the "Secret ARN" from the secret\'s page.';
-    }
-    return 'That is not a Secrets Manager secret ARN. It looks like arn:aws:secretsmanager:<region>:<account>:secret:<name>.';
-  }
-  if (accountId && match[4] !== accountId) {
-    return `The secret is in account ${match[4]}; store it in ${accountId}, the account this role belongs to.`;
-  }
-  if (prefix && !match[5].startsWith(prefix)) {
-    return `Name the secret starting with ${prefix} - the read permission is limited to that name.`;
-  }
-  return '';
-}
-
-/** The secret name the setup suggests. */
-export const suggestedSecretName = (prefix) => `${prefix || 'nhi/github'}/token`;
 
 /**
  * Inline policy with the four CodeCommit reads the secret scanner uses. The
@@ -438,48 +410,7 @@ export function codeCommitPolicyJson(setup, accountId, regions = []) {
   );
 }
 
-/**
- * Inline policy letting the role read only the token secret. The resource is
- * the name prefix rather than one ARN, so replacing the secret later keeps
- * working.
- */
-export function githubSecretPolicyJson(setup, accountId) {
-  return JSON.stringify(
-    {
-      Version: '2012-10-17',
-      Statement: [
-        {
-          Sid: 'NHIExposedCredentialsGitHubToken',
-          Effect: 'Allow',
-          Action: setup.exposure.github.actions,
-          Resource: `arn:aws:secretsmanager:*:${accountId}:secret:${setup.exposure.github.secretPrefix}*`,
-        },
-      ],
-    },
-    null,
-    2,
-  );
-}
 
-/** Only when the secret is encrypted with a customer managed KMS key. */
-export function kmsDecryptPolicyJson(accountId) {
-  return JSON.stringify(
-    {
-      Version: '2012-10-17',
-      Statement: [
-        {
-          Sid: 'NHIExposedCredentialsDecryptToken',
-          Effect: 'Allow',
-          Action: 'kms:Decrypt',
-          Resource: `arn:aws:kms:<region>:${accountId}:key/<key-id>`,
-          Condition: { StringLike: { 'kms:ViaService': 'secretsmanager.*.amazonaws.com' } },
-        },
-      ],
-    },
-    null,
-    2,
-  );
-}
 
 /** Save the policy above as codecommit-read.json, then add it to the role. */
 export function codeCommitCli(roleName) {
@@ -489,28 +420,3 @@ export function codeCommitCli(roleName) {
   --policy-document file://codecommit-read.json`;
 }
 
-/**
- * Store the token and grant the read, from a terminal signed in to the
- * client's account. `read -s` keeps the token out of shell history and off
- * the screen.
- */
-export function githubCli(setup, accountId, roleName, region) {
-  const name = suggestedSecretName(setup.exposure.github.secretPrefix);
-  return `# 1. Store the token (typed, not echoed, not kept in history)
-read -rs GITHUB_TOKEN
-aws secretsmanager create-secret \\
-  --region ${region} \\
-  --name ${name} \\
-  --secret-string "$GITHUB_TOKEN" \\
-  --query ARN --output text
-unset GITHUB_TOKEN
-
-# 2. Let the role read only that secret
-cat > nhi-github-secret-read.json <<'EOF'
-${githubSecretPolicyJson(setup, accountId)}
-EOF
-aws iam put-role-policy \\
-  --role-name ${roleName} \\
-  --policy-name nhi-github-secret-read \\
-  --policy-document file://nhi-github-secret-read.json`;
-}
