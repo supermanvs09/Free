@@ -23,7 +23,7 @@ import { EmptyState, ErrorState, InlineError } from '../../ui/States';
 import { cn } from '../../ui/cn';
 import { API_CREDENTIAL_STATUSES, API_CREDENTIAL_TYPES, credentialTypeMeta, lifecycleMeta } from '../identities/meta';
 import { splitList } from '../identities/filters';
-import { LatestChangesNotice, RecentChangeMarker } from '../changes/parts';
+import { RecentChangeMarker } from '../changes/parts';
 import { CredentialDrawer } from './CredentialDrawer';
 
 /**
@@ -558,8 +558,6 @@ export default function CredentialsPage() {
           </ul>
         )}
       </Panel>
-
-      <LatestChangesNotice entityType="credential" noun={{ one: 'credential', many: 'credentials' }} />
 
       <WorkArea
         railOpen={railOpen}

@@ -25,6 +25,7 @@ import { Field, Input, Select, Textarea } from '../../ui/Field';
 import { Modal } from '../../ui/Overlay';
 import { Pagination } from '../../ui/Pagination';
 import { Panel } from '../../ui/Panel';
+import { MetricTile } from '../../ui/Stat';
 import { EmptyState, ErrorState, InlineError } from '../../ui/States';
 import { SegmentedControl, Tabs } from '../../ui/Tabs';
 import { Tag } from '../../ui/Tag';
@@ -65,25 +66,30 @@ export default function RemediationPage() {
     return () => clearInterval(id);
   }, [refetchInbox]);
   const waiting = inbox.data?.plans.length;
+  /* The at-a-glance figures: one read of the newest 200 plans, counted by
+     where each plan stands. */
+  const recent = useQuery((signal) => fetchPlans({}, { page: 1, pageSize: 200 }, signal), [revision]);
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Remediation"
-        lede="Fixes for posture findings: Guided plans you apply by hand, and One-click plans the console applies in AWS after any approval they need. Make a plan from a finding; follow and decide it here."
+        lede="Fix what Posture found. A Guided plan gives you the exact steps to apply by hand; a One-click plan is applied in AWS by the console once any approval it needs is given, and can be rolled back."
+        tabs={
+          <Tabs
+            size="sm"
+            tabs={[
+              { value: 'inbox', label: 'Waiting for approval', count: waiting || undefined },
+              { value: 'plans', label: 'All plans' },
+              { value: 'setup', label: 'One-click setup' },
+            ]}
+            value={tab}
+            onChange={(value) => setParam('tab', value === 'inbox' ? null : value)}
+          />
+        }
       />
 
-      <div className="-mt-2 border-b border-line">
-        <Tabs
-          tabs={[
-            { value: 'inbox', label: 'Waiting for approval', count: waiting || undefined },
-            { value: 'plans', label: 'All plans' },
-            { value: 'setup', label: 'One-click setup' },
-          ]}
-          value={tab}
-          onChange={(value) => setParam('tab', value === 'inbox' ? null : value)}
-        />
-      </div>
+      <AtAGlance query={recent} waiting={waiting} onOpenTab={(value) => setParam('tab', value === 'inbox' ? null : value)} />
 
       {tab === 'inbox' && <InboxTab query={inbox} onOpen={(id) => setParam('plan', id)} onChanged={() => setRevision((n) => n + 1)} />}
       {tab === 'plans' && <PlansTab revision={revision} onOpen={(id) => setParam('plan', id)} />}
@@ -99,6 +105,65 @@ export default function RemediationPage() {
         onChanged={() => setRevision((n) => n + 1)}
       />
     </div>
+  );
+}
+
+/* ── At a glance ───────────────────────────────────────────────────────── */
+
+const DONE = new Set(['EXECUTED', 'VERIFIED', 'RESOLVED', 'MANUALLY_DONE']);
+const MOVING = new Set(['APPROVED', 'SCHEDULED', 'EXECUTING']);
+const TO_DO = new Set(['READY', 'DRAFT', 'WAITING_EXTERNAL']);
+const BROKE = new Set(['FAILED', 'ROLLED_BACK']);
+const MONTH_MS = 30 * 86400000;
+
+const STEPS = [
+  { icon: SearchX, title: 'Pick a finding', text: 'Posture › an identity › Findings › Fix this finding.' },
+  { icon: ListChecks, title: 'Choose how to fix it', text: 'Guided gives exact steps; One-click lets the console apply it.' },
+  { icon: ShieldCheck, title: 'Approve if needed', text: 'Risky fixes and Critical findings wait for an operator or admin.' },
+  { icon: CheckCircle2, title: 'Applied and verified', text: 'The next scan confirms the finding is gone. One-click can be rolled back.' },
+];
+
+/**
+ * Where the workspace's fixes stand, and how a fix gets made, in one strip:
+ * a new user learns the flow here, a returning one sees what needs them.
+ */
+function AtAGlance({ query, waiting, onOpenTab }) {
+  const plans = query.data?.plans ?? [];
+  const now = query.data ? Date.parse(query.data.readAt ?? '') || 0 : 0;
+  const count = (set, recentOnly) =>
+    plans.filter((p) => set.has(p.status) && (!recentOnly || !now || (Date.parse(p.updatedAt || p.createdAt) || 0) >= now - MONTH_MS)).length;
+  const tiles = [
+    { key: 'waiting', label: 'Waiting for approval', value: waiting ?? null, tone: 'brand', caption: 'An operator or admin decides; the plan expires after 72 hours', tab: 'inbox' },
+    { key: 'todo', label: 'To do by hand', value: query.data ? count(TO_DO) : null, tone: 'medium', caption: 'Guided plans ready, blocked by a pre-check, or waiting for a vendor', tab: 'plans' },
+    { key: 'moving', label: 'Running now', value: query.data ? count(MOVING) : null, tone: 'info', caption: 'Approved One-click plans being applied in AWS', tab: 'plans' },
+    { key: 'done', label: 'Fixed · 30 days', value: query.data ? count(DONE, true) : null, tone: 'low', caption: query.data && count(BROKE) > 0 ? `${count(BROKE)} failed or rolled back` : 'Applied, done by hand or verified by the scan', tab: 'plans' },
+  ];
+  return (
+    <>
+      <div className="grid gap-3 @min-[30rem]:grid-cols-2 @min-[54rem]:grid-cols-4">
+        {tiles.map((tile, index) => (
+          <div key={tile.key} className="animate-rise" data-stagger="" style={{ '--stagger': index }}>
+            <MetricTile as="button" type="button" onClick={() => onOpenTab(tile.tab)} label={tile.label} value={tile.value} tone={tile.tone} caption={tile.caption} />
+          </div>
+        ))}
+      </div>
+      {query.data && plans.length === 0 && (
+        <Panel prominence="quiet" className="animate-rise">
+          <p className="text-[13px] font-semibold text-ink">How a fix is made</p>
+          <ol className="mt-3 grid gap-3 @min-[48rem]:grid-cols-4">
+            {STEPS.map((step, index) => (
+              <li key={step.title} className="flex gap-3 rounded-[var(--radius-control)] border border-line bg-surface-2 p-3">
+                <span className="grid size-7 shrink-0 place-items-center rounded-full bg-info-soft text-[12px] font-semibold text-brand">{index + 1}</span>
+                <span className="min-w-0">
+                  <span className="block text-[12.5px] font-semibold text-ink">{step.title}</span>
+                  <span className="mt-0.5 block text-[12px] leading-relaxed text-ink-3">{step.text}</span>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </Panel>
+      )}
+    </>
   );
 }
 

@@ -26,6 +26,7 @@ import { PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, Responsi
 import { TrendChart } from '../../charts/TrendChart';
 import { TooltipCard } from '../../charts/ChartTooltip';
 import { BaselineTab } from './BaselineTab';
+import { IdentityAnomalies } from './IdentityAnomalies';
 import { ApiShareList, formatShare, ScheduleGrid } from './visuals';
 import {
   anomalyStatusMeta,
@@ -47,7 +48,7 @@ const WINDOWS = [
 const WINDOW_WORDS = { '24h': '24 hours', '7d': '7 days', '14d': '14 days', '30d': '30 days' };
 const DEFAULT_WINDOW = '14d';
 
-const TAB_KEYS = ['genome', 'activity', 'baseline', 'timeline'];
+const TAB_KEYS = ['genome', 'anomalies', 'activity', 'baseline', 'timeline'];
 const TIMELINE_PAGE = 50;
 const RECENT_PAGE = 25;
 
@@ -193,8 +194,15 @@ function GenomeIdentity({ sourceType, identityName }) {
     [sourceType, identityName, window],
   );
   /* The inventory record behind this identity, for the cross-links to its
-     identity record and access graph. */
-  const discovery = useQuery((signal) => resolveDiscoveryIdentity(identityName, signal).catch(() => null), [identityName]);
+     identity record and access graph. It is matched on the identity_name the
+     summary resolves (the canonical ARN), never on the link's own key: a
+     recently baselined entry links by its monitoring key
+     (step_functions:<account>:<region>:<name>), which no inventory row carries. */
+  const inventoryName = summary.data?.identity?.identity_name || (summary.isLoading ? null : identityName);
+  const discovery = useQuery(
+    (signal) => (inventoryName ? resolveDiscoveryIdentity(inventoryName, signal).catch(() => null) : Promise.resolve(null)),
+    [inventoryName],
+  );
 
   const openAnomalies = useMemo(
     () => timeline.items.filter((item) => item.type === 'anomaly' && String(item.status).toLowerCase() === 'open'),
@@ -226,7 +234,7 @@ function GenomeIdentity({ sourceType, identityName }) {
             title="This identity is not monitored in your scope"
             description="It is outside the accounts and regions you selected, or discovery no longer sees it. Change the scope from the dashboard to include its region."
             action={
-              <Button variant="secondary" size="sm" as={Link} to={`/identities?search=${encodeURIComponent(identityName)}`} icon={Boxes}>
+              <Button variant="secondary" size="sm" as={Link} to={`/identities?search=${encodeURIComponent(inventoryName || identityName)}`} icon={Boxes}>
                 Look it up in the inventory
               </Button>
             }
@@ -244,9 +252,10 @@ function GenomeIdentity({ sourceType, identityName }) {
 
   const tabs = [
     { value: 'genome', label: 'Genome' },
+    { value: 'anomalies', label: 'Anomalies', count: openCount || undefined },
     { value: 'activity', label: 'Activity' },
     { value: 'baseline', label: 'Baseline' },
-    { value: 'timeline', label: 'Timeline', count: openCount || undefined },
+    { value: 'timeline', label: 'Timeline' },
   ];
 
   return (
@@ -277,7 +286,7 @@ function GenomeIdentity({ sourceType, identityName }) {
                 </Button>
               </>
             ) : (
-              <Button variant="ghost" as={Link} to={`/identities?search=${encodeURIComponent(identityName)}`} icon={Boxes}>
+              <Button variant="ghost" as={Link} to={`/identities?search=${encodeURIComponent(inventoryName || identityName)}`} icon={Boxes}>
                 Open in inventory
               </Button>
             )}
@@ -316,14 +325,14 @@ function GenomeIdentity({ sourceType, identityName }) {
 
       {/* An open departure is the reason anyone opened this record, so it is
           stated above the tabs rather than hidden inside one of them. */}
-      {openAnomalies.length > 0 && tab !== 'timeline' && (
+      {openAnomalies.length > 0 && tab !== 'anomalies' && (
         <Panel prominence="lead" className="animate-rise border-critical/30">
           <PanelHeader
             prominence="lead"
             title={`${formatNumber(openCount)} open ${openCount === 1 ? 'departure' : 'departures'} from baseline`}
             subtitle="This identity behaved outside its own baseline."
             actions={
-              <Button variant="secondary" size="sm" onClick={() => setTab('timeline')}>
+              <Button variant="secondary" size="sm" onClick={() => setTab('anomalies')}>
                 Read the evidence
               </Button>
             }
@@ -351,7 +360,7 @@ function GenomeIdentity({ sourceType, identityName }) {
           </ul>
           {openAnomalies.length > 4 && (
             <p className="mt-2 text-[11.5px] text-ink-3">
-              And {formatNumber(openAnomalies.length - 4)} more in the timeline.
+              And {formatNumber(openAnomalies.length - 4)} more under Anomalies.
             </p>
           )}
         </Panel>
@@ -359,6 +368,13 @@ function GenomeIdentity({ sourceType, identityName }) {
 
       {tab === 'genome' && (
         <GenomeTab sourceType={sourceType} identityName={identityName} window={window} summary={summary.data} timeline={timeline.items} />
+      )}
+      {tab === 'anomalies' && (
+        <IdentityAnomalies
+          sourceType={sourceType}
+          keys={[identityName, identity?.identity_name, identity?.workload_key]}
+          displayName={identity?.display_name}
+        />
       )}
       {tab === 'activity' && <ActivityTab sourceType={sourceType} identityName={identityName} window={window} />}
       {tab === 'baseline' && <BaselineTab sourceType={sourceType} identityName={identityName} />}

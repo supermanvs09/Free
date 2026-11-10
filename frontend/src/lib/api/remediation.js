@@ -150,7 +150,7 @@ export async function fetchPlans({ status, mode, accountId, findingId, targetArn
   const b = body(await client.get(`${BASE}/plans`, { params, signal }));
   const plans = arr(b.data).map(normalizePlan);
   const total = b.pagination ? Number(b.pagination.total_count) || 0 : (page - 1) * pageSize + plans.length + (plans.length === pageSize ? 1 : 0);
-  return { plans, total, page, pageSize, exact: Boolean(b.pagination) };
+  return { plans, total, page, pageSize, exact: Boolean(b.pagination), readAt: new Date().toISOString() };
 }
 
 const act = async (planId, verb, payload) => normalizePlan(data(await client.post(`${BASE}/plans/${enc(planId)}/${verb}`, payload ?? {})));

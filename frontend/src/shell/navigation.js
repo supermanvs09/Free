@@ -32,6 +32,8 @@ export const NAV_GROUPS = [
     items: [
       { to: '/overview', label: 'Dashboard', icon: Gauge, end: true },
       { to: '/posture', label: 'Posture', icon: ShieldCheck },
+      /* Fixing what Posture found: plans, approvals and their runs. */
+      { to: '/remediation', label: 'Remediation', icon: Wrench },
     ],
   },
   {
@@ -71,11 +73,7 @@ export const NAV_GROUPS = [
     label: 'Operations',
     /* Alerts, Reports, Scans and User management have no API yet; they
        return here with their endpoints. */
-    /* Remediation: following and deciding the fixes made from findings. */
-    items: [
-      { to: '/activity', label: 'Activity', icon: Activity },
-      { to: '/remediation', label: 'Remediation', icon: Wrench },
-    ],
+    items: [{ to: '/activity', label: 'Activity', icon: Activity }],
   },
   {
     key: 'settings',
@@ -119,7 +117,7 @@ export const ALL_NAV_ITEMS = NAV_GROUPS.flatMap((group) =>
 export const BREADCRUMBS = {
   '/overview': ['Overview', 'Dashboard'],
   '/posture': ['Overview', 'Posture'],
-  '/remediation': ['Operations', 'Remediation'],
+  '/remediation': ['Overview', 'Remediation'],
   '/identities': ['Inventory', 'Identities'],
   '/credentials': ['Inventory', 'Credentials'],
   '/exposure': ['Credential exposure', 'Exposed credentials'],

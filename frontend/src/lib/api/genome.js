@@ -1,6 +1,6 @@
 import client from './client';
 import { ApiError, params, unwrapGenome, unwrapMain } from './http';
-import { canonicalGenomeName, genomeSourceType, setGenomeFamilies } from '../identityLinks';
+import { canonicalGenomeName, setGenomeFamilies } from '../identityLinks';
 
 /*
  * NHI Genome (behaviour monitoring), served by the NHI backend under
@@ -17,9 +17,9 @@ import { canonicalGenomeName, genomeSourceType, setGenomeFamilies } from '../ide
  *   POST /anomalies/{id}/feedback                            { decision, approved_for_baseline, reason }
  *   GET /workload-types                                      the workload families shown (NHI_GENOME_WORKLOAD_TYPES)
  *
- * The genome has no list of its own: the monitored fleet is the discovery
- * inventory's workload identities (see fetchMonitoredFleet), addressed by
- * the (source_type, identity_name) key in lib/identityLinks.js.
+ * The monitored fleet is the genome's own list (GET /identities, see
+ * fetchGenomeFleet), addressed by the (source_type, identity_name) key in
+ * lib/identityLinks.js.
  *
  * Envelope { data, meta: { request_id, generated_at, next_cursor } }. Unknown
  * params are rejected, so only set values are sent. Missing monitoring data is
@@ -27,8 +27,6 @@ import { canonicalGenomeName, genomeSourceType, setGenomeFamilies } from '../ide
  * those as "not measured yet" rather than as zero.
  */
 const BASE = '/api/v1/genome';
-const FLEET_PAGE = 100; // the inventory list's page-size cap
-const FLEET_MAX_PAGES = 10;
 
 const HOUR = 3600 * 1000;
 const DAY = 24 * HOUR;
@@ -86,30 +84,54 @@ export async function fetchGenomeSummary({ window, sourceType, accountId, region
   };
 }
 
+const GENOME_LIST_PAGE = 100; // the genome list's limit cap
+const GENOME_LIST_MAX_PAGES = 20;
+
 /**
- * The monitored fleet: every discovery identity of a type the genome watches,
- * with its genome key. Read in pages of 100 up to 1,000 identities;
- * `complete` is false beyond that. Rows keep the inventory fields (id, name,
- * arn, identity_type, account_id, region, status, last_activity_at);
- * `activityAvailable` is false when CloudTrail could not be read, so a
- * missing last_activity_at is unknown rather than "never".
+ * The monitored fleet from the genome's own list, GET /genome/identities:
+ * every monitored identity in scope with its baseline (status, days learned of
+ * days required), latest risk, open anomaly count and last call. Read in pages
+ * of 100 by cursor, up to 2,000; `complete` is false beyond that. One request
+ * per page replaces one summary request per table row.
  */
-export async function fetchMonitoredFleet(signal) {
-  await loadWorkloadTypes(); // so identities of a switched-off family get no Genome link
+export async function fetchGenomeFleet({ sort = 'risk_desc' } = {}, signal) {
+  await loadWorkloadTypes();
   const items = [];
-  let activityAvailable = true;
-  for (let page = 1; page <= FLEET_MAX_PAGES; page += 1) {
-    const data = unwrapMain(
-      await client.get('/api/v1/identities', { params: { page, page_size: FLEET_PAGE, sort_by: 'name', sort_order: 'asc' }, signal }),
+  let cursor;
+  for (let page = 0; page < GENOME_LIST_MAX_PAGES; page += 1) {
+    const { data, meta } = unwrapGenome(
+      await client.get(`${BASE}/identities`, { params: params({ sort, limit: GENOME_LIST_PAGE, cursor }), signal }),
     );
-    if (data?.activity_data_available === false) activityAvailable = false;
-    for (const row of list(data?.data)) {
-      const sourceType = genomeSourceType(row.identity_type);
-      if (sourceType && row.arn) items.push({ ...row, sourceType, identityName: canonicalGenomeName(row.identity_type, row.arn) });
-    }
-    if (page >= (Number(data?.pagination?.total_pages) || 0)) return { items, complete: true, activityAvailable };
+    if (!data || !Array.isArray(data.items)) throw unexpected();
+    for (const row of data.items) items.push(fleetRow(row));
+    cursor = meta?.next_cursor || null;
+    if (!cursor) return { items, complete: true };
   }
-  return { items, complete: false, activityAvailable };
+  return { items, complete: false };
+}
+
+function fleetRow(row) {
+  const baseline = row.baseline ?? {};
+  const risk = row.risk ?? {};
+  return {
+    id: row.id || `${row.source_type}:${row.identity_name}`,
+    sourceType: row.source_type,
+    identityName: row.identity_name,
+    name: row.display_name || row.identity_name,
+    nhiType: row.nhi_identity_type ?? null,
+    workloadKey: row.workload_key ?? null,
+    status: row.status ?? null,
+    accountId: row.account_id ?? null,
+    region: row.region ?? null,
+    baseline: {
+      status: baseline.status ? String(baseline.status).toLowerCase() : null,
+      builtDays: baseline.built_days ?? null,
+      requiredDays: baseline.required_days ?? null,
+    },
+    risk: { score: risk.score ?? null, severity: risk.severity ?? null },
+    lastSeen: row.last_seen ?? null,
+    openAnomalies: row.open_anomaly_count ?? null,
+  };
 }
 
 /**
@@ -279,6 +301,24 @@ export async function fetchAnomalies({ state, dimension, sourceType, search, lim
     }),
   );
   return { items: list(data?.items), nextCursor: meta?.next_cursor || null };
+}
+
+/**
+ * Every anomaly in a state (open, or '' for all), newest first: pages of 100
+ * by cursor up to 1,000, so the Anomalies tab can count and filter by severity
+ * and departure type without a request per filter. `complete` is false beyond
+ * that.
+ */
+export async function fetchAllAnomalies({ state } = {}, signal) {
+  const items = [];
+  let cursor;
+  for (let page = 0; page < 10; page += 1) {
+    const result = await fetchAnomalies({ state, limit: 100, cursor }, signal);
+    items.push(...result.items);
+    cursor = result.nextCursor;
+    if (!cursor) return { items, complete: true };
+  }
+  return { items, complete: false };
 }
 
 export async function fetchAnomaly(id, signal) {

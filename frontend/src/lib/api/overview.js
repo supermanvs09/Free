@@ -1,6 +1,7 @@
 import client from './client';
 import { shapeRecentChanges } from './changes';
 import { ApiError, unwrapGenome, unwrapMain, unwrapPosture } from './http';
+import { fetchIdentities, fetchIdentityEvents } from './inventory';
 
 /*
  * The organisation dashboard's reads. Each service answers on its own, so the
@@ -197,4 +198,34 @@ export async function fetchGenomeSummary(signal) {
       version: r.version ?? null,
     })),
   };
+}
+
+/**
+ * Latest API activity across the fleet: the newest calls of the identities
+ * that were active most recently, merged newest first. There is no fleet-wide
+ * event list in the API, so this asks the inventory for the six most recently
+ * active identities and each of them for its three newest calls.
+ * ponytail: 7 requests per dashboard load; a /dashboard/activity/recent
+ * endpoint on the event store is the upgrade if the card needs more rows.
+ */
+export async function fetchLatestActivity(signal, { identities = 6, perIdentity = 3, limit = 7 } = {}) {
+  const page = await fetchIdentities({ page: 1, pageSize: identities, sortBy: 'last_activity_at', sortOrder: 'desc' }, signal);
+  if (!page.activityAvailable) return { available: false, events: [] };
+  const lists = await Promise.all(
+    page.rows
+      .filter((row) => row.last_activity_at)
+      .map((row) =>
+        fetchIdentityEvents(row.id, 'timeline', { timeRange: '30d', pageSize: perIdentity, page: 1 }, signal)
+          .then((data) => (data?.events ?? []).map((event) => ({ ...event, identity: { id: row.id, name: row.name } })))
+          .catch((error) => {
+            if (signal?.aborted) throw error;
+            return [];
+          }),
+      ),
+  );
+  const events = lists
+    .flat()
+    .sort((a, b) => (Date.parse(b.event_time) || 0) - (Date.parse(a.event_time) || 0))
+    .slice(0, limit);
+  return { available: true, events };
 }

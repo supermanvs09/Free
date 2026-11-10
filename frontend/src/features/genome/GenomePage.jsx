@@ -1,31 +1,32 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Download, SearchX, ShieldQuestion } from 'lucide-react';
-import { fetchGenomeIdentity, fetchGenomeSummary, fetchMonitoredFleet } from '../../lib/api/genome';
+import { Download, SearchX, ShieldCheck, ShieldQuestion } from 'lucide-react';
+import { fetchAllAnomalies, fetchGenomeFleet, fetchGenomeSummary } from '../../lib/api/genome';
 import { genomeRoute } from '../../lib/identityLinks';
 import { useDebouncedValue, useQuery } from '../../lib/hooks';
-import { severityMeta } from '../../lib/domain';
+import { SERIES_TOKENS, severityMeta } from '../../lib/domain';
 import { exportRowsToCsv, timestampedName } from '../../lib/csv';
-import { SERIES_TOKENS } from '../../lib/domain';
 import { formatDateTime, formatNumber, formatRelative } from '../../lib/format';
 import { PageHeader } from '../../shell/PageHeader';
-import { AnomaliesPanel } from './AnomaliesPanel';
 import { Button } from '../../ui/Button';
 import { DataGrid } from '../../ui/DataGrid';
+import { FacetRail, useFacetRail } from '../../ui/FacetRail';
 import { SearchInput, Select } from '../../ui/Field';
+import { Meter, ProportionBar } from '../../ui/Meter';
 import { Pagination } from '../../ui/Pagination';
 import { Panel, PanelHeader } from '../../ui/Panel';
-import { ChartSkeleton, StatStripSkeleton } from '../../ui/Skeleton';
+import { ChartSkeleton, ListSkeleton, StatStripSkeleton } from '../../ui/Skeleton';
 import { MetricTile } from '../../ui/Stat';
 import { EmptyState, ErrorState } from '../../ui/States';
 import { Tag } from '../../ui/Tag';
-import { SegmentedControl } from '../../ui/Tabs';
+import { SegmentedControl, Tabs } from '../../ui/Tabs';
 import { RefreshButton, TableToolbar } from '../../ui/TableTools';
 import { useToast } from '../../ui/Toast';
-import { RecordBar, ResultCount } from '../../ui/WorkArea';
+import { RecordBar, ResultCount, ShowFiltersButton, WorkArea } from '../../ui/WorkArea';
 import { CompositionDonut } from '../../charts/CompositionDonut';
 import { TrendChart } from '../../charts/TrendChart';
-import { dimensionLabel, sourceTypeLabel } from './meta';
+import { AnomalyDrawer } from './AnomalyDrawer';
+import { anomalyStatusMeta, dimensionLabel, sourceTypeLabel } from './meta';
 
 const PAGE_SIZES = [10, 25, 50, 100];
 const WINDOWS = [
@@ -34,45 +35,49 @@ const WINDOWS = [
   { value: '30d', label: '30d' },
 ];
 const WINDOW_WORDS = { '24h': '24 hours', '7d': '7 days', '30d': '30 days' };
+const TAB_KEYS = ['overview', 'identities', 'anomalies'];
 const DAY_MS = 86400000;
 
+/** Where an identity's baseline stands, from the genome list's baseline block. */
+export function learningState(baseline) {
+  const status = baseline?.status;
+  if (status === 'active') return { key: 'established', label: 'Established', tone: 'low' };
+  if (status) {
+    const built = Number(baseline.builtDays) || 0;
+    const required = Number(baseline.requiredDays) || 0;
+    const pct = required > 0 ? Math.min(100, (built / required) * 100) : null;
+    return { key: 'learning', label: 'Learning', tone: 'medium', built, required, pct, left: required > built ? required - built : 0 };
+  }
+  return { key: 'none', label: 'Not started', tone: 'neutral' };
+}
+
+const BASELINE_FILTERS = [
+  { value: '', label: 'Every baseline state' },
+  { value: 'established', label: 'Established' },
+  { value: 'learning', label: 'Learning' },
+  { value: 'none', label: 'Not started' },
+];
+
+const SORTS = [
+  { value: 'risk', label: 'Sort: Risk, highest first' },
+  { value: 'seen', label: 'Sort: Last call, newest first' },
+  { value: 'learning', label: 'Sort: Closest to a baseline' },
+  { value: 'name', label: 'Sort: Name' },
+];
+
 /**
- * NHI Genome - fleet view.
+ * NHI Genome - the fleet.
  *
- * Every workload identity (compute, functions, tasks, pipelines) first learns
- * its own normal behaviour from its calls. The top says how far the fleet is
- * (watched, established, still learning) and what was baselined lately; the
- * list below is every monitored identity in scope, each opening its genome,
- * activity and timeline.
- *
- * The list is the discovery inventory's workload identities: the genome
- * service has no list of its own, and the inventory is the one source of
- * which identities exist in the selected accounts and regions.
+ * Overview: how far the fleet has learned its normal behaviour, what departed
+ * from it and where. Identities: every monitored identity from the genome's
+ * own list (GET /genome/identities), with its learning progress; one opens its
+ * genome, anomalies, activity and timeline. Anomalies: every departure, with
+ * filters by severity and departure type, each opening its evidence.
  */
 export default function GenomePage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const { notify } = useToast();
-
-  /* Two filters, kept apart. `source` is set by the "What is watched" donut and
-     narrows the departures and the table together. `list` is the table's own
-     workload menu and narrows the table only: picking EC2 in the table used to
-     change the departures panel above it as well. */
-  const sourceType = searchParams.get('source') || '';
-  const listSource = searchParams.get('list') || '';
-  const tableSource = listSource || sourceType;
-  const departuresRef = useRef(null);
-  const tableRef = useRef(null);
-  /* globalThis: this component's `window` is the time window (24h/7d/30d). */
-  const bringIntoView = (ref) =>
-    globalThis.requestAnimationFrame(() => {
-      const el = ref.current;
-      if (!el) return;
-      const top = el.getBoundingClientRect().top;
-      if (top < 110 || top > globalThis.innerHeight * 0.6) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  const pageSize = PAGE_SIZES.includes(Number(searchParams.get('size'))) ? Number(searchParams.get('size')) : 25;
-  const page = Math.max(1, Number(searchParams.get('page')) || 1);
+  const tab = TAB_KEYS.includes(searchParams.get('tab')) ? searchParams.get('tab') : 'overview';
+  const window = WINDOWS.some((entry) => entry.value === searchParams.get('window')) ? searchParams.get('window') : '24h';
 
   const setParams = useCallback(
     (changes) => {
@@ -86,348 +91,191 @@ export default function GenomePage() {
     [searchParams, setSearchParams],
   );
 
-  const [searchDraft, setSearchDraft] = useState(() => searchParams.get('q') || '');
-  const search = useDebouncedValue(searchDraft, 250).trim().toLowerCase();
-
-  const window = WINDOWS.some((entry) => entry.value === searchParams.get('window')) ? searchParams.get('window') : '24h';
-  /* With 24h the service reads the cards over 24 hours and the charts over 14
-     days; a wider window applies to both. */
-  const chartDays = window === '30d' ? 30 : window === '7d' ? 7 : 14;
   const summary = useQuery((signal) => fetchGenomeSummary({ window }, signal), [window]);
-  const fleet = useQuery((signal) => fetchMonitoredFleet(signal), []);
-  const all = useMemo(() => fleet.data?.items ?? [], [fleet.data]);
+  const fleet = useQuery((signal) => fetchGenomeFleet({}, signal), []);
+  const openTotal = summary.data?.cards?.open_anomalies;
 
-  const filtered = useMemo(
-    () =>
-      all.filter(
-        (row) =>
-          (!tableSource || row.sourceType === tableSource) &&
-          (!search ||
-            [row.name, row.arn, row.account_id, row.region].some((value) => String(value ?? '').toLowerCase().includes(search))),
-      ),
-    [all, tableSource, search],
-  );
-  const lastPage = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const current = Math.min(page, lastPage);
-  const rows = filtered.slice((current - 1) * pageSize, current * pageSize);
-  const rowSummaries = useRowSummaries(rows);
-
-  /* Workload mix of the watched fleet, largest first. Every family keeps its
-     own slice: folding the tail into "Other" gave a slice that could not be
-     selected, so only some segments of the ring filtered the list. */
-  const mix = useMemo(() => {
-    const counts = new Map();
-    for (const row of all) counts.set(row.sourceType, (counts.get(row.sourceType) ?? 0) + 1);
-    const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-    return sorted.map(([key, value], index) => ({
-      key,
-      label: sourceTypeLabel(key),
-      value,
-      color: SERIES_TOKENS[index % (SERIES_TOKENS.length - 1)],
-    }));
-  }, [all]);
-
-  const typeOptions = useMemo(
-    () => [{ value: '', label: 'All workload types' }, ...mix.filter((m) => m.key !== 'other').map((m) => ({ value: m.key, label: m.label }))],
-    [mix],
-  );
-
-  const onExport = useCallback(() => {
-    exportRowsToCsv({
-      filename: timestampedName('nhi-genome-fleet'),
-      columns: [
-        { header: 'Identity', value: (row) => row.name },
-        { header: 'ARN', value: (row) => row.identityName },
-        { header: 'Workload type', value: (row) => sourceTypeLabel(row.sourceType, row.identity_type) },
-        { header: 'Account', value: (row) => row.account_id },
-        { header: 'Region', value: (row) => row.region ?? '' },
-        { header: 'Status', value: (row) => row.status ?? '' },
-        { header: 'Last seen in CloudTrail (UTC)', value: (row) => row.last_activity_at ?? '' },
-      ],
-      rows: filtered,
-    });
-    notify({ title: 'Exported', description: `${formatNumber(filtered.length)} identities written.`, variant: 'success' });
-  }, [filtered, notify]);
-
-  const columns = [
-    {
-      key: 'identity',
-      header: 'Identity',
-      primary: true,
-      width: '30%',
-      cell: (row) => (
-        <span className="block min-w-0">
-          <span className="block truncate text-[13px] font-semibold text-ink" title={row.identityName}>
-            {row.name || row.identityName}
-          </span>
-          <span className="block truncate text-[11.5px] text-ink-3">
-            {sourceTypeLabel(row.sourceType, row.identity_type)}
-            {row.status && String(row.status).toLowerCase() !== 'active' ? ` · ${row.status}` : ''}
-          </span>
-        </span>
-      ),
-    },
-    {
-      key: 'scope',
-      header: 'Account / region',
-      width: '17%',
-      priority: 'wide',
-      cell: (row) => (
-        <span className="block min-w-0">
-          <span data-numeric="" className="block truncate font-mono text-[12px] text-ink-2">
-            {row.account_id || '-'}
-          </span>
-          <span className="block truncate text-[11.5px] text-ink-3">{row.region || 'Global'}</span>
-        </span>
-      ),
-    },
-    {
-      key: 'baseline',
-      header: 'Baseline',
-      width: '17%',
-      cell: (row) => <RowCell summary={rowSummaries.data} id={row.id} render={baselineCell} />,
-    },
-    {
-      key: 'open',
-      header: 'Open departures',
-      width: '12%',
-      cell: (row) => <RowCell summary={rowSummaries.data} id={row.id} render={openCell} />,
-    },
-    {
-      key: 'calls',
-      header: 'Calls · 14 days',
-      width: '11%',
-      priority: 'wide',
-      cell: (row) => <RowCell summary={rowSummaries.data} id={row.id} render={callsCell} />,
-    },
-    {
-      key: 'last',
-      header: 'Last call',
-      width: '13%',
-      cell: (row) => <RowCell summary={rowSummaries.data} id={row.id} render={lastCallCell} />,
-    },
+  const tabs = [
+    { value: 'overview', label: 'Overview' },
+    { value: 'identities', label: 'Identities', count: fleet.data?.items.length || undefined },
+    { value: 'anomalies', label: 'Anomalies', count: Number.isFinite(openTotal) && openTotal > 0 ? openTotal : undefined },
   ];
 
-  const filteredView = Boolean(tableSource || search);
+  /* A tab change starts at the top of the page, with the other tab's filters
+     left behind (they belong to that list). */
+  const openTab = (value, extra = {}) => {
+    const next = new URLSearchParams();
+    if (window !== '24h') next.set('window', window);
+    if (value !== 'overview') next.set('tab', value);
+    for (const [key, v] of Object.entries(extra)) if (v) next.set(key, String(v));
+    setSearchParams(next, { replace: false });
+    globalThis.scrollTo({ top: 0 });
+  };
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title="NHI Genome"
-        lede="Each workload identity learns its own normal behaviour from its calls. Open one to see its behavioural fingerprint, its calls and how its baseline got where it is."
+        lede="Each workload identity learns its own normal behaviour from its calls, then every call is compared with it. Open an identity to see its fingerprint, its departures and how its baseline got where it is."
         actions={
-          <>
-            <SegmentedControl
-              label="Detection window"
-              options={WINDOWS}
-              value={window}
-              onChange={(value) => setParams({ window: value === '24h' ? '' : value })}
-            />
-            <Button variant="secondary" icon={Download} onClick={onExport} disabled={filtered.length === 0}>
-              Export
-            </Button>
-          </>
+          <SegmentedControl
+            label="Detection window"
+            options={WINDOWS}
+            value={window}
+            onChange={(value) => setParams({ window: value === '24h' ? '' : value })}
+          />
         }
+        tabs={<Tabs size="sm" tabs={tabs} value={tab} onChange={(value) => openTab(value)} />}
       />
 
-      {summary.isError && !summary.data ? (
-        <Panel prominence="quiet">
-          <ErrorState error={summary.error} onRetry={summary.refetch} title="The behaviour summary failed to load" />
-        </Panel>
-      ) : summary.isLoading && !summary.data ? (
-        <StatStripSkeleton count={3} />
-      ) : (
-        <>
-          <SummaryCards cards={summary.data.cards} window={window} />
-          <div className="grid gap-4 @min-[52rem]:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-            <AnomaliesPerDay days={summary.data.anomaliesByDay} span={chartDays} generatedAt={summary.data.generatedAt} />
-            <DeparturesByType departures={summary.data.departures} span={chartDays} />
-          </div>
-          {summary.data.mostAnomalous.length > 0 && <MostAnomalous entries={summary.data.mostAnomalous} />}
-        </>
-      )}
-
-      <div className="grid gap-4 @min-[52rem]:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-        <Panel prominence="quiet" className="animate-rise">
-          <PanelHeader
-            prominence="quiet"
-            title="What is watched"
-            subtitle={(() => {
-              /* Say exactly what is counted, so it can be checked against the
-                 database: every discovered workload identity in the selected
-                 accounts and regions, whatever its status. */
-              const active = all.filter((row) => String(row.status || '').toLowerCase() === 'active').length;
-              const base = 'Workload identities discovered in your selected accounts and regions, by type. Select a type to list it.';
-              return all.length ? `${base} ${formatNumber(all.length)} in all: ${formatNumber(active)} active, ${formatNumber(all.length - active)} with another status.` : base;
-            })()}
-          />
-          {fleet.isLoading && !fleet.data ? (
-            <ChartSkeleton height={184} />
-          ) : mix.length === 0 ? (
-            <p className="mt-3 text-[12.5px] text-ink-3">No workload identity is in your scope yet.</p>
-          ) : (
-            <CompositionDonut
-              className="mt-4"
-              data={mix}
-              centerLabel="Watched"
-              onSelect={(item) => {
-                setParams({ source: item.key === sourceType ? '' : item.key, list: '', page: '' });
-                /* The result is below the fold: take the reader to it. */
-                bringIntoView(departuresRef);
-              }}
-            />
-          )}
-        </Panel>
-        <Panel prominence="quiet" className="animate-rise" data-stagger="" style={{ '--stagger': 1 }}>
-          <PanelHeader prominence="quiet" title="Recently baselined" subtitle="Baselines established or republished, newest first." />
-          <RecentlyBaselined entries={summary.data?.recentlyBaselined} loading={summary.isLoading && !summary.data} />
-        </Panel>
-      </div>
-
-      <div ref={departuresRef} className="scroll-mt-28">
-        <AnomaliesPanel sourceType={sourceType} onClearSource={() => setParams({ source: '', page: '' })} />
-      </div>
-
-      <Panel ref={tableRef} prominence="lead" flush className="animate-rise scroll-mt-28 overflow-hidden" data-list-top="">
-        <RecordBar
-          trailing={
-            <TableToolbar className="w-full flex-wrap sm:w-auto">
-              <SearchInput
-                value={searchDraft}
-                onChange={(value) => {
-                  setSearchDraft(value);
-                  if (page !== 1) setParams({ page: '' });
-                }}
-                placeholder="Search name, ARN, account, region..."
-                size="sm"
-                className="w-full sm:w-64"
-                aria-label="Search monitored identities"
-              />
-              <Select
-                size="sm"
-                value={tableSource}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  /* "All" from the table clears both, so the menu never shows
-                     a type it is not applying. */
-                  setParams(value ? { list: value === sourceType ? '' : value, page: '' } : { list: '', source: '', page: '' });
-                  bringIntoView(tableRef);
-                }}
-                options={typeOptions}
-                aria-label="Workload type"
-                className="min-w-0 flex-1 sm:w-48 sm:flex-none"
-              />
-              <RefreshButton onRefresh={fleet.refetch} refreshing={fleet.isRefreshing} label="Refresh fleet" />
-            </TableToolbar>
-          }
-        >
-          <ResultCount
-            shown={formatNumber(filtered.length)}
-            total={formatNumber(all.length)}
-            unit={fleet.data && !fleet.data.complete ? 'monitored identities (first 1,000)' : 'monitored identities'}
-            filtered={filteredView}
-            loading={fleet.isLoading && !fleet.data}
-          />
-        </RecordBar>
-
-        {fleet.isError && !fleet.data ? (
-          <ErrorState error={fleet.error} onRetry={fleet.refetch} />
-        ) : (
-          <DataGrid
-            caption="Monitored identities"
-            columns={columns}
-            rows={rows}
-            rowKey={(row) => row.id}
-            loading={fleet.isLoading && !fleet.data}
-            refreshing={fleet.isRefreshing}
-            onRowClick={(row) => navigate(genomeRoute(row.sourceType, row.identityName))}
-            density="comfortable"
-            skeletonRows={8}
-            emptyState={
-              filteredView ? (
-                <EmptyState
-                  icon={SearchX}
-                  title="No identity matches"
-                  description="No monitored identity matches the search and workload type."
-                  action={
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => {
-                        setSearchDraft('');
-                        setParams({ source: '', list: '', page: '' });
-                      }}
-                    >
-                      Clear filters
-                    </Button>
-                  }
-                />
-              ) : (
-                <EmptyState
-                  icon={ShieldQuestion}
-                  title="No workload identity in your scope"
-                  description="The genome watches compute, functions, tasks and pipelines. None was discovered in the accounts and regions you selected; widen the scope or run a discovery scan."
-                />
-              )
-            }
-          />
-        )}
-
-        {filtered.length > PAGE_SIZES[0] && (
-          <Pagination
-            page={current}
-            pageSize={pageSize}
-            total={filtered.length}
-            onPageChange={(next) => setParams({ page: next === 1 ? '' : next })}
-            onPageSizeChange={(next) => setParams({ size: next === 25 ? '' : next, page: '' })}
-            unit="identities"
-          />
-        )}
-      </Panel>
+      {tab === 'overview' && <OverviewTab summary={summary} fleet={fleet} window={window} openTab={openTab} />}
+      {tab === 'identities' && <IdentitiesTab fleet={fleet} searchParams={searchParams} setParams={setParams} />}
+      {tab === 'anomalies' && <AnomaliesTab searchParams={searchParams} setParams={setParams} />}
     </div>
   );
 }
 
-function SummaryCards({ cards, window }) {
+/* ── Overview ─────────────────────────────────────────────────────────────── */
+
+function OverviewTab({ summary, fleet, window, openTab }) {
+  const chartDays = window === '30d' ? 30 : window === '7d' ? 7 : 14;
+  const all = useMemo(() => fleet.data?.items ?? [], [fleet.data]);
+
+  /* Workload mix of the watched fleet, largest first. Glue jobs and crawlers
+     are one family, "Glue components". Every family keeps its own slice and
+     each slice opens the Identities tab on that family. */
+  const mix = useMemo(() => {
+    const counts = new Map();
+    for (const row of all) counts.set(row.sourceType, (counts.get(row.sourceType) ?? 0) + 1);
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([key, value], index) => ({ key, label: sourceTypeLabel(key), value, color: SERIES_TOKENS[index % (SERIES_TOKENS.length - 1)] }));
+  }, [all]);
+
+  const learning = useMemo(
+    () =>
+      all
+        .map((row) => ({ row, state: learningState(row.baseline) }))
+        .filter((entry) => entry.state.key === 'learning')
+        .sort((a, b) => (b.state.pct ?? -1) - (a.state.pct ?? -1) || a.row.name.localeCompare(b.row.name)),
+    [all],
+  );
+
+  if (summary.isError && !summary.data) {
+    return (
+      <Panel prominence="quiet">
+        <ErrorState error={summary.error} onRetry={summary.refetch} title="The behaviour summary failed to load" />
+      </Panel>
+    );
+  }
+  if (summary.isLoading && !summary.data) return <StatStripSkeleton count={4} />;
+
+  const { cards } = summary.data;
+  const active = all.filter((row) => String(row.status || '').toLowerCase() === 'active').length;
+
+  return (
+    <>
+      <SummaryCards cards={cards} window={window} learningCount={learning.length} openTab={openTab} />
+
+      <div className="grid gap-4 @min-[52rem]:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
+        <BaselineCoverage cards={cards} fleet={all} loading={fleet.isLoading && !fleet.data} />
+        <DeparturesByType departures={summary.data.departures} span={chartDays} onSelect={(dimension) => openTab('anomalies', { dim: dimension })} />
+      </div>
+
+      <div className="grid gap-4 @min-[52rem]:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+        <AnomaliesPerDay days={summary.data.anomaliesByDay} span={chartDays} generatedAt={summary.data.generatedAt} />
+        <Panel prominence="quiet" className="animate-rise">
+          <PanelHeader
+            prominence="quiet"
+            title="What is watched"
+            subtitle={
+              all.length
+                ? `${formatNumber(all.length)} monitored identities in your scope: ${formatNumber(active)} active, ${formatNumber(all.length - active)} with another status. Select a type to list it.`
+                : 'Monitored workload identities in your selected accounts and regions, by type.'
+            }
+          />
+          {fleet.isLoading && !fleet.data ? (
+            <ChartSkeleton height={184} />
+          ) : fleet.isError && !fleet.data ? (
+            <ErrorState compact error={fleet.error} onRetry={fleet.refetch} />
+          ) : mix.length === 0 ? (
+            <p className="mt-3 text-[12.5px] text-ink-3">No workload identity is in your scope yet.</p>
+          ) : (
+            <CompositionDonut className="mt-4" data={mix} centerLabel="Watched" onSelect={(item) => openTab('identities', { type: item.key })} />
+          )}
+        </Panel>
+      </div>
+
+      <div className="grid gap-4 @min-[52rem]:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+        <MostAnomalous entries={summary.data.mostAnomalous} onAll={() => openTab('anomalies')} />
+        <div className="flex flex-col gap-4">
+          <LearningNow entries={learning} loading={fleet.isLoading && !fleet.data} onAll={() => openTab('identities', { baseline: 'learning', sort: 'learning' })} />
+          <Panel prominence="quiet" className="animate-rise">
+            <PanelHeader prominence="quiet" title="Recently baselined" subtitle="Baselines established or republished, newest first." />
+            <RecentlyBaselined entries={summary.data.recentlyBaselined} />
+          </Panel>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function SummaryCards({ cards, window, learningCount, openTab }) {
   const watched = cards.identities_watched;
   const established = cards.baselines_established;
   const open = cards.open_anomalies;
-  const coverage = Number.isFinite(watched) && watched > 0 && Number.isFinite(established) ? (established / watched) * 100 : null;
-  // One anomaly tile: the count, with the critical share in its caption once
-  // the pipeline scores severities (critical_anomalies is null until then).
   const critical = cards.critical_anomalies;
-  const hasCritical = Number.isFinite(critical);
+  const coverage = Number.isFinite(watched) && watched > 0 && Number.isFinite(established) ? (established / watched) * 100 : null;
   const tiles = [
     <MetricTile
       key="established"
+      as="button"
+      type="button"
+      onClick={() => openTab('identities', { baseline: 'established' })}
       label="Baselines established"
       value={established}
-      tone="low"
+      tone="brand"
       meter={coverage}
       meterLabel="Share of watched identities with an established baseline"
       caption={Number.isFinite(watched) ? `of ${formatNumber(watched)} identities watched` : 'Normal behaviour learned and watched'}
     />,
     <MetricTile
       key="learning"
-      label="No baseline yet"
+      as="button"
+      type="button"
+      onClick={() => openTab('identities', { baseline: 'learning', sort: 'learning' })}
+      label="Still learning"
       value={cards.still_learning}
       tone="medium"
-      caption="Learning, or not started; nothing can be flagged for them yet"
+      caption={
+        learningCount > 0
+          ? `No baseline yet, so no anomaly can be raised · ${formatNumber(learningCount)} learning now`
+          : 'No baseline yet, so no anomaly can be raised'
+      }
     />,
     <MetricTile
       key="open"
-      label={`New anomalies · ${window}`}
+      as="button"
+      type="button"
+      onClick={() => openTab('anomalies')}
+      label="Open anomalies"
       value={open}
-      tone={open > 0 ? 'critical' : 'neutral'}
-      caption={
-        hasCritical && critical > 0
-          ? `${formatNumber(critical)} critical · raised in the last ${WINDOW_WORDS[window]} and still open`
-          : `Raised in the last ${WINDOW_WORDS[window]} and still open; older open ones are in the list below`
-      }
+      tone="high"
+      caption={`Raised in the last ${WINDOW_WORDS[window]} and still open`}
     />,
-  ].filter(Boolean);
+    <MetricTile
+      key="critical"
+      as="button"
+      type="button"
+      onClick={() => openTab('anomalies', { sev: 'CRITICAL' })}
+      label="Critical anomalies"
+      value={critical}
+      tone="critical"
+      caption={Number.isFinite(critical) ? 'Highest-confidence departures' : 'Shown once the pipeline grades severities'}
+    />,
+  ];
   return (
-    <div className="grid gap-3 @min-[30rem]:grid-cols-2 @min-[54rem]:grid-cols-3">
+    <div className="grid gap-3 @min-[30rem]:grid-cols-2 @min-[54rem]:grid-cols-4">
       {tiles.map((tile, index) => (
         <div key={tile.key} className="animate-rise" data-stagger="" style={{ '--stagger': index }}>
           {tile}
@@ -437,11 +285,70 @@ function SummaryCards({ cards, window }) {
   );
 }
 
+/** Established / learning / not started across the fleet, with the model's own health figures. */
+function BaselineCoverage({ cards, fleet, loading }) {
+  const counts = useMemo(() => {
+    const out = { established: 0, learning: 0, none: 0 };
+    for (const row of fleet) out[learningState(row.baseline).key] += 1;
+    return out;
+  }, [fleet]);
+  const segments = [
+    { key: 'established', label: 'Established', value: counts.established, color: 'var(--t-low)' },
+    { key: 'learning', label: 'Learning', value: counts.learning, color: 'var(--t-medium)' },
+    { key: 'none', label: 'Not started', value: counts.none, color: 'var(--t-neutral)' },
+  ];
+  const confidence = cards.mean_confidence_percent ?? cards.mean_provenance_confidence;
+  const facts = [
+    { label: 'Mean confidence', value: Number.isFinite(confidence) ? `${Math.round(confidence)}%` : 'Not measured' },
+    { label: 'Coverage', value: Number.isFinite(cards.baseline_coverage_percent) ? `${Math.round(cards.baseline_coverage_percent)}%` : 'Not measured' },
+    {
+      label: 'Drifting baselines',
+      value: cards.drifting_baselines_available && Number.isFinite(cards.drifting_baselines) ? formatNumber(cards.drifting_baselines) : 'Not measured',
+    },
+    { label: 'Window', value: cards.window_hours ? `${cards.window_hours}h` : '24h' },
+  ];
+  return (
+    <Panel prominence="quiet" className="animate-rise">
+      <PanelHeader prominence="quiet" title="Baseline coverage" />
+      {loading ? (
+        <ChartSkeleton height={60} />
+      ) : (
+        <>
+          <ProportionBar className="mt-4" segments={segments} height={10} ariaLabel="Baseline state of the monitored identities" />
+          <ul className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-ink-2">
+            {segments.map((seg) => (
+              <li key={seg.key} className="flex items-center gap-1.5">
+                <span aria-hidden="true" className="size-2.5 rounded-[3px]" style={{ background: seg.color }} />
+                {seg.label}
+                <span data-numeric="" className="font-semibold text-ink">
+                  {formatNumber(seg.value)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3">
+        {facts.map((fact) => (
+          <div key={fact.label}>
+            <dt className="text-[10.5px] font-semibold tracking-[0.085em] text-ink-3 uppercase">{fact.label}</dt>
+            <dd data-numeric="" className="mt-0.5 text-[14px] font-semibold text-ink">
+              {fact.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <p className="mt-3 text-[11.5px] leading-relaxed text-ink-3">
+        A drifting baseline is not an anomaly: it means the model needs retraining before its verdicts are worth much.
+      </p>
+    </Panel>
+  );
+}
+
 /** Anomalies raised per UTC day, open or resolved. Days without one are a measured zero. */
 function AnomaliesPerDay({ days, span, generatedAt }) {
   const data = useMemo(() => {
     const counts = new Map(days.map((entry) => [String(entry.day).slice(0, 10), Number(entry.count) || 0]));
-    // The server's clock, not the browser's: the days are UTC days it counted.
     const end = Date.parse(generatedAt ?? '') || Date.parse(days.at(-1)?.day ?? '') || 0;
     const today = Math.floor(end / DAY_MS) * DAY_MS;
     return Array.from({ length: span }, (_, index) => {
@@ -452,45 +359,45 @@ function AnomaliesPerDay({ days, span, generatedAt }) {
   }, [days, span, generatedAt]);
   const total = data.reduce((sum, entry) => sum + entry.anomalies, 0);
   return (
-    <Panel prominence="quiet" className="animate-rise" data-stagger="" style={{ '--stagger': 1 }}>
+    <Panel prominence="quiet" className="animate-rise">
       <PanelHeader prominence="quiet" title="Anomalies per day" />
-      {/* Bars, not a smoothed area: these are whole counts per day, and a curve would draw anomalies between days. */}
-      <TrendChart className="mt-3" variant="bar" data={data} dataKey="anomalies" label="Anomalies raised" height={132} />
+      <TrendChart className="mt-3" data={data} dataKey="anomalies" label="Anomalies raised" height={168} />
       <p className="mt-1 text-[11.5px] text-ink-3">
-        Last {span} days, open or resolved, UTC · {formatNumber(total)} in all.
+        Last {span} days, all severities, UTC · {formatNumber(total)} in all.
       </p>
     </Panel>
   );
 }
 
-/** Open departures grouped by the dimension that departed. */
-function DeparturesByType({ departures, span }) {
-  const total = departures.reduce((sum, entry) => sum + (Number(entry.count) || 0), 0);
+/** Open departures grouped by what departed; each row opens the Anomalies tab on that type. */
+function DeparturesByType({ departures, span, onSelect }) {
+  const max = departures.reduce((top, entry) => Math.max(top, Number(entry.count) || 0), 0);
   return (
-    <Panel prominence="quiet" className="animate-rise" data-stagger="" style={{ '--stagger': 2 }}>
+    <Panel prominence="quiet" className="animate-rise">
       <PanelHeader prominence="quiet" title="Departures by type" subtitle={`Open anomalies raised in the last ${span} days, by what departed from the baseline.`} />
       {departures.length === 0 ? (
         <p className="mt-3 rounded-[var(--radius-control)] border border-dashed border-line px-3 py-6 text-center text-[12.5px] text-ink-3">
           No open departure in this window.
         </p>
       ) : (
-        <ul className="mt-3 flex flex-col">
+        <ul className="mt-2 flex flex-col">
           {departures.map((entry) => (
-            <li key={entry.dimension} className="border-b border-line py-2 last:border-0">
-              <div className="flex items-center gap-3">
+            <li key={entry.dimension} className="border-b border-line last:border-0">
+              <button
+                type="button"
+                onClick={() => onSelect(entry.dimension)}
+                className="group flex w-full items-center gap-4 rounded-md px-1 py-2.5 text-left transition-colors hover:bg-surface-2"
+              >
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[12.5px] text-ink">{dimensionLabel(entry.dimension)}</span>
-                  <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-track">
-                    <span
-                      className="block h-full rounded-full"
-                      style={{ width: `${total ? (entry.count / total) * 100 : 0}%`, background: 'var(--t-series-1)' }}
-                    />
+                  <span className="block truncate text-[13px] text-ink group-hover:text-brand">{dimensionLabel(entry.dimension)}</span>
+                  <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-track">
+                    <span className="block h-full rounded-full bg-brand" style={{ width: `${max ? (entry.count / max) * 100 : 0}%` }} />
                   </span>
                 </span>
-                <span data-numeric="" className="shrink-0 text-[12.5px] font-semibold text-ink">
+                <span data-numeric="" className="w-8 shrink-0 text-right text-[13px] font-semibold text-ink">
                   {formatNumber(entry.count)}
                 </span>
-              </div>
+              </button>
             </li>
           ))}
         </ul>
@@ -499,51 +406,116 @@ function DeparturesByType({ departures, span }) {
   );
 }
 
-/** The identities the pipeline scores riskiest; shown only when it has scored some. */
-function MostAnomalous({ entries }) {
+function MostAnomalous({ entries, onAll }) {
   return (
-    <Panel prominence="quiet" className="animate-rise">
-      <PanelHeader prominence="quiet" title="Most anomalous identities" subtitle="Highest risk score from the latest scoring window first." />
-      <ul className="mt-2 flex flex-col divide-y divide-line">
-        {entries.map((entry) => {
-          const severity = severityMeta(entry.severity);
-          return (
-            <li key={entry.id} className="flex items-center gap-3 py-2">
-              <span className="min-w-0 flex-1">
+    <Panel prominence="quiet" flush className="animate-rise overflow-hidden">
+      <div className="px-4 pt-4">
+        <PanelHeader
+          prominence="quiet"
+          title="Most anomalous identities"
+          subtitle="Highest risk score from the latest scoring window first."
+          actions={
+            <Button variant="secondary" size="sm" onClick={onAll}>
+              All anomalies
+            </Button>
+          }
+        />
+      </div>
+      {entries.length === 0 ? (
+        <p className="m-4 rounded-[var(--radius-control)] border border-dashed border-line px-3 py-6 text-center text-[12.5px] text-ink-3">
+          No identity has been scored as anomalous yet.
+        </p>
+      ) : (
+        <ul className="mt-3 flex flex-col divide-y divide-line border-t border-line">
+          {entries.map((entry) => {
+            const severity = severityMeta(entry.severity);
+            return (
+              <li key={entry.id}>
                 <Link
                   to={genomeRoute(entry.source_type, entry.identity_name)}
-                  className="block truncate text-[12.5px] font-medium text-ink hover:text-brand"
+                  className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-2"
                   title={entry.identity_name}
                 >
-                  {entry.display_name || entry.identity_name}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] font-medium text-ink group-hover:text-brand">
+                      {entry.display_name || entry.identity_name}
+                    </span>
+                    <span className="block truncate text-[11.5px] text-ink-3">
+                      {sourceTypeLabel(entry.source_type, entry.identity_name)}
+                      {entry.region ? ` · ${entry.region}` : ''}
+                    </span>
+                  </span>
+                  {Number(entry.anomalous_event_count) > 0 && (
+                    <span className="shrink-0 text-[12px] text-ink-3">{formatNumber(entry.anomalous_event_count)} anomalous</span>
+                  )}
+                  <span data-numeric="" className="w-8 shrink-0 text-right text-[14px] font-semibold text-ink">
+                    {entry.risk_score ?? '-'}
+                  </span>
+                  <Tag tone={severity.tone} size="sm" dot>
+                    {severity.label}
+                  </Tag>
                 </Link>
-                <span className="block truncate text-[11px] text-ink-3">
-                  {sourceTypeLabel(entry.source_type, entry.identity_name)}
-                  {entry.region ? ` · ${entry.region}` : ''}
-                </span>
-              </span>
-              {Number(entry.anomalous_event_count) > 0 && (
-                <span className="shrink-0 text-[11.5px] text-ink-3">{formatNumber(entry.anomalous_event_count)} anomalous calls</span>
-              )}
-              <span data-numeric="" className="w-8 shrink-0 text-right text-[13px] font-semibold text-ink">
-                {entry.risk_score}
-              </span>
-              <Tag tone={severity.tone} size="sm" dot>
-                {severity.label}
-              </Tag>
-            </li>
-          );
-        })}
-      </ul>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </Panel>
   );
 }
 
-function RecentlyBaselined({ entries, loading }) {
-  if (loading) return <ChartSkeleton height={120} />;
+/**
+ * Learning in progress: identities with a baseline row that is not yet
+ * established, closest to done first. Each shows how many days it has
+ * learned of how many it needs, so "no anomaly yet" reads as "in N days".
+ */
+function LearningNow({ entries, loading, onAll }) {
+  const shown = entries.slice(0, 5);
+  return (
+    <Panel prominence="quiet" className="animate-rise">
+      <PanelHeader
+        prominence="quiet"
+        title="Learning now"
+        subtitle="Nothing can be flagged for these until their baseline is established."
+        actions={
+          entries.length > shown.length ? (
+            <Button variant="link" size="sm" onClick={onAll}>
+              All {formatNumber(entries.length)}
+            </Button>
+          ) : null
+        }
+      />
+      {loading ? (
+        <ListSkeleton rows={3} />
+      ) : shown.length === 0 ? (
+        <p className="mt-3 rounded-[var(--radius-control)] border border-dashed border-line px-3 py-5 text-center text-[12.5px] text-ink-3">
+          No identity is learning right now.
+        </p>
+      ) : (
+        <ul className="mt-2 flex flex-col divide-y divide-line">
+          {shown.map(({ row, state }) => (
+            <li key={row.id} className="py-2.5">
+              <Link to={genomeRoute(row.sourceType, row.identityName)} className="group block" title={row.identityName}>
+                <span className="flex items-baseline gap-3">
+                  <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-ink group-hover:text-brand">{row.name}</span>
+                  <span data-numeric="" className="shrink-0 text-[11.5px] text-ink-3">
+                    Day {formatNumber(state.built)} of {formatNumber(state.required)}
+                  </span>
+                </span>
+                <Meter className="mt-1.5" value={state.pct} tone="medium" height={5} label={`${row.name}: ${Math.round(state.pct ?? 0)}% learned`} />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
+  );
+}
+
+function RecentlyBaselined({ entries }) {
   if (!entries?.length) {
     return (
-      <p className="mt-3 rounded-[var(--radius-control)] border border-dashed border-line px-3 py-6 text-center text-[12.5px] text-ink-3">
+      <p className="mt-3 rounded-[var(--radius-control)] border border-dashed border-line px-3 py-5 text-center text-[12.5px] text-ink-3">
         No baseline has been established yet. Identities appear here as their learning period completes.
       </p>
     );
@@ -551,123 +523,583 @@ function RecentlyBaselined({ entries, loading }) {
   return (
     <ul className="mt-2 flex flex-col divide-y divide-line">
       {entries.map((entry) => (
-        <li key={`${entry.id}-${entry.occurred_at}`} className="flex items-center gap-2 py-2">
-          <span className="min-w-0 flex-1">
-            <Link
-              to={genomeRoute(entry.source_type, entry.identity_name)}
-              className="block truncate text-[12.5px] font-medium text-ink hover:text-brand"
-              title={entry.identity_name}
-            >
-              {entry.display_name || entry.identity_name}
-            </Link>
-            <span className="block truncate text-[11px] text-ink-3">
-              {sourceTypeLabel(entry.source_type, entry.identity_name)}
-              {entry.region ? ` · ${entry.region}` : ''}
+        <li key={`${entry.id}-${entry.occurred_at}`}>
+          <Link to={genomeRoute(entry.source_type, entry.identity_name)} className="group flex items-center gap-2 py-2.5" title={entry.identity_name}>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[12.5px] font-medium text-ink group-hover:text-brand">
+                {entry.display_name || entry.identity_name}
+              </span>
+              <span className="block truncate text-[11px] text-ink-3">
+                {sourceTypeLabel(entry.source_type, entry.identity_name)}
+                {entry.region ? ` · ${entry.region}` : ''}
+              </span>
             </span>
-          </span>
-          <span className="shrink-0 text-[11px] text-ink-3" title={formatDateTime(entry.occurred_at)}>
-            {formatRelative(entry.occurred_at)}
-          </span>
-          {entry.event === 'baseline_version_published' ? (
-            <Tag tone="info" size="sm">
-              {entry.version ? `Version ${entry.version}` : 'New version'}
-            </Tag>
-          ) : (
-            <Tag tone="low" size="sm">
-              Established
-            </Tag>
-          )}
+            <span className="shrink-0 text-[11.5px] text-ink-3" title={formatDateTime(entry.occurred_at)}>
+              {formatRelative(entry.occurred_at)}
+            </span>
+            {entry.event === 'baseline_version_published' ? (
+              <Tag tone="info" size="sm">
+                {entry.version ? `Version ${entry.version}` : 'New version'}
+              </Tag>
+            ) : (
+              <Tag tone="low" size="sm">
+                Established
+              </Tag>
+            )}
+          </Link>
         </li>
       ))}
     </ul>
   );
 }
 
-/**
- * The genome's own state for the rows on screen: one identity summary each,
- * six at a time. A row whose summary fails shows "-" rather than failing the
- * table. ponytail: one request per visible row; a batch endpoint is the
- * upgrade if pages of 100 become common.
- */
-function useRowSummaries(rows) {
-  const key = rows.map((row) => row.id).join(',');
-  return useQuery(
-    async (signal) => {
-      const out = new Map();
-      let next = 0;
-      const work = async () => {
-        while (next < rows.length) {
-          const row = rows[next++];
-          try {
-            out.set(row.id, await fetchGenomeIdentity(row.sourceType, row.identityName, {}, signal));
-          } catch (error) {
-            if (signal?.aborted) throw error;
-            out.set(row.id, null);
-          }
-        }
-      };
-      await Promise.all(Array.from({ length: Math.min(6, rows.length) }, work));
-      return out;
+/* ── Identities ───────────────────────────────────────────────────────────── */
+
+function IdentitiesTab({ fleet, searchParams, setParams }) {
+  const navigate = useNavigate();
+  const { notify } = useToast();
+  const listRef = useRef(null);
+  const type = searchParams.get('type') || '';
+  const baselineFilter = BASELINE_FILTERS.some((f) => f.value === searchParams.get('baseline')) ? searchParams.get('baseline') : '';
+  const sort = SORTS.some((s) => s.value === searchParams.get('sort')) ? searchParams.get('sort') : 'risk';
+  const pageSize = PAGE_SIZES.includes(Number(searchParams.get('size'))) ? Number(searchParams.get('size')) : 25;
+  const page = Math.max(1, Number(searchParams.get('page')) || 1);
+  const [searchDraft, setSearchDraft] = useState(() => searchParams.get('q') || '');
+  const search = useDebouncedValue(searchDraft, 250).trim().toLowerCase();
+
+  const all = useMemo(() => fleet.data?.items ?? [], [fleet.data]);
+  const typeOptions = useMemo(() => {
+    const keys = [...new Set(all.map((row) => row.sourceType))].sort((a, b) => sourceTypeLabel(a).localeCompare(sourceTypeLabel(b)));
+    return [{ value: '', label: 'All workload types' }, ...keys.map((key) => ({ value: key, label: sourceTypeLabel(key) }))];
+  }, [all]);
+
+  const filtered = useMemo(() => {
+    const out = all.filter(
+      (row) =>
+        (!type || row.sourceType === type) &&
+        (!baselineFilter || learningState(row.baseline).key === baselineFilter) &&
+        (!search ||
+          [row.name, row.identityName, row.workloadKey, row.accountId, row.region].some((value) => String(value ?? '').toLowerCase().includes(search))),
+    );
+    const time = (value) => Date.parse(value ?? '') || 0;
+    const by = {
+      risk: (a, b) => (b.risk.score ?? -1) - (a.risk.score ?? -1) || (b.openAnomalies ?? 0) - (a.openAnomalies ?? 0),
+      seen: (a, b) => time(b.lastSeen) - time(a.lastSeen),
+      learning: (a, b) => (learningState(b.baseline).pct ?? -1) - (learningState(a.baseline).pct ?? -1),
+      name: () => 0,
+    }[sort];
+    return out.sort((a, b) => by(a, b) || a.name.localeCompare(b.name));
+  }, [all, type, baselineFilter, search, sort]);
+
+  const lastPage = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const current = Math.min(page, lastPage);
+  const rows = filtered.slice((current - 1) * pageSize, current * pageSize);
+  const filteredView = Boolean(type || baselineFilter || search);
+  const toTop = () => globalThis.requestAnimationFrame(() => listRef.current?.scrollIntoView({ block: 'start' }));
+
+  const onExport = () => {
+    exportRowsToCsv({
+      filename: timestampedName('nhi-genome-identities'),
+      columns: [
+        { header: 'Identity', value: (row) => row.name },
+        { header: 'Identity name', value: (row) => row.identityName },
+        { header: 'Workload type', value: (row) => sourceTypeLabel(row.sourceType, row.nhiType) },
+        { header: 'Account', value: (row) => row.accountId ?? '' },
+        { header: 'Region', value: (row) => row.region ?? '' },
+        { header: 'Baseline', value: (row) => learningState(row.baseline).label },
+        { header: 'Days learned', value: (row) => row.baseline.builtDays ?? '' },
+        { header: 'Days required', value: (row) => row.baseline.requiredDays ?? '' },
+        { header: 'Risk', value: (row) => row.risk.score ?? '' },
+        { header: 'Open anomalies', value: (row) => row.openAnomalies ?? '' },
+        { header: 'Last call (UTC)', value: (row) => row.lastSeen ?? '' },
+      ],
+      rows: filtered,
+    });
+    notify({ title: 'Exported', description: `${formatNumber(filtered.length)} identities written.`, variant: 'success' });
+  };
+
+  const columns = [
+    {
+      key: 'identity',
+      header: 'Identity',
+      primary: true,
+      width: '30%',
+      cell: (row) => (
+        <span className="block min-w-0">
+          <span className="block truncate text-[13px] font-semibold text-ink" title={row.identityName}>
+            {row.name}
+          </span>
+          <span className="block truncate text-[11.5px] text-ink-3">
+            {sourceTypeLabel(row.sourceType, row.nhiType)}
+            {row.status && String(row.status).toLowerCase() !== 'active' ? ` · ${row.status}` : ''}
+          </span>
+        </span>
+      ),
     },
-    [key],
+    {
+      key: 'scope',
+      header: 'Account / region',
+      width: '16%',
+      priority: 'wide',
+      cell: (row) => (
+        <span className="block min-w-0">
+          <span data-numeric="" className="block truncate font-mono text-[12px] text-ink-2">
+            {row.accountId || '-'}
+          </span>
+          <span className="block truncate text-[11.5px] text-ink-3">{row.region || 'Global'}</span>
+        </span>
+      ),
+    },
+    { key: 'baseline', header: 'Baseline', width: '20%', cell: (row) => <LearningCell baseline={row.baseline} /> },
+    {
+      key: 'risk',
+      header: 'Risk',
+      width: '9%',
+      cell: (row) => {
+        if (row.risk.score === null) return <span className="text-[12px] text-ink-3">Not scored</span>;
+        const severity = severityMeta(row.risk.severity);
+        return (
+          <span className="flex items-center gap-2">
+            <span data-numeric="" className="text-[13px] font-semibold text-ink">
+              {row.risk.score}
+            </span>
+            {row.risk.severity && <span aria-hidden="true" className="size-2 rounded-full" style={{ background: `var(--t-${severity.tone})` }} />}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'open',
+      header: 'Open anomalies',
+      width: '11%',
+      cell: (row) =>
+        row.openAnomalies === null ? (
+          <span className="text-[12px] text-ink-3">-</span>
+        ) : row.openAnomalies > 0 ? (
+          <span data-numeric="" className="text-[13px] font-semibold text-critical">
+            {formatNumber(row.openAnomalies)}
+          </span>
+        ) : (
+          <span className="text-[12px] text-ink-3">None</span>
+        ),
+    },
+    {
+      key: 'last',
+      header: 'Last call',
+      width: '12%',
+      cell: (row) =>
+        row.lastSeen ? (
+          <span className="whitespace-nowrap text-[12.5px] text-ink-2" title={formatDateTime(row.lastSeen)}>
+            {formatRelative(row.lastSeen)}
+          </span>
+        ) : (
+          <span className="text-[12px] text-ink-3">Not seen</span>
+        ),
+    },
+  ];
+
+  return (
+    <Panel ref={listRef} prominence="lead" flush className="animate-rise scroll-mt-28 overflow-hidden">
+      <RecordBar
+        trailing={
+          <TableToolbar>
+            <RefreshButton onRefresh={fleet.refetch} refreshing={fleet.isRefreshing} label="Refresh identities" />
+            <Button variant="secondary" size="sm" icon={Download} onClick={onExport} disabled={filtered.length === 0}>
+              Export
+            </Button>
+          </TableToolbar>
+        }
+      >
+        <SearchInput
+          size="sm"
+          value={searchDraft}
+          onChange={(value) => {
+            setSearchDraft(value);
+            setParams({ q: value.trim(), page: '' });
+          }}
+          placeholder="Search name, ARN, account, region…"
+          className="w-full min-w-0 sm:w-64"
+          aria-label="Search monitored identities"
+        />
+        <Select
+          size="sm"
+          value={type}
+          onChange={(event) => {
+            setParams({ type: event.target.value, page: '' });
+            toTop();
+          }}
+          options={typeOptions}
+          aria-label="Workload type"
+          className="min-w-0 sm:w-48"
+        />
+        <Select
+          size="sm"
+          value={baselineFilter}
+          onChange={(event) => {
+            setParams({ baseline: event.target.value, page: '' });
+            toTop();
+          }}
+          options={BASELINE_FILTERS}
+          aria-label="Baseline state"
+          className="min-w-0 sm:w-44"
+        />
+        <Select size="sm" value={sort} onChange={(event) => setParams({ sort: event.target.value === 'risk' ? '' : event.target.value, page: '' })} options={SORTS} aria-label="Sort" className="min-w-0 sm:w-56" />
+        <ResultCount
+          shown={formatNumber(filtered.length)}
+          total={formatNumber(all.length)}
+          unit={fleet.data && !fleet.data.complete ? 'identities (first 2,000)' : 'identities'}
+          filtered={filteredView}
+          loading={fleet.isLoading && !fleet.data}
+        />
+      </RecordBar>
+
+      {fleet.isError && !fleet.data ? (
+        <ErrorState error={fleet.error} onRetry={fleet.refetch} />
+      ) : (
+        <DataGrid
+          caption="Monitored identities"
+          columns={columns}
+          rows={rows}
+          rowKey={(row) => row.id}
+          loading={fleet.isLoading && !fleet.data}
+          refreshing={fleet.isRefreshing}
+          onRowClick={(row) => navigate(genomeRoute(row.sourceType, row.identityName))}
+          density="comfortable"
+          skeletonRows={8}
+          emptyState={
+            filteredView ? (
+              <EmptyState
+                icon={SearchX}
+                title="No identity matches"
+                description="No monitored identity matches the search, type and baseline state."
+                action={
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setSearchDraft('');
+                      setParams({ q: '', type: '', baseline: '', page: '' });
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                }
+              />
+            ) : (
+              <EmptyState
+                icon={ShieldQuestion}
+                title="No monitored identity in your scope"
+                description="The genome watches compute, functions, tasks and pipelines. None was found in the accounts and regions you selected; widen the scope or run a discovery scan."
+              />
+            )
+          }
+        />
+      )}
+
+      {/* Shown whenever there is more than one page, the same rule as every list. */}
+      {filtered.length > 0 && (
+        <Pagination
+          page={current}
+          pageSize={pageSize}
+          total={filtered.length}
+          onPageChange={(next) => {
+            setParams({ page: next === 1 ? '' : next });
+            toTop();
+          }}
+          onPageSizeChange={(next) => setParams({ size: next === 25 ? '' : next, page: '' })}
+          unit="identities"
+        />
+      )}
+    </Panel>
   );
 }
 
-function RowCell({ summary, id, render }) {
-  if (!summary) return <span className="text-[12px] text-ink-3">…</span>;
-  const entry = summary.get(id);
-  return entry ? render(entry) : <span className="text-[12px] text-ink-3">-</span>;
-}
-
-function baselineCell({ baseline }) {
-  if (!baseline) return <span className="text-[12px] text-ink-3">Not started</span>;
-  if (String(baseline.status).toLowerCase() === 'active') {
+/** Established, learning with how far along, or not started. */
+function LearningCell({ baseline }) {
+  const state = learningState(baseline);
+  if (state.key === 'established') {
     return (
       <Tag tone="low" size="sm" dot>
         Established
       </Tag>
     );
   }
+  if (state.key === 'none') return <span className="text-[12px] text-ink-3">Not started</span>;
   return (
-    <span className="flex flex-col items-start gap-0.5">
-      <Tag tone="medium" size="sm" dot>
-        Learning
-      </Tag>
-      <span className="text-[11px] text-ink-3">
-        {formatNumber(baseline.built_days)} of {formatNumber(baseline.required_days)} days
+    <span className="block w-full max-w-[11rem]">
+      <span className="flex items-baseline justify-between gap-2 text-[11.5px]">
+        <span className="font-medium text-medium">Learning</span>
+        <span data-numeric="" className="text-ink-3">
+          {formatNumber(state.built)}/{formatNumber(state.required)} days
+        </span>
       </span>
+      <Meter className="mt-1" value={state.pct} tone="medium" height={5} label={`${Math.round(state.pct ?? 0)}% learned`} />
     </span>
   );
 }
 
-function openCell({ openAnomalies }) {
-  if (openAnomalies === null || openAnomalies === undefined) return <span className="text-[12px] text-ink-3">-</span>;
-  return openAnomalies > 0 ? (
-    <span data-numeric="" className="text-[13px] font-semibold text-critical">
-      {formatNumber(openAnomalies)}
-    </span>
-  ) : (
-    <span className="text-[12px] text-ink-3">None</span>
-  );
-}
+/* ── Anomalies ────────────────────────────────────────────────────────────── */
 
-function callsCell({ callsInWindow }) {
-  if (callsInWindow === null || callsInWindow === undefined) return <span className="text-[12px] text-ink-3" title="The call store could not be read">-</span>;
+const STATES = [
+  { value: 'open', label: 'Open' },
+  { value: 'all', label: 'All' },
+];
+
+function AnomaliesTab({ searchParams, setParams }) {
+  const listRef = useRef(null);
+  const { railOpen, toggleRail } = useFacetRail('genome-anomalies');
+  const state = searchParams.get('state') === 'all' ? 'all' : 'open';
+  const severities = (searchParams.get('sev') || '').split(',').filter(Boolean);
+  const dimensions = (searchParams.get('dim') || '').split(',').filter(Boolean);
+  const pageSize = PAGE_SIZES.includes(Number(searchParams.get('size'))) ? Number(searchParams.get('size')) : 25;
+  const page = Math.max(1, Number(searchParams.get('page')) || 1);
+  const [searchDraft, setSearchDraft] = useState(() => searchParams.get('q') || '');
+  const search = useDebouncedValue(searchDraft, 250).trim().toLowerCase();
+  const [selected, setSelected] = useState(null);
+
+  const query = useQuery((signal) => fetchAllAnomalies({ state: state === 'all' ? '' : 'open' }, signal), [state]);
+  const all = useMemo(() => query.data?.items ?? [], [query.data]);
+  const sevOf = (item) => String(item.severity ?? '').toUpperCase();
+
+  /* Counts follow the other filters, so each number is what that option would show. */
+  const matches = useCallback(
+    (item, skip) =>
+      (skip === 'sev' || severities.length === 0 || severities.includes(sevOf(item))) &&
+      (skip === 'dim' || dimensions.length === 0 || dimensions.includes(item.dimension)) &&
+      (!search ||
+        [item.identity?.display_name, item.identity?.identity_name, item.what_changed, item.region].some((v) =>
+          String(v ?? '').toLowerCase().includes(search),
+        )),
+    [severities, dimensions, search],
+  );
+  const filtered = useMemo(() => all.filter((item) => matches(item)), [all, matches]);
+  const countBy = (skip, key) => {
+    const out = new Map();
+    for (const item of all) if (matches(item, skip)) out.set(key(item), (out.get(key(item)) ?? 0) + 1);
+    return out;
+  };
+  const sevCounts = countBy('sev', sevOf);
+  const dimCounts = countBy('dim', (item) => item.dimension);
+  const dimKeys = [...new Set([...all.map((item) => item.dimension), ...dimensions])].sort((a, b) => dimensionLabel(a).localeCompare(dimensionLabel(b)));
+
+  const toggle = (param, list, value) => {
+    const next = list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+    setParams({ [param]: next.join(','), page: '' });
+  };
+  const applied = severities.length + dimensions.length;
+  const facetGroups = [
+    {
+      key: 'sev',
+      label: 'Severity',
+      options: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map((sev) => ({
+        value: sev,
+        label: severityMeta(sev).label,
+        count: sevCounts.get(sev) ?? 0,
+        active: severities.includes(sev),
+      })),
+      onToggle: (value) => toggle('sev', severities, value),
+      note: 'Severity follows detection confidence, so a low-confidence departure never outranks a certain one.',
+    },
+    {
+      key: 'dim',
+      label: 'Departure type',
+      options: dimKeys.map((dim) => ({ value: dim, label: dimensionLabel(dim), count: dimCounts.get(dim) ?? 0, active: dimensions.includes(dim) })),
+      onToggle: (value) => toggle('dim', dimensions, value),
+    },
+  ];
+
+  const lastPage = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const current = Math.min(page, lastPage);
+  const rows = filtered.slice((current - 1) * pageSize, current * pageSize);
+  const toTop = () => globalThis.requestAnimationFrame(() => listRef.current?.scrollIntoView({ block: 'start' }));
+
+  const columns = [
+    {
+      key: 'identity',
+      header: 'Identity',
+      primary: true,
+      width: '22%',
+      cell: (item) => (
+        <span className="block min-w-0">
+          <span className="block truncate text-[13px] font-semibold text-ink" title={item.identity?.identity_name}>
+            {item.identity?.display_name || item.identity?.identity_name}
+          </span>
+          <span className="block truncate text-[11.5px] text-ink-3">{sourceTypeLabel(item.identity?.source_type, item.identity?.identity_name)}</span>
+        </span>
+      ),
+    },
+    {
+      key: 'what',
+      header: 'What departed',
+      width: '30%',
+      cell: (item) => (
+        <span className="block truncate text-[12.5px] text-ink-2" title={item.what_changed}>
+          {item.what_changed}
+        </span>
+      ),
+    },
+    { key: 'type', header: 'Type', width: '12%', priority: 'wide', cell: (item) => <Tag size="sm">{dimensionLabel(item.dimension)}</Tag> },
+    {
+      key: 'confidence',
+      header: 'Confidence',
+      width: '11%',
+      priority: 'wide',
+      cell: (item) =>
+        Number.isFinite(item.provenance_confidence) ? (
+          <span className="block w-full max-w-[6rem]">
+            <span data-numeric="" className="text-[12.5px] font-semibold text-ink">
+              {item.provenance_confidence}%
+            </span>
+            <Meter className="mt-1" value={item.provenance_confidence} tone={severityMeta(item.severity).tone} height={4} />
+          </span>
+        ) : (
+          <span className="text-[12px] text-ink-3">-</span>
+        ),
+    },
+    {
+      key: 'severity',
+      header: 'Severity',
+      width: '9%',
+      cell: (item) => {
+        const meta = severityMeta(item.severity);
+        return item.severity ? (
+          <Tag tone={meta.tone} size="sm" dot>
+            {meta.label}
+          </Tag>
+        ) : (
+          <span className="text-[12px] text-ink-3">-</span>
+        );
+      },
+    },
+    {
+      key: 'state',
+      header: 'State',
+      width: '8%',
+      cell: (item) => {
+        const meta = anomalyStatusMeta(item.state);
+        return (
+          <Tag tone={meta.tone} size="sm">
+            {meta.label}
+          </Tag>
+        );
+      },
+    },
+    {
+      key: 'detected',
+      header: 'Detected',
+      width: '10%',
+      cell: (item) => (
+        <span className="whitespace-nowrap text-[12px] text-ink-2" title={formatDateTime(item.detected_at)}>
+          {formatRelative(item.detected_at)}
+        </span>
+      ),
+    },
+  ];
+
   return (
-    <span data-numeric="" className="text-[12.5px] text-ink-2">
-      {formatNumber(callsInWindow)}
-    </span>
+    <WorkArea
+      railOpen={railOpen}
+      rail={
+        <FacetRail
+          groups={facetGroups}
+          appliedCount={applied}
+          onClearAll={() => setParams({ sev: '', dim: '', page: '' })}
+          onClose={toggleRail}
+          mobileTitle="Filter anomalies"
+        />
+      }
+    >
+      <Panel ref={listRef} prominence="lead" flush className="animate-rise scroll-mt-28 overflow-hidden">
+        <RecordBar
+          trailing={
+            <TableToolbar>
+              {!railOpen && <ShowFiltersButton onClick={toggleRail} appliedCount={applied} />}
+              <SegmentedControl label="Which anomalies" options={STATES} value={state} onChange={(value) => setParams({ state: value === 'open' ? '' : value, page: '' })} />
+              <RefreshButton onRefresh={query.refetch} refreshing={query.isRefreshing} label="Refresh anomalies" />
+            </TableToolbar>
+          }
+        >
+          <SearchInput
+            size="sm"
+            value={searchDraft}
+            onChange={(value) => {
+              setSearchDraft(value);
+              setParams({ q: value.trim(), page: '' });
+            }}
+            placeholder="Search identity or what departed…"
+            className="w-full min-w-0 sm:w-72"
+            aria-label="Search anomalies"
+          />
+          <ResultCount
+            shown={formatNumber(filtered.length)}
+            total={formatNumber(all.length)}
+            unit={query.data && !query.data.complete ? 'anomalies (newest 1,000)' : state === 'open' ? 'open anomalies' : 'anomalies'}
+            filtered={applied > 0 || Boolean(search)}
+            loading={query.isLoading && !query.data}
+          />
+        </RecordBar>
+        {query.isError && !query.data ? (
+          <ErrorState error={query.error} onRetry={query.refetch} />
+        ) : (
+          <DataGrid
+            caption="Anomalies"
+            columns={columns}
+            rows={rows}
+            rowKey={(item) => item.id}
+            loading={query.isLoading && !query.data}
+            refreshing={query.isRefreshing}
+            onRowClick={(item) => setSelected(item)}
+            density="comfortable"
+            skeletonRows={8}
+            emptyState={
+              applied > 0 || search ? (
+                <EmptyState
+                  icon={SearchX}
+                  title="No anomaly matches"
+                  description="No anomaly matches the search and filters."
+                  action={
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        setSearchDraft('');
+                        setParams({ q: '', sev: '', dim: '', page: '' });
+                      }}
+                    >
+                      Clear filters
+                    </Button>
+                  }
+                />
+              ) : (
+                <EmptyState
+                  icon={ShieldCheck}
+                  title={state === 'open' ? 'No open anomalies' : 'No anomalies recorded'}
+                  description={
+                    state === 'open'
+                      ? 'Nothing is waiting for review. Choose All to see the ones already reviewed.'
+                      : 'Everything the watched identities did matched their normal behaviour.'
+                  }
+                />
+              )
+            }
+          />
+        )}
+        {filtered.length > 0 && (
+          <Pagination
+            page={current}
+            pageSize={pageSize}
+            total={filtered.length}
+            onPageChange={(next) => {
+              setParams({ page: next === 1 ? '' : next });
+              toTop();
+            }}
+            onPageSizeChange={(next) => setParams({ size: next === 25 ? '' : next, page: '' })}
+            unit="anomalies"
+          />
+        )}
+      </Panel>
+      <AnomalyDrawer anomaly={selected} onClose={() => setSelected(null)} onReviewed={query.refetch} />
+    </WorkArea>
   );
 }
 
-function lastCallCell({ lastSeen, callsInWindow }) {
-  if (lastSeen) {
-    return (
-      <span className="whitespace-nowrap text-[12.5px] text-ink-2" title={formatDateTime(lastSeen)}>
-        {formatRelative(lastSeen)}
-      </span>
-    );
-  }
-  // "Never" only when the store was read and counted nothing; otherwise unknown.
-  return <span className="text-[12px] text-ink-3">{callsInWindow === 0 ? 'Never' : '-'}</span>;
-}

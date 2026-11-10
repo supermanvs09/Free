@@ -112,7 +112,11 @@ export default function FindingsPage() {
     const asked = searchParams.get('platform');
     return asked && Object.hasOwn(PLATFORMS, asked) ? asked : 'all';
   });
-  const [tier, setTier] = useState('');
+  /* The dashboard's Credential exposure rows link here with ?risk_tier=HIGH. */
+  const [tier, setTier] = useState(() => {
+    const asked = String(searchParams.get('risk_tier') || '').toUpperCase();
+    return ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].includes(asked) ? asked : '';
+  });
   const [detector, setDetector] = useState('');
   /* `?repository=` and `?branch=` land on one repository / branch: the deep
      scan panel links here that way after a history walk. */
