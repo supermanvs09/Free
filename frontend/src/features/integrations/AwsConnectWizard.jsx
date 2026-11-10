@@ -591,7 +591,7 @@ export function AwsConnectWizard({ setup, previous, storageKey, title = 'Connect
                 />
               </div>
               <p className="mb-2 text-[12px] leading-relaxed text-ink-3">
-                A new connection is reviewed by adapID first: the request is sent when you choose Verify, and nothing is read from your account until it is
+                Your workspace's first AWS account is reviewed by adapID first: the request is sent when you choose Verify, and nothing is read from your account until it is
                 approved. Your role, read access and events are then checked automatically.
               </p>
               <div className="flex flex-wrap items-center gap-2">

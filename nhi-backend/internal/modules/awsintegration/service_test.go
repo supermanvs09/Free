@@ -40,7 +40,6 @@ type fakeAWSStore struct {
 	requests []ConnectionRequest
 	reqMail  map[int64]string
 	finished map[int64]finishedRequest
-	lastSent map[string]time.Time
 }
 
 type finishedRequest struct {
@@ -60,25 +59,44 @@ func newFakeAWSStore() *fakeAWSStore {
 		emails:   map[int64]string{},
 		reqMail:  map[int64]string{},
 		finished: map[int64]finishedRequest{},
-		lastSent: map[string]time.Time{},
 	}
 }
 
-func (f *fakeAWSStore) RecordConnectionRequest(_ context.Context, req ConnectionRequest) (int64, bool, error) {
+func (f *fakeAWSStore) RecordConnectionRequest(_ context.Context, req ConnectionRequest) (int64, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	t, ok := f.lastSent[req.AccountID]
 	f.requests = append(f.requests, req)
-	return int64(len(f.requests)), ok && time.Since(t) < time.Minute, nil
+	return int64(len(f.requests)), nil
 }
 
 func (f *fakeAWSStore) SetRequestEmail(_ context.Context, id int64, status, _ string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.reqMail[id] = status
-	if status == "sent" {
-		f.lastSent[f.requests[id-1].AccountID] = time.Now()
+	return nil
+}
+
+func (f *fakeAWSStore) WorkspaceApproved(_ context.Context, _ string) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, a := range f.accounts {
+		if a.Approval.Status == ApprovalApproved {
+			return true, nil
+		}
 	}
+	return false, nil
+}
+
+func (f *fakeAWSStore) MarkApprovedByWorkspace(_ context.Context, _, accountID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	rec, ok := f.accounts[accountID]
+	if !ok || rec.Approval.Status != "" {
+		return nil
+	}
+	at := time.Now().UTC()
+	rec.Approval = AWSApproval{Status: ApprovalApproved, DecidedBy: "workspace already approved", DecidedAt: &at}
+	f.accounts[accountID] = rec
 	return nil
 }
 
@@ -528,7 +546,7 @@ func mailArrives(t *testing.T, m *fakeMailer, store *fakeAWSStore) {
 		store.mu.Lock()
 		status := store.emails[1]
 		store.mu.Unlock()
-		if n >= 2 && status != "" { // the click's e-mail and the approval e-mail
+		if n >= 1 && status != "" {
 			return
 		}
 		time.Sleep(10 * time.Millisecond)
@@ -1191,68 +1209,53 @@ func TestFirstClickIsStoredAndAsksForApprovalBeforeAnyCheck(t *testing.T) {
 	}
 }
 
-// An account approved earlier that is verified again: the admins are told the
-// check starts (before AssumeRole, which is held back), and it runs now.
-func TestClickOnAnApprovedAccountIsMailedBeforeTheFirstCheck(t *testing.T) {
+// A re-check of an approved account sends no e-mail and no approval: it runs
+// the three checks and the click records why no mail went.
+func TestRecheckOfAnApprovedAccountSendsNoMail(t *testing.T) {
 	store := newFakeAWSStore()
 	approvedAccount(store)
 	store.accounts["222222222222"] = withChecks(store.accounts["222222222222"], waitingChecks())
-	gate := make(chan struct{})
-	svc := newTestService(store, &fakeVerifier{assumeGate: gate}, nil, fakeEvents{found: true})
+	svc := newTestService(store, &fakeVerifier{}, nil, fakeEvents{found: true})
 	mail := &fakeMailer{}
 	svc.mailer = mail
-	done := make(chan error, 1)
-	go func() {
-		_, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"})
-		done <- err
-	}()
-	waitFor(t, "the e-mail while no check has finished", func() bool { return len(mail.subjects()) == 1 })
-	select {
-	case <-done:
-		t.Fatal("verify finished although AssumeRole was held back")
-	default:
-	}
-	if got := mail.subjects()[0]; !strings.HasPrefix(got, "AWS connection check started: account 222222222222") {
-		t.Fatalf("subject = %q", got)
-	}
-	close(gate)
-	if err := <-done; err != nil {
-		t.Fatal(err)
-	}
-	waitFor(t, "the e-mail outcome", func() bool { return store.reqMailOf(1) == "sent" })
-	if _, _, fin, _ := store.request(1); fin.outcome != "watching_events" {
-		t.Fatalf("finished request = %+v", fin)
-	}
-	// Clicked again within a minute: stored, not e-mailed twice.
-	time.Sleep(50 * time.Millisecond)
-	if _, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"}); err != nil && !errors.Is(err, ErrAWSVerifyInProgress) {
+	if _, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"}); err != nil {
 		t.Fatal(err)
 	}
 	time.Sleep(100 * time.Millisecond)
-	if len(mail.subjects()) != 1 {
-		t.Fatalf("e-mails after a second click: %v", mail.subjects())
+	if len(mail.subjects()) != 0 || len(store.approvals) != 0 {
+		t.Fatalf("mail %v approvals %d", mail.subjects(), len(store.approvals))
+	}
+	if _, m, fin, _ := store.request(1); m != "not_needed" || fin.outcome != "watching_events" {
+		t.Fatalf("mail %q finished %+v", m, fin)
 	}
 }
 
-// A click whose role check fails still told the admins, and says why it failed.
-func TestVerifyThatFailsItsRoleCheckStillNotifiesAndRecordsWhy(t *testing.T) {
+// Only the workspace's first account needs approval: a second account runs its
+// checks at once, is marked approved and nobody is e-mailed.
+func TestSecondAccountInApprovedWorkspaceNeedsNoApproval(t *testing.T) {
 	store := newFakeAWSStore()
 	approvedAccount(store)
-	store.accounts["222222222222"] = withChecks(store.accounts["222222222222"], waitingChecks())
-	svc := newTestService(store, &fakeVerifier{assumeErr: awsconnect.ErrAccessDenied}, nil, nil)
+	svc := newTestService(store, &fakeVerifier{}, nil, fakeEvents{found: true})
 	mail := &fakeMailer{}
 	svc.mailer = mail
-	res, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"})
-	if err != nil || states(res.Checks) != "fail,skipped,skipped" {
-		t.Fatalf("verify = %+v %v", res, err)
+	caller := awsTestCaller
+	role := "arn:aws:iam::333333333333:role/NHIPlatformCollector"
+	res, err := svc.Verify(context.Background(), caller, role, []string{"us-east-1"})
+	if err != nil {
+		t.Fatal(err)
 	}
-	waitFor(t, "the e-mail", func() bool { return len(mail.subjects()) == 1 })
-	_, _, fin, _ := store.request(1)
-	if fin.outcome != "failed" || !strings.Contains(fin.detail, "assume_role") {
-		t.Fatalf("finished request = %+v", fin)
+	time.Sleep(100 * time.Millisecond)
+	if len(mail.subjects()) != 0 || len(store.approvals) != 0 {
+		t.Fatalf("mail %v approvals %d", mail.subjects(), len(store.approvals))
 	}
-	if len(store.approvals) != 0 {
-		t.Fatal("a failed check asked for approval")
+	if states(res.Checks) != "pass,pass,skipped" && states(res.Checks) != "pass,pass,running" {
+		t.Logf("checks = %s", states(res.Checks))
+	}
+	store.mu.Lock()
+	got := store.accounts["333333333333"].Approval.Status
+	store.mu.Unlock()
+	if got != ApprovalApproved {
+		t.Fatalf("approval = %q", got)
 	}
 }
 
@@ -1268,24 +1271,6 @@ func TestFirstClickWithoutMailIsStillStoredAndAsked(t *testing.T) {
 	waitFor(t, "the e-mail outcome", func() bool { return store.reqMailOf(1) == "not_configured" })
 	if len(store.approvals) != 1 {
 		t.Fatalf("approval requests = %d", len(store.approvals))
-	}
-}
-
-func TestRequestEmailStatesWhatWasAsked(t *testing.T) {
-	at := time.Date(2026, 11, 9, 11, 54, 26, 0, time.UTC)
-	subject, htmlBody, text := requestEmail(AWSCaller{Schema: "tenant_a", Actor: "admin@das"}, "das.com", "548593215839",
-		"arn:aws:iam::548593215839:role/NHIPlatformCollectorNew", []string{"ap-south-2"}, at)
-	for _, want := range []string{"548593215839", "NHIPlatformCollectorNew", "ap-south-2", "admin@das", "das.com", "2026-11-09 11:54:26 UTC"} {
-		if !strings.Contains(text, want) || !strings.Contains(htmlBody, want) {
-			t.Errorf("e-mail lacks %q:\n%s", want, text)
-		}
-	}
-	if !strings.Contains(subject, "548593215839") || strings.Contains(strings.ToLower(text), "passed") {
-		t.Errorf("subject %q / text must name the account and say nothing about results", subject)
-	}
-	_, h, _ := requestEmail(AWSCaller{Schema: "x", Actor: "<script>alert(1)</script>"}, "", "1", "r", nil, at)
-	if strings.Contains(h, "<script>") {
-		t.Error("the actor is not escaped in the HTML part")
 	}
 }
 

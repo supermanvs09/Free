@@ -230,8 +230,8 @@ schema has them: the scanner creates them on first use, or run the API's
 
 ## Connection approvals
 
-A company's first connection of an AWS account (and every new account after
-it) does not go live on its own. The order is: **approval**, then the role can be
+A company's FIRST AWS account does not go live on its own (once one is
+approved, later accounts and re-checks run their checks without approval or e-mail). The order is: **approval**, then the role can be
 assumed, the configuration is readable, and events arrive from the account.
 As soon as the company chooses Verify connection, the API server records a request in
 `nhi_global.connection_approvals` (API migration `global/007`) and e-mails the

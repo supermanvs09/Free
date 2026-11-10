@@ -291,7 +291,8 @@ export async function verify({ role_arn: roleArn, regions }) {
   /* A first connection asks for approval at once and checks nothing; an admin
      (simulated) approves a few seconds later and the checks then run by
      themselves, as the service does. */
-  if (firstTime) {
+  const workspaceApproved = store().accounts.some((entry) => entry.approval?.status === 'approved' || entry.is_connected);
+  if (firstTime && !workspaceApproved) {
     const waiting = awsChecks().map((check) => ({ ...check, state: 'skipped', message: 'Runs after adapID approves this connection.' }));
     Object.assign(account, {
       role_arn: match[0],

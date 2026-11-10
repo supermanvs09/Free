@@ -237,6 +237,12 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, what string, err 
 	case errors.Is(err, ErrWorkerRejected):
 		log.Warn("scan api: worker rejected the request", "what", what, "err", err)
 		writeErr(w, http.StatusBadRequest, codeInvalid, "the scan service rejected the request", "")
+	case errors.Is(err, ErrWorkerUnhealthy):
+		// Reached, and it said no: its own dependency is down. The detail (what
+		// the worker named) is in the log; the console is told which kind of
+		// failure this is, so nobody looks for a network problem.
+		log.Error("scan api: the worker is up but reports it is unhealthy", "what", what, "err", err)
+		writeErr(w, http.StatusBadGateway, codeUnavailable, "the scan service is running but reports a problem of its own; try again shortly, or contact support if it continues", "")
 	default:
 		log.Error("scan api: worker unavailable", "what", what, "err", err)
 		writeErr(w, http.StatusBadGateway, codeUnavailable, "the scan service could not be reached; try again shortly", "")

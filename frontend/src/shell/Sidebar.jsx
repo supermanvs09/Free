@@ -56,7 +56,7 @@ function SidebarLink({ item, collapsed, onNavigate, badge }) {
 /* The group open when the current screen belongs to none (a 404, say). Every
    group - Overview included - opens and closes the same way, one at a time, so
    the rail reads as a short table of contents rather than a wall of links. */
-const DEFAULT_OPEN = 'overview';
+const DEFAULT_OPEN = 'overview'; // always open; the other groups are an accordion
 
 /**
  * Scroll state for the nav: whether content hides above / below (drives the
@@ -188,25 +188,27 @@ export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile
               </div>
             );
           }
-          const open = openGroup === group.key;
+          const pinned = group.key === DEFAULT_OPEN; // Overview never closes
+          const open = pinned || openGroup === group.key;
           const panelId = `nav-group-${group.key}`;
           const holdsActive = group.key === activeGroup;
           return (
             <div key={group.key} className="mb-1 last:mb-0">
               <button
                 type="button"
-                onClick={() => toggleGroup(group.key)}
+                onClick={() => !pinned && toggleGroup(group.key)}
                 aria-expanded={open}
+                aria-disabled={pinned || undefined}
                 aria-controls={panelId}
                 className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[10px] font-semibold tracking-[0.14em] text-ink-3 uppercase transition-colors hover:bg-surface-3 hover:text-ink-2"
               >
                 <span className="min-w-0 flex-1 truncate">{group.label}</span>
                 {/* A closed group that holds the current screen says so. */}
                 {holdsActive && !open && <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-brand" />}
-                <ChevronDown
+                {!pinned && <ChevronDown
                   aria-hidden="true"
                   className={cn('size-3.5 shrink-0 transition-transform duration-200', open ? 'rotate-0' : '-rotate-90')}
-                />
+                />}
               </button>
               {/* Height animates through grid rows, which needs no measured
                   height. `inert` keeps the links of a closed group out of the

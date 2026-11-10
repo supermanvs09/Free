@@ -201,6 +201,40 @@ func (r *AWSIntegrationRepository) RequestApproval(ctx context.Context, req Appr
 	return id, saved, nil
 }
 
+// WorkspaceApproved reports whether the workspace already has an approved
+// account: one an admin approved, or one connected before approvals existed.
+// Only the workspace's first account is put in front of the admins.
+func (r *AWSIntegrationRepository) WorkspaceApproved(ctx context.Context, schema string) (bool, error) {
+	db, err := r.accountsDB(ctx, schema)
+	if err != nil {
+		return false, err
+	}
+	var ok bool
+	err = db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM `+database.Table(schema, accountsTable)+`
+		WHERE approval_status = 'approved' OR (COALESCE(approval_status, '') = '' AND connected_at IS NOT NULL))`).Scan(&ok)
+	if err != nil {
+		return false, fmt.Errorf("look up the workspace's approval: %w", missingSchema(err))
+	}
+	return ok, nil
+}
+
+// MarkApprovedByWorkspace records that an account needs no approval of its own
+// because the workspace already has an approved account. An account that has a
+// decision (pending, rejected) is left alone.
+func (r *AWSIntegrationRepository) MarkApprovedByWorkspace(ctx context.Context, schema, accountID string) error {
+	db, err := r.accountsDB(ctx, schema)
+	if err != nil {
+		return err
+	}
+	_, err = db.ExecContext(ctx, `UPDATE `+database.Table(schema, accountsTable)+`
+		SET approval_status = 'approved', approved_at = now(), approved_by = 'workspace already approved', approval_note = NULL, updated_at = now()
+		WHERE account_id = $1 AND COALESCE(approval_status, '') = ''`, accountID)
+	if err != nil {
+		return fmt.Errorf("mark account approved: %w", missingSchema(err))
+	}
+	return nil
+}
+
 // HasPendingApproval reports whether a pending request for the account is in
 // nhi_global.connection_approvals - what the onboarding tool's Approvals page
 // lists. The account's own approval_status can say "pending" without one (the

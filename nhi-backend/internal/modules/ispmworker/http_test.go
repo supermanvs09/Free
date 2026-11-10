@@ -100,3 +100,24 @@ func TestCanScanRoles(t *testing.T) {
 		}
 	}
 }
+
+// A worker that is up but answers 503 (its own backend is down) is reported as
+// that, not as "could not be reached", and the status poll says the same.
+func TestUnhealthyWorkerIsNotReportedAsUnreachable(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte(`{"status":"unhealthy","error":"backend not reachable"}`))
+	}))
+	t.Cleanup(srv.Close)
+	h := NewHandler(WorkerConfig{BaseURL: srv.URL, Timeout: 2 * time.Second})
+	r := publicRouter(h)
+	rec := do(r, "POST", "/api/v1/ispm-scans", "good", `{"tenant_id":"de300000-0000-4000-8000-000000000001"}`)
+	if rec.Code != http.StatusBadGateway || !strings.Contains(rec.Body.String(), "running but reports a problem of its own") || strings.Contains(rec.Body.String(), "backend not reachable") {
+		t.Fatalf("start: %d %s", rec.Code, rec.Body.String())
+	}
+	rec = do(r, "GET", "/api/v1/ispm-scans/job-1", "good", "")
+	if rec.Code != http.StatusBadGateway || !strings.Contains(rec.Body.String(), "running but reports a problem of its own") {
+		t.Fatalf("status: %d %s", rec.Code, rec.Body.String())
+	}
+}

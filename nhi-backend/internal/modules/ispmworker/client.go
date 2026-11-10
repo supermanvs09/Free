@@ -23,6 +23,10 @@ var (
 	// ErrWorkerUnavailable: the worker could not be reached or answered with
 	// something unusable (network error, 5xx, bad JSON).
 	ErrWorkerUnavailable = errors.New("scan worker is unavailable")
+	// ErrWorkerUnhealthy: the worker was reached and answered 503: it is up but
+	// reports a problem of its own (for example that its own backend is not
+	// reachable). Also an ErrWorkerUnavailable.
+	ErrWorkerUnhealthy = errors.New("scan worker reports it is unhealthy")
 	// ErrWorkerAuth: the worker answered 401/403, so the token in this
 	// backend's configuration does not match the worker's SCAN_API_TOKEN.
 	ErrWorkerAuth = errors.New("scan worker rejected the API token")
@@ -121,6 +125,9 @@ func (c *Client) StartAs(ctx context.Context, key, tenantID, requestedBy string)
 		}
 		return nil, fmt.Errorf("%w: worker said: %s", ErrTenantUnknown, snippet(raw))
 	}
+	if status == http.StatusServiceUnavailable {
+		return nil, fmt.Errorf("%w: %w: worker answered 503: %s", ErrWorkerUnavailable, ErrWorkerUnhealthy, snippet(raw))
+	}
 	return nil, fmt.Errorf("%w: worker answered %d: %s", ErrWorkerUnavailable, status, snippet(raw))
 }
 
@@ -160,6 +167,8 @@ func (c *Client) JobAs(ctx context.Context, key, jobID string) (map[string]any, 
 		return nil, ErrJobNotFound
 	case http.StatusUnauthorized, http.StatusForbidden:
 		return nil, ErrWorkerAuth
+	case http.StatusServiceUnavailable:
+		return nil, fmt.Errorf("%w: %w: worker answered 503: %s", ErrWorkerUnavailable, ErrWorkerUnhealthy, snippet(raw))
 	}
 	return nil, fmt.Errorf("%w: worker answered %d: %s", ErrWorkerUnavailable, status, snippet(raw))
 }

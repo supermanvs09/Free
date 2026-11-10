@@ -156,7 +156,7 @@ function OrganisationDashboard({ exposure, offerExposureSetup }) {
       ) : overviewFailed ? (
         <InlineError error={overviewQuery.error} onRetry={overviewQuery.refetch} label="Inventory figures could not be loaded" />
       ) : (
-        <HeadlineTiles kpis={kpis} charts={charts} activity={overview.activityDataAvailable} exposure={exposure} findingsQuery={findingsQuery} findingSummary={findingSummary} />
+        <HeadlineTiles kpis={kpis} activity={overview.activityDataAvailable} exposure={exposure} findingsQuery={findingsQuery} findingSummary={findingSummary} />
       )}
 
       {/* ── Why: what needs attention, next to what the estate is made of ── */}
@@ -231,9 +231,7 @@ function Unavailable({ source }) {
 
 /* ── Headline tiles ───────────────────────────────────────────────────────── */
 
-function HeadlineTiles({ kpis, charts, activity, exposure, findingsQuery, findingSummary }) {
-  const identitySpark = charts.identityGrowth.length > 1 ? charts.identityGrowth.map((point) => point.count) : undefined;
-  const credentialSpark = charts.credentialGrowth.length > 1 ? charts.credentialGrowth.map((point) => point.count) : undefined;
+function HeadlineTiles({ kpis, activity, exposure, findingsQuery, findingSummary }) {
   return (
     <div className="grid gap-3 @min-[30rem]:grid-cols-2 @min-[54rem]:grid-cols-4">
       <MetricTile
@@ -244,8 +242,6 @@ function HeadlineTiles({ kpis, charts, activity, exposure, findingsQuery, findin
         className="animate-rise"
         label="Identities discovered"
         value={kpis.totalIdentities}
-        sparkline={identitySpark}
-        sparklineLabel="identities"
         icon={Fingerprint}
         tone="brand"
         caption={`Workloads, services and automations in ${formatNumber(kpis.accountsScanned)} AWS account${kpis.accountsScanned === 1 ? '' : 's'}`}
@@ -276,8 +272,6 @@ function HeadlineTiles({ kpis, charts, activity, exposure, findingsQuery, findin
         className="animate-rise"
         label="Credentials"
         value={kpis.totalCredentials}
-        sparkline={credentialSpark}
-        sparklineLabel="credentials"
         icon={KeyRound}
         tone="medium"
         caption={

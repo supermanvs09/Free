@@ -435,7 +435,7 @@ func TestApprovalRequestsClaimAnAccountOnlyOnceProven(t *testing.T) {
 	}
 
 	// 4. The click that asked is resolved when the checks end.
-	id, _, err := repo.RecordConnectionRequest(ctx, ConnectionRequest{TenantID: asker, Schema: schemaAsker, AccountID: acct3, RoleARN: proven.RoleARN, Regions: []string{"us-east-1"}, RequestedBy: "x@y.z"})
+	id, err := repo.RecordConnectionRequest(ctx, ConnectionRequest{TenantID: asker, Schema: schemaAsker, AccountID: acct3, RoleARN: proven.RoleARN, Regions: []string{"us-east-1"}, RequestedBy: "x@y.z"})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -10,10 +10,6 @@ import (
 	"nhi-backend-api/internal/platform/database"
 )
 
-// emailSuppressWindow: a second click for the same account within this long
-// is still recorded, but does not e-mail the admins again.
-const emailSuppressWindow = "60 seconds"
-
 // ConnectionRequest is one click of "Verify connection".
 type ConnectionRequest struct {
 	TenantID    string
@@ -27,27 +23,21 @@ type ConnectionRequest struct {
 }
 
 // RecordConnectionRequest stores the click (nhi_global.connection_requests,
-// migrations/global/009) before any check runs. recentlyEmailed says the admins
-// were already e-mailed about this account a moment ago.
-func (r *AWSIntegrationRepository) RecordConnectionRequest(ctx context.Context, req ConnectionRequest) (id int64, recentlyEmailed bool, err error) {
+// migrations/global/009) before any check runs.
+func (r *AWSIntegrationRepository) RecordConnectionRequest(ctx context.Context, req ConnectionRequest) (int64, error) {
 	db, err := r.pool()
 	if err != nil {
-		return 0, false, err
+		return 0, err
 	}
-	t := database.Table(r.globalSchema, "connection_requests")
-	if err := db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM `+t+`
-		WHERE tenant_id = $1::uuid AND client_aws_account_id = $2 AND email_status = 'sent'
-		  AND emailed_at > now() - interval '`+emailSuppressWindow+`')`, req.TenantID, req.AccountID).Scan(&recentlyEmailed); err != nil {
-		return 0, false, fmt.Errorf("check earlier connection request: %w", err)
-	}
-	err = db.QueryRowContext(ctx, `INSERT INTO `+t+`
+	var id int64
+	err = db.QueryRowContext(ctx, `INSERT INTO `+database.Table(r.globalSchema, "connection_requests")+`
 		(tenant_id, db_name, tenant_domain, client_aws_account_id, role_arn, regions, requested_by, request_id)
 		VALUES ($1::uuid, $2, $3, $4, $5, $6::text[], $7, $8) RETURNING id`,
 		req.TenantID, req.Schema, req.Domain, req.AccountID, req.RoleARN, pq.Array(req.Regions), req.RequestedBy, req.RequestID).Scan(&id)
 	if err != nil {
-		return 0, false, fmt.Errorf("record connection request: %w", err)
+		return 0, fmt.Errorf("record connection request: %w", err)
 	}
-	return id, recentlyEmailed, nil
+	return id, nil
 }
 
 // SetRequestEmail records how the e-mail about the click went.
