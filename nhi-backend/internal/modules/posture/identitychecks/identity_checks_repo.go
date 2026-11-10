@@ -32,15 +32,22 @@ func (r *IdentityChecksRepository) Get(ctx context.Context, s *scope.DataScope, 
 
 	args := []any{s.TenantID, id}
 	where := "c.tenant_id = $1 AND c.identity_id = $2"
+	// The engine writes FAIL / PASS, but older rows and other writers use
+	// failed / passed in any case: matching only 'FAIL' made the Failed and
+	// Passed filters return nothing for those rows.
 	switch f.Status {
 	case ChecksFailed:
-		where += " AND c.status = 'FAIL'"
+		where += " AND upper(c.status) IN ('FAIL', 'FAILED')"
 	case ChecksPassed:
-		where += " AND c.status = 'PASS'"
+		where += " AND upper(c.status) IN ('PASS', 'PASSED')"
 	}
-	if p := strings.TrimSpace(f.Pillar); p != "" {
+	// Pillar codes are compared normalized (lower case, any run of other
+	// characters as one '_'), so "Least Privilege", "least_privilege" and
+	// "LEAST-PRIVILEGE" are the same pillar. An exact match only worked for the
+	// pillars whose stored code happened to be spelled like the filter value.
+	if p := normPillar(f.Pillar); p != "" {
 		args = append(args, p)
-		where += fmt.Sprintf(" AND c.pillar_code = $%d", len(args))
+		where += fmt.Sprintf(" AND trim(both '_' from regexp_replace(lower(c.pillar_code), '[^a-z0-9]+', '_', 'g')) = $%d", len(args))
 	}
 	q := fmt.Sprintf(`SELECT c.rule_id, COALESCE(NULLIF(w.check_title, ''), NULLIF(w.rule_name, ''), c.rule_id),
 			COALESCE(c.status, ''), COALESCE(c.severity, ''), COALESCE(c.pillar_code, ''),
@@ -49,7 +56,7 @@ func (r *IdentityChecksRepository) Get(ctx context.Context, s *scope.DataScope, 
 		LEFT JOIN %s w ON w.rule_id = c.rule_id
 		LEFT JOIN %s f ON f.tenant_id = c.tenant_id AND f.finding_id = c.finding_id
 		WHERE %s
-		ORDER BY (c.status = 'FAIL') DESC, COALESCE(c.points_lost, 0) DESC,
+		ORDER BY (upper(c.status) IN ('FAIL', 'FAILED')) DESC, COALESCE(c.points_lost, 0) DESC,
 			CASE lower(COALESCE(c.severity, ''))
 				WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END,
 			c.rule_id`, s.Table(common.TIdentityChecks), s.Table(common.TRuleWeights), s.Table(common.TFindings), where)
@@ -76,4 +83,23 @@ func (r *IdentityChecksRepository) Get(ctx context.Context, s *scope.DataScope, 
 		out = append(out, c)
 	}
 	return out, rows.Err()
+}
+
+// normPillar is a pillar code as the filter compares it: lower case, every run
+// of characters other than a-z and 0-9 one '_', no leading or trailing '_'.
+func normPillar(raw string) string {
+	var b strings.Builder
+	sep := false
+	for _, r := range strings.ToLower(strings.TrimSpace(raw)) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			if sep && b.Len() > 0 {
+				b.WriteByte('_')
+			}
+			sep = false
+			b.WriteRune(r)
+			continue
+		}
+		sep = true
+	}
+	return b.String()
 }

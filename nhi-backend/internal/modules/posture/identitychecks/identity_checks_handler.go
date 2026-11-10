@@ -42,7 +42,7 @@ func (h *IdentityChecksHandler) Get(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if raw := strings.ToLower(strings.TrimSpace(q.Get("pillar"))); raw != "" {
+	if raw := normPillar(q.Get("pillar")); raw != "" {
 		if !common.TokenRegex.MatchString(raw) {
 			common.Invalid(w, "pillar", "pillar is not valid")
 			return

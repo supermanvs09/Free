@@ -43,7 +43,8 @@ export function MetricTile({
   return (
     <Tag
       className={cn(
-        'group relative flex flex-col overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface p-3.5 text-left',
+        /* w-full h-full: a <button> tile sizes to its content otherwise and spills out of its grid cell. */
+        'group relative flex h-full w-full min-w-0 flex-col overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface p-3.5 text-left',
         interactive &&
           'transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-px hover:border-line-strong hover:shadow-md',
         className,
