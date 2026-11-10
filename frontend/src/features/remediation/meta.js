@@ -37,6 +37,12 @@ export const riskMeta = (risk) => RISK[String(risk || '').toUpperCase()] ?? { la
 
 export const MODE_LABEL = { GUIDED: 'Guided', ONE_CLICK: 'One-click' };
 
+/* For now remediation is guided only: the console shows the steps and tracks
+   the plan, and nothing is changed in AWS from here. One-click (plans the
+   backend applies, their approvals and the per-account setup) stays in the
+   API; set this to true to bring its screens back. */
+export const ONE_CLICK_ENABLED = false;
+
 export const EXEC_STATUS = {
   QUEUED: { label: 'Queued', tone: 'info' },
   RUNNING: { label: 'Running', tone: 'brand' },
@@ -90,6 +96,13 @@ export function planActions(plan, { can, user, executeRun, stalled = false }) {
   const approve = can('remediation.approve') && !isCreator(plan, user);
   const guided = plan.mode === 'GUIDED';
   const engine = plan.byEngine;
+  /* Guided only: an older One-click plan can still be read and cancelled,
+     but nothing that changes AWS is offered. */
+  if (!ONE_CLICK_ENABLED && !guided) {
+    return write && ['DRAFT', 'READY', 'WAITING_EXTERNAL', 'PENDING_APPROVAL', 'APPROVED', 'SCHEDULED'].includes(s)
+      ? [{ key: 'cancel', label: s === 'PENDING_APPROVAL' ? 'Withdraw' : 'Cancel plan', tone: 'ghost' }]
+      : [];
+  }
 
   if (s === 'PENDING_APPROVAL' && approve) {
     out.push({ key: 'approve', label: 'Approve', tone: 'primary' });

@@ -31,7 +31,7 @@ import { SegmentedControl, Tabs } from '../../ui/Tabs';
 import { Tag } from '../../ui/Tag';
 import { useToast } from '../../ui/Toast';
 import { RecordBar, ResultCount } from '../../ui/WorkArea';
-import { MODE_LABEL, STATUS_FILTERS, fixName, isCreator, riskMeta, statusMeta, targetLabel } from './meta';
+import { MODE_LABEL, ONE_CLICK_ENABLED, STATUS_FILTERS, fixName, isCreator, riskMeta, statusMeta, targetLabel } from './meta';
 import { PlanDrawer } from './PlanDrawer';
 
 const INBOX_POLL_MS = 45000;
@@ -46,7 +46,9 @@ const INBOX_POLL_MS = 45000;
 export default function RemediationPage() {
   const { can } = useAccess();
   const [params, setParams] = useSearchParams();
-  const tab = ['inbox', 'plans', 'setup'].includes(params.get('tab')) ? params.get('tab') : 'inbox';
+  /* Guided only (ONE_CLICK_ENABLED off): one list of plans, no approval inbox
+     and no One-click setup. */
+  const tab = !ONE_CLICK_ENABLED ? 'plans' : ['inbox', 'plans', 'setup'].includes(params.get('tab')) ? params.get('tab') : 'inbox';
   const planParam = params.get('plan');
   const [follow, setFollow] = useState(0);
   const [revision, setRevision] = useState(0);
@@ -59,24 +61,32 @@ export default function RemediationPage() {
   };
 
   /* The inbox count is shown on its tab from any tab, and kept fresh. */
-  const inbox = useQuery((signal) => fetchPlans({ status: 'PENDING_APPROVAL' }, { page: 1, pageSize: 50 }, signal), [revision]);
+  const inbox = useQuery(
+    (signal) => (ONE_CLICK_ENABLED ? fetchPlans({ status: 'PENDING_APPROVAL' }, { page: 1, pageSize: 50 }, signal) : Promise.resolve({ plans: [] })),
+    [revision],
+  );
   const refetchInbox = inbox.refetch;
   useEffect(() => {
+    if (!ONE_CLICK_ENABLED) return undefined;
     const id = setInterval(() => document.visibilityState === 'visible' && refetchInbox(), INBOX_POLL_MS);
     return () => clearInterval(id);
   }, [refetchInbox]);
   const waiting = inbox.data?.plans.length;
   /* The at-a-glance figures: one read of the newest 200 plans, counted by
      where each plan stands. */
-  const recent = useQuery((signal) => fetchPlans({}, { page: 1, pageSize: 200 }, signal), [revision]);
+  const recent = useQuery((signal) => fetchPlans(ONE_CLICK_ENABLED ? {} : { mode: 'GUIDED' }, { page: 1, pageSize: 200 }, signal), [revision]);
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Remediation"
-        lede="Fix what Posture found. A Guided plan gives you the exact steps to apply by hand; a One-click plan is applied in AWS by the console once any approval it needs is given, and can be rolled back."
+        lede={
+          ONE_CLICK_ENABLED
+            ? 'Fix what Posture found. A Guided plan gives you the exact steps to apply by hand; a One-click plan is applied in AWS by the console once any approval it needs is given, and can be rolled back.'
+            : 'Fix what Posture found. Each plan gives you the exact steps to apply in AWS; mark it done when you have, and the next scan confirms the finding is gone. Nothing is changed in AWS from here.'
+        }
         tabs={
-          <Tabs
+          ONE_CLICK_ENABLED && <Tabs
             size="sm"
             tabs={[
               { value: 'inbox', label: 'Waiting for approval', count: waiting || undefined },
@@ -89,7 +99,7 @@ export default function RemediationPage() {
         }
       />
 
-      <AtAGlance query={recent} waiting={waiting} onOpenTab={(value) => setParam('tab', value === 'inbox' ? null : value)} />
+      <AtAGlance query={recent} waiting={waiting} guided={!ONE_CLICK_ENABLED} onOpenTab={(value) => setParam('tab', value === 'inbox' ? null : value)} />
 
       {tab === 'inbox' && <InboxTab query={inbox} onOpen={(id) => setParam('plan', id)} onChanged={() => setRevision((n) => n + 1)} />}
       {tab === 'plans' && <PlansTab revision={revision} onOpen={(id) => setParam('plan', id)} />}
@@ -116,6 +126,13 @@ const TO_DO = new Set(['READY', 'DRAFT', 'WAITING_EXTERNAL']);
 const BROKE = new Set(['FAILED', 'ROLLED_BACK']);
 const MONTH_MS = 30 * 86400000;
 
+const GUIDED_STEPS = [
+  { icon: SearchX, title: 'Pick a finding', text: 'Posture › an identity › Findings › Fix this finding.' },
+  { icon: ListChecks, title: 'Track the fix', text: 'The plan lists the exact steps for this finding, in order.' },
+  { icon: ShieldCheck, title: 'Apply it in AWS', text: 'Follow the steps in your AWS console, then mark the plan done.' },
+  { icon: CheckCircle2, title: 'Verified by the scan', text: 'The next discovery scan confirms the finding is gone.' },
+];
+
 const STEPS = [
   { icon: SearchX, title: 'Pick a finding', text: 'Posture › an identity › Findings › Fix this finding.' },
   { icon: ListChecks, title: 'Choose how to fix it', text: 'Guided gives exact steps; One-click lets the console apply it.' },
@@ -127,12 +144,19 @@ const STEPS = [
  * Where the workspace's fixes stand, and how a fix gets made, in one strip:
  * a new user learns the flow here, a returning one sees what needs them.
  */
-function AtAGlance({ query, waiting, onOpenTab }) {
+function AtAGlance({ query, waiting, guided, onOpenTab }) {
   const plans = query.data?.plans ?? [];
   const now = query.data ? Date.parse(query.data.readAt ?? '') || 0 : 0;
   const count = (set, recentOnly) =>
     plans.filter((p) => set.has(p.status) && (!recentOnly || !now || (Date.parse(p.updatedAt || p.createdAt) || 0) >= now - MONTH_MS)).length;
-  const tiles = [
+  const tiles = guided
+    ? [
+        { key: 'todo', label: 'To do', value: query.data ? count(TO_DO) : null, tone: 'medium', caption: 'Plans with steps still to apply, or blocked by a pre-check', tab: 'plans' },
+        { key: 'manual', label: 'Done, waiting for the scan', value: query.data ? count(new Set(['MANUALLY_DONE'])) : null, tone: 'info', caption: 'Marked done; the next scan confirms the fix', tab: 'plans' },
+        { key: 'done', label: 'Fixed · 30 days', value: query.data ? count(new Set(['RESOLVED', 'VERIFIED']), true) : null, tone: 'low', caption: 'Confirmed fixed by a scan', tab: 'plans' },
+        { key: 'all', label: 'All plans', value: query.data ? (query.data.exact ? query.data.total : plans.length) : null, tone: 'brand', caption: 'Every guided plan in this workspace', tab: 'plans' },
+      ]
+    : [
     { key: 'waiting', label: 'Waiting for approval', value: waiting ?? null, tone: 'brand', caption: 'An operator or admin decides; the plan expires after 72 hours', tab: 'inbox' },
     { key: 'todo', label: 'To do by hand', value: query.data ? count(TO_DO) : null, tone: 'medium', caption: 'Guided plans ready, blocked by a pre-check, or waiting for a vendor', tab: 'plans' },
     { key: 'moving', label: 'Running now', value: query.data ? count(MOVING) : null, tone: 'info', caption: 'Approved One-click plans being applied in AWS', tab: 'plans' },
@@ -151,7 +175,7 @@ function AtAGlance({ query, waiting, onOpenTab }) {
         <Panel prominence="quiet" className="animate-rise">
           <p className="text-[13px] font-semibold text-ink">How a fix is made</p>
           <ol className="mt-3 grid gap-3 @min-[48rem]:grid-cols-4">
-            {STEPS.map((step, index) => (
+            {(guided ? GUIDED_STEPS : STEPS).map((step, index) => (
               <li key={step.title} className="flex gap-3 rounded-[var(--radius-control)] border border-line bg-surface-2 p-3">
                 <span className="grid size-7 shrink-0 place-items-center rounded-full bg-info-soft text-[12px] font-semibold text-brand">{index + 1}</span>
                 <span className="min-w-0">
@@ -356,6 +380,9 @@ function DecideModal({ state, onClose, onDone, catalog }) {
   );
 }
 
+/* Statuses only One-click plans reach. */
+const GUIDED_HIDDEN = new Set(['PENDING_APPROVAL', 'APPROVED', 'SCHEDULED', 'EXECUTING', 'EXECUTED', 'FAILED', 'REJECTED', 'ROLLED_BACK']);
+
 /* ── All plans ─────────────────────────────────────────────────────────── */
 
 function PlansTab({ revision, onOpen }) {
@@ -369,7 +396,7 @@ function PlansTab({ revision, onOpen }) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const query = useQuery(
-    (signal) => fetchPlans({ status, mode, accountId }, { page, pageSize }, signal),
+    (signal) => fetchPlans({ status, mode: ONE_CLICK_ENABLED ? mode : 'GUIDED', accountId }, { page, pageSize }, signal),
     [status, mode, accountId, page, pageSize, revision],
   );
   const accounts = (workspace.integration?.accounts ?? []).map((a) => a.accountId);
@@ -448,7 +475,7 @@ function PlansTab({ revision, onOpen }) {
         </Tag>
       ),
     },
-  ];
+  ].filter((column) => ONE_CLICK_ENABLED || column.key !== 'mode');
 
   return (
     <Panel prominence="lead" flush className="overflow-hidden" data-list-top="">
@@ -459,8 +486,15 @@ function PlansTab({ revision, onOpen }) {
           </Button>
         }
       >
-        <Select size="sm" aria-label="Status" value={status} onChange={(e) => reset(setStatus)(e.target.value)} options={STATUS_FILTERS} className="w-56" />
-        <SegmentedControl
+        <Select
+          size="sm"
+          aria-label="Status"
+          value={status}
+          onChange={(e) => reset(setStatus)(e.target.value)}
+          options={ONE_CLICK_ENABLED ? STATUS_FILTERS : STATUS_FILTERS.filter((f) => !GUIDED_HIDDEN.has(f.value))}
+          className="w-56"
+        />
+        {ONE_CLICK_ENABLED && <SegmentedControl
           label="Mode"
           options={[
             { value: '', label: 'Any mode' },
@@ -469,7 +503,7 @@ function PlansTab({ revision, onOpen }) {
           ]}
           value={mode}
           onChange={reset(setMode)}
-        />
+        />}
         {accounts.length > 1 && (
           <Select
             size="sm"

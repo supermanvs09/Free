@@ -1,6 +1,10 @@
 package engine
 
-import "testing"
+import (
+	"testing"
+
+	"nhi-backend-api/internal/remediation/domain"
+)
 
 // A risky fix always needs approval; a safe fix only for a Critical finding.
 func TestApprovalRequired(t *testing.T) {
@@ -24,5 +28,19 @@ func TestApprovalRequired(t *testing.T) {
 	}
 	if !ApprovalRequired("Low", "") || !ApprovalRequired("Low", "something_new") {
 		t.Error("an unknown fix must need approval")
+	}
+}
+
+func TestFindingTargetARN(t *testing.T) {
+	cases := map[string]domain.Finding{
+		"arn:aws:iam::1:role/web": {Evidence: []byte(`{"target_arn":"arn:aws:iam::1:role/web"}`)},
+		"arn:aws:iam::1:role/r":   {Evidence: []byte(`{"role_arn":" arn:aws:iam::1:role/r "}`)},
+		"arn:aws:iam::1:role/id":  {Evidence: []byte(`{}`), IdentityName: "arn:aws:iam::1:role/id"},
+		"":                        {Evidence: []byte(`{"target_arn":"web-1"}`), IdentityName: "web-1"},
+	}
+	for want, f := range cases {
+		if got := findingTargetARN(f); got != want {
+			t.Errorf("findingTargetARN = %q, want %q", got, want)
+		}
 	}
 }

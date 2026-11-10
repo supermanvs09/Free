@@ -66,7 +66,8 @@ type Service struct {
 	log     *slog.Logger
 	oneTime *oneTimeStore
 
-	ready sync.Map // tenant id -> struct{}: migrated + seeded
+	ready    sync.Map // tenant id -> struct{}: migrated + seeded
+	notReady sync.Map // tenant id -> notReady: why it could not be prepared, and when to try again
 	now   func() time.Time
 }
 
@@ -116,7 +117,20 @@ func (s *Service) storeFor(ctx context.Context, t tenants.Tenant) (*store.Store,
 	return st, nil
 }
 
-// Stores returns the ready store of every tenant; a tenant that cannot be prepared is logged and skipped.
+// notReadyRetry is how long a tenant that could not be prepared is left alone
+// before the worker tries again. Typical cause: the rule engine has not created
+// its tables (ispm_rule_weights) in that tenant's schema yet.
+const notReadyRetry = 15 * time.Minute
+
+type notReady struct {
+	reason string
+	retry  time.Time
+}
+
+// Stores returns the ready store of every tenant; a tenant that cannot be
+// prepared is skipped. It is logged once when it becomes not ready (and again
+// only if the reason changes), retried every notReadyRetry rather than on
+// every worker tick, and logged once more when it becomes ready.
 func (s *Service) Stores(ctx context.Context) []*store.Store {
 	list, err := s.res.List(ctx)
 	if err != nil {
@@ -124,11 +138,27 @@ func (s *Service) Stores(ctx context.Context) []*store.Store {
 		return nil
 	}
 	var out []*store.Store
+	now := s.now()
 	for _, t := range list {
+		var prev *notReady
+		if v, ok := s.notReady.Load(t.ID); ok {
+			nr := v.(notReady)
+			if now.Before(nr.retry) {
+				continue
+			}
+			prev = &nr
+		}
 		st, err := s.storeFor(ctx, t)
 		if err != nil {
-			s.log.Error("tenant not ready", "tenant", t.ID, "err", err)
+			if prev == nil || prev.reason != err.Error() {
+				s.log.Warn("remediation: tenant not ready, skipped until it is (retried every 15 minutes)", "tenant", t.ID, "err", err)
+			}
+			s.notReady.Store(t.ID, notReady{reason: err.Error(), retry: now.Add(notReadyRetry)})
 			continue
+		}
+		if prev != nil {
+			s.notReady.Delete(t.ID)
+			s.log.Info("remediation: tenant ready", "tenant", t.ID)
 		}
 		out = append(out, st)
 	}

@@ -14,7 +14,7 @@ import { Tag } from '../../ui/Tag';
 import { useToast } from '../../ui/Toast';
 import { cn } from '../../ui/cn';
 import { copyText } from '../integrations/parts';
-import { MODE_LABEL, fixName, riskMeta, statusMeta } from './meta';
+import { MODE_LABEL, fixName, riskMeta, statusMeta, ONE_CLICK_ENABLED } from './meta';
 import { Steps } from './PlanDrawer';
 
 const TARGET_NEEDED = /target could not be derived|target_arn/i;
@@ -153,7 +153,7 @@ function FixDrawerBody({ finding, onClose, onOpenPlan }) {
               </Field>
             )}
 
-            {pending && (
+            {ONE_CLICK_ENABLED && pending && (
               <div role="status" className="flex flex-wrap items-center gap-3 rounded-[var(--radius-control)] border border-info/30 bg-info-soft px-3.5 py-3">
                 <Info aria-hidden="true" className="size-4.5 shrink-0 text-info" />
                 <p className="min-w-0 flex-1 text-[12.5px] text-ink">
@@ -179,7 +179,7 @@ function FixDrawerBody({ finding, onClose, onOpenPlan }) {
               />
             )}
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className={ONE_CLICK_ENABLED ? 'grid gap-3 sm:grid-cols-2' : 'grid gap-3'}>
               <ModeCard
                 icon={Hand}
                 title="Fix it yourself"
@@ -198,7 +198,7 @@ function FixDrawerBody({ finding, onClose, onOpenPlan }) {
                   )
                 }
               />
-              <ModeCard
+              {ONE_CLICK_ENABLED && <ModeCard
                 icon={Zap}
                 title="Fix it for me"
                 badge="One-click"
@@ -218,7 +218,7 @@ function FixDrawerBody({ finding, onClose, onOpenPlan }) {
                     </Button>
                   ) : null
                 }
-              />
+              />}
             </div>
 
             {fix?.fix?.steps?.length > 0 && (

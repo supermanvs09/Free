@@ -355,6 +355,9 @@ func (s *Service) createPlan(ctx context.Context, st *store.Store, actor domain.
 			if plan.TargetARN == "" {
 				plan.TargetARN = first.CredentialARN
 			}
+			if plan.TargetARN == "" {
+				plan.TargetARN = findingTargetARN(first)
+			}
 		}
 		if mode == domain.ModeOneClick {
 			return nil, conflict("One-click needs the live state of the target")
@@ -477,3 +480,22 @@ func regionFromARN(a string) string {
 }
 
 var _ = time.Second
+
+// findingTargetARN is the ARN a finding is about when it names no credential:
+// an ARN in its evidence (target_arn, role_arn, resource_arn, arn), or the
+// identity name when that is an ARN. Without it a guided plan for a role
+// finding could not be made unless the person pasted the ARN.
+func findingTargetARN(f domain.Finding) string {
+	var ev map[string]any
+	if len(f.Evidence) > 0 && json.Unmarshal(f.Evidence, &ev) == nil {
+		for _, k := range []string{"target_arn", "role_arn", "resource_arn", "arn"} {
+			if v, ok := ev[k].(string); ok && strings.HasPrefix(strings.TrimSpace(v), "arn:") {
+				return strings.TrimSpace(v)
+			}
+		}
+	}
+	if name := strings.TrimSpace(f.IdentityName); strings.HasPrefix(name, "arn:") {
+		return name
+	}
+	return ""
+}
