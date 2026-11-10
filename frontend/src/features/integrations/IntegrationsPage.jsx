@@ -24,6 +24,7 @@ import { AWS_STATUS, isChecking, isWatching } from './awsSetup';
 import { AwsConnectWizard } from './AwsConnectWizard';
 import { ExposureDrawer } from './ExposureDrawer';
 import { OverviewTiles, SourceCards } from './IntegrationsOverview';
+import { IntegrationGuides } from './IntegrationGuides';
 import { AwsMark } from './parts';
 
 const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -285,6 +286,8 @@ export default function IntegrationsPage() {
               onExposure={(accountId) => setParam('exposure', accountId || exposureAccounts[0]?.accountId || '')}
             />
           )}
+
+          {manage && <IntegrationGuides />}
 
           {!manage &&
             (data.canManage && data.setup ? (

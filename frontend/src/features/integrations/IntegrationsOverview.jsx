@@ -112,7 +112,7 @@ export function OverviewTiles({ accounts, inventory, regionNames }) {
 }
 
 const CODE_SOURCES = [
-  { key: 'github', name: 'GitHub', Mark: GitHubMark, what: 'Repositories a read-only token can see. The token stays in your own Secrets Manager.' },
+  { key: 'github', name: 'GitHub (token)', Mark: GitHubMark, what: 'Repositories a read-only token can see. The token stays in your own Secrets Manager. The GitHub App below replaces it once adapID enables it for your workspace.' },
   { key: 'codecommit', name: 'AWS CodeCommit', Mark: CodeCommitMark, what: 'Repositories in each account, read through the role you already created.' },
 ];
 
