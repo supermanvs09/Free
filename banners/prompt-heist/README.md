@@ -43,3 +43,10 @@ Render with the real link:
     python3 src/make_qr.py "https://YOUR-LINK" src/qr.png
     node src/render.js 2 banner-v3.html -v3-final qr.png
 `prompt-heist-v3-qr-SAMPLE-*` uses https://example.com: layout preview only, do not publish.
+
+## v4 (current)
+`prompt-heist-v4-*.png` (+ `@2x`), source `src/banner-v4.html`. Render: `node src/render.js 2 banner-v4.html -v4` (add a QR image as the last argument once the link exists).
+- One round only: the level bar is replaced by "One round · Live".
+- Announcement framing: "Announcing · Now live · AI security challenge".
+- More than the secret: "Bend its rules. Leak the secret. Outsmart the guard."
+- Prizes as objects: a red "Admit one" golden ticket for the job offer, and a "+ Goodies" sticker.
