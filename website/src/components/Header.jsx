@@ -281,7 +281,7 @@ export default function Header() {
           <div className="container flex h-10 items-center justify-between gap-6 text-[13px] text-ink-3">
             <p className="truncate">
               <span className="badge badge-brand badge-dot mr-2 !h-5 !text-[11px] uppercase tracking-[.1em]">Live</span>
-              <span className="font-semibold text-ink-2">Prompt Heist</span>: crack five AI vaults with words, win internships and goodies.
+              <span className="font-semibold text-ink-2">Prompt Heist</span>: trick our AI guard with words. Win a job offer and goodies.
               <Link to="/prompt-heist" tabIndex={t} className="ml-2 font-semibold text-brand hover:underline">Take the challenge</Link>
             </p>
             <ul className="flex shrink-0 items-center gap-6">

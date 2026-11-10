@@ -136,16 +136,16 @@ export default function Home() {
         <SectionHead id="platforms-h" eyebrow="Products" title="Three platforms. Every identity covered." lead="Each platform runs on its own and starts with the risk that costs you most. Together they share one view of identity risk." />
         <div className="mt-14 grid gap-4 lg:grid-cols-12">
           {PLATFORMS.map((p, i) => (
-            <Reveal key={p.key} delay={i * 80} className={cx('card spot group relative flex flex-col overflow-hidden p-7 md:p-8', i === 0 ? 'lg:col-span-7 lg:row-span-2' : 'lg:col-span-5')} style={{ '--acc': p.acc }}>
+            <Reveal key={p.key} delay={i * 80} className={cx('card spot group relative flex flex-col overflow-hidden p-7 md:p-8', i === 1 ? 'lg:col-span-5' : 'lg:col-span-7', i === 2 && 'lg:order-4')} style={{ '--acc': p.acc }}>
               <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full opacity-25 blur-3xl transition-opacity duration-500 group-hover:opacity-45" style={{ background: p.acc }} />
               <div className="relative flex items-center gap-4">
                 <ProductMark p={p.key} size={44} />
                 <div><p className="font-display text-[24px] font-semibold tracking-[-0.02em] text-ink">{p.name}</p><p className="font-mono text-[11.5px] uppercase tracking-[.12em] text-ink-3">{p.kind}</p></div>
               </div>
               <p className="relative mt-5 t-body max-w-[46ch]">{p.tagline}.</p>
-              <ul className={cx('relative mt-6 flex-1 divide-y divide-line border-y border-line', i === 0 && 'xl:grid xl:grid-cols-2 xl:gap-x-8 xl:divide-y-0')}>
+              <ul className={cx('relative mt-6 divide-y divide-line border-y border-line', i !== 1 && 'xl:grid xl:grid-cols-2 xl:gap-x-8 xl:divide-y-0')}>
                 {(p.key === 'zenstra' ? p.items.slice(0, 4) : p.items).map((it) => (
-                  <li key={it.key} className={cx(i === 0 && 'xl:border-b xl:border-line')}>
+                  <li key={it.key} className={cx(i !== 1 && 'xl:border-b xl:border-line')}>
                     <Link to={it.path} className="group/i flex items-center gap-3 py-3.5">
                       <span className="ptile ptile-sm"><Icon name={it.icon} size={16} /></span>
                       <span className="min-w-0 flex-1"><span className="block text-[14.5px] font-medium text-ink transition-colors group-hover/i:text-brand">{it.name}</span><span className="block truncate t-caption">{it.desc}</span></span>
@@ -154,9 +154,19 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
-              <ArrowLink to={p.path} className="relative mt-6 text-[15px]">{p.key === 'zenstra' ? 'All six capabilities' : `Explore ${p.name}`}</ArrowLink>
+              <ArrowLink to={p.path} className="relative mt-auto pt-6 text-[15px]">{p.key === 'zenstra' ? 'All six capabilities' : `Explore ${p.name}`}</ArrowLink>
             </Reveal>
           ))}
+          <Reveal delay={160} className="lg:order-3 lg:col-span-5">
+            <Link to="/product-tour" className="card card-link group relative flex h-full min-h-[340px] flex-col justify-end overflow-hidden">
+              <MediaReveal src="/img/photos/engineering.webp" width={900} height={700} brk={false} className="!absolute inset-0 h-full w-full" />
+              <span className="relative z-10 block p-7 md:p-8">
+                <span className="badge badge-brand"><Icon name="Play" size={11} weight="fill" />Product tour</span>
+                <span className="mt-4 block font-display text-[26px] font-semibold leading-tight tracking-[-0.02em] text-ink">See an attack stopped, step by step.</span>
+                <span className="alink mt-4 text-[14.5px]">Take the tour<Icon name="ArrowRight" size={14} weight="bold" className="arr" /></span>
+              </span>
+            </Link>
+          </Reveal>
         </div>
         <Reveal className="card mt-4 hidden overflow-hidden p-8 md:block">
           <div className="flex flex-wrap items-end justify-between gap-4">
