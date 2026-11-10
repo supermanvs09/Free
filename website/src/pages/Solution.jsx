@@ -1,4 +1,5 @@
 import { Link, useParams } from 'react-router';
+import { MediaReveal } from '../components/fx.jsx';
 import { Seo } from '../lib/head.jsx';
 import { SOLUTION_PAGES } from '../data/solutions.js';
 import { PLATFORMS, INDUSTRIES } from '../data/ia.js';
@@ -56,7 +57,7 @@ export default function Solution() {
         actions={<><Button to={`/request-demo?product=${DEMO[slug]}`} size="lg" arrow>{slug === 'bfsi' ? 'Book a fraud signals session' : 'Book a demo'}</Button><Button href="#workflow" variant="secondary" size="lg">See it end to end</Button></>}
         media={(
           <figure className="relative">
-            <img src={`/img/photos/${slug}.webp`} alt="" width="1200" height="800" className="aspect-[4/3] w-full rounded-[16px] object-cover" fetchPriority="high" decoding="async" />
+            <MediaReveal src={`/img/photos/${slug}.webp`} width={1200} height={800} ratio="4 / 3" priority className="rounded-[24px] shadow-[var(--e-3)]" />
             <figcaption className="card absolute bottom-4 left-4 right-4 p-4 sm:right-auto sm:max-w-[320px]">
               <p className="num text-[24px] font-semibold leading-none text-brand">{lead.v}</p>
               <p className="mt-1.5 text-[13.5px] leading-snug text-ink-2">{lead.l}</p>

@@ -1,21 +1,23 @@
 import { test, expect } from '@playwright/test';
 
-/* One light foundation (docs/redesign/DESIGN_SYSTEM.md): dark only for the
-   footer and the Prompt Heist game; text meets WCAG AA on its background. */
+/* v4 (docs/redesign-v4/DESIGN.md): a light foundation; dark only for the
+   deliberate navy bands (.band), the footer and the Prompt Heist game; text
+   meets WCAG AA on its background. */
 
 const lum = (c) => { const [r, g, b] = c.match(/\d+(\.\d+)?/g).slice(0, 3).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
 const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
 
 for (const route of ['/', '/adapid-ai/fraud-prevention', '/agentic-ai/agentic-identity', '/solutions/bfsi', '/about-us']) {
-  test(`${route}: light page sections, a light header and a dark footer`, async ({ page }) => {
+  test(`${route}: light page sections (navy only as a deliberate band), a light navigation and a navy footer`, async ({ page }) => {
     await page.goto(route);
-    const dark = await page.evaluate(() => [...document.querySelectorAll('main section')].filter((s) => {
+    const stray = await page.evaluate(() => [...document.querySelectorAll('main section')].filter((s) => {
       const m = getComputedStyle(s).backgroundColor.match(/\d+/g);
-      return m && m.length >= 3 && +m[0] + +m[1] + +m[2] < 200 && !(m[3] === '0');
+      const dark = m && m.length >= 3 && +m[0] + +m[1] + +m[2] < 200 && !(m[3] === '0');
+      return dark && !s.closest('.band, .dark, .tone-d');
     }).length);
-    expect(dark).toBe(0);
-    expect(await page.locator('header.site-hdr').evaluate((e) => getComputedStyle(e).backgroundColor)).toMatch(/255, 255, 255/);
-    expect(await page.locator('footer').evaluate((e) => getComputedStyle(e).backgroundColor)).toBe('rgb(10, 22, 38)');
+    expect(stray).toBe(0);
+    expect(await page.locator('header.site-hdr .navpill').evaluate((e) => getComputedStyle(e).backgroundColor)).toMatch(/255, 255, 255/);
+    expect(await page.locator('footer').evaluate((e) => getComputedStyle(e).backgroundColor)).toBe('rgb(7, 19, 48)');
   });
 }
 

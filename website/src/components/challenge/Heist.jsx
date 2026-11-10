@@ -40,7 +40,7 @@ export function HeistBanner() {
             <div>
               <p className="ph-in ph-tag mono"><span className="ph-dot" />New · The Deep Algorithms challenge</p>
               <h2 id="heist-h" className="ph-in ph-word mt-6 text-[clamp(52px,8vw,112px)]">Prompt<br />Heist.</h2>
-              <p className="ph-in mt-6 max-w-[520px] text-[clamp(18px,1.6vw,21px)] leading-snug text-[var(--ink2)]">An AI is guarding a secret. Talk it out of it. Five vaults, words only, internships for the best.</p>
+              <p className="ph-in mt-6 max-w-[520px] text-[clamp(18px,1.6vw,21px)] leading-snug text-[var(--ink2)]">An AI is guarding a secret. Talk it out of it. Five vaults, words only, a job offer for the best.</p>
               <form className="ph-in ph-cmd mt-8 max-w-[560px]" onSubmit={(e) => { e.preventDefault(); start(msg.trim()); }}>
                 <span className="mono font-bold text-[var(--mood)]">›</span>
                 <label htmlFor="ph-home" className="sr-only">Your first message to the Guardian</label>
@@ -48,7 +48,7 @@ export function HeistBanner() {
                 <button type="submit" className="ph-send">Try it</button>
               </form>
               <p className="ph-in mt-5 flex flex-wrap gap-x-6 gap-y-2 text-[14px] text-[var(--ink3)]">
-                <span>No sign-up</span><span>Internship offers</span><span>Goodies and certificates</span>
+                <span>No sign-up</span><span>Job offers</span><span>Goodies and certificates</span>
                 <Link to={CHALLENGE.path} className="text-[var(--ink)] underline decoration-white/30 underline-offset-4 hover:decoration-white">How it works</Link>
               </p>
             </div>
@@ -101,7 +101,7 @@ export function HeistTeaser() {
             </div>
           </div>
           <Link to={CHALLENGE.path} onClick={() => setState('mini')} className={cx('ph-btn relative mt-4 !h-11 w-full !text-[15px]')}>Take the challenge<Icon name="ArrowRight" size={16} weight="bold" /></Link>
-          <p className="relative mt-2 text-center text-[12px] text-[var(--ink3)]">Prompt Heist · internships to win</p>
+          <p className="relative mt-2 text-center text-[12px] text-[var(--ink3)]">Prompt Heist · a job offer to win</p>
         </div>
       )}
     </aside>

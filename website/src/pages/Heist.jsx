@@ -25,7 +25,7 @@ function Hero() {
         <p className="ph-in ph-tag mono"><span className="ph-dot" />{CHALLENGE.opensAt ? 'Live now' : 'Now open'} · by {CHALLENGE.by}</p>
         <Guardian mood={mood} layers={5} className="mt-6 w-[min(40vh,64vw)]" />
         <h1 id="ph-h" className="ph-in ph-word mt-4 text-[clamp(60px,11vw,168px)]">Prompt Heist</h1>
-        <p className="ph-in mt-5 max-w-[640px] text-[clamp(18px,1.7vw,22px)] leading-snug text-[var(--ink2)]">{CHALLENGE.tagline} Five vaults. Words are your only weapon. The best win internships at {CHALLENGE.by}.</p>
+        <p className="ph-in mt-5 max-w-[640px] text-[clamp(18px,1.7vw,22px)] leading-snug text-[var(--ink2)]">{CHALLENGE.tagline} Five vaults. Words are your only weapon. The best win a job offer at {CHALLENGE.by}.</p>
         <form className="ph-in ph-cmd mt-9 w-full max-w-[640px]" onSubmit={(e) => { e.preventDefault(); nav(msg.trim() ? `${CHALLENGE.play}?q=${encodeURIComponent(msg.trim())}` : CHALLENGE.play); }}>
           <span className="mono font-bold text-[var(--mood)]">›</span>
           <label htmlFor="ph-hero" className="sr-only">Your first message to the Guardian</label>
@@ -131,7 +131,7 @@ export default function Heist() {
   return (
     <>
       <Seo title="Prompt Heist: the Deep Algorithms prompt-injection challenge" path={CHALLENGE.path}
-        description="An AI is guarding a secret. Talk it out of it. Five vaults of prompt injection, no sign-up, and internships, goodies and certificates to win." />
+        description="An AI is guarding a secret. Talk it out of it. Five vaults of prompt injection, no sign-up, and job offers, goodies and certificates to win." />
       <Hero />
       <Vaults />
       <Prizes />

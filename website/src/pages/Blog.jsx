@@ -79,7 +79,7 @@ export default function Blog() {
             </aside>
             <div>
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
-                <h2 id="all-h" className="text-[22px] font-semibold tracking-[-0.02em]">{filtering ? `${list.length} ${list.length === 1 ? 'result' : 'results'}` : 'All blogs'}</h2>
+                <h2 id="all-h" className="text-[22px] font-semibold tracking-[-0.02em]">{filtering ? `${list.length} ${list.length === 1 ? 'result' : 'results'}` : <span className="inline-flex items-center gap-3 font-display">Recent research<Icon name="ArrowRight" size={22} className="rotate-45 text-brand" /></span>}</h2>
                 <label className="flex items-center gap-2 text-[13.5px] text-ink-3">Sort by
                   <select value={sort} onChange={(e) => set('sort', e.target.value === 'new' ? '' : e.target.value)} className="h-10 rounded-[10px] border border-line-2 bg-white px-3 text-[14px] text-ink">
                     <option value="new">Most recent</option><option value="old">Oldest first</option><option value="short">Quickest read</option>

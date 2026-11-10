@@ -24,7 +24,29 @@ export default function Products() {
         title="Products for every identity you run on."
         lead="Two platforms and a compliance suite. adapID AI secures people, machine identities and customers; Zenstra AI secures AI agents; ICMS protects personal data. Each runs on its own." />
 
-      <Section id="all" labelledby="all-h">
+      {/* numbered big-type list of needs over a giant background word (shots 0, 9, 21, 39, 41, 58, 59, 87, 94) */}
+      <section className="sec-sm relative overflow-hidden" aria-labelledby="needs-h">
+        <p aria-hidden="true" className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 select-none whitespace-nowrap font-display text-[22vw] font-semibold leading-none tracking-[-0.06em] text-bg-1">IDENTITY</p>
+        <div className="container relative">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <h2 id="needs-h" className="t-h2">Six risks. <span className="hl">Pick yours.</span></h2>
+            <p className="t-small max-w-[360px]">Choose what you need to protect and the products below narrow to fit.</p>
+          </div>
+          <ol className="mt-10 border-t border-line">
+            {NEEDS.map(([k, l], i) => (
+              <li key={k}>
+                <a href="#all" onClick={() => setNeed(k)} className={cx('group grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-4 border-b border-line py-5 transition-colors md:grid-cols-[80px_minmax(0,1fr)_auto] md:py-6', need === k && 'text-brand')}>
+                  <span className="font-mono text-[13px] text-ink-3 transition-colors group-hover:text-brand">{String(i + 1).padStart(2, '0')}.</span>
+                  <span className={cx('font-display text-[26px] font-semibold tracking-[-0.025em] transition-all duration-500 group-hover:translate-x-3 group-hover:text-brand md:text-[44px]', need === k ? 'text-brand' : 'text-ink')}>{l}</span>
+                  <span className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line-2 text-ink-3 transition-all duration-500 group-hover:-rotate-45 group-hover:border-brand group-hover:bg-brand group-hover:text-white"><Icon name="ArrowRight" size={18} /></span>
+                </a>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <Section id="all" labelledby="all-h" tone="subtle">
         <h2 id="all-h" className="sr-only">All products</h2>
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-[14px] font-semibold text-ink">What do you need to protect?</span>
@@ -63,7 +85,7 @@ export default function Products() {
         </div>
       </Section>
 
-      <Section id="bundles" labelledby="b-h" tone="subtle">
+      <Section id="bundles" labelledby="b-h">
         <SectionHead id="b-h" eyebrow="Better together" title="Use one, or combine them where the risk is." lead="Each product runs on its own. These combinations cover risks that usually arrive together." />
         <div className="mt-10 grid gap-4 md:grid-cols-3">
           {BUNDLES.map(([h, prods, t, to], i) => (

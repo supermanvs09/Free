@@ -25,12 +25,12 @@ test('unknown pages answer 404 with a way back', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Back to home' })).toBeVisible();
 });
 
-test('one type family across the site: Inter, with mono only for machine values', async ({ page }) => {
+test('one type system across the site: Funnel Display headings, Geist text, Geist Mono labels', async ({ page }) => {
   for (const route of ['/', '/adapid-ai', '/blogs/identity-security', '/why-deep-algorithms']) {
     await page.goto(route);
     const families = await page.evaluate(() => [...document.querySelectorAll('h1, h2, h3, p, a, button, li')]
       .filter((e) => !e.closest('.vz, .mono, pre, code')).map((e) => getComputedStyle(e).fontFamily.split(',')[0].replace(/"/g, '')));
-    expect(new Set(families), route).toEqual(new Set(['Inter Variable']));
+    for (const f of families) expect(['Funnel Display Variable', 'Geist Variable', 'Geist Mono Variable'], `${route}: ${f}`).toContain(f);
   }
 });
 

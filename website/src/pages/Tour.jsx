@@ -91,7 +91,7 @@ export default function Tour() {
           </div>
 
           <div className="mt-10 grid gap-6 xl:grid-cols-[250px_minmax(0,1fr)]">
-            <nav aria-label="Tour chapters" className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 xl:mx-0 xl:block xl:space-y-1 xl:overflow-visible xl:px-0">
+            <nav aria-label="Tour chapters" className="tour-side no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 xl:mx-0 xl:block xl:space-y-1 xl:overflow-visible xl:px-0">
               {STEPS.map((c, n) => {
                 const active = n === i;
                 return (

@@ -9,7 +9,7 @@ export const CHALLENGE = {
   path: '/prompt-heist',
   play: '/prompt-heist/play',
   tagline: 'Talk an AI vault into giving up its secret.',
-  pitch: 'Five AI guards. Five secrets. Every level adds a new defence. Use nothing but words to make the vault talk, climb the leaderboard and win an internship.',
+  pitch: 'Five AI guards. Five secrets. Every level adds a new defence. Use nothing but words to make the vault talk, climb the leaderboard and win a job offer.',
   // ISO strings, e.g. '2026-12-01T10:00:00+05:30'. Leave null until dates are final.
   opensAt: null,
   closesAt: null,
@@ -17,7 +17,7 @@ export const CHALLENGE = {
 };
 
 export const PRIZES = [
-  { icon: 'Briefcase', title: 'Internship offers', body: 'Top finishers are fast-tracked to an interview for a security or AI internship at Deep Algorithms.', tag: 'Top ranks' },
+  { icon: 'Briefcase', title: 'Job offers', body: 'Top finishers are fast-tracked to a final interview and a job offer in security or AI at Deep Algorithms.', tag: 'Top ranks' },
   { icon: 'Gift', title: 'Deep Algorithms goodies', body: 'Hoodies, stickers and desk kit for everyone who cracks the final vault.', tag: 'Level 5' },
   { icon: 'Certificate', title: 'Certificate of completion', body: 'A verifiable certificate for every level you break, for your CV and LinkedIn.', tag: 'Every level' },
   { icon: 'Trophy', title: 'Hall of fame', body: 'Your handle on the Deep Algorithms leaderboard, for the whole security community to see.', tag: 'Leaderboard' },
@@ -50,7 +50,7 @@ export const STEPS = [
   ['Register', 'Pick a handle. Students, job seekers, professionals and hobbyists all welcome.'],
   ['Chat with the guard', 'Each vault is an AI with a secret passphrase. Use words, roles, stories, anything.'],
   ['Submit the passphrase', 'Got it out? Enter it to unlock the next level and bank your points.'],
-  ['Climb the board', 'Fewer prompts and faster cracks score higher. Top ranks win internships.'],
+  ['Climb the board', 'Fewer prompts and faster cracks score higher. Top ranks win job offers.'],
 ];
 
 export const RULES = [
@@ -58,7 +58,7 @@ export const RULES = [
   'One account per person. Teams are not allowed in this edition.',
   'Fewer messages and less time to crack a level earn a higher score.',
   'Do not share passphrases publicly while the challenge is running.',
-  'Winners are verified before prizes and internship interviews are confirmed.',
+  'Winners are verified before prizes and job offers are confirmed.',
 ];
 
 export const FAQ = [
@@ -66,5 +66,5 @@ export const FAQ = [
   { q: 'Who can take part?', a: 'Anyone in India aged 18 or over: students, job seekers, working professionals and anyone who enjoys breaking things for fun.' },
   { q: 'What is prompt injection?', a: 'Getting an AI to ignore its instructions by what you write to it. It is the top risk in the OWASP Top 10 for LLM applications, and it is exactly what Zenstra AI defends against.' },
   { q: 'How are winners chosen?', a: 'By leaderboard score: points for each level, with bonuses for fewer messages and faster cracks. Ties go to whoever got there first.' },
-  { q: 'Is my data safe?', a: 'We keep your handle, email and score for the challenge and for internship follow-up only. Conversations may be used, anonymised, to improve AI defences.' },
+  { q: 'Is my data safe?', a: 'We keep your handle, email and score for the challenge and for hiring follow-up only. Conversations may be used, anonymised, to improve AI defences.' },
 ];

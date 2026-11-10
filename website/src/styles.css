@@ -475,3 +475,11 @@ html.is-translated font { background: none !important; box-shadow: none !importa
 .page > .hero-bg:first-child, .page > .sky:first-child { margin-top: calc(-1 * var(--hdr)); padding-top: var(--hdr); }
 
 .band .ptile { background: rgb(255 255 255 / .08); color: #a8d8ff; }
+
+/* product tour: chapters as a navy app sidebar on desktop (shots 11, 16, 27) */
+@media (min-width: 1280px) {
+  .tour-side { align-self: start; position: sticky; top: calc(var(--hdr-now, var(--hdr)) + 20px); padding: 12px; border-radius: 22px; background: radial-gradient(80% 50% at 100% 0%, rgb(26 86 239 / .5), transparent 70%), #071330; box-shadow: var(--e-3); }
+  .tour-side > button { color: #c9d4ee; }
+  .tour-side > button:hover { background: rgb(255 255 255 / .08); color: #fff; }
+  .tour-side > button[aria-current='step'], .tour-side > button.bg-white { background: #fff; color: var(--color-ink); }
+}

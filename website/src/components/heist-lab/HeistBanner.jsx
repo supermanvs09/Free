@@ -62,7 +62,7 @@ export default function HeistBanner({ headingLevel = 3 }) {
           <p className="phb-prize-k">Win</p>
           <div className="phb-prize-main">
             <p className="phb-prize-t">{intern.title}</p>
-            <p className="phb-prize-s">{intern.tag}: fast-tracked to an internship interview</p>
+            <p className="phb-prize-s">{intern.tag}: in the running for a job offer</p>
           </div>
           <ul className="phb-prize-more">
             <li><Icon name={goodies.icon} size={16} />{goodies.title}</li>

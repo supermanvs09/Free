@@ -224,7 +224,7 @@ export default function HeistPlay() {
               <div className="ph-s mx-auto mt-8 max-w-[460px] rounded-[20px] border border-[rgb(67_240_160/.4)] bg-[rgb(67_240_160/.06)] p-6">
                 <p className="text-[17px] font-semibold">All five vaults. You are in the running.</p>
                 <p className="mono mt-4 select-all text-[22px] tracking-[.12em] text-[#43f0a0]">{won.claim || 'DA-CLAIM'}</p>
-                <p className="mt-3 text-[14px] text-[var(--ink2)]">Send this claim code with your CV to <a className="underline underline-offset-2" href={`mailto:${SITE.email}?subject=Prompt%20Heist%20claim%20${won.claim || ''}`}>{SITE.email}</a> for goodies and an internship interview.</p>
+                <p className="mt-3 text-[14px] text-[var(--ink2)]">Send this claim code with your CV to <a className="underline underline-offset-2" href={`mailto:${SITE.email}?subject=Prompt%20Heist%20claim%20${won.claim || ''}`}>{SITE.email}</a> for goodies and your job-offer interview.</p>
               </div>
             ) : null}
             <div className="ph-s mt-9 flex flex-wrap justify-center gap-3">

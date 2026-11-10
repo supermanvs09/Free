@@ -29,7 +29,7 @@ test('the Careers card on Why Deep Algorithms carries the Prompt Heist banner', 
   const banner = card.locator('.phb');
   await expect(banner.getByRole('heading', { name: 'Prompt Heist' })).toBeVisible();
   await expect(banner).toContainText('An AI Security Challenge by Deep Algorithms Solutions');
-  await expect(banner).toContainText('Internship offers');
+  await expect(banner).toContainText('Job offers');
   await expect(banner.getByRole('link', { name: 'Rules and prizes' })).toHaveAttribute('href', '/prompt-heist');
   // one composition per width: landscape beside the lock on desktop, portrait stacked on a phone
   const w = page.viewportSize().width;
