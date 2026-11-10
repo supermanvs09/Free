@@ -1,3 +1,4 @@
+import { PASSWORD_RULE, passwordProblem } from '../../lib/passwordPolicy';
 import { useState } from 'react';
 import { KeyRound } from 'lucide-react';
 import { changeOwnPassword } from '../../lib/api/admin';
@@ -29,8 +30,7 @@ export function ChangePasswordModal({ open, onClose }) {
     event?.preventDefault();
     const next = {};
     if (!values.current) next.current = 'Enter your current password.';
-    if (values.next.length < 12) next.next = 'Use at least 12 characters.';
-    else if (values.next.length > 72) next.next = 'Use at most 72 characters.';
+    if (passwordProblem(values.next)) next.next = passwordProblem(values.next);
     else if (values.next === values.current) next.next = 'Choose a password different from the current one.';
     if (!next.next && values.again !== values.next) next.again = 'The two new passwords differ.';
     setErrors(next);
@@ -70,7 +70,7 @@ export function ChangePasswordModal({ open, onClose }) {
         <Field label="Current password" htmlFor="pw-current" error={errors.current}>
           <PasswordInput id="pw-current" value={values.current} onChange={set('current')} autoComplete="current-password" invalid={Boolean(errors.current)} />
         </Field>
-        <Field label="New password" htmlFor="pw-next" error={errors.next} hint="12 characters or more.">
+        <Field label="New password" htmlFor="pw-next" error={errors.next} hint={PASSWORD_RULE}>
           <PasswordInput id="pw-next" value={values.next} onChange={set('next')} autoComplete="new-password" invalid={Boolean(errors.next)} />
         </Field>
         <Field label="New password, again" htmlFor="pw-again" error={errors.again}>

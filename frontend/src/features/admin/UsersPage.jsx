@@ -1,3 +1,4 @@
+import { PASSWORD_RULE, passwordProblem as passwordRuleProblem } from '../../lib/passwordPolicy';
 import { useMemo, useState } from 'react';
 import { Check, Copy, KeyRound, Pencil, RefreshCw, ShieldCheck, Trash2, UserMinus, UserPlus, UserRoundCheck, Users, X } from 'lucide-react';
 import { createUser, deleteUser, fetchUsers, updateUser } from '../../lib/api/admin';
@@ -47,16 +48,18 @@ function workspaceOf(email) {
 /** A strong, readable password: no look-alike characters. */
 function generatePassword(length = 16) {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#%*-_';
-  const bytes = new Uint32Array(length);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (n) => alphabet[n % alphabet.length]).join('');
+  /* Drawn again until it has every kind of character the rule asks for. */
+  for (;;) {
+    const bytes = new Uint32Array(length);
+    crypto.getRandomValues(bytes);
+    const pw = Array.from(bytes, (n) => alphabet[n % alphabet.length]).join('');
+    if (!passwordRuleProblem(pw)) return pw;
+  }
 }
 
 function passwordProblem(value) {
   if (!value) return 'Set a password, or generate one.';
-  if (value.length < 12) return 'Use at least 12 characters.';
-  if (value.length > 72) return 'Use at most 72 characters.';
-  return '';
+  return passwordRuleProblem(value);
 }
 
 export default function UsersPage() {
@@ -517,7 +520,7 @@ function UserForm({ target, roles, workspace, self, lastAdmin, onCancel, onSaved
           htmlFor="u-password"
           required
           error={errors.password}
-          hint="12 characters or more. You will see it once, to pass on to them."
+          hint={`${PASSWORD_RULE} You will see it once, to pass on to them.`}
           labelSuffix={
             <button type="button" onClick={() => setPassword(generatePassword())} className="text-[12px] font-medium text-brand hover:underline">
               Generate
@@ -676,7 +679,7 @@ function ResetPasswordModal({ target, self, onClose, onDone }) {
             label="New password"
             htmlFor="reset-pw"
             error={error}
-            hint="12 characters or more."
+            hint={PASSWORD_RULE}
             labelSuffix={
               <button type="button" onClick={() => { setPassword(generatePassword()); setError(''); }} className="text-[12px] font-medium text-brand hover:underline">
                 Generate

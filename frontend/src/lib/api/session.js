@@ -46,7 +46,13 @@ export function writeSession({ token, user }) {
   try {
     const store = tabStore();
     if (token) store?.setItem(TOKEN_KEY, token);
-    if (user) store?.setItem(USER_KEY, JSON.stringify(user));
+    /* The profile kept for a reload is who is signed in, not what they may
+       do: the capability list stays in memory only (it comes back with /me),
+       so it is not on show in the browser's storage. */
+    if (user) {
+      const { capabilities: _capabilities, permissions: _permissions, ...profile } = user;
+      store?.setItem(USER_KEY, JSON.stringify(profile));
+    }
   } catch {
     /* A private window refuses storage; the session lasts for this page. */
   }

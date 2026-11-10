@@ -292,7 +292,9 @@ function ScoreSummary({ header, posture, score, band, grade, window, onAlerts })
                 <p className="mt-1 text-[13px] text-ink-2">
                   {failed === 0
                     ? 'Every applicable check passes.'
-                    : `${formatNumber(failed)} failed ${failed === 1 ? 'check costs' : 'checks cost'} ${formatScore(posture.points_lost)} points${Number(posture.points_lost) > 100 ? '; the score stops at 0' : ''}.`}
+                    : Number(posture.points_lost) > 100
+                      ? `${formatNumber(failed)} failed checks cost all 100 points (${formatScore(posture.points_lost)} in total; a score cannot go below 0).`
+                      : `${formatNumber(failed)} failed ${failed === 1 ? 'check costs' : 'checks cost'} ${formatScore(posture.points_lost)} points.`}
                 </p>
                 <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[12px] text-ink-3">
                   {formatNumber(posture.checks_evaluated)} checks evaluated
@@ -1319,7 +1321,10 @@ function whyThisScore(name, score, posture, failing) {
     .slice(0, 3)
     .map((check) => `${check.title} (−${formatScore(check.points_if_fixed)})`);
   if (!n) return posture.why_this_score || '';
-  const head = `${name} scores ${formatScore(score)} out of 100 because ${n} failed ${n === 1 ? 'check costs' : 'checks cost'}${lost !== null ? ` ${formatScore(lost)} points` : ' points'}${lost > 100 ? ', and a score cannot go below 0' : ''}.`;
+  const head =
+    lost > 100
+      ? `${name} scores ${formatScore(score)} out of 100 because ${n} failed checks cost all 100 points (${formatScore(lost)} in total; a score cannot go below 0).`
+      : `${name} scores ${formatScore(score)} out of 100 because ${n} failed ${n === 1 ? 'check costs' : 'checks cost'}${lost !== null ? ` ${formatScore(lost)} points` : ' points'}.`;
   if (top.length === 0) return `${head} ${posture.why_this_score || ''}`.trim();
   const biggest = top.length === 1 ? `The biggest is ${top[0]}.` : `The biggest are ${top.slice(0, -1).join(', ')} and ${top.at(-1)}.`;
   return `${head} ${biggest}${n > top.length ? ` All ${n} are listed under Failed checks.` : ''}`;

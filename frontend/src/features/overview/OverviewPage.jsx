@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AlertTriangle, ArrowRight, Bot, Eye, Gauge, FileWarning, Fingerprint, Globe2, KeyRound, LineChart, Pencil, RotateCw, ScanEye } from 'lucide-react';
 import { useAccess } from '../../app/useAccess';
+import { useSync } from '../sync/SyncContext';
 import { useWorkspace } from '../../app/WorkspaceContext';
 import { fetchFindings } from '../../lib/api/exposure';
 import {
@@ -92,6 +93,25 @@ function OrganisationDashboard({ exposure, offerExposureSetup }) {
     setManualRefresh(false);
     notify({ variant: 'success', title: 'Figures refreshed', description: `Read at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}.` });
   };
+
+  /* A sync that finishes reloads every figure, so the cards, the scope strip
+     and the Sync button show the same scan: they used to keep the old figures
+     (and the old "last synced" time) until Refresh figures was pressed. */
+  const { run } = useSync();
+  const syncedAt = run?.stage === 'done' ? run.finishedAt : null;
+  const seenSync = useRef(syncedAt);
+  useEffect(() => {
+    if (!syncedAt || syncedAt === seenSync.current) return;
+    seenSync.current = syncedAt;
+    overviewQuery.refetch();
+    scopeQuery.refetch();
+    postureQuery.refetch();
+    genomeQuery.refetch();
+    trendsQuery.refetch();
+    activityQuery.refetch();
+    if (exposure) findingsQuery.refetch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [syncedAt]);
 
   const refreshing =
     manualRefresh || overviewQuery.isRefreshing || postureQuery.isRefreshing || genomeQuery.isRefreshing || scopeQuery.isRefreshing;
@@ -260,7 +280,7 @@ function HeadlineTiles({ kpis, activity, exposure, findingsQuery, findingSummary
         caption={
           kpis.activeCredentials === null
             ? 'Keys, passwords and certificates held by identities'
-            : `Keys, passwords and certificates held by identities · ${formatNumber(kpis.activeCredentials)} used in the last 90 days`
+            : `Keys, passwords and certificates held by identities · ${formatNumber(kpis.activeCredentials)} used or created in the last 90 days`
         }
       />
       {exposure ? (

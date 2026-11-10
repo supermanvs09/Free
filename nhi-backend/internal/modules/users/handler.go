@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"nhi-backend-api/internal/platform/passwordpolicy"
 	"strconv"
 	"strings"
 
@@ -152,10 +153,8 @@ func validateNew(req createRequest) (message, field string) {
 	switch {
 	case req.Email == "" || !strings.Contains(req.Email, "@") || strings.ContainsAny(req.Email, " \t"):
 		return "Enter the email address they will sign in with.", "email"
-	case len(req.Password) < minPasswordLen:
-		return "Use a password of at least " + strconv.Itoa(minPasswordLen) + " characters.", "password"
-	case len(req.Password) > maxPasswordLen:
-		return "Use a password of at most " + strconv.Itoa(maxPasswordLen) + " characters.", "password"
+	case passwordpolicy.Check(req.Password) != "":
+		return passwordpolicy.Check(req.Password), "password"
 	case !authz.IsKnownRole(req.Role):
 		return "Choose one of: " + roleNames() + ".", "role"
 	case !validStatus(req.Status):
@@ -242,8 +241,8 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 			invalid(w, "The password must be sent encrypted. Reload the page and try again.", "password")
 			return
 		}
-		if len(pw) < minPasswordLen || len(pw) > maxPasswordLen {
-			invalid(w, "Use a password of "+strconv.Itoa(minPasswordLen)+" to "+strconv.Itoa(maxPasswordLen)+" characters.", "password")
+		if msg := passwordpolicy.Check(pw); msg != "" {
+			invalid(w, msg, "password")
 			return
 		}
 		hash, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)

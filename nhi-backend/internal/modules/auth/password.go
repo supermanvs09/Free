@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"nhi-backend-api/internal/platform/passwordpolicy"
 	"strings"
 
 	"golang.org/x/crypto/bcrypt"
@@ -55,10 +56,9 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 			Message: "Passwords must be sent encrypted. Reload the page and try again.", Error: "PASSWORD_NOT_ENCRYPTED"})
 		return
 	}
-	if len(req.NewPassword) < minOwnPasswordLen || len(req.NewPassword) > maxOwnPasswordLen {
+	if msg := passwordpolicy.Check(req.NewPassword); msg != "" {
 		sendJSON(w, http.StatusUnprocessableEntity, httpx.APIResponse{Success: false,
-			Message: fmt.Sprintf("Use a new password of %d to %d characters.", minOwnPasswordLen, maxOwnPasswordLen),
-			Error:   "INVALID_PASSWORD", Data: map[string]string{"field": "new_password"}})
+			Message: msg, Error: "INVALID_PASSWORD", Data: map[string]string{"field": "new_password"}})
 		return
 	}
 	if req.NewPassword == req.CurrentPassword {

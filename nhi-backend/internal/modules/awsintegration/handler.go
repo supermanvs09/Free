@@ -53,6 +53,9 @@ func (h *AWSIntegrationHandler) Get(w http.ResponseWriter, r *http.Request) {
 		writeAWSError(w, r, err, "Failed to load the AWS connection", "AWS_INTEGRATION_LOAD_FAILED")
 		return
 	}
+	if !canManageAWS(claims.Role) {
+		hideOtherPeople(result, claims.UserID)
+	}
 	httpx.SendJSONResponse(w, http.StatusOK, httpx.APIResponse{Success: true, Message: "AWS connection retrieved", Data: result})
 }
 
@@ -284,5 +287,29 @@ func logAWSError(r *http.Request, status int, code string, err error) {
 		log.Error("aws integration: AWS is not configured or not reachable from the API server (verifier missing or AWS calls failing)")
 	default:
 		log.Info("aws integration: request refused")
+	}
+}
+
+// hideOtherPeople blanks who verified, approved, changed scanning or asked for
+// a sync, unless it was the caller: a viewer or analyst reading the AWS page
+// was shown the admins' sign-in names. Admins, who manage these accounts,
+// still see them.
+func hideOtherPeople(res *AWSIntegrationResponse, self string) {
+	if res == nil {
+		return
+	}
+	keep := func(who string) string {
+		if strings.EqualFold(strings.TrimSpace(who), strings.TrimSpace(self)) {
+			return who
+		}
+		return ""
+	}
+	for i := range res.Accounts {
+		a := &res.Accounts[i]
+		a.LastVerifiedBy = keep(a.LastVerifiedBy)
+		a.Approval.RequestedBy = keep(a.Approval.RequestedBy)
+		a.Approval.DecidedBy = keep(a.Approval.DecidedBy)
+		a.Exposure.UpdatedBy = keep(a.Exposure.UpdatedBy)
+		a.Sync.RequestedBy = keep(a.Sync.RequestedBy)
 	}
 }

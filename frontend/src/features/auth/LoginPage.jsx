@@ -223,6 +223,7 @@ export default function LoginPage() {
             )}
 
             <form
+              autoComplete="off"
               onSubmit={onSubmit}
               noValidate
               className="mt-[clamp(1.25rem,1.9vw,2.4rem)] flex flex-col gap-[clamp(1rem,1.6vw,2rem)]"
@@ -244,7 +245,9 @@ export default function LoginPage() {
                   size="auth"
                   type="text"
                   inputMode="email"
-                  autoComplete="username"
+                  /* No browser suggestions: the list of usernames typed on this
+                     machine was shown to anyone at the sign-in page. */
+                  autoComplete="off"
                   autoCapitalize="none"
                   spellCheck="false"
                   placeholder="name@workspace"
@@ -268,7 +271,7 @@ export default function LoginPage() {
                   ref={passwordRef}
                   id="login-password"
                   size="auth"
-                  autoComplete="current-password"
+                  autoComplete="off"
                   placeholder="••••••••"
                   value={values.password}
                   invalid={Boolean(fieldErrors.password)}
