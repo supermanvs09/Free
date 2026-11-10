@@ -16,7 +16,7 @@ const SOURCE_TYPES = {
   ELASTIC_BEAN: 'Elastic Beanstalk',
   AWS_SLR: 'Service-linked role',
   SSM: 'Systems Manager',
-  GLUE: 'Glue components',
+  GLUE: 'Glue',
   EMR: 'EMR cluster',
   BATCH: 'Batch job',
   DMS: 'DMS replication',
@@ -39,7 +39,7 @@ const SOURCE_TYPES = {
 
 /**
  * The genome service keys Glue jobs and Glue crawlers under one GLUE family,
- * shown as "Glue components" wherever a family is counted (the What is watched
+ * shown as "Glue" wherever a family is counted (the What is watched
  * ring, the type filter). On one identity, `hint` (the discovery
  * identity_type, or the identity's ARN) names the kind.
  */

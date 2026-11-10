@@ -24,6 +24,7 @@ import { EmptyState, ErrorState } from '../../ui/States';
 import { Tag } from '../../ui/Tag';
 import { useToast } from '../../ui/Toast';
 import { IdentityDrawer } from './IdentityDrawer';
+import { OwnerCell } from './OwnerCell';
 import { ActivityCell, UtilisationCell } from './status';
 import {
   API_ENVIRONMENTS,
@@ -361,6 +362,7 @@ export default function IdentitiesPage() {
         { header: 'Region', value: (row) => row.region },
         { header: 'Environment', value: (row) => row.environment },
         { header: 'Owner', value: (row) => row.owner },
+        { header: 'Owner reason', value: (row) => row.owner_reason ?? '' },
         { header: 'Status', value: (row) => row.status },
         { header: 'Publicly accessible', value: (row) => (row.is_publicly_accessible ? 'yes' : 'no') },
         { header: 'VPC', value: (row) => row.vpc_id },
@@ -441,12 +443,7 @@ export default function IdentitiesPage() {
       sortable: true,
       cell: (row) => (
         <span className="block min-w-0">
-          <span
-            className={row.owner ? 'block truncate text-[12.5px] text-ink-2' : 'block truncate text-[12.5px] text-ink-3 italic'}
-            title={row.owner || undefined}
-          >
-            {row.owner || 'No owner'}
-          </span>
+          <OwnerCell owner={row.owner} reason={row.owner_reason} />
           {/* Who created it and how long ago, on one line: age reads best beside its creator. */}
           {(row.created_by || Number.isFinite(row.age_days)) && (
             <span

@@ -12,7 +12,7 @@ import { Button } from '../../ui/Button';
 import { DataGrid } from '../../ui/DataGrid';
 import { FacetRail, useFacetRail } from '../../ui/FacetRail';
 import { SearchInput, Select } from '../../ui/Field';
-import { Meter, ProportionBar } from '../../ui/Meter';
+import { Meter } from '../../ui/Meter';
 import { Pagination } from '../../ui/Pagination';
 import { Panel, PanelHeader } from '../../ui/Panel';
 import { ChartSkeleton, ListSkeleton, StatStripSkeleton } from '../../ui/Skeleton';
@@ -39,9 +39,12 @@ const TAB_KEYS = ['overview', 'identities', 'anomalies'];
 const DAY_MS = 86400000;
 
 /** Where an identity's baseline stands, from the genome list's baseline block. */
-export function learningState(baseline) {
+export function learningState(baseline, lastSeen = null) {
   const status = baseline?.status;
   if (status === 'active') return { key: 'established', label: 'Established', tone: 'low' };
+  /* Calls but no baseline row yet: the identity is learning; the pipeline
+     reports days once it starts the baseline. */
+  if (!status && lastSeen) return { key: 'learning', label: 'Learning', tone: 'medium', built: null, required: null, pct: null, left: null };
   if (status) {
     const built = Number(baseline.builtDays) || 0;
     const required = Number(baseline.requiredDays) || 0;
@@ -59,6 +62,7 @@ const BASELINE_FILTERS = [
 ];
 
 const SORTS = [
+  { value: 'baseline', label: 'Sort: Baselined and learning first' },
   { value: 'risk', label: 'Sort: Risk, highest first' },
   { value: 'seen', label: 'Sort: Last call, newest first' },
   { value: 'learning', label: 'Sort: Closest to a baseline' },
@@ -155,7 +159,7 @@ function OverviewTab({ summary, fleet, window, openTab }) {
   const learning = useMemo(
     () =>
       all
-        .map((row) => ({ row, state: learningState(row.baseline) }))
+        .map((row) => ({ row, state: learningState(row.baseline, row.lastSeen) }))
         .filter((entry) => entry.state.key === 'learning')
         .sort((a, b) => (b.state.pct ?? -1) - (a.state.pct ?? -1) || a.row.name.localeCompare(b.row.name)),
     [all],
@@ -177,13 +181,12 @@ function OverviewTab({ summary, fleet, window, openTab }) {
     <>
       <SummaryCards cards={cards} window={window} learningCount={learning.length} openTab={openTab} />
 
-      <div className="grid gap-4 @min-[52rem]:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
-        <BaselineCoverage cards={cards} fleet={all} loading={fleet.isLoading && !fleet.data} />
+      <div className="grid gap-4 @min-[52rem]:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+        <AnomaliesPerDay days={summary.data.anomaliesByDay} span={chartDays} generatedAt={summary.data.generatedAt} />
         <DeparturesByType departures={summary.data.departures} span={chartDays} onSelect={(dimension) => openTab('anomalies', { dim: dimension })} />
       </div>
 
-      <div className="grid gap-4 @min-[52rem]:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
-        <AnomaliesPerDay days={summary.data.anomaliesByDay} span={chartDays} generatedAt={summary.data.generatedAt} />
+      <div className="grid gap-4 @min-[52rem]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <Panel prominence="quiet" className="animate-rise">
           <PanelHeader
             prominence="quiet"
@@ -204,17 +207,15 @@ function OverviewTab({ summary, fleet, window, openTab }) {
             <CompositionDonut className="mt-4" data={mix} centerLabel="Watched" onSelect={(item) => openTab('identities', { type: item.key })} />
           )}
         </Panel>
+        <LearningNow entries={learning} loading={fleet.isLoading && !fleet.data} onAll={() => openTab('identities', { baseline: 'learning', sort: 'learning' })} />
       </div>
 
       <div className="grid gap-4 @min-[52rem]:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
         <MostAnomalous entries={summary.data.mostAnomalous} onAll={() => openTab('anomalies')} />
-        <div className="flex flex-col gap-4">
-          <LearningNow entries={learning} loading={fleet.isLoading && !fleet.data} onAll={() => openTab('identities', { baseline: 'learning', sort: 'learning' })} />
-          <Panel prominence="quiet" className="animate-rise">
-            <PanelHeader prominence="quiet" title="Recently baselined" subtitle="Baselines established or republished, newest first." />
-            <RecentlyBaselined entries={summary.data.recentlyBaselined} />
-          </Panel>
-        </div>
+        <Panel prominence="quiet" className="animate-rise">
+          <PanelHeader prominence="quiet" title="Recently baselined" subtitle="Baselines established or republished, newest first." />
+          <RecentlyBaselined entries={summary.data.recentlyBaselined} />
+        </Panel>
       </div>
     </>
   );
@@ -282,66 +283,6 @@ function SummaryCards({ cards, window, learningCount, openTab }) {
         </div>
       ))}
     </div>
-  );
-}
-
-/** Established / learning / not started across the fleet, with the model's own health figures. */
-function BaselineCoverage({ cards, fleet, loading }) {
-  const counts = useMemo(() => {
-    const out = { established: 0, learning: 0, none: 0 };
-    for (const row of fleet) out[learningState(row.baseline).key] += 1;
-    return out;
-  }, [fleet]);
-  const segments = [
-    { key: 'established', label: 'Established', value: counts.established, color: 'var(--t-low)' },
-    { key: 'learning', label: 'Learning', value: counts.learning, color: 'var(--t-medium)' },
-    { key: 'none', label: 'Not started', value: counts.none, color: 'var(--t-neutral)' },
-  ];
-  const confidence = cards.mean_confidence_percent ?? cards.mean_provenance_confidence;
-  const facts = [
-    { label: 'Mean confidence', value: Number.isFinite(confidence) ? `${Math.round(confidence)}%` : 'Not measured' },
-    { label: 'Coverage', value: Number.isFinite(cards.baseline_coverage_percent) ? `${Math.round(cards.baseline_coverage_percent)}%` : 'Not measured' },
-    {
-      label: 'Drifting baselines',
-      value: cards.drifting_baselines_available && Number.isFinite(cards.drifting_baselines) ? formatNumber(cards.drifting_baselines) : 'Not measured',
-    },
-    { label: 'Window', value: cards.window_hours ? `${cards.window_hours}h` : '24h' },
-  ];
-  return (
-    <Panel prominence="quiet" className="animate-rise">
-      <PanelHeader prominence="quiet" title="Baseline coverage" />
-      {loading ? (
-        <ChartSkeleton height={60} />
-      ) : (
-        <>
-          <ProportionBar className="mt-4" segments={segments} height={10} ariaLabel="Baseline state of the monitored identities" />
-          <ul className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-ink-2">
-            {segments.map((seg) => (
-              <li key={seg.key} className="flex items-center gap-1.5">
-                <span aria-hidden="true" className="size-2.5 rounded-[3px]" style={{ background: seg.color }} />
-                {seg.label}
-                <span data-numeric="" className="font-semibold text-ink">
-                  {formatNumber(seg.value)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-      <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3">
-        {facts.map((fact) => (
-          <div key={fact.label}>
-            <dt className="text-[10.5px] font-semibold tracking-[0.085em] text-ink-3 uppercase">{fact.label}</dt>
-            <dd data-numeric="" className="mt-0.5 text-[14px] font-semibold text-ink">
-              {fact.value}
-            </dd>
-          </div>
-        ))}
-      </dl>
-      <p className="mt-3 text-[11.5px] leading-relaxed text-ink-3">
-        A drifting baseline is not an anomaly: it means the model needs retraining before its verdicts are worth much.
-      </p>
-    </Panel>
   );
 }
 
@@ -499,10 +440,10 @@ function LearningNow({ entries, loading, onAll }) {
                 <span className="flex items-baseline gap-3">
                   <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-ink group-hover:text-brand">{row.name}</span>
                   <span data-numeric="" className="shrink-0 text-[11.5px] text-ink-3">
-                    Day {formatNumber(state.built)} of {formatNumber(state.required)}
+                    {state.required ? `Day ${formatNumber(state.built)} of ${formatNumber(state.required)}` : 'Calls seen, baseline starting'}
                   </span>
                 </span>
-                <Meter className="mt-1.5" value={state.pct} tone="medium" height={5} label={`${row.name}: ${Math.round(state.pct ?? 0)}% learned`} />
+                {state.pct !== null && <Meter className="mt-1.5" value={state.pct} tone="medium" height={5} label={`${row.name}: ${Math.round(state.pct ?? 0)}% learned`} />}
               </Link>
             </li>
           ))}
@@ -561,7 +502,7 @@ function IdentitiesTab({ fleet, searchParams, setParams }) {
   const listRef = useRef(null);
   const type = searchParams.get('type') || '';
   const baselineFilter = BASELINE_FILTERS.some((f) => f.value === searchParams.get('baseline')) ? searchParams.get('baseline') : '';
-  const sort = SORTS.some((s) => s.value === searchParams.get('sort')) ? searchParams.get('sort') : 'risk';
+  const sort = SORTS.some((s) => s.value === searchParams.get('sort')) ? searchParams.get('sort') : 'baseline';
   const pageSize = PAGE_SIZES.includes(Number(searchParams.get('size'))) ? Number(searchParams.get('size')) : 25;
   const page = Math.max(1, Number(searchParams.get('page')) || 1);
   const [searchDraft, setSearchDraft] = useState(() => searchParams.get('q') || '');
@@ -577,15 +518,25 @@ function IdentitiesTab({ fleet, searchParams, setParams }) {
     const out = all.filter(
       (row) =>
         (!type || row.sourceType === type) &&
-        (!baselineFilter || learningState(row.baseline).key === baselineFilter) &&
+        (!baselineFilter || learningState(row.baseline, row.lastSeen).key === baselineFilter) &&
         (!search ||
           [row.name, row.identityName, row.workloadKey, row.accountId, row.region].some((value) => String(value ?? '').toLowerCase().includes(search))),
     );
     const time = (value) => Date.parse(value ?? '') || 0;
+    /* Default order: identities with a baseline first, then those learning
+       (they have calls), then the rest that have called, and identities never
+       seen calling last. Within each, the most recent call first. */
+    const rank = (row) => {
+      const key = learningState(row.baseline, row.lastSeen).key;
+      if (key === 'established') return 0;
+      if (key === 'learning') return 1;
+      return row.lastSeen ? 2 : 3;
+    };
     const by = {
+      baseline: (a, b) => rank(a) - rank(b) || time(b.lastSeen) - time(a.lastSeen),
       risk: (a, b) => (b.risk.score ?? -1) - (a.risk.score ?? -1) || (b.openAnomalies ?? 0) - (a.openAnomalies ?? 0),
       seen: (a, b) => time(b.lastSeen) - time(a.lastSeen),
-      learning: (a, b) => (learningState(b.baseline).pct ?? -1) - (learningState(a.baseline).pct ?? -1),
+      learning: (a, b) => (learningState(b.baseline, b.lastSeen).pct ?? -1) - (learningState(a.baseline, a.lastSeen).pct ?? -1),
       name: () => 0,
     }[sort];
     return out.sort((a, b) => by(a, b) || a.name.localeCompare(b.name));
@@ -606,7 +557,7 @@ function IdentitiesTab({ fleet, searchParams, setParams }) {
         { header: 'Workload type', value: (row) => sourceTypeLabel(row.sourceType, row.nhiType) },
         { header: 'Account', value: (row) => row.accountId ?? '' },
         { header: 'Region', value: (row) => row.region ?? '' },
-        { header: 'Baseline', value: (row) => learningState(row.baseline).label },
+        { header: 'Baseline', value: (row) => learningState(row.baseline, row.lastSeen).label },
         { header: 'Days learned', value: (row) => row.baseline.builtDays ?? '' },
         { header: 'Days required', value: (row) => row.baseline.requiredDays ?? '' },
         { header: 'Risk', value: (row) => row.risk.score ?? '' },
@@ -650,7 +601,7 @@ function IdentitiesTab({ fleet, searchParams, setParams }) {
         </span>
       ),
     },
-    { key: 'baseline', header: 'Baseline', width: '20%', cell: (row) => <LearningCell baseline={row.baseline} /> },
+    { key: 'baseline', header: 'Baseline', width: '20%', cell: (row) => <LearningCell baseline={row.baseline} lastSeen={row.lastSeen} /> },
     {
       key: 'risk',
       header: 'Risk',
@@ -693,7 +644,7 @@ function IdentitiesTab({ fleet, searchParams, setParams }) {
             {formatRelative(row.lastSeen)}
           </span>
         ) : (
-          <span className="text-[12px] text-ink-3">Not seen</span>
+          <span className="text-[12px] text-ink-3">Never</span>
         ),
     },
   ];
@@ -743,7 +694,7 @@ function IdentitiesTab({ fleet, searchParams, setParams }) {
           aria-label="Baseline state"
           className="min-w-0 sm:w-44"
         />
-        <Select size="sm" value={sort} onChange={(event) => setParams({ sort: event.target.value === 'risk' ? '' : event.target.value, page: '' })} options={SORTS} aria-label="Sort" className="min-w-0 sm:w-56" />
+        <Select size="sm" value={sort} onChange={(event) => setParams({ sort: event.target.value === 'baseline' ? '' : event.target.value, page: '' })} options={SORTS} aria-label="Sort" className="min-w-0 sm:w-56" />
         <ResultCount
           shown={formatNumber(filtered.length)}
           total={formatNumber(all.length)}
@@ -815,8 +766,8 @@ function IdentitiesTab({ fleet, searchParams, setParams }) {
 }
 
 /** Established, learning with how far along, or not started. */
-function LearningCell({ baseline }) {
-  const state = learningState(baseline);
+function LearningCell({ baseline, lastSeen }) {
+  const state = learningState(baseline, lastSeen);
   if (state.key === 'established') {
     return (
       <Tag tone="low" size="sm" dot>
@@ -830,10 +781,10 @@ function LearningCell({ baseline }) {
       <span className="flex items-baseline justify-between gap-2 text-[11.5px]">
         <span className="font-medium text-medium">Learning</span>
         <span data-numeric="" className="text-ink-3">
-          {formatNumber(state.built)}/{formatNumber(state.required)} days
+          {state.required ? `${formatNumber(state.built)}/${formatNumber(state.required)} days` : 'calls seen'}
         </span>
       </span>
-      <Meter className="mt-1" value={state.pct} tone="medium" height={5} label={`${Math.round(state.pct ?? 0)}% learned`} />
+      {state.pct !== null && <Meter className="mt-1" value={state.pct} tone="medium" height={5} label={`${Math.round(state.pct ?? 0)}% learned`} />}
     </span>
   );
 }

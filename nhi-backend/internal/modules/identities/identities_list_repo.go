@@ -3,6 +3,7 @@ package identities
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -55,6 +56,7 @@ type identityListRow struct {
 	keys    []string // identity ARN, bound credential ARNs, bound access key IDs
 	credKey []string // bound credential ARNs and access key IDs only
 	granted int64
+	allowed []identitygraph.GrantedAction // allowed entries of the bound credentials
 }
 
 // GetIdentitiesList implements "ENDPOINT 4: Identities List"
@@ -172,7 +174,10 @@ func (r *IdentitiesListRepository) GetIdentitiesList(ctx context.Context, resolv
 		),
 		perm_grant AS (
 			SELECT ic.identity_id::text AS identity_id,
-			       COALESCE(SUM(ep.granted_count), 0)::bigint AS granted
+			       COALESCE(SUM(ep.granted_count), 0)::bigint AS granted,
+			       -- the allowed entries themselves, so utilisation counts only
+			       -- calls an entry covers (the identity record's rule)
+			       COALESCE(jsonb_agg(ep.permissions) FILTER (WHERE ep.permissions IS NOT NULL), '[]'::jsonb) AS perms
 			FROM %[1]s.identity_credentials ic
 			JOIN %[1]s.credentials c ON c.id::text = ic.credential_id::text AND c.deleted_at IS NULL
 			JOIN %[1]s.effective_permissions ep
@@ -200,6 +205,10 @@ func (r *IdentitiesListRepository) GetIdentitiesList(ctx context.Context, resolv
 				COALESCE(i.region, '')                  AS region,
 				i.environment                            AS environment,
 				i.owner                                   AS owner,
+				-- Why the scanner chose this owner (newer scanners write
+				-- owner_reason; to_jsonb reads it as NULL where the column
+				-- does not exist yet).
+				NULLIF(BTRIM(to_jsonb(i)->>'owner_reason'), '') AS owner_reason,
 				COALESCE(i.status, '')                     AS status,
 				COALESCE(i.is_publicly_accessible, false)   AS is_publicly_accessible,
 				i.vpc_id                                     AS vpc_id,
@@ -209,6 +218,7 @@ func (r *IdentitiesListRepository) GetIdentitiesList(ctx context.Context, resolv
 				     ELSE FLOOR(EXTRACT(EPOCH FROM (NOW() - i.created_at_aws)) / 86400)::int
 				END                                               AS age_days,
 				COALESCE(pg.granted, 0)                            AS granted,
+				COALESCE(pg.perms, '[]'::jsonb)                     AS perms,
 				COALESCE(bk.arns, '{}'::text[])                     AS cred_arns,
 				COALESCE(bk.access_keys, '{}'::text[])               AS access_keys
 			FROM %[1]s.identities i
@@ -219,8 +229,8 @@ func (r *IdentitiesListRepository) GetIdentitiesList(ctx context.Context, resolv
 		)
 		SELECT
 			id, name, arn, identity_type, functional_class, account_id, region,
-			environment, owner, status, is_publicly_accessible, vpc_id,
-			bound_credentials_count, created_at_aws, age_days, granted, cred_arns, access_keys,
+			environment, owner, owner_reason, status, is_publicly_accessible, vpc_id,
+			bound_credentials_count, created_at_aws, age_days, granted, perms, cred_arns, access_keys,
 			COUNT(*) OVER()::int AS total_count
 		FROM scoped
 		ORDER BY %[3]s %[4]s NULLS LAST, id
@@ -238,15 +248,16 @@ func (r *IdentitiesListRepository) GetIdentitiesList(ctx context.Context, resolv
 	for rows.Next() {
 		var row identityListRow
 		item := &row.item
-		var functionalClass, environment, owner, vpcID sql.NullString
+		var functionalClass, environment, owner, ownerReason, vpcID sql.NullString
 		var ageDays sql.NullInt64
 		var credARNs, accessKeys []string
+		var perms []byte
 
 		if err := rows.Scan(
 			&item.ID, &item.Name, &item.ARN, &item.IdentityType, &functionalClass,
-			&item.AccountID, &item.Region, &environment, &owner, &item.Status,
+			&item.AccountID, &item.Region, &environment, &owner, &ownerReason, &item.Status,
 			&item.IsPubliclyAccessible, &vpcID, &item.BoundCredentialsCount,
-			&item.CreatedAtAWS, &ageDays, &row.granted, pq.Array(&credARNs), pq.Array(&accessKeys), &sqlTotal,
+			&item.CreatedAtAWS, &ageDays, &row.granted, &perms, pq.Array(&credARNs), pq.Array(&accessKeys), &sqlTotal,
 		); err != nil {
 			return nil, fmt.Errorf("scan identity row: %w", err)
 		}
@@ -263,6 +274,10 @@ func (r *IdentitiesListRepository) GetIdentitiesList(ctx context.Context, resolv
 			v := owner.String
 			item.Owner = &v
 		}
+		if ownerReason.Valid && ownerReason.String != "" {
+			v := ownerReason.String
+			item.OwnerReason = &v
+		}
 		if vpcID.Valid && vpcID.String != "" {
 			v := vpcID.String
 			item.VPCID = &v
@@ -270,6 +285,13 @@ func (r *IdentitiesListRepository) GetIdentitiesList(ctx context.Context, resolv
 		if ageDays.Valid {
 			v := int(ageDays.Int64)
 			item.AgeDays = &v
+		}
+		var permSets [][]map[string]interface{}
+		if len(perms) > 0 {
+			_ = json.Unmarshal(perms, &permSets)
+		}
+		for _, set := range permSets {
+			row.allowed = append(row.allowed, identitygraph.GrantedActionsFrom(set)...)
 		}
 		row.credKey = append(append([]string(nil), credARNs...), accessKeys...)
 		row.keys = append([]string{item.ARN}, row.credKey...)
@@ -354,7 +376,7 @@ func attachIdentityActivity(ctx context.Context, rows []identityListRow, src ide
 			v := c
 			item.CreatedBy = &v
 		}
-		item.PermissionUtilizationPct = identitygraph.RoundPctInt(identitygraph.DistinctUsedCount(used, rows[i].credKey), int(rows[i].granted))
+		item.PermissionUtilizationPct = identitygraph.RoundPctInt(identitygraph.UsedGrantedCount(used, rows[i].credKey, rows[i].allowed), int(rows[i].granted))
 	}
 }
 

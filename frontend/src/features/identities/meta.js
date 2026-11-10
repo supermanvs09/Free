@@ -313,3 +313,10 @@ export function shareText(part, whole) {
   if (pct > 0 && pct < 1) return '<1%';
   return `${Math.round(pct)}%`;
 }
+
+/** The owner as people read it: the last part of an ARN or path, the value as recorded otherwise. */
+export function ownerName(owner) {
+  const text = String(owner ?? '').trim();
+  if (!text.startsWith('arn:')) return text;
+  return text.split(':').slice(5).join(':').split('/').pop() || text;
+}

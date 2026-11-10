@@ -34,15 +34,18 @@ type IdentityListFilter struct {
 
 // IdentityListItem is a single row of the GET /api/v1/identities response.
 type IdentityListItem struct {
-	ID                       string     `json:"id"`
-	Name                     string     `json:"name"`
-	ARN                      string     `json:"arn"`
-	IdentityType             string     `json:"identity_type"`
-	FunctionalClass          *string    `json:"functional_class"`
-	AccountID                string     `json:"account_id"`
-	Region                   string     `json:"region"`
-	Environment              *string    `json:"environment"`
-	Owner                    *string    `json:"owner"`
+	ID              string  `json:"id"`
+	Name            string  `json:"name"`
+	ARN             string  `json:"arn"`
+	IdentityType    string  `json:"identity_type"`
+	FunctionalClass *string `json:"functional_class"`
+	AccountID       string  `json:"account_id"`
+	Region          string  `json:"region"`
+	Environment     *string `json:"environment"`
+	Owner           *string `json:"owner"`
+	// OwnerReason says why the scanner suggested this owner; null when it
+	// gave none (or the tenant's identities table has no owner_reason yet).
+	OwnerReason              *string    `json:"owner_reason"`
 	Status                   string     `json:"status"`
 	IsPubliclyAccessible     bool       `json:"is_publicly_accessible"`
 	VPCID                    *string    `json:"vpc_id"`

@@ -197,3 +197,58 @@ func usageFor(grantedService, grantedAction string, used []eventstore.UsedPermis
 	sort.Strings(out)
 	return matched, last, out
 }
+
+// GrantedAction is one allowed (service, action) entry of
+// effective_permissions.permissions; the action may carry wildcards.
+type GrantedAction struct{ Service, Action string }
+
+// GrantedActionsFrom reads the allowed entries of effective_permissions rows
+// (Deny entries are left out: they allow nothing).
+func GrantedActionsFrom(entries []map[string]interface{}) []GrantedAction {
+	str := func(m map[string]interface{}, keys ...string) string {
+		for _, k := range keys {
+			if v, ok := m[k].(string); ok && v != "" {
+				return v
+			}
+		}
+		return ""
+	}
+	out := make([]GrantedAction, 0, len(entries))
+	for _, e := range entries {
+		if strings.EqualFold(str(e, "effect", "Effect"), "deny") {
+			continue
+		}
+		if a := str(e, "action", "Action"); a != "" {
+			out = append(out, GrantedAction{Service: str(e, "service", "Service"), Action: a})
+		}
+	}
+	return out
+}
+
+// UsedGrantedCount counts the distinct actions CloudTrail saw under keys that
+// an allowed entry covers. A call no entry allows (sts:GetCallerIdentity needs
+// no permission; a policy not in effective_permissions) is not "a granted
+// action used": counting it made the summary report allowed actions as used
+// while every one of them was listed as never used. With no entries to match
+// against (only a granted_count) every distinct action counts, as before.
+func UsedGrantedCount(sets map[string][]eventstore.UsedAction, keys []string, granted []GrantedAction) int {
+	if len(granted) == 0 {
+		return DistinctUsedCount(sets, keys)
+	}
+	seen := map[string]struct{}{}
+	for _, k := range keys {
+		for _, a := range sets[k] {
+			id := strings.ToLower(a.Service) + ":" + strings.ToLower(a.Action)
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			for _, g := range granted {
+				if matchGranted(g.Service, g.Action, a.Service, a.Action) {
+					seen[id] = struct{}{}
+					break
+				}
+			}
+		}
+	}
+	return len(seen)
+}

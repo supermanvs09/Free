@@ -394,7 +394,7 @@ func (r *IdentityDetailRepository) loadBoundCredentialsOverview(ctx context.Cont
 		SELECT c.id::text, COALESCE(c.name,''), COALESCE(c.credential_type,''), COALESCE(c.arn,''),
 		       COALESCE(ic.binding_type,''), COALESCE(ic.is_primary,false),
 		       c.trust_policy, c.attached_policies, c.inline_policies,
-		       COALESCE(ep.granted_count,0)
+		       COALESCE(ep.granted_count,0), ep.permissions
 		FROM %[1]s.identity_credentials ic
 		JOIN %[1]s.credentials c ON c.id::text = ic.credential_id::text AND c.deleted_at IS NULL
 		LEFT JOIN %[1]s.effective_permissions ep ON ep.credential_id::text = c.id::text
@@ -411,13 +411,14 @@ func (r *IdentityDetailRepository) loadBoundCredentialsOverview(ctx context.Cont
 	out := make([]IdentityBoundCredential, 0)
 	var keys [][]string
 	var grantedByIdx []int
+	var allowedByIdx [][]GrantedAction
 	for rows.Next() {
 		var bc IdentityBoundCredential
-		var trustPolicy, attachedPolicies, inlinePolicies []byte
+		var trustPolicy, attachedPolicies, inlinePolicies, permissions []byte
 		var granted int
 		var arn string
 		if err := rows.Scan(&bc.CredentialID, &bc.Name, &bc.CredentialType, &arn, &bc.BindingType, &bc.IsPrimary,
-			&trustPolicy, &attachedPolicies, &inlinePolicies, &granted); err != nil {
+			&trustPolicy, &attachedPolicies, &inlinePolicies, &granted, &permissions); err != nil {
 			return nil, nil, fmt.Errorf("scan bound credential: %w", err)
 		}
 		bc.GrantedActionsCount = granted
@@ -440,12 +441,17 @@ func (r *IdentityDetailRepository) loadBoundCredentialsOverview(ctx context.Cont
 		out = append(out, bc)
 		keys = append(keys, CredentialActivityKeys(arn, bc.Name, bc.CredentialType))
 		grantedByIdx = append(grantedByIdx, granted)
+		var entries []map[string]interface{}
+		if len(permissions) > 0 {
+			_ = json.Unmarshal(permissions, &entries)
+		}
+		allowedByIdx = append(allowedByIdx, GrantedActionsFrom(entries))
 	}
 	if err := rows.Err(); err != nil {
 		return nil, nil, err
 	}
 
-	// used_actions_count: distinct actions CloudTrail saw this credential use.
+	// used_actions_count: distinct allowed actions CloudTrail saw this credential use.
 	if src.Available() && len(out) > 0 {
 		var flat []string
 		for _, ks := range keys {
@@ -453,7 +459,7 @@ func (r *IdentityDetailRepository) loadBoundCredentialsOverview(ctx context.Cont
 		}
 		sets := src.UsedActionSets(ctx, flat, UsageSince(time.Now()))
 		for i := range out {
-			used := DistinctUsedCount(sets, keys[i])
+			used := UsedGrantedCount(sets, keys[i], allowedByIdx[i])
 			out[i].UsedActionsCount = used
 			out[i].UtilizationPct = RoundPctInt(used, grantedByIdx[i])
 		}
@@ -596,12 +602,14 @@ func (r *IdentityDetailRepository) GetPermissions(ctx context.Context, resolved 
 	}
 
 	var grantedActions int64
+	var allowed []GrantedAction
 	for _, credID := range credIDs {
 		entries, actions, err := loadEffectivePermissions(ctx, tenantDB, resolved.QSchema(), credID)
 		if err != nil {
 			return nil, err
 		}
 		grantedActions += actions
+		allowed = append(allowed, GrantedActionsFrom(entries)...)
 
 		for _, e := range entries {
 			svc := getStr(e, "service", "Service")
@@ -675,7 +683,9 @@ func (r *IdentityDetailRepository) GetPermissions(ctx context.Context, resolved 
 			keys = append(keys, keysByCred[credID]...)
 		}
 		granted = int(grantedActions)
-		usedCount = DistinctUsedCount(src.UsedActionSets(ctx, keys, UsageSince(time.Now())), keys)
+		// Only calls an allowed entry covers: the same rule as each row's
+		// Used / Never used, so the two always agree.
+		usedCount = UsedGrantedCount(src.UsedActionSets(ctx, keys, UsageSince(time.Now())), keys, allowed)
 		if usedCount > granted {
 			usedCount = granted
 		}

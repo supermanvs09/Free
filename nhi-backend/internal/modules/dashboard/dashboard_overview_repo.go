@@ -3,6 +3,7 @@ package dashboard
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"runtime/debug"
 	"sync"
@@ -315,13 +316,15 @@ type credentialActivityRow struct {
 	baseline *time.Time
 	lastUsed *time.Time // AWS's own last-used date from the scanner
 	keys     []string
+	allowed  []identitygraph.GrantedAction // its allowed permission entries
 }
 
 func (r *DashboardOverviewRepository) loadCredentialActivityRows(ctx context.Context, tenantDB *sql.DB, schema string, queryArgs []any) ([]credentialActivityRow, error) {
 	query := fmt.Sprintf(`
 		SELECT COALESCE(c.arn, ''), COALESCE(c.name, ''), COALESCE(c.credential_type, ''),
-		       COALESCE(c.created_at_aws, c.first_seen_at), c.last_used_at
-		FROM %s.credentials c
+		       COALESCE(c.created_at_aws, c.first_seen_at), c.last_used_at,
+		       (SELECT jsonb_agg(ep.permissions) FROM %[1]s.effective_permissions ep WHERE ep.credential_id::text = c.id::text)
+		FROM %[1]s.credentials c
 		WHERE c.account_id = ANY($1::text[]) AND c.region = ANY($2::text[])
 		  AND c.deleted_at IS NULL`, schema)
 	rows, err := tenantDB.QueryContext(ctx, query, queryArgs...)
@@ -333,10 +336,18 @@ func (r *DashboardOverviewRepository) loadCredentialActivityRows(ctx context.Con
 	for rows.Next() {
 		var arn, name, ctype string
 		var baseline, lastUsed sql.NullTime
-		if err := rows.Scan(&arn, &name, &ctype, &baseline, &lastUsed); err != nil {
+		var perms []byte
+		if err := rows.Scan(&arn, &name, &ctype, &baseline, &lastUsed, &perms); err != nil {
 			return nil, fmt.Errorf("scan credential activity row: %w", err)
 		}
 		row := credentialActivityRow{keys: identitygraph.CredentialActivityKeys(arn, name, ctype)}
+		var sets [][]map[string]interface{}
+		if len(perms) > 0 {
+			_ = json.Unmarshal(perms, &sets)
+		}
+		for _, set := range sets {
+			row.allowed = append(row.allowed, identitygraph.GrantedActionsFrom(set)...)
+		}
 		if baseline.Valid {
 			t := baseline.Time
 			row.baseline = &t
@@ -398,7 +409,7 @@ func classifyCredentials(ctx context.Context, rows []credentialActivityRow, src 
 			stale++
 		}
 		counts[utilizationBucket(lastUse, now)]++
-		usedActions += identitygraph.DistinctUsedCount(used, row.keys)
+		usedActions += identitygraph.UsedGrantedCount(used, row.keys, row.allowed)
 	}
 	utilization = make([]BucketCount, 0, len(utilizationBuckets))
 	for _, b := range utilizationBuckets {

@@ -28,6 +28,7 @@ import {
   lifecycleMeta,
   nodeTypeLabel,
   shareText,
+  ownerName,
 } from './meta';
 import { SignalBreakdown } from './status';
 import { AccountHealth, HowItWasFound, hasAccountSummary } from './DiscoveryVisuals';
@@ -155,10 +156,11 @@ function OverviewPanel({ identityId, query, active, compact }) {
             </span>
           </Fact>
           <Fact label="Who owns it">
-            {identity.owner || <span className="font-semibold text-high">No owner recorded</span>}
-            <span className="block truncate text-[12px] text-ink-3" title={identity.created_by || undefined}>
-              {identity.created_by ? `Created by ${identity.created_by.split('/').pop()}` : 'No creator recorded in the AWS activity log'}
-            </span>
+            {identity.owner ? (
+              <span title={identity.owner}>{ownerName(identity.owner)}</span>
+            ) : (
+              <span className="font-semibold text-high">No owner recorded</span>
+            )}
           </Fact>
           <Fact label="Attached credential" wide>
             {primary ? (
