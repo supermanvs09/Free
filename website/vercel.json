@@ -1,0 +1,10 @@
+{
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "redirects": [
+    { "source": "/svg-export", "destination": "/", "permanent": true },
+    { "source": "/verify", "destination": "/", "permanent": true },
+    { "source": "/platform", "destination": "/products", "permanent": true },
+    { "source": "/ad-security", "destination": "/adapid-ai/active-directory-security", "permanent": true }
+  ]
+}

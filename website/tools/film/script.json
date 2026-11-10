@@ -1,0 +1,94 @@
+{
+  "voice": "am_fenrir",
+  "speed": 1.15,
+  "lines": [
+    {
+      "id": "hook",
+      "text": "Most access in your company no longer belongs to a person.",
+      "say": "Most access in your company no longer belongs to a person.",
+      "after": 0.6
+    },
+    {
+      "id": "shift",
+      "text": "Service accounts, cloud keys and AI agents hold it now. And attackers have noticed.",
+      "say": "Service accounts, cloud keys and AI agents hold it now. And attackers have noticed.",
+      "after": 0.9
+    },
+    {
+      "id": "c1a",
+      "text": "One stolen password, typed into a remote-access portal. A healthcare network went down for weeks.",
+      "say": "One stolen password, typed into a remote-access portal. A healthcare network went down for weeks.",
+      "after": 0.35
+    },
+    {
+      "id": "c1b",
+      "text": "adapID Continuous Identity Risk Management learns how every identity works, scores each session as it happens, and holds the one that doesn’t belong.",
+      "say": "Adap-ID Continuous Identity Risk Management learns how every identity works, scores each session as it happens, and holds the one that doesn't belong.",
+      "after": 1.1
+    },
+    {
+      "id": "c2a",
+      "text": "A cloud access key, pushed to a public code repository. Within minutes, someone else was using it.",
+      "say": "A cloud access key, pushed to a public code repository. Within minutes, someone else was using it.",
+      "after": 0.35
+    },
+    {
+      "id": "c2b",
+      "text": "adapID NHI Security finds every role and key in AWS, removes the access they never use, and catches the one that starts behaving differently.",
+      "say": "Adap-ID N-H-I Security finds every role and key in A-W-S, removes the access they never use, and catches the one that starts behaving differently.",
+      "after": 1.1
+    },
+    {
+      "id": "c3a",
+      "text": "A customer on a video call, frightened into paying a fake officer.",
+      "say": "A customer on a video call, frightened into paying a fake officer.",
+      "after": 0.35
+    },
+    {
+      "id": "c3b",
+      "text": "adapID Fraud Prevention reads the whole session, from the first tap to the payment. The call, the coached typing, the new payee. The money stays.",
+      "say": "Adap-ID Fraud Prevention reads the whole session, from the first tap to the payment. The call. The coached typing. The new payee. The money stays.",
+      "after": 1.1
+    },
+    {
+      "id": "c4a",
+      "text": "An AI chat agent’s tokens, used to copy customer data from hundreds of companies.",
+      "say": "An A-I chat agent's tokens, used to copy customer data from hundreds of companies.",
+      "after": 0.35
+    },
+    {
+      "id": "c4b",
+      "text": "Zenstra AI gives every agent an owner and a scope, and checks each action before it runs.",
+      "say": "Zenstra A-I gives every agent an owner and a scope, and checks each action before it runs.",
+      "after": 1.1,
+      "ph": {
+        "Zenstra": "zzˈɛnstɹə"
+      }
+    },
+    {
+      "id": "brand",
+      "text": "Deep Algorithms. Every identity, verified before it acts.",
+      "say": "Deep Algorithms. Every identity, verified before it acts.",
+      "after": 1.4
+    },
+    {
+      "id": "trust",
+      "text": "Built in India. Trusted by banks, government and enterprises that cannot afford a breach.",
+      "say": "Built in India. Trusted by banks, government, and enterprises that cannot afford a breach.",
+      "after": 0.7
+    },
+    {
+      "id": "cta",
+      "text": "Find your riskiest identity before attackers do.",
+      "say": "Find your riskiest identity, before attackers do.",
+      "after": 1.1
+    },
+    {
+      "id": "cta2",
+      "text": "The future is decided today. Book a demo.",
+      "say": "The future is decided today. Book a demo.",
+      "after": 1.6
+    }
+  ],
+  "lead": 1.2
+}
