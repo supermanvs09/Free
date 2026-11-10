@@ -26,16 +26,6 @@ export default function Footer() {
   const [adap, zen, icms] = PLATFORMS;
   return (
     <footer className="site-foot tone-d noprint relative">
-      <div className="glowline" aria-hidden="true" />
-      <div className="container border-b border-line py-14 md:py-20">
-        <div className="grid items-end gap-8 md:grid-cols-[minmax(0,1fr)_auto]">
-          <div>
-            <p className="eyebrow mb-5">Talk to an engineer</p>
-            <p className="font-display text-[34px] font-semibold leading-[1.05] tracking-[-0.03em] text-ink md:text-[52px]">Find your riskiest identity<br className="max-md:hidden" /> before an attacker does.</p>
-          </div>
-          <Link to="/request-demo" className="btn btn-primary btn-lg w-fit">Book a demo<Icon name="ArrowRight" size={16} weight="bold" className="arr" /></Link>
-        </div>
-      </div>
       <div className="container pb-10 pt-16 md:pt-20">
         <div className="grid gap-12 lg:grid-cols-[1.2fr_3fr]">
           <div>

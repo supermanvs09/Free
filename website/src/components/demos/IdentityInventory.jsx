@@ -29,13 +29,13 @@ export default function IdentityInventory() {
   const r = ROWS.find((x) => x.id === sel);
   return (
     <AppFrame product="adapid" title="adapID AI" crumb="Identity inventory" status={<Badge tone="brand">6 of 48,210 identities</Badge>}>
-      <div className="flex flex-wrap items-center gap-2 border-b border-line bg-bg-2 px-3 py-2.5">
+      <div className="flex flex-wrap items-center gap-2 border-b border-line bg-white px-3 py-2.5">
         <div className="seg" role="group" aria-label="Filter by identity type">
           {types.map((t) => <button key={t} type="button" aria-pressed={type === t} onClick={() => setType(t)} className="seg-btn !h-7 !text-[12.5px]">{t}</button>)}
         </div>
       </div>
       <div className="grid lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-        <div className="overflow-x-auto bg-bg-2 lg:border-r lg:border-line">
+        <div className="overflow-x-auto bg-white lg:border-r lg:border-line">
           <table className="dt min-w-[520px]">
             <caption className="sr-only">Identities and their risk. Select a row to see the reasons.</caption>
             <thead><tr><th>Identity</th><th>Type</th><th className="!text-right">Risk</th><th>Decision</th></tr></thead>

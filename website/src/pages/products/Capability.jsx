@@ -61,7 +61,7 @@ export default function Capability({ id }) {
               const on = it.path === c.path;
               return (
                 <li key={it.key}>
-                  <Link to={it.path} aria-current={on ? 'page' : undefined} className={cx('card card-link flex items-center gap-3 p-4', on && '!border-zen bg-[color-mix(in_oklab,var(--color-zen)_5%,transparent)]')}>
+                  <Link to={it.path} aria-current={on ? 'page' : undefined} className={cx('card card-link flex items-center gap-3 p-4', on && '!border-zen bg-[color-mix(in_oklab,var(--color-zen)_5%,#fff)]')}>
                     <span className="ptile ptile-sm" style={{ '--acc': 'var(--color-zen)' }}><Icon name={it.icon} size={16} /></span>
                     <span className="min-w-0"><span className="block text-[14.5px] font-semibold text-ink">{it.name}</span><span className="block truncate t-caption">{on ? 'You are here' : it.desc}</span></span>
                   </Link>

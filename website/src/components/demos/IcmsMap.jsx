@@ -23,11 +23,11 @@ export function IcmsMap() {
   return (
     <AppFrame product="icms" title="ICMS" crumb="Personal data map" status={<Badge tone="hold" dot>4 flags today</Badge>}>
       <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
-        <ul className="divide-y divide-line bg-bg-2 lg:border-r lg:border-line">
+        <ul className="divide-y divide-line bg-white lg:border-r lg:border-line">
           {STORES.map((x) => (
             <li key={x.id}>
               <button type="button" onClick={() => setSel(x.id)} aria-pressed={sel === x.id} className={cx('flex w-full items-start gap-3 p-3.5 text-left transition-colors', sel === x.id ? 'bg-brand-50' : 'hover:bg-bg-1')}>
-                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] border border-line bg-bg-2" aria-hidden="true"><Logo k={x.k} size="18px" /></span>
+                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] border border-line bg-white" aria-hidden="true"><Logo k={x.k} size="18px" /></span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[13.5px] font-semibold text-ink">{x.name}</span>
                   <span className="mt-1 flex flex-wrap gap-1">{x.pii.map(([c, n]) => <Badge key={c}>{c} · {n}</Badge>)}</span>
@@ -40,7 +40,7 @@ export function IcmsMap() {
         <div key={sel} className="fadein min-w-0 p-4 md:p-5">
           <p className="text-[14.5px] font-semibold text-ink">Access to {s.name}</p>
           <p className="t-caption">Every read tied to an identity and checked against its purpose and consent</p>
-          <div className="mt-4 overflow-x-auto rounded-[10px] border border-line bg-bg-2">
+          <div className="mt-4 overflow-x-auto rounded-[10px] border border-line bg-white">
             <table className="dt min-w-[460px]">
               <thead><tr><th>Who</th><th>Purpose</th><th>Check</th></tr></thead>
               <tbody>{s.log.map(([w, t, pur, ok]) => <tr key={w}><td><span className="block font-semibold text-ink">{w}</span><span className="t-caption">{t}</span></td><td>{pur}</td><td>{ok === 'pass' ? <Badge tone="ok" dot>Purpose and consent</Badge> : <Badge tone="crit" dot>Flagged</Badge>}</td></tr>)}</tbody>

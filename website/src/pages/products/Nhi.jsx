@@ -68,7 +68,7 @@ export default function Nhi() {
               {[['iam', 'A read-only IAM role in each AWS account', 'No agents and nothing written to your accounts'], ['cloudtrail', '90 days of CloudTrail and current IAM configuration', 'Granted permissions compared with real use'], ['jira', 'Findings to owners in Jira or Slack', 'Fixes proposed, approved and verified']].map(([k, t, s], i) => (
                 <li key={t} className="card flex items-center gap-4 p-4">
                   <span className="num w-5 text-[13px] font-semibold text-brand">{i + 1}</span>
-                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] border border-line bg-bg-2" aria-hidden="true"><Logo k={k} size="20px" /></span>
+                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] border border-line bg-white" aria-hidden="true"><Logo k={k} size="20px" /></span>
                   <span><span className="block text-[14.5px] font-semibold text-ink">{t}</span><span className="t-caption">{s}</span></span>
                 </li>
               ))}
@@ -76,7 +76,7 @@ export default function Nhi() {
           </div>
           <Reveal className="self-center">
             <p className="app-label mb-2">Trust policy for the read-only role</p>
-            <pre className="overflow-x-auto rounded-[12px] border border-line bg-bg-2 p-5 font-mono text-[13px] leading-6 text-ink" tabIndex={0} aria-label="Trust policy JSON"><code>{TRUST}</code></pre>
+            <pre className="overflow-x-auto rounded-[12px] border border-line bg-white p-5 font-mono text-[13px] leading-6 text-ink" tabIndex={0} aria-label="Trust policy JSON"><code>{TRUST}</code></pre>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <StatTile {...p.stats[0]} className="!p-5" />
               <StatTile {...p.stats[1]} className="!p-5" />

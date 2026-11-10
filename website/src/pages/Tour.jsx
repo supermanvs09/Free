@@ -96,13 +96,13 @@ export default function Tour() {
                 const active = n === i;
                 return (
                   <button key={c.ch} type="button" onClick={() => go(n)} aria-current={active ? 'step' : undefined}
-                    className={cx('flex w-full shrink-0 items-center gap-3 rounded-[10px] px-3 py-2.5 text-left text-[14px] transition-colors max-xl:w-auto', active ? 'bg-bg-2 font-semibold text-ink shadow-[var(--e-1)]' : 'text-ink-2 hover:bg-bg-2/70 hover:text-ink')}>
+                    className={cx('flex w-full shrink-0 items-center gap-3 rounded-[10px] px-3 py-2.5 text-left text-[14px] transition-colors max-xl:w-auto', active ? 'bg-white font-semibold text-ink shadow-[var(--e-1)]' : 'text-ink-2 hover:bg-white/70 hover:text-ink')}>
                     <span className={cx('num inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold', n < i ? 'bg-ok-50 text-ok' : active ? 'bg-brand text-white' : 'bg-bg-2 text-ink-3')}>{n < i ? '✓' : n + 1}</span>
                     <span className="whitespace-nowrap xl:whitespace-normal">{c.ch}</span>
                   </button>
                 );
               })}
-              <button type="button" onClick={() => go(LAST)} className={cx('flex shrink-0 items-center gap-3 rounded-[10px] px-3 py-2.5 text-left text-[14px]', i === LAST ? 'bg-bg-2 font-semibold text-ink shadow-[var(--e-1)]' : 'text-ink-2 hover:bg-bg-2/70')}>
+              <button type="button" onClick={() => go(LAST)} className={cx('flex shrink-0 items-center gap-3 rounded-[10px] px-3 py-2.5 text-left text-[14px]', i === LAST ? 'bg-white font-semibold text-ink shadow-[var(--e-1)]' : 'text-ink-2 hover:bg-white/70')}>
                 <Icon name="Target" size={20} className="shrink-0 text-brand" /><span className="whitespace-nowrap">Your next step</span>
               </button>
             </nav>

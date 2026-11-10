@@ -182,7 +182,7 @@ export default function Article() {
             <h1 className="rise mt-6 font-semibold tracking-[-0.04em]" style={{ fontSize: 'clamp(32px, 4.4vw, 60px)', lineHeight: 1.06, '--d': '80ms' }}>{post.title}</h1>
             <p className="t-lead rise mx-auto mt-6 max-w-[700px]" style={{ '--d': '160ms' }}>{post.excerpt}</p>
             <div className="rise mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-[14px] text-ink-3" style={{ '--d': '240ms' }}>
-              <span className="inline-flex items-center gap-3"><span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-bg-2 p-1.5"><img src="/brand/mark.webp" alt="" className="h-full w-full" /></span><span className="font-medium text-ink-2">{authorOf(post)}</span></span>
+              <span className="inline-flex items-center gap-3"><span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white p-1.5"><img src="/brand/mark.webp" alt="" className="h-full w-full" /></span><span className="font-medium text-ink-2">{authorOf(post)}</span></span>
               <span>{formatDate(post)}</span><span>{post.read} min read</span>
             </div>
             <p className="printonly mt-4 text-[13px]">{SITE.url.replace(/^https?:\/\//, '')}{path}</p>
@@ -204,7 +204,7 @@ export default function Article() {
 
               <div className="noprint mt-16 rounded-[22px] border border-line p-6 md:p-8">
                 <div className="flex items-center gap-4">
-                  <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-bg-2 p-2.5"><img src="/brand/mark.webp" alt="" className="h-full w-full" /></span>
+                  <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white p-2.5"><img src="/brand/mark.webp" alt="" className="h-full w-full" /></span>
                   <div><p className="text-[19px] font-semibold">{authorOf(post)}</p><p className="text-[14.5px] text-ink-3">Field notes and analysis on identity, AI agents, fraud and the regulation that shapes them.</p></div>
                 </div>
                 <div className="mt-6 border-t border-line pt-6"><p className="mb-3 text-[14px] text-ink-2">Share this report</p><Share post={post} path={path} /></div>

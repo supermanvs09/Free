@@ -37,7 +37,7 @@ const SC = {
 function Phone({ children, call }) {
   return (
     <div className="mx-auto w-[288px] shrink-0 rounded-[44px] bg-[#0f1726] p-[10px] shadow-[var(--e-3)]" role="img" aria-label="Mobile banking app">
-      <div className="relative h-[560px] overflow-hidden rounded-[35px] bg-bg-2">
+      <div className="relative h-[560px] overflow-hidden rounded-[35px] bg-white">
         <div className="flex h-9 items-center justify-between px-6 pt-1 text-[12px] font-semibold text-ink">
           <span className="num">11:4{call ? '4' : '0'}</span>
           <span className="absolute left-1/2 top-2 h-5 w-[86px] -translate-x-1/2 rounded-full bg-[#0f1726]" />

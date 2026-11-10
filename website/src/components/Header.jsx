@@ -7,7 +7,7 @@ import { Button, Icon, cx } from './ui.jsx';
 import ProductMark from './ProductMark.jsx';
 
 /* `inverse` is the white lockup for dark surfaces (footer, Prompt Heist). */
-export function Logo({ className = 'h-[30px]', inverse = true }) {
+export function Logo({ className = 'h-[30px]', inverse }) {
   return <img src={inverse ? '/brand/logo-lockup-inverse.webp' : '/brand/logo-lockup.webp'} alt="Deep Algorithms" width="153" height="34" className={cx('w-auto', className)} />;
 }
 
@@ -148,7 +148,7 @@ export function LanguageMenu({ className, up, tabIndex }) {
         <Icon name="Globe" size={14} />{cur[1]}<Icon name="CaretDown" size={10} weight="bold" className={cx('transition-transform', open && 'rotate-180')} />
       </button>
       {open && (
-        <ul role="listbox" aria-label="Language" className={cx('slide-in absolute right-0 z-10 max-h-[340px] w-[210px] overflow-y-auto rounded-[6px] border border-line-2 bg-bg-1 p-1.5 shadow-[var(--e-3)]', up ? 'bottom-full mb-2' : 'top-full mt-2')}>
+        <ul role="listbox" aria-label="Language" className={cx('slide-in absolute right-0 z-10 max-h-[340px] w-[210px] overflow-y-auto rounded-[14px] border border-line bg-white p-1.5 shadow-[var(--e-3)]', up ? 'bottom-full mb-2' : 'top-full mt-2')}>
           {LANGS.map(([c, n, en]) => (
             <li key={c}>
               <button type="button" role="option" aria-selected={c === lang} onClick={() => { setOpen(false); setLang(c); }}
@@ -277,25 +277,25 @@ export default function Header() {
     <>
       <a href="#main" className="skip btn btn-primary btn-sm">Skip to content</a>
       <header className={cx('site-hdr noprint', scrolled && 'scrolled')} onMouseLeave={leave}>
-        <div className="ubar hidden border-b border-line lg:block" aria-hidden={scrolled || undefined}>
-          <div className="container flex h-10 items-center justify-between gap-6 text-[13px] text-ink-3">
+        <div className="ubar hidden lg:block" aria-hidden={scrolled || undefined}>
+          <div className="container flex h-10 items-center justify-between gap-6 text-[13px]">
             <p className="truncate">
-              <span className="badge badge-brand badge-dot mr-2 !h-5 !text-[11px] uppercase tracking-[.1em]">Live</span>
-              <span className="font-semibold text-ink-2">Prompt Heist</span>: trick our AI guard with words. Win a job offer and goodies.
-              <Link to="/prompt-heist" tabIndex={t} className="ml-2 font-semibold text-brand hover:underline">Take the challenge</Link>
+              <span className="mr-2 inline-flex h-5 items-center gap-1.5 rounded-full bg-[#ff4d3d] px-2 text-[11px] font-semibold uppercase tracking-[.08em] text-white"><i className="pulse-dot h-1.5 w-1.5 rounded-full bg-white" />Live</span>
+              <span className="font-semibold text-white">Prompt Heist</span>: trick our AI guard with words. Win a job offer and goodies.
+              <Link to="/prompt-heist" tabIndex={t} className="ml-2 font-semibold text-[#7cc4ff] hover:underline">Take the challenge →</Link>
             </p>
             <ul className="flex shrink-0 items-center gap-6">
-              <li><Link to="/contact" tabIndex={t} className="hover:text-ink">Contact</Link></li>
-              <li><a href={SITE.phoneHref} tabIndex={t} className="inline-flex items-center gap-1.5 hover:text-ink"><Icon name="Phone" size={13} />{SITE.phone}</a></li>
+              <li><Link to="/contact" tabIndex={t}>Contact</Link></li>
+              <li><a href={SITE.phoneHref} tabIndex={t} className="inline-flex items-center gap-1.5"><Icon name="Phone" size={13} />{SITE.phone}</a></li>
               <li><LanguageMenu tabIndex={t} /></li>
             </ul>
           </div>
         </div>
-        <div className="relative">
-          <div className="container flex h-16 items-center gap-6">
-            <Link to="/" aria-label="Deep Algorithms home" className="shrink-0"><Logo className="h-[30px] lg:h-[32px]" /></Link>
+        <div className="container relative">
+          <div className="navpill flex h-[60px] items-center gap-4 pl-5 pr-2.5 lg:gap-6">
+            <Link to="/" aria-label="Deep Algorithms home" className="shrink-0"><Logo className="h-[28px] lg:h-[30px]" /></Link>
             <nav aria-label="Primary" className="hidden flex-1 lg:block">
-              <ul className="flex items-center gap-1">
+              <ul className="flex items-center justify-center gap-0.5">
                 {NAV.map((n) => {
                   const active = n.match.some((m) => pathname === m || pathname.startsWith(`${m}/`));
                   return (
@@ -310,18 +310,18 @@ export default function Header() {
               </ul>
             </nav>
             <div className="ml-auto flex items-center gap-2">
-              <button type="button" onClick={openSearch} aria-label="Search the site" title="Search (Ctrl K or ⌘ K)" className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] text-ink-2 transition-colors hover:bg-bg-1 hover:text-ink">
+              <button type="button" onClick={openSearch} aria-label="Search the site" title="Search (Ctrl K or ⌘ K)" className="inline-flex h-10 w-10 items-center justify-center rounded-full text-ink-2 transition-colors hover:bg-bg-1 hover:text-ink">
                 <Icon name="MagnifyingGlass" size={19} />
               </button>
-              <Button to="/request-demo" size="sm" className="max-sm:hidden">Book a demo</Button>
-              <button type="button" className="inline-flex h-11 w-11 items-center justify-center rounded-[8px] text-ink hover:bg-bg-1 lg:hidden" aria-label="Open menu" aria-expanded={mobile} aria-controls="mobile-menu" onClick={() => setMobile(true)}>
+              <Link to="/request-demo" className="btn btn-dark btn-sm group max-sm:hidden">Book a demo<span className="arr-dot !h-7 !w-7 !-mr-3"><Icon name="ArrowUpRight" size={14} weight="bold" /></span></Link>
+              <button type="button" className="inline-flex h-11 w-11 items-center justify-center rounded-full text-ink hover:bg-bg-1 lg:hidden" aria-label="Open menu" aria-expanded={mobile} aria-controls="mobile-menu" onClick={() => setMobile(true)}>
                 <Icon name="List" size={26} />
               </button>
             </div>
           </div>
           {Menu && (
-            <div id="mega" className="mega hidden lg:block" onMouseEnter={() => clearTimeout(timer.current)}>
-              <div key={open} className="container fadein"><Menu onNav={close} /></div>
+            <div id="mega" className="mega mx-5 hidden lg:block xl:mx-10" onMouseEnter={() => clearTimeout(timer.current)}>
+              <div key={open} className="fadein"><Menu onNav={close} /></div>
             </div>
           )}
         </div>

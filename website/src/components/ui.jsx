@@ -149,8 +149,8 @@ export function Accordion({ items, defaultOpen = 0 }) {
             <button type="button" aria-expanded={open === k} aria-controls={`${id}-${k}`} id={`${id}-b${k}`} onClick={() => setOpen(open === k ? -1 : k)}
               className="group flex w-full items-center justify-between gap-6 py-6 text-left text-[17px] font-medium tracking-[-0.01em] text-ink transition-colors hover:text-brand md:text-[19px]">
               <span className="flex items-baseline gap-5"><span className={cx('font-mono text-[12px] tabular-nums transition-colors', open === k ? 'text-brand' : 'text-ink-4')}>{String(k + 1).padStart(2, '0')}</span><span>{it.title}</span></span>
-              <span className={cx('inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[4px] border border-line-2 text-ink-3 transition-all duration-300', open === k && 'rotate-45 border-brand bg-brand-50 text-brand')}>
-                <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+              <span className={cx('inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[4px] border border-line-2 text-ink-3 transition-all duration-300', open === k && 'border-brand bg-brand-50 text-brand')}>
+                <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" className={cx('transition-transform duration-300', open === k && 'rotate-45')}><path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
               </span>
             </button>
           </h3>

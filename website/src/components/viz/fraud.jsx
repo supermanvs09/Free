@@ -391,7 +391,7 @@ export function MuleCheck() {
       .to(el.querySelector('.mc-verdict'), { scaleX: 1.03, scaleY: 0.97, duration: 0.1, yoyo: true, repeat: 1 }, 4.15);
   });
   return (
-    <div ref={ref} className="mc overflow-hidden rounded-[22px] border border-[#0a5ea3]/10 bg-bg-2 shadow-[0_40px_80px_-40px_rgb(10_94_163/.45)]" role="img"
+    <div ref={ref} className="mc overflow-hidden rounded-[22px] border border-[#0a5ea3]/10 bg-white shadow-[0_40px_80px_-40px_rgb(10_94_163/.45)]" role="img"
       aria-label="Payee check: a customer pays ₹48,000 to a new payee. The receiving account is 9 days old, received money from 13 unrelated senders today and sends it out within minutes. Mule risk 91 of 100. The payment is held before it leaves and the customer is warned.">
       {/* the payment being made */}
       <div className="mc-pay flex items-center gap-3 border-b border-[#0e1116]/[.07] bg-[#f6f9fd] px-5 py-3.5">

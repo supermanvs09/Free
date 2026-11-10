@@ -40,8 +40,8 @@ export function Section({ id, tone, className, children, labelledby, size }) {
 /* The page hero. `media` sits beside the copy from 1024px; `below` spans the full width under it. */
 export function PageHero({ crumbs, mark, overline, title, lead, actions, media, below, note, size = 'display', className, align = 'left', tone }) {
   return (
-    <section className={cx('hero-bg relative border-b border-line', tone === 'subtle' && 'bg-subtle', className)}>
-      <div aria-hidden="true" className="aurora left-[55%] top-[-260px] h-[420px] w-[620px] opacity-40" />
+    <section className={cx('hero-bg relative overflow-hidden border-b border-line', className)}>
+      <div aria-hidden="true" className="beam left-[58%]" />
       <div className="container pb-16 pt-8 md:pb-24 md:pt-12">
         {crumbs && <Breadcrumb items={crumbs} className="mb-10 md:mb-14" />}
         <div className={cx('grid items-center gap-12 lg:gap-16', media ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)]' : align === 'center' ? 'mx-auto max-w-[1000px] text-center' : 'max-w-[1040px]')}>
@@ -53,7 +53,7 @@ export function PageHero({ crumbs, mark, overline, title, lead, actions, media, 
             {actions && <div className={cx('rise mt-9 flex flex-wrap gap-3', align === 'center' && 'justify-center')} style={{ '--d': '320ms' }}>{actions}</div>}
             {note && <div className="rise mt-7 t-small" style={{ '--d': '380ms' }}>{note}</div>}
           </div>
-          {media && <div className="rise brk min-w-0" style={{ '--d': '260ms' }}>{media}</div>}
+          {media && <div className="rise min-w-0" style={{ '--d': '260ms' }}>{media}</div>}
         </div>
         {below && <div className="rise mt-14 md:mt-20" style={{ '--d': '360ms' }}>{below}</div>}
       </div>
@@ -101,7 +101,7 @@ export function SubNav({ title, items, cta = null }) {
 export function StatTile({ v, l, s, className }) {
   return (
     <div className={cx('card spot overflow-hidden p-6 md:p-7', className)}>
-      <p className="font-display text-[44px] font-semibold leading-none tracking-[-0.04em] text-ink md:text-[56px]"><CountUp value={v} /></p>
+      <p className="font-display text-[44px] font-semibold leading-none tracking-[-0.04em] text-brand md:text-[54px]"><CountUp value={v} /></p>
       <p className="mt-4 t-body !text-ink-2">{l}</p>
       {s && <p className="mt-5 border-t border-line pt-3 font-mono text-[11.5px] tracking-[.02em] text-ink-3">Source: {s}</p>}
     </div>
@@ -223,8 +223,8 @@ export function LogoWall({ title = 'Organisations we work with', lead, groups = 
             <dt className="app-label">{g}</dt>
             <dd className="grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-6">
               {keys.map((k) => (
-                <span key={k} className="group flex h-14 items-center justify-center rounded-[4px] border border-line bg-bg-1 px-2 transition-colors hover:border-line-2 sm:h-16 sm:px-4">
-                  <img src={`/img/logos/${k}-white.webp`} alt={ORG[k]} title={ORG[k]} loading="lazy" decoding="async" className="max-h-8 w-auto max-w-full object-contain opacity-60 transition duration-300 group-hover:opacity-100" />
+                <span key={k} className="group flex h-14 items-center justify-center rounded-[12px] border border-line bg-white px-2 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[var(--e-2)] sm:h-16 sm:px-4">
+                  <img src={`/img/logos/${k}.webp`} alt={ORG[k]} title={ORG[k]} loading="lazy" decoding="async" className="max-h-9 w-auto max-w-full object-contain opacity-75 grayscale transition duration-300 group-hover:opacity-100 group-hover:grayscale-0" />
                 </span>
               ))}
             </dd>
@@ -242,7 +242,7 @@ export function LogoMarquee({ keys = ORG_GROUPS.flatMap(([, k]) => k), label = '
     <Marquee label={label} speed={speed}>
       {keys.map((k) => (
         <span key={k} className="flex h-16 w-[190px] shrink-0 items-center justify-center px-6">
-          <img src={`/img/logos/${k}-white.webp`} alt={ORG[k]} loading="lazy" decoding="async" className="max-h-8 w-auto max-w-full object-contain opacity-55" />
+          <img src={`/img/logos/${k}.webp`} alt={ORG[k]} loading="lazy" decoding="async" className="max-h-9 w-auto max-w-full object-contain opacity-70 grayscale" />
         </span>
       ))}
     </Marquee>
@@ -265,19 +265,23 @@ export function Faq({ items, title = 'Frequently asked questions', id = 'faq', l
 }
 
 /* One closing call to action per page. */
-export function CtaBand({ title = 'See it on your own identities.', body = 'A 30-minute session with a Deep Algorithms engineer, on your own environment, with your own questions.', primary = { label: 'Book a demo', to: '/request-demo' }, secondary = { label: 'Take the product tour', to: '/product-tour' }, children }) {
+export function CtaBand({ title = 'Ready to secure what matters most?', body = 'A 30-minute session with a Deep Algorithms engineer, on your own environment, with your own questions.', primary = { label: 'Book a demo', to: '/request-demo' }, secondary = { label: 'Take the product tour', to: '/product-tour' }, children }) {
   return (
-    <section className="gridbg relative overflow-hidden border-t border-line" aria-labelledby="cta-h">
-      <div aria-hidden="true" className="aurora left-1/2 top-[30%] h-[520px] w-[900px] -translate-x-1/2 opacity-50" />
-      <div className="container sec text-center">
-        <img src="/brand/mark.webp" alt="" aria-hidden="true" width="160" height="160" loading="lazy" className="mx-auto h-16 w-auto opacity-95 md:h-20" />
-        <SplitTitle id="cta-h" className="t-h1 mx-auto mt-10 max-w-[980px]">{title}</SplitTitle>
-        <p className="mx-auto mt-6 t-lead max-w-[640px]">{body}</p>
-        <div className="mt-10 flex flex-wrap justify-center gap-3">
-          <Button to={primary.to} size="lg" arrow>{primary.label}</Button>
-          {secondary && <Button to={secondary.to} variant="secondary" size="lg">{secondary.label}</Button>}
+    <section className="sec-sm" aria-labelledby="cta-h">
+      <div className="container">
+        <div className="band relative overflow-hidden rounded-[28px] px-6 py-16 text-center md:px-12 md:py-24">
+          <div aria-hidden="true" className="beam left-[8%] opacity-70" />
+          <div aria-hidden="true" className="beam left-[62%] opacity-50" />
+          <img src="/brand/mark.webp" alt="" aria-hidden="true" width="160" height="160" loading="lazy" className="float mx-auto h-16 w-auto drop-shadow-[0_20px_40px_rgb(0_174_239/.45)] md:h-20" />
+          <p className="eyebrow mt-8">Get started</p>
+          <SplitTitle id="cta-h" className="t-h1 mx-auto mt-5 max-w-[900px]">{title}</SplitTitle>
+          <p className="mx-auto mt-6 max-w-[620px] t-lead">{body}</p>
+          <div className="mt-10 flex flex-wrap justify-center gap-3">
+            <Button to={primary.to} size="lg" variant="white" arrow>{primary.label}</Button>
+            {secondary && <Button to={secondary.to} variant="outline-inverse" size="lg">{secondary.label}</Button>}
+          </div>
+          {children}
         </div>
-        {children}
       </div>
     </section>
   );

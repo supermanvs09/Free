@@ -32,14 +32,14 @@ export default function Architecture({ compact }) {
                 <Icon name="ArrowRight" size={20} className="max-lg:rotate-90" />
               </div>
             )}
-            <div className={cx('rounded-[14px] border p-5', i === 1 ? 'border-brand-100 bg-brand-50/60' : 'border-line bg-bg-2')}>
+            <div className={cx('rounded-[14px] border p-5', i === 1 ? 'border-brand-100 bg-brand-50/60' : 'border-line bg-white')}>
               <p className="app-label">{c.title}</p>
               <p className="mt-1 t-caption">{c.note}</p>
               {c.rows && (
                 <ul className="mt-4 space-y-2.5">
                   {c.rows.map(([k, t]) => (
                     <li key={t} className="flex items-center gap-3 text-[14px] text-ink-2">
-                      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border border-line bg-bg-2">{k ? <AppLogo k={k} size="16px" /> : <Icon name="ClipboardText" size={16} />}</span>
+                      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border border-line bg-white">{k ? <AppLogo k={k} size="16px" /> : <Icon name="ClipboardText" size={16} />}</span>
                       {t}
                     </li>
                   ))}
@@ -48,7 +48,7 @@ export default function Architecture({ compact }) {
               {c.products && (
                 <ul className="mt-4 space-y-3">
                   {c.products.map(([k, n, d]) => (
-                    <li key={k} className="flex gap-3 rounded-[10px] border border-line bg-bg-2 p-3.5">
+                    <li key={k} className="flex gap-3 rounded-[10px] border border-line bg-white p-3.5">
                       <ProductMark p={k} size={30} />
                       <span><span className="block text-[14.5px] font-semibold text-ink">{n}</span>{!compact && <span className="mt-0.5 block text-[13px] leading-snug text-ink-3">{d}</span>}</span>
                     </li>

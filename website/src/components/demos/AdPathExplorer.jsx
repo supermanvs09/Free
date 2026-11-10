@@ -21,7 +21,7 @@ const PATHS = [
 
 function Node({ n, tier0, cut }) {
   return (
-    <div className={cx('flex items-center gap-2.5 rounded-[10px] border bg-bg-2 p-2.5', tier0 ? 'border-crit/40' : 'border-line', cut && 'opacity-40')}>
+    <div className={cx('flex items-center gap-2.5 rounded-[10px] border bg-white p-2.5', tier0 ? 'border-crit/40' : 'border-line', cut && 'opacity-40')}>
       <span className={cx('inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px]', tier0 ? 'bg-crit-50 text-crit' : 'bg-bg-2 text-ink-2')}><Icon name={n[2] === 'Crown' ? 'ShieldWarning' : n[2]} size={16} /></span>
       <span className="min-w-0"><span className="block truncate text-[13px] font-semibold text-ink">{n[0]}</span><span className="block truncate text-[12px] text-ink-3">{n[1]}</span></span>
     </div>
@@ -37,7 +37,7 @@ export default function AdPathExplorer() {
   return (
     <AppFrame product="adapid" title="adapID AD Security" crumb="corp.example.in" status={<Badge tone={openPaths > 0 ? 'crit' : 'ok'} dot>{openPaths} paths to Tier 0</Badge>}>
       <div className="grid lg:grid-cols-[260px_minmax(0,1fr)]">
-        <div className="border-b border-line bg-bg-2 p-3 lg:border-b-0 lg:border-r">
+        <div className="border-b border-line bg-white p-3 lg:border-b-0 lg:border-r">
           <p className="app-label px-1">Start from</p>
           <ul className="mt-2 space-y-1.5">
             {PATHS.map((x) => (
@@ -72,7 +72,7 @@ export default function AdPathExplorer() {
             ))}
           </div>
           <div>
-          <div className="rounded-[12px] border border-line bg-bg-2 p-4">
+          <div className="rounded-[12px] border border-line bg-white p-4">
             <p className="app-label">Top fix for this path</p>
             <p className="mt-1.5 text-[14.5px] font-semibold text-ink">{P.fix}</p>
             <p className="mt-1 t-small">Closes <span className="num font-semibold text-ink">{P.closes}</span> paths to Tier 0, including this one. Weakest link: <span className="font-mono">{P.edges[P.weak]}</span>.</p>

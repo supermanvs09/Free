@@ -8,7 +8,7 @@ import { cx, useIsoLayoutEffect } from '../lib/motion.js';
 const reduced = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* Arms an element if it is below the fold, then fires once it enters. */
-function useArm(ref, { threshold = 0.2, margin = '0px 0px -10% 0px', always = false } = {}) {
+function useArm(ref, { threshold = 0.2, margin = '0px 0px -10% 0px', always = false, parent = false } = {}) {
   const [state, setState] = useState('idle'); // idle (SSR/final) | arm | go
   useIsoLayoutEffect(() => {
     const el = ref.current;
@@ -19,7 +19,8 @@ function useArm(ref, { threshold = 0.2, margin = '0px 0px -10% 0px', always = fa
     setState('arm');
     if (above) { const t = requestAnimationFrame(() => requestAnimationFrame(() => setState('go'))); return () => cancelAnimationFrame(t); }
     const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setState('go'); io.disconnect(); } }, { threshold, rootMargin: margin });
-    io.observe(el);
+    // a clipped element has no visible area, so watch its parent instead
+    io.observe(parent ? el.parentElement : el);
     return () => io.disconnect();
   }, []);
   return state;
@@ -54,7 +55,7 @@ export function SplitTitle({ as: As = 'h2', children, className, delay = 0, alwa
    a slight zoom; `para` adds a gentle scroll parallax (CSS scroll timeline). */
 export function MediaReveal({ src, alt = '', className, imgClass, ratio, para = true, brk = true, children, width = 1200, height = 800, priority }) {
   const ref = useRef(null);
-  const state = useArm(ref, { threshold: 0.15 });
+  const state = useArm(ref, { threshold: 0.15, parent: true });
   return (
     <figure ref={ref} className={cx('media mreveal', brk && 'brk', para && 'para', state !== 'idle' && 'arm', state === 'go' && 'go', className)} style={ratio ? { aspectRatio: ratio } : undefined}>
       <img src={src} alt={alt} width={width} height={height} loading={priority ? 'eager' : 'lazy'} decoding="async" className={imgClass} />

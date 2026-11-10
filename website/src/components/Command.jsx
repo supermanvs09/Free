@@ -208,7 +208,7 @@ function Terminal({ onClose }) {
   return (
     <div className="fixed inset-0 z-[80] flex items-start justify-center bg-black/55 px-4 pt-[12vh] fadein" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div role="dialog" aria-modal="true" aria-label="Deep Algorithms terminal" className="w-full max-w-[720px] overflow-hidden rounded-[14px] border border-white/15 bg-[#0c0d10] shadow-[0_40px_120px_-30px_rgba(0,0,0,.85)]">
-        <div className="flex h-10 items-center gap-2 border-b border-white/10 bg-bg-2/[.03] px-4">
+        <div className="flex h-10 items-center gap-2 border-b border-white/10 bg-white/[.03] px-4">
           <button type="button" onClick={onClose} aria-label="Close the terminal" className="h-3 w-3 rounded-full bg-[#ff5f57]" />
           <span aria-hidden="true" className="h-3 w-3 rounded-full bg-[#febc2e]" /><span aria-hidden="true" className="h-3 w-3 rounded-full bg-[#28c840]" />
           <span className="mx-auto flex items-center gap-2 pr-12 text-[12.5px] text-[#9aa0a9]"><Icon name="TerminalWindow" size={14} />guest@deepalgorithms · Deep Algorithms terminal</span>
