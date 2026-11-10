@@ -19,20 +19,45 @@ type IdentitySummaryResponse struct {
 	HeadlineMetrics IdentityHeadlineMetrics  `json:"headline_metrics"`
 }
 
-// IdentityRecord is the identity normalized from the latest snapshot of the
-// tenant's identities table.
+// IdentityRecord describes the selected monitored principal and its parent
+// discovery inventory resource.
+//
+// For ECS, the task role and execution role have different IdentityName,
+// PrincipalARN, RoleKind, RoleType, and WorkloadKey values, but share the same
+// InventoryID and ResourceARN.
 type IdentityRecord struct {
-	SourceType      string `json:"source_type"`       // compact family, e.g. ECS
-	NHIIdentityType string `json:"nhi_identity_type"` // registry subtype, e.g. ecs_task
-	IdentityName    string `json:"identity_name"`     // canonical ARN or typed fallback key
-	DisplayName     string `json:"display_name"`
-	WorkloadKey     string `json:"workload_key"`
-	Status          string `json:"status,omitempty"`
-	AccountID       string `json:"account_id"`
-	Region          string `json:"region,omitempty"`
-	ServiceName     string `json:"service_name,omitempty"`
-	RoleType        string `json:"role_type,omitempty"`
-	RoleARN         string `json:"role_arn,omitempty"`
+	SourceType string `json:"source_type"`
+
+	NHIIdentityType string `json:"nhi_identity_type"`
+
+	// IdentityName identifies the selected monitored principal and is used
+	// when calling the Baseline, Activity, Genome, and Timeline APIs.
+	//
+	// For expanded ECS identities, this is the task-role or execution-role ARN.
+	IdentityName string `json:"identity_name"`
+
+	DisplayName string `json:"display_name"`
+	WorkloadKey string `json:"workload_key"`
+
+	Status    string `json:"status,omitempty"`
+	AccountID string `json:"account_id"`
+	Region    string `json:"region,omitempty"`
+
+	ServiceName string `json:"service_name,omitempty"`
+	ClusterARN  string `json:"cluster_arn,omitempty"`
+
+	// Credential-specific monitored principal.
+	PrincipalARN string `json:"principal_arn,omitempty"`
+	RoleKind     string `json:"role_kind,omitempty"`
+	RoleType     string `json:"role_type,omitempty"`
+	RoleARN      string `json:"role_arn,omitempty"`
+
+	// Parent inventory resource.
+	//
+	// InventoryID is identities.id and is used by Open in inventory.
+	// ResourceARN is identities.arn and identifies the discovered AWS resource.
+	InventoryID string `json:"inventory_id,omitempty"`
+	ResourceARN string `json:"resource_arn,omitempty"`
 }
 
 // IdentityBaselineSummary is the baselines row of the identity (or of its

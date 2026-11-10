@@ -54,6 +54,7 @@ type MonitoredIdentity struct {
 	WorkloadKey    string
 
 	DiscoveryIdentityID string
+	ResourceARN         string
 
 	ClusterARN string
 	TaskGroup  string
@@ -134,8 +135,17 @@ func NormalizeDiscoveryRow(row DiscoveryIdentityRow) (MonitoredIdentity, bool) {
 	canonical := canonicalMonitoringARN(sub, row.ARN)
 	resource := arnResourceName(canonical)
 
-	id := MonitoredIdentity{Key: MonitoringKey{SourceType: fam}, Subtype: sub, Status: strings.TrimSpace(row.Status),
-		AccountID: strings.TrimSpace(row.AccountID), Region: strings.TrimSpace(row.Region)}
+	id := MonitoredIdentity{
+		Key: MonitoringKey{
+			SourceType: fam,
+		},
+		Subtype:             sub,
+		Status:              strings.TrimSpace(row.Status),
+		AccountID:           strings.TrimSpace(row.AccountID),
+		Region:              strings.TrimSpace(row.Region),
+		DiscoveryIdentityID: strings.TrimSpace(row.ID),
+		ResourceARN:         strings.TrimSpace(row.ARN),
+	}
 	if id.AccountID == "" {
 		id.AccountID = arnField(canonical, 4)
 	}
@@ -409,6 +419,7 @@ func workloadKeyFor(
 				"eventbridge",
 				accountID,
 				region,
+				"eventbridge_scheduler",
 				name,
 			},
 			":",
@@ -439,6 +450,7 @@ func workloadKeyFor(
 				"codebuild",
 				accountID,
 				region,
+				"codebuild_project",
 				name,
 			},
 			":",
@@ -463,6 +475,7 @@ func workloadKeyFor(
 				"codepipeline",
 				accountID,
 				region,
+				"codepipeline",
 				name,
 			},
 			":",
@@ -805,41 +818,492 @@ func (l *MonitoredIdentityLookup) Resolve(
 	return ResolvedIdentity{}, ErrIdentityNotFound
 }
 
+func ecsCredentialRoleKind(
+	bindingType string,
+) (string, bool) {
+	switch strings.ToLower(
+		strings.TrimSpace(bindingType),
+	) {
+	case "task_role":
+		return "task", true
+
+	case "execution_role":
+		return "execution", true
+
+	default:
+		return "", false
+	}
+}
+
+// normalizeECSGroup separates the ECS workload mode from its stable name.
+//
+// Examples:
+//
+//	service:nhi-opentelemetry-service
+//		-> service, nhi-opentelemetry-service
+//
+//	family:nhi-opentelemetry-task
+//		-> standalone, nhi-opentelemetry-task
+
+// ecsRoleWorkloadKey creates the exact normalized monitoring key used by
+// baselines, baseline_versions, daily_stats, alerts, and risk-score tables.
+//
+// Service-based format:
+//
+//	ecs:<account>:<region>:<cluster-arn>:<service-name>:
+//	<role-arn>:<task|execution>
+//
+// Standalone-task format:
+//
+//	ecs:<account>:<region>:<cluster-arn>:standalone:<family>:
+//	<role-arn>:<task|execution>
+func ecsRoleWorkloadKey(
+	identity MonitoredIdentity,
+	roleARN string,
+	roleKind string,
+) string {
+	accountID := strings.TrimSpace(
+		identity.AccountID,
+	)
+
+	region := strings.TrimSpace(
+		identity.Region,
+	)
+
+	clusterARN := strings.TrimSpace(
+		identity.ClusterARN,
+	)
+
+	roleARN = strings.TrimSpace(roleARN)
+
+	roleKind = strings.ToLower(
+		strings.TrimSpace(roleKind),
+	)
+
+	if accountID == "" ||
+		region == "" ||
+		clusterARN == "" ||
+		roleARN == "" {
+		return ""
+	}
+
+	if roleKind != "task" &&
+		roleKind != "execution" {
+		return ""
+	}
+
+	mode, workloadName := normalizeECSGroup(
+		FirstNonEmpty(
+			identity.TaskGroup,
+			identity.ServiceName,
+		),
+	)
+
+	family := lastPathSegment(
+		identity.TaskDefinition,
+	)
+
+	// Drop the ECS task-definition revision.
+	//
+	// Example:
+	// nhi-opentelemetry-task:17
+	// becomes:
+	// nhi-opentelemetry-task
+	if revisionIndex := strings.LastIndexByte(
+		family,
+		':',
+	); revisionIndex > 0 {
+		family = family[:revisionIndex]
+	}
+
+	parts := []string{
+		"ecs",
+		accountID,
+		region,
+		clusterARN,
+	}
+
+	if mode == "service" {
+		serviceName := FirstNonEmpty(
+			workloadName,
+			identity.ServiceName,
+			family,
+			identity.DisplayName,
+		)
+
+		if strings.TrimSpace(serviceName) == "" {
+			return ""
+		}
+
+		parts = append(
+			parts,
+			dashed(serviceName),
+		)
+	} else {
+		standaloneName := FirstNonEmpty(
+			workloadName,
+			family,
+			identity.ServiceName,
+			identity.DisplayName,
+		)
+
+		if strings.TrimSpace(standaloneName) == "" {
+			return ""
+		}
+
+		parts = append(
+			parts,
+			"standalone",
+			dashed(standaloneName),
+		)
+	}
+
+	parts = append(
+		parts,
+		roleARN,
+		roleKind,
+	)
+
+	return strings.Join(parts, ":")
+}
+
+// ExpandCredentialIdentities converts one normalized discovery identity into
+// the monitored principals represented by identity_credentials.
+//
+// An ECS task can produce two independently monitored principals:
+//
+//   - ECS task role
+//   - ECS execution role
+//
+// Both principals retain the same DiscoveryIdentityID and ResourceARN, so the
+// frontend can open either role's parent ECS resource in inventory.
+func ExpandCredentialIdentities(
+	base MonitoredIdentity,
+	credentials []IdentityCredentialRow,
+) []MonitoredIdentity {
+	if base.Subtype != "ecs_task" {
+		return []MonitoredIdentity{
+			base,
+		}
+	}
+
+	identities := make(
+		[]MonitoredIdentity,
+		0,
+		2,
+	)
+
+	seen := make(
+		map[MonitoringKey]struct{},
+		2,
+	)
+
+	for _, credential := range credentials {
+		roleKind, supported :=
+			ecsCredentialRoleKind(
+				credential.BindingType,
+			)
+		if !supported {
+			continue
+		}
+
+		credentialARN := strings.TrimSpace(
+			credential.CredentialARN,
+		)
+
+		if !strings.HasPrefix(
+			credentialARN,
+			"arn:aws:iam::",
+		) {
+			continue
+		}
+
+		workloadKey := ecsRoleWorkloadKey(
+			base,
+			credentialARN,
+			roleKind,
+		)
+		if workloadKey == "" {
+			continue
+		}
+
+		// Copying the base preserves the parent inventory information:
+		//
+		// base.DiscoveryIdentityID -> identities.id
+		// base.ResourceARN         -> identities.arn
+		identity := base
+
+		identity.Key = MonitoringKey{
+			SourceType:   "ECS",
+			IdentityName: credentialARN,
+		}
+
+		identity.PrincipalARN = credentialARN
+		identity.RoleARN = credentialARN
+		identity.RoleName = arnResourceName(
+			credentialARN,
+		)
+		identity.RoleKind = roleKind
+		identity.WorkloadKey = workloadKey
+
+		switch roleKind {
+		case "task":
+			identity.TaskRoleARN =
+				credentialARN
+
+			identity.ExecutionRoleARN = ""
+
+			identity.RoleType =
+				"ECS_TASK_ROLE"
+
+			identity.DisplayName =
+				strings.TrimSpace(
+					FirstNonEmpty(
+						base.ServiceName,
+						base.DisplayName,
+					) + " task role",
+				)
+
+		case "execution":
+			identity.ExecutionRoleARN =
+				credentialARN
+
+			identity.TaskRoleARN = ""
+
+			identity.RoleType =
+				"ECS_EXECUTION_ROLE"
+
+			identity.DisplayName =
+				strings.TrimSpace(
+					FirstNonEmpty(
+						base.ServiceName,
+						base.DisplayName,
+					) + " execution role",
+				)
+		}
+
+		key := normalizeMonitoringKey(
+			identity.Key,
+		)
+
+		if key.SourceType == "" ||
+			key.IdentityName == "" {
+			continue
+		}
+
+		identity.Key = key
+
+		if _, duplicate := seen[key]; duplicate {
+			continue
+		}
+
+		seen[key] = struct{}{}
+
+		identities = append(
+			identities,
+			identity,
+		)
+	}
+
+	// Preserve the discovery identity when credentials have not yet been
+	// populated. This keeps the workload visible as still learning instead of
+	// removing it from the fleet.
+	if len(identities) == 0 {
+		return []MonitoredIdentity{
+			base,
+		}
+	}
+
+	return identities
+}
+
 // Fleet returns the caller's tenant scope and every monitored identity in
 // it: the latest non-deleted discovery snapshot per resource, normalized,
 // one entry per (source_type, identity_name) — when several snapshots
 // normalize to the same key the most recently seen one wins. Order follows
 // the discovery read; callers sort. Failures are *StoreUnavailableError.
-func (l *MonitoredIdentityLookup) Fleet(ctx context.Context, userID, tenantID, dbName string) (*scope.DataScope, []MonitoredIdentity, error) {
-	sc, err := l.resolver.Resolve(ctx, userID, tenantID, dbName)
-	if err != nil {
-		return nil, nil, &StoreUnavailableError{Op: "resolve tenant scope", Err: err}
-	}
-	rows, err := LatestIdentities(ctx, sc)
-	if err != nil {
-		return nil, nil, &StoreUnavailableError{Op: "read discovery identities", Err: err}
-	}
-	var (
-		fleet []MonitoredIdentity
-		index = map[MonitoringKey]int{}
-		seen  = map[MonitoringKey]*DiscoveryIdentityRow{}
+func (l *MonitoredIdentityLookup) Fleet(
+	ctx context.Context,
+	userID string,
+	tenantID string,
+	dbName string,
+) (
+	*scope.DataScope,
+	[]MonitoredIdentity,
+	error,
+) {
+	resolvedScope, err := l.resolver.Resolve(
+		ctx,
+		userID,
+		tenantID,
+		dbName,
 	)
-	for i := range rows {
-		id, ok := NormalizeDiscoveryRow(rows[i])
+	if err != nil {
+		return nil, nil, &StoreUnavailableError{
+			Op:  "resolve tenant scope",
+			Err: err,
+		}
+	}
+
+	rows, err := LatestIdentities(
+		ctx,
+		resolvedScope,
+	)
+	if err != nil {
+		return nil, nil, &StoreUnavailableError{
+			Op:  "read discovery identities",
+			Err: err,
+		}
+	}
+
+	identityIDs := uniqueDiscoveryIdentityIDs(
+		rows,
+	)
+
+	credentialsByIdentity, err := IdentityCredentials(
+		ctx,
+		resolvedScope,
+		identityIDs,
+	)
+	if err != nil {
+		return nil, nil, &StoreUnavailableError{
+			Op:  "read identity credentials",
+			Err: err,
+		}
+	}
+
+	fleet := make(
+		[]MonitoredIdentity,
+		0,
+		len(rows),
+	)
+
+	index := make(
+		map[MonitoringKey]int,
+		len(rows),
+	)
+
+	seen := make(
+		map[MonitoringKey]*DiscoveryIdentityRow,
+		len(rows),
+	)
+
+	for rowIndex := range rows {
+		row := rows[rowIndex]
+
+		baseIdentity, ok := NormalizeDiscoveryRow(
+			row,
+		)
 		if !ok {
 			continue
 		}
-		if at, dup := index[id.Key]; dup {
-			if newerSnapshot(rows[i], seen[id.Key]) {
-				fleet[at], seen[id.Key] = id, &rows[i]
+
+		identityID := strings.TrimSpace(
+			row.ID,
+		)
+
+		credentials :=
+			credentialsByIdentity[identityID]
+
+		identities := ExpandCredentialIdentities(
+			baseIdentity,
+			credentials,
+		)
+
+		for _, identity := range identities {
+			key := normalizeMonitoringKey(
+				identity.Key,
+			)
+
+			if key.SourceType == "" ||
+				key.IdentityName == "" {
+				continue
 			}
+
+			identity.Key = key
+
+			existingIndex, duplicate :=
+				index[key]
+
+			if duplicate {
+				if newerSnapshot(
+					row,
+					seen[key],
+				) {
+					fleet[existingIndex] =
+						identity
+
+					seen[key] =
+						&rows[rowIndex]
+				}
+
+				continue
+			}
+
+			index[key] = len(fleet)
+			seen[key] = &rows[rowIndex]
+
+			fleet = append(
+				fleet,
+				identity,
+			)
+		}
+	}
+
+	return resolvedScope, fleet, nil
+}
+func uniqueDiscoveryIdentityIDs(
+	rows []DiscoveryIdentityRow,
+) []string {
+	identityIDs := make(
+		[]string,
+		0,
+		len(rows),
+	)
+
+	seen := make(
+		map[string]struct{},
+		len(rows),
+	)
+
+	for _, row := range rows {
+		identityID := strings.TrimSpace(
+			row.ID,
+		)
+
+		if identityID == "" {
 			continue
 		}
-		index[id.Key] = len(fleet)
-		seen[id.Key] = &rows[i]
-		fleet = append(fleet, id)
+
+		if _, duplicate :=
+			seen[identityID]; duplicate {
+			continue
+		}
+
+		seen[identityID] = struct{}{}
+
+		identityIDs = append(
+			identityIDs,
+			identityID,
+		)
 	}
-	return sc, fleet, nil
+
+	return identityIDs
+}
+
+func normalizeMonitoringKey(
+	key MonitoringKey,
+) MonitoringKey {
+	return MonitoringKey{
+		SourceType: strings.ToUpper(
+			strings.TrimSpace(
+				key.SourceType,
+			),
+		),
+		IdentityName: strings.TrimSpace(
+			key.IdentityName,
+		),
+	}
 }
 
 // newerSnapshot reports whether candidate was seen more recently than current.

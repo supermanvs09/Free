@@ -12,328 +12,610 @@ import (
 	"nhi-backend-api/internal/platform/scope"
 )
 
-// Service implements GET /api/v1/genome/identities — the fleet table:
+// Service implements GET /api/v1/genome/identities.
 //
-//  1. latest non-deleted discovery snapshot per resource, normalized to the
-//     monitoring key in application code (MonitoredIdentityLookup.Fleet);
-//  2. the filters and sort, applied to the normalized set, then one
-//     keyset page (limit + opaque cursor);
-//  3. for the page: baselines, latest identity_risk_scores and the grouped
-//     open-alert counts from PostgreSQL, last_seen from ClickHouse — each a
-//     single grouped query, never one per identity. The sort key (risk or
-//     last_seen) is read for the whole filtered set first because the page
-//     depends on it; name sorting needs nothing beyond discovery.
-//
-// Nothing is invented: a section whose store cannot be read is null (logged
-// server-side) and provenance_confidence stays null until the selection
-// rule is confirmed.
+// The shared common.MonitoredIdentityLookup supplies the normalized fleet.
+// For ECS, one discovery identity can expand into separate task-role and
+// execution-role monitored principals. Both role principals retain the same
+// inventory ID and resource ARN for the Open in inventory action.
 type Service struct {
 	lookup *common.MonitoredIdentityLookup
 	repo   *Repository
-	events *common.MonitoringEvents // nil when no monitoring ClickHouse is configured
+	events *common.MonitoringEvents
 }
 
-// NewService wires the service.
-func NewService(lookup *common.MonitoredIdentityLookup, repo *Repository, events *common.MonitoringEvents) *Service {
-	return &Service{lookup: lookup, repo: repo, events: events}
+// NewService wires the identity-list service.
+func NewService(
+	lookup *common.MonitoredIdentityLookup,
+	repo *Repository,
+	events *common.MonitoringEvents,
+) *Service {
+	return &Service{
+		lookup: lookup,
+		repo:   repo,
+		events: events,
+	}
 }
 
-// Values of the sort parameter.
 const (
-	SortRiskDesc     = "risk_desc"      // latest risk score, highest first, unscored last
-	SortLastSeenDesc = "last_seen_desc" // ClickHouse last_seen, newest first, never seen last
-	SortNameAsc      = "name_asc"       // display_name, then identity key
+	SortRiskDesc     = "risk_desc"
+	SortLastSeenDesc = "last_seen_desc"
+	SortNameAsc      = "name_asc"
 )
 
-// Params are the parsed query parameters. Empty filter strings mean "no filter".
+// Params contains the parsed list filters, sorting, and pagination values.
 type Params struct {
-	SourceType string // compact upper-case family
-	Search     string // case-insensitive substring of identity_name, display_name, workload_key, service_name or role_arn
+	SourceType string
+	Search     string
 	AccountID  string
 	Region     string
-	Status     string // raw identities.status value (lifecycle values NEED CONFIRMATION)
-	Sort       string // Sort* (default SortRiskDesc)
-	Limit      int    // default 25, max 100
-	Cursor     string // opaque, from a previous meta.next_cursor; "" for the first page
+	Status     string
+	Sort       string
+	Limit      int
+	Cursor     string
 }
 
-// List builds the page and the meta.next_cursor (nil on the last page).
-// Scope/discovery failures are *common.StoreUnavailableError; a cursor not
-// produced by this endpoint (or produced for another sort) is
-// common.ErrInvalidCursor.
-func (s *Service) List(ctx context.Context, userID, tenantID, dbName string, p Params) (*Response, *string, error) {
-	if p.Sort == "" {
-		p.Sort = SortRiskDesc
+// List builds one page of monitored identities.
+func (s *Service) List(
+	ctx context.Context,
+	userID string,
+	tenantID string,
+	dbName string,
+	params Params,
+) (*Response, *string, error) {
+	if params.Sort == "" {
+		params.Sort = SortRiskDesc
 	}
-	after, err := decodeListCursor(p.Cursor, p.Sort)
-	if err != nil {
-		return nil, nil, err
-	}
-	sc, fleet, err := s.lookup.Fleet(ctx, userID, tenantID, dbName)
+
+	after, err := decodeListCursor(
+		params.Cursor,
+		params.Sort,
+	)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	entries := make([]listEntry, 0, len(fleet))
-	for _, id := range fleet {
-		if matchesFilters(id, p) {
-			entries = append(entries, listEntry{id: id, sortID: id.Key.SourceType + ":" + id.Key.IdentityName})
+	resolvedScope, fleet, err := s.lookup.Fleet(
+		ctx,
+		userID,
+		tenantID,
+		dbName,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	entries := make(
+		[]listEntry,
+		0,
+		len(fleet),
+	)
+
+	for _, identity := range fleet {
+		if !matchesFilters(identity, params) {
+			continue
 		}
+
+		entries = append(
+			entries,
+			listEntry{
+				id: identity,
+				sortID: identity.Key.SourceType +
+					":" +
+					identity.Key.IdentityName,
+			},
+		)
 	}
 
-	// Sort inputs the page depends on are read for the whole filtered set.
 	var (
 		risk     map[common.MonitoringKey]common.IdentityRiskSnapshotRow
 		lastSeen map[common.MonitoringKey]time.Time
 	)
-	switch p.Sort {
+
+	switch params.Sort {
 	case SortRiskDesc:
-		risk = s.riskFor(ctx, sc, entries)
+		risk = s.riskFor(
+			ctx,
+			resolvedScope,
+			entries,
+		)
+
 	case SortLastSeenDesc:
-		lastSeen = s.lastSeenFor(ctx, entries)
+		lastSeen = s.lastSeenFor(
+			ctx,
+			entries,
+		)
 	}
-	for i := range entries {
-		entries[i].score = riskScore(risk, entries[i].id)
-		if t, ok := lastSeen[entries[i].id.EventKey()]; ok {
-			entries[i].lastSeen = &t
+
+	for index := range entries {
+		entries[index].score = riskScore(
+			risk,
+			entries[index].id,
+		)
+
+		if seenAt, exists := lastSeen[entries[index].id.EventKey()]; exists {
+			seenAt = seenAt.UTC()
+			entries[index].lastSeen = &seenAt
 		}
 	}
-	sort.SliceStable(entries, func(i, j int) bool { return compareEntries(p.Sort, entries[i], entries[j]) < 0 })
+
+	sort.SliceStable(
+		entries,
+		func(left int, right int) bool {
+			return compareEntries(
+				params.Sort,
+				entries[left],
+				entries[right],
+			) < 0
+		},
+	)
+
 	if after != nil {
-		cut := sort.Search(len(entries), func(i int) bool { return compareEntries(p.Sort, entries[i], *after) > 0 })
+		cut := sort.Search(
+			len(entries),
+			func(index int) bool {
+				return compareEntries(
+					params.Sort,
+					entries[index],
+					*after,
+				) > 0
+			},
+		)
+
 		entries = entries[cut:]
 	}
-	var next *string
-	if len(entries) > p.Limit {
-		entries = entries[:p.Limit]
-		next = encodeListCursor(p.Sort, entries[len(entries)-1])
+
+	var nextCursor *string
+
+	if len(entries) > params.Limit {
+		entries = entries[:params.Limit]
+
+		nextCursor = encodeListCursor(
+			params.Sort,
+			entries[len(entries)-1],
+		)
 	}
 
-	// The remaining facts are read for the page only.
 	if risk == nil {
-		risk = s.riskFor(ctx, sc, entries)
+		risk = s.riskFor(
+			ctx,
+			resolvedScope,
+			entries,
+		)
 	}
+
 	if lastSeen == nil {
-		lastSeen = s.lastSeenFor(ctx, entries)
+		lastSeen = s.lastSeenFor(
+			ctx,
+			entries,
+		)
 	}
+
 	keys := listKeys(entries)
-	baselines, err := s.repo.BaselineSummaries(ctx, sc, keys)
-	if !common.ReadOK("identity list baselines", err) {
+
+	baselines, baselineErr := s.repo.BaselineSummaries(
+		ctx,
+		resolvedScope,
+		keys,
+	)
+	if !common.ReadOK(
+		"identity list baselines",
+		baselineErr,
+	) {
 		baselines = nil
 	}
-	openAlerts, err := s.repo.OpenAlertCounts(ctx, sc, keys)
-	alertsOK := common.ReadOK("identity list open alerts", err)
 
-	out := &Response{Items: make([]Item, 0, len(entries))}
-	for _, e := range entries {
-		id := e.id
-		item := Item{
-			ID:              e.sortID,
-			SourceType:      id.Key.SourceType,
-			NHIIdentityType: id.Subtype,
-			IdentityName:    id.Key.IdentityName,
-			DisplayName:     id.DisplayName,
-			WorkloadKey:     id.WorkloadKey,
-			Status:          common.OptionalString(id.Status),
-			AccountID:       id.AccountID,
-			Region:          common.OptionalString(id.Region),
-			ServiceName:     common.OptionalString(id.ServiceName),
-			RoleType:        common.OptionalString(id.RoleType),
-			RoleARN:         common.OptionalString(id.RoleARN),
-		}
-		for _, k := range id.AllKeys() { // identity key first, then the shared workload key
-			if b, ok := baselines[k]; ok {
-				item.Baseline = BaselineSummary{Status: common.OptionalString(b.Status), BuiltDays: common.IntPtr(b.BuiltDays), RequiredDays: common.IntPtr(b.RequiredDays)}
-				break
-			}
-		}
-		for _, k := range id.AllKeys() {
-			if r, ok := risk[k]; ok {
-				item.Risk = RiskSnapshot{Score: r.RiskScore, Severity: common.OptionalString(r.Severity), Status: common.OptionalString(r.ScoreStatus)}
-				break
-			}
-		}
-		if t, ok := lastSeen[id.EventKey()]; ok {
-			item.LastSeen = &t
-		}
-		if alertsOK {
-			n := 0
-			for _, k := range id.AllKeys() {
-				n += openAlerts[k]
-			}
-			item.OpenAnomalyCount = common.IntPtr(n)
-		}
-		out.Items = append(out.Items, item)
+	openAlerts, alertsErr := s.repo.OpenAlertCounts(
+		ctx,
+		resolvedScope,
+		keys,
+	)
+	alertsOK := common.ReadOK(
+		"identity list open alerts",
+		alertsErr,
+	)
+
+	response := &Response{
+		Items: make(
+			[]Item,
+			0,
+			len(entries),
+		),
 	}
-	if err := common.BudgetExceeded(ctx, "identity list"); err != nil {
+
+	for _, entry := range entries {
+		identity := entry.id
+
+		item := Item{
+			ID:              entry.sortID,
+			SourceType:      identity.Key.SourceType,
+			NHIIdentityType: identity.Subtype,
+			IdentityName:    identity.Key.IdentityName,
+			DisplayName:     identity.DisplayName,
+			WorkloadKey:     identity.WorkloadKey,
+			Status:          common.OptionalString(identity.Status),
+			AccountID:       identity.AccountID,
+			Region:          common.OptionalString(identity.Region),
+			ServiceName:     common.OptionalString(identity.ServiceName),
+			PrincipalARN:    common.OptionalString(identity.PrincipalARN),
+			RoleKind:        common.OptionalString(identity.RoleKind),
+			RoleType:        common.OptionalString(identity.RoleType),
+			RoleARN:         common.OptionalString(identity.RoleARN),
+			InventoryID:     common.OptionalString(identity.DiscoveryIdentityID),
+			ResourceARN:     common.OptionalString(identity.ResourceARN),
+			ClusterARN:      common.OptionalString(identity.ClusterARN),
+		}
+
+		// Select only an active baseline. For ECS this checks the role ARN key
+		// and then the role-specific workload key.
+		for _, key := range identity.AllKeys() {
+			baseline, exists := baselines[key]
+			if !exists {
+				continue
+			}
+
+			if !strings.EqualFold(
+				strings.TrimSpace(baseline.Status),
+				"active",
+			) {
+				continue
+			}
+
+			item.Baseline = BaselineSummary{
+				Status: common.OptionalString(
+					baseline.Status,
+				),
+				BuiltDays: common.IntPtr(
+					baseline.BuiltDays,
+				),
+				RequiredDays: common.IntPtr(
+					baseline.RequiredDays,
+				),
+			}
+
+			break
+		}
+
+		for _, key := range identity.AllKeys() {
+			riskRow, exists := risk[key]
+			if !exists {
+				continue
+			}
+
+			item.Risk = RiskSnapshot{
+				Score: riskRow.RiskScore,
+				Severity: common.OptionalString(
+					riskRow.Severity,
+				),
+				Status: common.OptionalString(
+					riskRow.ScoreStatus,
+				),
+			}
+
+			break
+		}
+
+		if seenAt, exists := lastSeen[identity.EventKey()]; exists {
+			seenAt = seenAt.UTC()
+			item.LastSeen = &seenAt
+		}
+
+		if alertsOK {
+			openCount := 0
+
+			for _, key := range identity.AllKeys() {
+				openCount += openAlerts[key]
+			}
+
+			item.OpenAnomalyCount =
+				common.IntPtr(openCount)
+		}
+
+		response.Items = append(
+			response.Items,
+			item,
+		)
+	}
+
+	if err := common.BudgetExceeded(
+		ctx,
+		"identity list",
+	); err != nil {
 		return nil, nil, err
 	}
-	return out, next, nil
+
+	return response, nextCursor, nil
 }
 
-// matchesFilters applies the filters to one normalized identity.
-func matchesFilters(id common.MonitoredIdentity, p Params) bool {
-	if p.SourceType != "" && id.Key.SourceType != p.SourceType {
+func matchesFilters(
+	identity common.MonitoredIdentity,
+	params Params,
+) bool {
+	if params.SourceType != "" &&
+		identity.Key.SourceType != params.SourceType {
 		return false
 	}
-	if p.AccountID != "" && id.AccountID != p.AccountID {
+
+	if params.AccountID != "" &&
+		identity.AccountID != params.AccountID {
 		return false
 	}
-	if p.Region != "" && id.Region != p.Region {
+
+	if params.Region != "" &&
+		identity.Region != params.Region {
 		return false
 	}
-	if p.Status != "" && !strings.EqualFold(id.Status, p.Status) {
+
+	if params.Status != "" &&
+		!strings.EqualFold(
+			identity.Status,
+			params.Status,
+		) {
 		return false
 	}
-	if p.Search != "" {
-		needle := strings.ToLower(p.Search)
-		found := false
-		for _, hay := range []string{id.Key.IdentityName, id.DisplayName, id.WorkloadKey, id.ServiceName, id.RoleARN} {
-			if strings.Contains(strings.ToLower(hay), needle) {
-				found = true
-				break
-			}
+
+	if params.Search == "" {
+		return true
+	}
+
+	needle := strings.ToLower(
+		params.Search,
+	)
+
+	searchableValues := []string{
+		identity.Key.IdentityName,
+		identity.DisplayName,
+		identity.WorkloadKey,
+		identity.ServiceName,
+		identity.RoleARN,
+		identity.PrincipalARN,
+		identity.ResourceARN,
+		identity.DiscoveryIdentityID,
+	}
+
+	for _, value := range searchableValues {
+		if strings.Contains(
+			strings.ToLower(value),
+			needle,
+		) {
+			return true
 		}
-		if !found {
-			return false
-		}
 	}
-	return true
+
+	return false
 }
 
-// riskFor reads the latest risk snapshot of every entry key (identity and
-// workload keys); a failed read is logged and yields no risk (null fields).
-func (s *Service) riskFor(ctx context.Context, sc *scope.DataScope, entries []listEntry) map[common.MonitoringKey]common.IdentityRiskSnapshotRow {
-	risk, err := common.LatestRiskSnapshots(ctx, sc, listKeys(entries))
-	if !common.ReadOK("identity list risk scores", err) {
+func (s *Service) riskFor(
+	ctx context.Context,
+	resolvedScope *scope.DataScope,
+	entries []listEntry,
+) map[common.MonitoringKey]common.IdentityRiskSnapshotRow {
+	risk, err := common.LatestRiskSnapshots(
+		ctx,
+		resolvedScope,
+		listKeys(entries),
+	)
+	if !common.ReadOK(
+		"identity list risk scores",
+		err,
+	) {
 		return map[common.MonitoringKey]common.IdentityRiskSnapshotRow{}
 	}
+
 	return risk
 }
 
-// lastSeenFor reads last_seen for the identity keys of the entries; while
-// ClickHouse is not configured or cannot be read every last_seen is null.
-func (s *Service) lastSeenFor(ctx context.Context, entries []listEntry) map[common.MonitoringKey]time.Time {
-	keys := make([]common.MonitoringKey, 0, len(entries))
-	for _, e := range entries {
-		keys = append(keys, e.id.EventKey())
-	}
-	last, err := s.events.LastSeenByIdentity(ctx, keys)
-	if !common.EventsReadOK("identity list last seen", err) {
+func (s *Service) lastSeenFor(
+	ctx context.Context,
+	entries []listEntry,
+) map[common.MonitoringKey]time.Time {
+	if s.events == nil {
 		return map[common.MonitoringKey]time.Time{}
 	}
-	return last
+
+	keys := make(
+		[]common.MonitoringKey,
+		0,
+		len(entries),
+	)
+
+	for _, entry := range entries {
+		keys = append(
+			keys,
+			entry.id.EventKey(),
+		)
+	}
+
+	lastSeen, err := s.events.LastSeenByIdentity(
+		ctx,
+		keys,
+	)
+	if !common.EventsReadOK(
+		"identity list last seen",
+		err,
+	) {
+		return map[common.MonitoringKey]time.Time{}
+	}
+
+	return lastSeen
 }
 
-// riskScore resolves the score of an identity (identity key first, then
-// the shared workload key); nil when unscored.
-func riskScore(risk map[common.MonitoringKey]common.IdentityRiskSnapshotRow, id common.MonitoredIdentity) *int {
-	for _, k := range id.AllKeys() {
-		if r, ok := risk[k]; ok {
-			return r.RiskScore
+func riskScore(
+	risk map[common.MonitoringKey]common.IdentityRiskSnapshotRow,
+	identity common.MonitoredIdentity,
+) *int {
+	for _, key := range identity.AllKeys() {
+		if riskRow, exists := risk[key]; exists {
+			return riskRow.RiskScore
 		}
 	}
+
 	return nil
 }
 
-// listKeys returns the identity and workload keys of the entries, deduplicated.
-func listKeys(entries []listEntry) []common.MonitoringKey {
-	seen := map[common.MonitoringKey]struct{}{}
-	out := make([]common.MonitoringKey, 0, len(entries))
-	for _, e := range entries {
-		for _, k := range e.id.AllKeys() {
-			if _, dup := seen[k]; !dup {
-				seen[k] = struct{}{}
-				out = append(out, k)
+func listKeys(
+	entries []listEntry,
+) []common.MonitoringKey {
+	seen := make(
+		map[common.MonitoringKey]struct{},
+	)
+
+	output := make(
+		[]common.MonitoringKey,
+		0,
+		len(entries),
+	)
+
+	for _, entry := range entries {
+		for _, key := range entry.id.AllKeys() {
+			if _, duplicate := seen[key]; duplicate {
+				continue
 			}
+
+			seen[key] = struct{}{}
+			output = append(output, key)
 		}
 	}
-	return out
+
+	return output
 }
 
-// ---------------------------------------------------------------------------
-// ordering and the keyset cursor
-// ---------------------------------------------------------------------------
-
-// listEntry is one filtered identity with the values the sort may need.
 type listEntry struct {
 	id       common.MonitoredIdentity
-	sortID   string     // source_type:identity_name — unique, the final tiebreak
-	score    *int       // latest risk score (risk_desc)
-	lastSeen *time.Time // ClickHouse last_seen (last_seen_desc)
+	sortID   string
+	score    *int
+	lastSeen *time.Time
 }
 
-// compareEntries orders two entries for sort: the sort value (nulls last),
-// then the unique id ascending, so the order is total and a keyset cursor
-// can resume it.
-func compareEntries(sortBy string, a, b listEntry) int {
+func compareEntries(
+	sortBy string,
+	left listEntry,
+	right listEntry,
+) int {
 	switch sortBy {
 	case SortLastSeenDesc:
-		if c := common.CompareDesc(a.lastSeen != nil, b.lastSeen != nil, func() int { return a.lastSeen.Compare(*b.lastSeen) }); c != 0 {
-			return c
+		if comparison := common.CompareDesc(
+			left.lastSeen != nil,
+			right.lastSeen != nil,
+			func() int {
+				return left.lastSeen.Compare(
+					*right.lastSeen,
+				)
+			},
+		); comparison != 0 {
+			return comparison
 		}
+
 	case SortNameAsc:
-		if c := strings.Compare(strings.ToLower(a.id.DisplayName), strings.ToLower(b.id.DisplayName)); c != 0 {
-			return c
+		if comparison := strings.Compare(
+			strings.ToLower(left.id.DisplayName),
+			strings.ToLower(right.id.DisplayName),
+		); comparison != 0 {
+			return comparison
 		}
-		if c := strings.Compare(a.id.DisplayName, b.id.DisplayName); c != 0 {
-			return c
+
+		if comparison := strings.Compare(
+			left.id.DisplayName,
+			right.id.DisplayName,
+		); comparison != 0 {
+			return comparison
 		}
-	default: // SortRiskDesc
-		if c := common.CompareDesc(a.score != nil, b.score != nil, func() int { return *a.score - *b.score }); c != 0 {
-			return c
+
+	default:
+		if comparison := common.CompareDesc(
+			left.score != nil,
+			right.score != nil,
+			func() int {
+				return *left.score - *right.score
+			},
+		); comparison != 0 {
+			return comparison
 		}
 	}
-	return strings.Compare(a.sortID, b.sortID)
+
+	return strings.Compare(
+		left.sortID,
+		right.sortID,
+	)
 }
 
-// listCursor is the opaque cursor of the list: the sort it was produced for
-// and the sort value + id of the last returned row.
 type listCursor struct {
 	Sort     string `json:"s"`
 	ID       string `json:"id"`
 	Score    *int   `json:"r,omitempty"`
-	LastSeen *int64 `json:"t,omitempty"` // unix milliseconds
+	LastSeen *int64 `json:"t,omitempty"`
 	Name     string `json:"n,omitempty"`
 }
 
-func encodeListCursor(sortBy string, last listEntry) *string {
-	c := listCursor{Sort: sortBy, ID: last.sortID}
+func encodeListCursor(
+	sortBy string,
+	last listEntry,
+) *string {
+	cursor := listCursor{
+		Sort: sortBy,
+		ID:   last.sortID,
+	}
+
 	switch sortBy {
 	case SortLastSeenDesc:
 		if last.lastSeen != nil {
-			ms := last.lastSeen.UnixMilli()
-			c.LastSeen = &ms
+			milliseconds := last.lastSeen.UnixMilli()
+			cursor.LastSeen = &milliseconds
 		}
+
 	case SortNameAsc:
-		c.Name = last.id.DisplayName
+		cursor.Name = last.id.DisplayName
+
 	default:
-		c.Score = last.score
+		cursor.Score = last.score
 	}
-	raw, _ := json.Marshal(c)
-	s := base64.RawURLEncoding.EncodeToString(raw)
-	return &s
+
+	raw, _ := json.Marshal(cursor)
+	encoded := base64.RawURLEncoding.EncodeToString(raw)
+
+	return &encoded
 }
 
-// decodeListCursor rebuilds the comparable entry of the last returned row;
-// nil for the first page. Any mismatch with sortBy is common.ErrInvalidCursor.
-func decodeListCursor(s, sortBy string) (*listEntry, error) {
-	if s == "" {
+func decodeListCursor(
+	encoded string,
+	sortBy string,
+) (*listEntry, error) {
+	if encoded == "" {
 		return nil, nil
 	}
-	raw, err := base64.RawURLEncoding.DecodeString(s)
+
+	raw, err := base64.RawURLEncoding.DecodeString(
+		encoded,
+	)
 	if err != nil {
 		return nil, common.ErrInvalidCursor
 	}
-	var c listCursor
-	if err := json.Unmarshal(raw, &c); err != nil || c.Sort != sortBy || c.ID == "" {
+
+	var cursor listCursor
+
+	if err := json.Unmarshal(
+		raw,
+		&cursor,
+	); err != nil ||
+		cursor.Sort != sortBy ||
+		cursor.ID == "" {
 		return nil, common.ErrInvalidCursor
 	}
-	e := &listEntry{sortID: c.ID, score: c.Score}
-	e.id.DisplayName = c.Name
-	if c.LastSeen != nil {
-		t := time.UnixMilli(*c.LastSeen).UTC()
-		e.lastSeen = &t
+
+	entry := &listEntry{
+		sortID: cursor.ID,
+		score:  cursor.Score,
 	}
-	return e, nil
+
+	entry.id.DisplayName = cursor.Name
+
+	if cursor.LastSeen != nil {
+		seenAt := time.UnixMilli(
+			*cursor.LastSeen,
+		).UTC()
+
+		entry.lastSeen = &seenAt
+	}
+
+	return entry, nil
 }

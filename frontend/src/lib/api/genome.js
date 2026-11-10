@@ -120,6 +120,12 @@ function fleetRow(row) {
     name: row.display_name || row.identity_name,
     nhiType: row.nhi_identity_type ?? null,
     workloadKey: row.workload_key ?? null,
+    /* ECS tasks are expanded into their task role and execution role, each
+       its own monitored principal sharing the task's inventory record. */
+    roleKind: row.role_kind ?? null,
+    principalArn: row.principal_arn ?? null,
+    inventoryId: row.inventory_id ?? null,
+    resourceArn: row.resource_arn ?? null,
     status: row.status ?? null,
     accountId: row.account_id ?? null,
     region: row.region ?? null,

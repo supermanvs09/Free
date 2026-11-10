@@ -26,7 +26,7 @@ import { RecordBar, ResultCount, ShowFiltersButton, WorkArea } from '../../ui/Wo
 import { CompositionDonut } from '../../charts/CompositionDonut';
 import { TrendChart } from '../../charts/TrendChart';
 import { AnomalyDrawer } from './AnomalyDrawer';
-import { anomalyStatusMeta, dimensionLabel, sourceTypeLabel } from './meta';
+import { anomalyStatusMeta, dimensionLabel, roleKindLabel, sourceTypeLabel } from './meta';
 
 const PAGE_SIZES = [10, 25, 50, 100];
 const WINDOWS = [
@@ -38,14 +38,16 @@ const WINDOW_WORDS = { '24h': '24 hours', '7d': '7 days', '30d': '30 days' };
 const TAB_KEYS = ['overview', 'identities', 'anomalies'];
 const DAY_MS = 86400000;
 
-/** Where an identity's baseline stands, from the genome list's baseline block. */
-export function learningState(baseline, lastSeen = null) {
+/**
+ * Where an identity's baseline stands, from the genome list's baseline
+ * status: active is established, inactive is learning (days learned of days
+ * required when the pipeline reports them), no baseline row is not started.
+ * lastSeen is kept for the sort, not the state.
+ */
+export function learningState(baseline) {
   const status = baseline?.status;
   if (status === 'active') return { key: 'established', label: 'Established', tone: 'low' };
-  /* Calls but no baseline row yet: the identity is learning; the pipeline
-     reports days once it starts the baseline. */
-  if (!status && lastSeen) return { key: 'learning', label: 'Learning', tone: 'medium', built: null, required: null, pct: null, left: null };
-  if (status) {
+  if (status === 'inactive' || status) {
     const built = Number(baseline.builtDays) || 0;
     const required = Number(baseline.requiredDays) || 0;
     const pct = required > 0 ? Math.min(100, (built / required) * 100) : null;
@@ -159,7 +161,7 @@ function OverviewTab({ summary, fleet, window, openTab }) {
   const learning = useMemo(
     () =>
       all
-        .map((row) => ({ row, state: learningState(row.baseline, row.lastSeen) }))
+        .map((row) => ({ row, state: learningState(row.baseline) }))
         .filter((entry) => entry.state.key === 'learning')
         .sort((a, b) => (b.state.pct ?? -1) - (a.state.pct ?? -1) || a.row.name.localeCompare(b.row.name)),
     [all],
@@ -440,7 +442,7 @@ function LearningNow({ entries, loading, onAll }) {
                 <span className="flex items-baseline gap-3">
                   <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-ink group-hover:text-brand">{row.name}</span>
                   <span data-numeric="" className="shrink-0 text-[11.5px] text-ink-3">
-                    {state.required ? `Day ${formatNumber(state.built)} of ${formatNumber(state.required)}` : 'Calls seen, baseline starting'}
+                    {state.required ? `Day ${formatNumber(state.built)} of ${formatNumber(state.required)}` : 'Learning in progress'}
                   </span>
                 </span>
                 {state.pct !== null && <Meter className="mt-1.5" value={state.pct} tone="medium" height={5} label={`${row.name}: ${Math.round(state.pct ?? 0)}% learned`} />}
@@ -518,7 +520,7 @@ function IdentitiesTab({ fleet, searchParams, setParams }) {
     const out = all.filter(
       (row) =>
         (!type || row.sourceType === type) &&
-        (!baselineFilter || learningState(row.baseline, row.lastSeen).key === baselineFilter) &&
+        (!baselineFilter || learningState(row.baseline).key === baselineFilter) &&
         (!search ||
           [row.name, row.identityName, row.workloadKey, row.accountId, row.region].some((value) => String(value ?? '').toLowerCase().includes(search))),
     );
@@ -527,7 +529,7 @@ function IdentitiesTab({ fleet, searchParams, setParams }) {
        (they have calls), then the rest that have called, and identities never
        seen calling last. Within each, the most recent call first. */
     const rank = (row) => {
-      const key = learningState(row.baseline, row.lastSeen).key;
+      const key = learningState(row.baseline).key;
       if (key === 'established') return 0;
       if (key === 'learning') return 1;
       return row.lastSeen ? 2 : 3;
@@ -536,7 +538,7 @@ function IdentitiesTab({ fleet, searchParams, setParams }) {
       baseline: (a, b) => rank(a) - rank(b) || time(b.lastSeen) - time(a.lastSeen),
       risk: (a, b) => (b.risk.score ?? -1) - (a.risk.score ?? -1) || (b.openAnomalies ?? 0) - (a.openAnomalies ?? 0),
       seen: (a, b) => time(b.lastSeen) - time(a.lastSeen),
-      learning: (a, b) => (learningState(b.baseline, b.lastSeen).pct ?? -1) - (learningState(a.baseline, a.lastSeen).pct ?? -1),
+      learning: (a, b) => (learningState(b.baseline).pct ?? -1) - (learningState(a.baseline).pct ?? -1),
       name: () => 0,
     }[sort];
     return out.sort((a, b) => by(a, b) || a.name.localeCompare(b.name));
@@ -557,7 +559,7 @@ function IdentitiesTab({ fleet, searchParams, setParams }) {
         { header: 'Workload type', value: (row) => sourceTypeLabel(row.sourceType, row.nhiType) },
         { header: 'Account', value: (row) => row.accountId ?? '' },
         { header: 'Region', value: (row) => row.region ?? '' },
-        { header: 'Baseline', value: (row) => learningState(row.baseline, row.lastSeen).label },
+        { header: 'Baseline', value: (row) => learningState(row.baseline).label },
         { header: 'Days learned', value: (row) => row.baseline.builtDays ?? '' },
         { header: 'Days required', value: (row) => row.baseline.requiredDays ?? '' },
         { header: 'Risk', value: (row) => row.risk.score ?? '' },
@@ -582,6 +584,7 @@ function IdentitiesTab({ fleet, searchParams, setParams }) {
           </span>
           <span className="block truncate text-[11.5px] text-ink-3">
             {sourceTypeLabel(row.sourceType, row.nhiType)}
+            {roleKindLabel(row.roleKind) ? ` · ${roleKindLabel(row.roleKind)}` : ''}
             {row.status && String(row.status).toLowerCase() !== 'active' ? ` · ${row.status}` : ''}
           </span>
         </span>
@@ -601,7 +604,7 @@ function IdentitiesTab({ fleet, searchParams, setParams }) {
         </span>
       ),
     },
-    { key: 'baseline', header: 'Baseline', width: '20%', cell: (row) => <LearningCell baseline={row.baseline} lastSeen={row.lastSeen} /> },
+    { key: 'baseline', header: 'Baseline', width: '20%', cell: (row) => <LearningCell baseline={row.baseline} /> },
     {
       key: 'risk',
       header: 'Risk',
@@ -766,8 +769,8 @@ function IdentitiesTab({ fleet, searchParams, setParams }) {
 }
 
 /** Established, learning with how far along, or not started. */
-function LearningCell({ baseline, lastSeen }) {
-  const state = learningState(baseline, lastSeen);
+function LearningCell({ baseline }) {
+  const state = learningState(baseline);
   if (state.key === 'established') {
     return (
       <Tag tone="low" size="sm" dot>
@@ -781,7 +784,7 @@ function LearningCell({ baseline, lastSeen }) {
       <span className="flex items-baseline justify-between gap-2 text-[11.5px]">
         <span className="font-medium text-medium">Learning</span>
         <span data-numeric="" className="text-ink-3">
-          {state.required ? `${formatNumber(state.built)}/${formatNumber(state.required)} days` : 'calls seen'}
+          {state.required ? `${formatNumber(state.built)}/${formatNumber(state.required)} days` : 'in progress'}
         </span>
       </span>
       {state.pct !== null && <Meter className="mt-1" value={state.pct} tone="medium" height={5} label={`${Math.round(state.pct ?? 0)}% learned`} />}

@@ -31,6 +31,7 @@ type MonitoredIdentity struct {
 	WorkloadKey    string
 
 	DiscoveryIdentityID string
+	ResourceARN         string
 
 	ClusterARN string
 	TaskGroup  string
@@ -105,6 +106,7 @@ func NormalizeDiscoveryRow(row DiscoveryIdentityRow) (MonitoredIdentity, bool) {
 		AccountID:           strings.TrimSpace(row.AccountID),
 		Region:              strings.TrimSpace(row.Region),
 		DiscoveryIdentityID: strings.TrimSpace(row.ID),
+		ResourceARN:         strings.TrimSpace(row.ARN),
 	}
 
 	if id.AccountID == "" {
@@ -389,6 +391,7 @@ func workloadKeyFor(
 				"eventbridge",
 				accountID,
 				region,
+				"eventbridge_scheduler",
 				name,
 			},
 			":",
@@ -419,6 +422,7 @@ func workloadKeyFor(
 				"codebuild",
 				accountID,
 				region,
+				"codebuild_project",
 				name,
 			},
 			":",
@@ -443,6 +447,7 @@ func workloadKeyFor(
 				"codepipeline",
 				accountID,
 				region,
+				"codepipeline",
 				name,
 			},
 			":",

@@ -35,6 +35,7 @@ import {
   dimensionValueLabel,
   Measured,
   parseAnomaly,
+  roleKindLabel,
   sourceTypeLabel,
   useCursorPager,
 } from './meta';
@@ -198,10 +199,16 @@ function GenomeIdentity({ sourceType, identityName }) {
      summary resolves (the canonical ARN), never on the link's own key: a
      recently baselined entry links by its monitoring key
      (step_functions:<account>:<region>:<name>), which no inventory row carries. */
-  const inventoryName = summary.data?.identity?.identity_name || (summary.isLoading ? null : identityName);
+  /* The summary names the parent inventory record directly (inventory_id,
+     resource_arn): an ECS task role and execution role are two monitored
+     principals of one task record. An older service without those fields
+     falls back to matching the inventory on the resolved ARN. */
+  const inventoryId = summary.data?.identity?.inventory_id || null;
+  const inventoryName = summary.data?.identity?.resource_arn || summary.data?.identity?.identity_name || (summary.isLoading ? null : identityName);
   const discovery = useQuery(
-    (signal) => (inventoryName ? resolveDiscoveryIdentity(inventoryName, signal).catch(() => null) : Promise.resolve(null)),
-    [inventoryName],
+    (signal) =>
+      inventoryId || !inventoryName ? Promise.resolve(null) : resolveDiscoveryIdentity(inventoryName, signal).catch(() => null),
+    [inventoryId, inventoryName],
   );
 
   const openAnomalies = useMemo(
@@ -247,7 +254,7 @@ function GenomeIdentity({ sourceType, identityName }) {
   const record = discovery.data;
   const identity = summary.data?.identity;
   const state = baselineState(summary.data?.baseline ?? null, timeline.items);
-  const discoveryId = record?.id ?? null;
+  const discoveryId = inventoryId ?? record?.id ?? null;
   const title = identity?.display_name || record?.name || arnName(identityName);
 
   const tabs = [
@@ -262,7 +269,7 @@ function GenomeIdentity({ sourceType, identityName }) {
     <div className="flex flex-col gap-6">
       <PageHeader
         title={title}
-        lede={[sourceTypeLabel(sourceType, identityName), identity?.account_id ?? record?.account_id, identity?.region ?? record?.region]
+        lede={[sourceTypeLabel(sourceType, identityName), roleKindLabel(identity?.role_kind), identity?.account_id ?? record?.account_id, identity?.region ?? record?.region]
           .filter(Boolean)
           .join(' · ')}
         actions={
@@ -372,7 +379,7 @@ function GenomeIdentity({ sourceType, identityName }) {
       {tab === 'anomalies' && (
         <IdentityAnomalies
           sourceType={sourceType}
-          keys={[identityName, identity?.identity_name, identity?.workload_key]}
+          keys={[identityName, identity?.identity_name, identity?.workload_key, identity?.principal_arn]}
           displayName={identity?.display_name}
         />
       )}

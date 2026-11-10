@@ -2,6 +2,7 @@ package dashboardsummary
 
 import (
 	"context"
+	"log"
 	"nhi-backend-api/internal/modules/genome/summarycommon"
 	"sort"
 	"strings"
@@ -117,6 +118,17 @@ func (s *DashboardSummaryService) GetSummary(
 			base,
 			credentials,
 		)
+		for _, identity := range normalized {
+			log.Printf(
+				"ECS_BASELINE_KEY_CHECK source_type=%q identity_name=%q workload_key=%q role_kind=%q discovery_id=%q",
+				identity.Key.SourceType,
+				identity.Key.IdentityName,
+				identity.WorkloadKey,
+				identity.RoleKind,
+				identity.DiscoveryIdentityID,
+			)
+		}
+
 		for _, id := range normalized {
 			if p.SourceType != "" &&
 				!strings.EqualFold(

@@ -57,6 +57,12 @@ export function sourceTypeLabel(value, hint) {
   return SOURCE_TYPES[key] ?? titleCaseEnum(value);
 }
 
+/** "task role" / "execution role" for an ECS principal, else nothing. */
+export function roleKindLabel(kind) {
+  const k = String(kind ?? '').toLowerCase();
+  return k === 'task' ? 'task role' : k === 'execution' ? 'execution role' : null;
+}
+
 /** Readable name for a fingerprint / anomaly dimension key. */
 const DIMENSIONS = {
   api_operation: 'API operation',

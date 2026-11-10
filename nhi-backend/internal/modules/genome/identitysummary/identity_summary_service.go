@@ -44,20 +44,39 @@ func (s *IdentitySummaryService) GetIdentity(ctx context.Context, userID, tenant
 	}
 	id, sc := res.Identity, res.Scope
 	keys := id.AllKeys() // identity key, then the workload key when it differs
-
 	out := &IdentitySummaryResponse{
 		Identity: IdentityRecord{
-			SourceType:      id.Key.SourceType,
+			SourceType: id.Key.SourceType,
+
 			NHIIdentityType: id.Subtype,
-			IdentityName:    id.Key.IdentityName,
-			DisplayName:     id.DisplayName,
-			WorkloadKey:     id.WorkloadKey,
-			Status:          id.Status,
-			AccountID:       id.AccountID,
-			Region:          id.Region,
-			ServiceName:     id.ServiceName,
-			RoleType:        id.RoleType,
-			RoleARN:         id.RoleARN,
+
+			IdentityName: id.Key.IdentityName,
+
+			DisplayName: id.DisplayName,
+
+			WorkloadKey: id.WorkloadKey,
+
+			Status: id.Status,
+
+			AccountID: id.AccountID,
+
+			Region: id.Region,
+
+			ServiceName: id.ServiceName,
+
+			ClusterARN: id.ClusterARN,
+
+			PrincipalARN: id.PrincipalARN,
+
+			RoleKind: id.RoleKind,
+
+			RoleType: id.RoleType,
+
+			RoleARN: id.RoleARN,
+
+			InventoryID: id.DiscoveryIdentityID,
+
+			ResourceARN: id.ResourceARN,
 		},
 	}
 
@@ -70,11 +89,37 @@ func (s *IdentitySummaryService) GetIdentity(ctx context.Context, userID, tenant
 	}
 
 	// ---- ClickHouse log_events ------------------------------------------------
-	if calls, err := s.events.TotalCalls(ctx, res.Scope.AccountIDs, id.Key.SourceType, id.EventName(), p.Window.From, p.Window.To); summarycommon.EventsReadOK(ctx, "identity calls in window", err) {
-		out.HeadlineMetrics.CallsInWindow = &calls
+	if s.events != nil {
+		if calls, err := s.events.TotalCalls(
+			ctx,
+			res.Scope.AccountIDs,
+			id.Key.SourceType,
+			id.EventName(),
+			p.Window.From,
+			p.Window.To,
+		); summarycommon.EventsReadOK(
+			ctx,
+			"identity calls in window",
+			err,
+		) {
+			out.HeadlineMetrics.CallsInWindow =
+				&calls
+		}
+
+		if lastSeen, err := s.events.LastSeen(
+			ctx,
+			res.Scope.AccountIDs,
+			id.Key.SourceType,
+			id.EventName(),
+		); summarycommon.EventsReadOK(
+			ctx,
+			"identity last seen",
+			err,
+		) {
+			out.HeadlineMetrics.LastSeen =
+				lastSeen
+		}
 	}
-	if last, err := s.events.LastSeen(ctx, res.Scope.AccountIDs, id.Key.SourceType, id.EventName()); summarycommon.EventsReadOK(ctx, "identity last seen", err) {
-		out.HeadlineMetrics.LastSeen = last
-	}
+
 	return out, nil
 }
