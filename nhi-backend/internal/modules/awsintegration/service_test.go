@@ -114,6 +114,31 @@ func (f *fakeAWSStore) SaveChecks(_ context.Context, _, accountID string, checks
 	return nil
 }
 
+func (f *fakeAWSStore) SaveApprovalAsk(_ context.Context, _, _ string, rec AWSAccountRecord) (*AWSAccountRecord, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if prev, ok := f.accounts[rec.AccountID]; ok {
+		prev.RoleARN, prev.Regions, prev.Checks, prev.LastVerifiedAt = rec.RoleARN, rec.Regions, rec.Checks, rec.LastVerifiedAt
+		f.accounts[rec.AccountID] = prev
+		return &prev, nil
+	}
+	rec.Status = AWSStatusPending
+	f.accounts[rec.AccountID] = rec
+	return &rec, nil
+}
+
+func (f *fakeAWSStore) FinishPendingRequest(_ context.Context, _, accountID, outcome, detail string, checks []AWSCheck) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for id := len(f.requests); id >= 1; id-- {
+		if f.requests[id-1].AccountID == accountID && f.finished[int64(id)].outcome == "pending_approval" {
+			f.finished[int64(id)] = finishedRequest{outcome, detail, checks}
+			return nil
+		}
+	}
+	return nil
+}
+
 func (f *fakeAWSStore) RequestApproval(_ context.Context, req ApprovalRequest) (int64, *AWSAccountRecord, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -196,6 +221,7 @@ func (f *fakeAWSStore) SaveVerification(_ context.Context, _, _ string, rec AWSA
 	queue := passed && (!existed || prev.ConnectedAt == nil)
 	if existed {
 		rec.ConnectedAt = prev.ConnectedAt
+		rec.Approval = prev.Approval // the real UPDATE leaves the approval columns alone
 	}
 	rec.IsConnected = passed
 	switch {
@@ -309,6 +335,8 @@ type fakeVerifier struct {
 	assumeGate  chan struct{} // when set, AssumeRole waits on it
 	diag        awsconnect.Diagnosis
 	diagCalls   int
+	assumeCalls int
+	readCalls   int
 }
 
 func (v *fakeVerifier) DiagnoseAssumeRole(context.Context, awsconnect.Platform, awsconnect.RoleARN) awsconnect.Diagnosis {
@@ -319,6 +347,9 @@ func (v *fakeVerifier) DiagnoseAssumeRole(context.Context, awsconnect.Platform, 
 }
 
 func (v *fakeVerifier) AssumeRole(ctx context.Context, _ awsconnect.Platform, _ awsconnect.RoleARN, _ string) (*awsconnect.Session, error) {
+	v.mu.Lock()
+	v.assumeCalls++
+	v.mu.Unlock()
 	if v.assumeGate != nil {
 		select {
 		case <-v.assumeGate:
@@ -331,7 +362,12 @@ func (v *fakeVerifier) AssumeRole(ctx context.Context, _ awsconnect.Platform, _ 
 	}
 	return &awsconnect.Session{}, nil
 }
-func (v *fakeVerifier) TestRead(context.Context, *awsconnect.Session) error { return v.readErr }
+func (v *fakeVerifier) TestRead(context.Context, *awsconnect.Session) error {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.readCalls++
+	return v.readErr
+}
 func (v *fakeVerifier) AllowAccountOnBus(context.Context, awsconnect.Platform, string) error {
 	v.mu.Lock()
 	defer v.mu.Unlock()
@@ -430,7 +466,7 @@ func settle(t *testing.T, svc *AWSIntegrationService, store *fakeAWSStore, accou
 	t.Helper()
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		if !svc.watching(awsTestTenant, accountID) {
+		if !svc.watching(awsTestTenant, accountID) && !svc.checksRunning(awsTestTenant, accountID) {
 			return store.account(accountID)
 		}
 		time.Sleep(10 * time.Millisecond)
@@ -502,11 +538,12 @@ func mailArrives(t *testing.T, m *fakeMailer, store *fakeAWSStore) {
 
 // ── verify ───────────────────────────────────────────────────────────────
 
-// The order is role, read access, approval, then events. A first connection
-// whose role can read the account is put in front of the platform admins at
-// once: it is not connected, nothing is let onto the bus, no events are watched
-// and no sync is queued until an admin approves; the approvers are e-mailed.
-func TestVerifyFirstConnectionAsksForApprovalBeforeEvents(t *testing.T) {
+// The order is approval, then role, read access and events. A first
+// connection is put in front of the platform admins the moment it is asked
+// for: nothing is read from the customer's AWS account, nothing is let onto the
+// bus, no events are watched and no sync is queued until an admin approves; the
+// approvers are e-mailed once.
+func TestVerifyAsksForApprovalFirstAndChecksNothing(t *testing.T) {
 	store := newFakeAWSStore()
 	v := &fakeVerifier{}
 	svc := newTestService(store, v, nil, fakeEvents{found: true})
@@ -516,23 +553,28 @@ func TestVerifyFirstConnectionAsksForApprovalBeforeEvents(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Watching || res.Status != AWSStatusPendingApproval || !res.Saved || states(res.Checks) != "pass,pass,skipped" {
+	if res.Watching || res.Status != AWSStatusPendingApproval || !res.Saved || states(res.Checks) != "skipped,skipped,skipped" {
 		t.Fatalf("verify returned %+v", res)
 	}
-	if !strings.Contains(res.Checks[2].Message, "after adapID approves") {
-		t.Fatalf("the events check does not say why it waits: %q", res.Checks[2].Message)
+	for _, c := range res.Checks {
+		if !strings.Contains(c.Message, "Runs after") {
+			t.Fatalf("a waiting check does not say when it runs: %+v", c)
+		}
 	}
 	if got := strings.Join(res.Regions, ","); got != "us-east-1,ap-south-1" {
 		t.Fatalf("regions in catalogue order: %s", got)
 	}
-	if v.busCalls != 0 || svc.watching(awsTestTenant, "222222222222") {
-		t.Fatalf("the account was let onto the bus (%d calls) or watched before approval", v.busCalls)
+	if v.assumeCalls != 0 || v.readCalls != 0 || v.busCalls != 0 || svc.watching(awsTestTenant, "222222222222") {
+		t.Fatalf("AWS was used before approval: assume=%d read=%d bus=%d", v.assumeCalls, v.readCalls, v.busCalls)
 	}
 	rec := store.account("222222222222")
 	if rec.Status != AWSStatusPendingApproval || rec.IsConnected || rec.Approval.Status != ApprovalPending || rec.SyncStatus == AWSSyncQueued || len(store.approvals) != 1 {
 		t.Fatalf("after the request: %+v (%d requests)", rec, len(store.approvals))
 	}
-	mailArrives(t, mail, store)
+	waitFor(t, "the approval e-mail", func() bool { return len(mail.subjects()) == 1 && store.reqMailOf(1) == "sent" })
+	if got := mail.subjects()[0]; !strings.HasPrefix(got, "Approval needed: AWS account 222222222222") {
+		t.Fatalf("subject = %q", got)
+	}
 	if store.emails[1] != "sent" {
 		t.Fatalf("e-mail outcome: %v", store.emails)
 	}
@@ -541,19 +583,16 @@ func TestVerifyFirstConnectionAsksForApprovalBeforeEvents(t *testing.T) {
 	if res, err = svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"}); err != nil || res.Status != AWSStatusPendingApproval {
 		t.Fatalf("second verify: %+v %v", res, err)
 	}
-	// The second click is stored too, but within a minute it is not e-mailed.
 	time.Sleep(100 * time.Millisecond)
-	mail.mu.Lock()
-	sent := len(mail.sent)
-	mail.mu.Unlock()
-	if len(store.approvals) != 1 || sent != 2 {
-		t.Fatalf("asked again: %d requests, %d e-mails (want the click's and the approval's only)", len(store.approvals), sent)
+	if len(store.approvals) != 1 || len(mail.subjects()) != 1 || v.assumeCalls != 0 {
+		t.Fatalf("asked again: %d requests, %d e-mails, %d AWS calls (want one request and one e-mail)", len(store.approvals), len(mail.subjects()), v.assumeCalls)
 	}
 }
 
-// Once an admin approves, the next read of the account lets it onto the bus
-// and starts the events check; the first event connects it and queues its sync.
-func TestApprovalStartsTheEventsCheckThenConnects(t *testing.T) {
+// Once an admin approves, the next read of the account runs its role, read
+// access and events checks by themselves; the first event connects it and
+// queues its sync. Nobody has to click Verify again.
+func TestApprovalRunsTheChecksThenConnects(t *testing.T) {
 	store := newFakeAWSStore()
 	v := &fakeVerifier{}
 	svc := newTestService(store, v, nil, fakeEvents{found: true})
@@ -565,8 +604,8 @@ func TestApprovalStartsTheEventsCheckThenConnects(t *testing.T) {
 	if _, err := svc.Get(context.Background(), awsTestCaller, true); err != nil {
 		t.Fatal(err)
 	}
-	if v.busCalls != 0 || svc.watching(awsTestTenant, "222222222222") {
-		t.Fatal("read before approval started the events check")
+	if v.assumeCalls != 0 || v.busCalls != 0 || svc.watching(awsTestTenant, "222222222222") || svc.checksRunning(awsTestTenant, "222222222222") {
+		t.Fatal("a read before approval started the checks")
 	}
 
 	store.approve("222222222222")
@@ -574,22 +613,63 @@ func TestApprovalStartsTheEventsCheckThenConnects(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if v.busCalls != 1 {
-		t.Fatalf("bus allowed %d times, want 1", v.busCalls)
-	}
-	if got := states(out.Accounts[0].Checks); got != "pass,pass,running" {
+	if got := states(out.Accounts[0].Checks); got != "running,skipped,skipped" {
 		t.Fatalf("right after the approval the page sees %s", got)
 	}
-	// Reading again meanwhile must not start a second watch.
+	// Reading again meanwhile must not start a second run.
 	if _, err := svc.Get(context.Background(), awsTestCaller, true); err != nil {
 		t.Fatal(err)
 	}
 	rec := settle(t, svc, store, "222222222222")
-	if v.busCalls != 1 {
-		t.Fatalf("a second read started another check: %d bus calls", v.busCalls)
+	if v.assumeCalls != 1 || v.busCalls != 1 {
+		t.Fatalf("a second read started another run: %d assume, %d bus calls", v.assumeCalls, v.busCalls)
 	}
 	if rec.Status != AWSStatusConnected || !rec.IsConnected || rec.SyncStatus != AWSSyncQueued || states(rec.Checks) != "pass,pass,pass" {
 		t.Fatalf("after the first event: %+v", rec)
+	}
+	// The click that asked is resolved with how the checks ended.
+	waitFor(t, "the click's outcome", func() bool { _, _, fin, _ := store.request(1); return fin.outcome != "pending_approval" })
+	if _, _, fin, _ := store.request(1); fin.outcome != "watching_events" && fin.outcome != "connected" {
+		t.Fatalf("outcome after approval = %+v", fin)
+	}
+}
+
+// After approval a failing role check is shown on the page and left alone; the
+// customer fixes the role and clicks Verify, which checks at once (the approval
+// stands) without asking again.
+func TestApprovedAccountWithAFailingRoleIsCheckedAgainOnVerify(t *testing.T) {
+	store := newFakeAWSStore()
+	denied := &fakeVerifier{assumeErr: awsconnect.ErrAccessDenied}
+	svc := newTestService(store, denied, nil, fakeEvents{found: true})
+	svc.mailer = &fakeMailer{}
+	if _, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"}); err != nil {
+		t.Fatal(err)
+	}
+	store.approve("222222222222")
+	if _, err := svc.Get(context.Background(), awsTestCaller, true); err != nil {
+		t.Fatal(err)
+	}
+	rec := settle(t, svc, store, "222222222222")
+	if states(rec.Checks) != "fail,skipped,skipped" || rec.IsConnected {
+		t.Fatalf("after approval with a refused role: %+v", rec.Checks)
+	}
+	waitFor(t, "the click's outcome", func() bool { _, _, fin, _ := store.request(1); return fin.outcome == "failed" })
+	// Later reads leave the failure alone.
+	if _, err := svc.Get(context.Background(), awsTestCaller, true); err != nil {
+		t.Fatal(err)
+	}
+	if denied.assumeCalls != 1 {
+		t.Fatalf("a read re-ran the failed check: %d assume calls", denied.assumeCalls)
+	}
+	// The customer fixes the role and verifies again: checked now, no second approval.
+	fixed := &fakeVerifier{}
+	svc2 := newTestService(store, fixed, nil, fakeEvents{found: true})
+	res, err := svc2.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"})
+	if err != nil || !res.Watching || fixed.assumeCalls != 1 || len(store.approvals) != 1 {
+		t.Fatalf("verify after the fix: %+v %v (assume=%d, approvals=%d)", res, err, fixed.assumeCalls, len(store.approvals))
+	}
+	if rec := settle(t, svc2, store, "222222222222"); rec.Status != AWSStatusConnected {
+		t.Fatalf("got %s", rec.Status)
 	}
 }
 
@@ -647,11 +727,11 @@ func TestBusErrorOnAnApprovedAccount(t *testing.T) {
 	}
 	store.approve("222222222222")
 	svc.verifier = &fakeVerifier{busErr: errors.New("throttled")}
-	out, err := svc.Get(context.Background(), awsTestCaller, true)
-	if err != nil {
+	if _, err := svc.Get(context.Background(), awsTestCaller, true); err != nil {
 		t.Fatal(err)
 	}
-	if got := states(out.Accounts[0].Checks); got != "pass,pass,error" || svc.watching(awsTestTenant, "222222222222") {
+	rec := settle(t, svc, store, "222222222222")
+	if got := states(rec.Checks); got != "pass,pass,error" || svc.watching(awsTestTenant, "222222222222") {
 		t.Fatalf("approval pickup with a failing bus: %s", got)
 	}
 }
@@ -730,6 +810,7 @@ func TestEventsCheckRegions(t *testing.T) {
 // Our own credentials refused: an error on our side, never a fix for them.
 func TestPlatformCredentialErrorsAreOurs(t *testing.T) {
 	store := newFakeAWSStore()
+	approvedAccount(store)
 	res, err := newTestService(store, &fakeVerifier{assumeErr: awsconnect.ErrPlatformCredentials}, nil, fakeEvents{found: true}).
 		Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"})
 	if err != nil {
@@ -752,39 +833,47 @@ func TestPlatformCredentialErrorsAreOurs(t *testing.T) {
 
 func TestVerifyOutcomes(t *testing.T) {
 	cases := []struct {
-		name   string
-		v      *fakeVerifier
-		events fakeEvents
-		want   string
-		saved  bool
-		fix    string
+		name     string
+		approved bool
+		v        *fakeVerifier
+		events   fakeEvents
+		want     string
+		status   string
+		fix      string
 	}{
-		{"assume denied", &fakeVerifier{assumeErr: awsconnect.ErrAccessDenied}, fakeEvents{found: true}, "fail,skipped,skipped", false, "Check the trust policy names our role and your External ID exactly"},
-		{"assume unavailable", &fakeVerifier{assumeErr: errors.New("dial")}, fakeEvents{found: true}, "error,skipped,skipped", false, ""},
-		{"no read", &fakeVerifier{readErr: awsconnect.ErrAccessDenied}, fakeEvents{found: true}, "pass,fail,skipped", true, "Attach SecurityAudit and ViewOnlyAccess to NHIPlatformCollector"},
-		{"approval first", &fakeVerifier{}, fakeEvents{found: true}, "pass,pass,skipped", true, ""},
+		{"not approved yet: asks first, checks nothing", false, &fakeVerifier{}, fakeEvents{found: true}, "skipped,skipped,skipped", AWSStatusPendingApproval, ""},
+		{"assume denied", true, &fakeVerifier{assumeErr: awsconnect.ErrAccessDenied}, fakeEvents{found: true}, "fail,skipped,skipped", AWSStatusPending, "Check the trust policy names our role and your External ID exactly"},
+		{"assume unavailable", true, &fakeVerifier{assumeErr: errors.New("dial")}, fakeEvents{found: true}, "error,skipped,skipped", AWSStatusPending, ""},
+		{"no read", true, &fakeVerifier{readErr: awsconnect.ErrAccessDenied}, fakeEvents{found: true}, "pass,fail,skipped", AWSStatusPending, "Attach SecurityAudit and ViewOnlyAccess to NHIPlatformCollector"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			store := newFakeAWSStore()
+			if tc.approved {
+				approvedAccount(store)
+				store.accounts["222222222222"] = withChecks(store.accounts["222222222222"], waitingChecks())
+			}
 			res, err := newTestService(store, tc.v, nil, tc.events).Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"})
 			if err != nil {
 				t.Fatal(err)
 			}
-			if states(res.Checks) != tc.want || res.Saved != tc.saved || res.Status == AWSStatusConnected {
+			if states(res.Checks) != tc.want || !res.Saved || res.Status != tc.status || res.Status == AWSStatusConnected {
 				t.Fatalf("got %s saved=%v status=%s", states(res.Checks), res.Saved, res.Status)
-			}
-			if tc.saved && res.Status != AWSStatusPending && res.Status != AWSStatusPendingApproval {
-				t.Fatalf("never connected should be pending, got %s", res.Status)
 			}
 			if tc.fix != "" && !strings.Contains(fmtChecks(res.Checks), tc.fix) {
 				t.Fatalf("missing fix %q in %+v", tc.fix, res.Checks)
 			}
-			if !tc.saved && len(store.accounts) != 0 {
-				t.Fatal("saved an account whose role could not be assumed")
+			// What the checks found is on the account, for the page to show.
+			if got := states(store.account("222222222222").Checks); got != tc.want {
+				t.Fatalf("saved checks %s, want %s", got, tc.want)
 			}
 		})
 	}
+}
+
+func withChecks(rec AWSAccountRecord, checks []AWSCheck) AWSAccountRecord {
+	rec.Checks = checks
+	return rec
 }
 
 func fmtChecks(c []AWSCheck) string {
@@ -822,6 +911,9 @@ func TestVerifyRejectsBadInput(t *testing.T) {
 	if _, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"eu-west-1"}); !errors.As(err, &regErr) {
 		t.Fatalf("region outside collector_regions: %v", err)
 	}
+	// An approved account that proves its role but is held by another workspace
+	// is refused (the ownership check runs after the role check).
+	approvedAccount(store)
 	store.claimed = true
 	store.settings.Regions = nil
 	if _, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"}); !errors.Is(err, ErrAWSAccountClaimed) {
@@ -843,6 +935,7 @@ func TestVerifyNeedsTenantValuesAndAWS(t *testing.T) {
 func TestOneCheckPerTenantAtATime(t *testing.T) {
 	gate := make(chan struct{})
 	store := newFakeAWSStore()
+	approvedAccount(store)
 	svc := newTestService(store, &fakeVerifier{assumeGate: gate}, nil, fakeEvents{found: true})
 	done := make(chan struct{})
 	go func() {
@@ -1055,6 +1148,12 @@ func (m *fakeMailer) subjects() []string {
 	return append([]string(nil), m.sent...)
 }
 
+func (f *fakeAWSStore) reqMailOf(id int64) string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.reqMail[id]
+}
+
 func (f *fakeAWSStore) request(id int64) (ConnectionRequest, string, finishedRequest, bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -1064,20 +1163,50 @@ func (f *fakeAWSStore) request(id int64) (ConnectionRequest, string, finishedReq
 	return f.requests[id-1], f.reqMail[id], f.finished[id], true
 }
 
-// The admins are told, and the click is stored, BEFORE the first check: with
-// AssumeRole held back, the e-mail has already gone out.
-func TestVerifyClickIsStoredAndMailedBeforeTheFirstCheck(t *testing.T) {
+// A first click asks for approval at once and checks nothing: the admins get the
+// "Approval needed" e-mail with the click stored; AssumeRole is never called.
+func TestFirstClickIsStoredAndAsksForApprovalBeforeAnyCheck(t *testing.T) {
 	store := newFakeAWSStore()
+	v := &fakeVerifier{}
+	svc := newTestService(store, v, nil, fakeEvents{found: true})
+	mail := &fakeMailer{}
+	svc.mailer = mail
+	if _, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"ap-south-1", "us-east-1"}); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "the e-mail and its status on the click", func() bool { return len(mail.subjects()) == 1 && store.reqMailOf(1) == "sent" })
+	if got := mail.subjects()[0]; !strings.HasPrefix(got, "Approval needed: AWS account 222222222222 for acme.com") {
+		t.Fatalf("subject = %q", got)
+	}
+	req, _, fin, ok := store.request(1)
+	if !ok || req.AccountID != "222222222222" || req.RoleARN != awsTestRoleARN || req.RequestedBy != "alice@acme.test" ||
+		req.TenantID != awsTestTenant || req.Schema != "tenant_a" || req.Domain != "acme.com" || strings.Join(req.Regions, ",") != "us-east-1,ap-south-1" {
+		t.Fatalf("stored request = %+v", req)
+	}
+	if fin.outcome != "pending_approval" || states(fin.checks) != "skipped,skipped,skipped" {
+		t.Fatalf("finished request = %+v", fin)
+	}
+	if v.assumeCalls != 0 {
+		t.Fatal("a check ran before approval")
+	}
+}
+
+// An account approved earlier that is verified again: the admins are told the
+// check starts (before AssumeRole, which is held back), and it runs now.
+func TestClickOnAnApprovedAccountIsMailedBeforeTheFirstCheck(t *testing.T) {
+	store := newFakeAWSStore()
+	approvedAccount(store)
+	store.accounts["222222222222"] = withChecks(store.accounts["222222222222"], waitingChecks())
 	gate := make(chan struct{})
 	svc := newTestService(store, &fakeVerifier{assumeGate: gate}, nil, fakeEvents{found: true})
 	mail := &fakeMailer{}
 	svc.mailer = mail
 	done := make(chan error, 1)
 	go func() {
-		_, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"ap-south-1", "us-east-1"})
+		_, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"})
 		done <- err
 	}()
-	waitFor(t, "the e-mail while no check has run", func() bool { return len(mail.subjects()) == 1 })
+	waitFor(t, "the e-mail while no check has finished", func() bool { return len(mail.subjects()) == 1 })
 	select {
 	case <-done:
 		t.Fatal("verify finished although AssumeRole was held back")
@@ -1086,25 +1215,30 @@ func TestVerifyClickIsStoredAndMailedBeforeTheFirstCheck(t *testing.T) {
 	if got := mail.subjects()[0]; !strings.HasPrefix(got, "AWS connection check started: account 222222222222") {
 		t.Fatalf("subject = %q", got)
 	}
-	req, _, _, ok := store.request(1)
-	if !ok || req.AccountID != "222222222222" || req.RoleARN != awsTestRoleARN || req.RequestedBy != "alice@acme.test" ||
-		req.TenantID != awsTestTenant || req.Schema != "tenant_a" || req.Domain != "acme.com" || strings.Join(req.Regions, ",") != "us-east-1,ap-south-1" {
-		t.Fatalf("stored request = %+v", req)
-	}
 	close(gate)
 	if err := <-done; err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, "the e-mail outcome", func() bool { _, m, _, _ := store.request(1); return m == "sent" })
-	_, _, fin, _ := store.request(1)
-	if fin.outcome != "pending_approval" || states(fin.checks) != "pass,pass,skipped" {
+	waitFor(t, "the e-mail outcome", func() bool { return store.reqMailOf(1) == "sent" })
+	if _, _, fin, _ := store.request(1); fin.outcome != "watching_events" {
 		t.Fatalf("finished request = %+v", fin)
+	}
+	// Clicked again within a minute: stored, not e-mailed twice.
+	time.Sleep(50 * time.Millisecond)
+	if _, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"}); err != nil && !errors.Is(err, ErrAWSVerifyInProgress) {
+		t.Fatal(err)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if len(mail.subjects()) != 1 {
+		t.Fatalf("e-mails after a second click: %v", mail.subjects())
 	}
 }
 
 // A click whose role check fails still told the admins, and says why it failed.
 func TestVerifyThatFailsItsRoleCheckStillNotifiesAndRecordsWhy(t *testing.T) {
 	store := newFakeAWSStore()
+	approvedAccount(store)
+	store.accounts["222222222222"] = withChecks(store.accounts["222222222222"], waitingChecks())
 	svc := newTestService(store, &fakeVerifier{assumeErr: awsconnect.ErrAccessDenied}, nil, nil)
 	mail := &fakeMailer{}
 	svc.mailer = mail
@@ -1123,15 +1257,18 @@ func TestVerifyThatFailsItsRoleCheckStillNotifiesAndRecordsWhy(t *testing.T) {
 }
 
 // Nothing configured to send mail with: the click is stored, the reason is
-// recorded, and verify carries on.
-func TestVerifyClickWithoutMailIsStillStored(t *testing.T) {
+// recorded on it, and the request for approval still exists for the tool.
+func TestFirstClickWithoutMailIsStillStoredAndAsked(t *testing.T) {
 	store := newFakeAWSStore()
-	svc := newTestService(store, &fakeVerifier{assumeErr: awsconnect.ErrAccessDenied}, nil, nil)
+	svc := newTestService(store, &fakeVerifier{}, nil, nil)
 	svc.mailer = nil
 	if _, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"}); err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, "the e-mail outcome", func() bool { _, m, _, _ := store.request(1); return m == "not_configured" })
+	waitFor(t, "the e-mail outcome", func() bool { return store.reqMailOf(1) == "not_configured" })
+	if len(store.approvals) != 1 {
+		t.Fatalf("approval requests = %d", len(store.approvals))
+	}
 }
 
 func TestRequestEmailStatesWhatWasAsked(t *testing.T) {
@@ -1177,6 +1314,8 @@ func TestDeniedAssumeRoleIsExplainedByCheckingOurSide(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			store := newFakeAWSStore()
+			approvedAccount(store)
+			store.accounts["222222222222"] = withChecks(store.accounts["222222222222"], waitingChecks())
 			v := &fakeVerifier{assumeErr: fmt.Errorf("%w: AccessDenied: User: x is not authorized", awsconnect.ErrAccessDenied), diag: tc.diag}
 			svc := newTestService(store, v, nil, nil)
 			res, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"})
@@ -1206,7 +1345,9 @@ func TestDeniedAssumeRoleIsExplainedByCheckingOurSide(t *testing.T) {
 // Only a refusal is diagnosed: a role that works costs no extra AWS calls.
 func TestWorkingRoleIsNotDiagnosed(t *testing.T) {
 	v := &fakeVerifier{}
-	svc := newTestService(newFakeAWSStore(), v, nil, fakeEvents{found: true})
+	store := newFakeAWSStore()
+	approvedAccount(store)
+	svc := newTestService(store, v, nil, fakeEvents{found: true})
 	if _, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"}); err != nil {
 		t.Fatal(err)
 	}
@@ -1217,8 +1358,11 @@ func TestWorkingRoleIsNotDiagnosed(t *testing.T) {
 
 // Customers may name the role anything: the read-access fix names theirs.
 func TestReadAccessFixNamesTheCustomersOwnRole(t *testing.T) {
+	store := newFakeAWSStore()
+	approvedAccount(store)
+	store.accounts["222222222222"] = withChecks(store.accounts["222222222222"], waitingChecks())
 	v := &fakeVerifier{readErr: awsconnect.ErrAccessDenied}
-	svc := newTestService(newFakeAWSStore(), v, nil, nil)
+	svc := newTestService(store, v, nil, nil)
 	res, err := svc.Verify(context.Background(), awsTestCaller, "arn:aws:iam::222222222222:role/path/AcmeReadOnlyForAdapID", []string{"us-east-1"})
 	if err != nil {
 		t.Fatal(err)
@@ -1241,7 +1385,7 @@ func TestWaitingAccountWithoutARequestIsAskedAgain(t *testing.T) {
 			if _, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"}); err != nil {
 				t.Fatal(err)
 			}
-			waitFor(t, "the first approval e-mail", func() bool { return len(mail.subjects()) == 2 })
+			waitFor(t, "the first approval e-mail", func() bool { return len(mail.subjects()) == 1 })
 			// The request disappears from the approvals table; the account still waits.
 			store.mu.Lock()
 			store.lostApprovals = true
@@ -1260,7 +1404,7 @@ func TestWaitingAccountWithoutARequestIsAskedAgain(t *testing.T) {
 				t.Fatalf("approval requests = %d, want the lost one asked again", asked)
 			}
 			waitFor(t, "the approval e-mail for the new request", func() bool {
-				for _, s := range mail.subjects()[2:] {
+				for _, s := range mail.subjects()[1:] {
 					if strings.HasPrefix(s, "Approval needed") {
 						return true
 					}
@@ -1280,14 +1424,14 @@ func TestWaitingAccountWithItsRequestIsLeftAlone(t *testing.T) {
 	if _, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"}); err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, "the e-mails", func() bool { return len(mail.subjects()) == 2 })
+	waitFor(t, "the e-mails", func() bool { return len(mail.subjects()) == 1 })
 	for i := 0; i < 3; i++ {
 		if _, err := svc.Get(context.Background(), awsTestCaller, true); err != nil {
 			t.Fatal(err)
 		}
 	}
 	time.Sleep(100 * time.Millisecond)
-	if len(store.approvals) != 1 || len(mail.subjects()) != 2 {
+	if len(store.approvals) != 1 || len(mail.subjects()) != 1 {
 		t.Fatalf("page reads changed something: %d requests, %d e-mails", len(store.approvals), len(mail.subjects()))
 	}
 }
@@ -1299,4 +1443,27 @@ func TestApprovalEmailSaysWhereTheRequestIs(t *testing.T) {
 			t.Fatalf("e-mail lacks the request and where it is:\n%s", body)
 		}
 	}
+}
+
+// Approved, but another workspace holds the account: the role check ends as a
+// refusal on the page (not "running" for ever), and the click records "refused".
+func TestApprovedAccountHeldByAnotherWorkspaceIsRefusedAfterApproval(t *testing.T) {
+	store := newFakeAWSStore()
+	svc := newTestService(store, &fakeVerifier{}, nil, fakeEvents{found: true})
+	svc.mailer = &fakeMailer{}
+	if _, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"}); err != nil {
+		t.Fatal(err)
+	}
+	store.mu.Lock()
+	store.claimed = true // another workspace proved control of it meanwhile
+	store.mu.Unlock()
+	store.approve("222222222222")
+	if _, err := svc.Get(context.Background(), awsTestCaller, true); err != nil {
+		t.Fatal(err)
+	}
+	rec := settle(t, svc, store, "222222222222")
+	if rec.Checks[0].State != AWSCheckFail || !strings.Contains(rec.Checks[0].Message, "another workspace") || rec.IsConnected {
+		t.Fatalf("checks after the refusal: %+v", rec.Checks)
+	}
+	waitFor(t, "the click's outcome", func() bool { _, _, fin, _ := store.request(1); return fin.outcome == "refused" })
 }

@@ -11,9 +11,6 @@
 #   API_UPSTREAM          the NHI backend, e.g. http://nhi-api:8080
 #   DNS_RESOLVER          127.0.0.11 under Docker, the cluster DNS on K8s
 #   DISCOVERY_UPSTREAM    the discovery scan service behind the Sync button
-#   DISCOVERY_API_KEY     optional X-API-Key sent to it (empty = none)
-# (Written without the dollar-brace form on purpose: envsubst would also
-# replace it inside this comment, and a key must never be echoed into the file.)
 #
 # One backend serves every API: discovery under /api/v1, posture under
 # /api/v1/ispm and genome under /api/v1/genome. The browser's bearer token is
@@ -96,8 +93,8 @@ server {
     # ── 1b. Discovery scanner (scan start / status) ───────────────────
     # The console calls the scanner's own scan API; it goes through here so the
     # browser stays same-origin (no CORS) and no host name is built into the
-    # bundle. The user's bearer token is forwarded as it came; DISCOVERY_API_KEY,
-    # when set, is added as X-API-Key for a scanner that wants one.
+    # bundle. The scanner is authenticated by the user's bearer token alone,
+    # forwarded as it came: no API key is configured or sent.
     location ^~ /scan-api/ {
         set $scan_upstream "${DISCOVERY_UPSTREAM}";
         rewrite ^/scan-api/(.*)$ /$1 break;
@@ -112,7 +109,9 @@ server {
         proxy_set_header Connection "";
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-API-Key "${DISCOVERY_API_KEY}";
+        # No API key: the bearer token is the credential. A key a browser sends
+        # itself is not passed on either (an empty value drops the header).
+        proxy_set_header X-API-Key "";
         # The scanner's own copies of these are replaced by ours below, and
         # nothing about the scanner's software is passed on.
         proxy_hide_header Strict-Transport-Security;

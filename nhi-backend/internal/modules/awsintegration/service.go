@@ -73,6 +73,8 @@ type AWSIntegrationStore interface {
 	CancelSync(ctx context.Context, schema, accountID string) (*AWSAccountRecord, error)
 	DeleteAccount(ctx context.Context, tenantID, schema, accountID string) (map[string]int64, error)
 	SaveCheckStart(ctx context.Context, tenantID, schema string, rec AWSAccountRecord) (*AWSAccountRecord, error)
+	SaveApprovalAsk(ctx context.Context, tenantID, schema string, rec AWSAccountRecord) (*AWSAccountRecord, error)
+	FinishPendingRequest(ctx context.Context, tenantID, accountID, outcome, detail string, checks []AWSCheck) error
 	SaveChecks(ctx context.Context, schema, accountID string, checks []AWSCheck) error
 	RequestApproval(ctx context.Context, req ApprovalRequest) (int64, *AWSAccountRecord, error)
 	SetApprovalEmail(ctx context.Context, id int64, status, errText string) error
@@ -266,6 +268,11 @@ func (s *AWSIntegrationService) Get(ctx context.Context, caller AWSCaller, canMa
 		// process stopped with it (a restart, a deploy): say so, rather than
 		// show a check that will never finish.
 		for i := range rec.Checks {
+			stale := rec.Checks[i].State == AWSCheckRunning && !s.watching(caller.TenantID, rec.AccountID) && !s.checksRunning(caller.TenantID, rec.AccountID)
+			if rec.Checks[i].Key != AWSCheckEvents && rec.Checks[i].State == AWSCheckRunning && stale {
+				rec.Checks[i].State = AWSCheckError
+				rec.Checks[i].Message = "The check stopped before it finished (the service restarted). Check again to resume it."
+			}
 			if rec.Checks[i].Key == AWSCheckEvents && rec.Checks[i].State == AWSCheckRunning && !s.watching(caller.TenantID, rec.AccountID) {
 				rec.Checks[i].State = AWSCheckError
 				rec.Checks[i].Message = "The events check stopped before it finished (the service restarted). Check again to resume it."
@@ -399,12 +406,40 @@ func (s *AWSIntegrationService) verify(ctx context.Context, caller AWSCaller, ra
 	}
 	defer done()
 
-	// The click is stored and the platform admins are told now, before any
-	// check runs, so a request is known even when its checks fail. The e-mail
-	// goes out in the background; nothing below waits for it.
-	requestID := s.recordRequest(ctx, caller, settings, role.AccountID, role.ARN, regions)
+	// The click is stored first, whatever follows, so a request is known even
+	// when it is refused or its checks fail.
+	requestID, recentlyMailed := s.recordRequest(ctx, caller, settings, role.AccountID, role.ARN, regions)
 	defer func() { s.finishRequest(ctx, requestID, out, retErr) }()
 
+	rec := AWSAccountRecord{
+		AccountID:      role.AccountID,
+		RoleARN:        role.ARN,
+		Regions:        regions,
+		ExternalID:     settings.ExternalID,
+		Status:         AWSStatusPending,
+		LastVerifiedAt: s.now().UTC(),
+		LastVerifiedBy: caller.Actor,
+	}
+	existing, err := s.store.GetAccount(ctx, caller.Schema, role.AccountID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Approval comes first. A new account (or one an admin rejected, or whose
+	// request is still open) asks for approval at once, before any check runs:
+	// nothing is read from the customer's AWS account until adapID has agreed.
+	// The role, read and events checks then run by themselves once an admin
+	// approves (resumeApproved). An account approved earlier is checked now.
+	if !isApproved(existing) {
+		return s.askApprovalFirst(ctx, caller, settings, rec, requestID, existing)
+	}
+	s.mailCheckStarted(ctx, caller, settings, role.AccountID, role.ARN, regions, requestID, recentlyMailed)
+	return s.runChecks(ctx, caller, p, settings, role, regions, rec)
+}
+
+// runChecks runs the role, read access and events checks of an approved account
+// and saves what they found. The caller has the approval; nothing here asks.
+func (s *AWSIntegrationService) runChecks(ctx context.Context, caller AWSCaller, p awsconnect.Platform, settings *AWSTenantSettings, role awsconnect.RoleARN, regions []string, rec AWSAccountRecord) (*AWSVerifyResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, awsVerifyBudget)
 	defer cancel()
 
@@ -435,7 +470,7 @@ func (s *AWSIntegrationService) verify(ctx context.Context, caller AWSCaller, ra
 		}
 		skip(&checks[1])
 		skip(&checks[2])
-		return result, nil
+		return s.saveFailedChecks(ctx, caller, rec, result)
 	}
 	pass(&checks[0], "Signed in to your account with your External ID.")
 
@@ -465,28 +500,16 @@ func (s *AWSIntegrationService) verify(ctx context.Context, caller AWSCaller, ra
 		unavailable(&checks[1])
 	}
 
-	// 3. Approval, then 4. events. A first connection is asked for approval as
-	// soon as the role can read the account; the account is let onto the bus
-	// and watched for its first event only once approved (resumeApproved), or
-	// at once when it is approved already. EventBridge retries refused
-	// deliveries, so events sent before the approval still arrive.
-	rec := AWSAccountRecord{
-		AccountID:      role.AccountID,
-		RoleARN:        role.ARN,
-		Regions:        regions,
-		ExternalID:     settings.ExternalID,
-		Status:         AWSStatusPending,
-		LastVerifiedAt: result.VerifiedAt,
-		LastVerifiedBy: caller.Actor,
-	}
+	// 3. Events: the account is let onto the bus and watched for its first
+	// event. EventBridge retries refused deliveries, so events sent before the
+	// approval still arrive.
 	saveCtx, saveCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	defer saveCancel()
 	if checks[1].State != AWSCheckPass {
-		// No point asking for approval or watching for events while the role
-		// cannot read the account.
+		// No point watching for events while the role cannot read the account.
 		checks[2].State, checks[2].Message, checks[2].Fix = AWSCheckSkipped, "Runs once the checks above pass.", ""
 	} else {
-		waitingForApproval(&checks[2])
+		checks[2].State, checks[2].Message, checks[2].Fix = AWSCheckSkipped, "Starting.", ""
 		rec.Checks = checks
 		saved, err := s.store.SaveCheckStart(saveCtx, caller.TenantID, caller.Schema, rec)
 		if errors.Is(err, ErrAWSAccountClaimedByTenant) {
@@ -495,10 +518,6 @@ func (s *AWSIntegrationService) verify(ctx context.Context, caller AWSCaller, ra
 		if err != nil {
 			return nil, err
 		}
-		if !isApproved(saved) {
-			return s.askApproval(ctx, caller, settings, rec, saved, result)
-		}
-		// Approved already: the events check starts now.
 		check, started := s.startEvents(ctx, caller, p, settings, rec)
 		checks[2] = check
 		rec.Checks = checks
@@ -514,8 +533,25 @@ func (s *AWSIntegrationService) verify(ctx context.Context, caller AWSCaller, ra
 		}
 		// It could not start (our bus or queue): save the checks as they are.
 	}
+	return s.saveFinishedChecks(saveCtx, caller, rec, checks, result)
+}
 
-	// Saved even if the caller has gone: the checks really ran.
+// saveFailedChecks keeps what the role check found when it stopped the run, so
+// the console can show it. The account row exists already (it was asked for
+// approval), and the connection is not changed.
+func (s *AWSIntegrationService) saveFailedChecks(ctx context.Context, caller AWSCaller, rec AWSAccountRecord, result *AWSVerifyResponse) (*AWSVerifyResponse, error) {
+	saveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	if err := s.store.SaveChecks(saveCtx, caller.Schema, rec.AccountID, result.Checks); err != nil {
+		return nil, err
+	}
+	result.Saved = true
+	return result, nil
+}
+
+// saveFinishedChecks saves a finished run (the events check did not start).
+// Saved even if the caller has gone: the checks really ran.
+func (s *AWSIntegrationService) saveFinishedChecks(saveCtx context.Context, caller AWSCaller, rec AWSAccountRecord, checks []AWSCheck, result *AWSVerifyResponse) (*AWSVerifyResponse, error) {
 	rec.Checks = checks
 	saved, queued, err := s.store.SaveVerification(saveCtx, caller.TenantID, caller.Schema, rec)
 	if errors.Is(err, ErrAWSAccountClaimedByTenant) {
@@ -950,13 +986,6 @@ func newChecks() []AWSCheck {
 	}
 }
 
-// waitingForApproval is the events check of a connection that has not been
-// approved yet: it has not run, and says why.
-func waitingForApproval(c *AWSCheck) {
-	c.State, c.Fix = AWSCheckSkipped, ""
-	c.Message = "Runs after adapID approves this connection: we then open our event queue to your account and wait for its first event."
-}
-
 // isApproved: an admin approved the account, or it was connected before
 // approvals existed.
 func isApproved(rec *AWSAccountRecord) bool {
@@ -992,22 +1021,43 @@ func withEventsCheck(checks []AWSCheck, check AWSCheck) []AWSCheck {
 	return append(out, check)
 }
 
-// askApproval puts a first connection in front of the platform admins and
-// e-mails them (in the background: a slow mail service must not hold the
-// customer's page). The account waits as pending_approval; nothing is let onto
-// the bus and no events are watched until an admin approves.
-func (s *AWSIntegrationService) askApproval(ctx context.Context, caller AWSCaller, settings *AWSTenantSettings, rec AWSAccountRecord, saved *AWSAccountRecord, result *AWSVerifyResponse) (*AWSVerifyResponse, error) {
+// waitingChecks are the three checks of an account that has asked for
+// approval: none has run, and each says when it will.
+func waitingChecks() []AWSCheck {
+	checks := newChecks()
+	for i := range checks {
+		checks[i].State, checks[i].Fix = AWSCheckSkipped, ""
+	}
+	checks[0].Message = "Runs after adapID approves this connection: we then sign in to your account with your role and External ID."
+	checks[1].Message = "Runs after the role check: one test read of your account."
+	checks[2].Message = "Runs after adapID approves this connection: we then open our event queue to your account and wait for its first event."
+	return checks
+}
+
+// askApprovalFirst puts a connection in front of the platform admins the moment
+// it is asked for, before anything is checked. The account is saved as waiting
+// for approval, one pending request is written for the onboarding tool and the
+// admins are e-mailed. Asked again while the request is open, nothing changes
+// and nobody is e-mailed twice - provided the request really is there for the
+// admins to see: the account's own status is not proof of that.
+func (s *AWSIntegrationService) askApprovalFirst(ctx context.Context, caller AWSCaller, settings *AWSTenantSettings, rec AWSAccountRecord, requestID int64, existing *AWSAccountRecord) (*AWSVerifyResponse, error) {
 	log := logging.FromContext(ctx).With("tenant_id", caller.TenantID, "account_id", rec.AccountID)
-	result.Checks = rec.Checks
-	result.Saved = true
-	result.Status = AWSStatusPendingApproval
+	rec.Checks = waitingChecks()
+	result := &AWSVerifyResponse{
+		Status: AWSStatusPendingApproval, AccountID: rec.AccountID, RoleARN: rec.RoleARN, Regions: rec.Regions,
+		Checks: rec.Checks, VerifiedAt: rec.LastVerifiedAt, Saved: true,
+	}
+	saveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+	defer cancel()
+	saved, err := s.store.SaveApprovalAsk(saveCtx, caller.TenantID, caller.Schema, rec)
+	if err != nil {
+		return nil, err
+	}
 	if saved.Approval.Status == ApprovalPending {
-		// Asked already: nobody is e-mailed twice for one request - provided
-		// the request really is there for the admins to see. The account's own
-		// status is not proof of that.
-		exists, err := s.store.HasPendingApproval(ctx, caller.TenantID, rec.AccountID)
+		exists, err := s.store.HasPendingApproval(saveCtx, caller.TenantID, rec.AccountID)
 		if err == nil && exists {
 			log.Info("aws integration: connection already waits for approval")
+			s.setRequestMail(ctx, requestID, "not_needed", "the request was already waiting; the admins were told then")
 			return result, nil
 		}
 		log.Warn("aws integration: the account waits for approval but no pending request exists for the admins; asking again", "lookup_err", err)
@@ -1016,21 +1066,24 @@ func (s *AWSIntegrationService) askApproval(ctx context.Context, caller AWSCalle
 	if settings != nil {
 		domain = settings.Domain
 	}
-	reqCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
-	defer cancel()
-	id, _, err := s.store.RequestApproval(reqCtx, ApprovalRequest{
-		TenantID: caller.TenantID, Schema: caller.Schema, Domain: domain, Account: rec,
-		Events: map[string]any{"stage": "after role and read access"}, RequestedBy: caller.Actor,
+	events := map[string]any{"stage": "before any check"}
+	// For the admin: another workspace already holds this account (proven), so
+	// approving would end in a refusal and the asker may not own the account.
+	if elsewhere, err := s.store.AccountClaimedByOther(saveCtx, caller.TenantID, rec.AccountID); err == nil && elsewhere {
+		events["claimed_elsewhere"] = true
+	}
+	id, _, err := s.store.RequestApproval(saveCtx, ApprovalRequest{
+		TenantID: caller.TenantID, Schema: caller.Schema, Domain: domain, Account: rec, Events: events, RequestedBy: caller.Actor,
 	})
 	if err != nil {
 		log.Error("aws integration: recording the approval request failed", "err", err)
 		return nil, err
 	}
-	log.Info("aws integration: connection waits for approval; its events are checked after it", "approval_id", id)
+	log.Info("aws integration: connection asks for approval before any check", "approval_id", id)
 	go func() {
 		nctx, ncancel := context.WithTimeout(context.WithoutCancel(ctx), 90*time.Second)
 		defer ncancel()
-		s.notifyApprovers(nctx, id, caller, domain, rec)
+		s.notifyApprovers(nctx, id, caller, domain, rec, requestID)
 	}()
 	return result, nil
 }
@@ -1038,8 +1091,8 @@ func (s *AWSIntegrationService) askApproval(ctx context.Context, caller AWSCalle
 // ensureApprovalRequest repairs an account that waits for approval while no
 // pending request exists in connection_approvals: without this it would wait
 // forever, with nothing on the onboarding tool's Approvals page. The request is
-// recreated as it was asked (same role, regions, checks and requester) and the
-// admins are e-mailed. Runs at most once at a time per account.
+// recreated as it was asked (same role, regions and requester) and the admins
+// are e-mailed. Runs at most once at a time per account.
 func (s *AWSIntegrationService) ensureApprovalRequest(ctx context.Context, caller AWSCaller, rec AWSAccountRecord) {
 	if rec.Status != AWSStatusPendingApproval || rec.Approval.Status != ApprovalPending {
 		return
@@ -1070,7 +1123,7 @@ func (s *AWSIntegrationService) ensureApprovalRequest(ctx context.Context, calle
 	defer cancel()
 	id, _, err := s.store.RequestApproval(reqCtx, ApprovalRequest{
 		TenantID: caller.TenantID, Schema: caller.Schema, Domain: domain, Account: rec,
-		Events: map[string]any{"stage": "after role and read access", "recreated": true}, RequestedBy: asker.Actor,
+		Events: map[string]any{"stage": "before any check", "recreated": true}, RequestedBy: asker.Actor,
 	})
 	if err != nil {
 		log.Error("aws integration: the account waits for approval but its request is missing, and recreating it failed", "err", err)
@@ -1080,7 +1133,7 @@ func (s *AWSIntegrationService) ensureApprovalRequest(ctx context.Context, calle
 	go func() {
 		nctx, ncancel := context.WithTimeout(context.WithoutCancel(ctx), 90*time.Second)
 		defer ncancel()
-		s.notifyApprovers(nctx, id, asker, domain, rec)
+		s.notifyApprovers(nctx, id, asker, domain, rec, 0)
 	}()
 }
 
@@ -1113,10 +1166,137 @@ func (s *AWSIntegrationService) startEvents(ctx context.Context, caller AWSCalle
 	return s.startWatch(caller, p, settings, rec), true
 }
 
+// awaitingChecks: an admin approved the account and none of its checks has run
+// yet (the role check still says it waits for the approval).
+func awaitingChecks(rec AWSAccountRecord) bool {
+	if rec.Approval.Status != ApprovalApproved || rec.IsConnected {
+		return false
+	}
+	for _, c := range rec.Checks {
+		if c.Key == AWSCheckAssumeRole {
+			return c.State == AWSCheckSkipped
+		}
+	}
+	return false
+}
+
+// checksKey identifies the background run of an account's checks.
+func checksKey(tenantID, accountID string) watchKey { return watchKey{tenantID, "checks:" + accountID} }
+
+// checksRunning: this process is running the account's checks right now.
+func (s *AWSIntegrationService) checksRunning(tenantID, accountID string) bool {
+	_, ok := s.resuming.Load(checksKey(tenantID, accountID))
+	return ok
+}
+
+// startApprovedChecks runs the role, read access and events checks of an
+// account an admin has just approved. Nobody is waiting on a request any more
+// (the customer asked earlier and the admin decided in another tool), so it
+// runs in the background: the role check shows as running at once, and the
+// page, which reads the account while it waits, follows the rest as it is
+// saved. Once at a time per account.
+func (s *AWSIntegrationService) startApprovedChecks(ctx context.Context, caller AWSCaller, rec *AWSAccountRecord) {
+	if s.verifier == nil {
+		return
+	}
+	key := checksKey(caller.TenantID, rec.AccountID)
+	if _, busy := s.resuming.LoadOrStore(key, struct{}{}); busy {
+		return
+	}
+	release := func() { s.resuming.Delete(key) }
+	log := logging.FromContext(ctx).With("tenant_id", caller.TenantID, "account_id", rec.AccountID)
+	// Another request may have started it while this one waited its turn.
+	cur, err := s.store.GetAccount(ctx, caller.Schema, rec.AccountID)
+	if err != nil || cur == nil || !awaitingChecks(*cur) {
+		release()
+		if err != nil {
+			log.Warn("aws integration: could not re-read the approved account", "err", err)
+		} else if cur != nil {
+			*rec = *cur
+		}
+		return
+	}
+	p, settings, err := s.platform(ctx, caller.TenantID)
+	if err != nil {
+		release()
+		return // platform() has logged why
+	}
+	role, err := awsconnect.ParseRoleARN(cur.RoleARN)
+	if err != nil {
+		release()
+		log.Error("aws integration: the approved account's role ARN is not valid", "role_arn", cur.RoleARN, "err", err)
+		return
+	}
+	// The role check shows as running before anything else is read, so a second
+	// read of the page neither starts another run nor shows a stale "waiting".
+	running := newChecks()
+	running[0].State, running[0].Message = AWSCheckRunning, "Signing in to your account with your role."
+	for i := 1; i < len(running); i++ {
+		skip(&running[i])
+	}
+	saveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	if err := s.store.SaveChecks(saveCtx, caller.Schema, rec.AccountID, running); err != nil {
+		release()
+		log.Error("aws integration: saving the running check failed", "err", err)
+		return
+	}
+	rec.Checks = running
+	log.Info("aws integration: connection approved, running its checks", "approved_by", cur.Approval.DecidedBy)
+
+	asker := caller
+	if cur.Approval.RequestedBy != "" {
+		asker.Actor = cur.Approval.RequestedBy
+	}
+	run := AWSAccountRecord{
+		AccountID: cur.AccountID, RoleARN: cur.RoleARN, Regions: cur.Regions, ExternalID: settings.ExternalID,
+		Status: AWSStatusPending, LastVerifiedAt: s.now().UTC(), LastVerifiedBy: asker.Actor,
+	}
+	go func() {
+		defer release()
+		bctx, bcancel := context.WithTimeout(context.WithoutCancel(ctx), awsVerifyBudget+10*time.Second)
+		defer bcancel()
+		res, err := s.runChecks(bctx, asker, p, settings, role, cur.Regions, run)
+		outcome, detail := requestOutcome(res, err)
+		if err != nil {
+			log.Error("aws integration: the checks after approval did not finish", "err", err)
+			// The role check was saved as running: say how it ended, or the page
+			// would show it running for ever.
+			stopped := newChecks()
+			if errors.Is(err, ErrAWSAccountClaimed) {
+				fail(&stopped[0], "This AWS account is already connected to another workspace. If it is yours, contact adapID support.", "")
+			} else {
+				unavailable(&stopped[0])
+			}
+			skip(&stopped[1])
+			skip(&stopped[2])
+			sctx, scancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+			_ = s.store.SaveChecks(sctx, caller.Schema, cur.AccountID, stopped)
+			scancel()
+			res = &AWSVerifyResponse{Checks: stopped}
+		} else {
+			logChecks(bctx, "aws integration: checks after approval finished", cur.AccountID, res.Checks, "status", res.Status, "watching_events", res.Watching)
+		}
+		fctx, fcancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer fcancel()
+		var checks []AWSCheck
+		if res != nil {
+			checks = res.Checks
+		}
+		if ferr := s.store.FinishPendingRequest(fctx, caller.TenantID, cur.AccountID, outcome, detail, checks); ferr != nil {
+			log.Warn("aws integration: recording the outcome after approval failed", "err", ferr)
+		}
+	}()
+}
+
 // resumeApproved starts the events check of an account an admin has approved
 // since its last read: until then the check waits ("skipped"). The first read
 // of the account after the approval - the page polls while it waits - starts it.
 func (s *AWSIntegrationService) resumeApproved(ctx context.Context, caller AWSCaller, rec *AWSAccountRecord) {
+	if awaitingChecks(*rec) {
+		s.startApprovedChecks(ctx, caller, rec)
+		return
+	}
 	if !awaitingEvents(*rec) || s.verifier == nil || s.watching(caller.TenantID, rec.AccountID) {
 		return
 	}

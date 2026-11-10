@@ -338,21 +338,22 @@ func (s *AWSIntegrationService) deliver(ctx context.Context, log *slog.Logger, w
 
 // notifyApprovers e-mails the platform admins. The outcome is recorded on the
 // request either way, so the Approvals page can say whether mail went out.
-func (s *AWSIntegrationService) notifyApprovers(ctx context.Context, id int64, caller AWSCaller, domain string, rec AWSAccountRecord) {
+func (s *AWSIntegrationService) notifyApprovers(ctx context.Context, id int64, caller AWSCaller, domain string, rec AWSAccountRecord, requestID int64) {
 	log := logging.FromContext(ctx).With("tenant_id", caller.TenantID, "account_id", rec.AccountID, "approval_id", id)
 	subject, htmlBody, text := approvalEmail(caller, domain, rec, id, s.opts.ApprovalsLocation)
 	status, detail := s.deliver(ctx, log, "approval e-mail", subject, htmlBody, text)
 	saveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	defer cancel()
 	_ = s.store.SetApprovalEmail(saveCtx, id, status, detail)
+	// The click that asked for it records how the same e-mail went.
+	s.setRequestMail(ctx, requestID, status, detail)
 }
 
-// recordRequest stores one click of "Verify connection" and starts the e-mail
-// to the platform admins. It returns the stored request's id, or 0 when it
-// could not be stored (the e-mail is still sent: being told matters more
-// than the record).
-func (s *AWSIntegrationService) recordRequest(ctx context.Context, caller AWSCaller, settings *AWSTenantSettings, accountID, roleARN string, regions []string) int64 {
-	log := logging.FromContext(ctx).With("tenant_id", caller.TenantID, "account_id", accountID)
+// recordRequest stores one click of "Verify connection" before anything else
+// happens. It returns the stored request's id (0 when it could not be stored:
+// being told matters more than the record) and whether the admins were already
+// e-mailed about this account less than a minute ago.
+func (s *AWSIntegrationService) recordRequest(ctx context.Context, caller AWSCaller, settings *AWSTenantSettings, accountID, roleARN string, regions []string) (id int64, recentlyMailed bool) {
 	domain := ""
 	if settings != nil {
 		domain = settings.Domain
@@ -363,29 +364,46 @@ func (s *AWSIntegrationService) recordRequest(ctx context.Context, caller AWSCal
 	}
 	saveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	defer cancel()
-	id, recent, err := s.store.RecordConnectionRequest(saveCtx, ConnectionRequest{
+	id, recentlyMailed, err := s.store.RecordConnectionRequest(saveCtx, ConnectionRequest{
 		TenantID: caller.TenantID, Schema: caller.Schema, Domain: domain, AccountID: accountID, RoleARN: roleARN,
 		Regions: regions, RequestedBy: caller.Actor, RequestID: requestID,
 	})
 	if err != nil {
-		log.Error("aws integration: recording the connection request failed", "err", err)
-		id, recent = 0, false
+		logging.FromContext(ctx).Error("aws integration: recording the connection request failed", "tenant_id", caller.TenantID, "account_id", accountID, "err", err)
+		return 0, false
 	}
-	if recent {
-		// Clicked again within a minute: recorded, not e-mailed twice.
-		_ = s.store.SetRequestEmail(saveCtx, id, "suppressed", "the admins were e-mailed about this account less than a minute ago")
-		return id
+	return id, recentlyMailed
+}
+
+// mailCheckStarted tells the admins that an account they approved earlier is
+// being checked again (a first connection sends the approval e-mail instead).
+// Clicked again within a minute: stored, not e-mailed twice.
+func (s *AWSIntegrationService) mailCheckStarted(ctx context.Context, caller AWSCaller, settings *AWSTenantSettings, accountID, roleARN string, regions []string, id int64, recentlyMailed bool) {
+	log := logging.FromContext(ctx).With("tenant_id", caller.TenantID, "account_id", accountID, "request_id", id)
+	if recentlyMailed {
+		s.setRequestMail(ctx, id, "suppressed", "the admins were e-mailed about this account less than a minute ago")
+		return
+	}
+	domain := ""
+	if settings != nil {
+		domain = settings.Domain
 	}
 	go func() {
 		nctx, ncancel := context.WithTimeout(context.WithoutCancel(ctx), 90*time.Second)
 		defer ncancel()
 		subject, htmlBody, text := requestEmail(caller, domain, accountID, roleARN, regions, s.now())
-		status, detail := s.deliver(nctx, log.With("request_id", id), "connection request e-mail", subject, htmlBody, text)
-		if id != 0 {
-			_ = s.store.SetRequestEmail(nctx, id, status, detail)
-		}
+		status, detail := s.deliver(nctx, log, "connection check e-mail", subject, htmlBody, text)
+		s.setRequestMail(nctx, id, status, detail)
 	}()
-	return id
+}
+
+func (s *AWSIntegrationService) setRequestMail(ctx context.Context, id int64, status, detail string) {
+	if id == 0 {
+		return
+	}
+	saveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	_ = s.store.SetRequestEmail(saveCtx, id, status, detail)
 }
 
 // finishRequest records how the checks of a stored request ended.
@@ -458,7 +476,7 @@ func requestEmail(caller AWSCaller, domain, accountID, roleARN string, regions [
 		workspace = domain
 	}
 	subject = fmt.Sprintf("AWS connection check started: account %s for %s", accountID, workspace)
-	const lead = "Someone clicked Verify connection. The role, read access and events checks are starting now. If the account then needs your approval you will get a second e-mail."
+	const lead = "Someone clicked Verify connection for an AWS account you approved earlier. The role, read access and events checks are starting now."
 	when := at.UTC().Format("2006-01-02 15:04:05 UTC")
 	rows := [][2]string{
 		{"Workspace", workspace + " (" + caller.Schema + ")"},
@@ -503,7 +521,7 @@ func approvalEmail(caller AWSCaller, domain string, rec AWSAccountRecord, id int
 		workspace = domain
 	}
 	subject = fmt.Sprintf("Approval needed: AWS account %s for %s", rec.AccountID, workspace)
-	const lead = "A new AWS connection passed the role and read checks and waits for your approval. After you approve it, its events are checked, and the account connects when the first event arrives."
+	const lead = "Somebody asked to connect this AWS account and waits for your approval. Nothing has been checked or read yet: after you approve, the role, read access and events checks run by themselves, and the account connects when its first event arrives."
 	lines := []string{
 		lead,
 		"",

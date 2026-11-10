@@ -43,7 +43,6 @@ proxy, so it needs no CORS and no key in the bundle:
 | --- | --- | --- |
 | `DISCOVERY_UPSTREAM` | web container (dev: `.env`) | origin of the discovery scan service, e.g. `http://discovery-scan:8080` or `https://scan.example.com`. **No path**: the console adds `/api/v1/scan/...` itself (a trailing `/`, `/api` or `/api/v1` is trimmed at start) |
 | `DNS_RESOLVER` | web container, optional | nginx's resolver. Default: the first nameserver in the container's own `/etc/resolv.conf` (Docker, ECS and Kubernetes each differ) |
-| `DISCOVERY_API_KEY` | web container, optional, **run time only** | sent as `X-API-Key` when the service wants one; empty = none. Never put it in the image: pass it with `-e`, a compose `environment:` entry or a Kubernetes Secret |
 | `VITE_DISCOVERY_SCAN_URL` | build, optional | call the service on another origin directly instead of `/scan-api` (needs CORS) |
 
 The user's bearer token is forwarded. Poll intervals and the 30-minute ceiling

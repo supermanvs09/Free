@@ -20,7 +20,7 @@ import { useToast } from '../../ui/Toast';
 import { cn } from '../../ui/cn';
 import { AccountDrawer } from './AccountDrawer';
 import { AccountsTable } from './AccountsTable';
-import { AWS_STATUS, isWatching } from './awsSetup';
+import { AWS_STATUS, isChecking, isWatching } from './awsSetup';
 import { AwsConnectWizard } from './AwsConnectWizard';
 import { ExposureDrawer } from './ExposureDrawer';
 import { OverviewTiles, SourceCards } from './IntegrationsOverview';
@@ -106,7 +106,7 @@ export default function IntegrationsPage() {
   /* While a sync is queued or running, an events check watches, or a
      connection waits for approval, keep the page current on its own. */
   const syncing = (data?.accounts ?? []).some((account) => account.sync.status === 'queued' || account.sync.status === 'running');
-  const watching = manage && (data?.accounts ?? []).some((account) => isWatching(account.checks));
+  const watching = manage && (data?.accounts ?? []).some((account) => isWatching(account.checks) || isChecking(account));
   const awaiting = manage && (data?.accounts ?? []).some((account) => account.status === 'pending_approval');
   const refresh = workspace.refresh;
   const pollEvery = watching ? 5000 : syncing ? 8000 : awaiting ? 30000 : 0;
@@ -167,7 +167,7 @@ export default function IntegrationsPage() {
      waiting for approval or still watching first, then the latest other. */
   const unconnected = (data?.accounts ?? []).filter((account) => account.status !== 'connected');
   const previous = !manage
-    ? (unconnected.find((account) => account.status === 'pending_approval' || isWatching(account.checks)) ?? unconnected[0] ?? null)
+    ? (unconnected.find((account) => account.status === 'pending_approval' || isWatching(account.checks) || isChecking(account)) ?? unconnected[0] ?? null)
     : null;
 
   if (!workspace.hasConnectedAccount && onboardingDone) {
@@ -604,7 +604,7 @@ function AttentionBanner({ accounts, onOpen }) {
   );
 }
 
-/** Accounts that passed every check and wait for adapID, and any it did not approve. */
+/** Accounts that wait for adapID's approval (nothing is checked until then), and any it did not approve. */
 function ApprovalBanner({ accounts, onOpen }) {
   const waiting = accounts.filter((account) => account.status === 'pending_approval');
   const rejected = accounts.filter((account) => account.status === 'rejected');
@@ -624,7 +624,7 @@ function ApprovalBanner({ accounts, onOpen }) {
                 `${waiting.length} accounts are waiting for approval`
               )}
             </span>{' '}
-            - every check passed. adapID reviews each new connection before scanning starts; this page updates on its own.
+            - nothing is read from the account until adapID approves it; the checks then run by themselves. This page updates on its own.
           </p>
           {waiting.length === 1 && (
             <Button variant="secondary" size="sm" onClick={() => onOpen(waiting[0])}>

@@ -263,7 +263,7 @@
       ['Events', ev.messages_scanned != null
         ? el('span', {}, (Array.isArray(ev.regions_seen) ? ev.regions_seen.length : 0) + ' of ' + (Array.isArray(ev.regions) ? ev.regions.length : 0) +
           ' regions delivered events · ' + ev.messages_scanned + ' message(s) read')
-        : el('span', { class: 'none' }, 'Checked after you approve')],
+        : el('span', { class: 'none' }, 'Nothing is checked until you approve')],
       ['Requested', el('span', {}, 'by ', el('strong', {}, a.requested_by || 'unknown'), ' ', when(a.requested_at))],
       ['Request', el('span', { class: 'mono' }, '#' + a.id)],
       ['Workspace', el('span', { class: 'idline' }, el('code', {}, a.workspace), el('code', { title: a.tenant_id }, a.tenant_id.slice(0, 8)))],
@@ -280,6 +280,10 @@
       a.decided_at ? when(a.decided_at) : '', a.decision_note ? el('span', { class: 'note-text' }, '“' + a.decision_note + '”') : null) : null;
     return el('article', { class: 'ap-card' + (pending ? ' pending' : ''), 'data-id': String(a.id), tabindex: '-1', 'aria-label': (a.domain || a.workspace) + ', AWS account ' + a.account_id },
       head,
+      pending && a.events && a.events.claimed_elsewhere
+        ? el('p', { class: 'ap-warn', role: 'note' }, el('strong', {}, 'Already in another workspace. '),
+            'This AWS account is connected to a different workspace. The company asking may not own it; check who is asking before approving - the checks refuse an account another workspace holds.')
+        : null,
       el('dl', { class: 'ap-facts' }, ...facts.map(([k, v]) => el('div', {}, el('dt', {}, k), el('dd', {}, v)))),
       checkList(a.checks),
       el('div', { class: 'ap-foot' }, emailLine(a)),
@@ -332,10 +336,10 @@
     $('decide-title').textContent = approve ? 'Approve connection' : 'Reject connection';
     $('decide-sub').textContent = name + ' · AWS account ' + a.account_id;
     $('decide-lead').textContent = approve
-      ? 'Approving lets this account move on to its last check:'
+      ? 'Approving lets the checks of this account run:'
       : 'Rejecting leaves this account disconnected:';
     const effects = approve
-      ? ['We open our event queue to this account, and its events check starts on the company’s Integrations page.', 'The account connects, and its first scan is queued, when the first event from it arrives.', 'The company sees “Approved” and what is still being checked.']
+      ? ['The role, read access and events checks run by themselves, and the company follows them on its Integrations page.', 'We open our event queue to this account once the role and read checks pass.', 'The account connects, and its first scan is queued, when the first event from it arrives.']
       : ['The company sees “Rejected” and your reason on its Integrations page.', 'Nothing is scanned. The company can fix the setup and verify again, which sends a new request.'];
     $('decide-effects').replaceChildren(...effects.map((t) => el('li', {}, t)));
     $('decide-note-label').replaceChildren(approve ? 'Note ' : 'Reason ', approve ? el('span', { class: 'opt' }, 'optional') : el('span', { class: 'opt' }, 'required'));
@@ -386,7 +390,7 @@
     if (ok) {
       dlg.close();
       deciding = null;
-      toast(approve ? 'Approved. ' + (approval.domain || approval.workspace) + ' now waits for its first event, then connects' : 'Request rejected; the company can see your reason');
+      toast(approve ? 'Approved. ' + (approval.domain || approval.workspace) + ' is now being checked, then waits for its first event' : 'Request rejected; the company can see your reason');
       load();
       poll();
       return;

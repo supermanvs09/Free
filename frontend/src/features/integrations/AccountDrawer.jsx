@@ -102,7 +102,7 @@ function OverviewTab({ account, setup, names, counts, canManage, onEditRegions }
         <AwsMark size="sm" />
         <p className="min-w-0 flex-1 text-[12.5px] leading-relaxed text-ink-2">
           {account.status === 'pending_approval'
-            ? `Role and read access passed${account.approval.requestedAt ? ` ${formatRelative(account.approval.requestedAt)}` : ''}. adapID reviews each new connection first; once it is approved we check for its events, and the account is read from its first event on.`
+            ? `Waiting for adapID to approve this connection${account.approval.requestedAt ? ` (asked ${formatRelative(account.approval.requestedAt)})` : ''}. Nothing is read from the account until then; once it is approved the role, read access and events checks run by themselves, and the account is read from its first event on.`
             : account.status === 'rejected'
               ? `adapID did not approve this connection${account.approval.note ? `: “${account.approval.note}”` : '.'} Fix the setup, then re-check to ask again.`
               : account.status === 'connected'

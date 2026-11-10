@@ -241,6 +241,20 @@ export const eventsCheckOf = (checks) => (checks ?? []).find((check) => check.ke
 export const isWatching = (checks) => eventsCheckOf(checks)?.state === 'running';
 
 /**
+ * An approved account whose role or read check is running, or about to: the
+ * checks start by themselves once adapID approves, so right after the decision
+ * the role check still says it waits while the service picks it up.
+ */
+export function isChecking(account) {
+  if (!account || account.status === 'connected' || account.status === 'pending_approval' || account.status === 'rejected') return false;
+  const checks = account.checks ?? [];
+  const early = checks.filter((c) => c.key !== 'events');
+  if (early.some((c) => c.state === 'running')) return true;
+  const role = checks.find((c) => c.key === 'assume_role');
+  return account.approval?.status === 'approved' && role?.state === 'skipped';
+}
+
+/**
  * The whole setup as Markdown, with this workspace's values filled in - for
  * the common case where the admin connecting the account is not the person
  * with access to that AWS account.
@@ -338,7 +352,7 @@ In the console's Integrations page, paste the role ARN, choose the regions${regi
 - your configuration is readable
 - events are arriving from at least one of the chosen regions
 
-When all checks pass, adapID reviews the new connection; once approved it shows as **Connected** and scanning begins.
+A new connection is reviewed by adapID first: the request is sent as soon as you choose **Verify connection**, and nothing is read from your AWS account until it is approved. After the approval the checks run by themselves, and the account shows as **Connected** (and scanning begins) when its first event arrives.
 `;
 }
 

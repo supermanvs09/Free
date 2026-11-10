@@ -60,16 +60,14 @@ FROM nginx:1.27-alpine AS runtime
 # start. Restricted to these names so that nginx's own $variables - $uri,
 # $host, $proxy_host and the rest - are left alone.
 ENV NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx/conf.d \
-    NGINX_ENVSUBST_FILTER='(API_UPSTREAM|DNS_RESOLVER|DISCOVERY_UPSTREAM|DISCOVERY_API_KEY)$'
+    NGINX_ENVSUBST_FILTER='(API_UPSTREAM|DNS_RESOLVER|DISCOVERY_UPSTREAM)$'
 
 # Defaults for a compose stack with the backend service named nhi-api. Docker's
 # embedded DNS lives at 127.0.0.11.
 # DISCOVERY_UPSTREAM is the separately deployed discovery scan service that the
 # Sync button calls (through /scan-api/).
-# DISCOVERY_API_KEY is deliberately NOT set here: a key must never be written
-# into an image layer, not even an empty one. Pass it at run time (-e, a compose
-# `environment:` entry, or a Kubernetes Secret). When it is absent,
-# docker/18-default-env.envsh below sets it empty so the proxy sends no key.
+# The scan service is authenticated by the user's bearer token, which nginx
+# forwards unchanged: there is no API key to configure.
 ENV API_UPSTREAM="http://nhi-api:8080" \
     DISCOVERY_UPSTREAM="http://discovery-scan:8080"
 # DNS_RESOLVER is not defaulted here either: docker/18-default-env.envsh takes

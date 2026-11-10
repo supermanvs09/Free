@@ -329,10 +329,14 @@ func (r *AWSIntegrationRepository) AccountClaimedByOther(ctx context.Context, te
 }
 
 func (r *AWSIntegrationRepository) claimedByOther(ctx context.Context, q queryer, tenantID, accountID string) (bool, error) {
-	// Any row for the account in another tenant's schema claims it: rows from
-	// this API are saved only after AssumeRole succeeded (the tenant controls
-	// the account), and role-less rows were registered by the scanner. Both
-	// scope that tenant's CloudTrail events, so a second owner would share them.
+	// A row in another tenant's schema claims the account once it is PROVEN:
+	// the account is connected, or its role check passed (the tenant controls
+	// the account), or the row has no approval state at all (registered by the
+	// scanner, or connected before approvals existed). A request that only asks
+	// for approval proves nothing - anybody can type any account id - so it must
+	// not keep the real owner from connecting. Proven rows scope that tenant's
+	// CloudTrail events, so a second owner would share them.
+	// to_jsonb(a) keeps this valid on schemas that lack a newer column.
 	rows, err := q.QueryContext(ctx, `SELECT t.db_name
 		FROM `+database.Table(r.globalSchema, "tenants")+` t
 		JOIN pg_namespace n ON n.nspname = t.db_name
@@ -350,7 +354,10 @@ func (r *AWSIntegrationRepository) claimedByOther(ctx context.Context, q queryer
 			return false, fmt.Errorf("scan tenant schema: %w", err)
 		}
 		if config.ValidateSchemaName(s) == nil {
-			parts = append(parts, `SELECT 1 FROM `+database.Table(s, accountsTable)+` WHERE account_id = $1`)
+			parts = append(parts, `SELECT 1 FROM `+database.Table(s, accountsTable)+` a WHERE a.account_id = $1 AND (
+				COALESCE(to_jsonb(a)->>'approval_status', '') = ''
+				OR to_jsonb(a)->>'connected_at' IS NOT NULL
+				OR COALESCE(to_jsonb(a)->'checks', '[]'::jsonb) @> '[{"key":"assume_role","state":"pass"}]'::jsonb)`)
 		}
 	}
 	rows.Close()

@@ -41,6 +41,18 @@ func (r *AWSIntegrationRepository) ensureApprovalColumns(ctx context.Context, db
 // already connected stays connected while its events are re-checked: a
 // re-check must not take a working connection down for minutes.
 func (r *AWSIntegrationRepository) SaveCheckStart(ctx context.Context, tenantID, schema string, rec AWSAccountRecord) (*AWSAccountRecord, error) {
+	return r.saveCheckStart(ctx, tenantID, schema, rec, true)
+}
+
+// SaveApprovalAsk saves an account that only asks for approval: nothing has
+// been checked, so nothing is proven and who else holds the account is not
+// asked (it would tell any tenant which accounts other workspaces use). The
+// ownership check runs once the role check has passed.
+func (r *AWSIntegrationRepository) SaveApprovalAsk(ctx context.Context, tenantID, schema string, rec AWSAccountRecord) (*AWSAccountRecord, error) {
+	return r.saveCheckStart(ctx, tenantID, schema, rec, false)
+}
+
+func (r *AWSIntegrationRepository) saveCheckStart(ctx context.Context, tenantID, schema string, rec AWSAccountRecord, checkOwner bool) (*AWSAccountRecord, error) {
 	db, err := r.accountsDB(ctx, schema)
 	if err != nil {
 		return nil, err
@@ -60,12 +72,14 @@ func (r *AWSIntegrationRepository) SaveCheckStart(ctx context.Context, tenantID,
 	if err := lockAccount(ctx, tx, rec.AccountID); err != nil {
 		return nil, err
 	}
-	claimed, err := r.claimedByOther(ctx, tx, tenantID, rec.AccountID)
-	if err != nil {
-		return nil, err
-	}
-	if claimed {
-		return nil, ErrAWSAccountClaimedByTenant
+	if checkOwner {
+		claimed, err := r.claimedByOther(ctx, tx, tenantID, rec.AccountID)
+		if err != nil {
+			return nil, err
+		}
+		if claimed {
+			return nil, ErrAWSAccountClaimedByTenant
+		}
 	}
 	table := database.Table(schema, accountsTable)
 	saved, err := scanAccount(tx.QueryRowContext(ctx, `INSERT INTO `+table+` AS a

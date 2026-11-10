@@ -231,9 +231,9 @@ schema has them: the scanner creates them on first use, or run the API's
 ## Connection approvals
 
 A company's first connection of an AWS account (and every new account after
-it) does not go live on its own. The order is: the role can be assumed, the
-configuration is readable, **approval**, then events arrive from the account.
-As soon as the first two pass, the API server records a request in
+it) does not go live on its own. The order is: **approval**, then the role can be
+assumed, the configuration is readable, and events arrive from the account.
+As soon as the company chooses Verify connection, the API server records a request in
 `nhi_global.connection_approvals` (API migration `global/007`) and e-mails the
 people in its `CONNECTION_APPROVAL_EMAILS`, through Amazon SES (`EMAIL_FROM` and `SES_REGION` in the API's `.env`).
 
@@ -246,9 +246,11 @@ each new pending request; desktop alerts can be turned on per browser. The
 e-mail is only an extra heads-up and says to open this tool.
 
 A super admin approves or rejects with a reason the company sees on its Integrations
-page. Approving does not connect the account by itself: the API server then lets the
-account onto its event bus and watches for its first event, and the account becomes
-`active` (and its first scan is queued) when that event arrives.
+page. The request exists from the moment the company chooses **Verify connection**:
+nothing is checked or read from its AWS account before the approval. Approving does
+not connect the account by itself: the API server then runs the role, read access and
+events checks by itself, lets the account onto its event bus, and the account becomes
+`active` (and its first scan is queued) when the first event arrives.
 
 New tenant schemas get the connection and approval columns on `accounts`
 from `sql/tenant_schema.sql`; older ones get them from the API's

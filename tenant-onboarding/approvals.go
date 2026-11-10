@@ -11,20 +11,22 @@ import (
 	"time"
 )
 
-// A connection request: a company's AWS account that passed every connection
-// check in the console and now waits for a super admin. The API server writes
-// these rows (nhi_global.connection_approvals); this service decides them.
+// A connection request: a company asked to connect an AWS account and waits for
+// a super admin. The API server writes these rows
+// (nhi_global.connection_approvals) the moment the company chooses "Verify
+// connection"; this service decides them.
 //
-// The order of a connection is: the role can be assumed, it can read the
-// account, an admin approves, then events arrive from the account. A request
-// is therefore made BEFORE the events check.
+// The order of a connection is: the company asks, an admin approves, then the
+// role is assumed, it reads the account, and events arrive from the account.
+// Nothing is checked or read from the company's AWS account before the
+// approval, so a request carries no check results yet.
 //
 // Approving marks the request approved and, in the same transaction, records it
 // on the company's accounts row (approval_status 'approved'). It does not
-// connect the account: the API server sees the approval, lets the account onto
-// its event bus and watches for the first event, and the account connects (and
-// its first sync is queued) when that event arrives. Rejecting leaves the
-// account disconnected with the reason, which the console shows to the company.
+// connect the account: the API server sees the approval and runs the role, read
+// access and events checks by itself, and the account connects (and its first
+// sync is queued) when the first event arrives. Rejecting leaves the account
+// disconnected with the reason, which the console shows to the company.
 
 // Approval is one request as the Approvals page shows it.
 type Approval struct {

@@ -220,6 +220,28 @@ function scheduleSync(accountId) {
   }, 6000);
 }
 
+/* The simulated admin approves after a few seconds; the role check then runs,
+   and a moment later the account connects and its first sync is queued. */
+function scheduleApproval(accountId) {
+  setTimeout(() => {
+    const account = store().accounts.find((entry) => entry.account_id === accountId);
+    if (!account || account.status !== 'pending_approval') return;
+    account.status = 'pending';
+    account.approval = { ...account.approval, status: 'approved', decided_at: new Date().toISOString(), decided_by: 'adapID' };
+    account.checks = account.checks.map((check, index) => (index === 0 ? { ...check, state: 'running', message: 'Signing in to your account with your role.' } : check));
+    commit();
+    setTimeout(() => {
+      const again = store().accounts.find((entry) => entry.account_id === accountId);
+      if (!again || again.status !== 'pending') return;
+      const at = new Date().toISOString();
+      Object.assign(again, { status: 'connected', is_connected: true, checks: awsChecks(), connected_at: at, last_verified_at: at });
+      again.sync = { ...again.sync, status: 'queued', requested_at: at, requested_by: 'adapID', last_error: '' };
+      commit();
+      scheduleSync(accountId);
+    }, 3000);
+  }, 8000);
+}
+
 function overall(accounts) {
   if (accounts.some((account) => account.status === 'action_needed')) return 'action_needed';
   if (accounts.some((account) => account.status === 'connected')) return 'connected';
@@ -265,6 +287,26 @@ export async function verify({ role_arn: roleArn, regions }) {
       sync: { status: 'idle', requested_at: null, requested_by: '', started_at: null, last_synced_at: null, last_error: '' },
     };
     store().accounts.push(account);
+  }
+  /* A first connection asks for approval at once and checks nothing; an admin
+     (simulated) approves a few seconds later and the checks then run by
+     themselves, as the service does. */
+  if (firstTime) {
+    const waiting = awsChecks().map((check) => ({ ...check, state: 'skipped', message: 'Runs after adapID approves this connection.' }));
+    Object.assign(account, {
+      role_arn: match[0],
+      regions: [...regions],
+      status: 'pending_approval',
+      is_connected: false,
+      checks: waiting,
+      last_verified_at: now,
+      last_verified_by: actor(),
+      connected_at: null,
+      approval: { status: 'pending', requested_at: now, requested_by: actor(), decided_at: null, decided_by: '', note: '' },
+    });
+    commit();
+    scheduleApproval(accountId);
+    return clone({ status: 'pending_approval', account_id: accountId, role_arn: match[0], regions, checks: waiting, verified_at: now, saved: true, sync_queued: false });
   }
   Object.assign(account, {
     role_arn: match[0],

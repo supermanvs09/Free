@@ -33,6 +33,7 @@ import {
   forwardRoleCli,
   forwardRolePolicyJson,
   forwardRoleTrustJson,
+  isChecking,
   isWatching,
   roleArnProblem,
   ruleCli,
@@ -86,9 +87,11 @@ export function clearSetupProgress(key) {
 /* Where a run stands, from an account as the API returns it. */
 function phaseOf(account) {
   if (!account) return 'idle';
-  if (isWatching(account.checks)) return 'watching';
+  /* The order is approval, then role and read access, then events. */
   if (account.status === 'pending_approval') return 'awaiting';
   if (account.status === 'rejected') return 'rejected';
+  if (isWatching(account.checks)) return 'watching';
+  if (isChecking(account)) return 'checking';
   if (account.status === 'connected') return 'connected';
   return account.checks?.length ? 'failed' : 'idle';
 }
@@ -194,16 +197,16 @@ export function AwsConnectWizard({ setup, previous, storageKey, title = 'Connect
     [report],
   );
 
-  const following = run.phase === 'watching' || run.phase === 'awaiting';
+  const following = run.phase === 'watching' || run.phase === 'awaiting' || run.phase === 'checking';
   useEffect(() => {
     if (!following || !run.accountId) return undefined;
     let stopped = false;
     let timer = null;
-    const delay = run.phase === 'watching' ? WATCH_POLL_MS : APPROVAL_POLL_MS;
+    const delay = run.phase === 'awaiting' ? APPROVAL_POLL_MS : WATCH_POLL_MS;
     const tick = async () => {
       try {
         /* A hidden tab reads less often; it catches up when shown. */
-        if (document.visibilityState !== 'hidden' || run.phase === 'watching') await readAccount(run.accountId);
+        if (document.visibilityState !== 'hidden' || run.phase !== 'awaiting') await readAccount(run.accountId);
       } catch {
         /* a failed read is retried on the next tick */
       }
@@ -314,7 +317,7 @@ export function AwsConnectWizard({ setup, previous, storageKey, title = 'Connect
     ...extra,
   });
   /* While a run is under way or decided, the inputs give way to what was checked. */
-  const locked = running || ['watching', 'awaiting', 'connected', 'rejected'].includes(run.phase);
+  const locked = running || ['watching', 'checking', 'awaiting', 'connected', 'rejected'].includes(run.phase);
   const ruleList = ruleRegions(regions);
 
   return (
@@ -587,9 +590,13 @@ export function AwsConnectWizard({ setup, previous, storageKey, title = 'Connect
                   error={regionsError || undefined}
                 />
               </div>
+              <p className="mb-2 text-[12px] leading-relaxed text-ink-3">
+                A new connection is reviewed by adapID first: the request is sent when you choose Verify, and nothing is read from your account until it is
+                approved. Your role, read access and events are then checked automatically.
+              </p>
               <div className="flex flex-wrap items-center gap-2">
                 <Button type="submit" variant="primary" size="lg" icon={ShieldCheck} loading={running}>
-                  {running ? 'Checking…' : run.phase === 'idle' ? 'Verify connection' : 'Verify again'}
+                  {running ? 'Sending…' : run.phase === 'idle' ? 'Verify connection' : 'Verify again'}
                 </Button>
                 {onCancel && (
                   <Button variant="ghost" size="lg" onClick={cancel} disabled={running}>
@@ -607,7 +614,7 @@ export function AwsConnectWizard({ setup, previous, storageKey, title = 'Connect
             )}
 
             <div ref={resultRef} className="scroll-mt-24">
-              {(running || run.phase === 'failed' || run.phase === 'watching') && (
+              {(running || run.phase === 'failed' || run.phase === 'watching' || run.phase === 'checking') && (
                 <div className="mt-4 flex flex-col gap-3">
                   <VerifyResult running={running} result={running ? null : run} setup={setup} onShowStep={showStep} />
                   {!running && run.phase === 'watching' && <EventsWatch checks={run.checks} setup={setup} regions={regions} />}

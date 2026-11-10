@@ -114,3 +114,30 @@ func (r *AWSIntegrationRepository) CollectorPlatforms(ctx context.Context) ([][2
 	}
 	return out, rows.Err()
 }
+
+// FinishPendingRequest records how the checks ended for the latest click of an
+// account that waited for approval: they run after the admin approves, long
+// after the click's own request returned.
+func (r *AWSIntegrationRepository) FinishPendingRequest(ctx context.Context, tenantID, accountID, outcome, detail string, checks []AWSCheck) error {
+	db, err := r.pool()
+	if err != nil {
+		return err
+	}
+	raw, err := json.Marshal(nonNil(checks))
+	if err != nil {
+		return err
+	}
+	if len(detail) > 4000 {
+		detail = detail[:4000]
+	}
+	t := database.Table(r.globalSchema, "connection_requests")
+	_, err = db.ExecContext(ctx, `UPDATE `+t+`
+		SET outcome = $3, outcome_detail = $4, checks = $5::jsonb, finished_at = now()
+		WHERE id = (SELECT id FROM `+t+`
+			WHERE tenant_id = $1::uuid AND client_aws_account_id = $2 AND outcome = 'pending_approval'
+			ORDER BY id DESC LIMIT 1)`, tenantID, accountID, outcome, detail, raw)
+	if err != nil {
+		return fmt.Errorf("finish pending connection request: %w", err)
+	}
+	return nil
+}

@@ -339,3 +339,114 @@ func TestAWSIntegrationRepositoryAgainstPostgres(t *testing.T) {
 		t.Fatal("deleted account still claimed")
 	}
 }
+
+// Asking for approval proves nothing - anybody can type any account id - so an
+// unproven request must not keep the real owner from connecting; a proven one
+// (role check passed, or connected) must.
+func TestApprovalRequestsClaimAnAccountOnlyOnceProven(t *testing.T) {
+	dsn := os.Getenv("NHI_TEST_DSN")
+	if dsn == "" {
+		t.Skip("NHI_TEST_DSN not set")
+	}
+	db, err := sql.Open("pgx", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	ctx := context.Background()
+	tag := randomHex(t, 5)
+	owner, asker := randomUUID(t), randomUUID(t)
+	schemaOwner, schemaAsker := "nhi_test_o_"+tag, "nhi_test_s_"+tag
+	t.Cleanup(func() {
+		_, _ = db.Exec(`DROP SCHEMA IF EXISTS "` + schemaOwner + `" CASCADE`)
+		_, _ = db.Exec(`DROP SCHEMA IF EXISTS "` + schemaAsker + `" CASCADE`)
+		_, _ = db.Exec(`DELETE FROM nhi_global.connection_approvals WHERE tenant_id IN ($1::uuid, $2::uuid)`, owner, asker)
+		_, _ = db.Exec(`DELETE FROM nhi_global.connection_requests WHERE tenant_id IN ($1::uuid, $2::uuid)`, owner, asker)
+		_, _ = db.Exec(`DELETE FROM nhi_global.tenants WHERE tenant_id IN ($1::uuid, $2::uuid)`, owner, asker)
+	})
+	mustExec(t, db, `INSERT INTO nhi_global.tenants (tenant_id, db_name) VALUES ($1, $3), ($2, $4)`, owner, asker, schemaOwner, schemaAsker)
+	applyTenantMigration(t, db, schemaOwner)
+	applyTenantMigration(t, db, schemaAsker)
+	u, err := url.Parse(dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pass, _ := u.User.Password()
+	pg, err := database.NewPostgresDB(&config.Config{Database: config.DatabaseConfig{
+		Host: u.Hostname(), DatabaseName: strings.TrimPrefix(u.Path, "/"), User: u.User.Username(), Password: pass, Schema: config.DefaultGlobalSchema,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = pg.DB.Close() })
+	repo := NewAWSIntegrationRepository(pg)
+	now := time.Now().UTC()
+	rec := func(acct string) AWSAccountRecord {
+		return AWSAccountRecord{AccountID: acct, RoleARN: "arn:aws:iam::" + acct + ":role/R", Regions: []string{"us-east-1"},
+			ExternalID: "ext-0123456789abcdef", Status: AWSStatusPending, LastVerifiedAt: now, LastVerifiedBy: "x@y.z", Checks: waitingChecks()}
+	}
+	ask := func(tenant, schema string, r AWSAccountRecord) {
+		t.Helper()
+		if _, err := repo.SaveApprovalAsk(ctx, tenant, schema, r); err != nil {
+			t.Fatalf("SaveApprovalAsk: %v", err)
+		}
+		if _, _, err := repo.RequestApproval(ctx, ApprovalRequest{TenantID: tenant, Schema: schema, Account: r, RequestedBy: "x@y.z", Events: map[string]any{}}); err != nil {
+			t.Fatalf("RequestApproval: %v", err)
+		}
+	}
+
+	// 1. The asker types the owner's account id first: a pending request.
+	acct := randomAccountID(t)
+	ask(asker, schemaAsker, rec(acct))
+	if has, err := repo.HasPendingApproval(ctx, asker, acct); err != nil || !has {
+		t.Fatalf("pending request: %v %v", has, err)
+	}
+	// It does not stop the real owner, who proves control and connects.
+	if claimed, err := repo.AccountClaimedByOther(ctx, owner, acct); err != nil || claimed {
+		t.Fatalf("an unproven request blocks the owner: %v %v", claimed, err)
+	}
+	connected := rec(acct)
+	connected.Status = AWSStatusConnected
+	if _, _, err := repo.SaveVerification(ctx, owner, schemaOwner, connected); err != nil {
+		t.Fatalf("the real owner could not connect: %v", err)
+	}
+	// 2. Now the account is claimed: the asker's checks are refused, while
+	// merely asking again still reveals nothing.
+	if _, err := repo.SaveCheckStart(ctx, asker, schemaAsker, rec(acct)); !errors.Is(err, ErrAWSAccountClaimedByTenant) {
+		t.Fatalf("a proven owner exists: %v", err)
+	}
+	if _, err := repo.SaveApprovalAsk(ctx, asker, schemaAsker, rec(acct)); err != nil {
+		t.Fatalf("asking must not reveal who holds the account: %v", err)
+	}
+
+	// 3. A request that passed its role check is proven and claims the account.
+	acct3 := randomAccountID(t)
+	ask(asker, schemaAsker, rec(acct3))
+	if claimed, _ := repo.AccountClaimedByOther(ctx, owner, acct3); claimed {
+		t.Fatal("a pending request claimed the account")
+	}
+	proven := rec(acct3)
+	proven.Checks = []AWSCheck{{Key: AWSCheckAssumeRole, State: AWSCheckPass}, {Key: AWSCheckReadAccess, State: AWSCheckSkipped}, {Key: AWSCheckEvents, State: AWSCheckSkipped}}
+	if _, err := repo.SaveCheckStart(ctx, asker, schemaAsker, proven); err != nil {
+		t.Fatal(err)
+	}
+	if claimed, err := repo.AccountClaimedByOther(ctx, owner, acct3); err != nil || !claimed {
+		t.Fatalf("a passed role check is not a claim: %v %v", claimed, err)
+	}
+
+	// 4. The click that asked is resolved when the checks end.
+	id, _, err := repo.RecordConnectionRequest(ctx, ConnectionRequest{TenantID: asker, Schema: schemaAsker, AccountID: acct3, RoleARN: proven.RoleARN, Regions: []string{"us-east-1"}, RequestedBy: "x@y.z"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.FinishConnectionRequest(ctx, id, "pending_approval", "", waitingChecks()); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.FinishPendingRequest(ctx, asker, acct3, "failed", "assume_role: refused", proven.Checks); err != nil {
+		t.Fatal(err)
+	}
+	var outcome, detail string
+	if err := db.QueryRow(`SELECT outcome, outcome_detail FROM nhi_global.connection_requests WHERE id = $1`, id).Scan(&outcome, &detail); err != nil || outcome != "failed" || detail != "assume_role: refused" {
+		t.Fatalf("resolved click: %q %q %v", outcome, detail, err)
+	}
+}

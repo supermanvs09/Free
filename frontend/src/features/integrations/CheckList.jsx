@@ -194,6 +194,8 @@ export function VerifyResult({ running, result, setup, onShowStep }) {
   /* The order is role, read access, approval, then events: an account that is
      being watched for events has been approved (or was approved before). */
   const approved = result?.approval?.status === 'approved';
+  /* Right after the approval the role and read checks run; the events watch follows. */
+  const checkingRole = (result?.checks ?? []).some((c) => c.key !== 'events' && c.state === 'running');
   return (
     <CheckResult
       running={running}
@@ -202,11 +204,17 @@ export function VerifyResult({ running, result, setup, onShowStep }) {
       ok={result?.status === 'connected' || result?.status === 'pending_approval'}
       definitions={AWS_CHECKS}
       copy={{
-        running: 'Checking your role…',
-        watching: approved ? 'Approved - now watching for your events' : 'Role works - now watching for your events',
-        watchingDetail: approved
-          ? 'adapID approved this connection. One event from any region below is enough; each is counted as it arrives, and the account connects with the first.'
-          : 'The role checks passed. One event from any region below is enough; each is counted as it arrives.',
+        running: 'Verifying your connection…',
+        watching: checkingRole
+          ? 'Approved - checking your role and read access'
+          : approved
+            ? 'Approved - now watching for your events'
+            : 'Role works - now watching for your events',
+        watchingDetail: checkingRole
+          ? 'adapID approved this connection. This takes a few seconds; the events check follows.'
+          : approved
+            ? 'adapID approved this connection. One event from any region below is enough; each is counted as it arrives, and the account connects with the first.'
+            : 'The role checks passed. One event from any region below is enough; each is counted as it arrives.',
         ok: 'Connection verified',
         okDetail: 'Read access works and your events are arriving.',
       }}
@@ -369,9 +377,11 @@ export function EventsWatch({ checks, setup }) {
 /* ── After the checks: approval ─────────────────────────────────────────── */
 
 /**
- * Every check passed. A first connection is reviewed by adapID before
- * scanning starts; this card says so, follows the decision, and explains a
- * rejection. `run` is { phase: awaiting | rejected | connected, approval }.
+ * A first connection is reviewed by adapID before anything is read from the
+ * customer's account: the request is sent when Verify is chosen, and the
+ * checks run by themselves once it is approved. This card says so, follows the
+ * decision, and explains a rejection.
+ * `run` is { phase: awaiting | rejected | connected, approval }.
  */
 export function ApprovalWait({ run, checkingNow, onCheckNow, onRetry }) {
   const approval = run.approval ?? {};
@@ -415,13 +425,14 @@ export function ApprovalWait({ run, checkingNow, onCheckNow, onRetry }) {
     );
   }
   const steps = [
-    { label: 'Role and read access', detail: 'The role can be assumed and reads your account', state: 'done' },
     {
-      label: 'Review by adapID',
+      label: 'Request sent to adapID',
       detail: approval.requestedAt ? `Requested ${formatRelative(approval.requestedAt)}${approval.requestedBy ? ` by ${approval.requestedBy}` : ''}` : 'Requested just now',
-      state: 'current',
+      state: 'done',
     },
-    { label: 'Events from your account', detail: 'After approval: one event from any chosen region connects the account', state: 'todo' },
+    { label: 'Review by adapID', detail: 'Our team has been notified and decides, usually within a few minutes', state: 'current' },
+    { label: 'Role and read access', detail: 'After approval, by themselves: we sign in with your role and read your account', state: 'todo' },
+    { label: 'Events from your account', detail: 'One event from any chosen region connects the account', state: 'todo' },
     { label: 'Scanning starts', detail: 'Identities and activity appear within minutes of the first event', state: 'todo' },
   ];
   return (
@@ -429,10 +440,11 @@ export function ApprovalWait({ run, checkingNow, onCheckNow, onRetry }) {
       <div className="flex items-start gap-3 bg-info-soft px-4 py-3">
         <Clock3 aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-info" />
         <div className="min-w-0 flex-1">
-          <p className="text-[13.5px] font-semibold text-ink">Role and read access passed - waiting for approval</p>
+          <p className="text-[13.5px] font-semibold text-ink">Waiting for adapID approval</p>
           <p className="text-[12px] leading-relaxed text-ink-2">
-            adapID reviews every new connection first. Our team has been notified; you do not need to do anything else. Once it is approved we check for
-            your events, which usually takes a few minutes, and then open your dashboard. You can leave this page - the request is kept.
+            adapID reviews every new connection first, and nothing is read from your AWS account until it is approved. Our team has been notified; you do
+            not need to do anything else. Once it is approved we check your role, read access and events by ourselves, which usually takes a few minutes,
+            and then open your dashboard. You can leave this page - the request is kept.
           </p>
         </div>
       </div>

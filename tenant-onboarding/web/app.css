@@ -413,3 +413,6 @@ textarea:focus-visible { outline: none; background: #fff; border-color: var(--li
 textarea[aria-invalid=true] { border-bottom-color: var(--critical); background: var(--critical-soft); }
 @media (max-width: 560px) { .ap-head .actions { width: 100%; } .ap-head .actions .btn { flex: 1; } .bell-panel { inset: 64px 12px auto 12px; width: auto; } }
 .ap-card .bar.w40 { width: 40%; } .ap-card .bar.w70 { width: 70%; margin-top: 12px; } .ap-card .bar.w55 { width: 55%; margin-top: 12px; }
+
+/* A request for an account another workspace already holds. */
+.ap-warn { margin: 0 0 12px; padding: 10px 12px; border: 1px solid #f3c98b; border-radius: 10px; background: #fff7e8; color: #7a4b00; font-size: 13px; line-height: 1.45; }

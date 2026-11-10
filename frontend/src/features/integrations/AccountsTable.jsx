@@ -325,7 +325,7 @@ function AccountRow({ account, names, counts, inventoryKnown, canManage, onChang
           </span>
           <span className="mt-0.5 block truncate text-[11.5px] text-ink-3" title={failing ? `${failing.label}: ${failing.message}` : undefined}>
             {account.status === 'pending_approval'
-              ? 'All checks pass · awaiting adapID'
+              ? 'Waiting for adapID approval'
               : account.status === 'rejected'
                 ? account.approval.note || 'Fix and re-check to ask again'
                 : failing ? `Failing: ${failing.label}` : account.checks.length ? (passed === 3 ? 'All 3 checks pass' : `${passed} of 3 checks pass`) : 'Not checked yet'}
