@@ -125,6 +125,7 @@ func ADF(paragraphs ...string) map[string]any {
 
 type NewIssue struct {
 	Summary     string
+	ProjectKey  string // optional: the account's jira_project_key (empty = the configured project)
 	Description []string
 	Severity    string
 	Labels      []string
@@ -132,8 +133,12 @@ type NewIssue struct {
 }
 
 func (c *Client) CreateIssue(ctx context.Context, n NewIssue) (*Issue, error) {
+	project := c.cfg.ProjectKey
+	if n.ProjectKey != "" {
+		project = n.ProjectKey
+	}
 	fields := map[string]any{
-		"project":     map[string]any{"key": c.cfg.ProjectKey},
+		"project":     map[string]any{"key": project},
 		"issuetype":   map[string]any{"name": c.cfg.IssueType},
 		"summary":     truncate(n.Summary, 250),
 		"description": ADF(n.Description...),

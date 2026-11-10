@@ -16,15 +16,20 @@ func NewListPlansRepository(core *engine.Service) *ListPlansRepository {
 	return &ListPlansRepository{core: core}
 }
 
-// List reads remediation_plans of the tenant, newest first.
-func (r *ListPlansRepository) List(ctx context.Context, tenantID string, f store.PlanFilter) ([]domain.Plan, error) {
+// List reads one page of remediation_plans of the tenant, newest first, and the number of
+// plans that match the filter in all pages.
+func (r *ListPlansRepository) List(ctx context.Context, tenantID string, f store.PlanFilter) ([]domain.Plan, int, error) {
 	st, err := r.core.Store(ctx, tenantID)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	plans, err := st.ListPlans(ctx, f)
-	if plans == nil && err == nil {
+	if err != nil {
+		return nil, 0, err
+	}
+	if plans == nil {
 		plans = []domain.Plan{}
 	}
-	return plans, err
+	total, err := st.CountPlans(ctx, f)
+	return plans, total, err
 }

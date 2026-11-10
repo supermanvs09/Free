@@ -15,7 +15,8 @@ func NewAccountSetupRepository(core *engine.Service) *AccountSetupRepository {
 	return &AccountSetupRepository{core: core}
 }
 
-// Get reads the account's ExternalId and role ARN from remediation_accounts.
+// Get reads the account's ExternalId and role ARN from the accounts table (remediation_external_id,
+// else the onboarding external_id).
 func (r *AccountSetupRepository) Get(ctx context.Context, tenantID, accountID string) (*AccountSetup, error) {
 	st, err := r.core.Store(ctx, tenantID)
 	if err != nil {

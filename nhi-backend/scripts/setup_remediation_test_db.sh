@@ -20,5 +20,8 @@ ALTER TABLE bimasugam.ispm_nhi_findings    ALTER COLUMN tenant_id TYPE uuid USIN
 ALTER TABLE bimasugam.ispm_identity_checks  ALTER COLUMN tenant_id TYPE uuid USING tenant_id::uuid;
 ALTER TABLE bimasugam.ispm_identity_posture ALTER COLUMN tenant_id TYPE uuid USING tenant_id::uuid;
 CREATE TABLE bimasugam.identities (id text, name text, identity_type text, arn text, parent_arn text, type_attributes jsonb, deleted_at timestamptz);
+-- the platform's accounts table (created by the scanner / Connect AWS Account); remediation adds its columns
+CREATE TABLE bimasugam.accounts (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid, account_id text UNIQUE,
+    external_id text, regions text[] NOT NULL DEFAULT '{}', client_role_arn text, is_connected boolean DEFAULT true);
 SQL
 echo "ready: TEST_DB_PORT=$PORT"

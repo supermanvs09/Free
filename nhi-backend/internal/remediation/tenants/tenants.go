@@ -8,6 +8,7 @@ package tenants
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -57,6 +58,7 @@ type Resolver struct {
 	pool          *pgxpool.Pool
 	globalSchema  string
 	registryTable string
+	only          []string // REMEDIATION_TENANTS: schema names (db_name) or tenant ids; empty = every tenant
 }
 
 // NewResolver reads tenants from <globalSchema>.tenants.
@@ -64,10 +66,42 @@ func NewResolver(pool *pgxpool.Pool, globalSchema string) *Resolver {
 	return &Resolver{pool: pool, globalSchema: globalSchema, registryTable: "tenants"}
 }
 
+// WithOnly limits the resolver to the listed tenants (schema name or tenant id, any case).
+// An empty list means every tenant.
+func (r *Resolver) WithOnly(only []string) *Resolver {
+	r.only = only
+	return r
+}
+
+// Restricted reports whether only some tenants are used.
+func (r *Resolver) Restricted() bool { return len(r.only) > 0 }
+
+// Only returns the tenants of list that are named in only (all of them when only is empty).
+func Only(list []Tenant, only []string) []Tenant {
+	if len(only) == 0 {
+		return list
+	}
+	want := map[string]bool{}
+	for _, o := range only {
+		want[strings.ToLower(strings.TrimSpace(o))] = true
+	}
+	var out []Tenant
+	for _, t := range list {
+		if want[strings.ToLower(t.DBName)] || want[strings.ToLower(t.ID)] {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
 func (r *Resolver) Main() *pgxpool.Pool { return r.pool }
 
 func (r *Resolver) List(ctx context.Context) ([]Tenant, error) {
-	return List(ctx, r.pool, r.globalSchema, r.registryTable)
+	list, err := List(ctx, r.pool, r.globalSchema, r.registryTable)
+	if err != nil {
+		return nil, err
+	}
+	return Only(list, r.only), nil
 }
 
 // Find returns the tenant row for an id.

@@ -1,6 +1,6 @@
-// Package remediation groups the 27 endpoints of the remediation API
-// (plans, approvals, executions, batches, audit, catalog, accounts and
-// integrations). Each endpoint is its own package with dto / handler / repo /
+// Package remediation groups the 29 endpoints of the remediation API
+// (plans, approvals, executions, batches, audit, catalog, e-mail sync status,
+// accounts and integrations). Each endpoint is its own package with dto / handler / repo /
 // service files; the shared engine is internal/remediation/engine.
 package remediation
 
@@ -12,9 +12,11 @@ import (
 	"nhi-backend-api/internal/modules/remediation/confirmexternal"
 	"nhi-backend-api/internal/modules/remediation/createbatch"
 	"nhi-backend-api/internal/modules/remediation/createplan"
+	"nhi-backend-api/internal/modules/remediation/emailsync"
 	"nhi-backend-api/internal/modules/remediation/executebatch"
 	"nhi-backend-api/internal/modules/remediation/executeplan"
 	"nhi-backend-api/internal/modules/remediation/executioncredential"
+	"nhi-backend-api/internal/modules/remediation/findingfix"
 	"nhi-backend-api/internal/modules/remediation/findingplans"
 	"nhi-backend-api/internal/modules/remediation/getaccount"
 	"nhi-backend-api/internal/modules/remediation/getbatch"
@@ -43,6 +45,7 @@ type Handlers struct {
 	ListPlans       *listplans.ListPlansHandler
 	GetPlan         *getplan.GetPlanHandler
 	FindingPlans    *findingplans.FindingPlansHandler
+	FindingFix      *findingfix.FindingFixHandler
 	SubmitPlan      *submitplan.SubmitPlanHandler
 	ApprovePlan     *approveplan.ApprovePlanHandler
 	RejectPlan      *rejectplan.RejectPlanHandler
@@ -59,9 +62,10 @@ type Handlers struct {
 	GetBatch     *getbatch.GetBatchHandler
 	SubmitBatch  *submitbatch.SubmitBatchHandler
 	ExecuteBatch *executebatch.ExecuteBatchHandler
-	// audit, catalog
+	// audit, catalog, e-mail sync status (read only)
 	AuditLog    *auditlog.AuditLogHandler
 	ListActions *listactions.ListActionsHandler
+	EmailSync   *emailsync.EmailSyncHandler
 	// settings
 	ListAccounts      *listaccounts.ListAccountsHandler
 	GetAccount        *getaccount.GetAccountHandler
@@ -79,6 +83,7 @@ func NewHandlers(core *engine.Service) *Handlers {
 		ListPlans:       listplans.NewListPlansHandler(listplans.NewListPlansService(listplans.NewListPlansRepository(core))),
 		GetPlan:         getplan.NewGetPlanHandler(getplan.NewGetPlanService(getplan.NewGetPlanRepository(core))),
 		FindingPlans:    findingplans.NewFindingPlansHandler(findingplans.NewFindingPlansService(findingplans.NewFindingPlansRepository(core))),
+		FindingFix:      findingfix.NewFindingFixHandler(findingfix.NewFindingFixService(findingfix.NewFindingFixRepository(core))),
 		SubmitPlan:      submitplan.NewSubmitPlanHandler(submitplan.NewSubmitPlanService(submitplan.NewSubmitPlanRepository(core))),
 		ApprovePlan:     approveplan.NewApprovePlanHandler(approveplan.NewApprovePlanService(approveplan.NewApprovePlanRepository(core))),
 		RejectPlan:      rejectplan.NewRejectPlanHandler(rejectplan.NewRejectPlanService(rejectplan.NewRejectPlanRepository(core))),
@@ -98,6 +103,7 @@ func NewHandlers(core *engine.Service) *Handlers {
 
 		AuditLog:    auditlog.NewAuditLogHandler(auditlog.NewAuditLogService(auditlog.NewAuditLogRepository(core))),
 		ListActions: listactions.NewListActionsHandler(listactions.NewListActionsService(listactions.NewListActionsRepository(core))),
+		EmailSync:   emailsync.NewEmailSyncHandler(emailsync.NewEmailSyncService(emailsync.NewEmailSyncRepository(core))),
 
 		ListAccounts:      listaccounts.NewListAccountsHandler(listaccounts.NewListAccountsService(listaccounts.NewListAccountsRepository(core))),
 		GetAccount:        getaccount.NewGetAccountHandler(getaccount.NewGetAccountService(getaccount.NewGetAccountRepository(core))),

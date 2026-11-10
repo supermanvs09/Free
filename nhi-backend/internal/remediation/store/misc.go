@@ -2,10 +2,12 @@ package store
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"nhi-backend-api/internal/remediation/domain"
 )
@@ -60,16 +62,30 @@ func (s *Store) queryAudit(ctx context.Context, q string, args ...any) ([]domain
 }
 
 // ---- accounts ----
+//
+// Account settings live in the platform's accounts table of the tenant schema (one row per AWS
+// account, matched on account_id), shared with the engine's automatic remediation. The
+// remediation_* columns are added by tenant migrations 007 / 009 (and by engine migration 015).
+// Rows are never inserted here: an account must be onboarded first.
 
-const acctCols = `tenant_id::text, account_id, remediation_enabled, COALESCE(remediation_role_arn,''), COALESCE(remediation_external_id,''),
-	allowed_action_types, enabled_regions, approval_policy::text, grace_days::text, access_status, COALESCE(access_detail,''),
-	access_checked_at, COALESCE(enabled_by,''), enabled_at, updated_at`
+// AccountsTable: the accounts table name (ACCOUNTS_TABLE, default "accounts").
+var AccountsTable = "accounts"
 
-func scanAccount(row pgx.Row) (*domain.Account, error) {
-	var a domain.Account
+// remediation_external_id when set, else the account's external_id (also used by the engine).
+const acctCols = `account_id::text, COALESCE(remediation_enabled, false), COALESCE(remediation_role_arn,''),
+	COALESCE(NULLIF(remediation_external_id,''), external_id::text, ''),
+	COALESCE(remediation_allowed_actions, '{}'), COALESCE(remediation_regions, '{}'),
+	COALESCE(remediation_approval_policy::text, '{"low":1,"medium":1,"high":1}'), COALESCE(remediation_grace_days::text, '{}'),
+	COALESCE(remediation_access_status, 'UNKNOWN'), COALESCE(remediation_access_detail,''), remediation_access_checked_at,
+	COALESCE(remediation_enabled_by,''), remediation_enabled_at, COALESCE(remediation_updated_at, now()),
+	COALESCE(auto_remediation_enabled, false), COALESCE(jira_project_key,'')`
+
+func (s *Store) scanAccount(row pgx.Row) (*domain.Account, error) {
+	a := domain.Account{TenantID: s.TenantID}
 	var ap, gd string
-	err := row.Scan(&a.TenantID, &a.AccountID, &a.Enabled, &a.RoleARN, &a.ExternalID, &a.AllowedActionTypes, &a.EnabledRegions,
-		&ap, &gd, &a.AccessStatus, &a.AccessDetail, &a.AccessCheckedAt, &a.EnabledBy, &a.EnabledAt, &a.UpdatedAt)
+	err := row.Scan(&a.AccountID, &a.Enabled, &a.RoleARN, &a.ExternalID, &a.AllowedActionTypes, &a.EnabledRegions,
+		&ap, &gd, &a.AccessStatus, &a.AccessDetail, &a.AccessCheckedAt, &a.EnabledBy, &a.EnabledAt, &a.UpdatedAt,
+		&a.AutoRemediationEnabled, &a.JiraProjectKey)
 	if err != nil {
 		return nil, notFound(err)
 	}
@@ -79,19 +95,19 @@ func scanAccount(row pgx.Row) (*domain.Account, error) {
 }
 
 func (s *Store) GetAccount(ctx context.Context, accountID string) (*domain.Account, error) {
-	return scanAccount(s.pool.QueryRow(ctx, fmt.Sprintf(`SELECT %s FROM %s WHERE tenant_id = $1::uuid AND account_id = $2`,
-		acctCols, s.tbl("remediation_accounts")), s.TenantID, accountID))
+	return s.scanAccount(s.pool.QueryRow(ctx, fmt.Sprintf(`SELECT %s FROM %s WHERE account_id::text = $1 LIMIT 1`,
+		acctCols, s.tbl(AccountsTable)), accountID))
 }
 
 func (s *Store) ListAccounts(ctx context.Context) ([]domain.Account, error) {
-	rows, err := s.pool.Query(ctx, fmt.Sprintf(`SELECT %s FROM %s WHERE tenant_id = $1::uuid ORDER BY account_id`, acctCols, s.tbl("remediation_accounts")), s.TenantID)
+	rows, err := s.pool.Query(ctx, fmt.Sprintf(`SELECT %s FROM %s ORDER BY account_id`, acctCols, s.tbl(AccountsTable)))
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var out []domain.Account
 	for rows.Next() {
-		a, err := scanAccount(rows)
+		a, err := s.scanAccount(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -100,28 +116,29 @@ func (s *Store) ListAccounts(ctx context.Context) ([]domain.Account, error) {
 	return out, rows.Err()
 }
 
+// UpsertAccount updates the remediation settings of an onboarded account (ErrNotFound when the
+// account is not in the accounts table). ExternalID is written to remediation_external_id only,
+// never to the collector's external_id.
 func (s *Store) UpsertAccount(ctx context.Context, a *domain.Account, actor string) error {
-	_, err := s.pool.Exec(ctx, fmt.Sprintf(`
-		INSERT INTO %s (tenant_id, account_id, remediation_enabled, remediation_role_arn, remediation_external_id,
-			allowed_action_types, enabled_regions, approval_policy, grace_days, enabled_by, enabled_at)
-		VALUES ($1::uuid, $2, $3, NULLIF($4,''), NULLIF($5,''), $6, $7, $8::jsonb, $9::jsonb, $10, CASE WHEN $3 THEN now() END)
-		ON CONFLICT (tenant_id, account_id) DO UPDATE SET
-			remediation_enabled = EXCLUDED.remediation_enabled,
-			remediation_role_arn = EXCLUDED.remediation_role_arn,
-			remediation_external_id = COALESCE(EXCLUDED.remediation_external_id, %[1]s.remediation_external_id),
-			allowed_action_types = EXCLUDED.allowed_action_types, enabled_regions = EXCLUDED.enabled_regions,
-			approval_policy = EXCLUDED.approval_policy, grace_days = EXCLUDED.grace_days,
-			enabled_by = CASE WHEN EXCLUDED.remediation_enabled AND NOT %[1]s.remediation_enabled THEN EXCLUDED.enabled_by ELSE %[1]s.enabled_by END,
-			enabled_at = CASE WHEN EXCLUDED.remediation_enabled AND NOT %[1]s.remediation_enabled THEN now() ELSE %[1]s.enabled_at END,
-			updated_at = now()`, s.tbl("remediation_accounts")),
-		s.TenantID, a.AccountID, a.Enabled, a.RoleARN, a.ExternalID, nz(a.AllowedActionTypes), nz(a.EnabledRegions),
+	tag, err := s.pool.Exec(ctx, fmt.Sprintf(`UPDATE %s SET
+			remediation_enabled_by = CASE WHEN $2 AND NOT COALESCE(remediation_enabled,false) THEN $9 ELSE remediation_enabled_by END,
+			remediation_enabled_at = CASE WHEN $2 AND NOT COALESCE(remediation_enabled,false) THEN now() ELSE remediation_enabled_at END,
+			remediation_enabled = $2, remediation_role_arn = NULLIF($3,''),
+			remediation_external_id = CASE WHEN $4 <> '' AND $4 IS DISTINCT FROM external_id::text THEN $4 ELSE remediation_external_id END,
+			remediation_allowed_actions = $5, remediation_regions = $6, remediation_approval_policy = $7::jsonb,
+			remediation_grace_days = $8::jsonb, remediation_updated_at = now()
+		WHERE account_id::text = $1`, s.tbl(AccountsTable)),
+		a.AccountID, a.Enabled, a.RoleARN, a.ExternalID, nz(a.AllowedActionTypes), nz(a.EnabledRegions),
 		jsonOrEmpty(a.ApprovalPolicy, `{"low":1,"medium":1,"high":1}`), jsonOrEmpty(a.GraceDays, "{}"), actor)
+	if err == nil && tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
 	return err
 }
 
 func (s *Store) SetAccessStatus(ctx context.Context, accountID, status, detail string) error {
-	_, err := s.pool.Exec(ctx, fmt.Sprintf(`UPDATE %s SET access_status = $3, access_detail = NULLIF($4,''), access_checked_at = now()
-		WHERE tenant_id = $1::uuid AND account_id = $2`, s.tbl("remediation_accounts")), s.TenantID, accountID, status, detail)
+	_, err := s.pool.Exec(ctx, fmt.Sprintf(`UPDATE %s SET remediation_access_status = $2, remediation_access_detail = NULLIF($3,''),
+		remediation_access_checked_at = now() WHERE account_id::text = $1`, s.tbl(AccountsTable)), accountID, status, detail)
 	return err
 }
 
@@ -173,32 +190,36 @@ func (s *Store) SeedAction(ctx context.Context, a domain.Action) error {
 	return err
 }
 
-func (s *Store) SeedRuleAction(ctx context.Context, r domain.RuleAction) error {
-	_, err := s.pool.Exec(ctx, fmt.Sprintf(`INSERT INTO %s (rule_id, action_type, is_default, params_template)
-		VALUES ($1,$2,$3,$4::jsonb) ON CONFLICT (rule_id, action_type) DO NOTHING`, s.tbl("remediation_rule_actions")),
-		r.RuleID, r.ActionType, r.IsDefault, jsonOrEmpty(r.ParamsTemplate, "{}"))
-	return err
-}
-
+// RuleActions returns the actions that fix a rule, default first, from the rule catalog
+// (ispm_rule_weights: remediation_action_type, remediation_alt_actions, remediation_params;
+// tenant migration 009, same as engine migration 012). The same mapping drives the engine's
+// automatic remediation.
 func (s *Store) RuleActions(ctx context.Context, ruleID string) ([]domain.RuleAction, error) {
-	rows, err := s.pool.Query(ctx, fmt.Sprintf(`SELECT ra.rule_id, ra.action_type, ra.is_default, ra.params_template::text
-		FROM %s ra JOIN %s a USING (action_type) WHERE ra.rule_id = $1 AND a.enabled ORDER BY ra.is_default DESC, ra.action_type`,
-		s.tbl("remediation_rule_actions"), s.tbl("remediation_actions")), ruleID)
-	if err != nil {
+	var def string
+	var alts []string
+	var params string
+	err := s.pool.QueryRow(ctx, fmt.Sprintf(`SELECT COALESCE(remediation_action_type,''), COALESCE(remediation_alt_actions, '{}'),
+		COALESCE(remediation_params::text, '{}') FROM %s WHERE rule_id = $1`, s.tbl("ispm_rule_weights")), ruleID).Scan(&def, &alts, &params)
+	var pg *pgconn.PgError
+	switch {
+	case errors.As(err, &pg) && pg.Code == "42703":
+		return nil, fmt.Errorf("ispm_rule_weights has no remediation columns: apply tenant migration 009 (or engine migration 012)")
+	case err == pgx.ErrNoRows:
+		return nil, nil
+	case err != nil:
 		return nil, err
+	case def == "":
+		return nil, nil
 	}
-	defer rows.Close()
 	var out []domain.RuleAction
-	for rows.Next() {
-		var r domain.RuleAction
-		var p string
-		if err := rows.Scan(&r.RuleID, &r.ActionType, &r.IsDefault, &p); err != nil {
-			return nil, err
+	for i, act := range append([]string{def}, alts...) {
+		a, err := s.GetAction(ctx, act)
+		if err != nil || !a.Enabled {
+			continue // unknown or turned-off action
 		}
-		r.ParamsTemplate = rawFrom(p)
-		out = append(out, r)
+		out = append(out, domain.RuleAction{RuleID: ruleID, ActionType: act, IsDefault: i == 0, ParamsTemplate: rawFrom(params)})
 	}
-	return out, rows.Err()
+	return out, nil
 }
 
 // ---- integrations / tickets / notifications ----
@@ -542,21 +563,15 @@ type HistoryEvent struct {
 	Status    string
 }
 
-// HistoryAfter reads engine finding-history rows after the cursor (oldest first).
-func (s *Store) HistoryAfter(ctx context.Context, at *time.Time, id string, limit int) ([]HistoryEvent, error) {
-	q := fmt.Sprintf(`SELECT h.id::text, h.finding_id::text, h.action, COALESCE(h.new_value,''), COALESCE(h.reason,''), h.created_at,
+// historyFrom is the SELECT of finding-history rows of this tenant (joined with their finding);
+// the caller adds conditions, ordering and limit.
+func (s *Store) historyFrom() string {
+	return fmt.Sprintf(`SELECT h.id::text, h.finding_id::text, h.action, COALESCE(h.new_value,''), COALESCE(h.reason,''), h.created_at,
 		f.severity, f.rule_id, COALESCE(f.title,''), COALESCE(f.identity_name,''), COALESCE(f.account_id,''), f.status
 		FROM %s h JOIN %s f ON f.finding_id = h.finding_id WHERE f.tenant_id = $1::uuid`, s.tbl("ispm_finding_history"), s.tbl("ispm_nhi_findings"))
-	args := []any{s.TenantID}
-	if at != nil {
-		q += " AND (h.created_at, h.id::text) > ($2, $3)"
-		args = append(args, *at, id)
-	}
-	q += fmt.Sprintf(" ORDER BY h.created_at, h.id::text LIMIT %d", limit)
-	rows, err := s.pool.Query(ctx, q, args...)
-	if err != nil {
-		return nil, err
-	}
+}
+
+func scanHistory(rows pgx.Rows) ([]HistoryEvent, error) {
 	defer rows.Close()
 	var out []HistoryEvent
 	for rows.Next() {
@@ -567,6 +582,22 @@ func (s *Store) HistoryAfter(ctx context.Context, at *time.Time, id string, limi
 		out = append(out, h)
 	}
 	return out, rows.Err()
+}
+
+// HistoryAfter reads engine finding-history rows after the cursor (oldest first).
+func (s *Store) HistoryAfter(ctx context.Context, at *time.Time, id string, limit int) ([]HistoryEvent, error) {
+	q := s.historyFrom()
+	args := []any{s.TenantID}
+	if at != nil {
+		q += " AND (h.created_at, h.id::text) > ($2, $3)"
+		args = append(args, *at, id)
+	}
+	q += fmt.Sprintf(" ORDER BY h.created_at, h.id::text LIMIT %d", limit)
+	rows, err := s.pool.Query(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	return scanHistory(rows)
 }
 
 // NewCriticalFindings lists Critical findings first seen since `since` (daily digest).

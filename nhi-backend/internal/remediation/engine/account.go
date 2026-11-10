@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"regexp"
 
 	"nhi-backend-api/internal/remediation/domain"
@@ -89,7 +90,9 @@ func (s *Service) PutAccount(ctx context.Context, actor domain.Actor, accountID 
 			a.ExternalID = randomHex(16)
 		}
 	}
-	if err := st.UpsertAccount(ctx, a, actor.UserID); err != nil {
+	if err := st.UpsertAccount(ctx, a, actor.UserID); isStoreNotFound(err) {
+		return nil, &Error{http.StatusNotFound, "not_found", "account " + accountID + " is not in the accounts table: onboard it first"}
+	} else if err != nil {
 		return nil, err
 	}
 	st.Audit(ctx, "", "", "", domain.EvAccountUpdated, actor.UserID, map[string]any{"account_id": accountID, "enabled": req.Enabled,

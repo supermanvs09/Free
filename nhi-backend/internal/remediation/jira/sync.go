@@ -149,13 +149,18 @@ func (y *Syncer) createTicket(ctx context.Context, st *store.Store, c *Client, c
 		}
 		desc = append(desc, "Guided steps: "+string(p.Steps))
 	}
+	// the account's own Jira project (accounts.jira_project_key), else the configured one
+	project := ""
+	if a, err := st.GetAccount(ctx, f.AccountID); err == nil {
+		project = strings.TrimSpace(a.JiraProjectKey)
+	}
 	due := f.FirstSeen.AddDate(0, 0, cfg.SLADays[f.Severity])
 	if cfg.SLADays[f.Severity] == 0 {
 		due = time.Time{}
 	}
 	issue, err := c.CreateIssue(ctx, NewIssue{
 		Summary: fmt.Sprintf("[ISPM %s] %s", f.Severity, f.Title), Description: desc, Severity: f.Severity,
-		Labels: []string{strings.ToLower(f.RuleID)}, DueDate: due,
+		Labels: []string{strings.ToLower(f.RuleID)}, DueDate: due, ProjectKey: project,
 	})
 	if err != nil {
 		return err

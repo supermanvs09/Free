@@ -39,23 +39,36 @@ func (p *Provider) ValidateAccess(ctx context.Context, acct domain.Account) prov
 			missing = append(missing, name)
 		}
 	}
-	_, err = c.IAM.ListRoles(ctx, &iam.ListRolesInput{MaxItems: aws.Int32(1)})
-	probe("iam:ListRoles", err)
-	_, err = c.KMS.ListKeys(ctx, &kms.ListKeysInput{Limit: aws.Int32(1)})
-	probe("kms:ListKeys", err)
-	_, err = c.Secrets.ListSecrets(ctx, &secretsmanager.ListSecretsInput{MaxResults: aws.Int32(1)})
-	probe("secretsmanager:ListSecrets", err)
-	if c.Analyzer != nil {
-		_, err = c.Analyzer.ValidatePolicy(ctx, &accessanalyzer.ValidatePolicyInput{
-			PolicyDocument: aws.String(`{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"s3:GetObject","Resource":"*"}]}`),
-			PolicyType:     aatypes.PolicyTypeIdentityPolicy})
-		probe("access-analyzer:ValidatePolicy", err)
-	}
+	// Each probe asks about something that does not exist. "Not found" (or any answer except
+	// "access denied") proves the role may make the call; "access denied" proves it may not.
+	// These are the reads the plans use (the keys, roles, secrets and KMS keys they look at), so the
+	// check works for a role that has exactly those permissions and does not need list-everything ones.
+	_, err = c.IAM.GetRole(ctx, &iam.GetRoleInput{RoleName: aws.String(probeName)})
+	probe("iam:GetRole", err)
+	_, err = c.IAM.ListAccessKeys(ctx, &iam.ListAccessKeysInput{UserName: aws.String(probeName)})
+	probe("iam:ListAccessKeys", err)
+	_, err = c.Secrets.GetResourcePolicy(ctx, &secretsmanager.GetResourcePolicyInput{SecretId: aws.String(probeName)})
+	probe("secretsmanager:GetResourcePolicy", err)
+	_, err = c.KMS.DescribeKey(ctx, &kms.DescribeKeyInput{KeyId: aws.String("alias/" + probeName)})
+	probe("kms:DescribeKey", err)
 	if len(missing) > 0 {
 		rep.Status = "MISSING_PERMISSIONS"
 		rep.Detail = fmt.Sprintf("the role was assumed but is denied: %s", strings.Join(missing, ", "))
 		return rep
 	}
-	rep.Status, rep.Detail = "OK", "role assumed; read access for planning works"
+	rep.Status, rep.Detail = "OK", "role assumed; the reads used by plans work"
+	// Access Analyzer only adds a policy-validation pre-check to plans: without it a plan shows a
+	// warning, so it never makes the status worse than OK.
+	if c.Analyzer != nil {
+		_, err = c.Analyzer.ValidatePolicy(ctx, &accessanalyzer.ValidatePolicyInput{
+			PolicyDocument: aws.String(`{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"s3:GetObject","Resource":"*"}]}`),
+			PolicyType:     aatypes.PolicyTypeIdentityPolicy})
+		if err != nil && isDenied(err) {
+			rep.Detail += "; access-analyzer:ValidatePolicy is denied, so plans of policy changes show a warning instead of a policy check"
+		}
+	}
 	return rep
 }
+
+// probeName is a name no real role, user, secret or KMS alias has.
+const probeName = "ispm-validate-probe"

@@ -197,6 +197,7 @@ func (s *Service) doExecute(ctx context.Context, st *store.Store, ex *domain.Exe
 		_ = st.SetPlanStatus(ctx, p.ID, domain.PlanExecuted, reason, domain.PlanExecuted)
 	}
 	s.requestRescan(ctx, st, ex, p)
+	// the EMAIL_NOTIFY list is told that the change was applied (no e-mail for a failed run or a dry run)
 	if fresh, err := st.GetPlan(ctx, p.ID); err == nil {
 		s.notifyPlan(ctx, st, "EXECUTED", fresh, "")
 	}
@@ -222,9 +223,7 @@ func (s *Service) finishWithError(ctx context.Context, st *store.Store, ex *doma
 		_ = st.SetPlanStatus(ctx, p.ID, domain.PlanFailed, code+": "+msg, domain.PlanScheduled, domain.PlanExecuting, domain.PlanApproved)
 	}
 	st.Audit(ctx, p.ID, ex.ID, derefStr(p.BatchID), domain.EvFailed, "system", map[string]any{"code": code, "error": msg, "kind": ex.Kind})
-	if fresh, err := st.GetPlan(ctx, p.ID); err == nil {
-		s.notifyPlan(ctx, st, "FAILED", fresh, msg)
-	}
+	// no e-mail for a failed run: the error is on the plan (status_reason) and the execution
 	if p.BatchID != nil {
 		s.updateBatch(ctx, st, *p.BatchID)
 	}

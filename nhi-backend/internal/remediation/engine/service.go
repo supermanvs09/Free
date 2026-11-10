@@ -84,6 +84,9 @@ func (s *Service) Store(ctx context.Context, tenantID string) (*store.Store, err
 		return nil, err
 	}
 	if !ok {
+		if s.res.Restricted() {
+			return nil, &Error{http.StatusNotFound, "not_found", "remediation is not enabled for this tenant (see REMEDIATION_TENANTS)"}
+		}
 		return nil, notFoundErr("tenant " + tenantID)
 	}
 	return s.storeFor(ctx, t)

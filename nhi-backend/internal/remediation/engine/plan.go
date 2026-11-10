@@ -39,10 +39,37 @@ func AccountFor(ctx context.Context, st *store.Store, accountID string) (*domain
 	return a, err
 }
 
-func approvalPolicy(a *domain.Account) domain.ApprovalPolicy {
-	p := domain.ApprovalPolicy{Low: 1, Medium: 1, High: 1}
-	_ = json.Unmarshal(a.ApprovalPolicy, &p)
-	return p
+// approvalSeverity is the finding severity whose One-click plans always need approval.
+const approvalSeverity = "critical"
+
+// autoActions are the safe fixes (the rule engine's AUTO list): easy to undo and unlikely to
+// break anything. Only these may run without approval, and only for a finding below Critical.
+// Every other fix changes who can reach something or what an app depends on, and always needs
+// approval, whatever the severity.
+var autoActions = map[string]bool{
+	catalog.DeactivateKey:      true,
+	catalog.EnableKeyRotation:  true,
+	catalog.SetSessionDuration: true,
+}
+
+// NeedsApproval says whether a finding of this severity needs approval for any fix.
+func NeedsApproval(severity string) bool {
+	return strings.EqualFold(strings.TrimSpace(severity), approvalSeverity)
+}
+
+// ApprovalRequired says whether a One-click plan for this fix on a finding of this severity
+// needs approval: always for a risky fix, for a safe fix only when the finding is Critical.
+func ApprovalRequired(severity, actionType string) bool {
+	return !autoActions[actionType] || NeedsApproval(severity)
+}
+
+func hasCritical(fs []domain.Finding) bool {
+	for _, f := range fs {
+		if NeedsApproval(f.Severity) {
+			return true
+		}
+	}
+	return false
 }
 
 func graceDays(a *domain.Account, act *domain.Action) int {
@@ -125,15 +152,52 @@ func mustJSON(v any, empty string) json.RawMessage {
 // CreatePlan builds a plan for findings: it reads live state (read only),
 // computes before / after, diff, pre-checks, risk and score impact, and stores
 // it. Older open plans for the same target and action are superseded.
+//
+// A READY One-click plan is submitted at once: a safe fix on a finding below Critical is
+// approved and queued to run (no approval e-mail); a risky fix, or a Critical finding, sends
+// the approval e-mail and the plan runs once approved.
 func (s *Service) CreatePlan(ctx context.Context, actor domain.Actor, req CreatePlanReq) (*domain.Plan, error) {
+	p, _, err := s.CreateOrPendingPlan(ctx, actor, req)
+	return p, err
+}
+
+// CreateOrPendingPlan is CreatePlan, except that a One-click request for findings that already
+// have a plan waiting for approval or about to run (created by the engine's automatic
+// remediation after a scan, or earlier in the dashboard) returns that plan (pending = true):
+// no second plan, no second approval e-mail. A Guided request always gets its own plan.
+func (s *Service) CreateOrPendingPlan(ctx context.Context, actor domain.Actor, req CreatePlanReq) (*domain.Plan, bool, error) {
 	if err := requireRole(actor, domain.PermPlan); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	st, err := s.Store(ctx, actor.TenantID)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return s.createPlan(ctx, st, actor, req)
+	if req.Mode != domain.ModeGuided && len(req.FindingIDs) > 0 {
+		ids := dedupe(req.FindingIDs)
+		pending, err := st.PendingPlanFor(ctx, ids)
+		if err != nil {
+			return nil, false, err
+		}
+		if pending != nil {
+			if !coversAll(pending.FindingIDs, ids) {
+				return nil, false, conflict("some of these findings already have a plan waiting for approval or about to run (plan %s): "+
+					"send only the findings without one", pending.ID)
+			}
+			return pending, true, nil
+		}
+	}
+	p, err := s.createPlan(ctx, st, actor, req)
+	if err != nil || p.Mode != domain.ModeOneClick || p.Status != domain.PlanReady || p.BatchID != nil {
+		return p, false, err
+	}
+	sub, err := s.Submit(ctx, actor, p.ID)
+	if err == nil {
+		return sub, false, nil
+	}
+	s.log.Warn("remediation: the new One-click plan could not be submitted; submit it again", "plan", p.ID, "err", err)
+	p, err = st.GetPlan(ctx, p.ID)
+	return p, false, err
 }
 
 func (s *Service) createPlan(ctx context.Context, st *store.Store, actor domain.Actor, req CreatePlanReq) (*domain.Plan, error) {
@@ -324,11 +388,11 @@ func (s *Service) createPlan(ctx context.Context, st *store.Store, actor domain.
 	if out != nil && out.Risk != "" {
 		plan.RiskLevel = out.Risk
 	}
-	if mode == domain.ModeOneClick {
-		plan.RequiredApprovals = approvalPolicy(acct).For(plan.RiskLevel)
-		if out != nil && out.Flags.NeedsTwoApprovers() && plan.RequiredApprovals < 2 {
-			plan.RequiredApprovals = 2
-		}
+	// One-click: a risky fix always needs approval; a safe fix only for a Critical finding.
+	// One approval is always enough: accounts.approval_policy and the "two approvers" flags
+	// of the providers no longer raise it.
+	if mode == domain.ModeOneClick && (!autoActions[act.ActionType] || hasCritical(findings)) {
+		plan.RequiredApprovals = 1
 	}
 	plan.Steps = mustJSON(catalog.RenderSteps(act.StepsTemplate, stringVars(vars, params)), "[]")
 	plan.Prechecks = mustJSON(prechecks, "[]")
@@ -364,6 +428,20 @@ func derefStr(p *string) string {
 		return ""
 	}
 	return *p
+}
+
+// coversAll says whether every id in want is in have.
+func coversAll(have, want []string) bool {
+	set := map[string]bool{}
+	for _, id := range have {
+		set[strings.ToLower(id)] = true
+	}
+	for _, id := range want {
+		if !set[strings.ToLower(id)] {
+			return false
+		}
+	}
+	return true
 }
 
 func dedupe(ss []string) []string {

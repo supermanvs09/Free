@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -16,7 +17,8 @@ const planCols = `plan_id::text, tenant_id::text, batch_id::text, finding_ids::t
 	prechecks::text, usage_basis::text, risk_level, required_approvals,
 	score_current::float8, score_gain::float8, score_projected::float8, fleet_gain::float8,
 	mode, status, COALESCE(status_reason,''), plan_hash, superseded_by::text, valid_until,
-	created_by, created_at, updated_at`
+	created_by, created_at, updated_at,
+	policy_id::text, COALESCE(target_key,''), follow_up_of::text, COALESCE(scan_id,'')`
 
 func scanPlan(row pgx.Row) (*domain.Plan, error) {
 	var p domain.Plan
@@ -27,7 +29,8 @@ func scanPlan(row pgx.Row) (*domain.Plan, error) {
 		&prechecks, &usage, &risk, &p.RequiredApprovals,
 		&p.ScoreCurrent, &p.ScoreGain, &p.ScoreProjected, &p.FleetGain,
 		&mode, &status, &p.StatusReason, &p.PlanHash, &p.SupersededBy, &p.ValidUntil,
-		&p.CreatedBy, &p.CreatedAt, &p.UpdatedAt)
+		&p.CreatedBy, &p.CreatedAt, &p.UpdatedAt,
+		&p.PolicyID, &p.TargetKey, &p.FollowUpOf, &p.ScanID)
 	if err != nil {
 		return nil, notFound(err)
 	}
@@ -71,6 +74,7 @@ func (s *Store) GetPlan(ctx context.Context, id string) (*domain.Plan, error) {
 
 type PlanFilter struct {
 	Status    string
+	Mode      string // GUIDED | ONE_CLICK
 	AccountID string
 	FindingID string
 	BatchID   string
@@ -79,15 +83,32 @@ type PlanFilter struct {
 	Offset    int
 }
 
-func (s *Store) ListPlans(ctx context.Context, f PlanFilter) ([]domain.Plan, error) {
-	q := fmt.Sprintf(`SELECT %s FROM %s WHERE tenant_id = $1::uuid`, planCols, s.tbl("remediation_plans"))
+// PendingPlanFor returns the newest plan of any of the findings, created by the dashboard or by
+// the engine's automatic remediation, that waits for approval or is about to run. It returns
+// nil when there is none.
+func (s *Store) PendingPlanFor(ctx context.Context, findingIDs []string) (*domain.Plan, error) {
+	p, err := scanPlan(s.pool.QueryRow(ctx, fmt.Sprintf(`SELECT %s FROM %s WHERE tenant_id = $1::uuid
+		AND finding_ids && $2::text[]::uuid[] AND status IN ('PENDING_APPROVAL','APPROVED','SCHEDULED','EXECUTING')
+		ORDER BY created_at DESC LIMIT 1`, planCols, s.tbl("remediation_plans")), s.TenantID, findingIDs))
+	if errors.Is(err, ErrNotFound) {
+		return nil, nil
+	}
+	return p, err
+}
+
+// planWhere is the WHERE clause of a plan filter (without LIMIT) and its arguments.
+func (s *Store) planWhere(f PlanFilter) (string, []any) {
+	where := " WHERE tenant_id = $1::uuid"
 	args := []any{s.TenantID}
 	add := func(cond string, v any) {
 		args = append(args, v)
-		q += fmt.Sprintf(" AND "+cond, len(args))
+		where += fmt.Sprintf(" AND "+cond, len(args))
 	}
 	if f.Status != "" {
 		add("status = $%d", f.Status)
+	}
+	if f.Mode != "" {
+		add("mode = $%d", f.Mode)
 	}
 	if f.AccountID != "" {
 		add("account_id = $%d", f.AccountID)
@@ -101,6 +122,20 @@ func (s *Store) ListPlans(ctx context.Context, f PlanFilter) ([]domain.Plan, err
 	if f.TargetARN != "" {
 		add("target_arn = $%d", f.TargetARN)
 	}
+	return where, args
+}
+
+// CountPlans counts the plans that match the filter (Limit and Offset are ignored).
+func (s *Store) CountPlans(ctx context.Context, f PlanFilter) (int, error) {
+	where, args := s.planWhere(f)
+	var n int
+	err := s.pool.QueryRow(ctx, fmt.Sprintf(`SELECT count(*) FROM %s`, s.tbl("remediation_plans"))+where, args...).Scan(&n)
+	return n, err
+}
+
+func (s *Store) ListPlans(ctx context.Context, f PlanFilter) ([]domain.Plan, error) {
+	where, args := s.planWhere(f)
+	q := fmt.Sprintf(`SELECT %s FROM %s`, planCols, s.tbl("remediation_plans")) + where
 	if f.Limit <= 0 || f.Limit > 200 {
 		f.Limit = 50
 	}
@@ -146,12 +181,14 @@ func (s *Store) SetPlanStatus(ctx context.Context, id string, to domain.PlanStat
 	return nil
 }
 
-// SupersedePlans marks other open plans on the same target+action SUPERSEDED.
+// SupersedePlans marks other open dashboard plans on the same target+action SUPERSEDED.
+// Plans of the engine's automatic remediation (policy_id set) are never touched here.
 func (s *Store) SupersedePlans(ctx context.Context, newID, targetARN, actionType string) ([]string, error) {
 	rows, err := s.pool.Query(ctx, fmt.Sprintf(`
 		UPDATE %s SET status = 'SUPERSEDED', superseded_by = $4::uuid, status_reason = 'a newer plan was created', updated_at = now()
 		WHERE tenant_id = $1::uuid AND target_arn = $2 AND action_type = $3 AND plan_id <> $4::uuid
 		  AND status IN ('DRAFT','READY','WAITING_EXTERNAL','PENDING_APPROVAL','APPROVED')
+		  AND policy_id IS NULL
 		RETURNING plan_id::text`, s.tbl("remediation_plans")), s.TenantID, targetARN, actionType, newID)
 	if err != nil {
 		return nil, err
@@ -182,11 +219,11 @@ func (s *Store) SetPlanValidUntil(ctx context.Context, id string, t time.Time) e
 	return err
 }
 
-// ExpirePlans marks plans waiting for approval / execution past valid_until as EXPIRED.
+// ExpirePlans marks dashboard plans waiting for approval / execution past valid_until as EXPIRED.
 func (s *Store) ExpirePlans(ctx context.Context) ([]string, error) {
 	rows, err := s.pool.Query(ctx, fmt.Sprintf(`
 		UPDATE %s SET status = 'EXPIRED', status_reason = 'approval expired', updated_at = now()
-		WHERE tenant_id = $1::uuid AND status IN ('PENDING_APPROVAL','APPROVED') AND valid_until IS NOT NULL AND valid_until < now()
+		WHERE tenant_id = $1::uuid AND policy_id IS NULL AND status IN ('PENDING_APPROVAL','APPROVED') AND valid_until IS NOT NULL AND valid_until < now()
 		RETURNING plan_id::text`, s.tbl("remediation_plans")), s.TenantID)
 	if err != nil {
 		return nil, err
@@ -203,9 +240,10 @@ func (s *Store) ExpirePlans(ctx context.Context) ([]string, error) {
 	return ids, rows.Err()
 }
 
-// PlansByStatus is used by the reconcile loop.
+// PlansByStatus is used by the reconcile loop; plans of the engine's automatic remediation
+// (policy_id set) are reconciled by the engine.
 func (s *Store) PlansByStatus(ctx context.Context, statuses ...string) ([]domain.Plan, error) {
-	rows, err := s.pool.Query(ctx, fmt.Sprintf(`SELECT %s FROM %s WHERE tenant_id = $1::uuid AND status = ANY($2) ORDER BY updated_at LIMIT 200`,
+	rows, err := s.pool.Query(ctx, fmt.Sprintf(`SELECT %s FROM %s WHERE tenant_id = $1::uuid AND policy_id IS NULL AND status = ANY($2) ORDER BY updated_at LIMIT 200`,
 		planCols, s.tbl("remediation_plans")), s.TenantID, statuses)
 	if err != nil {
 		return nil, err

@@ -194,7 +194,10 @@ func (h *secretPolicy) state(ctx context.Context, c *Clients, t provider.Target)
 	return map[string]any{"secret_arn": t.TargetARN, "policy": docMapOrNil(d)}, nil
 }
 
-func (h *secretPolicy) set(ctx context.Context, c *Clients, r *run, step, secretARN string, doc *policydoc.Doc) error {
+// set writes the policy (nil = delete it). blockPublic is BlockPublicPolicy: true for the new
+// policy of a remediation, so a public policy can never be written by a fix; false only when
+// restoring the previous policy in a rollback, which may have been public (that is why it was fixed).
+func (h *secretPolicy) set(ctx context.Context, c *Clients, r *run, step, secretARN string, doc *policydoc.Doc, blockPublic bool) error {
 	if doc == nil {
 		return r.do(step, "secretsmanager:DeleteResourcePolicy", func() (smithymw.Metadata, error) {
 			o, err := c.Secrets.DeleteResourcePolicy(ctx, &secretsmanager.DeleteResourcePolicyInput{SecretId: aws.String(secretARN)})
@@ -203,7 +206,7 @@ func (h *secretPolicy) set(ctx context.Context, c *Clients, r *run, step, secret
 	}
 	return r.do(step, "secretsmanager:PutResourcePolicy", func() (smithymw.Metadata, error) {
 		o, err := c.Secrets.PutResourcePolicy(ctx, &secretsmanager.PutResourcePolicyInput{SecretId: aws.String(secretARN),
-			ResourcePolicy: aws.String(doc.JSON()), BlockPublicPolicy: aws.Bool(true)})
+			ResourcePolicy: aws.String(doc.JSON()), BlockPublicPolicy: aws.Bool(blockPublic)})
 		return mdOf(o, err)
 	})
 }
@@ -218,7 +221,7 @@ func (h *secretPolicy) apply(ctx context.Context, c *Clients, r *run) error {
 		return err
 	}
 	r.snap = map[string]any{"secret_arn": r.t.TargetARN, "policy": docMapOrNil(before)}
-	if err := h.set(ctx, c, r, "update the secret resource policy", r.t.TargetARN, after); err != nil {
+	if err := h.set(ctx, c, r, "update the secret resource policy", r.t.TargetARN, after, true); err != nil {
 		return err
 	}
 	r.result_["secret_policy_updated"] = r.t.TargetARN
@@ -248,7 +251,7 @@ func (h *secretPolicy) rollback(ctx context.Context, c *Clients, r *run, snap ma
 	if err != nil {
 		return err
 	}
-	return h.set(ctx, c, r, "restore the previous resource policy", str(snap, "secret_arn"), doc)
+	return h.set(ctx, c, r, "restore the previous resource policy", str(snap, "secret_arn"), doc, false)
 }
 
 // ---- rotate_secret ----

@@ -7,8 +7,9 @@ import (
 	"nhi-backend-api/internal/remediation/engine"
 )
 
-// UpdateAccountRepository upserts remediation_accounts through the engine,
-// which validates the role ARN, generates the ExternalId and checks access.
+// UpdateAccountRepository updates the remediation_* columns of an onboarded account (accounts)
+// through the engine (404 when the account is not onboarded),
+// which validates the role ARN, keeps or generates the ExternalId and checks access.
 type UpdateAccountRepository struct {
 	core *engine.Service
 }

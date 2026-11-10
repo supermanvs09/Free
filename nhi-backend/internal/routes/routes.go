@@ -341,6 +341,9 @@ func registerRemediation(router *mux.Router, h *remediation.Handlers) {
 	if h.FindingPlans != nil {
 		route(get, "/findings/{finding_id}", h.FindingPlans.Get)
 	}
+	if h.FindingFix != nil {
+		route(get, "/findings/{finding_id}/fix", h.FindingFix.Get)
+	}
 	if h.SubmitPlan != nil {
 		route(post, "/plans/{id}/submit", h.SubmitPlan.Post)
 	}
@@ -391,6 +394,10 @@ func registerRemediation(router *mux.Router, h *remediation.Handlers) {
 	}
 	if h.ListActions != nil {
 		route(get, "/actions", h.ListActions.List)
+	}
+	// e-mail sync status of the rule engine (reads ispm_email_sync, every role)
+	if h.EmailSync != nil {
+		route(get, "/email-sync", h.EmailSync.Get)
 	}
 	// settings
 	if h.ListAccounts != nil {

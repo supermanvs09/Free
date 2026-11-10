@@ -24,7 +24,8 @@ const (
 type PlanStatus string
 
 const (
-	PlanDraft           PlanStatus = "DRAFT" // built, but blocked by a pre-check
+	PlanDraft           PlanStatus = "DRAFT"   // built, but blocked by a pre-check
+	PlanDryRun          PlanStatus = "DRY_RUN" // engine automatic remediation: only recorded, nothing changes
 	PlanReady           PlanStatus = "READY"
 	PlanWaitingExternal PlanStatus = "WAITING_EXTERNAL"
 	PlanPendingApproval PlanStatus = "PENDING_APPROVAL"
@@ -41,6 +42,7 @@ const (
 	PlanExpired         PlanStatus = "EXPIRED"
 	PlanSuperseded      PlanStatus = "SUPERSEDED"
 	PlanCancelled       PlanStatus = "CANCELLED"
+	PlanSkipped         PlanStatus = "SKIPPED" // engine automatic remediation: a gate or pre-check stopped it
 )
 
 // Final reports states that no transition leaves (except re-planning).
@@ -164,9 +166,15 @@ type Plan struct {
 	PlanHash          string          `json:"plan_hash"`
 	SupersededBy      *string         `json:"superseded_by,omitempty"`
 	ValidUntil        *time.Time      `json:"valid_until,omitempty"`
-	CreatedBy         string          `json:"created_by"`
-	CreatedAt         time.Time       `json:"created_at"`
-	UpdatedAt         time.Time       `json:"updated_at"`
+	CreatedBy         string          `json:"created_by"` // a user, or auto:<policy name> for the engine
+	// PolicyID is set on plans created by the engine's automatic remediation (ispm_auto_policies).
+	// Those plans are approved here but executed, verified and rolled back by the engine only.
+	PolicyID   *string   `json:"policy_id,omitempty"`
+	TargetKey  string    `json:"target_key,omitempty"`   // engine: one plan per target
+	FollowUpOf *string   `json:"follow_up_of,omitempty"` // engine: second step of a key rotation
+	ScanID     string    `json:"scan_id,omitempty"`      // engine: the scan that found it
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 type Execution struct {
@@ -283,12 +291,16 @@ type RuleAction struct {
 // ---- accounts ----
 
 type Account struct {
-	TenantID           string          `json:"tenant_id"`
-	AccountID          string          `json:"account_id"`
-	Enabled            bool            `json:"remediation_enabled"`
-	RoleARN            string          `json:"remediation_role_arn"`
-	ExternalID         string          `json:"-"` // never returned by the API
-	HasExternalID      bool            `json:"has_external_id"`
+	TenantID      string `json:"tenant_id"`
+	AccountID     string `json:"account_id"`
+	Enabled       bool   `json:"remediation_enabled"`
+	RoleARN       string `json:"remediation_role_arn"`
+	ExternalID    string `json:"-"` // never returned by the API
+	HasExternalID bool   `json:"has_external_id"`
+	// AutoRemediationEnabled is the engine's on/off switch for this account (read only here).
+	AutoRemediationEnabled bool `json:"auto_remediation_enabled"`
+	// JiraProjectKey is the Jira project of this account's tickets (empty = JIRA_PROJECT_KEY).
+	JiraProjectKey     string          `json:"jira_project_key,omitempty"`
 	AllowedActionTypes []string        `json:"allowed_action_types"`
 	EnabledRegions     []string        `json:"enabled_regions"`
 	ApprovalPolicy     json.RawMessage `json:"approval_policy"`

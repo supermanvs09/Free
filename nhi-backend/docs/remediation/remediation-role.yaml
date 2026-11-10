@@ -12,7 +12,7 @@ Parameters:
   ExternalId:
     Type: String
     NoEcho: true
-    MinLength: 16
+    MinLength: 6
     Description: ExternalId shown in the dashboard (Settings > Remediation). Prevents the confused-deputy problem.
   RoleName:
     Type: String

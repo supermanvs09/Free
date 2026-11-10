@@ -39,6 +39,7 @@ func newRemediation(cfg *config.Config, rc *config.RemediationConfig) (*remediat
 	defer cancel()
 
 	store.SetEnvIntegrations(rc.Integrations) // Jira / e-mail platform defaults
+	store.AccountsTable = rc.AccountsTable    // shared accounts table (account_id)
 	pool, err := database.NewPgxPool(ctx, cfg.Database, int32(4*rc.Worker.Concurrency+8), "nhi-backend-remediation")
 	if err != nil {
 		return nil, fmt.Errorf("remediation database pool: %w", err)
@@ -65,7 +66,10 @@ func newRemediation(cfg *config.Config, rc *config.RemediationConfig) (*remediat
 		slog.Warn("remediation: WORKER_URL / WORKER_SCAN_TOKEN not set, no rescan is requested after a change")
 	}
 
-	core := engine.New(rc, tenants.NewResolver(pool, cfg.Database.Schema), provider.NewRegistry(aws), scan, slog.Default().With("component", "remediation"))
+	core := engine.New(rc, tenants.NewResolver(pool, cfg.Database.Schema).WithOnly(rc.Tenants), provider.NewRegistry(aws), scan, slog.Default().With("component", "remediation"))
+	if len(rc.Tenants) > 0 {
+		slog.Info("remediation: limited to these tenants", "tenants", rc.Tenants)
+	}
 	if rc.Safety.DryRunOnly {
 		slog.Warn("remediation: REMEDIATOR_DRY_RUN_ONLY is on, executions are simulated and nothing is written to AWS")
 	}

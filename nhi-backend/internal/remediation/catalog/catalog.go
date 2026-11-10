@@ -222,11 +222,9 @@ func Seed(ctx context.Context, s *store.Store) error {
 			return err
 		}
 	}
-	for _, r := range RuleActions() {
-		if err := s.SeedRuleAction(ctx, r); err != nil {
-			return err
-		}
-	}
+	// The rule -> action mapping is not seeded here: it lives in ispm_rule_weights
+	// (tenant migration 009, same as engine migration 012); RuleActions() above is the
+	// reference it was built from.
 	return nil
 }
 

@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -25,6 +26,7 @@ import (
 	"nhi-backend-api/internal/remediation/domain"
 	"nhi-backend-api/internal/remediation/engine"
 	"nhi-backend-api/internal/remediation/provider"
+	"nhi-backend-api/internal/remediation/store"
 	"nhi-backend-api/internal/remediation/tenants"
 )
 
@@ -74,7 +76,25 @@ func (f *fakeAWS) ValidateAccess(context.Context, domain.Account) provider.Acces
 	return provider.AccessReport{Status: "OK", At: time.Now()}
 }
 
+// claimWait claims the next due execution, retrying for about 2 seconds: the queue compares the Go clock
+// with the database clock, which can differ by a few milliseconds (Docker).
+func claimWait(ctx context.Context, svc *engine.Service, st *store.Store) *domain.Execution {
+	var run *domain.Execution
+	for i := 0; i < 10 && run == nil; i++ {
+		if run = svc.Claim(ctx, st); run == nil {
+			time.Sleep(200 * time.Millisecond)
+		}
+	}
+	return run
+}
+
 func setup(t *testing.T) (*engine.Service, *fakeAWS) {
+	t.Helper()
+	return setupSeverity(t, "High")
+}
+
+// setupSeverity is setup with the severity of the test finding (Critical needs approval).
+func setupSeverity(t *testing.T, severity string) (*engine.Service, *fakeAWS) {
 	t.Helper()
 	port := os.Getenv("TEST_DB_PORT")
 	if port == "" {
@@ -96,11 +116,19 @@ func setup(t *testing.T) (*engine.Service, *fakeAWS) {
 	for _, q := range []string{
 		`DELETE FROM nhi_global.tenants`,
 		`INSERT INTO nhi_global.tenants (tenant_id, db_name) VALUES ('` + tenantID + `', 'bimasugam')`,
+		// plans of an earlier test would be found as the finding's existing plan (the tables
+		// exist from the second test on)
+		`DO $$ BEGIN IF to_regclass('bimasugam.remediation_plans') IS NOT NULL THEN
+			DELETE FROM bimasugam.remediation_executions; DELETE FROM bimasugam.remediation_approvals;
+			DELETE FROM bimasugam.remediation_plans; END IF; END $$`,
 		`DELETE FROM bimasugam.ispm_nhi_findings`,
 		`INSERT INTO bimasugam.ispm_nhi_findings (finding_id, tenant_id, account_id, rule_id, rule_name, severity, identity_id, identity_name,
 			identity_type, credential_arn, title, evidence, status, first_seen, last_seen, finding_key)
-		 VALUES ('` + findingID + `', '` + tenantID + `', '` + account + `', 'IAM-01', 'Unused access key', 'High', 'alice', 'alice', 'IAM_USER',
+		 VALUES ('` + findingID + `', '` + tenantID + `', '` + account + `', 'IAM-01', 'Unused access key', '` + severity + `', 'alice', 'alice', 'IAM_USER',
 			'` + keyARN + `', 'Access key unused', '{"user_name":"alice","access_key_id":"AKIAEXAMPLE000000001"}', 'OPEN', now(), now(), 'k1')`,
+		// the onboarded account: remediation settings are columns of the platform's accounts table
+		`DELETE FROM bimasugam.accounts`,
+		`INSERT INTO bimasugam.accounts (tenant_id, account_id, external_id) VALUES ('` + tenantID + `', '` + account + `', 'ext-onboarding-1')`,
 	} {
 		if _, err := pool.Exec(ctx, q); err != nil {
 			t.Fatalf("fixture: %v\n%s", err, q)
@@ -112,8 +140,9 @@ func setup(t *testing.T) (*engine.Service, *fakeAWS) {
 	return svc, fake
 }
 
+// TestOneClickFlow: a Critical finding needs approval; once approved the plan runs by itself.
 func TestOneClickFlow(t *testing.T) {
-	svc, fake := setup(t)
+	svc, fake := setupSeverity(t, "Critical")
 	ctx := context.Background()
 	admin := domain.Actor{TenantID: tenantID, UserID: "admin@x", Role: domain.RoleAdmin}
 	analyst := domain.Actor{TenantID: tenantID, UserID: "ann@x", Role: domain.RoleAnalyst}
@@ -127,17 +156,15 @@ func TestOneClickFlow(t *testing.T) {
 		t.Fatalf("put account: %v", err)
 	}
 
-	plan, err := svc.CreatePlan(ctx, analyst, engine.CreatePlanReq{FindingIDs: []string{findingID}})
+	// IAM-01 maps to rotate_access_key (default) with deactivate_key as alternative (ispm_rule_weights)
+	plan, err := svc.CreatePlan(ctx, analyst, engine.CreatePlanReq{FindingIDs: []string{findingID}, ActionType: "deactivate_key"})
 	if err != nil {
 		t.Fatalf("create plan: %v", err)
 	}
 	t.Logf("plan %s mode=%s status=%s approvals=%d", plan.ID, plan.Mode, plan.Status, plan.RequiredApprovals)
-	if plan.Mode != domain.ModeOneClick || plan.Status != domain.PlanReady {
-		t.Fatalf("want ONE_CLICK/READY, got %s/%s", plan.Mode, plan.Status)
-	}
-
-	if plan, err = svc.Submit(ctx, analyst, plan.ID); err != nil || plan.Status != domain.PlanPendingApproval {
-		t.Fatalf("submit: %v %v", plan, err)
+	// a Critical One-click plan is submitted at once: it waits for approval
+	if plan.Mode != domain.ModeOneClick || plan.Status != domain.PlanPendingApproval || plan.RequiredApprovals != 1 {
+		t.Fatalf("want ONE_CLICK/PENDING_APPROVAL with exactly 1 approval, got %s/%s/%d", plan.Mode, plan.Status, plan.RequiredApprovals)
 	}
 	if _, err = svc.Decide(ctx, analyst, plan.ID, true, "self"); err == nil {
 		t.Fatal("an analyst must not approve")
@@ -145,26 +172,20 @@ func TestOneClickFlow(t *testing.T) {
 	if plan, err = svc.Decide(ctx, approver, plan.ID, true, "ok"); err != nil {
 		t.Fatalf("approve: %v", err)
 	}
-	t.Logf("after approval: %s", plan.Status)
-
-	ex, err := svc.Execute(ctx, analyst, plan.ID)
-	if err != nil {
-		t.Fatalf("execute: %v", err)
+	// the approval queues the run: nobody calls execute
+	if plan.Status != domain.PlanScheduled {
+		t.Fatalf("after approval want SCHEDULED, got %s (%s)", plan.Status, plan.StatusReason)
 	}
 
 	st, err := svc.Store(ctx, tenantID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var run *domain.Execution
-	for i := 0; i < 10 && run == nil; i++ {
-		if run = svc.Claim(ctx, st); run == nil {
-			time.Sleep(200 * time.Millisecond)
-		}
+	run := claimWait(ctx, svc, st)
+	if run == nil || run.PlanID != plan.ID || run.TriggeredBy != analyst.UserID {
+		t.Fatalf("worker did not claim the execution started for the plan's creator: %v", run)
 	}
-	if run == nil || run.ID != ex.ID {
-		t.Fatalf("worker did not claim the execution: %v", run)
-	}
+	ex := run
 	svc.RunExecution(ctx, st, run)
 
 	done, err := getplan.NewGetPlanRepository(svc).Get(ctx, tenantID, plan.ID)
@@ -188,7 +209,7 @@ func TestOneClickFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("rollback: %v", err)
 	}
-	if run = svc.Claim(ctx, st); run == nil || run.ID != rb.ID {
+	if run = claimWait(ctx, svc, st); run == nil || run.ID != rb.ID {
 		t.Fatalf("rollback not claimed: %v", run)
 	}
 	svc.RunExecution(ctx, st, run)
@@ -202,5 +223,189 @@ func TestOneClickFlow(t *testing.T) {
 	}
 	for _, e := range evs {
 		t.Logf("audit %-22s by %s", e.Event, e.Actor)
+	}
+}
+
+// TestOneClickNoApproval: a finding below Critical runs right after the plan is created,
+// with no approval and no approval e-mail.
+func TestOneClickNoApproval(t *testing.T) {
+	svc, fake := setup(t) // High
+	ctx := context.Background()
+	admin := domain.Actor{TenantID: tenantID, UserID: "admin@x", Role: domain.RoleAdmin}
+	analyst := domain.Actor{TenantID: tenantID, UserID: "ann@x", Role: domain.RoleAnalyst}
+	if _, err := svc.PutAccount(ctx, admin, account, engine.AccountReq{
+		Enabled: true, RoleARN: "arn:aws:iam::" + account + ":role/ISPMRemediation",
+		AllowedActionTypes: []string{"deactivate_key"}, EnabledRegions: []string{"ap-south-1"},
+		GraceDays: []byte(`{"deactivate_key":0}`),
+	}); err != nil {
+		t.Fatalf("put account: %v", err)
+	}
+	plan, err := svc.CreatePlan(ctx, analyst, engine.CreatePlanReq{FindingIDs: []string{findingID}, ActionType: "deactivate_key"})
+	if err != nil {
+		t.Fatalf("create plan: %v", err)
+	}
+	if plan.Mode != domain.ModeOneClick || plan.Status != domain.PlanScheduled || plan.RequiredApprovals != 0 {
+		t.Fatalf("want ONE_CLICK/SCHEDULED/0 approvals, got %s/%s/%d (%s)", plan.Mode, plan.Status, plan.RequiredApprovals, plan.StatusReason)
+	}
+	st, err := svc.Store(ctx, tenantID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	run := claimWait(ctx, svc, st)
+	if run == nil || run.PlanID != plan.ID {
+		t.Fatalf("execution not claimed: %v", run)
+	}
+	svc.RunExecution(ctx, st, run)
+	if fake.status != "Inactive" {
+		t.Fatalf("the fake key was not changed: %s", fake.status)
+	}
+	done, err := st.GetPlan(ctx, plan.ID)
+	if err != nil || done.Status != domain.PlanVerified {
+		t.Fatalf("want VERIFIED, got %v %v", done, err)
+	}
+
+	// Guided stays Guided on the same account when asked for
+	g, err := svc.CreatePlan(ctx, analyst, engine.CreatePlanReq{FindingIDs: []string{findingID}, ActionType: "deactivate_key", Mode: domain.ModeGuided})
+	if err != nil || g.Mode != domain.ModeGuided || g.Status != domain.PlanReady {
+		t.Fatalf("guided plan: %v %v", g, err)
+	}
+}
+
+// TestEmailsFollowTheSeverityRule: the e-mails that really reach the outbox. A Critical
+// One-click plan, or a risky fix on any severity, sends one approval e-mail to the approvers
+// and nothing when it is approved or finished; a safe fix on a High finding and a Guided plan
+// send none. One approval is always enough, whatever the account's approval_policy says.
+func TestEmailsFollowTheSeverityRule(t *testing.T) {
+	store.SetEnvIntegrations(config.RemediationIntegrationsConfig{Email: config.RemediationEmailEnv{
+		Provider: "ses", From: "alerts@example.com", Approvers: []string{"approver@example.com"},
+		Notify: []string{"team@example.com"}, SESRegion: "ap-south-1"}})
+	t.Cleanup(func() { store.SetEnvIntegrations(config.RemediationIntegrationsConfig{}) })
+
+	mails := func(t *testing.T, planID string) []string {
+		t.Helper()
+		pool, err := pgxpool.New(context.Background(), fmt.Sprintf("postgres://postgres:pw@localhost:%s/nhi?sslmode=disable", os.Getenv("TEST_DB_PORT")))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer pool.Close()
+		rows, err := pool.Query(context.Background(), `SELECT type || ' -> ' || array_to_string(recipients, ',')
+			FROM bimasugam.remediation_notifications WHERE plan_id = $1::uuid ORDER BY created_at`, planID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer rows.Close()
+		var out []string
+		for rows.Next() {
+			var s string
+			if err := rows.Scan(&s); err != nil {
+				t.Fatal(err)
+			}
+			out = append(out, s)
+		}
+		return out
+	}
+	oneClickAccount := func(svc *engine.Service) {
+		admin := domain.Actor{TenantID: tenantID, UserID: "admin@x", Role: domain.RoleAdmin}
+		// an approval policy that used to ask for 2 or 3 approvers: it no longer counts
+		if _, err := svc.PutAccount(context.Background(), admin, account, engine.AccountReq{
+			Enabled: true, RoleARN: "arn:aws:iam::" + account + ":role/ISPMRemediation",
+			AllowedActionTypes: []string{"deactivate_key", "rotate_access_key"}, EnabledRegions: []string{"ap-south-1"},
+			ApprovalPolicy: []byte(`{"low":2,"medium":2,"high":3}`),
+			GraceDays:      []byte(`{"deactivate_key":0}`)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ctx := context.Background()
+	analyst := domain.Actor{TenantID: tenantID, UserID: "ann@x", Role: domain.RoleAnalyst}
+	approver := domain.Actor{TenantID: tenantID, UserID: "bob@x", Role: domain.RoleApprover}
+	req := engine.CreatePlanReq{FindingIDs: []string{findingID}, ActionType: "deactivate_key", Mode: domain.ModeOneClick}
+
+	// Critical: one approval e-mail, to the approvers only
+	svc, _ := setupSeverity(t, "Critical")
+	oneClickAccount(svc)
+	plan, err := svc.CreatePlan(ctx, analyst, req)
+	if err != nil || plan.Status != domain.PlanPendingApproval {
+		t.Fatalf("critical plan: %+v %v", plan, err)
+	}
+	if got := mails(t, plan.ID); len(got) != 1 || got[0] != "APPROVAL_REQUESTED -> approver@example.com" {
+		t.Fatalf("critical: want one approval e-mail to the approver, got %v", got)
+	}
+	// approving and running send nothing more
+	if plan, err = svc.Decide(ctx, approver, plan.ID, true, "ok"); err != nil || plan.Status != domain.PlanScheduled {
+		t.Fatalf("approve: %+v %v", plan, err)
+	}
+	st, _ := svc.Store(ctx, tenantID)
+	if run := claimWait(ctx, svc, st); run == nil {
+		t.Fatal("not claimed")
+	} else {
+		svc.RunExecution(ctx, st, run)
+	}
+	if got := mails(t, plan.ID); len(got) != 1 {
+		t.Fatalf("critical after approval and run: want still 1 e-mail, got %v", got)
+	}
+
+	// a failed run sends nothing either
+	svc, fake := setupSeverity(t, "Critical")
+	oneClickAccount(svc)
+	if plan, err = svc.CreatePlan(ctx, analyst, req); err != nil {
+		t.Fatal(err)
+	}
+	if plan, err = svc.Decide(ctx, approver, plan.ID, true, "ok"); err != nil {
+		t.Fatal(err)
+	}
+	fake.status = "Deleted" // AWS changed after the plan was made: the run fails with drift
+	st, _ = svc.Store(ctx, tenantID)
+	if run := claimWait(ctx, svc, st); run != nil {
+		svc.RunExecution(ctx, st, run)
+	}
+	if failed, err := st.GetPlan(ctx, plan.ID); err != nil || failed.Status != domain.PlanFailed {
+		t.Fatalf("the run was meant to fail, plan is %v %v", failed, err)
+	}
+	for _, m := range mails(t, plan.ID) {
+		if !strings.HasPrefix(m, "APPROVAL_REQUESTED") {
+			t.Fatalf("a finished or failed run sent an e-mail: %s", m)
+		}
+	}
+
+	// High: no approval, no e-mail at all, even after the run
+	svc, _ = setupSeverity(t, "High")
+	oneClickAccount(svc)
+	if plan, err = svc.CreatePlan(ctx, analyst, req); err != nil || plan.Status != domain.PlanScheduled {
+		t.Fatalf("high plan: %+v %v", plan, err)
+	}
+	st, _ = svc.Store(ctx, tenantID)
+	if run := claimWait(ctx, svc, st); run != nil {
+		svc.RunExecution(ctx, st, run)
+	}
+	if got := mails(t, plan.ID); len(got) != 0 {
+		t.Fatalf("high: want no e-mail, got %v", got)
+	}
+
+	// a risky fix (rotate_access_key) always needs approval, on a Low and on a High finding:
+	// one approval e-mail, and one approval is enough
+	for _, sev := range []string{"Low", "High"} {
+		svc, _ = setupSeverity(t, sev)
+		oneClickAccount(svc)
+		rp, err := svc.CreatePlan(ctx, analyst, engine.CreatePlanReq{FindingIDs: []string{findingID}, ActionType: "rotate_access_key", Mode: domain.ModeOneClick})
+		if err != nil || rp.Status != domain.PlanPendingApproval || rp.RequiredApprovals != 1 {
+			t.Fatalf("%s finding, risky fix: want PENDING_APPROVAL with 1 approval, got %+v %v", sev, rp, err)
+		}
+		if got := mails(t, rp.ID); len(got) != 1 || got[0] != "APPROVAL_REQUESTED -> approver@example.com" {
+			t.Fatalf("%s finding, risky fix: want one approval e-mail, got %v", sev, got)
+		}
+		if rp, err = svc.Decide(ctx, approver, rp.ID, true, "ok"); err != nil || rp.Status != domain.PlanScheduled {
+			t.Fatalf("%s finding, risky fix: one approval must be enough: %+v %v", sev, rp, err)
+		}
+	}
+
+	// Guided: no e-mail
+	svc, _ = setupSeverity(t, "Critical")
+	oneClickAccount(svc)
+	g, err := svc.CreatePlan(ctx, analyst, engine.CreatePlanReq{FindingIDs: []string{findingID}, ActionType: "deactivate_key", Mode: domain.ModeGuided})
+	if err != nil || g.Mode != domain.ModeGuided {
+		t.Fatalf("guided: %+v %v", g, err)
+	}
+	if got := mails(t, g.ID); len(got) != 0 {
+		t.Fatalf("guided: want no e-mail, got %v", got)
 	}
 }

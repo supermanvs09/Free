@@ -1,2 +1,2 @@
--- Nothing to undo: the seed re-inserts the default mapping on start-up.
+-- Nothing to undo: the dropped tables are no longer used.
 SELECT 1;

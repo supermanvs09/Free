@@ -10,6 +10,7 @@ package integration_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -28,9 +29,9 @@ const httpTestSecret = "remediation-http-integration-secret-0123456789"
 
 type httpUsers map[string]string
 
-func (m httpUsers) ValidateAuthContext(_ context.Context, email, _, _ string) (bool, string, string, error) {
+func (m httpUsers) ValidateAuthContext(_ context.Context, email, _, _, _ string) (bool, string, error) {
 	role, ok := m[email]
-	return ok, role, "bimasugam", nil
+	return ok, role, nil
 }
 
 func TestOneClickFlowHTTP(t *testing.T) {
@@ -64,29 +65,33 @@ func TestOneClickFlowHTTP(t *testing.T) {
 		"allowed_action_types":["deactivate_key"],"enabled_regions":["ap-south-1"],"grace_days":{"deactivate_key":0}}`, http.StatusOK)
 	call("vic@x", http.MethodGet, "/accounts/"+account+"/setup", "", http.StatusForbidden)
 	setupData := data(call("admin@x", http.MethodGet, "/accounts/"+account+"/setup", "", http.StatusOK))
-	if setupData["external_id"] == "" {
-		t.Fatalf("setup has no external id: %v", setupData)
+	if setupData["external_id"] != "ext-onboarding-1" {
+		t.Fatalf("setup must reuse the onboarding external id: %v", setupData)
+	}
+	// an account that is not onboarded (not in the accounts table) cannot be configured
+	call("admin@x", http.MethodPut, "/accounts/999999999999", `{"remediation_enabled":false}`, http.StatusNotFound)
+
+	// the fix view shows both modes. IAM-01's default fix is rotate_access_key: this account does
+	// not allow it, so One-click says why not, and as a risky fix it needs approval on any severity.
+	modes, _ := data(call("vic@x", http.MethodGet, "/findings/"+findingID+"/fix", "", http.StatusOK))["modes"].(map[string]any)
+	oneClick, _ := modes["one_click"].(map[string]any)
+	guided, _ := modes["guided"].(map[string]any)
+	if guided["available"] != true || oneClick["available"] != false || oneClick["approval_required"] != true ||
+		!strings.Contains(fmt.Sprint(oneClick["reason"]), "rotate_access_key") {
+		t.Fatalf("fix modes: %v", modes)
 	}
 
-	plan := data(call("ann@x", http.MethodPost, "/plans", `{"finding_ids":["`+findingID+`"]}`, http.StatusCreated))
+	// One-click for a High finding: no submit, no approval, no execute call
+	plan := data(call("ann@x", http.MethodPost, "/plans", `{"finding_ids":["`+findingID+`"],"action_type":"deactivate_key","mode":"ONE_CLICK"}`, http.StatusCreated))
 	planID, _ := plan["plan_id"].(string)
-	if plan["mode"] != string(domain.ModeOneClick) || plan["status"] != string(domain.PlanReady) {
-		t.Fatalf("want ONE_CLICK/READY, got %v/%v", plan["mode"], plan["status"])
+	if plan["mode"] != string(domain.ModeOneClick) || plan["status"] != string(domain.PlanScheduled) {
+		t.Fatalf("want ONE_CLICK/SCHEDULED, got %v/%v (%v)", plan["mode"], plan["status"], plan["status_reason"])
 	}
 	detail := data(call("vic@x", http.MethodGet, "/plans/"+planID, "", http.StatusOK))
 	if p, _ := detail["plan"].(map[string]any); p["plan_id"] != planID {
 		t.Fatalf("plan detail: %v", detail)
 	}
-	call("ann@x", http.MethodPost, "/plans/"+planID+"/submit", "", http.StatusOK)
-	call("ann@x", http.MethodPost, "/plans/"+planID+"/approve", `{"comment":"self"}`, http.StatusForbidden)
-	if p := data(call("bob@x", http.MethodPost, "/plans/"+planID+"/approve", `{"comment":"ok"}`, http.StatusOK)); p["status"] != string(domain.PlanApproved) {
-		t.Fatalf("after approve: %v", p["status"])
-	}
-	queued := call("ann@x", http.MethodPost, "/plans/"+planID+"/execute", "", http.StatusAccepted)
-	execID, _ := data(queued)["execution_id"].(string)
-	if queued["status_url"] != "/api/v1/remediation/executions/"+execID {
-		t.Fatalf("status_url: %v", queued["status_url"])
-	}
+	call("ann@x", http.MethodPost, "/plans/"+planID+"/submit", "", http.StatusConflict)
 
 	// the background worker's job, done inline
 	ctx := context.Background()
@@ -94,10 +99,11 @@ func TestOneClickFlowHTTP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	run := svc.Claim(ctx, st)
-	if run == nil || run.ID != execID {
+	run := claimWait(ctx, svc, st)
+	if run == nil || run.PlanID != planID {
 		t.Fatalf("execution not claimed: %v", run)
 	}
+	execID := run.ID
 	svc.RunExecution(ctx, st, run)
 	if ex := data(call("vic@x", http.MethodGet, "/executions/"+execID, "", http.StatusOK)); ex["status"] != string(domain.ExecSucceeded) {
 		t.Fatalf("execution status %v", ex["status"])
@@ -106,11 +112,42 @@ func TestOneClickFlowHTTP(t *testing.T) {
 		t.Fatalf("the fake key was not changed: %s", fake.status)
 	}
 
+	// the read-only fix view: finding details, the engine's how-to-fix and the guided steps
+	fix := data(call("vic@x", http.MethodGet, "/findings/"+findingID+"/fix", "", http.StatusOK))
+	if fix["rule_id"] != "IAM-01" || fix["fix"] == nil || !strings.Contains(fix["summary_text"].(string), "Rule: IAM-01") {
+		t.Fatalf("fix view: %v", fix)
+	}
+	call("vic@x", http.MethodGet, "/findings/00000000-0000-0000-0000-000000000000/fix", "", http.StatusNotFound)
 	if l, _ := call("vic@x", http.MethodGet, "/findings/"+findingID, "", http.StatusOK)["data"].([]any); len(l) == 0 {
 		t.Fatal("finding has no plans")
 	}
 	if l, _ := call("vic@x", http.MethodGet, "/plans?status=VERIFIED&account_id="+account, "", http.StatusOK)["data"].([]any); len(l) == 0 {
 		t.Fatal("no VERIFIED plan listed")
+	}
+	// the mode filter (other tests leave plans of both modes in the database)
+	for _, mode := range []domain.Mode{domain.ModeOneClick, domain.ModeGuided} {
+		l, _ := call("vic@x", http.MethodGet, "/plans?limit=200&mode="+strings.ToLower(string(mode)), "", http.StatusOK)["data"].([]any)
+		for _, it := range l {
+			if p, _ := it.(map[string]any); p["mode"] != string(mode) {
+				t.Fatalf("mode=%s lists a %v plan", mode, p["mode"])
+			}
+		}
+		if mode == domain.ModeOneClick && len(l) == 0 {
+			t.Fatal("mode=ONE_CLICK lists no plan")
+		}
+	}
+	call("vic@x", http.MethodGet, "/plans?mode=AUTO", "", http.StatusBadRequest)
+	// the list says how many plans match in all pages, also when the page is smaller
+	pg := call("vic@x", http.MethodGet, "/plans?account_id="+account+"&limit=1", "", http.StatusOK)
+	pagination, _ := pg["pagination"].(map[string]any)
+	if n, _ := pagination["page_size"].(float64); n != 1 {
+		t.Fatalf("page_size = %v, want 1", pagination["page_size"])
+	}
+	if n, _ := pagination["count"].(float64); n != 1 {
+		t.Fatalf("count = %v, want 1", pagination["count"])
+	}
+	if total, _ := pagination["total_count"].(float64); total < 1 {
+		t.Fatalf("total_count = %v, want at least 1", pagination["total_count"])
 	}
 	if l, _ := call("vic@x", http.MethodGet, "/actions", "", http.StatusOK)["data"].([]any); len(l) < 10 {
 		t.Fatalf("catalog has %d actions", len(l))
@@ -120,7 +157,7 @@ func TestOneClickFlowHTTP(t *testing.T) {
 	}
 
 	rb := data(call("ann@x", http.MethodPost, "/executions/"+execID+"/rollback", "", http.StatusAccepted))
-	if run = svc.Claim(ctx, st); run == nil || run.ID != rb["execution_id"] {
+	if run = claimWait(ctx, svc, st); run == nil || run.ID != rb["execution_id"] {
 		t.Fatalf("rollback not claimed: %v", run)
 	}
 	svc.RunExecution(ctx, st, run)

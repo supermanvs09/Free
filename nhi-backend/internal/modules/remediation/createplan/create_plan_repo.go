@@ -17,6 +17,8 @@ func NewCreatePlanRepository(core *engine.Service) *CreatePlanRepository {
 	return &CreatePlanRepository{core: core}
 }
 
-func (r *CreatePlanRepository) Create(ctx context.Context, actor domain.Actor, req engine.CreatePlanReq) (*domain.Plan, error) {
-	return r.core.CreatePlan(ctx, actor, req)
+// Create returns the new plan, or (existing = true) the plan of these findings that already
+// waits for approval or is about to run.
+func (r *CreatePlanRepository) Create(ctx context.Context, actor domain.Actor, req engine.CreatePlanReq) (*domain.Plan, bool, error) {
+	return r.core.CreateOrPendingPlan(ctx, actor, req)
 }

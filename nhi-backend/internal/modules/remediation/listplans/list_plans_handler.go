@@ -15,7 +15,7 @@ func NewListPlansHandler(service *ListPlansService) *ListPlansHandler {
 	return &ListPlansHandler{service: service}
 }
 
-var allowed = common.Allow("status", "account_id", "finding_id", "batch_id", "target_arn", "limit", "offset")
+var allowed = common.Allow("status", "mode", "account_id", "finding_id", "batch_id", "target_arn", "limit", "offset")
 
 // List handles GET /plans.
 func (h *ListPlansHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -35,8 +35,9 @@ func (h *ListPlansHandler) List(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	plans, err := h.service.List(r.Context(), c, ListPlansQuery{
-		Status: strings.TrimSpace(q.Get("status")), AccountID: strings.TrimSpace(q.Get("account_id")),
+	res, err := h.service.List(r.Context(), c, ListPlansQuery{
+		Status: strings.TrimSpace(q.Get("status")), Mode: strings.TrimSpace(q.Get("mode")),
+		AccountID: strings.TrimSpace(q.Get("account_id")),
 		FindingID: strings.TrimSpace(q.Get("finding_id")), BatchID: strings.TrimSpace(q.Get("batch_id")),
 		TargetARN: strings.TrimSpace(q.Get("target_arn")), Limit: limit, Offset: offset,
 	})
@@ -44,5 +45,5 @@ func (h *ListPlansHandler) List(w http.ResponseWriter, r *http.Request) {
 		common.Fail(w, r, "list plans", err)
 		return
 	}
-	common.Respond(w, http.StatusOK, plans)
+	common.WriteJSON(w, http.StatusOK, res)
 }

@@ -61,8 +61,17 @@ func (s *Store) ListExecutions(ctx context.Context, planID string) ([]domain.Exe
 	return out, rows.Err()
 }
 
-// ClaimExecution takes the oldest due QUEUED execution of this tenant (or one
-// whose lease expired while RUNNING) with FOR UPDATE SKIP LOCKED, and leases it.
+// dashboardExec is a condition on remediation_executions: the execution belongs to a dashboard
+// plan (policy_id NULL). Plans of the engine's automatic remediation are run, verified and rolled
+// back by the engine, so no background job of this service may touch their executions.
+func (s *Store) dashboardExec() string {
+	return fmt.Sprintf(`NOT EXISTS (SELECT 1 FROM %s dp WHERE dp.plan_id = %s.plan_id AND dp.policy_id IS NOT NULL)`,
+		s.tbl("remediation_plans"), s.tbl("remediation_executions"))
+}
+
+// ClaimExecution takes the oldest due QUEUED execution of a dashboard plan of this tenant (or
+// one whose lease expired while RUNNING) with FOR UPDATE SKIP LOCKED, and leases it.
+// Executions of the engine's automatic plans (policy_id set) are claimed by the engine only.
 func (s *Store) ClaimExecution(ctx context.Context, worker string, lease time.Duration) (*domain.Execution, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -75,7 +84,8 @@ func (s *Store) ClaimExecution(ctx context.Context, worker string, lease time.Du
 		WHERE tenant_id = $1::uuid
 		  AND ((status = 'QUEUED' AND scheduled_for <= now())
 		    OR (status = 'RUNNING' AND locked_until < now() AND kind <> 'EXECUTE'))
-		ORDER BY scheduled_for LIMIT 1 FOR UPDATE SKIP LOCKED`, s.tbl("remediation_executions")), s.TenantID).Scan(&id)
+		  AND %s
+		ORDER BY scheduled_for LIMIT 1 FOR UPDATE SKIP LOCKED`, s.tbl("remediation_executions"), s.dashboardExec()), s.TenantID).Scan(&id)
 	if err != nil {
 		return nil, notFound(err)
 	}
@@ -97,7 +107,7 @@ func (s *Store) ClaimExecution(ctx context.Context, worker string, lease time.Du
 // the engine fails them and asks for a new plan.
 func (s *Store) StaleExecutions(ctx context.Context) ([]domain.Execution, error) {
 	rows, err := s.pool.Query(ctx, fmt.Sprintf(`SELECT %s FROM %s WHERE tenant_id = $1::uuid AND status = 'RUNNING'
-		AND kind = 'EXECUTE' AND locked_until < now()`, execCols, s.tbl("remediation_executions")), s.TenantID)
+		AND kind = 'EXECUTE' AND locked_until < now() AND %s`, execCols, s.tbl("remediation_executions"), s.dashboardExec()), s.TenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -168,8 +178,8 @@ func (s *Store) LastExecutionOfKind(ctx context.Context, planID string, kind dom
 // GraceEnding returns QUEUED executions that start within `within` and were not announced yet.
 func (s *Store) GraceEnding(ctx context.Context, within time.Duration) ([]domain.Execution, error) {
 	rows, err := s.pool.Query(ctx, fmt.Sprintf(`SELECT %s FROM %s WHERE tenant_id = $1::uuid AND status = 'QUEUED' AND kind = 'EXECUTE'
-		AND grace_notified = false AND scheduled_for > now() AND scheduled_for <= now() + $2::interval`,
-		execCols, s.tbl("remediation_executions")), s.TenantID, fmt.Sprintf("%d seconds", int(within.Seconds())))
+		AND grace_notified = false AND scheduled_for > now() AND scheduled_for <= now() + $2::interval AND %s`,
+		execCols, s.tbl("remediation_executions"), s.dashboardExec()), s.TenantID, fmt.Sprintf("%d seconds", int(within.Seconds())))
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +203,7 @@ func (s *Store) MarkGraceNotified(ctx context.Context, id string) error {
 // AwaitingCutover lists plans whose rotate_access_key execution succeeded and
 // whose FINALIZE did not run yet.
 func (s *Store) AwaitingCutover(ctx context.Context) ([]domain.Plan, error) {
-	rows, err := s.pool.Query(ctx, fmt.Sprintf(`SELECT %s FROM %s p WHERE p.tenant_id = $1::uuid AND p.status = 'EXECUTED'
+	rows, err := s.pool.Query(ctx, fmt.Sprintf(`SELECT %s FROM %s p WHERE p.tenant_id = $1::uuid AND p.status = 'EXECUTED' AND p.policy_id IS NULL
 		AND p.action_type = 'rotate_access_key'
 		AND NOT EXISTS (SELECT 1 FROM %s e WHERE e.plan_id = p.plan_id AND e.kind = 'FINALIZE' AND e.status IN ('QUEUED','RUNNING'))`,
 		planColsP, s.tbl("remediation_plans"), s.tbl("remediation_executions")), s.TenantID)
@@ -219,7 +229,8 @@ const planColsP = `p.plan_id::text, p.tenant_id::text, p.batch_id::text, p.findi
 	p.prechecks::text, p.usage_basis::text, p.risk_level, p.required_approvals,
 	p.score_current::float8, p.score_gain::float8, p.score_projected::float8, p.fleet_gain::float8,
 	p.mode, p.status, COALESCE(p.status_reason,''), p.plan_hash, p.superseded_by::text, p.valid_until,
-	p.created_by, p.created_at, p.updated_at`
+	p.created_by, p.created_at, p.updated_at,
+	p.policy_id::text, COALESCE(p.target_key,''), p.follow_up_of::text, COALESCE(p.scan_id,'')`
 
 // SetExecutionStatus changes only the status (the original execution after a rollback).
 func (s *Store) SetExecutionStatus(ctx context.Context, id string, status domain.ExecStatus) error {

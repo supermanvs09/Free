@@ -21,35 +21,25 @@ CREATE TABLE IF NOT EXISTS :"schema".remediation_actions (
     enabled             BOOLEAN     NOT NULL DEFAULT true
 );
 
--- 10.2 which action fixes which rule
-CREATE TABLE IF NOT EXISTS :"schema".remediation_rule_actions (
-    rule_id         TEXT    NOT NULL,
-    action_type     TEXT    NOT NULL REFERENCES :"schema".remediation_actions (action_type) ON UPDATE CASCADE,
-    is_default      BOOLEAN NOT NULL DEFAULT true,
-    params_template JSONB   NOT NULL DEFAULT '{}'::jsonb,
-    PRIMARY KEY (rule_id, action_type)
-);
+-- 10.2 which action fixes which rule: kept in ispm_rule_weights (remediation_action_type,
+--      remediation_alt_actions, remediation_params; tenant migration 009 / engine migration 012), no separate table.
 
--- 9.2 account opt-in and settings (own table: the onboarding table is not known)
-CREATE TABLE IF NOT EXISTS :"schema".remediation_accounts (
-    tenant_id               UUID        NOT NULL,
-    account_id              TEXT        NOT NULL,
-    remediation_enabled     BOOLEAN     NOT NULL DEFAULT false,
-    remediation_role_arn    TEXT,
-    remediation_external_id TEXT,
-    allowed_action_types    TEXT[]      NOT NULL DEFAULT '{}',
-    enabled_regions         TEXT[]      NOT NULL DEFAULT '{}',
-    approval_policy         JSONB       NOT NULL DEFAULT '{"low":1,"medium":1,"high":1}'::jsonb,
-    grace_days              JSONB       NOT NULL DEFAULT '{}'::jsonb,
-    access_status           TEXT        NOT NULL DEFAULT 'UNKNOWN'
-                            CHECK (access_status IN ('UNKNOWN','OK','CANNOT_ASSUME','MISSING_PERMISSIONS')),
-    access_detail           TEXT,
-    access_checked_at       TIMESTAMPTZ,
-    enabled_by              TEXT,
-    enabled_at              TIMESTAMPTZ,
-    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (tenant_id, account_id)
-);
+-- 9.2 account opt-in and settings: columns on the platform's accounts table (shared with the
+--     engine's automatic remediation). Rows come from onboarding; the remediator only updates them.
+ALTER TABLE IF EXISTS :"schema".accounts ADD COLUMN IF NOT EXISTS remediation_enabled           BOOLEAN NOT NULL DEFAULT false;  -- One-click opt-in
+ALTER TABLE IF EXISTS :"schema".accounts ADD COLUMN IF NOT EXISTS auto_remediation_enabled      BOOLEAN NOT NULL DEFAULT false;  -- engine automatic opt-in
+ALTER TABLE IF EXISTS :"schema".accounts ADD COLUMN IF NOT EXISTS remediation_role_arn          TEXT;
+ALTER TABLE IF EXISTS :"schema".accounts ADD COLUMN IF NOT EXISTS remediation_external_id       TEXT;     -- else external_id is used
+ALTER TABLE IF EXISTS :"schema".accounts ADD COLUMN IF NOT EXISTS remediation_allowed_actions   TEXT[]  NOT NULL DEFAULT '{}';
+ALTER TABLE IF EXISTS :"schema".accounts ADD COLUMN IF NOT EXISTS remediation_regions           TEXT[]  NOT NULL DEFAULT '{}';
+ALTER TABLE IF EXISTS :"schema".accounts ADD COLUMN IF NOT EXISTS remediation_approval_policy   JSONB   NOT NULL DEFAULT '{"low":1,"medium":1,"high":1}'::jsonb;
+ALTER TABLE IF EXISTS :"schema".accounts ADD COLUMN IF NOT EXISTS remediation_grace_days        JSONB   NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE IF EXISTS :"schema".accounts ADD COLUMN IF NOT EXISTS remediation_access_status     TEXT    NOT NULL DEFAULT 'UNKNOWN';
+ALTER TABLE IF EXISTS :"schema".accounts ADD COLUMN IF NOT EXISTS remediation_access_detail     TEXT;
+ALTER TABLE IF EXISTS :"schema".accounts ADD COLUMN IF NOT EXISTS remediation_access_checked_at TIMESTAMPTZ;
+ALTER TABLE IF EXISTS :"schema".accounts ADD COLUMN IF NOT EXISTS remediation_enabled_by        TEXT;
+ALTER TABLE IF EXISTS :"schema".accounts ADD COLUMN IF NOT EXISTS remediation_enabled_at        TIMESTAMPTZ;
+ALTER TABLE IF EXISTS :"schema".accounts ADD COLUMN IF NOT EXISTS remediation_updated_at        TIMESTAMPTZ;
 
 -- 10.5 batches
 CREATE TABLE IF NOT EXISTS :"schema".remediation_batches (

@@ -15,7 +15,7 @@ func NewListAccountsRepository(core *engine.Service) *ListAccountsRepository {
 	return &ListAccountsRepository{core: core}
 }
 
-// List reads remediation_accounts of the tenant.
+// List reads the remediation settings of every row of the tenant's accounts table.
 func (r *ListAccountsRepository) List(ctx context.Context, tenantID string) ([]domain.Account, error) {
 	st, err := r.core.Store(ctx, tenantID)
 	if err != nil {

@@ -20,6 +20,9 @@ import (
 	"nhi-backend-api/internal/remediation/domain"
 )
 
+// Providers are the e-mail integration types: Amazon SES is the only mail service.
+var Providers = []string{"SES"}
+
 // Config is remediation_integrations.config for type SES.
 type Config struct {
 	From      string   `json:"from"`

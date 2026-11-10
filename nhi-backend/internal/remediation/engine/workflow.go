@@ -39,10 +39,23 @@ func hasBlock(p *domain.Plan) bool {
 	return false
 }
 
+// engineOwned refuses a plan created by the engine's automatic remediation (policy_id set): the
+// engine executes, verifies and rolls it back. Here such a plan can only be approved, rejected or
+// cancelled.
+func engineOwned(p *domain.Plan, what string) error {
+	if p.PolicyID == nil {
+		return nil
+	}
+	return conflict("this plan was created by the engine's automatic remediation (policy %s): the engine %s it", *p.PolicyID, what)
+}
+
 // Submit asks the approvers to approve a One-click plan.
 func (s *Service) Submit(ctx context.Context, actor domain.Actor, planID string) (*domain.Plan, error) {
 	st, p, err := s.planAndStore(ctx, actor, planID, domain.PermPlan)
 	if err != nil {
+		return nil, err
+	}
+	if err := engineOwned(p, "submits and runs"); err != nil {
 		return nil, err
 	}
 	if p.Mode != domain.ModeOneClick {
@@ -53,6 +66,17 @@ func (s *Service) Submit(ctx context.Context, actor domain.Actor, planID string)
 	}
 	if hasBlock(p) {
 		return nil, conflict("the plan is blocked by a pre-check")
+	}
+	if p.RequiredApprovals == 0 {
+		// a safe fix on a finding below Critical: no approval and no approval e-mail, the plan is queued to run
+		if err := st.SetPlanStatus(ctx, p.ID, domain.PlanApproved, "no approval needed (safe fix, finding below Critical)", domain.PlanReady); err != nil {
+			return nil, conflict("the plan changed; reload it")
+		}
+		_ = st.SetPlanValidUntil(ctx, p.ID, s.now().Add(s.cfg.Worker.PlanTTL))
+		st.Audit(ctx, p.ID, "", derefStr(p.BatchID), domain.EvSubmitted, actor.UserID, map[string]any{"required_approvals": 0})
+		p.Status = domain.PlanApproved
+		s.startApproved(ctx, st, p)
+		return st.GetPlan(ctx, p.ID)
 	}
 	if err := st.SetPlanStatus(ctx, p.ID, domain.PlanPendingApproval, "", domain.PlanReady); err != nil {
 		return nil, conflict("the plan changed; reload it")
@@ -109,9 +133,28 @@ func (s *Service) Decide(ctx context.Context, actor domain.Actor, planID string,
 	}
 	st.Audit(ctx, p.ID, "", derefStr(p.BatchID), domain.EvApproved, actor.UserID, map[string]any{"comment": comment})
 	if n := CountApprovals(ctx, st, p); n >= p.RequiredApprovals {
-		_ = st.SetPlanStatus(ctx, p.ID, domain.PlanApproved, "", domain.PlanPendingApproval)
+		if err := st.SetPlanStatus(ctx, p.ID, domain.PlanApproved, "", domain.PlanPendingApproval); err == nil {
+			p.Status = domain.PlanApproved
+			s.startApproved(ctx, st, p)
+		}
 	}
 	return st.GetPlan(ctx, p.ID)
+}
+
+// startApproved queues an approved One-click dashboard plan to run (after its grace
+// period), so nobody has to call execute. The run is started on behalf of the plan's
+// creator. Plans of a batch wait for the batch execute, and engine plans are run by the
+// engine. When the run cannot be queued (for example the account settings changed), the
+// plan stays APPROVED with the reason and POST /plans/{id}/execute can try again.
+func (s *Service) startApproved(ctx context.Context, st *store.Store, p *domain.Plan) {
+	if p.Mode != domain.ModeOneClick || p.BatchID != nil || p.PolicyID != nil {
+		return
+	}
+	creator := domain.Actor{TenantID: st.TenantID, UserID: p.CreatedBy, Role: domain.RoleAnalyst}
+	if _, err := s.queueExecution(ctx, st, creator, p); err != nil {
+		_ = st.SetPlanStatus(ctx, p.ID, domain.PlanApproved, "approved, but the run could not be started: "+err.Error(), domain.PlanApproved)
+		s.log.Warn("remediation: approved plan not queued", "plan", p.ID, "err", err)
+	}
 }
 
 // CountApprovals counts distinct approvers of the current plan hash.
@@ -164,6 +207,9 @@ func (s *Service) queueExecution(ctx context.Context, st *store.Store, actor dom
 
 // queueExecutionAt queues an execution that starts after the grace period and not before notBefore.
 func (s *Service) queueExecutionAt(ctx context.Context, st *store.Store, actor domain.Actor, p *domain.Plan, notBefore time.Time) (*domain.Execution, error) {
+	if err := engineOwned(p, "executes"); err != nil {
+		return nil, err
+	}
 	if p.Mode != domain.ModeOneClick {
 		return nil, conflict("a Guided plan cannot be executed")
 	}
@@ -291,6 +337,11 @@ func (s *Service) Rollback(ctx context.Context, actor domain.Actor, execID strin
 }
 
 func (s *Service) queueRollback(ctx context.Context, st *store.Store, by string, ex *domain.Execution) (*domain.Execution, error) {
+	if p0, err := st.GetPlan(ctx, ex.PlanID); err == nil {
+		if err := engineOwned(p0, "rolls back"); err != nil {
+			return nil, err
+		}
+	}
 	if ex.Kind != domain.KindExecute || ex.Status != domain.ExecSucceeded {
 		return nil, conflict("only a succeeded execution can be rolled back (this one is %s %s)", ex.Kind, ex.Status)
 	}
@@ -324,13 +375,15 @@ func (s *Service) queueRollback(ctx context.Context, st *store.Store, by string,
 
 // ---- notifications ----
 
-func isEmail(s string) bool { return strings.Contains(s, "@") }
-
-// notifyPlan writes an e-mail to the outbox (best effort).
+// notifyPlan writes an e-mail to the outbox (best effort). The recipients come only from the
+// e-mail settings (EMAIL_APPROVERS, EMAIL_NOTIFY); the plan's creator is not mailed.
 func (s *Service) notifyPlan(ctx context.Context, st *store.Store, kind string, p *domain.Plan, errMsg string) {
 	var integ *domain.Integration
-	if i, err := st.GetIntegration(ctx, "SES"); err == nil && i.Enabled {
-		integ = i
+	for _, typ := range notify.Providers {
+		if i, err := st.GetIntegration(ctx, typ); err == nil && i.Enabled {
+			integ = i
+			break
+		}
 	}
 	if integ == nil {
 		return
@@ -348,9 +401,6 @@ func (s *Service) notifyPlan(ctx context.Context, st *store.Store, kind string, 
 		to = append(to, cfg.Notify...)
 	default:
 		to = append(to, cfg.Notify...)
-	}
-	if kind != "APPROVAL_REQUESTED" && isEmail(p.CreatedBy) {
-		to = append(to, p.CreatedBy)
 	}
 	to = dedupe(to)
 	if len(to) == 0 {
@@ -388,8 +438,11 @@ func (s *Service) QueueDigest(ctx context.Context, st *store.Store) error {
 		return nil
 	}
 	var integ *domain.Integration
-	if i, err := st.GetIntegration(ctx, "SES"); err == nil && i.Enabled {
-		integ = i
+	for _, typ := range notify.Providers {
+		if i, err := st.GetIntegration(ctx, typ); err == nil && i.Enabled {
+			integ = i
+			break
+		}
 	}
 	if integ == nil {
 		return nil

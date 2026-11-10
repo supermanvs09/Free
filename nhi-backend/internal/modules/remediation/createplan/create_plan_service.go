@@ -20,7 +20,7 @@ func NewCreatePlanService(r *CreatePlanRepository) *CreatePlanService {
 
 // Create validates the request and builds the plan. Only analyst / admin may
 // create plans; the engine checks the role again.
-func (s *CreatePlanService) Create(ctx context.Context, c common.Caller, req CreatePlanRequest) (*domain.Plan, error) {
+func (s *CreatePlanService) Create(ctx context.Context, c common.Caller, req CreatePlanRequest) (*CreatePlanResponse, error) {
 	if err := common.Require(c, domain.PermPlan); err != nil {
 		return nil, err
 	}
@@ -44,7 +44,19 @@ func (s *CreatePlanService) Create(ctx context.Context, c common.Caller, req Cre
 	default:
 		return nil, &common.ParamError{Field: "mode", Message: "mode must be GUIDED or ONE_CLICK"}
 	}
-	return s.repo.Create(ctx, c.Actor(), engine.CreatePlanReq{
+	plan, existing, err := s.repo.Create(ctx, c.Actor(), engine.CreatePlanReq{
 		FindingIDs: ids, ActionType: strings.TrimSpace(req.ActionType), Params: req.Params, Mode: mode,
 	})
+	if err != nil {
+		return nil, err
+	}
+	res := &CreatePlanResponse{Data: plan, ExistingPlan: existing}
+	if existing {
+		by := "the dashboard"
+		if plan.PolicyID != nil {
+			by = "the engine's automatic remediation"
+		}
+		res.Message = fmt.Sprintf("this finding already has a plan (%s, created by %s): no new plan or approval e-mail", plan.Status, by)
+	}
+	return res, nil
 }

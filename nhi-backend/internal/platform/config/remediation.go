@@ -25,14 +25,22 @@ import (
 //	DIGEST_ENABLED               false  DIGEST_HOUR_UTC 6
 //	AWS_REGION                   ap-south-1  AWS_SESSION_DURATION 15m  AWS_PLATFORM_ROLE_ARN (optional)
 //	DASHBOARD_BASE_URL           http://localhost:3000 (links in e-mails and Jira tickets)
+//	ACCOUNTS_TABLE               accounts (tenant table of the AWS accounts; holds the remediation_* settings)
+//	REMEDIATION_TENANTS          empty = every tenant; or a comma-separated list of tenant schema names (db_name) or ids
 //	JIRA_* / EMAIL_* / SES_REGION   platform defaults of the Jira and e-mail (Amazon SES) integrations
 type RemediationConfig struct {
 	Enabled     bool
 	AutoMigrate bool
-	Worker      RemediationWorkerConfig
-	AWS         RemediationAWSConfig
-	Dashboard   RemediationDashboardConfig
-	Safety      RemediationSafetyConfig
+	// AccountsTable: tenant table holding the AWS accounts (ACCOUNTS_TABLE, default accounts),
+	// shared with the engine; matched on account_id.
+	AccountsTable string
+	// Tenants limits remediation to these tenants (REMEDIATION_TENANTS: schema names or tenant ids).
+	// Empty = every tenant of nhi_global.tenants.
+	Tenants   []string
+	Worker    RemediationWorkerConfig
+	AWS       RemediationAWSConfig
+	Dashboard RemediationDashboardConfig
+	Safety    RemediationSafetyConfig
 	// Integrations: platform defaults for Jira and e-mail, used by every tenant that has
 	// not saved its own settings (PUT /remediation/integrations/{type} overrides them).
 	Integrations RemediationIntegrationsConfig
@@ -107,8 +115,10 @@ func Remediation() (RemediationConfig, error) {
 		return RemediationConfig{}, nil
 	}
 	c := RemediationConfig{
-		Enabled:     true,
-		AutoMigrate: e.bool("REMEDIATOR_AUTO_MIGRATE", true),
+		Enabled:       true,
+		AutoMigrate:   e.bool("REMEDIATOR_AUTO_MIGRATE", true),
+		AccountsTable: e.str("ACCOUNTS_TABLE", "accounts"),
+		Tenants:       e.list("REMEDIATION_TENANTS", nil),
 		Worker: RemediationWorkerConfig{
 			ExecutionPoll:    e.dur("EXECUTION_POLL_INTERVAL", 3*time.Second),
 			Concurrency:      e.int("EXECUTION_CONCURRENCY", 4),
