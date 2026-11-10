@@ -7,7 +7,6 @@ import { accessDetailRoute, genomeRouteFor, identityRoute } from '../../lib/iden
 import { formatDateTime, formatNumber, formatRelative, humanizeToken } from '../../lib/format';
 import { severityMeta } from '../../lib/domain';
 import { Button } from '../../ui/Button';
-import { CopyButton } from '../../ui/Copyable';
 import { Panel, SectionLabel } from '../../ui/Panel';
 import { Meter } from '../../ui/Meter';
 import { DetailSkeleton } from '../../ui/Skeleton';
@@ -380,17 +379,6 @@ function SummaryPane({ node, isFocusNode, detail, posture, discoveryId, onFocus 
         </div>
       )}
 
-      {/* The address only software needs, last and closed. */}
-      <details className="rounded-[var(--radius-control)] border border-line bg-surface-2">
-        <summary className="cursor-pointer px-2.5 py-1.5 text-[11.5px] font-medium text-ink-2">Technical details</summary>
-        <dl className="flex flex-col gap-1 border-t border-line px-2.5 py-2 text-[11.5px]">
-          <dt className="text-ink-3">AWS address (ARN)</dt>
-          <dd className="flex items-start gap-1">
-            <span className="min-w-0 flex-1 font-mono text-[10.5px] leading-snug break-all text-ink-2">{node.arn}</span>
-            <CopyButton value={node.arn} label="Copy ARN" size="sm" />
-          </dd>
-        </dl>
-      </details>
     </>
   );
 }

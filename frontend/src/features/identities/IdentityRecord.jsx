@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Activity, ArrowLeftRight, ArrowUpRight, ChevronRight, Info, KeyRound, ListChecks, ShieldAlert, Waypoints } from 'lucide-react';
+import { Activity, ArrowLeftRight, ArrowUpRight, Info, KeyRound, ListChecks, ShieldAlert, Waypoints } from 'lucide-react';
 import { fetchIdentity } from '../../lib/api/inventory';
 import { useQuery } from '../../lib/hooks';
 import { accessDetailRoute, identityRoute } from '../../lib/identityLinks';
 import { Button } from '../../ui/Button';
-import { formatDateTime, formatNumber, formatRelative, formatUtc, percentValue, policyName, titleCaseEnum } from '../../lib/format';
+import { formatDateTime, formatNumber, formatRelative, percentValue, policyName, titleCaseEnum } from '../../lib/format';
 import { SegmentedControl, TabPanel } from '../../ui/Tabs';
 import { DetailList, DetailRow, SectionLabel } from '../../ui/Panel';
 import { Code, Tag } from '../../ui/Tag';
@@ -30,7 +30,7 @@ import {
   shareText,
 } from './meta';
 import { SignalBreakdown } from './status';
-import { AccountHealth, HowItWasFound, ROOT_SAFETY_KEYS, hasAccountSummary } from './DiscoveryVisuals';
+import { AccountHealth, HowItWasFound, hasAccountSummary } from './DiscoveryVisuals';
 
 export const RECORD_TABS = [
   { value: 'overview', label: 'Overview', icon: Info },
@@ -349,49 +349,7 @@ function OverviewPanel({ identityId, query, active, compact }) {
       <HowItWasFound identity={identity} discovery={discovery} compact={compact} />
       {hasAccountSummary(data.type_attributes) && <AccountHealth attributes={data.type_attributes} />}
 
-      <Disclosure label="Technical details" hint="Exact dates, ARN, inventory id and AWS attributes">
-        <div className={cn('grid gap-6', !compact && 'xl:grid-cols-2')}>
-          <div>
-            <SectionLabel>Exact dates and IDs</SectionLabel>
-            <DetailList className="mt-1">
-              <DetailRow label="Created in AWS">
-                {identity.created_at_aws ? formatDateTime(identity.created_at_aws) : 'Not recorded'}
-                {Number.isFinite(identity.age_days) && <span className="ml-1.5 text-ink-3">({formatNumber(identity.age_days)} days ago)</span>}
-              </DetailRow>
-              <DetailRow label="First found">{formatDateTime(identity.first_seen_at)}</DetailRow>
-              <DetailRow label="Last seen by a scan">
-                <span title={formatUtc(identity.last_seen_at)}>{formatDateTime(identity.last_seen_at)}</span>
-              </DetailRow>
-              <DetailRow label="ARN" mono>
-                <CopyableValue value={identity.arn} />
-              </DetailRow>
-              <DetailRow label="Inventory id" mono>
-                <CopyableValue value={identity.id} />
-              </DetailRow>
-            </DetailList>
-          </div>
-
-          <div>
-            <SectionLabel>{identityTypeLabel(identity.identity_type)} attributes from AWS</SectionLabel>
-            <AttributeList attributes={data.type_attributes} hide={hasAccountSummary(data.type_attributes) ? ROOT_SAFETY_KEYS : []} />
-          </div>
-        </div>
-      </Disclosure>
     </div>
-  );
-}
-
-/** A collapsed group, for technical details a first read can skip. */
-function Disclosure({ label, hint, children }) {
-  return (
-    <details className="group min-w-0 rounded-[var(--radius-control)] border border-line">
-      <summary className="flex cursor-pointer list-none items-center gap-2 px-3.5 py-2.5 text-[12.5px] font-medium text-ink [&::-webkit-details-marker]:hidden">
-        <ChevronRight aria-hidden="true" className="size-3.5 shrink-0 text-ink-3 transition-transform group-open:rotate-90" />
-        <span>{label}</span>
-        {hint && <span className="min-w-0 truncate text-[11.5px] font-normal text-ink-3">{hint}</span>}
-      </summary>
-      <div className="border-t border-line px-3.5 py-3">{children}</div>
-    </details>
   );
 }
 
@@ -1019,7 +977,6 @@ function RelationshipsPanel({ identityId, overview }) {
 
       {credentialsQuery.isError && <InlineError error={credentialsQuery.error} onRetry={credentialsQuery.refetch} label="Trust policy unavailable" />}
 
-      <JsonBlock label="Technical details: relationship data as returned" value={query.data} />
     </div>
   );
 }

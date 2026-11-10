@@ -401,55 +401,6 @@ export function FindingDrawer({ finding, onClose, onDismiss, dismissing, onDecid
           </div>
 
 
-          {/* The service's own id for this record.
-              On the Raw tab rather than the Overview because it is not part of
-              triage - it is what somebody quotes in a support ticket, and the
-              first thing they are asked for. A finding recorded before the
-              field existed has none, which is why it is guarded. */}
-          <details className="order-last">
-            <summary className="cursor-pointer text-[12px] font-medium text-ink-2">Technical details</summary>
-            <DetailList className="mt-1">
-              {finding.finding_id !== undefined && finding.finding_id !== null && (
-                <DetailRow label="Finding ID" mono>
-                  <CopyableValue value={finding.finding_id} className="break-all" />
-                  <span className="mt-0.5 block font-sans text-[11.5px] text-ink-3">Quote this in a support request.</span>
-                </DetailRow>
-              )}
-              <DetailRow label="Scanner client ID" mono>
-                {finding.client_id || <span className="font-sans text-[12px] text-ink-3">Not recorded</span>}
-              </DetailRow>
-              <DetailRow label="Detector code" mono>
-                {finding.detector || <span className="font-sans text-[12px] text-ink-3">Not recorded</span>}
-              </DetailRow>
-              <DetailRow label="Check result code" mono>
-                {finding.verification_status || <span className="font-sans text-[12px] text-ink-3">Not recorded</span>}
-              </DetailRow>
-              {(finding.ml_model_version || Number.isFinite(finding.ml_score)) && (
-                <DetailRow label="Detection model">
-                  {finding.ml_decision ? `${finding.ml_decision} · ` : ''}
-                  {Number.isFinite(finding.ml_score) ? `score ${finding.ml_score.toFixed(3)}` : ''}
-                  {finding.ml_model_version ? ` · version ${finding.ml_model_version}` : ''}
-                </DetailRow>
-              )}
-              {(finding.ml_veto_model_version || Number.isFinite(finding.ml_veto_score)) && (
-                <DetailRow label="Second check (generic secrets)">
-                  {Number.isFinite(finding.ml_veto_score) ? `score ${finding.ml_veto_score.toFixed(3)} (higher means more likely real)` : ''}
-                  {finding.ml_veto_model_version ? ` · version ${finding.ml_veto_model_version}` : ''}
-                </DetailRow>
-              )}
-              {finding.noise_flags && (
-                <DetailRow label="Harmless tags" mono>
-                  {finding.noise_flags}
-                </DetailRow>
-              )}
-              {finding.value_fingerprint && (
-                <DetailRow label="Value fingerprint" mono>
-                  <CopyableValue value={finding.value_fingerprint} className="break-all" />
-                  <span className="mt-0.5 block font-sans text-[11.5px] text-ink-3">Same fingerprint means the same value. The value itself cannot be recovered from it.</span>
-                </DetailRow>
-              )}
-            </DetailList>
-          </details>
 
           {/* The line the secret sits on, masked by the scanner the same way the
               value is. Shown next to the value because "what does this code
