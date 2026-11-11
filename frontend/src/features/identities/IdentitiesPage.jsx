@@ -8,7 +8,7 @@ import { LatestChangesNotice, RecentChangeMarker } from '../changes/parts';
 import { bandMeta } from '../../lib/posture';
 import { useDebouncedValue, useQuery } from '../../lib/hooks';
 import { useAccess } from '../../app/useAccess';
-import { formatDate, formatNumber } from '../../lib/format';
+import { formatDate, formatNumber, formatRelative } from '../../lib/format';
 import { exportRowsToCsv, timestampedName } from '../../lib/csv';
 import { PageHeader } from '../../shell/PageHeader';
 import { Button, IconButton } from '../../ui/Button';
@@ -444,15 +444,21 @@ export default function IdentitiesPage() {
         <span className="block min-w-0">
           <OwnerCell owner={row.owner} reason={row.owner_reason} />
           {/* Who created it and how long ago, on one line: age reads best beside its creator. */}
-          {(row.created_by || Number.isFinite(row.age_days)) && (
+          {(row.created_by || Number.isFinite(row.age_days) || row.first_seen_at) && (
             <span
               className="block truncate text-[11px] text-ink-3"
-              title={[row.created_by, row.created_at_aws && `Created ${formatDate(row.created_at_aws)}`].filter(Boolean).join(' · ')}
+              title={[
+                row.created_by,
+                row.created_at_aws ? `Created ${formatDate(row.created_at_aws)}` : row.first_seen_at && `AWS gives no creation date for this resource; first found ${formatDate(row.first_seen_at)}`,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
             >
               {[
                 row.created_by && `Created by ${row.created_by.split('/').pop()}`,
-                Number.isFinite(row.age_days) &&
-                  `${row.created_by ? '' : 'Age '}${formatNumber(row.age_days)} day${row.age_days === 1 ? '' : 's'}`,
+                Number.isFinite(row.age_days)
+                  ? `${row.created_by ? '' : 'Age '}${formatNumber(row.age_days)} day${row.age_days === 1 ? '' : 's'}`
+                  : row.first_seen_at && `First seen ${formatRelative(row.first_seen_at)}`,
               ]
                 .filter(Boolean)
                 .join(' · ')}

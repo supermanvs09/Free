@@ -45,13 +45,16 @@ type IdentityListItem struct {
 	Owner           *string `json:"owner"`
 	// OwnerReason says why the scanner suggested this owner; null when it
 	// gave none (or the tenant's identities table has no owner_reason yet).
-	OwnerReason              *string    `json:"owner_reason"`
-	Status                   string     `json:"status"`
-	IsPubliclyAccessible     bool       `json:"is_publicly_accessible"`
-	VPCID                    *string    `json:"vpc_id"`
-	BoundCredentialsCount    int        `json:"bound_credentials_count"`
-	LastActivityAt           *time.Time `json:"last_activity_at"`
-	CreatedAtAWS             *time.Time `json:"created_at_aws"`
+	OwnerReason           *string    `json:"owner_reason"`
+	Status                string     `json:"status"`
+	IsPubliclyAccessible  bool       `json:"is_publicly_accessible"`
+	VPCID                 *string    `json:"vpc_id"`
+	BoundCredentialsCount int        `json:"bound_credentials_count"`
+	LastActivityAt        *time.Time `json:"last_activity_at"`
+	CreatedAtAWS          *time.Time `json:"created_at_aws"`
+	// FirstSeenAt is when discovery first found it: the age shown when AWS
+	// gives no creation date for this kind of resource.
+	FirstSeenAt              *time.Time `json:"first_seen_at"`
 	AgeDays                  *int       `json:"age_days"`
 	IdleDays                 *int       `json:"idle_days"`
 	CreatedBy                *string    `json:"created_by"`

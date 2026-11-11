@@ -214,6 +214,7 @@ func (r *IdentitiesListRepository) GetIdentitiesList(ctx context.Context, resolv
 				i.vpc_id                                     AS vpc_id,
 				COALESCE(b.cnt, 0)                            AS bound_credentials_count,
 				i.created_at_aws                                AS created_at_aws,
+				i.first_seen_at                                 AS first_seen_at,
 				CASE WHEN i.created_at_aws IS NULL THEN NULL
 				     ELSE FLOOR(EXTRACT(EPOCH FROM (NOW() - i.created_at_aws)) / 86400)::int
 				END                                               AS age_days,
@@ -230,7 +231,7 @@ func (r *IdentitiesListRepository) GetIdentitiesList(ctx context.Context, resolv
 		SELECT
 			id, name, arn, identity_type, functional_class, account_id, region,
 			environment, owner, owner_reason, status, is_publicly_accessible, vpc_id,
-			bound_credentials_count, created_at_aws, age_days, granted, perms, cred_arns, access_keys,
+			bound_credentials_count, created_at_aws, first_seen_at, age_days, granted, perms, cred_arns, access_keys,
 			COUNT(*) OVER()::int AS total_count
 		FROM scoped
 		ORDER BY %[3]s %[4]s NULLS LAST, id
@@ -257,7 +258,7 @@ func (r *IdentitiesListRepository) GetIdentitiesList(ctx context.Context, resolv
 			&item.ID, &item.Name, &item.ARN, &item.IdentityType, &functionalClass,
 			&item.AccountID, &item.Region, &environment, &owner, &ownerReason, &item.Status,
 			&item.IsPubliclyAccessible, &vpcID, &item.BoundCredentialsCount,
-			&item.CreatedAtAWS, &ageDays, &row.granted, &perms, pq.Array(&credARNs), pq.Array(&accessKeys), &sqlTotal,
+			&item.CreatedAtAWS, &item.FirstSeenAt, &ageDays, &row.granted, &perms, pq.Array(&credARNs), pq.Array(&accessKeys), &sqlTotal,
 		); err != nil {
 			return nil, fmt.Errorf("scan identity row: %w", err)
 		}

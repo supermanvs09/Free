@@ -238,6 +238,13 @@ export function CheckDrawer({
                 <Wrench aria-hidden="true" className="mt-1 size-4 shrink-0 text-brand" />
                 {detail?.fix || detail?.remediation || `No short fix is written for ${detail?.rule_id || 'this check'} yet. Open an identity's finding and choose Fix: Remediation shows the steps for it.`}
               </p>
+              {/environment/i.test(`${detail?.title ?? ''} ${detail?.rule_id ?? ''}`) && (
+                <p className="mt-2 rounded-[var(--radius-control)] bg-surface-2 px-3 py-2 text-[12.5px] text-ink-2">
+                  This check is about the <b className="font-semibold text-ink">environment tag</b> on the resource (for example a tag named Environment),
+                  not a Lambda function&apos;s environment variables. If the tag is there and the check still fails, its key or value is not one the
+                  posture rules recognise, or the tag was added after the last scan.
+                </p>
+              )}
               <dl className="mt-3 grid grid-cols-2 gap-3 @min-[28rem]:grid-cols-3">
                 <Fact label="Points lost per identity" value={detail?.penalty_points ? `${formatNumber(detail.penalty_points)} points` : '-'} />
                 <Fact label="Identities failing" value={formatNumber(detail?.identities_failing)} />
