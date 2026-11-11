@@ -154,11 +154,15 @@ export default function GenomeDetailPage() {
  * Where the baseline stands: the summary's baselines row says whether it is
  * established, the timeline's milestones say since when.
  */
-function baselineState(baseline, items) {
+function baselineState(baseline, items, lastSeen) {
   const established = items.find((item) => item.type === 'baseline_established');
   const learning = items.find((item) => item.type === 'learning_started');
   const active = baseline ? String(baseline.status).toLowerCase() === 'active' : Boolean(established);
   if (active) return { key: 'active', label: 'Baseline established', tone: 'low', at: established?.occurred_at ?? null };
+  /* Never made a call: nothing is being learned, whatever the baselines row says. */
+  if (lastSeen !== undefined && !lastSeen) {
+    return { key: 'none', label: 'No activity yet', tone: 'neutral', at: null };
+  }
   if (baseline || learning) return { key: 'learning', label: 'Learning', tone: 'medium', at: learning?.occurred_at ?? null };
   return { key: 'none', label: 'No baseline yet', tone: 'neutral', at: null };
 }
@@ -253,7 +257,7 @@ function GenomeIdentity({ sourceType, identityName }) {
 
   const record = discovery.data;
   const identity = summary.data?.identity;
-  const state = baselineState(summary.data?.baseline ?? null, timeline.items);
+  const state = baselineState(summary.data?.baseline ?? null, timeline.items, summary.data?.activityKnown ? (summary.data.lastSeen ?? null) : undefined);
   const discoveryId = inventoryId ?? record?.id ?? null;
   const title = identity?.display_name || record?.name || arnName(identityName);
 

@@ -42,11 +42,16 @@ const DAY_MS = 86400000;
  * Where an identity's baseline stands, from the genome list's baseline
  * status: active is established, inactive is learning (days learned of days
  * required when the pipeline reports them), no baseline row is not started.
- * lastSeen is kept for the sort, not the state.
+ * An identity that has never made a call is not learning anything, whatever
+ * its baseline row says: it reads "No activity" (and sorts with the
+ * not-started ones). lastSeen is undefined when activity could not be read,
+ * which never counts as "no activity".
  */
-export function learningState(baseline) {
+export function learningState(baseline, lastSeen) {
   const status = baseline?.status;
   if (status === 'active') return { key: 'established', label: 'Established', tone: 'low' };
+  const neverActive = lastSeen !== undefined && !lastSeen;
+  if (neverActive) return { key: 'none', label: 'No activity', tone: 'neutral' };
   if (status === 'inactive' || status) {
     const built = Number(baseline.builtDays) || 0;
     const required = Number(baseline.requiredDays) || 0;
@@ -56,11 +61,14 @@ export function learningState(baseline) {
   return { key: 'none', label: 'Not started', tone: 'neutral' };
 }
 
+/** A row's last call, or undefined when the events store could not be read. */
+const seenOrUnknown = (row) => (row.activityKnown ? row.lastSeen : undefined);
+
 const BASELINE_FILTERS = [
   { value: '', label: 'Every baseline state' },
   { value: 'established', label: 'Established' },
   { value: 'learning', label: 'Learning' },
-  { value: 'none', label: 'Not started' },
+  { value: 'none', label: 'Not started or no activity' },
 ];
 
 const SORTS = [
@@ -161,7 +169,7 @@ function OverviewTab({ summary, fleet, window, openTab }) {
   const learning = useMemo(
     () =>
       all
-        .map((row) => ({ row, state: learningState(row.baseline) }))
+        .map((row) => ({ row, state: learningState(row.baseline, seenOrUnknown(row)) }))
         .filter((entry) => entry.state.key === 'learning')
         .sort((a, b) => (b.state.pct ?? -1) - (a.state.pct ?? -1) || a.row.name.localeCompare(b.row.name)),
     [all],
@@ -181,7 +189,7 @@ function OverviewTab({ summary, fleet, window, openTab }) {
 
   return (
     <>
-      <SummaryCards cards={cards} window={window} learningCount={learning.length} openTab={openTab} />
+      <SummaryCards cards={cards} window={window} learningCount={fleet.data ? learning.length : null} openTab={openTab} />
 
       <div className="grid gap-4 @min-[52rem]:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
         <AnomaliesPerDay days={summary.data.anomaliesByDay} span={chartDays} generatedAt={summary.data.generatedAt} />
@@ -248,13 +256,11 @@ function SummaryCards({ cards, window, learningCount, openTab }) {
       type="button"
       onClick={() => openTab('identities', { baseline: 'learning', sort: 'learning' })}
       label="Still learning"
-      value={cards.still_learning}
+      /* Counted from the identity list when it is in: the summary's count
+         also holds identities that never made a call, which are not learning. */
+      value={learningCount ?? cards.still_learning}
       tone="medium"
-      caption={
-        learningCount > 0
-          ? `No baseline yet, so no anomaly can be raised · ${formatNumber(learningCount)} learning now`
-          : 'No baseline yet, so no anomaly can be raised'
-      }
+      caption="Calls seen, no baseline yet, so no anomaly can be raised"
     />,
     <MetricTile
       key="open"
@@ -520,7 +526,7 @@ function IdentitiesTab({ fleet, searchParams, setParams }) {
     const out = all.filter(
       (row) =>
         (!type || row.sourceType === type) &&
-        (!baselineFilter || learningState(row.baseline).key === baselineFilter) &&
+        (!baselineFilter || learningState(row.baseline, seenOrUnknown(row)).key === baselineFilter) &&
         (!search ||
           [row.name, row.identityName, row.workloadKey, row.accountId, row.region].some((value) => String(value ?? '').toLowerCase().includes(search))),
     );
@@ -529,7 +535,7 @@ function IdentitiesTab({ fleet, searchParams, setParams }) {
        (they have calls), then the rest that have called, and identities never
        seen calling last. Within each, the most recent call first. */
     const rank = (row) => {
-      const key = learningState(row.baseline).key;
+      const key = learningState(row.baseline, seenOrUnknown(row)).key;
       if (key === 'established') return 0;
       if (key === 'learning') return 1;
       return row.lastSeen ? 2 : 3;
@@ -538,7 +544,7 @@ function IdentitiesTab({ fleet, searchParams, setParams }) {
       baseline: (a, b) => rank(a) - rank(b) || time(b.lastSeen) - time(a.lastSeen),
       risk: (a, b) => (b.risk.score ?? -1) - (a.risk.score ?? -1) || (b.openAnomalies ?? 0) - (a.openAnomalies ?? 0),
       seen: (a, b) => time(b.lastSeen) - time(a.lastSeen),
-      learning: (a, b) => (learningState(b.baseline).pct ?? -1) - (learningState(a.baseline).pct ?? -1),
+      learning: (a, b) => (learningState(b.baseline, seenOrUnknown(b)).pct ?? -1) - (learningState(a.baseline, seenOrUnknown(a)).pct ?? -1),
       name: () => 0,
     }[sort];
     return out.sort((a, b) => by(a, b) || a.name.localeCompare(b.name));
@@ -559,7 +565,7 @@ function IdentitiesTab({ fleet, searchParams, setParams }) {
         { header: 'Workload type', value: (row) => sourceTypeLabel(row.sourceType, row.nhiType) },
         { header: 'Account', value: (row) => row.accountId ?? '' },
         { header: 'Region', value: (row) => row.region ?? '' },
-        { header: 'Baseline', value: (row) => learningState(row.baseline).label },
+        { header: 'Baseline', value: (row) => learningState(row.baseline, seenOrUnknown(row)).label },
         { header: 'Days learned', value: (row) => row.baseline.builtDays ?? '' },
         { header: 'Days required', value: (row) => row.baseline.requiredDays ?? '' },
         { header: 'Risk', value: (row) => row.risk.score ?? '' },
@@ -604,7 +610,7 @@ function IdentitiesTab({ fleet, searchParams, setParams }) {
         </span>
       ),
     },
-    { key: 'baseline', header: 'Baseline', width: '20%', cell: (row) => <LearningCell baseline={row.baseline} /> },
+    { key: 'baseline', header: 'Baseline', width: '20%', cell: (row) => <LearningCell baseline={row.baseline} lastSeen={seenOrUnknown(row)} /> },
     {
       key: 'risk',
       header: 'Risk',
@@ -769,8 +775,8 @@ function IdentitiesTab({ fleet, searchParams, setParams }) {
 }
 
 /** Established, learning with how far along, or not started. */
-function LearningCell({ baseline }) {
-  const state = learningState(baseline);
+function LearningCell({ baseline, lastSeen }) {
+  const state = learningState(baseline, lastSeen);
   if (state.key === 'established') {
     return (
       <Tag tone="low" size="sm" dot>
@@ -778,7 +784,7 @@ function LearningCell({ baseline }) {
       </Tag>
     );
   }
-  if (state.key === 'none') return <span className="text-[12px] text-ink-3">Not started</span>;
+  if (state.key === 'none') return <span className="text-[12px] text-ink-3">{state.label}</span>;
   return (
     <span className="block w-full max-w-[11rem]">
       <span className="flex items-baseline justify-between gap-2 text-[11.5px]">

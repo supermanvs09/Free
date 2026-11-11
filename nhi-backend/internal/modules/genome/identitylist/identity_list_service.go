@@ -216,6 +216,7 @@ func (s *Service) List(
 	)
 
 	response := &Response{
+		ActivityKnown: lastSeen != nil,
 		Items: make(
 			[]Item,
 			0,
@@ -404,12 +405,14 @@ func (s *Service) riskFor(
 	return risk
 }
 
+// lastSeenFor returns nil when the events store cannot be read, so the
+// caller can tell "unknown" from "never seen".
 func (s *Service) lastSeenFor(
 	ctx context.Context,
 	entries []listEntry,
 ) map[common.MonitoringKey]time.Time {
 	if s.events == nil {
-		return map[common.MonitoringKey]time.Time{}
+		return nil
 	}
 
 	keys := make(
@@ -433,7 +436,10 @@ func (s *Service) lastSeenFor(
 		"identity list last seen",
 		err,
 	) {
-		return map[common.MonitoringKey]time.Time{}
+		return nil
+	}
+	if lastSeen == nil {
+		lastSeen = map[common.MonitoringKey]time.Time{}
 	}
 
 	return lastSeen

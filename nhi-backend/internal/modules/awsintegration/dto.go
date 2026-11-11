@@ -129,6 +129,10 @@ type AWSSetupValues struct {
 	EventWaitMinutes int              `json:"event_wait_minutes"`
 	Regions          []AWSRegion      `json:"regions"`
 	Exposure         AWSExposureSetup `json:"exposure"`
+	// ApprovalRequired is true while the workspace has no approved account:
+	// Verify then asks adapID first (request, e-mail, Approvals page) and
+	// reads nothing until approved. False: Verify runs the checks at once.
+	ApprovalRequired bool `json:"approval_required"`
 }
 
 // AWSExposureSetup is what the customer adds to the same role to let the

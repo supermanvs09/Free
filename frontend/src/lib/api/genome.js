@@ -103,7 +103,9 @@ export async function fetchGenomeFleet({ sort = 'risk_desc' } = {}, signal) {
       await client.get(`${BASE}/identities`, { params: params({ sort, limit: GENOME_LIST_PAGE, cursor }), signal }),
     );
     if (!data || !Array.isArray(data.items)) throw unexpected();
-    for (const row of data.items) items.push(fleetRow(row));
+    /* activity_known: the events store answered, so a null last_seen means
+       "never called". Absent (an older service) or false: unknown. */
+    for (const row of data.items) items.push({ ...fleetRow(row), activityKnown: data.activity_known === true });
     cursor = meta?.next_cursor || null;
     if (!cursor) return { items, complete: true };
   }
@@ -156,6 +158,8 @@ export async function fetchGenomeIdentity(sourceType, identityName, { window } =
     identity: data.identity,
     baseline: data.baseline_summary ?? null,
     callsInWindow: metrics.calls_in_window ?? null,
+    /* calls_in_window is present only when the events store answered. */
+    activityKnown: metrics.calls_in_window !== undefined && metrics.calls_in_window !== null,
     openAnomalies: metrics.open_anomalies ?? null,
     lastSeen: metrics.last_seen ?? null,
   };

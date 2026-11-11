@@ -260,7 +260,7 @@ export async function getIntegration() {
     exposure_enabled: accounts.some((account) => account.exposure.github.connected || account.exposure.codecommit.connected),
     can_manage: canManage(),
     workspace: { domain: 'example.com' },
-    setup: SETUP,
+    setup: { ...SETUP, approval_required: !store().accounts.some((entry) => entry.approval?.status === 'approved' || entry.is_connected) },
     accounts,
   });
 }

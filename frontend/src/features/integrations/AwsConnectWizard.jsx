@@ -591,12 +591,13 @@ export function AwsConnectWizard({ setup, previous, storageKey, title = 'Connect
                 />
               </div>
               <p className="mb-2 text-[12px] leading-relaxed text-ink-3">
-                Your workspace's first AWS account is reviewed by adapID first: the request is sent when you choose Verify, and nothing is read from your account until it is
-                approved. Your role, read access and events are then checked automatically.
+                {setup.approval_required === false
+                  ? 'Your workspace already has an approved AWS account, so this one needs no review: Verify checks your role, read access and events straight away, and no approval e-mail is sent.'
+                  : "Your workspace's first AWS account is reviewed by adapID first: Verify sends the request (adapID is e-mailed and it appears on their Approvals page), and nothing is read from your account until it is approved. Your role, read access and events are then checked automatically."}
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <Button type="submit" variant="primary" size="lg" icon={ShieldCheck} loading={running}>
-                  {running ? 'Sending…' : run.phase === 'idle' ? 'Verify connection' : 'Verify again'}
+                  {running ? (setup.approval_required === false ? 'Checking…' : 'Sending…') : run.phase === 'idle' ? 'Verify connection' : 'Verify again'}
                 </Button>
                 {onCancel && (
                   <Button variant="ghost" size="lg" onClick={cancel} disabled={running}>

@@ -259,7 +259,11 @@ func (s *AWSIntegrationService) Get(ctx context.Context, caller AWSCaller, canMa
 		CanManage: canManage,
 		Accounts:  make([]AWSConnectedAccount, 0, len(records)),
 	}
+	approvedAny := false
 	for _, rec := range records {
+		if isApproved(&rec) {
+			approvedAny = true
+		}
 		// An admin approved this connection since the last read: its events
 		// check starts now.
 		s.resumeApproved(ctx, caller, &rec)
@@ -327,6 +331,7 @@ func (s *AWSIntegrationService) Get(ctx context.Context, caller AWSCaller, canMa
 				TokenPermissions: append([]string(nil), gitHubTokenPermissions...),
 			},
 		},
+		ApprovalRequired: !approvedAny,
 	}
 	return out, nil
 }

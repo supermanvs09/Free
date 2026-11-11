@@ -5,6 +5,11 @@ import "time"
 // Response is the data block returned by the fleet endpoint.
 type Response struct {
 	Items []Item `json:"items"`
+	// ActivityKnown is true when last_seen could be read from the events
+	// store: a null last_seen then means the identity never made a call.
+	// False: last_seen is unknown for every item (the console must not read
+	// it as "no activity").
+	ActivityKnown bool `json:"activity_known"`
 }
 
 // Item represents one monitored principal.
