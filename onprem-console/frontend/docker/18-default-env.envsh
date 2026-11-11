@@ -1,0 +1,12 @@
+# Sourced by the nginx image's entrypoint before the template is rendered.
+
+# nginx resolves the upstream names at request time and needs a resolver of its
+# own. A hard-coded 127.0.0.11 only exists under Docker's embedded DNS; on ECS
+# Fargate or Kubernetes it does not, and every proxied call then fails with 502
+# ("could not be resolved"). Unless DNS_RESOLVER was passed, use the first IPv4
+# nameserver of this container's own resolv.conf.
+if [ -z "${DNS_RESOLVER:-}" ]; then
+  DNS_RESOLVER=$(awk '$1=="nameserver" && $2 !~ ":" {print $2; exit}' /etc/resolv.conf 2>/dev/null || true)
+  : "${DNS_RESOLVER:=127.0.0.11}"
+fi
+export DNS_RESOLVER

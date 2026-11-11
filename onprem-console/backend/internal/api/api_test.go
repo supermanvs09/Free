@@ -488,3 +488,32 @@ func TestEndToEnd(t *testing.T) {
 	}
 	anon.do("POST", "/api/v1/auth/login", map[string]string{"email": "ana@acme.test", "password": "StrongPass123!"}, 429)
 }
+
+func TestScheduleScansDue(t *testing.T) {
+	dbURL := os.Getenv("ONPREM_TEST_DATABASE_URL")
+	if dbURL == "" {
+		t.Skip("set ONPREM_TEST_DATABASE_URL to run against Postgres")
+	}
+	ctx := context.Background()
+	st, err := store.Open(ctx, dbURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	_, _ = st.DB.Exec(ctx, `DELETE FROM connections`)
+	// A Jenkins connection whose secret cannot be opened: the scheduled run must start (and then fail cleanly).
+	_, _ = st.DB.Exec(ctx, `INSERT INTO connections (kind, status, secret, sync_status, sync_started_at) VALUES ('jenkins', 'connected', '\x00', 'done', now() - interval '2 days')`)
+	key := make([]byte, 32)
+	box, _ := secretbox.New(key)
+	s := New(&config.Config{ScanEvery: 24 * time.Hour}, st, box, nil)
+	cctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go s.ScheduleScans(cctx)
+	waitFor(t, "scheduled run", func() bool {
+		var status string
+		_ = st.DB.QueryRow(ctx, `SELECT sync_status FROM connections WHERE kind = 'jenkins'`).Scan(&status)
+		return status == "failed"
+	})
+}

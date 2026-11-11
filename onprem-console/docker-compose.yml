@@ -1,0 +1,42 @@
+# On-premises Code & CI/CD console: Postgres, the API and the web tier.
+#   cp .env.example .env   # fill in the four required values
+#   docker compose up -d --build
+# Then open http://<host>:${ONPREM_HTTP_PORT:-8443} and sign in as ONPREM_ADMIN_EMAIL.
+# Put your TLS reverse proxy (or load balancer) in front of the web port.
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: onprem
+      POSTGRES_USER: onprem
+      POSTGRES_PASSWORD: ${ONPREM_DB_PASSWORD:?set ONPREM_DB_PASSWORD in .env}
+    volumes:
+      - onprem-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U onprem -d onprem"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  onprem-api:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      ONPREM_DATABASE_URL: postgres://onprem:${ONPREM_DB_PASSWORD}@postgres:5432/onprem?sslmode=disable
+
+  onprem-web:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on: [onprem-api]
+    environment:
+      ONPREM_API_UPSTREAM: http://onprem-api:8090
+    ports:
+      - "${ONPREM_HTTP_PORT:-8443}:3000"
+
+volumes:
+  onprem-db:

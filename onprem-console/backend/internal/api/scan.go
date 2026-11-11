@@ -20,6 +20,39 @@ func (s *Server) ResetInterrupted(ctx context.Context) error {
 	return err
 }
 
+// ScheduleScans re-runs each connected source's full scan (or Jenkins sync)
+// every cfg.ScanEvery, counted from its last start, so the console stays
+// current where webhooks cannot reach it. It returns when ctx ends.
+func (s *Server) ScheduleScans(ctx context.Context) {
+	if s.cfg.ScanEvery <= 0 {
+		return
+	}
+	t := time.NewTicker(15 * time.Minute)
+	defer t.Stop()
+	for {
+		rows, err := s.st.DB.Query(ctx, `SELECT kind FROM connections WHERE status = 'connected' AND sync_status <> 'running'
+			AND sync_started_at < now() - make_interval(secs => $1)`, s.cfg.ScanEvery.Seconds())
+		if err == nil {
+			var due []string
+			for rows.Next() {
+				var k string
+				if rows.Scan(&k) == nil {
+					due = append(due, k)
+				}
+			}
+			rows.Close()
+			for _, k := range due {
+				_ = s.startSync(k, "schedule")
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+	}
+}
+
 var errRunning = errors.New("A scan of this source is already running.")
 
 // startSync claims the source (one run at a time) and runs in the background.

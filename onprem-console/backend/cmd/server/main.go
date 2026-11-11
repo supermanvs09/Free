@@ -48,6 +48,9 @@ func main() {
 	if cfg.PublicURL == "" {
 		log.Print("ONPREM_PUBLIC_URL is not set: webhook addresses are shown relative to the console's own address")
 	}
+	sched, stopSched := context.WithCancel(ctx)
+	defer stopSched()
+	go srv.ScheduleScans(sched)
 	hs := &http.Server{Addr: cfg.Addr, Handler: srv.Router(), ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 60 * time.Second, WriteTimeout: 90 * time.Second}
 	go func() {
 		log.Printf("on-premises console API listening on %s", cfg.Addr)

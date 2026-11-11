@@ -26,8 +26,9 @@ type Config struct {
 	BusinessStart int           // ONPREM_BUSINESS_HOURS start hour (default 8), for unusual-build flags
 	BusinessEnd   int           // end hour (default 19)
 	BusinessTZ    *time.Location
-	MaxFileBytes  int64 // ONPREM_SCAN_MAX_FILE_KB, default 1024
-	MaxRepoFiles  int   // ONPREM_SCAN_MAX_FILES_PER_REPO, default 5000
+	MaxFileBytes  int64         // ONPREM_SCAN_MAX_FILE_KB, default 1024
+	MaxRepoFiles  int           // ONPREM_SCAN_MAX_FILES_PER_REPO, default 5000
+	ScanEvery     time.Duration // ONPREM_SCAN_EVERY_HOURS, default 24; 0 turns scheduled scans off
 }
 
 func Load() (*Config, error) {
@@ -44,6 +45,7 @@ func Load() (*Config, error) {
 		MaxFileBytes:  int64(envInt("ONPREM_SCAN_MAX_FILE_KB", 1024)) * 1024,
 		MaxRepoFiles:  envInt("ONPREM_SCAN_MAX_FILES_PER_REPO", 5000),
 		SessionTTL:    time.Duration(envInt("ONPREM_SESSION_HOURS", 8)) * time.Hour,
+		ScanEvery:     time.Duration(envInt("ONPREM_SCAN_EVERY_HOURS", 24)) * time.Hour,
 	}
 	var problems []string
 	if c.DatabaseURL == "" {
@@ -58,6 +60,9 @@ func Load() (*Config, error) {
 		problems = append(problems, "ONPREM_ENCRYPTION_KEY must be base64 of 32 random bytes (openssl rand -base64 32)")
 	} else {
 		c.EncryptionKey = key
+	}
+	if env("ONPREM_SCAN_EVERY_HOURS", "") == "0" {
+		c.ScanEvery = 0
 	}
 	if h := env("ONPREM_BUSINESS_HOURS", ""); h != "" {
 		var a, b int
