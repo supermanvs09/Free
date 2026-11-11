@@ -1364,21 +1364,21 @@ func (s *AWSIntegrationService) explainDenied(ctx context.Context, caller AWSCal
 	result.diagnosis = "aws: " + awsErr.Error() + " | " + d.Summary()
 	log := logging.FromContext(ctx).With("tenant_id", caller.TenantID, "account_id", role.AccountID, "role_arn", role.ARN, "sts_region", p.Region,
 		"check", check.Key, "err", awsErr, "our_side", d.Summary(), "caller_arn", d.CallerARN)
+	// The customer sees what to check in their role (step 2 of the setup);
+	// a fault of our own is only in the log, never named on the page.
+	roleName := role.ARN[strings.LastIndex(role.ARN, "/")+1:]
+	step2 := fmt.Sprintf("Check step 2 (Create the read-only role): the role %s must exist in account %s, and its trust policy must allow sts:AssumeRole for %s with your External ID exactly as shown on this page.", roleName, role.AccountID, p.AssumerRoleARN)
 	switch {
 	case d.OurFault():
 		result.ourSide = true
 		log.Error("aws integration: AssumeRole refused because of OUR setup, not the customer's; no customer can connect until it is fixed")
-		check.State, check.Fix = AWSCheckError, ""
-		check.Message = "AWS refused because of a setting on our side, not in your account. You do not need to change anything; contact support if it does not clear soon."
+		fail(check, "AWS would not let us use the role "+roleName+". "+step2, "Check the role and its trust policy (step 2), then re-check")
 	case d.OurSideClear():
 		log.Info("aws integration: AssumeRole refused by the customer's role (our side checked and fine)")
-		roleName := role.ARN[strings.LastIndex(role.ARN, "/")+1:]
-		fail(check,
-			fmt.Sprintf("We checked our side and it is correct, so AWS refused because of the role %s in your account (%s): it does not exist under this ARN, or its trust policy does not allow sts:AssumeRole for %s with your External ID.", roleName, role.AccountID, p.AssumerRoleARN),
-			"Check the role ARN, and that its trust policy names our role and your External ID exactly")
+		fail(check, "AWS refused the role "+roleName+" in your account. "+step2, "Fix the role's trust policy (step 2), then re-check")
 	default:
 		log.Info("aws integration: check failed in the customer's account (our side could not be fully checked)")
-		fail(check, "AWS would not let us use this role: the role ARN, its trust policy (our role NHIPlatformAssumer) or the External ID does not match.", "Check the trust policy names our role and your External ID exactly")
+		fail(check, "AWS would not let us use the role "+roleName+". "+step2, "Check the role and its trust policy (step 2), then re-check")
 	}
 }
 

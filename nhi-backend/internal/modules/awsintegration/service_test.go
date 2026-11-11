@@ -836,7 +836,7 @@ func TestVerifyOutcomes(t *testing.T) {
 		fix      string
 	}{
 		{"not approved yet: asks first, checks nothing", false, &fakeVerifier{}, fakeEvents{found: true}, "skipped,skipped,skipped", AWSStatusPendingApproval, ""},
-		{"assume denied", true, &fakeVerifier{assumeErr: awsconnect.ErrAccessDenied}, fakeEvents{found: true}, "fail,skipped,skipped", AWSStatusPending, "Check the trust policy names our role and your External ID exactly"},
+		{"assume denied", true, &fakeVerifier{assumeErr: awsconnect.ErrAccessDenied}, fakeEvents{found: true}, "fail,skipped,skipped", AWSStatusPending, "trust policy (step 2)"},
 		{"assume unavailable", true, &fakeVerifier{assumeErr: errors.New("dial")}, fakeEvents{found: true}, "error,skipped,skipped", AWSStatusPending, ""},
 		{"no read", true, &fakeVerifier{readErr: awsconnect.ErrAccessDenied}, fakeEvents{found: true}, "pass,fail,skipped", AWSStatusPending, "Attach SecurityAudit and ViewOnlyAccess to NHIPlatformCollector"},
 	}
@@ -1267,9 +1267,9 @@ func TestDeniedAssumeRoleIsExplainedByCheckingOurSide(t *testing.T) {
 		outcome  string
 		inDetail string
 	}{
-		{"our side is wrong: not the customer's to fix", ourFault, AWSCheckError, "our side, not in your account", "platform_error", "OUR SIDE"},
-		{"our side verified: the customer's role is the cause", clear, AWSCheckFail, "We checked our side and it is correct", "failed", "our side checked and fine"},
-		{"our side unknown: the general message", unknown, AWSCheckFail, "AWS would not let us use this role", "failed", "not checked"},
+		{"our side is wrong: the page only points at step 2, the log names us", ourFault, AWSCheckFail, "Check step 2", "platform_error", "OUR SIDE"},
+		{"our side verified: the customer's role is the cause", clear, AWSCheckFail, "AWS refused the role NHIPlatformCollector in your account", "failed", "our side checked and fine"},
+		{"our side unknown: the general message", unknown, AWSCheckFail, "Check step 2", "failed", "not checked"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

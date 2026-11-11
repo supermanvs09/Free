@@ -27,7 +27,7 @@ export function SignalBreakdown({ signals }) {
       (SEVERITY_RANK[String(a.severity).toLowerCase()] ?? 9) - (SEVERITY_RANK[String(b.severity).toLowerCase()] ?? 9),
   );
   if (rows.length === 0) {
-    return <p className="py-2 text-[12.5px] text-ink-3">No risk checks were recorded for this identity.</p>;
+    return <p className="py-2 text-[12.5px] text-ink-3">Nothing was noted for this identity.</p>;
   }
   return (
     <ul className="divide-y divide-line">
@@ -40,7 +40,7 @@ export function SignalBreakdown({ signals }) {
               {SIGNAL_WORDS[row.signal] ?? row.signal}
             </span>
             <span className={cn('shrink-0 text-[11.5px] font-semibold', row.status ? TONE_FG[tone] : 'text-low')}>
-              {row.status ? `Found · ${String(row.severity || '').toLowerCase() || 'unrated'}` : 'Clear'}
+              {row.status ? `Needs a look · ${String(row.severity || '').toLowerCase() || 'unrated'}` : 'OK'}
             </span>
           </li>
         );

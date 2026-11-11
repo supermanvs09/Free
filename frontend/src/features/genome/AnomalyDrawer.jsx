@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Archive, ArrowRight, CheckCircle2, ChevronDown, HelpCircle, MessageSquarePlus, Repeat2, RotateCcw, ShieldAlert } from 'lucide-react';
+import { Archive, CheckCircle2, ChevronDown, HelpCircle, MessageSquarePlus, Repeat2, RotateCcw, ShieldAlert } from 'lucide-react';
 import { fetchAnomaly, fetchAnomalyEvidence, saveAnomalyFeedback, setAnomalyDisposition } from '../../lib/api/genome';
 import { useAccess } from '../../app/useAccess';
 import { severityMeta } from '../../lib/domain';
@@ -33,73 +33,66 @@ const asText = (value) => {
   return entries.length === 0 ? '' : entries.map(([k, v]) => `${k}: ${asText(v)}`).join('; ');
 };
 
-/** Normally versus this time, side by side: the question a reviewer asks first. */
+/* The baseline arrives as a frequency map ({value: weight}) or a one-key
+   object ({caller_session_key: value}); people want the values, not the
+   weights or the key names. */
+const valuesOf = (value) => {
+  if (value === null || value === undefined || value === '') return [];
+  // "value: 2.63; other: 1.2" - a frequency map already flattened to text
+  if (typeof value === 'string' && /:\s+-?\d+(\.\d+)?\s*(;|$)/.test(value)) {
+    return value.split(';').map((part) => part.trim().replace(/:\s+-?\d+(\.\d+)?$/, '')).filter(Boolean);
+  }
+  if (typeof value !== 'object') return [String(value)];
+  if (Array.isArray(value)) return value.flatMap(valuesOf);
+  const entries = Object.entries(value);
+  if (entries.length > 0 && entries.every(([, v]) => typeof v === 'number')) {
+    return entries.sort((x, y) => y[1] - x[1]).map(([k]) => k);
+  }
+  if (entries.length === 1) return valuesOf(entries[0][1]);
+  return [asText(value)];
+};
+
+/* The detector's wording, in plain words. */
+const plainReason = (text) => (/new categorical value/i.test(String(text)) ? 'Used something it has never used before' : text);
+
+/** Usually versus this time: the question a reviewer asks first. */
 function Comparison({ normal, observed }) {
+  const usual = valuesOf(normal);
+  const now = valuesOf(observed);
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-2">
-      <div className="min-w-0 rounded-[var(--radius-control)] border border-line bg-surface-2 px-3.5 py-3">
-        <p className="text-[10.5px] font-semibold tracking-[0.12em] text-ink-3 uppercase">Normally</p>
-        <p className="mt-1 line-clamp-3 font-mono text-[13px] break-words text-ink-2" title={normal}>
-          {normal || <span className="font-sans text-ink-3">Not recorded</span>}
-        </p>
+    <div className="flex flex-col gap-2 rounded-[var(--radius-control)] border border-line bg-surface p-3.5 text-[12.5px]">
+      <div>
+        <p className="font-medium text-ink-3">This time</p>
+        <p className="mt-0.5 font-mono font-semibold break-all text-ink">{now.join(', ') || 'Not recorded'}</p>
       </div>
-      <span className="grid place-items-center text-ink-3">
-        <ArrowRight aria-hidden="true" className="size-4" />
-      </span>
-      <div className="min-w-0 rounded-[var(--radius-control)] border border-high/35 bg-high-soft px-3.5 py-3">
-        <p className="text-[10.5px] font-semibold tracking-[0.12em] text-high uppercase">This time</p>
-        <p className="mt-1 line-clamp-3 font-mono text-[13px] font-semibold break-words text-ink" title={observed}>
-          {observed || <span className="font-sans font-normal text-ink-3">Not recorded</span>}
-        </p>
+      <div>
+        <p className="font-medium text-ink-3">Usually</p>
+        {usual.length === 0 ? (
+          <p className="mt-0.5 text-ink-3">Nothing recorded yet</p>
+        ) : (
+          <ul className="mt-0.5 flex flex-col gap-0.5 font-mono break-all text-ink-2">
+            {usual.slice(0, 3).map((v) => <li key={v}>{v}</li>)}
+            {usual.length > 3 && <li className="font-sans text-ink-3">and {usual.length - 3} more</li>}
+          </ul>
+        )}
       </div>
     </div>
   );
 }
 
-/** Where this anomaly sits in its repeating pattern, with the latest occurrences. */
-function PatternStrip({ pattern, current, onPick }) {
+/** How often the same thing happened, in one sentence. */
+function PatternStrip({ pattern }) {
   if (!pattern || pattern.items.length < 2) return null;
-  const recent = [...pattern.items].sort((a, b) => new Date(b.detected_at) - new Date(a.detected_at)).slice(0, 6);
-  const range = pattern.min !== null && pattern.min !== pattern.max ? `${formatNumber(pattern.min)} → ${formatNumber(pattern.max)}` : null;
   return (
-    <div className="rounded-[var(--radius-control)] border border-brand/20 bg-info-soft/60 p-3.5">
-      <p className="flex items-center gap-2 text-[12.5px] text-ink-2">
-        <Repeat2 aria-hidden="true" className="size-4 shrink-0 text-brand" />
-        <span>
-          One of <b className="font-semibold text-ink">{formatNumber(pattern.items.length)}</b> repeats since{' '}
-          {formatRelative(new Date(pattern.first).toISOString())}
-          {range ? (
-            <>
-              , the measure moving <b className="font-semibold text-ink">{range}</b>
-            </>
-          ) : null}
-          .
-        </span>
-      </p>
-      <ol className="mt-2.5 flex flex-wrap gap-1.5">
-        {recent.map((item) => (
-          <li key={item.id}>
-            <button
-              type="button"
-              onClick={() => onPick?.(item)}
-              title={`${item.what_changed} · ${formatDateTime(item.detected_at)}`}
-              className={cn(
-                'rounded-full border px-2.5 py-1 text-[11.5px] transition-colors',
-                item.id === current?.id ? 'border-brand bg-brand text-white' : 'border-line bg-surface text-ink-2 hover:border-brand/40',
-              )}
-            >
-              {(String(item.what_changed).match(/-?\d+(?:\.\d+)?/) ?? [formatRelative(item.detected_at)])[0]}
-              <span className={cn('ml-1.5', item.id === current?.id ? 'text-white/80' : 'text-ink-3')}>{formatRelative(item.detected_at)}</span>
-            </button>
-          </li>
-        ))}
-      </ol>
-    </div>
+    <p className="flex items-center gap-2 text-[12.5px] text-ink-2">
+      <Repeat2 aria-hidden="true" className="size-4 shrink-0 text-brand" />
+      Happened <b className="font-semibold text-ink">{formatNumber(pattern.items.length)} times</b> since {formatRelative(new Date(pattern.first).toISOString())}.
+    </p>
   );
 }
 
 /** One anomaly: what departed, the call behind it, and the reviewer's verdict. */
-export function AnomalyDrawer({ anomaly, pattern, onClose, onReviewed, onPick }) {
+export function AnomalyDrawer({ anomaly, pattern, onClose, onReviewed }) {
   const id = anomaly?.id;
   const detail = useQuery((signal) => (id ? fetchAnomaly(id, signal) : Promise.resolve(null)), [id]);
   const evidence = useQuery((signal) => (id ? fetchAnomalyEvidence(id, signal) : Promise.resolve(null)), [id]);
@@ -233,7 +226,7 @@ export function AnomalyDrawer({ anomaly, pattern, onClose, onReviewed, onPick })
                 {formatRelative(d.detail?.detected_at ?? anomaly.detected_at)}
               </span>
             </div>
-            <p className="mt-2.5 text-[15px] leading-snug font-semibold text-ink">{e.comparison?.reason || anomaly.what_changed}</p>
+            <p className="mt-2.5 text-[15px] leading-snug font-semibold text-ink">{plainReason(e.comparison?.reason || anomaly.what_changed)}</p>
             {strangeness !== null && (
               <div className="mt-2.5 flex items-center gap-2.5">
                 <span className="h-1.5 w-28 overflow-hidden rounded-full bg-track">
@@ -246,9 +239,9 @@ export function AnomalyDrawer({ anomaly, pattern, onClose, onReviewed, onPick })
             )}
           </div>
 
-          <Comparison normal={asText(e.comparison?.baseline_value)} observed={asText(e.comparison?.observed_value)} />
+          <Comparison normal={e.comparison?.baseline_value} observed={e.comparison?.observed_value} />
 
-          <PatternStrip pattern={pattern} current={anomaly} onPick={onPick} />
+          <PatternStrip pattern={pattern} />
 
           <div>
             <SectionLabel>The call behind it</SectionLabel>

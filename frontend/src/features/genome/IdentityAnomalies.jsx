@@ -77,7 +77,7 @@ export function IdentityAnomalies({ sourceType, keys, displayName }) {
           }}
         />
       )}
-      <AnomalyDrawer anomaly={selected} pattern={pattern} onPick={setSelected} onClose={() => setSelected(null)} onReviewed={query.refetch} />
+      <AnomalyDrawer anomaly={selected} pattern={pattern} onClose={() => setSelected(null)} onReviewed={query.refetch} />
     </div>
   );
 }

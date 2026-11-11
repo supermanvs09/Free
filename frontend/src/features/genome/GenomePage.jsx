@@ -1093,7 +1093,7 @@ function AnomaliesTab({ searchParams, setParams }) {
           />
         )}
       </Panel>
-      <AnomalyDrawer anomaly={selected} pattern={selectedPattern} onPick={setSelected} onClose={() => setSelected(null)} onReviewed={query.refetch} />
+      <AnomalyDrawer anomaly={selected} pattern={selectedPattern} onClose={() => setSelected(null)} onReviewed={query.refetch} />
     </WorkArea>
   );
 }

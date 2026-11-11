@@ -241,20 +241,20 @@ function OverviewPanel({ identityId, query, active, compact }) {
       </section>
 
       <div>
-        <SectionLabel>Risk signals{raised > 0 ? ` · ${raised} found` : ' · none found'}</SectionLabel>
+        <SectionLabel>At a glance{raised > 0 ? ` · ${raised} to look at` : ' · all fine'}</SectionLabel>
         <div className="mt-1">
           <SignalBreakdown signals={data.risk_signals} />
         </div>
         <p className="mt-2 text-[11.5px] leading-relaxed text-ink-3">
-          The few quick signals the discovery scan checks on this identity and its credentials. The full list of failed security checks is longer.
+          Simple facts the discovery scan noted about this identity and its credentials. These are not its security checks or score.
           {identityId && (
             <>
               {' '}
-              It is on the{' '}
+              Those are on the{' '}
               <Link to={identityRoute(identityId, 'posture')} className="font-medium text-brand hover:underline">
                 Posture tab
               </Link>
-              , with the score and how to fix each one.
+              , with how to fix each one.
             </>
           )}
         </p>

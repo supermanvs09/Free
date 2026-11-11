@@ -240,7 +240,7 @@ function OverviewBody({ data, privilege, record, recordLoading }) {
       </div>
 
       <div>
-        <SectionLabel>Risk signals{raised > 0 ? ` · ${raised} raised` : ''}</SectionLabel>
+        <SectionLabel>At a glance{raised > 0 ? ` · ${raised} to look at` : ' · all fine'}</SectionLabel>
         <div className="mt-1">
           <SignalBreakdown signals={data.risk_signals} />
         </div>
