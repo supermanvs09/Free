@@ -416,6 +416,7 @@ export default function CredentialsPage() {
     },
     {
       key: 'age',
+      hideWithRail: true,
       header: 'Age',
       sortable: true,
       width: '13%',
@@ -629,6 +630,7 @@ export default function CredentialsPage() {
           ) : (
             <>
               <DataGrid
+                railOpen={railOpen}
                 caption="Credential register"
                 columns={columns}
                 rows={rows}

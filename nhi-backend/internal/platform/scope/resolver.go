@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"nhi-backend-api/internal/platform/datasource"
 	"strings"
 
 	"github.com/lib/pq"
@@ -31,6 +32,10 @@ type DataScope struct {
 
 	AccountIDs []string
 	Regions    []string
+
+	// sources records the tables this request reads (genome logs), when the
+	// request carries a datasource recorder.
+	sources *datasource.Recorder
 
 	HasUserSettings bool
 }
@@ -73,6 +78,7 @@ func (s *DataScope) QSchema() string {
 
 // Table qualifies a tenant table with the scope's schema.
 func (s *DataScope) Table(table string) string {
+	s.sources.Postgres(s.Schema, table)
 	return database.Table(s.Schema, table)
 }
 
@@ -94,6 +100,7 @@ func (r *Resolver) Resolve(ctx context.Context, userID, tenantID, dbName string)
 	s := &DataScope{
 		DB: tenantDB, UserID: userID, TenantID: tenantID, DBName: dbName, Schema: dbName,
 		AccountIDs: make([]string, 0), Regions: make([]string, 0),
+		sources: datasource.From(ctx),
 	}
 
 	settings, err := r.loadUserSettings(ctx, tenantDB, dbName, userID)

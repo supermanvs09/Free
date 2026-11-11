@@ -172,7 +172,7 @@ export default function IdentityPage() {
         </TabBoundary>
       )}
 
-      {tab === 'activity' && <IdentityActivity identityId={identity.id} />}
+      {tab === 'activity' && <IdentityActivity identityId={identity.id} identity={identity} />}
 
       {tab === 'changes' && (
         <Panel className="animate-rise">

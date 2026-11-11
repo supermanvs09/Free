@@ -12,6 +12,8 @@ import {
 } from './ActivitySections';
 import { EventFilters, EventTimeline, RangePicker } from './EventTimeline';
 import { useEventState } from './eventState';
+import { GenomeEvents } from './GenomeEvents';
+import { canonicalGenomeName, genomeSourceType } from '../../lib/identityLinks';
 
 const SECTIONS = [
   { value: 'events', label: 'Events' },
@@ -34,7 +36,11 @@ const DEFAULTS = { range: '7d' };
  * filters by it and opens the event list. Range, section, filters and the
  * open event are all in the URL.
  */
-export function IdentityActivity({ identityId }) {
+export function IdentityActivity({ identityId, identity }) {
+  /* A workload the genome watches lists its calls from the same API as
+     Genome → Activity, so the two pages show the same calls. */
+  const genomeFamily = genomeSourceType(identity?.identity_type);
+  const genomeKey = genomeFamily && identity?.arn ? { sourceType: genomeFamily, identityName: canonicalGenomeName(identity.identity_type, identity.arn) } : null;
   const { state, patch, clearFilters } = useEventState({ urlBacked: true, defaults: DEFAULTS });
   const section = SECTIONS.some((entry) => entry.value === state.section) ? state.section : 'events';
   const filterEvents = (changes) => patch({ ...changes, section: 'events' });
@@ -48,7 +54,11 @@ export function IdentityActivity({ identityId }) {
           <Tabs size="sm" tabs={SECTIONS} value={section} onChange={(value) => patch({ section: value, event: '' })} />
         </div>
         {section === 'events' ? (
-          <EventTimeline identityId={identityId} state={state} patch={patch} clearFilters={clearFilters} />
+          genomeKey ? (
+            <GenomeEvents genomeKey={genomeKey} state={state} patch={patch} />
+          ) : (
+            <EventTimeline identityId={identityId} state={state} patch={patch} clearFilters={clearFilters} />
+          )
         ) : (
           <>
             <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-3 sm:px-5">

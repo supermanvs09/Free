@@ -3,6 +3,7 @@ package routes
 import (
 	"encoding/json"
 	"net/http"
+	"nhi-backend-api/internal/platform/datasource"
 
 	"github.com/gorilla/mux"
 
@@ -449,6 +450,8 @@ func registerGenome(router *mux.Router, g *GenomeHandlers) {
 		return
 	}
 	r := router.PathPrefix(GenomeBasePath).Subrouter()
+	// One log line per request: tenant schema, Postgres and ClickHouse tables read.
+	r.Use(datasource.Middleware("genome"))
 	get := func(path string, h http.HandlerFunc) { r.HandleFunc(path, h).Methods(http.MethodGet) }
 
 	if g.DashboardSummary != nil {

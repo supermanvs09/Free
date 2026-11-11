@@ -674,6 +674,7 @@ export default function FindingsPage() {
     },
     {
       key: 'author',
+      hideWithRail: true,
       header: 'Committed by',
       width: '13%',
       priority: 'wide',
@@ -912,6 +913,7 @@ export default function FindingsPage() {
           <RepeatedView groups={pageRepeats} allGroups={allRepeatGroups} bucket={repeatBucket} onBucket={withReset(setRepeatBucket)} onSelect={setSelected} density={density} />
         ) : view === 'findings' ? (
           <DataGrid
+                railOpen={railOpen}
             caption="Exposed secrets"
             columns={columns}
             rows={pageRows}

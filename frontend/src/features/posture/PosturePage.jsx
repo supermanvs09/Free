@@ -453,6 +453,7 @@ export default function PosturePage() {
     },
     {
       key: 'credential',
+      hideWithRail: true,
       header: 'Credential',
       width: '13%',
       priority: 'wide',
@@ -665,6 +666,7 @@ export default function PosturePage() {
             <ErrorState error={listQuery.error} onRetry={listQuery.refetch} title="The identity list failed to load" />
           ) : (
             <DataGrid
+                railOpen={railOpen}
               caption="Identity posture"
               columns={columns}
               rows={rows}

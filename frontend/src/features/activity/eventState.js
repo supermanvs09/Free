@@ -129,6 +129,19 @@ export function eventRange(state) {
   return { ...range, title: `${day(state.from)} - ${day(state.to)}`, phrase: `between ${day(state.from)} and ${day(state.to)}` };
 }
 
+/** The range as ISO from/to instants (custom dates are whole UTC days). */
+export function rangeInstants(state) {
+  const range = EVENT_RANGES.find((entry) => entry.value === state.range) ?? EVENT_RANGES[3];
+  if (range.value === 'custom' && state.from && state.to) {
+    const end = new Date(`${state.to}T00:00:00Z`);
+    end.setUTCDate(end.getUTCDate() + 1);
+    return { from: `${state.from}T00:00:00.000Z`, to: end.toISOString() };
+  }
+  const to = new Date(Math.ceil(Date.now() / 60000) * 60000);
+  const ms = (range.hours ?? 0) * 3600000 + (range.days ?? 0) * 86400000 || 7 * 86400000;
+  return { from: new Date(to.getTime() - ms).toISOString(), to: to.toISOString() };
+}
+
 /** The window alone, for queries that must not narrow by the filters (filter choices, the summary). */
 export function rangeQuery(state) {
   return { timeRange: state.range, startDate: state.from, endDate: state.to };

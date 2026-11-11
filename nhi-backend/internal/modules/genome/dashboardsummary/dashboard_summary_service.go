@@ -3,15 +3,54 @@ package dashboardsummary
 import (
 	"context"
 	"log"
-	"nhi-backend-api/internal/modules/genome/summarycommon"
 	"sort"
 	"strings"
+
+	"nhi-backend-api/internal/modules/genome/common"
+	"nhi-backend-api/internal/modules/genome/summarycommon"
+	"nhi-backend-api/internal/platform/scope"
 )
 
 // DashboardSummaryService implements GET /api/v1/dashboard/summary.
 type DashboardSummaryService struct {
 	repo     *summarycommon.DashboardSummaryRepository
 	resolver summarycommon.ScopeResolver
+	// events grades each open alert (log_events.event_risk_severity), the
+	// source the Anomalies page shows severity from. nil: critical stays null.
+	events *common.MonitoringEvents
+}
+
+// WithEvents lets the service count critical anomalies.
+func (s *DashboardSummaryService) WithEvents(events *common.MonitoringEvents) *DashboardSummaryService {
+	s.events = events
+	return s
+}
+
+// criticalOpen counts open alerts whose event is graded Critical, in batches
+// so a tenant with thousands of open alerts does not send one huge IN list.
+func (s *DashboardSummaryService) criticalOpen(ctx context.Context, sc *scope.DataScope) *int {
+	if s.events == nil || !s.events.Enabled() {
+		return nil
+	}
+	ids, err := s.repo.OpenAlertEventIDs(ctx, sc)
+	if !summarycommon.ReadOK(ctx, "dashboard summary open alert events", err) {
+		return nil
+	}
+	const batch = 1000
+	n := 0
+	for start := 0; start < len(ids); start += batch {
+		end := min(start+batch, len(ids))
+		found, err := s.events.EventsByID(ctx, ids[start:end])
+		if !common.EventsReadOK("dashboard summary critical anomalies", err) {
+			return nil
+		}
+		for _, ev := range found {
+			if strings.EqualFold(strings.TrimSpace(ev.EventRiskSeverity), "critical") {
+				n++
+			}
+		}
+	}
+	return &n
 }
 
 func NewDashboardSummaryService(
@@ -259,6 +298,8 @@ func (s *DashboardSummaryService) GetSummary(
 		out.Cards.OpenAnomalies =
 			summarycommon.IntPtr(openAlerts)
 	}
+
+	out.Cards.CriticalAnomalies = s.criticalOpen(ctx, sc)
 
 	riskRows, err := s.repo.LatestRiskScores(
 		ctx,

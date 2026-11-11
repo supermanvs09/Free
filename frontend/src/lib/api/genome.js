@@ -169,12 +169,15 @@ export async function fetchGenomeIdentity(sourceType, identityName, { window } =
 export async function fetchGenomeActivity(
   sourceType,
   identityName,
-  { window, bucket, recentLimit, recentCursor } = {},
+  { window, from, to, bucket, recentLimit, recentCursor } = {},
   signal,
 ) {
+  /* from/to (ISO) override the window: the identity record's Activity tab
+     asks for its own ranges (1h ... 90d, chosen dates). */
+  const range = from && to ? { from, to } : windowRange(window);
   const { data, meta } = unwrapGenome(
     await client.get(identityPath(sourceType, identityName, '/activity'), {
-      params: params({ ...windowRange(window), bucket, recent_limit: recentLimit, recent_cursor: recentCursor }),
+      params: params({ ...range, bucket, recent_limit: recentLimit, recent_cursor: recentCursor }),
       signal,
     }),
   );

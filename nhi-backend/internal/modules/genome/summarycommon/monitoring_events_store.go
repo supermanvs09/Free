@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"nhi-backend-api/internal/platform/datasource"
 	"time"
 
 	ch "github.com/ClickHouse/clickhouse-go/v2"
@@ -60,10 +61,12 @@ func (e *MonitoringEvents) Enabled() bool { return e != nil && e.client.Up() }
 // tbl is the table for this request's tenant: `<tenant>_clickhouse`.`log_events`
 // in per-tenant mode, else the configured one.
 func (e *MonitoringEvents) tbl(ctx context.Context) string {
+	t := e.table
 	if e.client != nil && e.client.PerTenant() {
-		return e.client.TableFor(ctx)
+		t = e.client.TableFor(ctx)
 	}
-	return e.table
+	datasource.From(ctx).ClickHouse(t)
+	return t
 }
 
 // Table is the schema-qualified table the readers query (for logs/tests).

@@ -8,6 +8,7 @@ import (
 
 	"github.com/lib/pq"
 
+	"nhi-backend-api/internal/modules/genome/workloadtypes"
 	"nhi-backend-api/internal/platform/scope"
 )
 
@@ -372,12 +373,39 @@ func (r *DashboardSummaryRepository) CountOpenAlerts(ctx context.Context, resolv
 	}
 	types, names := KeyArrays(keys)
 	q := `SELECT COUNT(*) FROM ` + resolved.Table("alerts") + ` a` + KeyJoin("a") + `
-	      WHERE a.status = 'open' AND a.created_at >= $3 AND a.created_at < $4`
+	      WHERE lower(a.status) = 'open' AND a.created_at >= $3 AND a.created_at < $4`
 	var n int
 	if err := resolved.DB.QueryRowContext(ctx, q, types, names, from, to).Scan(&n); err != nil {
 		return 0, WrapMonitoringErr("count open alerts", err)
 	}
 	return n, nil
+}
+
+// OpenAlertEventIDs is the event_id of every open alert, with the same rule
+// the Anomalies page lists them by (any age, enabled workload families), so
+// the critical card and that page count the same alerts.
+func (r *DashboardSummaryRepository) OpenAlertEventIDs(ctx context.Context, resolved *scope.DataScope) ([]string, error) {
+	q := `SELECT DISTINCT a.event_id FROM ` + resolved.Table("alerts") + ` a
+	      WHERE lower(a.status) = 'open' AND COALESCE(a.event_id, '') <> ''`
+	args := []any{}
+	if families, all := workloadtypes.Enabled(); !all {
+		q += ` AND a.source_type = ANY($1::text[])`
+		args = append(args, pq.Array(families))
+	}
+	rows, err := resolved.DB.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, WrapMonitoringErr("open alert events", err)
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, WrapMonitoringErr("open alert events", err)
+		}
+		out = append(out, id)
+	}
+	return out, WrapMonitoringErr("open alert events", rows.Err())
 }
 
 // DimensionCountRow is one GROUP BY dimension row.

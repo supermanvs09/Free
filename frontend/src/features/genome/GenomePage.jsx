@@ -280,7 +280,7 @@ function SummaryCards({ cards, window, learningCount, openTab }) {
       label="Critical anomalies"
       value={critical}
       tone="critical"
-      caption={Number.isFinite(critical) ? 'Highest-confidence departures' : 'Shown once the pipeline grades severities'}
+      caption={Number.isFinite(critical) ? 'Open now and graded Critical, any age' : 'Shown once event severities can be read'}
     />,
   ];
   return (

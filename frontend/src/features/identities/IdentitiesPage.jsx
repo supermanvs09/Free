@@ -464,6 +464,7 @@ export default function IdentitiesPage() {
     },
     {
       key: 'place',
+      hideWithRail: true,
       header: 'Where',
       width: '14%',
       sortable: true,
@@ -626,6 +627,7 @@ export default function IdentitiesPage() {
           ) : (
             <>
               <DataGrid
+                railOpen={railOpen}
                 caption="Discovered identities"
                 columns={columns}
                 rows={rows}

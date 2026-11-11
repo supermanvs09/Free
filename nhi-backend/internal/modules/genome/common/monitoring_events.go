@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"nhi-backend-api/internal/platform/datasource"
 	"strings"
 	"time"
 
@@ -36,12 +37,14 @@ type MonitoringEvents struct {
 // tbl is the table for this request's tenant: `<tenant>_clickhouse`.`table`
 // when the monitoring ClickHouse is configured per tenant, else the fixed one.
 func (e *MonitoringEvents) tbl(ctx context.Context) string {
+	t := e.table
 	if e.client != nil {
 		if db := e.client.Database(ctx); db != "" {
-			return "`" + db + "`.`" + e.name + "`"
+			t = "`" + db + "`.`" + e.name + "`"
 		}
 	}
-	return e.table
+	datasource.From(ctx).ClickHouse(t)
+	return t
 }
 
 // MonitoringEventsTable is the default Genome event table name. It can be

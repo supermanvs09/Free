@@ -241,13 +241,14 @@ func main() {
 	// NHI Genome (backend_api_contract.md §4.1, §5) under /api/v1/genome — Postgres
 	// through the tenant scope, ClickHouse log_events through monitoringEvents.
 	genomeIdentities := summarycommon.NewMonitoredIdentityLookup(summarycommon.NewDashboardSummaryRepository(), resolver)
+	genomeAlertEvents := genomefullcommon.NewMonitoringEvents(monitoringClient, monitoringCfg.Database, monitoringCfg.Table)
 	genomeHandlers := &routes.GenomeHandlers{
-		DashboardSummary: dashboardsummary.NewDashboardSummaryHandler(dashboardsummary.NewDashboardSummaryService(summarycommon.NewDashboardSummaryRepository(), resolver)),
+		DashboardSummary: dashboardsummary.NewDashboardSummaryHandler(dashboardsummary.NewDashboardSummaryService(summarycommon.NewDashboardSummaryRepository(), resolver).WithEvents(genomeAlertEvents)),
 		IdentityActivity: identityactivity.NewIdentityActivityHandler(identityactivity.NewIdentityActivityService(genomeIdentities, monitoringEvents)),
 		IdentityGenome:   identitygenome.NewIdentityGenomeHandler(identitygenome.NewIdentityGenomeService(genomeIdentities, monitoringEvents)),
 		IdentityTimeline: identitytimeline.NewIdentityTimelineHandler(identitytimeline.NewIdentityTimelineService(genomeIdentities, identitytimeline.NewIdentityTimelineRepository())),
 		IdentitySummary:  identitysummary.NewIdentitySummaryHandler(identitysummary.NewIdentitySummaryService(genomeIdentities, identitysummary.NewIdentitySummaryRepository(), monitoringEvents)),
-		Full:             routes.NewGenomeFull(resolver, genomefullcommon.NewMonitoringEvents(monitoringClient, monitoringCfg.Database, monitoringCfg.Table)),
+		Full:             routes.NewGenomeFull(resolver, genomeAlertEvents),
 	}
 
 	// Connect AWS Account. The SDK's default chain supplies this process's

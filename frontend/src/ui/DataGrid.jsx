@@ -33,10 +33,16 @@ export function DataGrid({
   density = 'comfortable',
   /** Per-row accent colour, e.g. the identity's classification hue. */
   rowAccent,
+  /* The filter rail is open beside the table: columns marked
+     `hideWithRail` step aside so the rest keep their width instead of
+     every cell truncating. */
+  railOpen = false,
   className,
 }) {
   const isWide = useMediaQuery('(min-width: 768px)');
-  const visibleColumns = isWide ? columns : columns.filter((column) => column.priority !== 'wide');
+  const visibleColumns = columns.filter(
+    (column) => (isWide || column.priority !== 'wide') && !(railOpen && column.hideWithRail),
+  );
 
   if (loading) {
     return (

@@ -330,6 +330,7 @@ export default function DismissedPage() {
     },
     {
       key: 'by',
+      hideWithRail: true,
       header: 'Reviewed',
       width: '18%',
       cell: (row) => (
@@ -486,6 +487,7 @@ export default function DismissedPage() {
 
           {view === 'table' ? (
             <DataGrid
+                railOpen={railOpen}
               caption="Accepted exposures"
               columns={columns}
               rows={pageEntries}
