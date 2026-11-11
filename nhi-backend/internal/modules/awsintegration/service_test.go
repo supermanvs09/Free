@@ -76,30 +76,6 @@ func (f *fakeAWSStore) SetRequestEmail(_ context.Context, id int64, status, _ st
 	return nil
 }
 
-func (f *fakeAWSStore) WorkspaceApproved(_ context.Context, _ string) (bool, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	for _, a := range f.accounts {
-		if a.Approval.Status == ApprovalApproved {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-func (f *fakeAWSStore) MarkApprovedByWorkspace(_ context.Context, _, accountID string) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	rec, ok := f.accounts[accountID]
-	if !ok || rec.Approval.Status != "" {
-		return nil
-	}
-	at := time.Now().UTC()
-	rec.Approval = AWSApproval{Status: ApprovalApproved, DecidedBy: "workspace already approved", DecidedAt: &at}
-	f.accounts[accountID] = rec
-	return nil
-}
-
 func (f *fakeAWSStore) FinishConnectionRequest(_ context.Context, id int64, outcome, detail string, checks []AWSCheck) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -1230,31 +1206,30 @@ func TestRecheckOfAnApprovedAccountSendsNoMail(t *testing.T) {
 	}
 }
 
-// Only the workspace's first account needs approval: a second account runs its
-// checks at once, is marked approved and nobody is e-mailed.
-func TestSecondAccountInApprovedWorkspaceNeedsNoApproval(t *testing.T) {
+// Every account needs its own approval: a second account in a workspace that
+// already has an approved one is asked for, e-mailed, and checks nothing.
+func TestSecondAccountInApprovedWorkspaceStillNeedsApproval(t *testing.T) {
 	store := newFakeAWSStore()
 	approvedAccount(store)
-	svc := newTestService(store, &fakeVerifier{}, nil, fakeEvents{found: true})
+	v := &fakeVerifier{}
+	svc := newTestService(store, v, nil, fakeEvents{found: true})
 	mail := &fakeMailer{}
 	svc.mailer = mail
-	caller := awsTestCaller
-	role := "arn:aws:iam::333333333333:role/NHIPlatformCollector"
-	res, err := svc.Verify(context.Background(), caller, role, []string{"us-east-1"})
+	res, err := svc.Verify(context.Background(), awsTestCaller, "arn:aws:iam::333333333333:role/NHIPlatformCollector", []string{"us-east-1"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(100 * time.Millisecond)
-	if len(mail.subjects()) != 0 || len(store.approvals) != 0 {
-		t.Fatalf("mail %v approvals %d", mail.subjects(), len(store.approvals))
+	if res.Status != "pending_approval" || states(res.Checks) != "skipped,skipped,skipped" {
+		t.Fatalf("status %q checks %s", res.Status, states(res.Checks))
 	}
-	if states(res.Checks) != "pass,pass,skipped" && states(res.Checks) != "pass,pass,running" {
-		t.Logf("checks = %s", states(res.Checks))
+	waitFor(t, "the approval e-mail", func() bool { return len(mail.subjects()) == 1 })
+	if v.assumeCalls != 0 {
+		t.Fatal("a check ran before approval")
 	}
 	store.mu.Lock()
 	got := store.accounts["333333333333"].Approval.Status
 	store.mu.Unlock()
-	if got != ApprovalApproved {
+	if got != ApprovalPending {
 		t.Fatalf("approval = %q", got)
 	}
 }

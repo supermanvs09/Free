@@ -89,6 +89,15 @@ func classify(err error) error {
 	return err
 }
 
+// stsFallbackRegion is where STS is always on, whatever an account turned off.
+const stsFallbackRegion = "us-east-1"
+
+// regionDisabled: STS is turned off in the region the call was made in.
+func regionDisabled(err error) bool {
+	var apiErr smithy.APIError
+	return errors.As(err, &apiErr) && apiErr.ErrorCode() == "RegionDisabledException"
+}
+
 // Client talks to AWS as the platform. It is safe for concurrent use.
 type Client struct {
 	base              aws.Config
@@ -147,12 +156,23 @@ type Session struct {
 // AssumeRole assumes the client's role with their External ID - exactly what
 // discovery does - and returns a 15-minute session.
 func (c *Client) AssumeRole(ctx context.Context, p Platform, role RoleARN, externalID string) (*Session, error) {
-	out, err := sts.NewFromConfig(c.platformConfig(p)).AssumeRole(ctx, &sts.AssumeRoleInput{
+	in := &sts.AssumeRoleInput{
 		RoleArn:         aws.String(role.ARN),
 		RoleSessionName: aws.String("nhi-connection-check"),
 		ExternalId:      aws.String(externalID),
 		DurationSeconds: aws.Int32(900),
-	})
+	}
+	// STS is called in the platform region (p.Region). The role ARN carries the
+	// account; IAM roles are global, so AssumeRole itself takes no region. The
+	// customer's account can turn STS off in a region (RegionDisabledException):
+	// us-east-1 cannot be turned off, so the call is made there instead. The
+	// credentials it returns work in every region.
+	stsCfg := c.platformConfig(p)
+	out, err := sts.NewFromConfig(stsCfg).AssumeRole(ctx, in)
+	if regionDisabled(err) && stsCfg.Region != stsFallbackRegion {
+		stsCfg.Region = stsFallbackRegion
+		out, err = sts.NewFromConfig(stsCfg).AssumeRole(ctx, in)
+	}
 	if err != nil {
 		return nil, classify(err)
 	}

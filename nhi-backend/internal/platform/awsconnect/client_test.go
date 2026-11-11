@@ -23,6 +23,8 @@ type fakeAWS struct {
 
 	assumeDenied bool
 	rolesXML     string
+	stsOffIn     string   // region whose STS answers RegionDisabledException
+	stsRegions   []string // region each AssumeRole was signed for
 
 	// diagnosis: who GetCallerIdentity says we are, what the simulation decides
 	callerARN    string
@@ -97,6 +99,16 @@ func (f *fakeAWS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		switch form.Get("Action") {
 		case "AssumeRole":
 			f.assumeForm = form
+			region := ""
+			if parts := strings.Split(r.Header.Get("Authorization"), "/"); len(parts) > 2 {
+				region = parts[2]
+			}
+			f.stsRegions = append(f.stsRegions, region)
+			if region == f.stsOffIn {
+				w.WriteHeader(http.StatusForbidden)
+				_, _ = io.WriteString(w, `<ErrorResponse><Error><Type>Sender</Type><Code>RegionDisabledException</Code><Message>STS is not activated in this region</Message></Error><RequestId>1</RequestId></ErrorResponse>`)
+				return
+			}
 			if f.assumeDenied {
 				w.WriteHeader(http.StatusForbidden)
 				_, _ = io.WriteString(w, `<ErrorResponse><Error><Type>Sender</Type><Code>AccessDenied</Code><Message>not authorized</Message></Error><RequestId>1</RequestId></ErrorResponse>`)
@@ -259,5 +271,26 @@ func TestClientRevokeAccountOnBus(t *testing.T) {
 	}
 	if err := c.RevokeAccountOnBus(ctx, p, "12"); err == nil {
 		t.Fatal("malformed account id accepted")
+	}
+}
+
+// STS runs in the platform region; when the customer's account has STS turned
+// off there, the call is made again in us-east-1 and succeeds.
+func TestAssumeRoleUsesPlatformRegionThenUSEast1(t *testing.T) {
+	f := &fakeAWS{rolesXML: oneRole}
+	c, p := newTestClient(t, f, "")
+	role, _ := ParseRoleARN("arn:aws:iam::222222222222:role/NHIPlatformCollector")
+	if _, err := c.AssumeRole(context.Background(), p, role, "ext"); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(f.stsRegions, ",") != "ap-south-1" {
+		t.Fatalf("sts regions = %v", f.stsRegions)
+	}
+	f.stsRegions, f.stsOffIn = nil, "ap-south-1"
+	if _, err := c.AssumeRole(context.Background(), p, role, "ext"); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(f.stsRegions, ",") != "ap-south-1,us-east-1" {
+		t.Fatalf("sts regions = %v", f.stsRegions)
 	}
 }

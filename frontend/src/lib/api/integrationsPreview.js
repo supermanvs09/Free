@@ -260,7 +260,7 @@ export async function getIntegration() {
     exposure_enabled: accounts.some((account) => account.exposure.github.connected || account.exposure.codecommit.connected),
     can_manage: canManage(),
     workspace: { domain: 'example.com' },
-    setup: { ...SETUP, approval_required: !store().accounts.some((entry) => entry.approval?.status === 'approved' || entry.is_connected) },
+    setup: SETUP,
     accounts,
   });
 }
@@ -288,11 +288,11 @@ export async function verify({ role_arn: roleArn, regions }) {
     };
     store().accounts.push(account);
   }
-  /* A first connection asks for approval at once and checks nothing; an admin
+  /* Every account not approved yet asks for approval at once and checks nothing; an admin
      (simulated) approves a few seconds later and the checks then run by
      themselves, as the service does. */
-  const workspaceApproved = store().accounts.some((entry) => entry.approval?.status === 'approved' || entry.is_connected);
-  if (firstTime && !workspaceApproved) {
+  const approved = account.approval?.status === 'approved' || account.is_connected;
+  if (!approved) {
     const waiting = awsChecks().map((check) => ({ ...check, state: 'skipped', message: 'Runs once the connection is approved.' }));
     Object.assign(account, {
       role_arn: match[0],

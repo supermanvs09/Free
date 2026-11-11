@@ -80,8 +80,6 @@ type AWSIntegrationStore interface {
 	SetApprovalEmail(ctx context.Context, id int64, status, errText string) error
 	HasPendingApproval(ctx context.Context, tenantID, accountID string) (bool, error)
 	RecordConnectionRequest(ctx context.Context, req ConnectionRequest) (int64, error)
-	WorkspaceApproved(ctx context.Context, schema string) (bool, error)
-	MarkApprovedByWorkspace(ctx context.Context, schema, accountID string) error
 	SetRequestEmail(ctx context.Context, id int64, status, errText string) error
 	FinishConnectionRequest(ctx context.Context, id int64, outcome, detail string, checks []AWSCheck) error
 	WithdrawApprovals(ctx context.Context, tenantID, accountID string) error
@@ -259,11 +257,7 @@ func (s *AWSIntegrationService) Get(ctx context.Context, caller AWSCaller, canMa
 		CanManage: canManage,
 		Accounts:  make([]AWSConnectedAccount, 0, len(records)),
 	}
-	approvedAny := false
 	for _, rec := range records {
-		if isApproved(&rec) {
-			approvedAny = true
-		}
 		// An admin approved this connection since the last read: its events
 		// check starts now.
 		s.resumeApproved(ctx, caller, &rec)
@@ -306,14 +300,6 @@ func (s *AWSIntegrationService) Get(ctx context.Context, caller AWSCaller, canMa
 	if err != nil {
 		return nil, err
 	}
-	// The same rule Verify applies (every accounts row, not only the listed
-	// ones), so the page never promises an approval that Verify then skips.
-	approvalRequired := !approvedAny
-	if !approvedAny {
-		if wsApproved, wsErr := s.store.WorkspaceApproved(ctx, caller.Schema); wsErr == nil {
-			approvalRequired = !wsApproved
-		}
-	}
 	out.Setup = &AWSSetupValues{
 		AccountID:        p.AccountID,
 		ExternalID:       settings.ExternalID,
@@ -339,7 +325,6 @@ func (s *AWSIntegrationService) Get(ctx context.Context, caller AWSCaller, canMa
 				TokenPermissions: append([]string(nil), gitHubTokenPermissions...),
 			},
 		},
-		ApprovalRequired: approvalRequired,
 	}
 	return out, nil
 }
@@ -440,36 +425,23 @@ func (s *AWSIntegrationService) verify(ctx context.Context, caller AWSCaller, ra
 		return nil, err
 	}
 
-	// Approval comes first, but only for the workspace's FIRST AWS account: it
-	// asks at once, before any check runs, and nothing is read from the
-	// customer's AWS account until adapID has agreed (the role, read and events
-	// checks then run by themselves, see resumeApproved). A later account in a
-	// workspace that already has an approved one, and a re-check of an approved
-	// account, need no approval and send no e-mail: the three checks just run.
-	// An account an admin rejected, or whose request is still open, stays in the
-	// approval flow.
-	approved := isApproved(existing)
-	autoApprove := false
-	if !approved && (existing == nil || existing.Approval.Status == "") {
-		autoApprove, err = s.store.WorkspaceApproved(ctx, caller.Schema)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if !approved && !autoApprove {
+	// Every AWS account is approved on its own, before any check runs:
+	// nothing is read from the customer's AWS account until it is approved
+	// (the role, read and events checks then run by themselves, see
+	// resumeApproved). A workspace with one approved account still needs
+	// approval for the next. Only a re-check of an account that is itself
+	// approved runs the checks directly, with no e-mail. An account an admin
+	// rejected, or whose request is still open, stays in the approval flow.
+	if !isApproved(existing) {
 		return s.askApprovalFirst(ctx, caller, settings, rec, requestID, existing)
 	}
-	why := "a re-check of an approved account sends no e-mail"
-	if autoApprove {
-		why = "the workspace's first account is approved already, so this one needs no approval and no e-mail"
-	}
-	s.setRequestMail(ctx, requestID, "not_needed", why)
-	return s.runChecks(ctx, caller, p, settings, role, regions, rec, autoApprove)
+	s.setRequestMail(ctx, requestID, "not_needed", "a re-check of an approved account sends no e-mail")
+	return s.runChecks(ctx, caller, p, settings, role, regions, rec)
 }
 
 // runChecks runs the role, read access and events checks of an approved account
 // and saves what they found. The caller has the approval; nothing here asks.
-func (s *AWSIntegrationService) runChecks(ctx context.Context, caller AWSCaller, p awsconnect.Platform, settings *AWSTenantSettings, role awsconnect.RoleARN, regions []string, rec AWSAccountRecord, autoApprove bool) (*AWSVerifyResponse, error) {
+func (s *AWSIntegrationService) runChecks(ctx context.Context, caller AWSCaller, p awsconnect.Platform, settings *AWSTenantSettings, role awsconnect.RoleARN, regions []string, rec AWSAccountRecord) (*AWSVerifyResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, awsVerifyBudget)
 	defer cancel()
 
@@ -547,14 +519,6 @@ func (s *AWSIntegrationService) runChecks(ctx context.Context, caller AWSCaller,
 		}
 		if err != nil {
 			return nil, err
-		}
-		if autoApprove {
-			// The row exists now (the role proved control): it carries the
-			// workspace's approval, which the events watch and the connection
-			// need.
-			if err := s.store.MarkApprovedByWorkspace(saveCtx, caller.Schema, rec.AccountID); err != nil {
-				return nil, err
-			}
 		}
 		check, started := s.startEvents(ctx, caller, p, settings, rec)
 		checks[2] = check
@@ -1301,7 +1265,7 @@ func (s *AWSIntegrationService) startApprovedChecks(ctx context.Context, caller 
 		defer release()
 		bctx, bcancel := context.WithTimeout(context.WithoutCancel(ctx), awsVerifyBudget+10*time.Second)
 		defer bcancel()
-		res, err := s.runChecks(bctx, asker, p, settings, role, cur.Regions, run, false)
+		res, err := s.runChecks(bctx, asker, p, settings, role, cur.Regions, run)
 		outcome, detail := requestOutcome(res, err)
 		if err != nil {
 			log.Error("aws integration: the checks after approval did not finish", "err", err)
@@ -1398,7 +1362,7 @@ func (s *AWSIntegrationService) explainDenied(ctx context.Context, caller AWSCal
 	d := s.verifier.DiagnoseAssumeRole(dctx, p, role)
 	cancel()
 	result.diagnosis = "aws: " + awsErr.Error() + " | " + d.Summary()
-	log := logging.FromContext(ctx).With("tenant_id", caller.TenantID, "account_id", role.AccountID, "role_arn", role.ARN,
+	log := logging.FromContext(ctx).With("tenant_id", caller.TenantID, "account_id", role.AccountID, "role_arn", role.ARN, "sts_region", p.Region,
 		"check", check.Key, "err", awsErr, "our_side", d.Summary(), "caller_arn", d.CallerARN)
 	switch {
 	case d.OurFault():

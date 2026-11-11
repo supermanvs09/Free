@@ -117,10 +117,11 @@ const runOf = (account) =>
  * what is being granted, and the whole setup as a document for whoever owns
  * the AWS account.
  *
- * Verify runs the role checks at once and then watches for events from each
- * region for up to `setup.eventWaitMinutes`, reporting as they arrive. A first
- * connection that passes everything waits for adapID's approval; the page
- * follows it on its own and opens the console once approved.
+ * Verify sends every account that is not approved yet for approval and reads
+ * nothing until then; once approved, the role and read checks run and events
+ * are watched from each region for up to `setup.eventWaitMinutes`. The page
+ * follows the approval on its own. A re-check of an approved account runs the
+ * checks at once.
  *
  * `previous` is the account last checked and not connected: its ARN, regions
  * and run are restored so a reload does not lose where the admin got to.
@@ -241,6 +242,9 @@ export function AwsConnectWizard({ setup, previous, storageKey, title = 'Connect
   const localProblem = roleArnProblem(roleArn, setup.accountId);
   const fieldError = serverProblem || (touched ? localProblem : '');
   const detectedAccount = !localProblem ? accountOfRoleArn(roleArn) : '';
+  // Every new account is approved on its own; only a re-check of an account
+  // that is itself approved runs the checks at once.
+  const recheckApproved = previous?.approval?.status === 'approved' && detectedAccount === previous.accountId;
   const verified = run.phase === 'connected' || run.phase === 'awaiting';
   const completed = done.size + (verified ? 1 : 0);
   const minutesLeft = SETUP_STEPS.filter((step) => (step.number === 5 ? !verified : !done.has(step.number))).reduce(
@@ -592,7 +596,7 @@ export function AwsConnectWizard({ setup, previous, storageKey, title = 'Connect
                 />
               </div>
               <p className="mb-2 flex items-start gap-2 rounded-[var(--radius-control)] bg-surface-2 px-3 py-2 text-[12px] leading-relaxed text-ink-2">
-                {setup.approval_required === false ? (
+                {recheckApproved ? (
                   <>
                     <ShieldCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-low" />
                     Verify connection checks your role, read access and events straight away.
@@ -607,7 +611,7 @@ export function AwsConnectWizard({ setup, previous, storageKey, title = 'Connect
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <Button type="submit" variant="primary" size="lg" icon={ShieldCheck} loading={running}>
-                  {running ? (setup.approval_required === false ? 'Checking…' : 'Sending…') : run.phase === 'idle' ? 'Verify connection' : 'Verify again'}
+                  {running ? (recheckApproved ? 'Checking…' : 'Sending…') : run.phase === 'idle' ? 'Verify connection' : 'Verify again'}
                 </Button>
                 {onCancel && (
                   <Button variant="ghost" size="lg" onClick={cancel} disabled={running}>
