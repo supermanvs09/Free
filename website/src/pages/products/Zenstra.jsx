@@ -83,7 +83,7 @@ export default function Zenstra() {
           <div>
             <SectionHead id="dep-h" eyebrow="Deployment" title="Deploys the way your stack already works." lead="No agent rewrite. Prompts and payloads are evaluated inside your environment; only decisions and redacted evidence reach the Zenstra console." />
             <p className="mt-8 app-label">Covers agents built on</p>
-            <ul className="mt-3 flex flex-wrap gap-2">{PLATS.map(([k, n]) => <li key={k} className="inline-flex items-center gap-2 rounded-[8px] border border-line bg-white px-2.5 py-1.5 text-[13.5px] font-medium text-ink"><Logo k={k} size="15px" />{n}</li>)}</ul>
+            <ul className="mt-3 flex flex-wrap gap-2">{PLATS.map(([k, n]) => <li key={k} className="inline-flex items-center gap-2 rounded-[8px] border border-line bg-bg-2 px-2.5 py-1.5 text-[13.5px] font-medium text-ink"><Logo k={k} size="15px" />{n}</li>)}</ul>
           </div>
           <ol className="space-y-3">
             {WAYS.map((w, i) => (

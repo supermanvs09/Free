@@ -55,7 +55,7 @@ export default function Blog() {
             {/* filters: a sidebar on desktop, chip rows on phones */}
             <aside className="lg:sticky lg:top-[calc(var(--hdr-now,var(--hdr))+24px)] lg:self-start" aria-label="Filter blogs">
               <label htmlFor="rs" className="mb-2 block text-[13px] font-medium text-ink-3">Search the blogs</label>
-              <div className="flex h-11 items-center gap-2.5 rounded-[12px] border border-line-2 bg-white px-3.5 focus-within:border-brand focus-within:shadow-[0_0_0_3px_var(--color-brand-100)]">
+              <div className="flex h-11 items-center gap-2.5 rounded-[12px] border border-line-2 bg-bg-2 px-3.5 focus-within:border-brand focus-within:shadow-[0_0_0_3px_var(--color-brand-100)]">
                 <Icon name="MagnifyingGlass" size={17} className="text-ink-3" />
                 <input id="rs" type="search" value={q} onChange={(e) => set('q', e.target.value)} placeholder="Mule accounts, MCP, AI agents…" className="h-full w-full bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-3" />
               </div>
@@ -68,7 +68,7 @@ export default function Blog() {
                       <button key={label} type="button" aria-pressed={cur === v} onClick={() => set(key, v)}
                         className={cx('flex items-center justify-between gap-3 rounded-full border px-3.5 py-1.5 text-left text-[14px] transition-colors lg:rounded-[10px] lg:border-transparent lg:px-3 lg:py-2',
                           cur === v ? 'border-transparent bg-brand font-medium text-white lg:bg-brand-50 lg:text-brand' : 'border-line-2 text-ink-2 hover:bg-bg-1 hover:text-ink')}>
-                        <span className="flex items-center gap-2.5"><span aria-hidden="true" className={cx('hidden h-4 w-4 shrink-0 place-items-center rounded-[5px] border lg:grid', cur === v ? 'border-[#0a6dbb] bg-[#0a6dbb] text-white' : 'border-line-2 bg-white')}>{cur === v && <Icon name="Check" size={11} weight="bold" />}</span>{label}</span>
+                        <span className="flex items-center gap-2.5"><span aria-hidden="true" className={cx('hidden h-4 w-4 shrink-0 place-items-center rounded-[5px] border lg:grid', cur === v ? 'border-[#0a6dbb] bg-[#0a6dbb] text-white' : 'border-line-2 bg-bg-2')}>{cur === v && <Icon name="Check" size={11} weight="bold" />}</span>{label}</span>
                         <span className="text-[12px] opacity-60 num">{n}</span>
                       </button>
                     ))}
@@ -81,7 +81,7 @@ export default function Blog() {
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
                 <h2 id="all-h" className="text-[22px] font-semibold tracking-[-0.02em]">{filtering ? `${list.length} ${list.length === 1 ? 'result' : 'results'}` : <span className="inline-flex items-center gap-3 font-display">Recent research<Icon name="ArrowRight" size={22} className="rotate-45 text-brand" /></span>}</h2>
                 <label className="flex items-center gap-2 text-[13.5px] text-ink-3">Sort by
-                  <select value={sort} onChange={(e) => set('sort', e.target.value === 'new' ? '' : e.target.value)} className="h-10 rounded-[10px] border border-line-2 bg-white px-3 text-[14px] text-ink">
+                  <select value={sort} onChange={(e) => set('sort', e.target.value === 'new' ? '' : e.target.value)} className="h-10 rounded-[10px] border border-line-2 bg-bg-2 px-3 text-[14px] text-ink">
                     <option value="new">Most recent</option><option value="old">Oldest first</option><option value="short">Quickest read</option>
                   </select>
                 </label>

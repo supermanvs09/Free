@@ -58,8 +58,8 @@ export default function Solution() {
         media={(
           <figure className="relative">
             <MediaReveal src={`/img/photos/${slug}.webp`} width={1200} height={800} ratio="4 / 3" priority className="rounded-[24px] shadow-[var(--e-3)]" />
-            <figcaption className="card absolute bottom-4 left-4 right-4 p-4 sm:right-auto sm:max-w-[320px]">
-              <p className="num text-[24px] font-semibold leading-none text-brand">{lead.v}</p>
+            <figcaption className="glass float absolute bottom-4 left-4 right-4 z-10 rounded-[18px] p-4 sm:-left-6 sm:right-auto sm:max-w-[300px]">
+              <p className="flex items-center gap-2"><span className="gtile !h-9 !w-9 !rounded-[10px]"><Icon name="ChartBar" size={16} /></span><span className="num font-display text-[26px] font-semibold leading-none text-ink">{lead.v}</span></p>
               <p className="mt-1.5 text-[13.5px] leading-snug text-ink-2">{lead.l}</p>
               {lead.s && <p className="mt-2 t-caption">Source: {lead.s}</p>}
             </figcaption>

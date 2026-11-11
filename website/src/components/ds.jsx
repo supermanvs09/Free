@@ -223,8 +223,8 @@ export function LogoWall({ title = 'Organisations we work with', lead, groups = 
             <dt className="app-label">{g}</dt>
             <dd className="grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-6">
               {keys.map((k) => (
-                <span key={k} className="group flex h-14 items-center justify-center rounded-[12px] border border-line bg-white px-2 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[var(--e-2)] sm:h-16 sm:px-4">
-                  <img src={`/img/logos/${k}.webp`} alt={ORG[k]} title={ORG[k]} loading="lazy" decoding="async" className="max-h-9 w-auto max-w-full object-contain opacity-75 grayscale transition duration-300 group-hover:opacity-100 group-hover:grayscale-0" />
+                <span key={k} className="group flex h-14 items-center justify-center rounded-[12px] border border-line bg-white/[.03] px-2 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[var(--e-2)] sm:h-16 sm:px-4">
+                  <img src={`/img/logos/${k}-white.webp`} alt={ORG[k]} title={ORG[k]} loading="lazy" decoding="async" className="max-h-9 w-auto max-w-full object-contain opacity-70 transition duration-300 group-hover:opacity-100" />
                 </span>
               ))}
             </dd>
@@ -242,7 +242,7 @@ export function LogoMarquee({ keys = ORG_GROUPS.flatMap(([, k]) => k), label = '
     <Marquee label={label} speed={speed}>
       {keys.map((k) => (
         <span key={k} className="flex h-16 w-[190px] shrink-0 items-center justify-center px-6">
-          <img src={`/img/logos/${k}.webp`} alt={ORG[k]} loading="lazy" decoding="async" className="max-h-9 w-auto max-w-full object-contain opacity-70 grayscale" />
+          <img src={`/img/logos/${k}-white.webp`} alt={ORG[k]} loading="lazy" decoding="async" className="max-h-9 w-auto max-w-full object-contain opacity-60" />
         </span>
       ))}
     </Marquee>
@@ -265,7 +265,7 @@ export function Faq({ items, title = 'Frequently asked questions', id = 'faq', l
 }
 
 /* One closing call to action per page. */
-export function CtaBand({ title = 'Ready to secure what matters most?', body = 'A 30-minute session with a Deep Algorithms engineer, on your own environment, with your own questions.', primary = { label: 'Book a demo', to: '/request-demo' }, secondary = { label: 'Take the product tour', to: '/product-tour' }, children }) {
+export function CtaBand({ title = 'Ready to secure what matters most?', body = 'A 30-minute session with a Deep Algorithms engineer, on your own environment, with your own questions.', primary = { label: 'Book a demo', to: '/request-demo' }, secondary = { label: 'Explore products', to: '/products' }, children }) {
   return (
     <section className="sec-sm" aria-labelledby="cta-h">
       <div className="container">

@@ -61,7 +61,7 @@ export default function HomeConsole() {
   return (
     <div ref={s.ref} onPointerEnter={s.pause} onFocusCapture={s.pause}>
       <AppFrame title="Decision feed" crumb="All identities" status={<Badge tone="ok" dot>Live</Badge>}>
-        <div role="tablist" aria-label="Identity types" className="flex gap-1 overflow-x-auto border-b border-line bg-white px-2 no-scrollbar">
+        <div role="tablist" aria-label="Identity types" className="flex gap-1 overflow-x-auto border-b border-line bg-bg-2 px-2 no-scrollbar">
           {SCENARIOS.map((x, j) => (
             <button key={x.key} type="button" role="tab" aria-selected={sc === j} aria-controls="hc-panel" onClick={() => s.go(j * PER + PER - 1)}
               className={cx('tab-u inline-flex shrink-0 items-center gap-2 !h-11 !text-[13.5px]')}>
@@ -71,7 +71,7 @@ export default function HomeConsole() {
         </div>
         <div id="hc-panel" role="tabpanel" aria-label={S.tab} className="grid gap-4 p-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] md:p-5">
           <div className="min-w-0">
-            <div className="flex items-center gap-3 rounded-[10px] border border-line bg-white p-3">
+            <div className="flex items-center gap-3 rounded-[10px] border border-line bg-bg-2 p-3">
               <span className="ptile ptile-sm" style={{ '--acc': S.product === 'zenstra' ? 'var(--color-zen)' : 'var(--color-adap)' }}><Icon name={S.icon} size={17} /></span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[14px] font-semibold text-ink">{S.who}</p>
@@ -89,7 +89,7 @@ export default function HomeConsole() {
                 const shown = j < k || k === PER - 1;
                 const verdict = typeof w === 'string' ? w : null;
                 return (
-                  <li key={e} className={cx('rounded-[10px] border border-line bg-white p-3 transition-opacity duration-300', shown ? 'opacity-100' : 'opacity-35')}>
+                  <li key={e} className={cx('rounded-[10px] border border-line bg-bg-2 p-3 transition-opacity duration-300', shown ? 'opacity-100' : 'opacity-35')}>
                     <div className="flex items-start justify-between gap-3">
                       <p className="text-[13.5px] font-medium leading-snug text-ink">{e}</p>
                       {verdict ? <Badge tone={verdict === 'block' ? 'crit' : 'ok'}>{verdict === 'block' ? 'Block' : 'Allow'}</Badge> : w > 0 ? <span className="num shrink-0 text-[13px] font-semibold text-crit">+{w}</span> : <span className="shrink-0 text-[13px] font-semibold text-ok">Normal</span>}
@@ -132,7 +132,7 @@ export default function HomeConsole() {
             )}
           </div>
         </div>
-        <div className="flex items-center justify-between gap-3 border-t border-line bg-white px-4 py-2.5">
+        <div className="flex items-center justify-between gap-3 border-t border-line bg-bg-2 px-4 py-2.5">
           <p className="t-caption">Sample data</p>
           <button type="button" onClick={s.playing ? s.pause : s.play} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-ink-2 hover:text-brand">
             <Icon name={s.playing ? 'Pause' : 'Play'} size={13} weight="fill" />{s.playing ? 'Pause' : 'Play all'}

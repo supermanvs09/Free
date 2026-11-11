@@ -21,7 +21,6 @@ const Careers = lazy(() => import('./pages/Careers.jsx'));
 const Blog = lazy(() => import('./pages/Blog.jsx'));
 const Article = lazy(() => import('./pages/Article.jsx'));
 const Demo = lazy(() => import('./pages/Demo.jsx'));
-const Tour = lazy(() => import('./pages/Tour.jsx'));
 const Contact = lazy(() => import('./pages/Contact.jsx'));
 const Legal = lazy(() => import('./pages/Legal.jsx'));
 const Sitemap = lazy(() => import('./pages/Sitemap.jsx'));
@@ -47,7 +46,7 @@ export const PATHS = [
   ...Object.values(PRODUCTS).map((p) => p.path),
   ...INDUSTRIES.map((s) => s.path),
   '/about-us', '/why-deep-algorithms', '/careers', '/blogs', ...POSTS.map((p) => `/blogs/${p.slug}`),
-  '/product-tour', '/request-demo', '/contact', '/sitemap', '/prompt-heist', '/prompt-heist/play', ...Object.keys(LEGAL).map((k) => `/${k}`),
+  '/request-demo', '/contact', '/sitemap', '/prompt-heist', '/prompt-heist/play', ...Object.keys(LEGAL).map((k) => `/${k}`),
 ];
 
 /* Scroll to top on navigation, or to the #hash target. */
@@ -115,7 +114,7 @@ export default function App() {
             <Route path="/careers" element={<Careers />} />
             <Route path="/blogs" element={<Blog />} />
             <Route path="/blogs/:slug" element={<Article />} />
-            <Route path="/product-tour" element={<Tour />} />
+            <Route path="/product-tour" element={<Navigate to="/products" replace />} />
             <Route path="/prompt-heist" element={<Heist />} />
             <Route path="/prompt-heist/play" element={<HeistPlay />} />
             <Route path="/request-demo" element={<Demo />} />

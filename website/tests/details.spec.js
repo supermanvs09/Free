@@ -62,7 +62,7 @@ test('the home hero says what we stop, who we secure, and shows a decision befor
   await expect(page.getByRole('heading', { level: 1, name: 'Stop the attack that logs in.' })).toBeVisible();
   await expect(page.getByText('Banks, government and enterprises').first()).toBeVisible();
   await expect(page.getByRole('link', { name: /Book a demo/ }).first()).toBeVisible();
-  await expect(page.getByRole('tablist', { name: 'Identity types' })).toBeInViewport();
+  await expect(page.getByRole('group', { name: /^Decision: / }).first()).toBeInViewport();
 });
 
 test('the utility bar carries contact, phone and the language menu, and folds away on scroll', async ({ page, isMobile }) => {

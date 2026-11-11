@@ -40,11 +40,11 @@ function Graph({ x }) {
           stroke={r[3] && (x.risk >= 50) ? 'var(--color-crit)' : r[2] ? 'var(--color-brand)' : 'var(--color-line-2)'} strokeDasharray={r[2] ? undefined : '4 4'} />
       ))}
       <path d={`M150 ${H / 2} H190`} stroke="var(--color-brand)" strokeWidth="1.5" />
-      <foreignObject x="0" y={H / 2 - 30} width="150" height="60"><div className="flex h-full items-center gap-2 rounded-[10px] border border-line bg-white px-2.5 text-[12px] font-medium leading-tight text-ink"><Logo k={x.from[0]} size="18px" /><span>{x.from[1]}</span></div></foreignObject>
+      <foreignObject x="0" y={H / 2 - 30} width="150" height="60"><div className="flex h-full items-center gap-2 rounded-[10px] border border-line bg-bg-2 px-2.5 text-[12px] font-medium leading-tight text-ink"><Logo k={x.from[0]} size="18px" /><span>{x.from[1]}</span></div></foreignObject>
       <foreignObject x="190" y={H / 2 - 32} width="110" height="64"><div className="flex h-full flex-col justify-center rounded-[10px] border-2 border-brand bg-brand-50 px-2.5 text-[12px] leading-tight"><span className="font-semibold text-ink">{x.name}</span><span className="text-ink-3">{x.type}</span></div></foreignObject>
       {x.res.map((r, i) => (
         <foreignObject key={r[1]} x="410" y={y(i) - 20} width="150" height="40">
-          <div className={cx('flex h-full items-center gap-2 rounded-[8px] border bg-white px-2 text-[12px] leading-tight', r[3] && x.risk >= 50 ? 'border-crit/50' : 'border-line')}>
+          <div className={cx('flex h-full items-center gap-2 rounded-[8px] border bg-bg-2 px-2 text-[12px] leading-tight', r[3] && x.risk >= 50 ? 'border-crit/50' : 'border-line')}>
             <Logo k={r[0]} size="16px" /><span className={cx('min-w-0', r[2] ? 'text-ink' : 'text-ink-3')}>{r[1]}</span>
           </div>
         </foreignObject>
@@ -64,7 +64,7 @@ export default function NhiExplorer() {
   return (
     <AppFrame product="adapid" title="adapID NHI Security" crumb="AWS · 3 accounts" status={<Badge tone="ok" dot>CloudTrail · 90 days</Badge>}>
       <div className="grid xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-        <div className="min-w-0 border-b border-line bg-white xl:border-b-0 xl:border-r">
+        <div className="min-w-0 border-b border-line bg-bg-2 xl:border-b-0 xl:border-r">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-3 py-2.5">
             <div className="seg" role="group" aria-label="Filter by type">
               {['All', 'IAM role', 'IAM user', 'Access key', 'Workload'].map((t) => <button key={t} type="button" aria-pressed={filter === t} onClick={() => setFilter(t)} className="seg-btn !h-7 !text-[12.5px]">{t}</button>)}
@@ -97,7 +97,7 @@ export default function NhiExplorer() {
           <div key={`${x.id}-${tab}`} className="fadein mt-4" role="tabpanel">
             {tab === 0 && (
               <>
-                <div className="rounded-[10px] border border-line bg-white p-2"><Graph x={x} /></div>
+                <div className="rounded-[10px] border border-line bg-bg-2 p-2"><Graph x={x} /></div>
                 <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 t-caption"><span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 bg-brand" />Used</span><span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 border-t border-dashed border-ink-4" />Granted, never used</span><span className="inline-flex items-center gap-1.5"><i className="h-0.5 w-4 bg-crit" />Sensitive and exposed</span></div>
                 <ul className="mt-3 space-y-1.5">{x.why.map((w) => <li key={w} className="flex gap-2 text-[13px] leading-snug text-ink-2"><Icon name="Warning" size={14} className={cx('mt-0.5 shrink-0', x.risk >= 50 ? 'text-hold' : 'text-ok')} />{w}</li>)}</ul>
               </>
@@ -106,7 +106,7 @@ export default function NhiExplorer() {
               <>
                 <div className="flex items-end justify-between"><span className="text-[13.5px] text-ink-2"><span className="num font-semibold text-ink">{x.usedN}</span> of {x.granted} permissions used in 90 days</span><span className="num t-caption">{pct}%</span></div>
                 <div className="meter mt-2"><i style={{ width: `${pct}%`, background: 'var(--color-brand)' }} /></div>
-                <table className="dt mt-4 rounded-[10px] border border-line bg-white">
+                <table className="dt mt-4 rounded-[10px] border border-line bg-bg-2">
                   <thead><tr><th>Permission family</th><th className="!text-right">Granted</th><th className="!text-right">Used</th></tr></thead>
                   <tbody>{x.fam.map(([f, g, u]) => <tr key={f}><td className="mono">{f}</td><td className="num !text-right">{g}</td><td className={cx('num !text-right font-semibold', u === 0 ? 'text-crit' : 'text-ink')}>{u}</td></tr>)}</tbody>
                 </table>
@@ -114,7 +114,7 @@ export default function NhiExplorer() {
             )}
             {tab === 2 && (x.remove.length ? (
               <>
-                <div className="overflow-hidden rounded-[10px] border border-line bg-white font-mono text-[12.5px] leading-6">
+                <div className="overflow-hidden rounded-[10px] border border-line bg-bg-2 font-mono text-[12.5px] leading-6">
                   {x.remove.map((r) => <div key={r} className="bg-crit-50 px-3 text-crit">- {r}</div>)}
                   {x.keep.map((k) => <div key={k} className="bg-ok-50 px-3 text-ok">+ {k}</div>)}
                 </div>
@@ -125,7 +125,7 @@ export default function NhiExplorer() {
                 )}
                 <p className="mt-2 t-caption">Nothing is changed in your accounts without approval.</p>
               </>
-            ) : <p className="rounded-[10px] border border-line bg-white p-4 text-[13.5px] text-ink-2"><Icon name="CheckCircle" size={16} weight="fill" className="mr-1.5 inline text-ok" />Right-sized. No change recommended.</p>)}
+            ) : <p className="rounded-[10px] border border-line bg-bg-2 p-4 text-[13.5px] text-ink-2"><Icon name="CheckCircle" size={16} weight="fill" className="mr-1.5 inline text-ok" />Right-sized. No change recommended.</p>)}
           </div>
         </div>
       </div>

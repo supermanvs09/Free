@@ -6,6 +6,9 @@ import { Icon, Reveal, SectionHead, cx } from '../components/ui.jsx';
 import { ArrowLink, CtaBand, PageHero, Section } from '../components/ds.jsx';
 import ProductMark from '../components/ProductMark.jsx';
 
+/* category chips with icons (shot 46) */
+const NEED_ICON = { all: 'Stack', people: 'Users', machine: 'Cloud', agents: 'Robot', payments: 'CreditCard', ad: 'TreeStructure', data: 'Database' };
+
 const BUNDLES = [
   ['Banks and fintechs', ['Identity Fraud Prevention', 'Continuous Identity Risk Management', 'ICMS Compliance Suite'], 'Stop mules at the payee and stolen logins at the door, and keep DPDPA and RBI evidence ready.', '/solutions/bfsi'],
   ['An AI rollout', ['Zenstra AI', 'NHI Security for AWS'], 'Govern the agents you deploy and the cloud keys they run on.', '/agentic-ai/agentic-identity'],
@@ -51,7 +54,7 @@ export default function Products() {
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-[14px] font-semibold text-ink">What do you need to protect?</span>
           <div className="seg" role="group" aria-label="Filter products by need">
-            {[['all', 'Everything'], ...NEEDS].map(([k, l]) => <button key={k} type="button" aria-pressed={need === k} onClick={() => setNeed(k)} className="seg-btn">{l}</button>)}
+            {[['all', 'Everything'], ...NEEDS].map(([k, l]) => <button key={k} type="button" aria-pressed={need === k} onClick={() => setNeed(k)} className="seg-btn inline-flex items-center gap-1.5"><Icon name={NEED_ICON[k]} size={14} className={need === k ? 'text-brand' : 'text-ink-4'} />{l}</button>)}
           </div>
           <span className="t-caption" aria-live="polite">{count} {count === 1 ? 'match' : 'matches'}</span>
         </div>

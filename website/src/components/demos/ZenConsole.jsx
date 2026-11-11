@@ -51,7 +51,7 @@ function chain(rows) {
 function Inventory({ sel, setSel, owners, assign, scanned, scan, focus }) {
   const list = AGENTS.filter((a) => !a.shadow || scanned);
   return (
-    <div className={cx('min-w-0 bg-white', focus && 'ring-2 ring-inset ring-brand-100')}>
+    <div className={cx('min-w-0 bg-bg-2', focus && 'ring-2 ring-inset ring-brand-100')}>
       <div className="flex items-center justify-between border-b border-line px-3 py-2.5">
         <p className="app-label">Agents · {list.length}</p>
         {!scanned && <button type="button" onClick={scan} className="btn btn-secondary btn-sm !h-7 !px-2 !text-[12px]"><Icon name="MagnifyingGlass" size={13} />Run discovery scan</button>}
@@ -62,7 +62,7 @@ function Inventory({ sel, setSel, owners, assign, scanned, scan, focus }) {
           return (
             <li key={a.id} className={cx(a.shadow && 'row-in')}>
               <button type="button" onClick={() => setSel(a.id)} aria-pressed={sel === a.id} className={cx('flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors', sel === a.id ? 'bg-brand-50' : 'hover:bg-bg-1')}>
-                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border border-line bg-white" aria-hidden="true"><Logo k={a.plat} size="17px" /></span>
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border border-line bg-bg-2" aria-hidden="true"><Logo k={a.plat} size="17px" /></span>
                 <span className="min-w-0 flex-1"><span className="block truncate font-mono text-[12.5px] font-semibold text-ink">{a.name}</span><span className="block truncate t-caption">{owner || 'No owner'} · {a.platName}</span></span>
                 {!owner ? <Badge tone="warn">Shadow</Badge> : <Badge tone="ok">Scoped</Badge>}
               </button>
@@ -84,7 +84,7 @@ function Identity({ a, owner, focus }) {
         <div><dt className="app-label">Owner</dt><dd className="mt-0.5 text-ink">{owner || 'Not assigned'}</dd></div>
         <div><dt className="app-label">Declared task</dt><dd className="mt-0.5 text-ink">{a.task || 'None declared'}</dd></div>
         <div><dt className="app-label">Grant · expires {a.expires === 'never' ? 'never' : `in ${a.expires}`}</dt>
-          <dd className="mt-1 space-y-1">{a.grant.map(([sys, act]) => <div key={sys} className="flex justify-between gap-3 rounded-[6px] bg-white px-2 py-1.5"><span className="text-ink-2">{sys}</span><span className="text-right font-medium text-ink">{act}</span></div>)}</dd>
+          <dd className="mt-1 space-y-1">{a.grant.map(([sys, act]) => <div key={sys} className="flex justify-between gap-3 rounded-[6px] bg-bg-2 px-2 py-1.5"><span className="text-ink-2">{sys}</span><span className="text-right font-medium text-ink">{act}</span></div>)}</dd>
         </div>
         <div><dt className="app-label">MCP servers</dt><dd className="mt-1 flex flex-wrap gap-1.5">{a.mcp.map((m) => <Badge key={m} tone={m.includes('unofficial') ? 'warn' : 'neutral'}>{m}</Badge>)}</dd></div>
       </dl>
@@ -97,7 +97,7 @@ function Evaluator({ a, owner, onDecide, focus }) {
   const c = pick != null ? a.calls[pick] : null;
   const fire = (k) => { setPick(k); onDecide(a, a.calls[k], owner); };
   return (
-    <div className={cx('min-w-0 bg-white p-4', focus && 'ring-2 ring-inset ring-brand-100')}>
+    <div className={cx('min-w-0 bg-bg-2 p-4', focus && 'ring-2 ring-inset ring-brand-100')}>
       <p className="app-label">Try a tool call</p>
       <ul className="mt-2 space-y-1.5">
         {a.calls.map((x, k) => (
@@ -120,7 +120,7 @@ function Evaluator({ a, owner, onDecide, focus }) {
 function Record({ rows, focus }) {
   const [ok, setOk] = useState(false);
   return (
-    <div className={cx('border-t border-line bg-white', focus && 'ring-2 ring-inset ring-brand-100')}>
+    <div className={cx('border-t border-line bg-bg-2', focus && 'ring-2 ring-inset ring-brand-100')}>
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
         <p className="app-label">Decision record · tamper-evident</p>
         {ok ? <span role="status" className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-ok"><Icon name="SealCheck" size={15} weight="fill" />Chain verified: {rows.length} entries, no gaps</span>

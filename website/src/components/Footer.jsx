@@ -50,7 +50,6 @@ export default function Footer() {
             </Col>
             <Col title="Resources">
               <L to="/blogs">Blog and research</L>
-              <L to="/product-tour">Product tour</L>
               <L to="/prompt-heist">Prompt Heist</L>
               <L to="/about-us#news">In the news</L>
             </Col>

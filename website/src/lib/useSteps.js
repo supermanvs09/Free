@@ -25,7 +25,7 @@ export function useSteps(n, { ms = 3200, initial = n - 1, start = 0, loop = true
     const io = new IntersectionObserver(([e]) => {
       visible.current = e.isIntersecting;
       setPlaying((p) => (e.isIntersecting ? p || !el.dataset.paused : false));
-    }, { threshold: 0.35 });
+    }, { threshold: 0.2 });
     io.observe(el);
     return () => io.disconnect();
   }, [auto, start]);

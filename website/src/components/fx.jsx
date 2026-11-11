@@ -172,3 +172,56 @@ export function Index({ n, children, className }) {
     </p>
   );
 }
+
+/* The hero visual: a field of red particles rolling like a wave in
+   perspective (the Quantra hero image, made live). Canvas only; it pauses
+   off screen and draws a single still frame under reduced motion. */
+export function ParticleWave({ className }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const c = ref.current;
+    if (!c) return undefined;
+    const ctx = c.getContext('2d');
+    let w = 0; let h = 0; let raf = 0; let on = true; let t = 0;
+    const size = () => {
+      const r = c.getBoundingClientRect(); const d = Math.min(2, window.devicePixelRatio || 1);
+      w = r.width; h = r.height; c.width = w * d; c.height = h * d; ctx.setTransform(d, 0, 0, d, 0, 0);
+    };
+    const COLS = 90; const ROWS = 46;
+    const draw = () => {
+      ctx.clearRect(0, 0, w, h);
+      ctx.globalCompositeOperation = 'lighter';
+      for (let j = 0; j < ROWS; j++) {
+        const z = j / ROWS;                       // 0 far .. 1 near
+        const p = 0.25 + z * z * 1.6;             // perspective scale
+        const y0 = h * 0.34 + z * z * h * 0.62;
+        for (let i = 0; i < COLS; i++) {
+          const x0 = (i / (COLS - 1) - 0.5) * 2;  // -1 .. 1
+          const wave = Math.sin(x0 * 3.2 + t * 0.9 + j * 0.22) * 0.5 + Math.sin(x0 * 7.1 - t * 0.6 + j * 0.11) * 0.25 + Math.sin(j * 0.35 + t * 0.5) * 0.35;
+          const x = w * 0.5 + x0 * w * 0.62 * p;
+          const y = y0 - wave * h * 0.07 * p;
+          const a = Math.max(0, Math.min(1, 0.3 + (wave + 1) * 0.5)) * (0.35 + z * 0.65);
+          const r = (0.7 + (wave + 1) * 0.7) * p;
+          ctx.fillStyle = `rgba(${90 + (wave + 1) * 40 | 0}, ${100 + (wave + 1) * 50 | 0}, 255, ${a})`;
+          ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283); ctx.fill();
+        }
+      }
+      ctx.globalCompositeOperation = 'source-over';
+    };
+    const loop = () => { if (on) { t += 0.016; draw(); } raf = requestAnimationFrame(loop); };
+    size(); draw();
+    const still = reduced();
+    const io = new IntersectionObserver(([e]) => { on = e.isIntersecting; });
+    io.observe(c);
+    const onR = () => { size(); draw(); };
+    window.addEventListener('resize', onR);
+    if (!still) raf = requestAnimationFrame(loop);
+    return () => { cancelAnimationFrame(raf); io.disconnect(); window.removeEventListener('resize', onR); };
+  }, []);
+  return (
+    <div className={cx('relative overflow-hidden bg-[radial-gradient(70%_70%_at_50%_70%,rgb(99_88_255/.35),transparent_70%)]', className)} aria-hidden="true">
+      <canvas ref={ref} className="absolute inset-0 h-full w-full" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,var(--color-bg)_0%,transparent_30%,transparent_80%,var(--color-bg)_100%)]" />
+    </div>
+  );
+}

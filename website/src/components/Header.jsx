@@ -7,7 +7,7 @@ import { Button, Icon, cx } from './ui.jsx';
 import ProductMark from './ProductMark.jsx';
 
 /* `inverse` is the white lockup for dark surfaces (footer, Prompt Heist). */
-export function Logo({ className = 'h-[30px]', inverse }) {
+export function Logo({ className = 'h-[30px]', inverse = true }) {
   return <img src={inverse ? '/brand/logo-lockup-inverse.webp' : '/brand/logo-lockup.webp'} alt="Deep Algorithms" width="153" height="34" className={cx('w-auto', className)} />;
 }
 
@@ -59,10 +59,6 @@ function ProductsMenu({ onNav }) {
         <Link to={icms.path} onClick={onNav} className="card card-link block p-5">
           <span className="flex items-center gap-3"><ProductMark p="icms" size={32} /><span className="font-semibold text-ink">{icms.name}</span></span>
           <span className="mt-3 block t-small">{icms.tagline}: PII discovery, consent checks, 72-hour breach response and audit evidence.</span>
-        </Link>
-        <Link to="/product-tour" onClick={onNav} className="card-flat block p-5 transition-colors hover:bg-bg-2">
-          <span className="flex items-center gap-2 font-semibold text-ink"><Icon name="Play" size={16} weight="fill" className="text-brand" />Product tour</span>
-          <span className="mt-1 block t-small">See an attack stopped, step by step. No call needed.</span>
         </Link>
       </div>
     </div>
@@ -123,7 +119,7 @@ function CompanyMenu({ onNav }) {
 const NAV = [
   { label: 'Products', menu: ProductsMenu, match: ['/products', '/adapid-ai', '/agentic-ai', '/dpdpa-compliance'] },
   { label: 'Solutions', menu: SolutionsMenu, match: ['/solutions'] },
-  { label: 'Resources', menu: ResourcesMenu, match: ['/blogs', '/product-tour', '/prompt-heist'] },
+  { label: 'Resources', menu: ResourcesMenu, match: ['/blogs', '/prompt-heist'] },
   { label: 'Company', menu: CompanyMenu, match: ['/about-us', '/why-deep-algorithms', '/careers', '/contact'] },
 ];
 
@@ -148,7 +144,7 @@ export function LanguageMenu({ className, up, tabIndex }) {
         <Icon name="Globe" size={14} />{cur[1]}<Icon name="CaretDown" size={10} weight="bold" className={cx('transition-transform', open && 'rotate-180')} />
       </button>
       {open && (
-        <ul role="listbox" aria-label="Language" className={cx('slide-in absolute right-0 z-10 max-h-[340px] w-[210px] overflow-y-auto rounded-[14px] border border-line bg-white p-1.5 shadow-[var(--e-3)]', up ? 'bottom-full mb-2' : 'top-full mt-2')}>
+        <ul role="listbox" aria-label="Language" className={cx('slide-in absolute right-0 z-10 max-h-[340px] w-[210px] overflow-y-auto rounded-[14px] border border-line bg-bg-2 p-1.5 shadow-[var(--e-3)]', up ? 'bottom-full mb-2' : 'top-full mt-2')}>
           {LANGS.map(([c, n, en]) => (
             <li key={c}>
               <button type="button" role="option" aria-selected={c === lang} onClick={() => { setOpen(false); setLang(c); }}
@@ -280,8 +276,8 @@ export default function Header() {
         <div className="ubar hidden lg:block" aria-hidden={scrolled || undefined}>
           <div className="container flex h-10 items-center justify-between gap-6 text-[13px]">
             <p className="truncate">
-              <span className="mr-2 inline-flex h-5 items-center gap-1.5 rounded-full bg-[#ff4d3d] px-2 text-[11px] font-semibold uppercase tracking-[.08em] text-white"><i className="pulse-dot h-1.5 w-1.5 rounded-full bg-white" />Live</span>
-              <span className="font-semibold text-white">Prompt Heist</span>: trick our AI guard with words. Win a job offer and goodies.
+              <span className="mr-2 inline-flex h-5 items-center gap-1.5 rounded-full bg-[#ff4d3d] px-2 text-[11px] font-semibold uppercase tracking-[.08em] text-white"><i className="pulse-dot h-1.5 w-1.5 rounded-full bg-bg-2" />Live</span>
+              <span className="font-semibold text-white">Prompt Heist</span>: trick our AI guard with words. Win a job offer and exciting prizes.
               <Link to="/prompt-heist" tabIndex={t} className="ml-2 font-semibold text-[#7cc4ff] hover:underline">Take the challenge →</Link>
             </p>
             <ul className="flex shrink-0 items-center gap-6">

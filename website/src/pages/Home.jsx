@@ -6,7 +6,7 @@ import { PLATFORMS, INDUSTRIES } from '../data/ia.js';
 import { NEWS, RECOGNITION, FOUNDER_QUOTE, BELIEFS } from '../data/company.js';
 import { Button, Icon, Reveal, SectionHead, CountUp, cx } from '../components/ui.jsx';
 import { ArrowLink, CtaBand, Faq, LogoWall, LogoMarquee, ResearchCards, Section } from '../components/ds.jsx';
-import { SplitTitle, ScrollWords, MediaReveal, TiltFrame } from '../components/fx.jsx';
+import { SplitTitle, ScrollWords, MediaReveal, ParticleWave } from '../components/fx.jsx';
 import ProductMark from '../components/ProductMark.jsx';
 import HomeConsole from '../components/demos/HomeConsole.jsx';
 import { Logo as ToolLogo } from '../components/viz/kit.jsx';
@@ -47,6 +47,12 @@ const WHY = [
 
 const TOOLS = ['okta', 'm365', 'aws', 'google', 'github', 'copilotstudio', 'splunk', 'jira', 'kubernetes', 'zapier', 'n8n', 'mcp'];
 
+const HERO_DECISIONS = [
+  { kind: 'Employee', icon: 'User', who: 'Kavya Reddy, treasury analyst', what: 'Sign-in from Lagos on a new device. MFA passed. Behaviour did not.', label: 'Session held', tone: 'hold', why: 'Score 81 / 100', time: '02:14' },
+  { kind: 'Cloud role', icon: 'Cloud', who: 'ecs-notify-svc, AWS prod', what: '214 permissions granted, 9 ever used. Reading buckets it never touched.', label: 'Access trimmed', tone: 'warn', why: '205 unused', time: 'Today' },
+  { kind: 'AI agent', icon: 'Robot', who: 'invoice-agent, Copilot Studio', what: 'Tried to export the vendor list to an outside email address.', label: 'Tool call blocked', tone: 'crit', why: 'Outside its task', time: '10:02:15' },
+];
+
 const PRESS = NEWS.filter((n) => ['Interview', 'Perspective', 'Press'].includes(n.kind));
 
 /* ---------- How it works: sticky visual, scrolling steps (shots 26, 70, 92) ---------- */
@@ -83,7 +89,7 @@ function HowItWorks() {
         <span aria-hidden="true" className="absolute bottom-6 left-[15px] top-6 w-px bg-line-2" />
         {HOW.map(([title, body, icon], k) => (
           <li key={title} ref={(el) => { refs.current[k] = el; }} data-k={k} className="relative flex gap-6 pb-12 lg:min-h-[48vh] lg:items-center lg:pb-0">
-            <span className={cx('relative z-10 mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border font-mono text-[12px] transition-all duration-500 lg:mt-0', k <= on ? 'border-brand bg-brand text-white shadow-[0_0_0_6px_var(--color-brand-50)]' : 'border-line-2 bg-white text-ink-3')}>{k + 1}</span>
+            <span className={cx('relative z-10 mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border font-mono text-[12px] transition-all duration-500 lg:mt-0', k <= on ? 'border-brand bg-brand text-white shadow-[0_0_0_6px_var(--color-brand-50)]' : 'border-line-2 bg-bg-2 text-ink-3')}>{k + 1}</span>
             <div>
               <h3 className={cx('font-display text-[26px] font-semibold leading-tight tracking-[-0.022em] transition-colors duration-500 md:text-[34px]', k === on ? 'text-ink' : 'text-ink-3')}>{title}</h3>
               <p className="mt-3 max-w-[46ch] t-body">{body}</p>
@@ -115,7 +121,7 @@ function Press() {
         </figcaption>
       </figure>
       <div className="flex flex-col gap-4">
-        <figure className="card flex flex-1 flex-col justify-between bg-[linear-gradient(160deg,#eef3ff,#fff)] p-8">
+        <figure className="card flex flex-1 flex-col justify-between bg-[linear-gradient(160deg,rgb(99_88_255/.22),rgb(255_255_255/.02))] p-8">
           <blockquote className="t-lead !text-ink">“{FOUNDER_QUOTE.text}”</blockquote>
           <figcaption className="mt-6 flex items-center gap-3">
             <img src={`/img/people/${FOUNDER_QUOTE.img}.webp`} alt="" width="48" height="48" loading="lazy" className="h-12 w-12 rounded-full object-cover" />
@@ -125,7 +131,7 @@ function Press() {
         <div className="flex items-center justify-between">
           <span className="font-mono text-[12.5px] text-ink-3" aria-live="polite">{String(i + 1).padStart(2, '0')} / {String(n).padStart(2, '0')}</span>
           <span className="flex gap-2">
-            <button type="button" onClick={() => setI((i - 1 + n) % n)} aria-label="Previous quote" className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line-2 bg-white text-ink transition hover:border-brand hover:text-brand"><Icon name="ArrowLeft" size={17} /></button>
+            <button type="button" onClick={() => setI((i - 1 + n) % n)} aria-label="Previous quote" className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line-2 bg-bg-2 text-ink transition hover:border-brand hover:text-brand"><Icon name="ArrowLeft" size={17} /></button>
             <button type="button" onClick={() => setI((i + 1) % n)} aria-label="Next quote" className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-brand text-white transition hover:bg-brand-hover"><Icon name="ArrowRight" size={17} /></button>
           </span>
         </div>
@@ -139,47 +145,47 @@ export default function Home() {
     <>
       <Seo path="/" description={SITE.description} />
 
-      {/* 1. Hero: sky gradient, pill note, highlighted word, device with floating cards (10, 17, 19, 31, 52, 90) */}
+      {/* 1. Hero: statement over a live particle wave, with floating decision cards (17, 28, 54, 70, 80, 90) */}
       <section className="sky relative overflow-hidden">
-        <div aria-hidden="true" className="beam left-[6%] opacity-80" />
-        <div aria-hidden="true" className="beam left-[70%] opacity-60" />
-        <div className="container pt-12 text-center md:pt-16">
+        <ParticleWave className="absolute inset-x-0 bottom-0 h-[62%]" />
+        <div className="container relative pt-14 text-center md:pt-20">
           <Link to="/prompt-heist" className="pill-note rise group mx-auto">
-            <b>New</b>Prompt Heist: trick our AI guard, win a job offer
+            <b>New</b>Prompt Heist is live. Trick our AI guard, win a job offer.
             <Icon name="ArrowRight" size={13} weight="bold" className="text-brand transition-transform group-hover:translate-x-1" />
           </Link>
-          <SplitTitle as="h1" always className="t-display mx-auto mt-7 max-w-[1000px]">Stop the attack that <span className="hl-pill">logs in.</span></SplitTitle>
-          <p className="t-lead rise mx-auto mt-6 max-w-[660px]" style={{ '--d': '240ms' }}>
-            Attackers no longer break in. They sign in with a real password. We score every person, machine identity and AI agent in real time, and stop the risky action before it completes.
+          <SplitTitle as="h1" always className="t-display mx-auto mt-8 max-w-[1040px]">Stop the attack that <span className="hl-pill">logs in.</span></SplitTitle>
+          <p className="t-lead rise mx-auto mt-7 max-w-[640px]" style={{ '--d': '240ms' }}>
+            Stolen passwords. Forgotten keys. AI agents with too much access. We watch every identity, score every move and stop the wrong one before it lands.
           </p>
-          <div className="rise mt-9 flex flex-wrap justify-center gap-3" style={{ '--d': '320ms' }}>
+          <div className="rise mt-10 flex flex-wrap justify-center gap-3" style={{ '--d': '320ms' }}>
             <Link to="/request-demo" className="btn btn-primary btn-lg group">Book a demo<span className="arr-dot"><Icon name="ArrowUpRight" size={15} weight="bold" /></span></Link>
-            <Link to="/product-tour" className="btn btn-secondary btn-lg"><Icon name="Play" size={15} weight="fill" className="text-brand" />Watch it stop an attack</Link>
+            <Link to="/products" className="btn btn-secondary btn-lg">Explore the platform</Link>
           </div>
           <p className="rise mt-8 text-[14px] text-ink-3" style={{ '--d': '380ms' }}>
             Built for <span className="font-semibold text-ink">Banks, government and enterprises</span> · Read-only, or inside your VPC · Mapped to DPDPA, RBI and SEBI
           </p>
         </div>
-        <div className="container relative mt-12 pb-20 md:mt-14 md:pb-24">
-          <div className="rise relative mx-auto max-w-[1120px] min-[1400px]:max-w-[1000px]" style={{ '--d': '300ms' }}>
-            <div className="device"><div className="screen text-left"><HomeConsole /></div></div>
-            {/* floating glass cards (19, 20, 66, 90) */}
-            <div aria-hidden="true" className="glass float absolute -left-[178px] top-[22%] hidden w-[188px] rounded-[16px] p-4 text-left min-[1400px]:block" style={{ '--fd': '-2s' }}>
-              <p className="flex items-center justify-between text-[12px] text-ink-3"><span>02:14 · Lagos</span><span className="badge badge-crit !h-5 !text-[11px]">Held</span></p>
-              <p className="mt-2 text-[14px] font-semibold text-ink">New country, new device</p>
-              <p className="text-[12.5px] text-ink-3">MFA passed. Behaviour did not.</p>
-            </div>
-            <div aria-hidden="true" className="glass float absolute -right-[178px] bottom-[18%] hidden w-[188px] rounded-[16px] p-4 text-left min-[1400px]:block">
-              <p className="text-[12px] text-ink-3">Decision record</p>
-              <p className="mt-1 font-display text-[22px] font-semibold tracking-[-0.02em] text-ink">Explained</p>
-              <p className="mt-2 flex items-center gap-1.5 text-[12.5px] text-ok"><Icon name="CheckCircle" size={14} weight="fill" />Policy, reasons, evidence</p>
-            </div>
-          </div>
+        {/* three live decisions, one per identity type, floating over the wave */}
+        <div className="container relative mt-14 pb-24 md:mt-16 md:pb-28">
+          <ul className="grid gap-4 md:grid-cols-3 md:gap-5">
+            {HERO_DECISIONS.map((d, i) => (
+              <li key={d.label} role="group" aria-label={`Decision: ${d.label}`} className="glass rise float rounded-[20px] p-5 text-left" style={{ '--d': `${420 + i * 90}ms`, '--fd': `${-i * 1.6}s` }}>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="flex items-center gap-2.5"><span className="ptile ptile-sm"><Icon name={d.icon} size={16} /></span><span className="text-[13px] text-ink-3">{d.kind}</span></span>
+                  <span className={`badge badge-${d.tone} badge-dot`}>{d.label}</span>
+                </div>
+                <p className="mt-4 text-[15.5px] font-semibold text-ink">{d.who}</p>
+                <p className="mt-1 text-[13.5px] leading-snug text-ink-2">{d.what}</p>
+                <p className="mt-4 flex items-center justify-between border-t border-line pt-3 font-mono text-[11.5px] text-ink-3"><span>{d.why}</span><span>{d.time}</span></p>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-4 text-center text-[12.5px] text-ink-4">Sample decisions, as the products make them.</p>
         </div>
       </section>
 
       {/* 2. Logo marquee (18, 53, 54, 69) */}
-      <section className="border-y border-line bg-white py-10" aria-label="Organisations we work with">
+      <section className="border-y border-line py-10" aria-label="Organisations we work with">
         <p className="mb-6 text-center font-mono text-[11.5px] uppercase tracking-[.14em] text-ink-3">Working with banks, ministries, hospitals and research leaders across India</p>
         <LogoMarquee />
       </section>
@@ -220,13 +226,13 @@ export default function Home() {
       {/* 4. What we do: product cards with gradient art (14, 60, 74, 84) */}
       <Section id="platforms" labelledby="platforms-h" tone="subtle">
         <div className="flex flex-wrap items-end justify-between gap-6">
-          <SectionHead id="platforms-h" eyebrow="What we do" title={<>Smart identity defence, <span className="hl">built for every identity.</span></>} lead="Three platforms. Each one runs on its own and starts with the risk that costs you most." />
+          <SectionHead id="platforms-h" eyebrow="What we do" title={<>Smart identity defence, <span className="hl">built for every identity.</span></>} lead="Three platforms. One for people and machines, one for AI agents, one for personal data. Start with the risk that keeps you up at night." />
           <Button to="/products" variant="secondary">All products</Button>
         </div>
         <div className="mt-14 grid gap-5 lg:grid-cols-3">
           {PLATFORMS.map((p, i) => (
             <Reveal key={p.key} delay={i * 90} className="card card-link group flex flex-col overflow-hidden" style={{ '--acc': p.acc }}>
-              <div className="relative h-[170px] overflow-hidden" style={{ background: `radial-gradient(80% 90% at 80% 0%, color-mix(in oklab, ${p.acc} 35%, #fff), transparent 70%), radial-gradient(70% 80% at 0% 100%, #e3f6ff, transparent 70%), #f7f9ff` }}>
+              <div className="relative h-[170px] overflow-hidden" style={{ background: `radial-gradient(80% 90% at 80% 0%, color-mix(in oklab, ${p.acc} 35%, transparent), transparent 70%), radial-gradient(70% 80% at 0% 100%, #e3f6ff, transparent 70%), #f7f9ff` }}>
                 <div aria-hidden="true" className="absolute left-6 top-6 transition-transform duration-700 group-hover:-rotate-6 group-hover:scale-110"><ProductMark p={p.key} size={56} /></div>
                 <div aria-hidden="true" className="glass absolute -right-6 bottom-5 w-[64%] rotate-[-6deg] rounded-[14px] p-3 transition-transform duration-700 group-hover:rotate-0">
                   {(p.key === 'zenstra' ? p.items.slice(0, 3) : p.items.slice(0, 3)).map((it) => <p key={it.key} className="flex items-center gap-2 py-1 text-[12px] text-ink-2"><Icon name={it.icon} size={13} className="text-brand" /><span className="truncate">{it.name}</span></p>)}
@@ -252,7 +258,7 @@ export default function Home() {
       <section className="band sec overflow-hidden" aria-labelledby="why-h">
         <div aria-hidden="true" className="beam left-[30%] opacity-40" />
         <div className="container">
-          <SectionHead id="why-h" align="center" eyebrow="Why Deep Algorithms" title={<>Why us? Because a valid login <span className="hl">isn’t a safe one.</span></>} lead="Most breaches now start with an identity that looks legitimate. We built every product around that fact." />
+          <SectionHead id="why-h" align="center" eyebrow="Why Deep Algorithms" title={<>Why us? Because a valid login <span className="hl">isn’t a safe one.</span></>} lead="The breach of the decade will not set off an alarm. It will log in. So we built every product to catch the identity that looks right and acts wrong." />
           <div className="mt-16 grid gap-5 md:grid-cols-3">
             {WHY.map(([ic, t, b], i) => (
               <Reveal key={t} delay={i * 90} className="card p-8 text-center">
@@ -282,9 +288,20 @@ export default function Home() {
 
       {/* 6. How we secure your business (26, 70, 92) */}
       <Section id="how" labelledby="how-h">
-        <SectionHead id="how-h" eyebrow="How it works" title="How Deep Algorithms secures your business." lead="The same four steps run for an employee’s session, a cloud role, a customer’s payment and an AI agent’s tool call." />
+        <SectionHead id="how-h" eyebrow="How it works" title="How Deep Algorithms secures your business." lead="Four steps. One for every login, key, payment and agent. No rip and replace, no endpoint agents, no waiting for the quarterly review." />
         <div className="mt-14 lg:mt-16"><HowItWorks /></div>
       </Section>
+
+      {/* 6b. The live console, framed in a glowing device (10, 17, 19) */}
+      <section className="band sec overflow-hidden" aria-labelledby="live-h">
+        <div className="container">
+          <SectionHead id="live-h" align="center" eyebrow="See it work" title={<>Watch it decide. <span className="hl">Live.</span></>} lead="Four identities, four decisions, every one explained. Switch tabs and see why each move was allowed, held or blocked." />
+          <div className="relative mx-auto mt-14 max-w-[1080px]">
+            <div aria-hidden="true" className="absolute inset-x-[10%] -top-10 h-40 rounded-full bg-[radial-gradient(closest-side,rgb(99_88_255/.6),transparent)] blur-2xl" />
+            <div className="device relative"><div className="screen text-left"><HomeConsole /></div></div>
+          </div>
+        </div>
+      </section>
 
       {/* 7. Integrations orbit (48, 64, 65, 86) */}
       <Section id="connect" labelledby="connect-h" tone="subtle">
@@ -297,8 +314,8 @@ export default function Home() {
           </div>
           <div className="orbit-wrap relative mx-auto aspect-square w-full max-w-[520px]" aria-label="Okta, Microsoft 365, AWS, Google, GitHub, Copilot Studio, Splunk, Jira, Kubernetes, Zapier, n8n and MCP servers" role="img">
             <div aria-hidden="true" className="absolute inset-[6%] rounded-full border border-dashed border-line-2" />
-            <div aria-hidden="true" className="absolute inset-[24%] rounded-full border border-line-2 bg-white/60" />
-            <div aria-hidden="true" className="absolute inset-[38%] flex items-center justify-center rounded-full bg-white shadow-[var(--e-3)]">
+            <div aria-hidden="true" className="absolute inset-[24%] rounded-full border border-line-2 bg-bg-2/60" />
+            <div aria-hidden="true" className="absolute inset-[38%] flex items-center justify-center rounded-full bg-bg-2 shadow-[var(--e-3)]">
               <img src="/brand/mark.webp" alt="" width="160" height="160" className="h-[48%] w-auto" />
             </div>
             <div aria-hidden="true" className="orbit absolute inset-[6%]">
@@ -306,7 +323,7 @@ export default function Home() {
                 const a = (i / TOOLS.length) * Math.PI * 2;
                 return (
                   <span key={k} className="absolute" style={{ left: `${50 + Math.cos(a) * 50}%`, top: `${50 + Math.sin(a) * 50}%` }}>
-                    <span className="-ml-6 -mt-6 flex h-12 w-12 items-center justify-center rounded-[14px] border border-line bg-white text-ink shadow-[var(--e-2)]"><ToolLogo k={k} size="24px" /></span>
+                    <span className="-ml-6 -mt-6 flex h-12 w-12 items-center justify-center rounded-[14px] border border-line bg-bg-2 text-ink shadow-[var(--e-2)]"><ToolLogo k={k} size="24px" /></span>
                   </span>
                 );
               })}

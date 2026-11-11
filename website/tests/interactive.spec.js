@@ -108,17 +108,6 @@ test.describe('product demonstrations', () => {
     await expect(page.getByText('14 matches')).toBeVisible();
   });
 
-  test('product tour: steps by button, keyboard and link, and ends on a demo', async ({ page }) => {
-    await page.goto('/product-tour');
-    await hydrated(page);
-    await page.getByRole('button', { name: 'Next', exact: true }).click();
-    await expect(page).toHaveURL(/#step-2$/);
-    await page.keyboard.press('ArrowRight');
-    await expect(page).toHaveURL(/#step-3$/);
-    await page.goto('/product-tour#step-8');
-    await expect(page.getByRole('heading', { name: 'Now see it on your own identities.' })).toBeVisible();
-  });
-
   test('reduced motion: demos show a finished state without playing', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/');
