@@ -25,6 +25,7 @@ type fakeAWS struct {
 	rolesXML     string
 	stsOffIn     string   // region whose STS answers RegionDisabledException
 	stsRegions   []string // region each AssumeRole was signed for
+	assumeKey    string   // access key that signed the last AssumeRole
 
 	// diagnosis: who GetCallerIdentity says we are, what the simulation decides
 	callerARN    string
@@ -104,6 +105,9 @@ func (f *fakeAWS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				region = parts[2]
 			}
 			f.stsRegions = append(f.stsRegions, region)
+			if i := strings.Index(r.Header.Get("Authorization"), "Credential="); i >= 0 {
+				f.assumeKey = strings.SplitN(r.Header.Get("Authorization")[i+len("Credential="):], "/", 2)[0]
+			}
 			if region == f.stsOffIn {
 				w.WriteHeader(http.StatusForbidden)
 				_, _ = io.WriteString(w, `<ErrorResponse><Error><Type>Sender</Type><Code>RegionDisabledException</Code><Message>STS is not activated in this region</Message></Error><RequestId>1</RequestId></ErrorResponse>`)
@@ -292,5 +296,29 @@ func TestAssumeRoleUsesPlatformRegionThenUSEast1(t *testing.T) {
 	}
 	if strings.Join(f.stsRegions, ",") != "ap-south-1,us-east-1" {
 		t.Fatalf("sts regions = %v", f.stsRegions)
+	}
+}
+
+// Without NHI_AWS_ASSUME_ASSUMER_ROLE the customer's role is assumed with the
+// process's own credentials: the configured assumer role name is never used
+// for the call (only for page text and the self-check), and nothing but the
+// role ARN, External ID, session name and duration is sent.
+func TestAssumeRoleUsesProcessIdentityNotTheConfiguredName(t *testing.T) {
+	f := &fakeAWS{rolesXML: oneRole}
+	c, p := newTestClient(t, f, "")
+	p.AssumerRoleARN = "arn:aws:iam::999999999999:role/SomeNameThatDoesNotExist"
+	role, _ := ParseRoleARN("arn:aws:iam::222222222222:role/NHIPlatformCollector")
+	if _, err := c.AssumeRole(context.Background(), p, role, "ext"); err != nil {
+		t.Fatal(err)
+	}
+	if f.assumeKey != "AKIAPLATFORM" {
+		t.Fatalf("AssumeRole signed with %q, want the process's own key", f.assumeKey)
+	}
+	for k := range f.assumeForm {
+		switch k {
+		case "Action", "Version", "RoleArn", "RoleSessionName", "ExternalId", "DurationSeconds":
+		default:
+			t.Errorf("AssumeRole sent unexpected field %s", k)
+		}
 	}
 }
