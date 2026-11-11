@@ -26,6 +26,8 @@ import { RecordBar, ResultCount, ShowFiltersButton, WorkArea } from '../../ui/Wo
 import { CompositionDonut } from '../../charts/CompositionDonut';
 import { TrendChart } from '../../charts/TrendChart';
 import { AnomalyDrawer } from './AnomalyDrawer';
+import { AnomalyGroups } from './AnomalyGroups';
+import { useAccess } from '../../app/useAccess';
 import { anomalyStatusMeta, dimensionLabel, roleKindLabel, sourceTypeLabel } from './meta';
 
 const PAGE_SIZES = [10, 25, 50, 100];
@@ -107,7 +109,9 @@ export default function GenomePage() {
 
   const summary = useQuery((signal) => fetchGenomeSummary({ window }, signal), [window]);
   const fleet = useQuery((signal) => fetchGenomeFleet({}, signal), []);
-  const openTotal = summary.data?.cards?.open_anomalies;
+  /* The tab badge counts what the tab lists: every open anomaly, any age
+     (the summary card counts only the selected window). */
+  const openTotal = fleet.data ? fleet.data.items.reduce((sum, row) => sum + (Number(row.openAnomalies) || 0), 0) : undefined;
 
   const tabs = [
     { value: 'overview', label: 'Overview' },
@@ -805,6 +809,11 @@ const STATES = [
   { value: 'all', label: 'All' },
 ];
 
+const VIEWS = [
+  { value: 'groups', label: 'By identity' },
+  { value: 'list', label: 'Every anomaly' },
+];
+
 function AnomaliesTab({ searchParams, setParams }) {
   const listRef = useRef(null);
   const { railOpen, toggleRail } = useFacetRail('genome-anomalies');
@@ -816,6 +825,9 @@ function AnomaliesTab({ searchParams, setParams }) {
   const [searchDraft, setSearchDraft] = useState(() => searchParams.get('q') || '');
   const search = useDebouncedValue(searchDraft, 250).trim().toLowerCase();
   const [selected, setSelected] = useState(null);
+  const [selectedPattern, setSelectedPattern] = useState(null);
+  const view = searchParams.get('view') === 'list' ? 'list' : 'groups';
+  const { can } = useAccess();
 
   const query = useQuery((signal) => fetchAllAnomalies({ state: state === 'all' ? '' : 'open' }, signal), [state]);
   const all = useMemo(() => query.data?.items ?? [], [query.data]);
@@ -898,7 +910,7 @@ function AnomaliesTab({ searchParams, setParams }) {
         </span>
       ),
     },
-    { key: 'type', header: 'Type', width: '12%', priority: 'wide', cell: (item) => <Tag size="sm">{dimensionLabel(item.dimension)}</Tag> },
+    { key: 'type', header: 'Type', width: '12%', priority: 'wide', hideWithRail: true, cell: (item) => <Tag size="sm">{dimensionLabel(item.dimension)}</Tag> },
     {
       key: 'confidence',
       header: 'Confidence',
@@ -947,7 +959,7 @@ function AnomaliesTab({ searchParams, setParams }) {
     {
       key: 'detected',
       header: 'Detected',
-      width: '10%',
+      width: '13%',
       cell: (item) => (
         <span className="whitespace-nowrap text-[12px] text-ink-2" title={formatDateTime(item.detected_at)}>
           {formatRelative(item.detected_at)}
@@ -974,6 +986,7 @@ function AnomaliesTab({ searchParams, setParams }) {
           trailing={
             <TableToolbar>
               {!railOpen && <ShowFiltersButton onClick={toggleRail} appliedCount={applied} />}
+              <SegmentedControl label="How to show anomalies" options={VIEWS} value={view} onChange={(value) => setParams({ view: value === 'groups' ? '' : value, page: '' })} />
               <SegmentedControl label="Which anomalies" options={STATES} value={state} onChange={(value) => setParams({ state: value === 'open' ? '' : value, page: '' })} />
               <RefreshButton onRefresh={query.refetch} refreshing={query.isRefreshing} label="Refresh anomalies" />
             </TableToolbar>
@@ -998,20 +1011,9 @@ function AnomaliesTab({ searchParams, setParams }) {
             loading={query.isLoading && !query.data}
           />
         </RecordBar>
-        {query.isError && !query.data ? (
-          <ErrorState error={query.error} onRetry={query.refetch} />
-        ) : (
-          <DataGrid
-            caption="Anomalies"
-            columns={columns}
-            rows={rows}
-            rowKey={(item) => item.id}
-            loading={query.isLoading && !query.data}
-            refreshing={query.isRefreshing}
-            onRowClick={(item) => setSelected(item)}
-            density="comfortable"
-            skeletonRows={8}
-            emptyState={
+        {(() => {
+          const emptyState = (
+
               applied > 0 || search ? (
                 <EmptyState
                   icon={SearchX}
@@ -1041,10 +1043,43 @@ function AnomaliesTab({ searchParams, setParams }) {
                   }
                 />
               )
-            }
-          />
-        )}
-        {filtered.length > 0 && (
+          );
+          if (query.isError && !query.data) return <ErrorState error={query.error} onRetry={query.refetch} />;
+          if (view === 'groups') {
+            if (query.isLoading && !query.data) return <div className="p-4"><ListSkeleton rows={5} /></div>;
+            return (
+              <AnomalyGroups
+                items={filtered}
+                canAct={can('anomalies.review')}
+                onChanged={query.refetch}
+                onOpen={(item, pattern) => {
+                  setSelected(item);
+                  setSelectedPattern(pattern ?? null);
+                }}
+                emptyState={emptyState}
+              />
+            );
+          }
+          return (
+            <DataGrid
+              caption="Anomalies"
+              columns={columns}
+              rows={rows}
+              rowKey={(item) => item.id}
+              loading={query.isLoading && !query.data}
+              refreshing={query.isRefreshing}
+              onRowClick={(item) => {
+                setSelected(item);
+                setSelectedPattern(null);
+              }}
+              railOpen={railOpen}
+              density="comfortable"
+              skeletonRows={8}
+              emptyState={emptyState}
+            />
+          );
+        })()}
+        {view === 'list' && filtered.length > 0 && (
           <Pagination
             page={current}
             pageSize={pageSize}
@@ -1058,7 +1093,7 @@ function AnomaliesTab({ searchParams, setParams }) {
           />
         )}
       </Panel>
-      <AnomalyDrawer anomaly={selected} onClose={() => setSelected(null)} onReviewed={query.refetch} />
+      <AnomalyDrawer anomaly={selected} pattern={selectedPattern} onPick={setSelected} onClose={() => setSelected(null)} onReviewed={query.refetch} />
     </WorkArea>
   );
 }

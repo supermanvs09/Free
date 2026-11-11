@@ -322,11 +322,11 @@ export async function fetchAnomalies({ state, dimension, sourceType, search, lim
  * and departure type without a request per filter. `complete` is false beyond
  * that.
  */
-export async function fetchAllAnomalies({ state } = {}, signal) {
+export async function fetchAllAnomalies({ state, sourceType, search } = {}, signal) {
   const items = [];
   let cursor;
   for (let page = 0; page < 10; page += 1) {
-    const result = await fetchAnomalies({ state, limit: 100, cursor }, signal);
+    const result = await fetchAnomalies({ state, sourceType, search, limit: 100, cursor }, signal);
     items.push(...result.items);
     cursor = result.nextCursor;
     if (!cursor) return { items, complete: true };
