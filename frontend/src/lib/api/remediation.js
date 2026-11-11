@@ -257,3 +257,26 @@ export async function updateRemediationAccount(accountId, changes) {
 export async function validateRemediationAccount(accountId) {
   return normalizeAccount(data(await client.post(`${BASE}/accounts/${enc(accountId)}/validate`, {}, { timeout: 60000 })));
 }
+
+/* ── Findings to fix (the remediation backlog) ─────────────────────────── */
+
+/**
+ * GET /remediation/findings: findings worst first, each with the guided plan
+ * it is at (null when none yet), plus `summary` for the page's cards.
+ * stage: '' | todo | in_progress | waiting_scan; status: OPEN | RESOLVED | ALL.
+ */
+export async function fetchFindingsToFix({ status, severity, q, stage } = {}, { page = 1, pageSize = 25 } = {}, signal) {
+  const params = { limit: pageSize, offset: (page - 1) * pageSize };
+  if (status) params.status = status;
+  if (severity) params.severity = severity;
+  if (q) params.q = q;
+  if (stage) params.stage = stage;
+  const b = body(await client.get(`${BASE}/findings`, { params, signal }));
+  return {
+    findings: arr(b.data),
+    summary: b.summary ?? null,
+    total: Number(b.pagination?.total_count) || 0,
+    page,
+    pageSize,
+  };
+}

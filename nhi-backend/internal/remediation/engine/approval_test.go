@@ -44,3 +44,13 @@ func TestFindingTargetARN(t *testing.T) {
 		}
 	}
 }
+
+func TestTargetVars(t *testing.T) {
+	v := targetVars(map[string]string{}, "arn:aws:iam::1:role/path/vendor-role")
+	if v["role_name"] != "vendor-role" || v["role_arn"] != "arn:aws:iam::1:role/path/vendor-role" {
+		t.Fatal(v)
+	}
+	if v := targetVars(map[string]string{"role_name": "kept"}, "arn:aws:iam::1:role/x"); v["role_name"] != "kept" {
+		t.Fatal("overwrote the provider's value")
+	}
+}

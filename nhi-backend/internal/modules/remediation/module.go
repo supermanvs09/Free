@@ -17,6 +17,7 @@ import (
 	"nhi-backend-api/internal/modules/remediation/executeplan"
 	"nhi-backend-api/internal/modules/remediation/executioncredential"
 	"nhi-backend-api/internal/modules/remediation/findingfix"
+	"nhi-backend-api/internal/modules/remediation/findinglist"
 	"nhi-backend-api/internal/modules/remediation/findingplans"
 	"nhi-backend-api/internal/modules/remediation/getaccount"
 	"nhi-backend-api/internal/modules/remediation/getbatch"
@@ -45,6 +46,7 @@ type Handlers struct {
 	ListPlans       *listplans.ListPlansHandler
 	GetPlan         *getplan.GetPlanHandler
 	FindingPlans    *findingplans.FindingPlansHandler
+	FindingList     *findinglist.Handler
 	FindingFix      *findingfix.FindingFixHandler
 	SubmitPlan      *submitplan.SubmitPlanHandler
 	ApprovePlan     *approveplan.ApprovePlanHandler
@@ -82,6 +84,7 @@ func NewHandlers(core *engine.Service) *Handlers {
 		CreatePlan:      createplan.NewCreatePlanHandler(createplan.NewCreatePlanService(createplan.NewCreatePlanRepository(core))),
 		ListPlans:       listplans.NewListPlansHandler(listplans.NewListPlansService(listplans.NewListPlansRepository(core))),
 		GetPlan:         getplan.NewGetPlanHandler(getplan.NewGetPlanService(getplan.NewGetPlanRepository(core))),
+		FindingList:     findinglist.NewHandler(core),
 		FindingPlans:    findingplans.NewFindingPlansHandler(findingplans.NewFindingPlansService(findingplans.NewFindingPlansRepository(core))),
 		FindingFix:      findingfix.NewFindingFixHandler(findingfix.NewFindingFixService(findingfix.NewFindingFixRepository(core))),
 		SubmitPlan:      submitplan.NewSubmitPlanHandler(submitplan.NewSubmitPlanService(submitplan.NewSubmitPlanRepository(core))),

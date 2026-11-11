@@ -1,30 +1,20 @@
-import { useCallback, useState } from 'react';
-import { FixDrawer } from './FixDrawer';
-import { PlanDrawer } from './PlanDrawer';
+import { useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 /**
  * The fix flow for any screen that lists findings: `openFix(finding)` opens
- * "Fix this finding"; a plan made or picked there replaces it with the plan
- * drawer. Render `element` once in the screen.
+ * the finding's fix page (steps, then Start guided fix); `openPlan(id)` opens
+ * a plan. `element` is kept for callers that render it; it is empty.
  */
-export function useFixFlow({ onChanged } = {}) {
-  const [finding, setFinding] = useState(null);
-  const [plan, setPlan] = useState(null); // { id, followFrom }
-
-  const openFix = useCallback((f) => {
-    setPlan(null);
-    setFinding(f);
-  }, []);
-  const openPlan = useCallback((id, follow = false) => {
-    setFinding(null);
-    setPlan({ id, followFrom: follow ? Date.now() : 0 });
-  }, []);
-
-  const element = (
-    <>
-      <FixDrawer finding={finding} onClose={() => setFinding(null)} onOpenPlan={openPlan} />
-      <PlanDrawer planId={plan?.id ?? null} followFrom={plan?.followFrom ?? 0} onClose={() => setPlan(null)} onChanged={onChanged} />
-    </>
+export function useFixFlow() {
+  const navigate = useNavigate();
+  const openFix = useCallback(
+    (f) => {
+      const id = f?.finding_id ?? f?.findingId ?? f?.id;
+      if (id) navigate(`/remediation/findings/${encodeURIComponent(id)}`);
+    },
+    [navigate],
   );
-  return { openFix, openPlan, element };
+  const openPlan = useCallback((id) => navigate(`/remediation/plans/${encodeURIComponent(id)}`), [navigate]);
+  return { openFix, openPlan, element: null };
 }

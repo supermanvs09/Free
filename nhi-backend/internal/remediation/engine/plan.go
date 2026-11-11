@@ -138,6 +138,29 @@ func stringVars(vars map[string]string, params map[string]any) map[string]string
 	return out
 }
 
+// targetVars fills role_name / role_arn / user_name from the plan's target when
+// the provider did not (a plan made from scanner data only, with no live read):
+// without them the steps read "<role_name>" although the role is known.
+func targetVars(v map[string]string, target string) map[string]string {
+	for _, kind := range []struct{ marker, name, arn string }{{":role/", "role_name", "role_arn"}, {":user/", "user_name", "user_arn"}} {
+		i := strings.Index(target, kind.marker)
+		if i < 0 {
+			continue
+		}
+		name := target[i+len(kind.marker):]
+		if j := strings.LastIndex(name, "/"); j >= 0 {
+			name = name[j+1:]
+		}
+		if v[kind.name] == "" && name != "" {
+			v[kind.name] = name
+		}
+		if v[kind.arn] == "" {
+			v[kind.arn] = target
+		}
+	}
+	return v
+}
+
 func mustJSON(v any, empty string) json.RawMessage {
 	if v == nil {
 		return json.RawMessage(empty)
@@ -423,7 +446,7 @@ func (s *Service) createPlan(ctx context.Context, st *store.Store, actor domain.
 	if manual {
 		plan.Steps = mustJSON(catalog.GuideSteps(guide, first), "[]")
 	} else {
-		plan.Steps = mustJSON(catalog.RenderSteps(act.StepsTemplate, stringVars(vars, params)), "[]")
+		plan.Steps = mustJSON(catalog.RenderSteps(act.StepsTemplate, targetVars(stringVars(vars, params), plan.TargetARN)), "[]")
 	}
 	plan.Prechecks = mustJSON(prechecks, "[]")
 

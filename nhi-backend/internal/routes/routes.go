@@ -339,6 +339,9 @@ func registerRemediation(router *mux.Router, h *remediation.Handlers) {
 	if h.GetPlan != nil {
 		route(get, "/plans/{id}", h.GetPlan.Get)
 	}
+	if h.FindingList != nil {
+		route(get, "/findings", h.FindingList.List)
+	}
 	if h.FindingPlans != nil {
 		route(get, "/findings/{finding_id}", h.FindingPlans.Get)
 	}

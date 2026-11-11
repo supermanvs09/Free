@@ -1,845 +1,375 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { CheckCircle2, Inbox, Info, ListChecks, RefreshCw, SearchX, Settings2, ShieldCheck, Wand2, XCircle } from 'lucide-react';
-import { useAuth } from '../../app/AuthContext';
-import { useAccess } from '../../app/useAccess';
-import { useWorkspace } from '../../app/WorkspaceContext';
-import {
-  approvePlan,
-  fetchAccountSetup,
-  fetchActions,
-  fetchPlans,
-  fetchRemediationAccounts,
-  oneClickProblem,
-  rejectPlan,
-  updateRemediationAccount,
-  validateRemediationAccount,
-} from '../../lib/api/remediation';
-import { useQuery } from '../../lib/hooks';
-import { formatDateTime, formatNumber, formatRelative } from '../../lib/format';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowRight, CheckCircle2, ChevronRight, Clock3, Hand, ListTodo, SearchX, ShieldCheck } from 'lucide-react';
+import { fetchActions, fetchFindingsToFix, fetchPlans } from '../../lib/api/remediation';
+import { useDebouncedValue, useQuery } from '../../lib/hooks';
+import { formatNumber, formatRelative } from '../../lib/format';
+import { severityMeta } from '../../lib/domain';
 import { PageHeader } from '../../shell/PageHeader';
 import { Button } from '../../ui/Button';
-import { CopyableValue } from '../../ui/Copyable';
 import { DataGrid } from '../../ui/DataGrid';
-import { Field, Input, Select, Textarea } from '../../ui/Field';
-import { Modal } from '../../ui/Overlay';
+import { SearchInput, Select } from '../../ui/Field';
 import { Pagination } from '../../ui/Pagination';
 import { Panel } from '../../ui/Panel';
-import { MetricTile } from '../../ui/Stat';
-import { EmptyState, ErrorState, InlineError } from '../../ui/States';
+import { StatStripSkeleton } from '../../ui/Skeleton';
+import { EmptyState, ErrorState } from '../../ui/States';
 import { SegmentedControl, Tabs } from '../../ui/Tabs';
-import { Tag } from '../../ui/Tag';
-import { useToast } from '../../ui/Toast';
+import { RefreshButton, TableToolbar } from '../../ui/TableTools';
 import { RecordBar, ResultCount } from '../../ui/WorkArea';
-import { MODE_LABEL, ONE_CLICK_ENABLED, STATUS_FILTERS, fixName, isCreator, riskMeta, statusMeta, targetLabel } from './meta';
-import { PlanDrawer } from './PlanDrawer';
+import { TONE_BG, cn } from '../../ui/cn';
+import { fixName, targetLabel } from './meta';
+import { PlanStatusTag, SeverityTag } from './parts';
 
-const INBOX_POLL_MS = 45000;
+const SEVERITIES = ['Critical', 'High', 'Medium', 'Low'];
+
+/* Where a finding is in the guided journey. */
+const STAGES = [
+  { key: 'todo', label: 'To fix', icon: ListTodo, hint: 'Open findings with no plan yet' },
+  { key: 'in_progress', label: 'In progress', icon: Hand, hint: 'Guided plans with steps still to apply' },
+  { key: 'waiting_scan', label: 'Waiting for the scan', icon: Clock3, hint: 'Marked done; the next scan confirms it' },
+  { key: 'fixed', label: 'Fixed · 30 days', icon: ShieldCheck, hint: 'Confirmed fixed by a scan' },
+];
+
+function stageOf(finding) {
+  if (finding.status === 'RESOLVED') return 'fixed';
+  if (!finding.plan) return 'todo';
+  return finding.plan.status === 'MANUALLY_DONE' ? 'waiting_scan' : 'in_progress';
+}
 
 /**
- * Remediation: what is waiting for an approver, every plan of the workspace,
- * and where One-click is set up per AWS account. Plans are made from a
- * finding (Posture › an identity › Findings › Fix this finding); this page is
- * where they are followed and decided. `?plan=<id>` opens one, e.g. from the
- * approval e-mail.
+ * The guided journey as the page's cards: to fix → in progress → waiting for
+ * the scan → fixed. Each stage is a count of findings (not plans), and opens
+ * the list on that stage.
  */
-export default function RemediationPage() {
-  const { can } = useAccess();
-  const [params, setParams] = useSearchParams();
-  /* Guided only (ONE_CLICK_ENABLED off): one list of plans, no approval inbox
-     and no One-click setup. */
-  const tab = !ONE_CLICK_ENABLED ? 'plans' : ['inbox', 'plans', 'setup'].includes(params.get('tab')) ? params.get('tab') : 'inbox';
-  const planParam = params.get('plan');
-  const [follow, setFollow] = useState(0);
-  const [revision, setRevision] = useState(0);
-
-  const setParam = (key, value) => {
-    const next = new URLSearchParams(params);
-    if (value) next.set(key, value);
-    else next.delete(key);
-    setParams(next, { replace: key === 'plan' ? false : true });
-  };
-
-  /* The inbox count is shown on its tab from any tab, and kept fresh. */
-  const inbox = useQuery(
-    (signal) => (ONE_CLICK_ENABLED ? fetchPlans({ status: 'PENDING_APPROVAL' }, { page: 1, pageSize: 50 }, signal) : Promise.resolve({ plans: [] })),
-    [revision],
-  );
-  const refetchInbox = inbox.refetch;
-  useEffect(() => {
-    if (!ONE_CLICK_ENABLED) return undefined;
-    const id = setInterval(() => document.visibilityState === 'visible' && refetchInbox(), INBOX_POLL_MS);
-    return () => clearInterval(id);
-  }, [refetchInbox]);
-  const waiting = inbox.data?.plans.length;
-  /* The at-a-glance figures: one read of the newest 200 plans, counted by
-     where each plan stands. */
-  const recent = useQuery((signal) => fetchPlans(ONE_CLICK_ENABLED ? {} : { mode: 'GUIDED' }, { page: 1, pageSize: 200 }, signal), [revision]);
-
+function Journey({ summary, active, onPick }) {
+  if (!summary) return <StatStripSkeleton count={4} />;
+  const value = { todo: summary.to_do, in_progress: summary.in_progress, waiting_scan: summary.waiting_scan, fixed: summary.fixed_30d };
+  const sev = summary.by_severity ?? {};
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Remediation"
-        lede={
-          ONE_CLICK_ENABLED
-            ? 'Fix what Posture found. A Guided plan gives you the exact steps to apply by hand; a One-click plan is applied in AWS by the console once any approval it needs is given, and can be rolled back.'
-            : 'Fix what Posture found. Each plan gives you the exact steps to apply in AWS; mark it done when you have, and the next scan confirms the finding is gone. Nothing is changed in AWS from here.'
-        }
-        tabs={
-          ONE_CLICK_ENABLED && <Tabs
-            size="sm"
-            tabs={[
-              { value: 'inbox', label: 'Waiting for approval', count: waiting || undefined },
-              { value: 'plans', label: 'All plans' },
-              { value: 'setup', label: 'One-click setup' },
-            ]}
-            value={tab}
-            onChange={(value) => setParam('tab', value === 'inbox' ? null : value)}
-          />
-        }
-      />
-
-      <AtAGlance query={recent} waiting={waiting} guided={!ONE_CLICK_ENABLED} onOpenTab={(value) => setParam('tab', value === 'inbox' ? null : value)} />
-
-      {tab === 'inbox' && <InboxTab query={inbox} onOpen={(id) => setParam('plan', id)} onChanged={() => setRevision((n) => n + 1)} />}
-      {tab === 'plans' && <PlansTab revision={revision} onOpen={(id) => setParam('plan', id)} />}
-      {tab === 'setup' && <SetupTab canEdit={can('remediation.settings')} />}
-
-      <PlanDrawer
-        planId={planParam}
-        followFrom={follow}
-        onClose={() => {
-          setFollow(0);
-          setParam('plan', null);
-        }}
-        onChanged={() => setRevision((n) => n + 1)}
-      />
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {STAGES.map((stage, i) => {
+        const on = active === stage.key;
+        return (
+          <button
+            key={stage.key}
+            type="button"
+            onClick={() => onPick(on ? '' : stage.key)}
+            aria-pressed={on}
+            className={cn(
+              'group relative flex flex-col rounded-[var(--radius-panel)] border bg-surface p-4 text-left transition-[border-color,box-shadow] sm:p-5',
+              on ? 'border-brand shadow-[0_0_0_3px_color-mix(in_oklab,var(--t-brand)_14%,transparent)]' : 'border-line hover:border-line-strong',
+            )}
+          >
+            <span className="flex items-center gap-2 text-[12.5px] font-medium text-ink-3">
+              <span className={cn('grid size-7 place-items-center rounded-full', stage.key === 'fixed' ? 'bg-low-soft text-low' : stage.key === 'todo' ? 'bg-high-soft text-high' : 'bg-info-soft text-brand')}>
+                <stage.icon aria-hidden="true" className="size-3.5" />
+              </span>
+              <span className="font-semibold tracking-[0.04em] uppercase">{stage.label}</span>
+              {i < STAGES.length - 1 && <ChevronRight aria-hidden="true" className="ml-auto hidden size-4 text-ink-3/60 xl:block" />}
+            </span>
+            <span data-numeric="" className="mt-3 font-display text-[30px] leading-none font-bold text-ink">
+              {formatNumber(value[stage.key] ?? 0)}
+            </span>
+            <span className="mt-2 text-[12px] text-ink-3">{stage.hint}</span>
+            {stage.key === 'todo' && summary.open > 0 && (
+              <span className="mt-3 flex flex-col gap-1.5">
+                <span className="flex h-1.5 overflow-hidden rounded-full bg-track">
+                  {SEVERITIES.map((s) =>
+                    sev[s] ? <span key={s} className={TONE_BG[severityMeta(s).tone]} style={{ width: `${(sev[s] / summary.open) * 100}%` }} /> : null,
+                  )}
+                </span>
+                <span className="text-[11.5px] text-ink-3">
+                  {SEVERITIES.filter((s) => sev[s]).map((s, j) => (
+                    <span key={s}>
+                      {j > 0 && ' · '}
+                      <b className="font-semibold text-ink-2">{sev[s]}</b> {s.toLowerCase()}
+                    </span>
+                  ))}{' '}
+                  open in all
+                </span>
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-/* ── At a glance ───────────────────────────────────────────────────────── */
+function FindingsTab({ params, set, summaryQuery }) {
+  const navigate = useNavigate();
+  const stage = params.get('stage') || '';
+  const severity = params.get('severity') || '';
+  const page = Math.max(1, Number(params.get('page')) || 1);
+  const pageSize = 25;
+  const [draft, setDraft] = useState(params.get('q') || '');
+  const q = useDebouncedValue(draft.trim(), 250);
+  useEffect(() => {
+    if ((params.get('q') || '') !== q) set({ q, page: '' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q]);
 
-const DONE = new Set(['EXECUTED', 'VERIFIED', 'RESOLVED', 'MANUALLY_DONE']);
-const MOVING = new Set(['APPROVED', 'SCHEDULED', 'EXECUTING']);
-const TO_DO = new Set(['READY', 'DRAFT', 'WAITING_EXTERNAL']);
-const BROKE = new Set(['FAILED', 'ROLLED_BACK']);
-const MONTH_MS = 30 * 86400000;
-
-const GUIDED_STEPS = [
-  { icon: SearchX, title: 'Pick a finding', text: 'Posture › an identity › Findings › Fix this finding.' },
-  { icon: ListChecks, title: 'Track the fix', text: 'The plan lists the exact steps for this finding, in order.' },
-  { icon: ShieldCheck, title: 'Apply it in AWS', text: 'Follow the steps in your AWS console, then mark the plan done.' },
-  { icon: CheckCircle2, title: 'Verified by the scan', text: 'The next discovery scan confirms the finding is gone.' },
-];
-
-const STEPS = [
-  { icon: SearchX, title: 'Pick a finding', text: 'Posture › an identity › Findings › Fix this finding.' },
-  { icon: ListChecks, title: 'Choose how to fix it', text: 'Guided gives exact steps; One-click lets the console apply it.' },
-  { icon: ShieldCheck, title: 'Approve if needed', text: 'Risky fixes and Critical findings wait for an operator or admin.' },
-  { icon: CheckCircle2, title: 'Applied and verified', text: 'The next scan confirms the finding is gone. One-click can be rolled back.' },
-];
-
-/**
- * Where the workspace's fixes stand, and how a fix gets made, in one strip:
- * a new user learns the flow here, a returning one sees what needs them.
- */
-function AtAGlance({ query, waiting, guided, onOpenTab }) {
-  const plans = query.data?.plans ?? [];
-  const now = query.data ? Date.parse(query.data.readAt ?? '') || 0 : 0;
-  const count = (set, recentOnly) =>
-    plans.filter((p) => set.has(p.status) && (!recentOnly || !now || (Date.parse(p.updatedAt || p.createdAt) || 0) >= now - MONTH_MS)).length;
-  const tiles = guided
-    ? [
-        { key: 'todo', label: 'To do', value: query.data ? count(TO_DO) : null, tone: 'medium', caption: 'Plans with steps still to apply, or blocked by a pre-check', tab: 'plans' },
-        { key: 'manual', label: 'Done, waiting for the scan', value: query.data ? count(new Set(['MANUALLY_DONE'])) : null, tone: 'info', caption: 'Marked done; the next scan confirms the fix', tab: 'plans' },
-        { key: 'done', label: 'Fixed · 30 days', value: query.data ? count(new Set(['RESOLVED', 'VERIFIED']), true) : null, tone: 'low', caption: 'Confirmed fixed by a scan', tab: 'plans' },
-        { key: 'all', label: 'All plans', value: query.data ? (query.data.exact ? query.data.total : plans.length) : null, tone: 'brand', caption: 'Every guided plan in this workspace', tab: 'plans' },
-      ]
-    : [
-    { key: 'waiting', label: 'Waiting for approval', value: waiting ?? null, tone: 'brand', caption: 'An operator or admin decides; the plan expires after 72 hours', tab: 'inbox' },
-    { key: 'todo', label: 'To do by hand', value: query.data ? count(TO_DO) : null, tone: 'medium', caption: 'Guided plans ready, blocked by a pre-check, or waiting for a vendor', tab: 'plans' },
-    { key: 'moving', label: 'Running now', value: query.data ? count(MOVING) : null, tone: 'info', caption: 'Approved One-click plans being applied in AWS', tab: 'plans' },
-    { key: 'done', label: 'Fixed · 30 days', value: query.data ? count(DONE, true) : null, tone: 'low', caption: query.data && count(BROKE) > 0 ? `${count(BROKE)} failed or rolled back` : 'Applied, done by hand or verified by the scan', tab: 'plans' },
-  ];
-  return (
-    <>
-      <div className="grid gap-3 @min-[30rem]:grid-cols-2 @min-[54rem]:grid-cols-4">
-        {tiles.map((tile, index) => (
-          <div key={tile.key} className="animate-rise" data-stagger="" style={{ '--stagger': index }}>
-            <MetricTile as="button" type="button" onClick={() => onOpenTab(tile.tab)} label={tile.label} value={tile.value} tone={tile.tone} caption={tile.caption} />
-          </div>
-        ))}
-      </div>
-      {query.data && plans.length === 0 && (
-        <Panel prominence="quiet" className="animate-rise">
-          <p className="text-[13px] font-semibold text-ink">How a fix is made</p>
-          <ol className="mt-3 grid gap-3 @min-[48rem]:grid-cols-4">
-            {(guided ? GUIDED_STEPS : STEPS).map((step, index) => (
-              <li key={step.title} className="flex gap-3 rounded-[var(--radius-control)] border border-line bg-surface-2 p-3">
-                <span className="grid size-7 shrink-0 place-items-center rounded-full bg-info-soft text-[12px] font-semibold text-brand">{index + 1}</span>
-                <span className="min-w-0">
-                  <span className="block text-[12.5px] font-semibold text-ink">{step.title}</span>
-                  <span className="mt-0.5 block text-[12px] leading-relaxed text-ink-3">{step.text}</span>
-                </span>
-              </li>
-            ))}
-          </ol>
-        </Panel>
-      )}
-    </>
-  );
-}
-
-/* ── Inbox ─────────────────────────────────────────────────────────────── */
-
-function InboxTab({ query, onOpen, onChanged }) {
-  const { can } = useAccess();
-  const { user } = useAuth();
-  const catalog = useQuery((signal) => fetchActions(signal), []);
-  const [decide, setDecide] = useState(null); // { plan, approve }
-  const plans = query.data?.plans ?? [];
-  const approver = can('remediation.approve');
-
-  const columns = [
-    {
-      key: 'fix',
-      header: 'Fix',
-      width: '34%',
-      primary: true,
-      cell: (p) => (
-        <span className="block min-w-0">
-          <span className="block truncate text-[13px] font-medium text-ink">{fixName(p.actionType, catalog.data)}</span>
-          <span className="cell-meta block truncate font-mono text-[11px] text-ink-3" title={p.targetArn}>
-            {targetLabel(p.targetArn)}
-          </span>
-        </span>
-      ),
-    },
-    { key: 'account', header: 'Account', width: '14%', cell: (p) => <span className="font-mono text-[12px] text-ink-2">{p.accountId || '-'}</span> },
-    {
-      key: 'risk',
-      header: 'Risk',
-      width: '12%',
-      cell: (p) => (
-        <Tag size="sm" tone={riskMeta(p.riskLevel).tone}>
-          {riskMeta(p.riskLevel).label.replace(' risk', '')}
-        </Tag>
-      ),
-    },
-    {
-      key: 'by',
-      header: 'Made by',
-      width: '18%',
-      cell: (p) => (
-        <span className="block min-w-0">
-          <span className="block truncate text-[12.5px] text-ink-2">{p.byEngine ? 'Rule engine' : p.createdBy || '-'}</span>
-          <span className="cell-meta block text-[11px] text-ink-3" title={formatDateTime(p.createdAt)}>
-            {formatRelative(p.createdAt)}
-          </span>
-        </span>
-      ),
-    },
-    {
-      key: 'decide',
-      header: <span className="sr-only">Decide</span>,
-      width: '22%',
-      cell: (p) =>
-        approver && !isCreator(p, user) ? (
-          <span className="flex justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-            <Button size="sm" variant="ghost" icon={XCircle} onClick={() => setDecide({ plan: p, approve: false })}>
-              Reject
-            </Button>
-            <Button size="sm" variant="primary" icon={CheckCircle2} onClick={() => setDecide({ plan: p, approve: true })}>
-              Approve
-            </Button>
-          </span>
-        ) : (
-          <span className="block text-right text-[11.5px] text-ink-3">{approver ? 'Yours - someone else approves' : 'An approver decides'}</span>
-        ),
-    },
-  ];
-
-  return (
-    <>
-      {!approver && (
-        <p className="-mt-2 flex items-start gap-2 rounded-[var(--radius-control)] border border-line bg-surface px-3.5 py-2.5 text-[12.5px] text-ink-2">
-          <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-ink-3" />
-          These One-click plans wait for an operator or admin to approve them. You can open each to see what it would change.
-        </p>
-      )}
-      <Panel prominence="lead" flush className="overflow-hidden">
-        <RecordBar
-          trailing={
-            <Button variant="secondary" size="sm" icon={RefreshCw} onClick={query.refetch} loading={query.isRefreshing}>
-              Refresh
-            </Button>
-          }
-        >
-          <ResultCount shown={formatNumber(plans.length)} total={formatNumber(plans.length)} unit={plans.length === 1 ? 'plan waiting' : 'plans waiting'} loading={!query.data && query.isLoading} />
-          <span className="text-[12px] text-ink-3">Checked every 45 seconds · a plan nobody approves expires after 72 hours.</span>
-        </RecordBar>
-        {query.isError && !query.data ? (
-          <ErrorState error={query.error} onRetry={query.refetch} title="The plans waiting for approval could not be read" />
-        ) : (
-          <DataGrid
-            caption="Plans waiting for approval"
-            columns={columns}
-            rows={plans}
-            rowKey={(p) => p.id}
-            loading={!query.data && query.isLoading}
-            refreshing={query.isRefreshing}
-            onRowClick={(p) => onOpen(p.id)}
-            emptyState={<EmptyState compact icon={Inbox} title="Nothing is waiting" description="One-click plans that need an approver appear here, and the approvers are e-mailed." />}
-          />
-        )}
-      </Panel>
-      <DecideModal
-        state={decide}
-        onClose={() => setDecide(null)}
-        onDone={() => {
-          setDecide(null);
-          onChanged();
-        }}
-        catalog={catalog.data}
-      />
-    </>
-  );
-}
-
-function DecideModal({ state, onClose, onDone, catalog }) {
-  const { notify } = useToast();
-  const [comment, setComment] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const plan = state?.plan;
-  const approve = state?.approve;
-  const close = () => {
-    if (busy) return;
-    setComment('');
-    setError('');
-    onClose();
-  };
-  const go = async () => {
-    if (!approve && !comment.trim()) {
-      setError('Say why, so the person who made it knows what to change.');
-      return;
-    }
-    setBusy(true);
-    setError('');
-    try {
-      await (approve ? approvePlan(plan.id, comment.trim()) : rejectPlan(plan.id, comment.trim()));
-      notify(
-        approve
-          ? { variant: 'success', title: 'Approved', description: plan.byEngine ? 'The rule engine runs it within about 5 minutes.' : 'It runs in AWS now.' }
-          : { variant: 'success', title: 'Rejected', description: 'Nothing was changed.' },
-      );
-      setComment('');
-      onDone();
-    } catch (err) {
-      setError(err?.message || 'That did not work.');
-      if (err?.status === 409) onDone();
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <Modal
-      open={Boolean(state)}
-      onClose={close}
-      icon={approve ? ShieldCheck : XCircle}
-      tone={approve ? 'brand' : 'critical'}
-      title={approve ? 'Approve and run' : 'Reject this plan'}
-      description={approve ? 'This will change AWS: the fix runs straight after your approval.' : 'Nothing is changed. The person who made the plan sees your reason.'}
-      footer={
-        <>
-          <Button variant="ghost" onClick={close} disabled={busy}>
-            Keep it
-          </Button>
-          <Button variant={approve ? 'primary' : 'danger'} loading={busy} onClick={go}>
-            {approve ? 'Approve and run' : 'Reject plan'}
-          </Button>
-        </>
-      }
-    >
-      {plan && (
-        <div className="flex flex-col gap-3">
-          <div className="rounded-[var(--radius-control)] border border-line bg-surface-2 px-3 py-2.5 text-[12.5px]">
-            <p className="font-medium text-ink">{fixName(plan.actionType, catalog)}</p>
-            <p className="font-mono text-[11.5px] break-all text-ink-3">{plan.targetArn}</p>
-            <p className="mt-1 text-ink-3">
-              {riskMeta(plan.riskLevel).label} · account <span className="font-mono">{plan.accountId}</span> · made by {plan.byEngine ? 'the rule engine' : plan.createdBy}
-            </p>
-          </div>
-          <Field label={approve ? 'Comment' : 'Reason'} htmlFor="decide-comment" hint={approve ? 'Optional.' : 'Required.'} error={error || undefined}>
-            <Textarea id="decide-comment" rows={3} maxLength={2000} value={comment} onChange={(e) => setComment(e.target.value)} invalid={Boolean(error)} />
-          </Field>
-        </div>
-      )}
-    </Modal>
-  );
-}
-
-/* Statuses only One-click plans reach. */
-const GUIDED_HIDDEN = new Set(['PENDING_APPROVAL', 'APPROVED', 'SCHEDULED', 'EXECUTING', 'EXECUTED', 'FAILED', 'REJECTED', 'ROLLED_BACK']);
-
-/* ── All plans ─────────────────────────────────────────────────────────── */
-
-function PlansTab({ revision, onOpen }) {
-  const { user } = useAuth();
-  const workspace = useWorkspace();
-  const catalog = useQuery((signal) => fetchActions(signal), []);
-  const [status, setStatus] = useState('');
-  const [mode, setMode] = useState('');
-  const [accountId, setAccountId] = useState('');
-  const [mine, setMine] = useState(false);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
   const query = useQuery(
-    (signal) => fetchPlans({ status, mode: ONE_CLICK_ENABLED ? mode : 'GUIDED', accountId }, { page, pageSize }, signal),
-    [status, mode, accountId, page, pageSize, revision],
+    (signal) =>
+      fetchFindingsToFix(
+        { status: stage === 'fixed' ? 'RESOLVED' : 'OPEN', stage: stage === 'fixed' ? '' : stage, severity, q },
+        { page, pageSize },
+        signal,
+      ),
+    [stage, severity, q, page],
   );
-  const accounts = (workspace.integration?.accounts ?? []).map((a) => a.accountId);
-  const reset = (setter) => (value) => {
-    setPage(1);
-    setter(value);
+  useEffect(() => {
+    if (query.data?.summary) summaryQuery.set(query.data.summary);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query.data]);
+
+  const open = (f) => {
+    const s = stageOf(f);
+    navigate(s === 'in_progress' || s === 'waiting_scan' ? `/remediation/plans/${encodeURIComponent(f.plan.plan_id)}` : `/remediation/findings/${encodeURIComponent(f.finding_id)}`);
   };
-  /* There is no "only mine" filter on the server: this one filters the page shown. */
-  const rows = useMemo(() => (query.data?.plans ?? []).filter((p) => !mine || isCreator(p, user)), [query.data, mine, user]);
-  const filtered = Boolean(status || mode || accountId || mine);
 
   const columns = [
     {
-      key: 'fix',
-      header: 'Fix',
-      width: '34%',
+      key: 'finding',
+      header: 'Finding',
       primary: true,
-      cell: (p) => (
-        <span className="block min-w-0">
-          <span className="block truncate text-[13px] font-medium text-ink">{fixName(p.actionType, catalog.data)}</span>
-          <span className="cell-meta block truncate font-mono text-[11px] text-ink-3" title={p.targetArn}>
-            {targetLabel(p.targetArn)} · {p.accountId}
-          </span>
-        </span>
-      ),
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      width: '24%',
-      cell: (p) => (
-        <span className="block min-w-0">
-          <Tag size="sm" tone={statusMeta(p.status).tone} dot>
-            {statusMeta(p.status).label}
-          </Tag>
-          {p.statusReason && (
-            <span className="cell-meta mt-0.5 block truncate text-[11px] text-ink-3" title={p.statusReason}>
-              {p.statusReason}
+      width: '46%',
+      cell: (f) => (
+        <span className="flex min-w-0 items-start gap-3">
+          <span aria-hidden="true" className={cn('mt-1 h-9 w-1 shrink-0 rounded-full', TONE_BG[severityMeta(f.severity).tone])} />
+          <span className="min-w-0">
+            <span className="block truncate text-[13.5px] font-semibold text-ink" title={f.title}>
+              {f.title || f.rule_name}
             </span>
-          )}
-        </span>
-      ),
-    },
-    {
-      key: 'mode',
-      header: 'Mode',
-      width: '12%',
-      cell: (p) => (
-        <span className="inline-flex items-center gap-1 text-[12.5px] text-ink-2">
-          {p.mode === 'ONE_CLICK' ? <Wand2 aria-hidden="true" className="size-3.5" /> : <ListChecks aria-hidden="true" className="size-3.5" />}
-          {MODE_LABEL[p.mode] ?? p.mode}
-        </span>
-      ),
-    },
-    {
-      key: 'by',
-      header: 'Made',
-      width: '18%',
-      cell: (p) => (
-        <span className="block min-w-0">
-          <span className="block truncate text-[12.5px] text-ink-2">{p.byEngine ? 'Rule engine' : p.createdBy || '-'}</span>
-          <span className="cell-meta block text-[11px] text-ink-3" title={formatDateTime(p.createdAt)}>
-            {formatRelative(p.createdAt)}
+            <span className="block truncate text-[12px] text-ink-3">
+              {f.identity_name} · {f.rule_id} {f.rule_name ? `· ${f.rule_name}` : ''}
+            </span>
           </span>
         </span>
       ),
     },
+    { key: 'severity', header: 'Severity', width: '12%', cell: (f) => <SeverityTag severity={f.severity} /> },
     {
-      key: 'risk',
-      header: 'Risk',
-      width: '12%',
-      priority: 'wide',
-      cell: (p) => (
-        <Tag size="sm" tone={riskMeta(p.riskLevel).tone}>
-          {riskMeta(p.riskLevel).label.replace(' risk', '')}
-        </Tag>
-      ),
+      key: 'stage',
+      header: 'Where it is',
+      width: '22%',
+      cell: (f) => {
+        const s = stageOf(f);
+        if (s === 'todo') return <span className="text-[12.5px] text-ink-3">No plan yet</span>;
+        if (s === 'fixed') return <span className="flex items-center gap-1 text-[12.5px] text-low"><CheckCircle2 aria-hidden="true" className="size-3.5" /> Fixed {formatRelative(f.resolved_at)}</span>;
+        return <PlanStatusTag status={f.plan.status} />;
+      },
     },
-  ].filter((column) => ONE_CLICK_ENABLED || column.key !== 'mode');
+    {
+      key: 'action',
+      header: '',
+      width: '20%',
+      cell: (f) => {
+        const s = stageOf(f);
+        return (
+          <span className="flex justify-end">
+            <Button size="sm" variant={s === 'todo' ? 'primary' : 'secondary'} iconRight={ArrowRight} onClick={(e) => (e.stopPropagation(), open(f))}>
+              {s === 'todo' ? 'Fix' : s === 'in_progress' ? 'Continue' : s === 'waiting_scan' ? 'View plan' : 'View'}
+            </Button>
+          </span>
+        );
+      },
+    },
+  ];
 
+  const filtered = Boolean(stage || severity || q);
   return (
-    <Panel prominence="lead" flush className="overflow-hidden" data-list-top="">
+    <Panel flush className="overflow-hidden">
       <RecordBar
         trailing={
-          <Button variant="secondary" size="sm" icon={RefreshCw} onClick={query.refetch} loading={query.isRefreshing}>
-            Refresh
-          </Button>
+          <TableToolbar>
+            <RefreshButton onRefresh={query.refetch} refreshing={query.isRefreshing} label="Refresh findings" />
+          </TableToolbar>
         }
       >
+        <SearchInput size="sm" value={draft} onChange={setDraft} placeholder="Search identity, rule or title…" className="w-full min-w-0 sm:w-72" aria-label="Search findings" />
         <Select
           size="sm"
-          aria-label="Status"
-          value={status}
-          onChange={(e) => reset(setStatus)(e.target.value)}
-          options={ONE_CLICK_ENABLED ? STATUS_FILTERS : STATUS_FILTERS.filter((f) => !GUIDED_HIDDEN.has(f.value))}
-          className="w-56"
+          aria-label="Severity"
+          className="w-40"
+          value={severity}
+          onChange={(e) => set({ severity: e.target.value, page: '' })}
+          placeholder="Any severity"
+          options={SEVERITIES.map((s) => ({ value: s, label: s }))}
         />
-        {ONE_CLICK_ENABLED && <SegmentedControl
-          label="Mode"
-          options={[
-            { value: '', label: 'Any mode' },
-            { value: 'GUIDED', label: 'Guided' },
-            { value: 'ONE_CLICK', label: 'One-click' },
-          ]}
-          value={mode}
-          onChange={reset(setMode)}
-        />}
-        {accounts.length > 1 && (
-          <Select
-            size="sm"
-            aria-label="AWS account"
-            value={accountId}
-            onChange={(e) => reset(setAccountId)(e.target.value)}
-            options={[{ value: '', label: 'Every account' }, ...accounts.map((a) => ({ value: a, label: a }))]}
-            className="w-44"
-          />
-        )}
-        <label className="inline-flex cursor-pointer items-center gap-2 text-[12.5px] text-ink-2">
-          <input type="checkbox" className="size-4 accent-[var(--t-brand)]" checked={mine} onChange={(e) => setMine(e.target.checked)} />
-          Made by me
-        </label>
-        <ResultCount
-          shown={formatNumber(rows.length)}
-          total={query.data?.exact ? formatNumber(query.data.total) : formatNumber(rows.length)}
-          unit={rows.length === 1 ? 'plan' : 'plans'}
-          paged
-          filtered={filtered}
-          loading={!query.data && query.isLoading}
-        />
+        <ResultCount shown={formatNumber(query.data?.findings.length ?? 0)} total={formatNumber(query.data?.total ?? 0)} unit="findings" filtered={filtered} loading={query.isLoading && !query.data} />
       </RecordBar>
       {query.isError && !query.data ? (
-        <ErrorState error={query.error} onRetry={query.refetch} title="The plans could not be read" />
+        <ErrorState error={query.error} onRetry={query.refetch} />
       ) : (
         <DataGrid
-          caption="Remediation plans"
+          caption="Findings to fix"
           columns={columns}
-          rows={rows}
-          rowKey={(p) => p.id}
-          loading={!query.data && query.isLoading}
+          rows={query.data?.findings ?? []}
+          rowKey={(f) => f.finding_id}
+          loading={query.isLoading && !query.data}
           refreshing={query.isRefreshing}
-          onRowClick={(p) => onOpen(p.id)}
+          onRowClick={open}
           emptyState={
             filtered ? (
               <EmptyState
-                compact
                 icon={SearchX}
-                title="No plan matches"
-                description="Try another status, mode or account."
+                title="No finding matches"
                 action={
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => {
-                      setStatus('');
-                      setMode('');
-                      setAccountId('');
-                      setMine(false);
-                      setPage(1);
-                    }}
-                  >
+                  <Button size="sm" variant="secondary" onClick={() => (setDraft(''), set({ stage: '', severity: '', q: '', page: '' }))}>
                     Clear filters
                   </Button>
                 }
               />
             ) : (
-              <EmptyState
-                compact
-                icon={ListChecks}
-                title="No plans yet"
-                description="Open a finding (Posture › an identity › Findings) and choose Fix this finding to make the first plan."
-              />
+              <EmptyState icon={ShieldCheck} tone="positive" title="Nothing to fix" description="No open finding right now. New ones appear after each posture scan." />
             )
           }
         />
       )}
-      {query.data && (
-        <Pagination
-          page={page}
-          pageSize={pageSize}
-          total={query.data.total}
-          unit="plans"
-          onPageChange={setPage}
-          onPageSizeChange={(size) => {
-            setPageSize(size);
-            setPage(1);
-          }}
-        />
+      {(query.data?.total ?? 0) > pageSize && (
+        <Pagination page={page} pageSize={pageSize} total={query.data.total} unit="findings" pageSizes={[25]} onPageChange={(p) => set({ page: p === 1 ? '' : String(p) })} />
       )}
     </Panel>
   );
 }
 
-/* ── One-click setup ───────────────────────────────────────────────────── */
+const PLAN_TABS = [
+  { value: 'READY', label: 'To do' },
+  { value: 'DRAFT', label: 'Needs input' },
+  { value: 'MANUALLY_DONE', label: 'Waiting for the scan' },
+  { value: 'RESOLVED', label: 'Fixed' },
+  { value: '', label: 'All' },
+];
 
-const ACCESS = {
-  OK: { label: 'Role works', tone: 'low' },
-  CANNOT_ASSUME: { label: 'Role cannot be assumed', tone: 'critical' },
-  MISSING_PERMISSIONS: { label: 'Role lacks permissions', tone: 'critical' },
-  UNKNOWN: { label: 'Not checked yet', tone: 'neutral' },
-};
-
-function SetupTab({ canEdit }) {
-  const workspace = useWorkspace();
-  const settings = useQuery((signal) => fetchRemediationAccounts(signal), []);
-  const catalog = useQuery((signal) => fetchActions(signal), []);
-  const [editing, setEditing] = useState(null);
-  const connected = (workspace.integration?.accounts ?? []).filter((a) => a.connectedAt);
-  const byId = new Map((settings.data ?? []).map((a) => [a.accountId, a]));
-  const ids = [...new Set([...connected.map((a) => a.accountId), ...byId.keys()])];
-
-  if (settings.isError && !settings.data) return <ErrorState error={settings.error} onRetry={settings.refetch} title="The One-click settings could not be read" />;
-
+function PlansTab({ params, set }) {
+  const navigate = useNavigate();
+  const status = params.has('status') ? params.get('status') : 'READY';
+  const page = Math.max(1, Number(params.get('page')) || 1);
+  const pageSize = 20;
+  const catalog = useQuery(() => fetchActions().catch(() => []), []);
+  const query = useQuery((signal) => fetchPlans({ mode: 'GUIDED', status }, { page, pageSize }, signal), [status, page]);
+  const columns = [
+    { key: 'status', header: 'Status', width: '22%', cell: (p) => <PlanStatusTag status={p.status} /> },
+    {
+      key: 'fix',
+      header: 'Fix',
+      primary: true,
+      width: '30%',
+      cell: (p) => <span className="block truncate text-[13px] font-medium text-ink">{p.actionType === 'manual_fix' ? 'Manual fix' : fixName(p.actionType, catalog.data)}</span>,
+    },
+    {
+      key: 'target',
+      header: 'Target',
+      width: '20%',
+      cell: (p) => (
+        <span className="block min-w-0">
+          <span className="block truncate font-mono text-[12px] text-ink-2" title={p.targetArn}>{targetLabel(p.targetArn)}</span>
+          <span className="block text-[11.5px] text-ink-3">{p.accountId}</span>
+        </span>
+      ),
+    },
+    {
+      key: 'made',
+      header: 'Made',
+      width: '28%',
+      priority: 'wide',
+      cell: (p) => (
+        <span className="block min-w-0 text-[12.5px]">
+          <span className="block truncate text-ink-2">{p.createdBy || 'unknown'}</span>
+          <span className="block text-ink-3">{formatRelative(p.createdAt)}</span>
+        </span>
+      ),
+    },
+  ];
   return (
-    <>
-      <p className="-mt-2 flex items-start gap-2 rounded-[var(--radius-control)] border border-line bg-surface px-3.5 py-2.5 text-[12.5px] text-ink-2">
-        <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-brand" />
-        One-click needs a separate remediation role in each AWS account, with only the write permissions of the fixes you allow. Guided plans need nothing: they work in every account.
-        {!canEdit && ' An admin changes these settings.'}
-      </p>
-      {!settings.data ? (
-        <Panel>
-          <div className="h-24 animate-pulse rounded bg-surface-2" />
-        </Panel>
-      ) : ids.length === 0 ? (
-        <Panel>
-          <EmptyState compact icon={Settings2} title="No AWS account connected" description="Connect an account on the Integrations page first." />
-        </Panel>
+    <Panel flush className="overflow-hidden">
+      <RecordBar
+        trailing={
+          <TableToolbar>
+            <RefreshButton onRefresh={query.refetch} refreshing={query.isRefreshing} label="Refresh plans" />
+          </TableToolbar>
+        }
+      >
+        <SegmentedControl label="Plan status" options={PLAN_TABS} value={status} onChange={(v) => set({ status: v === 'READY' ? null : v, page: '' })} />
+        <ResultCount shown={formatNumber(query.data?.plans.length ?? 0)} total={formatNumber(query.data?.total ?? 0)} unit="plans" loading={query.isLoading && !query.data} />
+      </RecordBar>
+      {query.isError && !query.data ? (
+        <ErrorState error={query.error} onRetry={query.refetch} />
       ) : (
-        <div className="grid gap-3 @min-[64rem]:grid-cols-2">
-          {ids.map((id) => {
-            const a = byId.get(id) ?? null;
-            const problem = oneClickProblem(a);
-            const access = ACCESS[a?.accessStatus] ?? ACCESS.UNKNOWN;
-            return (
-              <Panel key={id}>
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <p className="font-mono text-[14px] font-semibold text-ink">{id}</p>
-                    <p className="mt-0.5 text-[12.5px] text-ink-3">{problem || 'One-click is ready in this account.'}</p>
-                  </div>
-                  <Tag tone={problem ? 'neutral' : 'low'} size="sm" dot>
-                    {a?.enabled ? 'One-click on' : 'One-click off'}
-                  </Tag>
-                </div>
-                {a && (
-                  <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[12.5px]">
-                    <dt className="text-ink-3">Role</dt>
-                    <dd className="min-w-0 font-mono text-[11.5px] break-all text-ink-2">{a.roleArn || '-'}</dd>
-                    <dt className="text-ink-3">Access</dt>
-                    <dd>
-                      <Tag size="sm" tone={access.tone}>
-                        {access.label}
-                      </Tag>
-                      {a.accessDetail && <span className="ml-2 text-ink-3">{a.accessDetail}</span>}
-                    </dd>
-                    <dt className="text-ink-3">Fixes allowed</dt>
-                    <dd className="text-ink-2">
-                      {a.allowedActionTypes.length ? a.allowedActionTypes.map((t) => fixName(t, catalog.data)).join(', ') : 'Every supported fix'}
-                    </dd>
-                    <dt className="text-ink-3">Regions</dt>
-                    <dd className="font-mono text-[11.5px] text-ink-2">{a.enabledRegions.length ? a.enabledRegions.join(', ') : 'All of the account’s regions'}</dd>
-                    <dt className="text-ink-3">Automatic</dt>
-                    <dd className="text-ink-2">{a.autoEnabled ? 'The rule engine may make plans by itself' : 'Off'}</dd>
-                  </dl>
-                )}
-                {canEdit && (
-                  <div className="mt-3 flex gap-2 border-t border-line pt-3">
-                    <Button size="sm" variant={a?.enabled ? 'secondary' : 'primary'} icon={Settings2} onClick={() => setEditing({ id, account: a })}>
-                      {a ? 'Edit' : 'Set up One-click'}
-                    </Button>
-                    {a?.roleArn && <ValidateButton accountId={id} onDone={settings.refetch} />}
-                  </div>
-                )}
-              </Panel>
-            );
-          })}
-        </div>
-      )}
-      {editing && (
-        <AccountModal
-          accountId={editing.id}
-          account={editing.account}
-          regions={(workspace.integration?.accounts ?? []).find((a) => a.accountId === editing.id)?.regions ?? []}
-          catalog={(catalog.data ?? []).filter((c) => c.one_click_supported && c.enabled !== false)}
-          onClose={() => setEditing(null)}
-          onSaved={() => {
-            setEditing(null);
-            settings.refetch();
-          }}
+        <DataGrid
+          caption="Guided plans"
+          columns={columns}
+          rows={query.data?.plans ?? []}
+          rowKey={(p) => p.id}
+          loading={query.isLoading && !query.data}
+          refreshing={query.isRefreshing}
+          onRowClick={(p) => navigate(`/remediation/plans/${encodeURIComponent(p.id)}`)}
+          emptyState={<EmptyState icon={ListTodo} title="No plan here" description="A plan is made when someone starts a guided fix from a finding. These numbers count plans, not findings." />}
         />
       )}
-    </>
+      {(query.data?.total ?? 0) > pageSize && (
+        <Pagination page={page} pageSize={pageSize} total={query.data.total} unit="plans" pageSizes={[20]} onPageChange={(p) => set({ page: p === 1 ? '' : String(p) })} />
+      )}
+    </Panel>
   );
 }
 
-function ValidateButton({ accountId, onDone }) {
-  const { notify } = useToast();
-  const [busy, setBusy] = useState(false);
+export default function RemediationPage() {
+  const [params, setParams] = useSearchParams();
+  const tab = params.get('tab') === 'plans' ? 'plans' : 'findings';
+  const set = (patch) => {
+    const next = new URLSearchParams(params);
+    for (const [k, v] of Object.entries(patch)) {
+      if (v === null || v === '' || v === undefined) next.delete(k);
+      else next.set(k, v);
+    }
+    setParams(next, { replace: true });
+  };
+  /* The summary arrives with every findings page; kept here for the cards. */
+  const [summary, setSummary] = useState(null);
+  const firstSummary = useQuery((signal) => fetchFindingsToFix({}, { page: 1, pageSize: 1 }, signal), []);
+  const shown = summary ?? firstSummary.data?.summary ?? null;
+  const summaryQuery = useMemo(() => ({ set: setSummary }), []);
+
+  /* Older links opened a plan with ?plan=<id>. */
+  const legacyPlan = params.get('plan');
+  if (legacyPlan) return <Navigate to={`/remediation/plans/${encodeURIComponent(legacyPlan)}`} replace />;
+
   return (
-    <Button
-      size="sm"
-      variant="ghost"
-      icon={ShieldCheck}
-      loading={busy}
-      onClick={async () => {
-        setBusy(true);
-        try {
-          const a = await validateRemediationAccount(accountId);
-          notify(
-            a.accessStatus === 'OK'
-              ? { variant: 'success', title: 'The role works', description: a.accessDetail }
-              : { variant: 'error', title: 'The role does not work yet', description: a.accessDetail || a.accessStatus },
-          );
-          onDone();
-        } catch (error) {
-          notify({ variant: 'error', title: 'Could not check the role', description: error?.message });
-        } finally {
-          setBusy(false);
+    <div className="flex flex-col gap-5">
+      <PageHeader
+        title="Remediation"
+        lede="Fix what Posture found, by hand in AWS with exact steps. Mark a plan done when you have made the change; the next scan confirms it. Nothing is changed in AWS from here."
+        tabs={
+          <Tabs
+            tabs={[
+              { value: 'findings', label: 'Findings to fix', count: shown?.open },
+              { value: 'plans', label: 'Plans' },
+            ]}
+            value={tab}
+            onChange={(v) => setParams(v === 'plans' ? { tab: 'plans' } : {}, { replace: true })}
+          />
         }
-      }}
-    >
-      Check the role
-    </Button>
-  );
-}
-
-function AccountModal({ accountId, account, regions, catalog, onClose, onSaved }) {
-  const { notify } = useToast();
-  const setup = useQuery((signal) => fetchAccountSetup(accountId, signal).catch(() => null), [accountId]);
-  const [enabled, setEnabled] = useState(account?.enabled ?? true);
-  const [roleArn, setRoleArn] = useState(account?.roleArn ?? '');
-  const [allowed, setAllowed] = useState(() => new Set(account?.allowedActionTypes ?? []));
-  const [chosenRegions, setChosenRegions] = useState(() => new Set(account?.enabledRegions ?? []));
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
-  const suggested = setup.data?.remediation_role_arn || '';
-  const toggle = (set, setter, value) => {
-    const next = new Set(set);
-    if (next.has(value)) next.delete(value);
-    else next.add(value);
-    setter(next);
-  };
-  const save = async () => {
-    if (enabled && !roleArn.trim()) {
-      setError({ message: 'Paste the ARN of the remediation role to turn One-click on.' });
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      const saved = await updateRemediationAccount(accountId, {
-        enabled,
-        roleArn: roleArn.trim(),
-        allowedActionTypes: [...allowed],
-        enabledRegions: [...chosenRegions],
-      });
-      notify(
-        saved.accessStatus && saved.accessStatus !== 'OK' && enabled
-          ? { variant: 'error', title: 'Saved - but the role does not work yet', description: saved.accessDetail || saved.accessStatus }
-          : { variant: 'success', title: enabled ? 'One-click is on' : 'One-click is off', description: `Account ${accountId}.` },
-      );
-      onSaved();
-    } catch (err) {
-      setError(err);
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <Modal
-      open
-      onClose={() => !busy && onClose()}
-      icon={Settings2}
-      title={`One-click in ${accountId}`}
-      description="The role is checked as soon as you save."
-      footer={
-        <>
-          <Button variant="ghost" onClick={onClose} disabled={busy}>
-            Cancel
-          </Button>
-          <Button variant="primary" loading={busy} onClick={save}>
-            Save
-          </Button>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-4">
-        <label className="flex cursor-pointer items-center gap-2.5 text-[13px] font-medium text-ink">
-          <input type="checkbox" className="size-4 accent-[var(--t-brand)]" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
-          Allow One-click fixes in this account
-        </label>
-        {setup.data && (
-          <div className="rounded-[var(--radius-control)] border border-line bg-surface-2 px-3 py-2.5 text-[12.5px]">
-            <p className="mb-1 font-medium text-ink">Create the role with these values</p>
-            <p className="text-ink-3">External ID</p>
-            <CopyableValue value={setup.data.external_id} className="text-[12px]" />
-            {suggested && (
-              <>
-                <p className="mt-1.5 text-ink-3">Role ARN</p>
-                <CopyableValue value={suggested} className="text-[12px]" />
-              </>
-            )}
-          </div>
-        )}
-        <Field label="Remediation role ARN" htmlFor="rem-role">
-          <Input id="rem-role" value={roleArn} onChange={(e) => setRoleArn(e.target.value)} placeholder={suggested || `arn:aws:iam::${accountId}:role/ISPMRemediation`} className="font-mono text-[12.5px]" />
-        </Field>
-        {suggested && !roleArn && (
-          <Button size="sm" variant="ghost" className="-mt-3 self-start" onClick={() => setRoleArn(suggested)}>
-            Use {targetLabel(suggested)}
-          </Button>
-        )}
-        {catalog.length > 0 && (
-          <fieldset>
-            <legend className="mb-1.5 text-[12.5px] font-medium text-ink">Fixes it may apply <span className="font-normal text-ink-3">(none ticked: every supported fix)</span></legend>
-            <div className="grid max-h-48 gap-1 overflow-y-auto rounded-[var(--radius-control)] border border-line p-2 sm:grid-cols-2">
-              {catalog.map((c) => (
-                <label key={c.action_type} className="flex cursor-pointer items-start gap-2 rounded px-1.5 py-1 text-[12.5px] hover:bg-surface-2">
-                  <input type="checkbox" className="mt-0.5 size-4 accent-[var(--t-brand)]" checked={allowed.has(c.action_type)} onChange={() => toggle(allowed, setAllowed, c.action_type)} />
-                  <span className="min-w-0">
-                    <span className="block text-ink">{c.title}</span>
-                    <span className="block text-[11px] text-ink-3">{riskMeta(c.risk_level).label}{c.reversible ? ' · reversible' : ''}</span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-        )}
-        {regions.length > 0 && (
-          <fieldset>
-            <legend className="mb-1.5 text-[12.5px] font-medium text-ink">Regions <span className="font-normal text-ink-3">(none ticked: all)</span></legend>
-            <div className="flex flex-wrap gap-2">
-              {regions.map((r) => (
-                <label key={r} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-line px-2.5 py-1 font-mono text-[12px]">
-                  <input type="checkbox" className="size-3.5 accent-[var(--t-brand)]" checked={chosenRegions.has(r)} onChange={() => toggle(chosenRegions, setChosenRegions, r)} />
-                  {r}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-        )}
-        {error && <InlineError error={error} label="Not saved" />}
-      </div>
-    </Modal>
+      />
+      {firstSummary.isError && !shown ? (
+        <ErrorState error={firstSummary.error} onRetry={firstSummary.refetch} />
+      ) : (
+        <Journey
+          summary={shown}
+          active={tab === 'findings' ? params.get('stage') || '' : ''}
+          onPick={(stage) => setParams(stage ? { stage } : {}, { replace: true })}
+        />
+      )}
+      {tab === 'findings' ? <FindingsTab params={params} set={set} summaryQuery={summaryQuery} /> : <PlansTab params={params} set={set} />}
+      <p className="text-[12px] text-ink-3">
+        Start from a finding: <b className="font-medium text-ink-2">Fix</b> shows its steps; <b className="font-medium text-ink-2">Start guided fix</b> makes a plan you tick
+        through and mark done. Findings also open from{' '}
+        <Link to="/posture" className="font-medium text-brand hover:underline">
+          Posture
+        </Link>
+        .
+      </p>
+    </div>
   );
 }
