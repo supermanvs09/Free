@@ -300,7 +300,7 @@ func TestEndToEnd(t *testing.T) {
 	rsaKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 	pemKey := string(pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(rsaKey)}))
 	fake := &fakeSources{files: map[string]string{}, pub: &rsaKey.PublicKey}
-	fake.set("acme/api", "main", "config/app.env", "AWS_SECRET_ACCESS_KEY=\"wJalrXUtnFEMI/K7MD" + "ENG/bPxRfiCYzQ8vT3uLp2\"\n")
+	fake.set("acme/api", "main", "config/app.env", "AWS_SECRET_ACCESS_KEY=\"wJalrXUtnFEMI/K7MD"+"ENG/bPxRfiCYzQ8vT3uLp2\"\n")
 	fake.set("acme/api", "main", "README.md", "nothing here\n")
 	fake.set("PAY/payments", "", "deploy.yml", "db_password: \"Sup3rS3cretValue\"\n")
 	gh := httptest.NewServer(fake.github())
@@ -374,7 +374,7 @@ func TestEndToEnd(t *testing.T) {
 	push := `{"ref":"refs/heads/feature","after":"abc1234567","repository":{"full_name":"acme/api"},"pusher":{"name":"dev1"},"commits":[{"added":["new.py"],"modified":[]}]}`
 	signed(t, srv.URL+"/webhooks/github", "", map[string]string{"X-GitHub-Event": "push"}, "X-Hub-Signature-256", push, 401)
 	signed(t, srv.URL+"/webhooks/github", "wrong", map[string]string{"X-GitHub-Event": "push"}, "X-Hub-Signature-256", push, 401)
-	fake.set("acme/api", "abc1234567", "new.py", "token = \"ghp_" + "abcdefghijklmnopqrstuvwxyz0123456789\"\n")
+	fake.set("acme/api", "abc1234567", "new.py", "token = \"ghp_"+"abcdefghijklmnopqrstuvwxyz0123456789\"\n")
 	signed(t, srv.URL+"/webhooks/github", ghSecret, map[string]string{"X-GitHub-Event": "push", "X-GitHub-Delivery": "d1"}, "X-Hub-Signature-256", push, 202)
 	waitFor(t, "push finding", func() bool {
 		return viewer.do("GET", "/api/v1/findings?source=github", nil, 200)["total"].(float64) == 2
@@ -402,7 +402,7 @@ func TestEndToEnd(t *testing.T) {
 		return viewer.do("GET", "/api/v1/findings?source=bitbucket", nil, 200)["total"].(float64) == 1
 	})
 	signed(t, srv.URL+"/webhooks/bitbucket", bbSecret, map[string]string{"X-Event-Key": "diagnostics:ping"}, "X-Hub-Signature", `{}`, 200)
-	fake.set("PAY/payments", "bbnew", "deploy.yml", "db_password: \"Sup3rS3cretValue\"\nslack: \"https://hooks.slack.com/services/T0000/" + "B0000/XXXXXXXXXXXXXXXXXXXXXXXX\"\n")
+	fake.set("PAY/payments", "bbnew", "deploy.yml", "db_password: \"Sup3rS3cretValue\"\nslack: \"https://hooks.slack.com/services/T0000/"+"B0000/XXXXXXXXXXXXXXXXXXXXXXXX\"\n")
 	bbPush := `{"actor":{"name":"dev2"},"repository":{"slug":"payments","project":{"key":"PAY"}},"changes":[{"ref":{"displayId":"main","type":"BRANCH"},"fromHash":"bbold","toHash":"bbnew","type":"UPDATE"}]}`
 	signed(t, srv.URL+"/webhooks/bitbucket", bbSecret, map[string]string{"X-Event-Key": "repo:refs_changed"}, "X-Hub-Signature", bbPush, 202)
 	waitFor(t, "bitbucket push finding", func() bool {
