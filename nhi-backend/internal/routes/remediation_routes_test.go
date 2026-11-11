@@ -145,7 +145,7 @@ func TestRemediationRoutesAreMounted(t *testing.T) {
 		}
 		return nil
 	})
-	if v1 != 29 || legacy != 29 {
-		t.Fatalf("mounted %d routes under /api/v1/remediation and %d under /api/remediation, want 29 each", v1, legacy)
+	if v1 != 30 || legacy != 30 { // 30 with GET /findings (the backlog)
+		t.Fatalf("mounted %d routes under /api/v1/remediation and %d under /api/remediation, want 30 each", v1, legacy)
 	}
 }

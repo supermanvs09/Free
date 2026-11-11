@@ -956,7 +956,8 @@ function PostureBanner({ query }) {
   }
 
   const { fleet } = data;
-  const score = Math.round(fleet.score);
+  /* The exact fleet score, shown to one decimal as on Posture (rounding it here made the two pages disagree). */
+  const score = fleet.score;
   const weakest = data.pillars.filter((pillar) => pillar.score !== null).sort((a, b) => a.score - b.score)[0];
   const win = [...data.quickWins].sort((a, b) => b.fleetGain - a.fleetGain)[0];
   const delta = fleet.delta === null ? null : Math.round(fleet.delta * 10) / 10;

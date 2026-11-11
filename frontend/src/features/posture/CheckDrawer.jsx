@@ -236,7 +236,7 @@ export function CheckDrawer({
               <SectionLabel>The fix</SectionLabel>
               <p className="mt-1.5 flex items-start gap-2 text-[13.5px] font-medium leading-relaxed text-ink">
                 <Wrench aria-hidden="true" className="mt-1 size-4 shrink-0 text-brand" />
-                {detail?.fix || 'The posture catalog has no fix text for this check.'}
+                {detail?.fix || detail?.remediation || `No short fix is written for ${detail?.rule_id || 'this check'} yet. Open an identity's finding and choose Fix: Remediation shows the steps for it.`}
               </p>
               <dl className="mt-3 grid grid-cols-2 gap-3 @min-[28rem]:grid-cols-3">
                 <Fact label="Points lost per identity" value={detail?.penalty_points ? `${formatNumber(detail.penalty_points)} points` : '-'} />

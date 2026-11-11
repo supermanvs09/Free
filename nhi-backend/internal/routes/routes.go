@@ -86,6 +86,7 @@ func SetupRoutes(h HandlerContainer) *mux.Router {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RequestLogger)
 	r.Use(middleware.Recoverer)
+	r.Use(middleware.RateLimit)
 	// One middleware records every action, including a sign-in and anything
 	// refused, so an endpoint added later is covered without a line here.
 	if h.AuditSink != nil {

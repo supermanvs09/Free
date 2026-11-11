@@ -113,7 +113,7 @@ func (h *IdentitiesListHandler) List(w http.ResponseWriter, r *http.Request) {
 		if _, ok := identitySortColumnsAllowed[strings.ToLower(strings.TrimSpace(raw))]; !ok {
 			httpx.SendJSONResponse(w, http.StatusBadRequest, httpx.APIResponse{
 				Success: false,
-				Message: "Invalid sort_by: " + raw + ". Allowed: " + httpx.AllowedList(identitySortColumnsAllowed),
+				Message: "Invalid sort_by: this field cannot be sorted on",
 				Error:   "INVALID_SORT_BY",
 			})
 			return
