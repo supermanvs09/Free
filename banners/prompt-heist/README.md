@@ -49,4 +49,4 @@ Render with the real link:
 - One round only: the level bar is replaced by "One round · Live".
 - Announcement framing: "Announcing · Now live · AI security challenge".
 - More than the secret: "Bend its rules. Leak the secret. Outsmart the guard."
-- Prizes as objects: a red "Admit one" golden ticket for the job offer, and a "+ Goodies" sticker.
+- Prizes as objects: a red "Admit one" golden ticket for the job offer, and a "+ Exciting prizes" sticker.

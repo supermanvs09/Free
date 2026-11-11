@@ -12,7 +12,7 @@ test.describe('product demonstrations', () => {
     const tabs = page.getByRole('tablist', { name: 'Identity types' });
     for (const [tab, decision] of [['AI agent', 'Blocked'], ['Payment', 'Payment held'], ['Cloud role', 'Least privilege proposed'], ['Employee', 'Session held']]) {
       await tabs.getByRole('tab', { name: tab }).click();
-      await expect(page.getByRole('group', { name: `Decision: ${decision}` })).toBeVisible();
+      await expect(page.locator('section[aria-labelledby="live-h"]').getByRole('group', { name: `Decision: ${decision}` })).toBeVisible();
     }
     expect(errors).toEqual([]);
   });
@@ -33,8 +33,11 @@ test.describe('product demonstrations', () => {
     await page.goto('/adapid-ai/continuous-identity-risk-management');
     await hydrated(page);
     const slider = page.getByRole('slider', { name: 'Risk score' });
-    await slider.fill('20');
-    await expect(page.locator('#policy').getByText('Work continues. Nothing is interrupted.')).toBeVisible();
+    // the slider is interactive only once React owns it: retry the input until the response follows
+    await expect(async () => {
+      await slider.fill('20');
+      await expect(page.locator('#policy').getByText('Work continues. Nothing is interrupted.')).toBeVisible({ timeout: 1000 });
+    }).toPass({ timeout: 10000 });
     await slider.fill('70');
     await expect(page.locator('#policy').getByText(/A stronger check/)).toBeVisible();
   });
@@ -112,7 +115,7 @@ test.describe('product demonstrations', () => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/');
     await hydrated(page);
-    await expect(page.getByRole('group', { name: 'Decision: Session held' })).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Decision: Session held' }).first()).toBeVisible();
     await page.goto('/adapid-ai/continuous-identity-risk-management');
     await expect(page.getByRole('tablist', { name: 'CIRM stages' }).getByRole('tab', { name: /Evidence/ })).toHaveAttribute('aria-selected', 'true');
   });
