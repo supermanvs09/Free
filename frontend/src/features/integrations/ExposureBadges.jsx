@@ -21,7 +21,7 @@ const STATE = {
 };
 
 /** CodeCommit scanning state for an account row, opening its settings when allowed.
-    GitHub is not part of AWS: it is set up on the Code & CI/CD side. */
+    GitHub is not part of AWS: it is connected in the separate on-premises console. */
 export function ExposureBadges({ account, onOpen }) {
   if (!account.connectedAt) {
     return <span className="text-[12px] text-ink-3">After the account connects</span>;

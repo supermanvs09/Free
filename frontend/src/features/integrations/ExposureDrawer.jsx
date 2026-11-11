@@ -23,9 +23,9 @@ import { CodeBlock, CodeCommitMark, CopyChip, Disclosure, Instructions } from '.
 
 /**
  * Turn CodeCommit scanning for leaked credentials on or off for one connected
- * AWS account. GitHub, Bitbucket and Jenkins are not part of AWS: they are set
- * up on the Code & CI/CD side. An account that already scans GitHub keeps
- * that setting untouched when this is saved.
+ * AWS account. GitHub, Bitbucket and Jenkins are not part of AWS: they are
+ * connected in the separate on-premises console (onprem-console/). An account
+ * that already scans GitHub keeps that setting untouched when this is saved.
  *
  * Each platform needs one grant on the account's role, the same way the
  * read-only connection did:

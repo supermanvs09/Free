@@ -46,13 +46,6 @@ ENV VITE_API_URL=$VITE_API_URL
 #                  side is deployed). Leave "false" in production.
 ARG VITE_INTEGRATIONS_PREVIEW="false"
 ENV VITE_INTEGRATIONS_PREVIEW=$VITE_INTEGRATIONS_PREVIEW
-#   VITE_CODE_CICD_DASHBOARD  "true" shows the AWS / Code & CI/CD choice
-#                  before Integrations and the on-premises dashboard.
-ARG VITE_CODE_CICD_DASHBOARD="false"
-ENV VITE_CODE_CICD_DASHBOARD=$VITE_CODE_CICD_DASHBOARD
-#   VITE_GITHUB_APP_INSTALL_URL  the GitHub App's installation link (optional).
-ARG VITE_GITHUB_APP_INSTALL_URL=""
-ENV VITE_GITHUB_APP_INSTALL_URL=$VITE_GITHUB_APP_INSTALL_URL
 
 RUN npm run build
 

@@ -44,7 +44,7 @@ const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.
  * (`useWorkspace`), so a change made here - an account connected or removed,
  * scanning switched on - moves the navigation with it.
  */
-export default function IntegrationsPage({ areaSwitch = null }) {
+export default function IntegrationsPage() {
   const { user } = useAuth();
   const workspace = useWorkspace();
   const { notify } = useToast();
@@ -188,14 +188,12 @@ export default function IntegrationsPage({ areaSwitch = null }) {
     <div className="flex flex-col gap-6">
       {!manage ? (
         <>
-          {areaSwitch}
           <OnboardingIntro name={user?.name} canManage={data?.canManage ?? true} />
         </>
       ) : (
         <PageHeader
-          title={areaSwitch ? 'AWS cloud' : 'Integrations'}
+          title="Integrations"
           lede="The AWS accounts this console reads, and CodeCommit secret scanning in them. Every connection is read-only."
-          meta={areaSwitch}
           actions={
             <>
               <Button variant="secondary" icon={RotateCw} loading={refreshing} onClick={reload} title="Reload this page. It does not read your AWS accounts again - Sync now does.">
