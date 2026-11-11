@@ -433,7 +433,7 @@ func (s *Store) LastDigestAt(ctx context.Context) (*time.Time, error) {
 func (s *Store) GetFindings(ctx context.Context, ids []string) ([]domain.Finding, error) {
 	rows, err := s.pool.Query(ctx, fmt.Sprintf(`SELECT finding_id::text, tenant_id::text, COALESCE(account_id,''), rule_id, COALESCE(rule_name,''),
 		severity, COALESCE(identity_id,''), COALESCE(identity_name,''), COALESCE(identity_type,''), COALESCE(credential_arn,''),
-		COALESCE(title,''), COALESCE(description,''), evidence::text, COALESCE(remediation,''), status, first_seen
+		COALESCE(title,''), COALESCE(description,''), evidence::text, COALESCE(remediation,''), COALESCE(risk_explanation,''), status, first_seen
 		FROM %s WHERE tenant_id = $1::uuid AND finding_id = ANY($2::text[]::uuid[])`, s.tbl("ispm_nhi_findings")), s.TenantID, ids)
 	if err != nil {
 		return nil, err
@@ -444,7 +444,7 @@ func (s *Store) GetFindings(ctx context.Context, ids []string) ([]domain.Finding
 		var f domain.Finding
 		var ev string
 		if err := rows.Scan(&f.ID, &f.TenantID, &f.AccountID, &f.RuleID, &f.RuleName, &f.Severity, &f.IdentityID, &f.IdentityName,
-			&f.IdentityType, &f.CredentialARN, &f.Title, &f.Description, &ev, &f.Remediation, &f.Status, &f.FirstSeen); err != nil {
+			&f.IdentityType, &f.CredentialARN, &f.Title, &f.Description, &ev, &f.Remediation, &f.RiskExplanation, &f.Status, &f.FirstSeen); err != nil {
 			return nil, err
 		}
 		f.Evidence = rawFrom(ev)

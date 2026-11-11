@@ -227,8 +227,23 @@ func (s *Service) createPlan(ctx context.Context, st *store.Store, actor domain.
 	if err != nil {
 		return nil, err
 	}
-	if len(ras) == 0 {
-		return nil, &Error{http.StatusUnprocessableEntity, "no_remediation", "no remediation is defined for rule " + first.RuleID}
+	// A rule with no mapped fix gets a Guided plan from its by-hand fix in remediation_guides
+	// (the rule's row, else DEFAULT). One-click needs a mapped fix.
+	manual := len(ras) == 0
+	var guide *domain.Guide
+	if manual {
+		if req.Mode == domain.ModeOneClick || actor.UserID == systemActor || (req.ActionType != "" && req.ActionType != catalog.ManualFix) {
+			return nil, &Error{http.StatusUnprocessableEntity, "no_remediation",
+				"no automatic fix is defined for rule " + first.RuleID + ": create a Guided plan to fix it by hand"}
+		}
+		if guide, err = st.GuideFor(ctx, first.RuleID); err != nil {
+			return nil, err
+		}
+		if guide == nil {
+			return nil, &Error{http.StatusUnprocessableEntity, "no_remediation",
+				"no fix is defined for rule " + first.RuleID + ": add a row (or the DEFAULT row) to remediation_guides"}
+		}
+		ras = []domain.RuleAction{{RuleID: first.RuleID, ActionType: catalog.ManualFix, IsDefault: true, ParamsTemplate: json.RawMessage(`{}`)}}
 	}
 	ra := ras[0]
 	if req.ActionType != "" {
@@ -245,8 +260,12 @@ func (s *Service) createPlan(ctx context.Context, st *store.Store, actor domain.
 			ra = domain.RuleAction{RuleID: first.RuleID, ActionType: req.ActionType, ParamsTemplate: json.RawMessage(`{}`)}
 		}
 	}
-	act, err := st.GetAction(ctx, ra.ActionType)
-	if err != nil {
+	var act *domain.Action
+	if manual {
+		// the by-hand fix is described by its remediation_guides row, not by the action catalog
+		act = &domain.Action{ActionType: catalog.ManualFix, Platform: "aws", Title: guide.Title,
+			Description: guide.Description, RiskLevel: guide.RiskLevel, Enabled: true}
+	} else if act, err = st.GetAction(ctx, ra.ActionType); err != nil {
 		return nil, fmt.Errorf("catalog: %w", err)
 	}
 	if !act.Enabled {
@@ -317,7 +336,11 @@ func (s *Service) createPlan(ctx context.Context, st *store.Store, actor domain.
 	// ---- provider plan (live state, read only) ----
 	var out *provider.PlanOutput
 	var prechecks []domain.Precheck
-	if prov != nil && prov.Supports(act.ActionType) && acct.RoleARN != "" {
+	if manual {
+		// nothing to read or compute: the person makes the change, the steps say where and how
+		mt := catalog.ManualTarget(first)
+		plan.TargetARN, plan.TargetType, plan.Region = mt.Ref(), mt.Kind, mt.Region
+	} else if prov != nil && prov.Supports(act.ActionType) && acct.RoleARN != "" {
 		out, err = prov.Plan(ctx, provider.PlanInput{Target: target, Findings: findings,
 			UsageWindowDays: s.cfg.Worker.UsageWindowDays, MinKeyIdleDays: s.cfg.Worker.MinKeyIdleDays})
 		if err != nil {
@@ -397,7 +420,11 @@ func (s *Service) createPlan(ctx context.Context, st *store.Store, actor domain.
 	if mode == domain.ModeOneClick && (!autoActions[act.ActionType] || hasCritical(findings)) {
 		plan.RequiredApprovals = 1
 	}
-	plan.Steps = mustJSON(catalog.RenderSteps(act.StepsTemplate, stringVars(vars, params)), "[]")
+	if manual {
+		plan.Steps = mustJSON(catalog.GuideSteps(guide, first), "[]")
+	} else {
+		plan.Steps = mustJSON(catalog.RenderSteps(act.StepsTemplate, stringVars(vars, params)), "[]")
+	}
 	plan.Prechecks = mustJSON(prechecks, "[]")
 
 	// ---- status ----

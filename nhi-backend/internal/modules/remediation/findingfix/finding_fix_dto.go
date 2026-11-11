@@ -5,29 +5,33 @@ import "nhi-backend-api/internal/remediation/domain"
 // GET /remediation/findings/{finding_id}/fix (every role): how to fix one finding, read only.
 // Nothing is stored and AWS is never called: the answer is built from the finding
 // (ispm_nhi_findings) and, for a rule with a mapped fix, from the action catalog and the
-// account settings (accounts). Every finding gets the engine's "How to fix"; a rule with a
-// mapped fix also gets guided steps and whether One-click is possible.
+// account settings (accounts). A rule without a mapped fix gets its by-hand fix (title,
+// description, steps) from the table remediation_guides. One-click needs a mapped fix.
 // The answer is { "data": FindingFix }.
 
 // FindingFix is the fix of one finding.
 type FindingFix struct {
-	FindingID    string     `json:"finding_id"`
-	RuleID       string     `json:"rule_id"`
-	RuleName     string     `json:"rule_name"`
-	Severity     string     `json:"severity"`
-	Status       string     `json:"status"`
-	Identity     string     `json:"identity"` // "name (type)"
-	IdentityID   string     `json:"identity_id"`
-	IdentityName string     `json:"identity_name"`
-	IdentityType string     `json:"identity_type"`
-	AccountID    string     `json:"account_id"`
-	Resource     string     `json:"resource"`
-	Title        string     `json:"title"`
-	Description  string     `json:"description"`
-	HowToFix     string     `json:"how_to_fix"`
-	DashboardURL string     `json:"dashboard_url"`
-	Fix          *FixAction `json:"fix"` // null when no fix is mapped for the rule
-	OtherFixes   []FixRef   `json:"other_fixes"`
+	FindingID    string `json:"finding_id"`
+	RuleID       string `json:"rule_id"`
+	RuleName     string `json:"rule_name"`
+	Severity     string `json:"severity"`
+	Status       string `json:"status"`
+	Identity     string `json:"identity"` // "name (type)"
+	IdentityID   string `json:"identity_id"`
+	IdentityName string `json:"identity_name"`
+	IdentityType string `json:"identity_type"`
+	AccountID    string `json:"account_id"`
+	Resource     string `json:"resource"`
+	Title        string `json:"title"`
+	Description  string `json:"description"`
+	WhyItMatters string `json:"why_it_matters"` // the scanner's risk explanation (may be empty)
+	HowToFix     string `json:"how_to_fix"`
+	DashboardURL string `json:"dashboard_url"`
+	// Fix: the rule's mapped fix (remediation_actions), or for a rule without one its by-hand fix
+	// from remediation_guides ("manual": true, action_type "manual_fix"; the rule's row, else DEFAULT).
+	// null only when the rule has no mapped fix and remediation_guides has no row for it.
+	Fix        *FixAction `json:"fix"`
+	OtherFixes []FixRef   `json:"other_fixes"`
 	// Modes are the two ways to fix the finding, for the dashboard's Guided / One-click choice.
 	Modes Modes `json:"modes"`
 	// SummaryText is the whole answer as plain text, ready to show or copy.
@@ -36,13 +40,15 @@ type FindingFix struct {
 
 // FixAction is the mapped fix of the rule with its guided steps for this finding.
 type FixAction struct {
-	ActionType        string              `json:"action_type"`
-	Title             string              `json:"title"`
-	Description       string              `json:"description"`
-	RiskLevel         domain.Risk         `json:"risk_level"`
-	Reversible        bool                `json:"reversible"`
-	OneClickSupported bool                `json:"one_click_supported"`
-	Steps             []domain.GuidedStep `json:"steps"`
+	ActionType        string      `json:"action_type"`
+	Title             string      `json:"title"`
+	Description       string      `json:"description"`
+	RiskLevel         domain.Risk `json:"risk_level"`
+	Reversible        bool        `json:"reversible"`
+	OneClickSupported bool        `json:"one_click_supported"`
+	// Manual: there is no automatic fix for the rule; the steps are done by hand (Guided only).
+	Manual bool                `json:"manual"`
+	Steps  []domain.GuidedStep `json:"steps"`
 }
 
 // Modes: Guided is always offered (the steps); One-click when the backend can apply the fix.
@@ -52,7 +58,8 @@ type Modes struct {
 }
 
 type GuidedMode struct {
-	Available bool   `json:"available"` // always true: the steps or the engine's how-to-fix
+	Available bool   `json:"available"` // true for every OPEN finding (mapped fix or by-hand steps)
+	Reason    string `json:"reason,omitempty"`
 	Flow      string `json:"flow"`
 }
 

@@ -69,10 +69,55 @@ func TestModesApproval(t *testing.T) {
 	}
 }
 
+// a DEFAULT row of remediation_guides (shortened)
+var defaultGuide = &domain.Guide{RuleID: "DEFAULT", Title: "Fix by hand", RiskLevel: domain.RiskMedium,
+	Description: "There is no automatic fix for this rule.", Steps: json.RawMessage(`[
+	{"title":"{open_title} and look at the current setting","console":"{open_console}","cli":"{open_cli}"},
+	{"title":"Make the change: {how_to_fix}","console":"{open_console}"},
+	{"title":"Check that the change is in place","console":"{open_console}","cli":"{open_cli}"},
+	{"title":"Mark the plan done in the dashboard"}]`)}
+
+// A rule without a mapped fix gets its by-hand fix from remediation_guides, filled from the finding.
 func TestBuildRuleWithoutMappedFix(t *testing.T) {
 	x := build(&fixData{finding: domain.Finding{ID: "f2", RuleID: "PATH-01", RuleName: "End-to-end exfiltration path",
-		Severity: "Critical", Remediation: "Remove internet exposure or the data permissions."}, actions: map[string]*domain.Action{}})
-	if x.Fix != nil || x.HowToFix == "" || !strings.Contains(x.SummaryText, "How to fix: Remove internet exposure") {
-		t.Fatalf("a rule without a mapped fix still shows the engine's how-to-fix: %+v", x)
+		Severity: "Critical", Status: "OPEN", AccountID: "884264984984",
+		CredentialARN:   "arn:aws:iam::884264984984:role/app-role",
+		Remediation:     "Remove internet exposure or the data permissions.",
+		RiskExplanation: "An attacker on the internet can reach the data."}, actions: map[string]*domain.Action{},
+		guide: defaultGuide})
+	if x.Fix == nil || !x.Fix.Manual || x.Fix.ActionType != "manual_fix" || x.Fix.OneClickSupported ||
+		x.Fix.Title != "Fix by hand" || x.Fix.Description != "There is no automatic fix for this rule." || x.Fix.RiskLevel != domain.RiskMedium {
+		t.Fatalf("the by-hand fix comes from the table row: %+v", x.Fix)
+	}
+	if len(x.Fix.Steps) != 4 || x.Fix.Steps[0].Console != "IAM > Roles > app-role" ||
+		!strings.Contains(x.Fix.Steps[1].Title, "Remove internet exposure") {
+		t.Fatalf("steps: %+v", x.Fix.Steps)
+	}
+	if !x.Modes.Guided.Available || x.Modes.OneClick.Available || !strings.Contains(x.Modes.OneClick.Reason, "no automatic fix") {
+		t.Fatalf("modes: %+v", x.Modes)
+	}
+	for _, want := range []string{"How to fix: Remove internet exposure", "Why it matters: An attacker",
+		"Fix: Fix by hand (no automatic fix for this rule)"} {
+		if !strings.Contains(x.SummaryText, want) {
+			t.Fatalf("summary misses %q:\n%s", want, x.SummaryText)
+		}
+	}
+}
+
+// No mapped fix and no row in remediation_guides: fix is null and Guided says what is missing.
+func TestBuildRuleWithoutFixOrGuide(t *testing.T) {
+	x := build(&fixData{finding: domain.Finding{ID: "f5", RuleID: "PATH-01", Status: "OPEN", AccountID: "1"},
+		actions: map[string]*domain.Action{}})
+	if x.Fix != nil || x.Modes.Guided.Available || !strings.Contains(x.Modes.Guided.Reason, "remediation_guides") {
+		t.Fatalf("fix %+v guided %+v", x.Fix, x.Modes.Guided)
+	}
+}
+
+// A finding that is not OPEN cannot get a plan, so Guided says why.
+func TestGuidedNotOpen(t *testing.T) {
+	x := build(&fixData{finding: domain.Finding{ID: "f3", RuleID: "OG-ID-005", Status: "RESOLVED", AccountID: "1",
+		IdentityName: "svc", IdentityType: "IAM_USER"}, actions: map[string]*domain.Action{}, guide: defaultGuide})
+	if x.Modes.Guided.Available || !strings.Contains(x.Modes.Guided.Reason, "RESOLVED") {
+		t.Fatalf("guided: %+v", x.Modes.Guided)
 	}
 }

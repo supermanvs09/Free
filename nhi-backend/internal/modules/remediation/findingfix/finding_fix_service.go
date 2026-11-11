@@ -36,7 +36,7 @@ func build(d *fixData) *FindingFix {
 	out := &FindingFix{FindingID: f.ID, RuleID: f.RuleID, RuleName: f.RuleName, Severity: f.Severity, Status: f.Status,
 		Identity: identity(f), IdentityID: f.IdentityID, IdentityName: f.IdentityName, IdentityType: f.IdentityType,
 		AccountID: f.AccountID, Resource: f.CredentialARN, Title: f.Title, Description: f.Description,
-		HowToFix: f.Remediation, OtherFixes: []FixRef{}}
+		WhyItMatters: f.RiskExplanation, HowToFix: f.Remediation, OtherFixes: []FixRef{}}
 	if d.dashboard != "" {
 		out.DashboardURL = strings.TrimRight(d.dashboard, "/") + "/findings/" + f.ID
 	}
@@ -58,6 +58,17 @@ func build(d *fixData) *FindingFix {
 		}
 		out.OtherFixes = append(out.OtherFixes, FixRef{ActionType: act.ActionType, Title: act.Title})
 	}
+	if out.Fix == nil && d.guide != nil {
+		// no automatic fix: the by-hand fix of the rule from remediation_guides (its row, else DEFAULT)
+		g := d.guide
+		out.Fix = &FixAction{ActionType: catalog.ManualFix, Title: g.Title, Description: g.Description,
+			RiskLevel: g.RiskLevel, Manual: true, Steps: catalog.GuideSteps(g, f)}
+		if out.Resource == "" {
+			if t := catalog.ManualTarget(f); t.ARN != "" {
+				out.Resource = t.ARN
+			}
+		}
+	}
 	out.Modes = modes(d, out)
 	out.SummaryText = summary(out)
 	return out
@@ -67,6 +78,7 @@ const (
 	flowGuided   = "Apply the steps by hand in AWS, then mark the plan done. The backend changes nothing."
 	flowDirect   = "The backend applies the fix in AWS right after the plan is created. No approval is needed."
 	flowApproval = "Critical finding: an approval e-mail goes to the approvers, and the backend applies the fix in AWS once it is approved."
+	flowManual   = "Not possible: the backend has no automatic fix for this rule. Use Guided."
 	flowRisky    = "This fix changes who can reach something or what an app depends on, so it always needs approval: an approval e-mail goes to the approvers, and the backend applies the fix in AWS once it is approved."
 )
 
@@ -74,12 +86,21 @@ const (
 // and the account is set up for this fix (the same checks as POST /plans).
 func modes(d *fixData, x *FindingFix) Modes {
 	m := Modes{Guided: GuidedMode{Available: true, Flow: flowGuided}}
+	switch {
+	case x.Fix == nil:
+		m.Guided.Available, m.Guided.Reason = false, "no fix is defined for rule "+x.RuleID+": add a row (or the DEFAULT row) to remediation_guides"
+	case !strings.EqualFold(x.Status, "OPEN"):
+		m.Guided.Available, m.Guided.Reason = false, "the finding is "+x.Status+": only an OPEN finding gets a plan"
+	}
+	manual := x.Fix == nil || x.Fix.Manual
 	oc := &m.OneClick
 	oc.ApprovalRequired = engine.NeedsApproval(x.Severity)
-	if x.Fix != nil {
+	if !manual {
 		oc.ApprovalRequired = engine.ApprovalRequired(x.Severity, x.Fix.ActionType)
 	}
 	switch {
+	case manual:
+		oc.Flow = flowManual
 	case engine.NeedsApproval(x.Severity):
 		oc.Flow = flowApproval
 	case oc.ApprovalRequired:
@@ -88,8 +109,8 @@ func modes(d *fixData, x *FindingFix) Modes {
 		oc.Flow = flowDirect
 	}
 	switch {
-	case x.Fix == nil:
-		oc.Reason = "no fix is mapped for rule " + x.RuleID + ": follow the how-to-fix by hand"
+	case manual:
+		oc.Reason = "no automatic fix exists for rule " + x.RuleID + ": use Guided and follow the steps by hand"
 	case !strings.EqualFold(x.Status, "OPEN"):
 		oc.Reason = "the finding is " + x.Status + ": only an OPEN finding gets a plan"
 	default:
@@ -127,6 +148,11 @@ func stepVars(params map[string]any, f domain.Finding) map[string]string {
 	target := v["target_arn"]
 	if target == "" {
 		target = f.CredentialARN
+	}
+	if target == "" {
+		// A role finding names no credential: the role is in the evidence or the identity, as the
+		// manual guides already read it. Without this the preview said "<role_name>".
+		target = catalog.ManualTarget(f).ARN
 	}
 	if name := arnName(target, ":role/"); name != "" {
 		v["role_arn"], v["role_name"] = target, name
@@ -176,9 +202,14 @@ func summary(x *FindingFix) string {
 	if x.Description != "" {
 		b.WriteString(x.Description + "\n")
 	}
+	line("Why it matters", x.WhyItMatters)
 	line("How to fix", x.HowToFix)
 	if x.Fix != nil {
-		fmt.Fprintf(&b, "Fix: %s (risk %s)\n", x.Fix.Title, x.Fix.RiskLevel)
+		if x.Fix.Manual {
+			fmt.Fprintf(&b, "Fix: %s (no automatic fix for this rule)\n", x.Fix.Title)
+		} else {
+			fmt.Fprintf(&b, "Fix: %s (risk %s)\n", x.Fix.Title, x.Fix.RiskLevel)
+		}
 		for i, st := range x.Fix.Steps {
 			fmt.Fprintf(&b, "  %d. %s\n", i+1, st.Title)
 			if st.Console != "" {

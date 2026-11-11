@@ -281,6 +281,20 @@ type Action struct {
 	Enabled             bool            `json:"enabled"`
 }
 
+// Guide is one row of remediation_guides: the by-hand fix of a rule that has no automatic fix
+// (title, description, risk and steps with {placeholders}), or the 'DEFAULT' row used by such a
+// rule without a row of its own. The table is created and filled with SQL in the database.
+type Guide struct {
+	RuleID      string          `json:"rule_id"`
+	Title       string          `json:"title"`
+	Description string          `json:"description"`
+	RiskLevel   Risk            `json:"risk_level"`
+	Steps       json.RawMessage `json:"steps"`
+}
+
+// GuideDefault is the rule_id of the guide used by a rule without a row of its own.
+const GuideDefault = "DEFAULT"
+
 type RuleAction struct {
 	RuleID         string          `json:"rule_id"`
 	ActionType     string          `json:"action_type"`
@@ -354,22 +368,23 @@ type Notification struct {
 // ---- findings (read only, engine owned) ----
 
 type Finding struct {
-	ID            string          `json:"finding_id"`
-	TenantID      string          `json:"tenant_id"`
-	AccountID     string          `json:"account_id"`
-	RuleID        string          `json:"rule_id"`
-	RuleName      string          `json:"rule_name"`
-	Severity      string          `json:"severity"`
-	IdentityID    string          `json:"identity_id"`
-	IdentityName  string          `json:"identity_name"`
-	IdentityType  string          `json:"identity_type"`
-	CredentialARN string          `json:"credential_arn"`
-	Title         string          `json:"title"`
-	Description   string          `json:"description"`
-	Evidence      json.RawMessage `json:"evidence"`
-	Remediation   string          `json:"remediation"`
-	Status        string          `json:"status"`
-	FirstSeen     time.Time       `json:"first_seen"`
+	ID              string          `json:"finding_id"`
+	TenantID        string          `json:"tenant_id"`
+	AccountID       string          `json:"account_id"`
+	RuleID          string          `json:"rule_id"`
+	RuleName        string          `json:"rule_name"`
+	Severity        string          `json:"severity"`
+	IdentityID      string          `json:"identity_id"`
+	IdentityName    string          `json:"identity_name"`
+	IdentityType    string          `json:"identity_type"`
+	CredentialARN   string          `json:"credential_arn"`
+	Title           string          `json:"title"`
+	Description     string          `json:"description"`
+	Evidence        json.RawMessage `json:"evidence"`
+	Remediation     string          `json:"remediation"`
+	RiskExplanation string          `json:"risk_explanation"`
+	Status          string          `json:"status"`
+	FirstSeen       time.Time       `json:"first_seen"`
 }
 
 // ---- roles ----

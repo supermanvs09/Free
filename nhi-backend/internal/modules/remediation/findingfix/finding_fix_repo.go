@@ -26,6 +26,7 @@ type fixData struct {
 	actions   map[string]*domain.Action
 	oneClick  map[string]oneClickCheck // per action type
 	pending   *domain.Plan             // plan waiting for approval or about to run, if any
+	guide     *domain.Guide            // the by-hand fix of the rule (remediation_guides), if any
 	dashboard string
 }
 
@@ -35,8 +36,9 @@ type oneClickCheck struct {
 }
 
 // Get reads the finding (ispm_nhi_findings), its rule mapping (ispm_rule_weights), the
-// catalog (remediation_actions), the account settings (accounts) and a pending plan of the
-// finding (remediation_plans). Read only.
+// catalog (remediation_actions), the account settings (accounts), a pending plan of the
+// finding (remediation_plans) and the rule's by-hand fix
+// (remediation_guides: its row, else DEFAULT). Read only.
 func (r *FindingFixRepository) Get(ctx context.Context, tenantID, findingID string) (*fixData, error) {
 	st, err := r.core.Store(ctx, tenantID)
 	if err != nil {
@@ -68,6 +70,9 @@ func (r *FindingFixRepository) Get(ctx context.Context, tenantID, findingID stri
 		d.oneClick[ra.ActionType] = oneClickCheck{ok: ok, why: why}
 	}
 	if d.pending, err = st.PendingPlanFor(ctx, []string{d.finding.ID}); err != nil {
+		return nil, err
+	}
+	if d.guide, err = st.GuideFor(ctx, d.finding.RuleID); err != nil {
 		return nil, err
 	}
 	return d, nil
