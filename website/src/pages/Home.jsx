@@ -1,20 +1,21 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router';
 import { Seo } from '../lib/head.jsx';
 import { SITE, CERTS } from '../data/site.js';
 import { PLATFORMS, INDUSTRIES } from '../data/ia.js';
-import { NEWS, RECOGNITION, FOUNDER_QUOTE, BELIEFS } from '../data/company.js';
-import { Button, Icon, Reveal, SectionHead, CountUp, cx } from '../components/ui.jsx';
-import { ArrowLink, CtaBand, Faq, LogoWall, LogoMarquee, ResearchCards, Section } from '../components/ds.jsx';
-import { SplitTitle, ScrollWords, MediaReveal, ParticleWave } from '../components/fx.jsx';
+import { NEWS, FOUNDER_QUOTE } from '../data/company.js';
+import { Icon, Reveal, SectionHead, CountUp, cx } from '../components/ui.jsx';
+import { ArrowLink, CtaBand, Faq, LogoMarquee, ResearchCards, Section } from '../components/ds.jsx';
+import { SplitTitle, MediaReveal } from '../components/fx.jsx';
 import ProductMark from '../components/ProductMark.jsx';
 import HomeConsole from '../components/demos/HomeConsole.jsx';
-import { Logo as ToolLogo } from '../components/viz/kit.jsx';
 
-/* Home, v4. Section framing follows the Quantra reference (shot 26):
-   a statement hero, who we are, what we do, why us, how we work, proof,
-   answers, insights, one closing call. Shot numbers in comments refer to
-   docs/redesign-v4/SHOT_MAP.md. Every figure and quote is sourced. */
+/* Home, v6. Built on four reference interfaces chosen by the company:
+   A Yapay (shots 20, 75): photo hero, cobalt blue, navy band of photo cards.
+   B Payco (19, 90): headline left, stacked product cards right.
+   D Caleo (64, 93): product screen in a browser frame, "what makes us different" cards.
+   F Mindraft (5): full-bleed photograph with glass call-out cards.
+   Copy follows the Quantra voice (26): short, declarative, confident. */
 
 const FAQ = [
   { title: 'What does Deep Algorithms do?', body: 'We secure the identities attackers use to get in: people, machine identities and AI agents. adapID AI covers people, cloud identities, Active Directory and banking fraud. Zenstra AI covers AI agents. ICMS covers personal data and DPDPA compliance.' },
@@ -45,8 +46,6 @@ const WHY = [
   ['LockKey', 'Your data stays put', 'Read-only connectors and a gateway inside your VPC. Prompts, payloads and personal data stay in your cloud.'],
 ];
 
-const TOOLS = ['okta', 'm365', 'aws', 'google', 'github', 'copilotstudio', 'splunk', 'jira', 'kubernetes', 'zapier', 'n8n', 'mcp'];
-
 const HERO_DECISIONS = [
   { kind: 'Employee', icon: 'User', who: 'Kavya Reddy, treasury analyst', what: 'Sign-in from Lagos on a new device. MFA passed. Behaviour did not.', label: 'Session held', tone: 'hold', why: 'Score 81 / 100', time: '02:14' },
   { kind: 'Cloud role', icon: 'Cloud', who: 'ecs-notify-svc, AWS prod', what: '214 permissions granted, 9 ever used. Reading buckets it never touched.', label: 'Access trimmed', tone: 'warn', why: '205 unused', time: 'Today' },
@@ -55,84 +54,33 @@ const HERO_DECISIONS = [
 
 const PRESS = NEWS.filter((n) => ['Interview', 'Perspective', 'Press'].includes(n.kind));
 
-/* ---------- How it works: sticky visual, scrolling steps (shots 26, 70, 92) ---------- */
-function HowItWorks() {
-  const [on, setOn] = useState(0);
-  const refs = useRef([]);
-  useEffect(() => {
-    const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) setOn(Number(e.target.dataset.k)); }), { rootMargin: '-45% 0px -45% 0px' });
-    refs.current.forEach((el) => el && io.observe(el));
-    return () => io.disconnect();
-  }, []);
-  const [t, b, ic] = HOW[on];
-  return (
-    <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-20">
-      <div className="hidden lg:block">
-        <div className="sticky top-[calc(var(--hdr-now,var(--hdr))+40px)]" aria-hidden="true">
-          <figure className="media relative aspect-[4/3.3] overflow-hidden rounded-[24px]">
-            <img src="/img/photos/engineering.webp" alt="" width="900" height="740" loading="lazy" decoding="async" />
-            <div className="absolute inset-0 bg-[linear-gradient(160deg,rgb(7_19_48/.15),rgb(7_19_48/.85))]" />
-            <div className="absolute inset-x-6 bottom-6">
-              <div key={t} className="glass fadein rounded-[18px] p-6">
-                <div className="flex items-center justify-between">
-                  <span className="gtile !h-12 !w-12 !rounded-[14px]"><Icon name={ic} size={22} /></span>
-                  <span className="font-mono text-[12px] text-ink-3">Step {String(on + 1).padStart(2, '0')} / 04</span>
-                </div>
-                <p className="mt-5 font-display text-[26px] font-semibold tracking-[-0.02em] text-ink">{t}</p>
-                <p className="mt-2 t-small !text-ink-2">{b}</p>
-              </div>
-            </div>
-          </figure>
-        </div>
-      </div>
-      <ol className="relative">
-        <span aria-hidden="true" className="absolute bottom-6 left-[15px] top-6 w-px bg-line-2" />
-        {HOW.map(([title, body, icon], k) => (
-          <li key={title} ref={(el) => { refs.current[k] = el; }} data-k={k} className="relative flex gap-6 pb-12 lg:min-h-[48vh] lg:items-center lg:pb-0">
-            <span className={cx('relative z-10 mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border font-mono text-[12px] transition-all duration-500 lg:mt-0', k <= on ? 'border-brand bg-brand text-white shadow-[0_0_0_6px_var(--color-brand-50)]' : 'border-line-2 bg-bg-2 text-ink-3')}>{k + 1}</span>
-            <div>
-              <h3 className={cx('font-display text-[26px] font-semibold leading-tight tracking-[-0.022em] transition-colors duration-500 md:text-[34px]', k === on ? 'text-ink' : 'text-ink-3')}>{title}</h3>
-              <p className="mt-3 max-w-[46ch] t-body">{body}</p>
-              <span className="ptile mt-5 lg:hidden"><Icon name={icon} size={20} /></span>
-            </div>
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
-}
-
-/* ---------- Press quotes with arrows (shots 26, 34, 84) ---------- */
 function Press() {
   const [i, setI] = useState(0);
   const n = PRESS.length;
   const cur = PRESS[i];
   return (
-    <div className="grid items-stretch gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-      <figure className="card relative flex flex-col justify-between overflow-hidden p-8 md:p-12">
-        <div aria-hidden="true" className="blob -right-24 -top-24 h-64 w-64 bg-[#cfe6ff]" />
+    <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+      <figure className="flex flex-col justify-between rounded-[24px] bg-bg-1 p-8 md:p-12">
         <p className="eyebrow">{cur.kind} · {cur.meta}</p>
-        <blockquote key={cur.title} className="fadein mt-8 font-display text-[24px] font-medium leading-[1.35] tracking-[-0.015em] text-ink md:text-[32px]">
-          {cur.body}
-        </blockquote>
+        <blockquote key={cur.title} className="fadein mt-8 text-[24px] font-medium leading-[1.3] tracking-[-0.025em] text-ink md:text-[32px]">“{cur.body}”</blockquote>
         <figcaption className="mt-10 flex flex-wrap items-center justify-between gap-4">
-          <span><span className="block font-semibold text-ink">{cur.meta}</span><span className="t-small">{cur.kind}, {cur.date}</span></span>
+          <span className="t-small">{cur.date}</span>
           <a href={cur.href} target="_blank" rel="noreferrer" className="alink text-[14.5px]">{cur.cta}<Icon name="ArrowUpRight" size={14} weight="bold" /><span className="sr-only"> (opens in a new tab)</span></a>
         </figcaption>
       </figure>
-      <div className="flex flex-col gap-4">
-        <figure className="card flex flex-1 flex-col justify-between bg-[linear-gradient(160deg,rgb(99_88_255/.22),rgb(255_255_255/.02))] p-8">
-          <blockquote className="t-lead !text-ink">“{FOUNDER_QUOTE.text}”</blockquote>
+      <div className="flex flex-col gap-5">
+        <figure className="flex flex-1 flex-col justify-between rounded-[24px] bg-navy p-8 text-white">
+          <blockquote className="text-[19px] leading-[1.5] text-white">“{FOUNDER_QUOTE.text}”</blockquote>
           <figcaption className="mt-6 flex items-center gap-3">
             <img src={`/img/people/${FOUNDER_QUOTE.img}.webp`} alt="" width="48" height="48" loading="lazy" className="h-12 w-12 rounded-full object-cover" />
-            <span><span className="block font-semibold text-ink">{FOUNDER_QUOTE.name}</span><span className="t-caption">{FOUNDER_QUOTE.role} · {FOUNDER_QUOTE.source}</span></span>
+            <span><span className="block font-semibold">{FOUNDER_QUOTE.name}</span><span className="text-[13px] text-[#b9c3dd]">{FOUNDER_QUOTE.role} · {FOUNDER_QUOTE.source}</span></span>
           </figcaption>
         </figure>
         <div className="flex items-center justify-between">
           <span className="font-mono text-[12.5px] text-ink-3" aria-live="polite">{String(i + 1).padStart(2, '0')} / {String(n).padStart(2, '0')}</span>
           <span className="flex gap-2">
-            <button type="button" onClick={() => setI((i - 1 + n) % n)} aria-label="Previous quote" className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line-2 bg-bg-2 text-ink transition hover:border-brand hover:text-brand"><Icon name="ArrowLeft" size={17} /></button>
-            <button type="button" onClick={() => setI((i + 1) % n)} aria-label="Next quote" className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-brand text-white transition hover:bg-brand-hover"><Icon name="ArrowRight" size={17} /></button>
+            <button type="button" onClick={() => setI((i - 1 + n) % n)} aria-label="Previous quote" className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line-2 text-ink transition hover:border-ink"><Icon name="ArrowLeft" size={17} /></button>
+            <button type="button" onClick={() => setI((i + 1) % n)} aria-label="Next quote" className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-ink text-white transition hover:bg-brand"><Icon name="ArrowRight" size={17} /></button>
           </span>
         </div>
       </div>
@@ -140,245 +88,212 @@ function Press() {
   );
 }
 
+const DIFFERENT = [
+  ['Pulse', 'Always on', 'Every identity is scored on every event. There is no review cycle for an attacker to wait out.'],
+  ['ClipboardText', 'Always explained', 'Every allow, hold or block carries its reasons and the policy behind it, in plain language.'],
+  ['LockKey', 'Always yours', 'Read-only connectors and a gateway inside your VPC. Your data never leaves your cloud.'],
+];
+
 export default function Home() {
   return (
     <>
       <Seo path="/" description={SITE.description} />
 
-      {/* 1. Hero: statement over a live particle wave, with floating decision cards (17, 28, 54, 70, 80, 90) */}
-      <section className="sky relative overflow-hidden">
-        <ParticleWave className="absolute inset-x-0 bottom-0 h-[62%]" />
-        <div className="container relative pt-14 text-center md:pt-20">
-          <Link to="/prompt-heist" className="pill-note rise group mx-auto">
-            <b>New</b>Prompt Heist is live. Trick our AI guard, win a job offer.
-            <Icon name="ArrowRight" size={13} weight="bold" className="text-brand transition-transform group-hover:translate-x-1" />
-          </Link>
-          <SplitTitle as="h1" always className="t-display mx-auto mt-8 max-w-[1040px]">Stop the attack that <span className="hl-pill">logs in.</span></SplitTitle>
-          <p className="t-lead rise mx-auto mt-7 max-w-[640px]" style={{ '--d': '240ms' }}>
-            Stolen passwords. Forgotten keys. AI agents with too much access. We watch every identity, score every move and stop the wrong one before it lands.
-          </p>
-          <div className="rise mt-10 flex flex-wrap justify-center gap-3" style={{ '--d': '320ms' }}>
-            <Link to="/request-demo" className="btn btn-primary btn-lg group">Book a demo<span className="arr-dot"><Icon name="ArrowUpRight" size={15} weight="bold" /></span></Link>
-            <Link to="/products" className="btn btn-secondary btn-lg">Explore the platform</Link>
-          </div>
-          <p className="rise mt-8 text-[14px] text-ink-3" style={{ '--d': '380ms' }}>
-            Built for <span className="font-semibold text-ink">Banks, government and enterprises</span> · Read-only, or inside your VPC · Mapped to DPDPA, RBI and SEBI
-          </p>
-        </div>
-        {/* three live decisions, one per identity type, floating over the wave */}
-        <div className="container relative mt-14 pb-24 md:mt-16 md:pb-28">
-          <ul className="grid gap-4 md:grid-cols-3 md:gap-5">
-            {HERO_DECISIONS.map((d, i) => (
-              <li key={d.label} role="group" aria-label={`Decision: ${d.label}`} className="glass rise float rounded-[20px] p-5 text-left" style={{ '--d': `${420 + i * 90}ms`, '--fd': `${-i * 1.6}s` }}>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="flex items-center gap-2.5"><span className="ptile ptile-sm"><Icon name={d.icon} size={16} /></span><span className="text-[13px] text-ink-3">{d.kind}</span></span>
-                  <span className={`badge badge-${d.tone} badge-dot`}>{d.label}</span>
+      {/* 1. Hero (F Mindraft + A Yapay): full-bleed photograph, headline on it, glass call-outs */}
+      <section className="pb-6 pt-3">
+        <div className="container-wide">
+          <div className="relative isolate min-h-[640px] overflow-hidden rounded-[28px] md:min-h-[720px]">
+            <img src="/img/photos/hero-person.webp" alt="" width="1800" height="1440" fetchPriority="high" decoding="async"
+              className="absolute inset-0 -z-10 h-full w-full object-cover object-[78%_30%] md:object-[70%_30%]" />
+            <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgb(8_10_18/.92)_0%,rgb(8_10_18/.72)_38%,rgb(8_10_18/.15)_70%,transparent_100%)]" />
+            <div aria-hidden="true" className="absolute inset-x-0 bottom-0 -z-10 h-1/2 bg-[linear-gradient(0deg,rgb(8_10_18/.75),transparent)]" />
+            <div className="flex min-h-[640px] flex-col justify-between p-6 pt-24 md:min-h-[720px] md:p-12 md:pt-32 lg:p-16 lg:pt-36">
+              <div className="max-w-[720px] text-white">
+                <Link to="/prompt-heist" className="rise group inline-flex items-center gap-2.5 rounded-full border border-white/25 bg-white/10 py-1.5 pl-1.5 pr-4 text-[13.5px] text-white backdrop-blur-md transition hover:bg-white/15">
+                  <span className="rounded-full bg-white px-2.5 py-0.5 text-[12px] font-semibold text-ink">New</span>Prompt Heist is live. Win a job offer.
+                  <Icon name="ArrowRight" size={13} weight="bold" className="transition-transform group-hover:translate-x-1" />
+                </Link>
+                <SplitTitle as="h1" always className="t-display mt-7 !text-white">Every login proves a password. We prove the person.</SplitTitle>
+                <p className="rise mt-6 max-w-[540px] text-[17px] leading-relaxed text-white/80 md:text-[19px]" style={{ '--d': '240ms' }}>
+                  Deep Algorithms scores every person, machine identity and AI agent in real time, and stops the wrong one before it acts.
+                </p>
+                <div className="rise mt-9 flex flex-wrap gap-3" style={{ '--d': '320ms' }}>
+                  <Link to="/request-demo" className="btn btn-white btn-lg group">Book a demo<span className="arr-dot"><Icon name="ArrowUpRight" size={15} weight="bold" /></span></Link>
+                  <Link to="/products" className="btn btn-outline-inverse btn-lg">Explore products</Link>
                 </div>
-                <p className="mt-4 text-[15.5px] font-semibold text-ink">{d.who}</p>
-                <p className="mt-1 text-[13.5px] leading-snug text-ink-2">{d.what}</p>
-                <p className="mt-4 flex items-center justify-between border-t border-line pt-3 font-mono text-[11.5px] text-ink-3"><span>{d.why}</span><span>{d.time}</span></p>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-4 text-center text-[12.5px] text-ink-4">Sample decisions, as the products make them.</p>
+              </div>
+              <div className="rise mt-12 grid gap-3 md:grid-cols-2 lg:ml-auto lg:w-[680px]" style={{ '--d': '420ms' }}>
+                <Link to="/solutions/bfsi" className="group rounded-[18px] border border-white/20 bg-white/10 p-5 text-white backdrop-blur-md transition hover:bg-white/15">
+                  <span className="flex items-start justify-between"><span className="text-[17px] font-semibold">Run a bank?</span><Icon name="ArrowUpRight" size={18} className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></span>
+                  <span className="mt-1.5 block text-[13.5px] leading-snug text-white/75">Stop mule accounts and account takeover at the payee, with RBI-ready evidence.</span>
+                </Link>
+                <Link to="/agentic-ai/agentic-identity" className="group rounded-[18px] border border-white/20 bg-white/10 p-5 text-white backdrop-blur-md transition hover:bg-white/15">
+                  <span className="flex items-start justify-between"><span className="text-[17px] font-semibold">Rolling out AI agents?</span><Icon name="ArrowUpRight" size={18} className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></span>
+                  <span className="mt-1.5 block text-[13.5px] leading-snug text-white/75">Give every agent an owner, a task and a limit. Check every tool call first.</span>
+                </Link>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* 2. Logo marquee (18, 53, 54, 69) */}
-      <section className="border-y border-line py-10" aria-label="Organisations we work with">
-        <p className="mb-6 text-center font-mono text-[11.5px] uppercase tracking-[.14em] text-ink-3">Working with banks, ministries, hospitals and research leaders across India</p>
+      {/* 2. Logos (A, D) */}
+      <section className="py-12" aria-label="Organisations we work with">
+        <p className="mb-7 text-center text-[14px] text-ink-3">Trusted by banks, ministries, hospitals and research leaders across India</p>
         <LogoMarquee />
       </section>
 
-      {/* 3. Who we are: mission and what we believe (26 "the quantum edge", 34, 48) */}
-      <Section id="about" labelledby="about-h">
-        <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16">
-          <SectionHead id="about-h" eyebrow="Who we are" title="The identity edge of cyber defence." lead={`Founded in Hyderabad in ${SITE.founded}, we build AI that watches how every identity behaves, so a stolen key cannot pass for its owner.`} />
-          <ScrollWords className="font-display text-[26px] font-medium leading-[1.3] tracking-[-0.02em] text-ink md:text-[34px]" text="Signatures describe yesterday’s attacks. Behaviour catches the one that has never been seen before. That is the whole idea, applied to every login, key, payment and agent." />
-        </div>
-        <div className="mt-14 grid gap-4 md:grid-cols-2">
-          <Reveal className="card overflow-hidden p-8 md:p-10">
-            <p className="eyebrow">Our mission</p>
-            <p className="mt-5 font-display text-[24px] font-semibold leading-snug tracking-[-0.018em] text-ink md:text-[28px]">{FOUNDER_QUOTE.text.replace('Our mission is to', 'To')}</p>
-            <p className="mt-5 t-small">{FOUNDER_QUOTE.name}, {FOUNDER_QUOTE.role}</p>
-          </Reveal>
-          <Reveal delay={80} className="card overflow-hidden p-8 md:p-10">
-            <p className="eyebrow">What we believe</p>
-            <ul className="mt-5 grid gap-x-6 gap-y-4 sm:grid-cols-2">
-              {BELIEFS.slice(0, 4).map((b) => (
-                <li key={b.title} className="flex gap-3"><span className="ptile ptile-sm"><Icon name={b.icon} size={16} /></span><span className="text-[15px] font-semibold leading-snug text-ink">{b.title}</span></li>
+      {/* 3. Statement + stacked decisions (B Payco) */}
+      <section className="sec bg-bg-1" aria-labelledby="proof-h">
+        <div className="container grid items-center gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-20">
+          <div>
+            <p className="eyebrow">The problem</p>
+            <SplitTitle id="proof-h" className="t-h1 mt-5">Attackers don’t break in anymore. They log in.</SplitTitle>
+            <p className="mt-6 t-lead max-w-[520px]">A phished password and an approved MFA prompt pass every check you have. What gives them away is behaviour. That is what we watch.</p>
+            <dl className="mt-10 grid grid-cols-2 gap-6 border-t border-line pt-8">
+              {THREATS.slice(0, 2).map((t) => (
+                <div key={t.title}><dd className="text-[40px] font-semibold leading-none tracking-[-0.045em] text-ink md:text-[48px]"><CountUp value={t.v} /></dd><dt className="mt-3 text-[14px] leading-snug text-ink-2">{t.l}</dt><p className="mt-2 text-[12px] text-ink-4">{t.s}</p></div>
               ))}
-            </ul>
-            <ArrowLink to="/about-us" className="mt-7 text-[14.5px]">More about us</ArrowLink>
-          </Reveal>
+            </dl>
+          </div>
+          <ul className="relative space-y-4">
+            {HERO_DECISIONS.map((d, i) => (
+              <Reveal as="li" key={d.label} delay={i * 120} role="group" aria-label={`Decision: ${d.label}`}
+                className={cx('rounded-[20px] border border-line bg-white p-6 shadow-[0_24px_50px_-30px_rgb(12_14_20/.35)]', i === 1 && 'lg:ml-12', i === 2 && 'lg:ml-24')}>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="flex items-center gap-3"><span className="ptile ptile-sm"><Icon name={d.icon} size={16} /></span><span className="text-[13.5px] text-ink-3">{d.kind}</span></span>
+                  <span className={`badge badge-${d.tone} badge-dot`}>{d.label}</span>
+                </div>
+                <p className="mt-4 text-[16px] font-semibold text-ink">{d.who}</p>
+                <p className="mt-1 text-[14px] leading-snug text-ink-2">{d.what}</p>
+                <p className="mt-4 flex items-center justify-between border-t border-line pt-3 font-mono text-[12px] text-ink-3"><span>{d.why}</span><span>{d.time}</span></p>
+              </Reveal>
+            ))}
+            <li className="pt-1 text-[12.5px] text-ink-4 lg:ml-24">Sample decisions, as the products make them.</li>
+          </ul>
         </div>
-        {/* key facts, counted up (13, 48, 55, 69) */}
-        <dl className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
-          {[['2022', 'Founded, in Hyderabad'], ['3', 'Offices: Hyderabad, Bengaluru, Texas'], [String(CERTS.length), 'Security and privacy certifications'], ['₹16 Cr', 'Pre-Series A, Unicorn India Ventures']].map(([v, l], i) => (
-            <Reveal key={l} delay={i * 60} className="card p-6">
-              <dd className="font-display text-[40px] font-semibold leading-none tracking-[-0.04em] text-brand md:text-[48px]"><CountUp value={v} /></dd>
-              <dt className="mt-3 text-[14px] leading-snug text-ink-2">{l}</dt>
-            </Reveal>
-          ))}
-        </dl>
-      </Section>
+      </section>
 
-      {/* 4. What we do: product cards with gradient art (14, 60, 74, 84) */}
-      <Section id="platforms" labelledby="platforms-h" tone="subtle">
+      {/* 4. Products (A Yapay "all-in-one platform" cards) */}
+      <Section id="platforms" labelledby="platforms-h">
         <div className="flex flex-wrap items-end justify-between gap-6">
-          <SectionHead id="platforms-h" eyebrow="What we do" title={<>Smart identity defence, <span className="hl">built for every identity.</span></>} lead="Three platforms. One for people and machines, one for AI agents, one for personal data. Start with the risk that keeps you up at night." />
-          <Button to="/products" variant="secondary">All products</Button>
+          <SectionHead id="platforms-h" eyebrow="The platform" title="One platform. Every identity you run on." lead="People and machines. AI agents. Personal data. Start with the risk that keeps you up at night." />
+          <Link to="/products" className="btn btn-dark">All products</Link>
         </div>
         <div className="mt-14 grid gap-5 lg:grid-cols-3">
           {PLATFORMS.map((p, i) => (
-            <Reveal key={p.key} delay={i * 90} className="card card-link group flex flex-col overflow-hidden" style={{ '--acc': p.acc }}>
-              <div className="relative h-[170px] overflow-hidden" style={{ background: `radial-gradient(80% 90% at 80% 0%, color-mix(in oklab, ${p.acc} 35%, transparent), transparent 70%), radial-gradient(70% 80% at 0% 100%, #e3f6ff, transparent 70%), #f7f9ff` }}>
-                <div aria-hidden="true" className="absolute left-6 top-6 transition-transform duration-700 group-hover:-rotate-6 group-hover:scale-110"><ProductMark p={p.key} size={56} /></div>
-                <div aria-hidden="true" className="glass absolute -right-6 bottom-5 w-[64%] rotate-[-6deg] rounded-[14px] p-3 transition-transform duration-700 group-hover:rotate-0">
-                  {(p.key === 'zenstra' ? p.items.slice(0, 3) : p.items.slice(0, 3)).map((it) => <p key={it.key} className="flex items-center gap-2 py-1 text-[12px] text-ink-2"><Icon name={it.icon} size={13} className="text-brand" /><span className="truncate">{it.name}</span></p>)}
-                </div>
-              </div>
-              <div className="flex flex-1 flex-col p-7">
-                <p className="font-mono text-[11.5px] uppercase tracking-[.12em] text-ink-3">{p.kind}</p>
-                <h3 className="mt-2 font-display text-[26px] font-semibold tracking-[-0.02em] text-ink">{p.name}</h3>
-                <p className="mt-2 t-body">{p.tagline}.</p>
-                <ul className="mt-5 flex-1 space-y-2">
+            <Reveal key={p.key} delay={i * 90}>
+              <Link to={p.path} className={cx('group flex h-full flex-col rounded-[24px] p-7 transition-transform duration-500 hover:-translate-y-1 md:p-8', i === 0 ? 'bg-brand text-white' : 'bg-bg-1')}>
+                <span className="flex items-center justify-between"><ProductMark p={p.key} size={44} /><span className={cx('inline-flex h-10 w-10 items-center justify-center rounded-full transition', i === 0 ? 'bg-white/15' : 'bg-white')}><Icon name="ArrowUpRight" size={17} /></span></span>
+                <span className={cx('mt-10 block text-[12.5px] font-medium', i === 0 ? 'text-white/70' : 'text-ink-3')}>{p.kind}</span>
+                <span className={cx('mt-1 block text-[28px] font-semibold tracking-[-0.035em]', i === 0 ? 'text-white' : 'text-ink')}>{p.name}</span>
+                <span className={cx('mt-2 block text-[15px] leading-relaxed', i === 0 ? 'text-white/80' : 'text-ink-2')}>{p.tagline}.</span>
+                <ul className="mt-6 space-y-2">
                   {(p.key === 'zenstra' ? p.items.slice(0, 4) : p.items).map((it) => (
-                    <li key={it.key}><Link to={it.path} className="group/i flex items-center gap-2 text-[14.5px] text-ink-2 transition-colors hover:text-brand"><Icon name="CheckCircle" size={15} weight="fill" className="shrink-0 text-brand" />{it.name}</Link></li>
+                    <li key={it.key} className={cx('flex items-center gap-2 text-[14px]', i === 0 ? 'text-white/90' : 'text-ink-2')}><Icon name="CheckCircle" size={15} weight="fill" className={i === 0 ? 'text-white' : 'text-brand'} />{it.name}</li>
                   ))}
                 </ul>
-                <ArrowLink to={p.path} className="mt-6 text-[15px]">{p.key === 'zenstra' ? 'All six capabilities' : `Explore ${p.name}`}</ArrowLink>
-              </div>
+              </Link>
             </Reveal>
           ))}
         </div>
       </Section>
 
-      {/* 5. Why us: navy band, glossy icons (26 "Why Quantra? Because security can't wait.", 13, 75) */}
-      <section className="band sec overflow-hidden" aria-labelledby="why-h">
-        <div aria-hidden="true" className="beam left-[30%] opacity-40" />
+      {/* 5. Product screen (D Caleo): browser frame, then what makes us different */}
+      <section className="sec bg-bg-1" aria-labelledby="live-h">
         <div className="container">
-          <SectionHead id="why-h" align="center" eyebrow="Why Deep Algorithms" title={<>Why us? Because a valid login <span className="hl">isn’t a safe one.</span></>} lead="The breach of the decade will not set off an alarm. It will log in. So we built every product to catch the identity that looks right and acts wrong." />
+          <SectionHead id="live-h" align="center" eyebrow="See it work" title="Watch it decide. Live." lead="Four identities. Four decisions. Every one explained. Pick a tab and see why each move was allowed, held or blocked." />
+          <Reveal className="mx-auto mt-14 max-w-[1120px] overflow-hidden rounded-[22px] border border-line bg-white shadow-[0_50px_100px_-50px_rgb(12_14_20/.45)]">
+            <div className="flex items-center gap-2 border-b border-line px-4 py-3"><i className="h-3 w-3 rounded-full bg-[#ff5f57]" /><i className="h-3 w-3 rounded-full bg-[#febc2e]" /><i className="h-3 w-3 rounded-full bg-[#28c840]" /><span className="mx-auto rounded-full bg-bg-1 px-4 py-1 text-[12.5px] text-ink-3">console.deepalgorithms.io</span></div>
+            <HomeConsole />
+          </Reveal>
           <div className="mt-16 grid gap-5 md:grid-cols-3">
-            {WHY.map(([ic, t, b], i) => (
-              <Reveal key={t} delay={i * 90} className="card p-8 text-center">
-                <span className="gtile mx-auto"><Icon name={ic} size={28} weight="duotone" /></span>
-                <h3 className="mt-7 font-display text-[23px] font-semibold tracking-[-0.018em] text-ink">{t}</h3>
-                <p className="mt-3 t-body">{b}</p>
-              </Reveal>
-            ))}
-          </div>
-          {/* the threats, as a horizontal rail of sourced figures (20, 75, 86) */}
-          <div className="no-scrollbar m-rail -mx-5 mt-5 flex snap-x gap-5 overflow-x-auto px-5 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-4">
-            {THREATS.map((t, i) => (
-              <Reveal key={t.title} delay={i * 70} className="w-[80vw] shrink-0 snap-start md:w-auto">
-                <Link to={t.to} className="card card-link group flex h-full flex-col p-7">
-                  <span className="flex items-center justify-between"><span className="ptile"><Icon name={t.icon} size={19} /></span><Icon name="ArrowUpRight" size={17} className="text-ink-3 transition group-hover:text-brand" /></span>
-                  <p className="mt-6 font-display text-[40px] font-semibold leading-none tracking-[-0.04em] text-white"><CountUp value={t.v} /></p>
-                  <p className="mt-3 text-[14px] leading-snug text-ink-2">{t.l}</p>
-                  <p className="mt-5 font-semibold text-ink">{t.title}</p>
-                  <p className="mt-1 t-small">{t.body}</p>
-                  <p className="mt-auto pt-5 font-mono text-[11px] text-ink-4">Source: {t.s}</p>
-                </Link>
+            {DIFFERENT.map(([ic, t, b], i) => (
+              <Reveal key={t} delay={i * 80} className="rounded-[20px] bg-white p-7">
+                <span className="ptile"><Icon name={ic} size={20} /></span>
+                <h3 className="mt-6 text-[21px] font-semibold tracking-[-0.03em] text-ink">{t}</h3>
+                <p className="mt-2 t-body">{b}</p>
               </Reveal>
             ))}
           </div>
         </div>
       </section>
 
-      {/* 6. How we secure your business (26, 70, 92) */}
+      {/* 6. How it works: numbered steps */}
       <Section id="how" labelledby="how-h">
-        <SectionHead id="how-h" eyebrow="How it works" title="How Deep Algorithms secures your business." lead="Four steps. One for every login, key, payment and agent. No rip and replace, no endpoint agents, no waiting for the quarterly review." />
-        <div className="mt-14 lg:mt-16"><HowItWorks /></div>
+        <div className="grid gap-12 lg:grid-cols-[minmax(0,.9fr)_minmax(0,1.1fr)] lg:gap-20">
+          <div className="lg:sticky lg:top-[calc(var(--hdr-now,var(--hdr))+40px)] lg:self-start">
+            <SectionHead id="how-h" eyebrow="How it works" title="Four steps. No rip and replace." lead="The same four steps run for an employee’s session, a cloud role, a customer’s payment and an AI agent’s tool call." />
+            <MediaReveal src="/img/photos/engineering.webp" width={1200} height={1800} ratio="4 / 3" className="mt-10 hidden rounded-[24px] lg:block" />
+          </div>
+          <ol className="divide-y divide-line border-y border-line">
+            {HOW.map(([title, body, icon], k) => (
+              <Reveal as="li" key={title} delay={k * 60} className="flex gap-6 py-8">
+                <span className="font-mono text-[13px] text-brand">{String(k + 1).padStart(2, '0')}</span>
+                <div className="flex-1">
+                  <h3 className="text-[24px] font-semibold tracking-[-0.03em] text-ink md:text-[28px]">{title}</h3>
+                  <p className="mt-2 max-w-[48ch] t-body">{body}</p>
+                </div>
+                <span className="ptile hidden sm:inline-flex"><Icon name={icon} size={20} /></span>
+              </Reveal>
+            ))}
+          </ol>
+        </div>
       </Section>
 
-      {/* 6b. The live console, framed in a glowing device (10, 17, 19) */}
-      <section className="band sec overflow-hidden" aria-labelledby="live-h">
+      {/* 7. Industries (A Yapay navy band with photo cards) */}
+      <section className="band sec" aria-labelledby="industries-h">
         <div className="container">
-          <SectionHead id="live-h" align="center" eyebrow="See it work" title={<>Watch it decide. <span className="hl">Live.</span></>} lead="Four identities, four decisions, every one explained. Switch tabs and see why each move was allowed, held or blocked." />
-          <div className="relative mx-auto mt-14 max-w-[1080px]">
-            <div aria-hidden="true" className="absolute inset-x-[10%] -top-10 h-40 rounded-full bg-[radial-gradient(closest-side,rgb(99_88_255/.6),transparent)] blur-2xl" />
-            <div className="device relative"><div className="screen text-left"><HomeConsole /></div></div>
+          <div className="flex flex-wrap items-end justify-between gap-6">
+            <div className="max-w-[720px]">
+              <p className="eyebrow">Industries</p>
+              <SplitTitle id="industries-h" className="t-h1 mt-5 !text-white">Built for the sectors attackers target first.</SplitTitle>
+            </div>
+            <ArrowLink to="/products" className="!text-[#9db8ff]">Find a product by need</ArrowLink>
+          </div>
+          <div className="no-scrollbar m-rail -mx-5 mt-14 flex snap-x snap-mandatory gap-5 overflow-x-auto px-5 pb-2 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 lg:grid-cols-4">
+            {INDUSTRIES.map((x) => (
+              <Link key={x.slug} to={x.path} className="group relative block w-[78vw] shrink-0 snap-start md:w-auto">
+                <MediaReveal src={`/img/photos/${x.slug}.webp`} width={600} height={800} ratio="3 / 4" className="rounded-[20px]" />
+                <div className="absolute inset-x-0 bottom-0 z-10 rounded-b-[20px] bg-[linear-gradient(0deg,rgb(8_10_18/.85),transparent)] p-6 pt-16 text-white">
+                  <span className="block text-[21px] font-semibold leading-tight tracking-[-0.025em]">{x.name}</span>
+                  <span className="mt-1.5 block text-[13.5px] leading-snug text-white/75">{x.desc}</span>
+                </div>
+              </Link>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* 7. Integrations orbit (48, 64, 65, 86) */}
-      <Section id="connect" labelledby="connect-h" tone="subtle">
-        <div className="grid items-center gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-          <div>
-            <SectionHead id="connect-h" eyebrow="Integrations" title="Just connect. Nothing to rip out." lead="Read from the identity, cloud and agent platforms you already run. Act through them too: step-up in your IdP, cases in your SOC, approvals to named owners." />
-            <ul className="mt-8 space-y-3">
-              {['Read-only connectors, no endpoint agents', 'One read-only role per AWS account', 'Zenstra gateway inside your VPC'].map((x) => <li key={x} className="flex items-center gap-3 text-[15.5px] text-ink"><span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-brand text-white"><Icon name="Check" size={13} weight="bold" /></span>{x}</li>)}
-            </ul>
-          </div>
-          <div className="orbit-wrap relative mx-auto aspect-square w-full max-w-[520px]" aria-label="Okta, Microsoft 365, AWS, Google, GitHub, Copilot Studio, Splunk, Jira, Kubernetes, Zapier, n8n and MCP servers" role="img">
-            <div aria-hidden="true" className="absolute inset-[6%] rounded-full border border-dashed border-line-2" />
-            <div aria-hidden="true" className="absolute inset-[24%] rounded-full border border-line-2 bg-bg-2/60" />
-            <div aria-hidden="true" className="absolute inset-[38%] flex items-center justify-center rounded-full bg-bg-2 shadow-[var(--e-3)]">
-              <img src="/brand/mark.webp" alt="" width="160" height="160" className="h-[48%] w-auto" />
-            </div>
-            <div aria-hidden="true" className="orbit absolute inset-[6%]">
-              {TOOLS.map((k, i) => {
-                const a = (i / TOOLS.length) * Math.PI * 2;
-                return (
-                  <span key={k} className="absolute" style={{ left: `${50 + Math.cos(a) * 50}%`, top: `${50 + Math.sin(a) * 50}%` }}>
-                    <span className="-ml-6 -mt-6 flex h-12 w-12 items-center justify-center rounded-[14px] border border-line bg-bg-2 text-ink shadow-[var(--e-2)]"><ToolLogo k={k} size="24px" /></span>
-                  </span>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </Section>
-
-      {/* 8. Industries: photographs with glass captions (4, 5, 20, 75) */}
-      <Section id="industries" labelledby="industries-h">
-        <div className="flex flex-wrap items-end justify-between gap-6">
-          <SectionHead id="industries-h" eyebrow="Industries" title="Built for the sectors attackers target first." />
-          <ArrowLink to="/products">Find a product by need</ArrowLink>
-        </div>
-        <div className="no-scrollbar m-rail -mx-5 mt-14 flex snap-x snap-mandatory gap-5 overflow-x-auto px-5 pb-2 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 lg:grid-cols-4">
-          {INDUSTRIES.map((x, i) => (
-            <Link key={x.slug} to={x.path} className="group relative block w-[78vw] shrink-0 snap-start md:w-auto">
-              <MediaReveal src={`/img/photos/${x.slug}.webp`} width={600} height={800} ratio="3 / 4" className="rounded-[20px]" />
-              <div className="glass absolute inset-x-3 bottom-3 z-10 rounded-[16px] p-5 transition-transform duration-500 group-hover:-translate-y-1">
-                <span className="font-mono text-[11.5px] text-brand">{String(i + 1).padStart(2, '0')}</span>
-                <span className="mt-1 block font-display text-[21px] font-semibold leading-tight tracking-[-0.018em] text-ink">{x.name}</span>
-                <span className="mt-1.5 block text-[13.5px] leading-snug text-ink-2">{x.desc}</span>
-                <span className="alink mt-3 text-[14px]">See the solution<Icon name="ArrowRight" size={14} weight="bold" className="arr" /></span>
-              </div>
-            </Link>
+      {/* 8. The numbers */}
+      <Section id="numbers" labelledby="numbers-h">
+        <SectionHead id="numbers-h" eyebrow="Why now" title="The numbers behind the risk." />
+        <dl className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {THREATS.map((t, i) => (
+            <Reveal key={t.title} delay={i * 70} className="rounded-[20px] bg-bg-1 p-7">
+              <Link to={t.to} className="group block">
+                <dd className="text-[44px] font-semibold leading-none tracking-[-0.05em] text-ink"><CountUp value={t.v} /></dd>
+                <dt className="mt-4 text-[15px] leading-snug text-ink-2">{t.l}</dt>
+                <p className="mt-6 flex items-center justify-between text-[13.5px] font-medium text-brand">{t.p}<Icon name="ArrowRight" size={14} className="transition-transform group-hover:translate-x-1" /></p>
+                <p className="mt-3 text-[12px] text-ink-4">Source: {t.s}</p>
+              </Link>
+            </Reveal>
           ))}
-        </div>
-      </Section>
-
-      {/* 9. What the industry says (26 testimonials, 34, 84) */}
-      <Section id="press" labelledby="press-h" tone="subtle">
-        <SectionHead id="press-h" eyebrow="In the press" title="What the industry is saying." lead="Interviews, perspectives and coverage, quoted from where they were published." />
-        <div className="mt-14"><Press /></div>
-      </Section>
-
-      {/* 10. Recognition: event photography rail (50, 57, 23) */}
-      <Section id="evidence" labelledby="evidence-h">
-        <SectionHead id="evidence-h" eyebrow="Recognition" title="Recognised by the people who regulate and fund this work." />
-        <div className="no-scrollbar m-rail -mx-5 mt-14 flex snap-x gap-5 overflow-x-auto px-5 pb-2 md:mx-0 md:px-0">
-          {RECOGNITION.slice(0, 5).map((r) => (
-            <figure key={r.title} className="w-[78vw] shrink-0 snap-start sm:w-[320px]">
-              <MediaReveal src={`/img/events/${r.img}.webp`} width={640} height={480} ratio="4 / 3" className="rounded-[18px]" />
-              <figcaption className="mt-4"><span className="font-mono text-[12px] text-brand">{r.year}</span><span className="mt-1 block font-semibold text-ink">{r.title}</span><span className="t-small">{r.where}</span></figcaption>
-            </figure>
-          ))}
-        </div>
-        <Reveal className="mt-20"><LogoWall lead="Banks, public institutions, hospitals, research institutes and technology companies across India." /></Reveal>
+        </dl>
         <div className="mt-10 flex flex-wrap items-center gap-3">
           {CERTS.map((c) => <span key={c.code} className="badge !h-9 !px-4 !text-[13px]"><Icon name="SealCheck" size={15} weight="fill" className="text-brand" />{c.name}</span>)}
         </div>
       </Section>
 
+      {/* 9. Press */}
+      <Section id="press" labelledby="press-h">
+        <SectionHead id="press-h" eyebrow="In the press" title="What the industry is saying." />
+        <div className="mt-12"><Press /></div>
+      </Section>
+
       <Faq items={FAQ} title="Got questions? We’ve got answers." />
       <ResearchCards title="Insights that keep you ahead." />
-      <CtaBand title="Ready to secure what matters most?" />
+      <CtaBand title="Find your riskiest identity before an attacker does." />
     </>
   );
 }

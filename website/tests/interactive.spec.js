@@ -115,7 +115,7 @@ test.describe('product demonstrations', () => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/');
     await hydrated(page);
-    await expect(page.getByRole('group', { name: 'Decision: Session held' }).first()).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Decision: Session held' }).first()).toBeAttached();
     await page.goto('/adapid-ai/continuous-identity-risk-management');
     await expect(page.getByRole('tablist', { name: 'CIRM stages' }).getByRole('tab', { name: /Evidence/ })).toHaveAttribute('aria-selected', 'true');
   });

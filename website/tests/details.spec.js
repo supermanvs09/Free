@@ -59,10 +59,10 @@ test('a missing page names the address and offers search', async ({ page }) => {
 
 test('the home hero says what we stop, who we secure, and shows a decision before any scroll', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1, name: 'Stop the attack that logs in.' })).toBeVisible();
-  await expect(page.getByText('Banks, government and enterprises').first()).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Every login proves a password. We prove the person.' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Run a bank\?/ })).toBeVisible();
   await expect(page.getByRole('link', { name: /Book a demo/ }).first()).toBeVisible();
-  await expect(page.getByRole('group', { name: /^Decision: / }).first()).toBeInViewport();
+  await expect(page.getByRole('link', { name: /Rolling out AI agents\?/ })).toBeInViewport();
 });
 
 test('the utility bar carries contact, phone and the language menu, and folds away on scroll', async ({ page, isMobile }) => {

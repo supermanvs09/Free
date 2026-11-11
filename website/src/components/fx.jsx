@@ -219,7 +219,7 @@ export function ParticleWave({ className }) {
     return () => { cancelAnimationFrame(raf); io.disconnect(); window.removeEventListener('resize', onR); };
   }, []);
   return (
-    <div className={cx('relative overflow-hidden bg-[radial-gradient(70%_70%_at_50%_70%,rgb(99_88_255/.35),transparent_70%)]', className)} aria-hidden="true">
+    <div className={cx('relative overflow-hidden ', className)} aria-hidden="true">
       <canvas ref={ref} className="absolute inset-0 h-full w-full" />
       <div className="absolute inset-0 bg-[linear-gradient(180deg,var(--color-bg)_0%,transparent_30%,transparent_80%,var(--color-bg)_100%)]" />
     </div>

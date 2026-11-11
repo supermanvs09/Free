@@ -7,7 +7,7 @@ import { Button, Icon, cx } from './ui.jsx';
 import ProductMark from './ProductMark.jsx';
 
 /* `inverse` is the white lockup for dark surfaces (footer, Prompt Heist). */
-export function Logo({ className = 'h-[30px]', inverse = true }) {
+export function Logo({ className = 'h-[30px]', inverse }) {
   return <img src={inverse ? '/brand/logo-lockup-inverse.webp' : '/brand/logo-lockup.webp'} alt="Deep Algorithms" width="153" height="34" className={cx('w-auto', className)} />;
 }
 
