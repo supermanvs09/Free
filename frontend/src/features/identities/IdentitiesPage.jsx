@@ -51,7 +51,6 @@ const VIEW_PRESETS = [
   { key: 'all', label: 'All identities', params: {}, countKey: 'all' },
   { key: 'public', label: 'Publicly accessible', params: { is_publicly_accessible: 'true' }, countKey: 'public' },
   { key: 'stale', label: 'Unused 90+ days', params: { min_idle_days: '90' }, countKey: 'stale' },
-  { key: 'idle', label: 'Idle 30+ days', params: { min_idle_days: '30' }, countKey: 'idle' },
 ];
 
 const DENSITY_KEY = 'dna.grid.density';
@@ -527,7 +526,6 @@ export default function IdentitiesPage() {
                 value: preset.key,
                 label: preset.label,
                 count: counts ? counts[preset.countKey] : undefined,
-                title: preset.key === 'idle' ? 'Includes the identities unused for 90+ days' : undefined,
               })),
               ...(activePreset === null ? [{ value: 'custom', label: 'Custom filter' }] : []),
             ]}

@@ -1065,9 +1065,9 @@ func waitingChecks() []AWSCheck {
 	for i := range checks {
 		checks[i].State, checks[i].Fix = AWSCheckSkipped, ""
 	}
-	checks[0].Message = "Runs after adapID approves this connection: we then sign in to your account with your role and External ID."
+	checks[0].Message = "Runs once the connection is approved: we then sign in to your account with your role and External ID."
 	checks[1].Message = "Runs after the role check: one test read of your account."
-	checks[2].Message = "Runs after adapID approves this connection: we then open our event queue to your account and wait for its first event."
+	checks[2].Message = "Runs once the connection is approved: we then open our event queue to your account and wait for its first event."
 	return checks
 }
 

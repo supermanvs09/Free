@@ -7,6 +7,7 @@ import {
   ExternalLink,
   EyeOff,
   FileText,
+  Hourglass,
   Info,
   Link2,
   ShieldCheck,
@@ -590,10 +591,19 @@ export function AwsConnectWizard({ setup, previous, storageKey, title = 'Connect
                   error={regionsError || undefined}
                 />
               </div>
-              <p className="mb-2 text-[12px] leading-relaxed text-ink-3">
-                {setup.approval_required === false
-                  ? 'Your workspace already has an approved AWS account, so this one needs no review: Verify checks your role, read access and events straight away, and no approval e-mail is sent.'
-                  : "Your workspace's first AWS account is reviewed by adapID first: Verify sends the request (adapID is e-mailed and it appears on their Approvals page), and nothing is read from your account until it is approved. Your role, read access and events are then checked automatically."}
+              <p className="mb-2 flex items-start gap-2 rounded-[var(--radius-control)] bg-surface-2 px-3 py-2 text-[12px] leading-relaxed text-ink-2">
+                {setup.approval_required === false ? (
+                  <>
+                    <ShieldCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-low" />
+                    Verify connection checks your role, read access and events straight away.
+                  </>
+                ) : (
+                  <>
+                    <Hourglass aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-info" />
+                    Verify connection sends this account for approval. Nothing is read from your AWS account until it is approved; your role, read access
+                    and events are then checked automatically.
+                  </>
+                )}
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <Button type="submit" variant="primary" size="lg" icon={ShieldCheck} loading={running}>

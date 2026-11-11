@@ -58,7 +58,7 @@ export function syncDetail(account, { withActor = false } = {}) {
 
 /** Why "Sync now" is not available, or '' when it is. */
 export function syncBlockedReason(account) {
-  if (account.status === 'pending_approval') return 'Syncing starts once adapID approves this connection';
+  if (account.status === 'pending_approval') return 'Syncing starts once the connection is approved';
   if (account.status !== 'connected') return 'Fix the connection before syncing';
   if (account.regions.length === 0) return 'Choose regions to read first';
   return '';
@@ -325,7 +325,7 @@ function AccountRow({ account, names, counts, inventoryKnown, canManage, onChang
           </span>
           <span className="mt-0.5 block truncate text-[11.5px] text-ink-3" title={failing ? `${failing.label}: ${failing.message}` : undefined}>
             {account.status === 'pending_approval'
-              ? 'Waiting for adapID approval'
+              ? 'Waiting for approval'
               : account.status === 'rejected'
                 ? account.approval.note || 'Fix and re-check to ask again'
                 : failing ? `Failing: ${failing.label}` : account.checks.length ? (passed === 3 ? 'All 3 checks pass' : `${passed} of 3 checks pass`) : 'Not checked yet'}

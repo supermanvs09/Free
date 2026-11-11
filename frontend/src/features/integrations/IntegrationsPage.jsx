@@ -402,7 +402,7 @@ function OnboardingSuccess({ accountId, onOpen, onAnother }) {
         </span>
         <h1 className="mt-5 text-[22px] font-extrabold tracking-[-0.02em] text-ink">AWS is connected</h1>
         <p className="mt-1.5 text-[13.5px] text-ink-2">
-          Account <span className="font-mono font-semibold text-ink">{accountId}</span> passed all three checks and adapID approved it. We now discover its
+          Account <span className="font-mono font-semibold text-ink">{accountId}</span> was approved and passed all three checks. We now discover its
           identities and credentials; your dashboard fills in after the first scan.
         </p>
         <div className="mt-6 flex flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
@@ -626,7 +626,7 @@ function ApprovalBanner({ accounts, onOpen }) {
                 `${waiting.length} accounts are waiting for approval`
               )}
             </span>{' '}
-            - nothing is read from the account until adapID approves it; the checks then run by themselves. This page updates on its own.
+            - nothing is read from the account until it is approved; the checks then run by themselves. This page updates on its own.
           </p>
           {waiting.length === 1 && (
             <Button variant="secondary" size="sm" onClick={() => onOpen(waiting[0])}>

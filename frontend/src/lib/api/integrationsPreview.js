@@ -293,7 +293,7 @@ export async function verify({ role_arn: roleArn, regions }) {
      themselves, as the service does. */
   const workspaceApproved = store().accounts.some((entry) => entry.approval?.status === 'approved' || entry.is_connected);
   if (firstTime && !workspaceApproved) {
-    const waiting = awsChecks().map((check) => ({ ...check, state: 'skipped', message: 'Runs after adapID approves this connection.' }));
+    const waiting = awsChecks().map((check) => ({ ...check, state: 'skipped', message: 'Runs once the connection is approved.' }));
     Object.assign(account, {
       role_arn: match[0],
       regions: [...regions],

@@ -13,8 +13,10 @@
   }
 
   // Already signed in (another tab): nothing to do here but go on.
+  // Opened as /login.html, reloading would show this page again forever: go to the app.
+  const goToApp = () => (location.pathname === '/' ? location.reload() : location.replace('/' + location.hash));
   fetch('/api/session').then((r) => r.json()).then((s) => {
-    if (s.signed_in) location.reload();
+    if (s.signed_in) goToApp();
   }).catch(() => { /* the form still works; the server answers when it is submitted */ });
 
   $('show').addEventListener('click', (e) => {
@@ -57,7 +59,7 @@
     } catch (_) { /* offline */ }
 
     if (status === 200) {
-      location.reload();   // the same address now serves the app (replace() would only follow the #fragment)
+      goToApp();   // the same address now serves the app; /login.html goes to /
       return;
     }
     busy = false;

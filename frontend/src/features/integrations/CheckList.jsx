@@ -211,9 +211,9 @@ export function VerifyResult({ running, result, setup, onShowStep }) {
             ? 'Approved - now watching for your events'
             : 'Role works - now watching for your events',
         watchingDetail: checkingRole
-          ? 'adapID approved this connection. This takes a few seconds; the events check follows.'
+          ? 'The connection is approved. This takes a few seconds; the events check follows.'
           : approved
-            ? 'adapID approved this connection. One event from any region below is enough; each is counted as it arrives, and the account connects with the first.'
+            ? 'The connection is approved. One event from any region below is enough; each is counted as it arrives, and the account connects with the first.'
             : 'The role checks passed. One event from any region below is enough; each is counted as it arrives.',
         ok: 'Connection verified',
         okDetail: 'Read access works and your events are arriving.',
@@ -393,7 +393,7 @@ export function ApprovalWait({ run, checkingNow, onCheckNow, onRetry }) {
           <div className="min-w-0 flex-1">
             <p className="text-[13.5px] font-semibold text-ink">This connection was not approved</p>
             <p className="text-[12px] text-ink-2">
-              {approval.decidedAt ? `Reviewed ${formatRelative(approval.decidedAt)}` : 'Reviewed by adapID'}. Nothing from this account is scanned.
+              {approval.decidedAt ? `Reviewed ${formatRelative(approval.decidedAt)}` : 'Reviewed'}. Nothing from this account is scanned.
             </p>
           </div>
         </div>
@@ -426,11 +426,11 @@ export function ApprovalWait({ run, checkingNow, onCheckNow, onRetry }) {
   }
   const steps = [
     {
-      label: 'Request sent to adapID',
+      label: 'Approval requested',
       detail: approval.requestedAt ? `Requested ${formatRelative(approval.requestedAt)}${approval.requestedBy ? ` by ${approval.requestedBy}` : ''}` : 'Requested just now',
       state: 'done',
     },
-    { label: 'Review by adapID', detail: 'Our team has been notified and decides, usually within a few minutes', state: 'current' },
+    { label: 'Waiting for approval', detail: 'Usually within a few minutes. You do not need to do anything.', state: 'current' },
     { label: 'Role and read access', detail: 'After approval, by themselves: we sign in with your role and read your account', state: 'todo' },
     { label: 'Events from your account', detail: 'One event from any chosen region connects the account', state: 'todo' },
     { label: 'Scanning starts', detail: 'Identities and activity appear within minutes of the first event', state: 'todo' },
@@ -440,11 +440,10 @@ export function ApprovalWait({ run, checkingNow, onCheckNow, onRetry }) {
       <div className="flex items-start gap-3 bg-info-soft px-4 py-3">
         <Clock3 aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-info" />
         <div className="min-w-0 flex-1">
-          <p className="text-[13.5px] font-semibold text-ink">Waiting for adapID approval</p>
+          <p className="text-[13.5px] font-semibold text-ink">Waiting for approval</p>
           <p className="text-[12px] leading-relaxed text-ink-2">
-            adapID reviews every new connection first, and nothing is read from your AWS account until it is approved. Our team has been notified; you do
-            not need to do anything else. Once it is approved we check your role, read access and events by ourselves, which usually takes a few minutes,
-            and then open your dashboard. You can leave this page - the request is kept.
+            Your connection request has been sent. Nothing is read from your AWS account until it is approved. Once it is, your role, read access and
+            events are checked automatically and your dashboard opens. You can leave this page; the request is kept.
           </p>
         </div>
       </div>

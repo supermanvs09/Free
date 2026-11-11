@@ -575,7 +575,7 @@ func TestVerifyAsksForApprovalFirstAndChecksNothing(t *testing.T) {
 		t.Fatalf("verify returned %+v", res)
 	}
 	for _, c := range res.Checks {
-		if !strings.Contains(c.Message, "Runs after") {
+		if !strings.Contains(c.Message, "Runs after") && !strings.Contains(c.Message, "Runs once") {
 			t.Fatalf("a waiting check does not say when it runs: %+v", c)
 		}
 	}

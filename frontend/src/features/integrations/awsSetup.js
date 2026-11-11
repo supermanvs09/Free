@@ -351,7 +351,7 @@ In the console's Integrations page, paste the role ARN, choose the regions${regi
 - your configuration is readable
 - events are arriving from at least one of the chosen regions
 
-Your workspace's first AWS account is reviewed by adapID first: the request is sent as soon as you choose **Verify connection**, and nothing is read from your AWS account until it is approved. After the approval the checks run by themselves, and the account shows as **Connected** (and scanning begins) when its first event arrives.
+Choosing **Verify connection** sends your first AWS account for approval. Nothing is read from your AWS account until it is approved. After the approval the checks run by themselves, and the account shows as **Connected** (and scanning begins) when its first event arrives.
 `;
 }
 

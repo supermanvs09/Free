@@ -851,15 +851,19 @@ function RelationshipsPanel({ identityId, overview }) {
         <p className="mt-2 flex items-start gap-1.5 text-[12px] text-medium">
           <ShieldAlert aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
           <span>
-            Also used by{' '}
+            <b className="font-semibold">Shared access: </b>
             {model.sharedWith.map((entry, index) => (
               <span key={entry.key}>
-                {index > 0 && ', '}
+                {index > 0 && (index === model.sharedWith.length - 1 ? ' and ' : ', ')}
                 <RelName row={entry} to={linkFor(entry)} inline />
-                {entry.via && ` (via ${entry.via})`}
               </span>
             ))}
-            . If either is taken over, both are.
+            {model.sharedWith.length === 1 ? ' also runs' : ' also run'}
+            {[...new Set(model.sharedWith.map((entry) => entry.via).filter(Boolean))].length
+              ? ` as ${[...new Set(model.sharedWith.map((entry) => entry.via).filter(Boolean))].join(', ')}`
+              : ' with the same role'}
+            , so {model.sharedWith.length === 1 ? 'it has' : 'they have'} exactly the same permissions as this identity. Anyone who gains control of
+            one of them can use those permissions.
           </span>
         </p>
       ),
