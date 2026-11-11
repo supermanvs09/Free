@@ -1292,7 +1292,7 @@ func TestDeniedAssumeRoleIsExplainedByCheckingOurSide(t *testing.T) {
 		outcome  string
 		inDetail string
 	}{
-		{"our side is wrong: not the customer's to fix", ourFault, AWSCheckError, "adapID's side, not in your account", "platform_error", "OUR SIDE"},
+		{"our side is wrong: not the customer's to fix", ourFault, AWSCheckError, "our side, not in your account", "platform_error", "OUR SIDE"},
 		{"our side verified: the customer's role is the cause", clear, AWSCheckFail, "We checked our side and it is correct", "failed", "our side checked and fine"},
 		{"our side unknown: the general message", unknown, AWSCheckFail, "AWS would not let us use this role", "failed", "not checked"},
 	}

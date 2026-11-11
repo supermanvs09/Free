@@ -306,6 +306,14 @@ func (s *AWSIntegrationService) Get(ctx context.Context, caller AWSCaller, canMa
 	if err != nil {
 		return nil, err
 	}
+	// The same rule Verify applies (every accounts row, not only the listed
+	// ones), so the page never promises an approval that Verify then skips.
+	approvalRequired := !approvedAny
+	if !approvedAny {
+		if wsApproved, wsErr := s.store.WorkspaceApproved(ctx, caller.Schema); wsErr == nil {
+			approvalRequired = !wsApproved
+		}
+	}
 	out.Setup = &AWSSetupValues{
 		AccountID:        p.AccountID,
 		ExternalID:       settings.ExternalID,
@@ -331,7 +339,7 @@ func (s *AWSIntegrationService) Get(ctx context.Context, caller AWSCaller, canMa
 				TokenPermissions: append([]string(nil), gitHubTokenPermissions...),
 			},
 		},
-		ApprovalRequired: !approvedAny,
+		ApprovalRequired: approvalRequired,
 	}
 	return out, nil
 }
@@ -1301,7 +1309,7 @@ func (s *AWSIntegrationService) startApprovedChecks(ctx context.Context, caller 
 			// would show it running for ever.
 			stopped := newChecks()
 			if errors.Is(err, ErrAWSAccountClaimed) {
-				fail(&stopped[0], "This AWS account is already connected to another workspace. If it is yours, contact adapID support.", "")
+				fail(&stopped[0], "This AWS account is already connected to another workspace. If it is yours, contact support.", "")
 			} else {
 				unavailable(&stopped[0])
 			}
@@ -1397,7 +1405,7 @@ func (s *AWSIntegrationService) explainDenied(ctx context.Context, caller AWSCal
 		result.ourSide = true
 		log.Error("aws integration: AssumeRole refused because of OUR setup, not the customer's; no customer can connect until it is fixed")
 		check.State, check.Fix = AWSCheckError, ""
-		check.Message = "AWS refused because of a setting on adapID's side, not in your account. You do not need to change anything; contact adapID support if it does not clear soon."
+		check.Message = "AWS refused because of a setting on our side, not in your account. You do not need to change anything; contact support if it does not clear soon."
 	case d.OurSideClear():
 		log.Info("aws integration: AssumeRole refused by the customer's role (our side checked and fine)")
 		roleName := role.ARN[strings.LastIndex(role.ARN, "/")+1:]
