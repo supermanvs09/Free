@@ -98,6 +98,16 @@ func regionDisabled(err error) bool {
 	return errors.As(err, &apiErr) && apiErr.ErrorCode() == "RegionDisabledException"
 }
 
+// accessDenied: AWS answered with one of its "not allowed" codes.
+func accessDenied(err error) bool {
+	var apiErr smithy.APIError
+	if !errors.As(err, &apiErr) {
+		return false
+	}
+	_, ok := accessDeniedCodes[apiErr.ErrorCode()]
+	return ok
+}
+
 // Client talks to AWS as the platform. It is safe for concurrent use.
 type Client struct {
 	base              aws.Config
@@ -163,13 +173,16 @@ func (c *Client) AssumeRole(ctx context.Context, p Platform, role RoleARN, exter
 		DurationSeconds: aws.Int32(900),
 	}
 	// STS is called in the platform region (p.Region). The role ARN carries the
-	// account; IAM roles are global, so AssumeRole itself takes no region. The
-	// customer's account can turn STS off in a region (RegionDisabledException):
-	// us-east-1 cannot be turned off, so the call is made there instead. The
-	// credentials it returns work in every region.
+	// account; IAM roles are global, so AssumeRole itself takes no region. But
+	// the customer's account must have that region enabled: an opt-in region
+	// (ap-south-2, say) the customer never enabled, or STS turned off there,
+	// refuses the call - with RegionDisabledException or a plain AccessDenied.
+	// us-east-1 is enabled in every account and cannot be turned off, so a
+	// refused call is made once more there. A real refusal (trust policy,
+	// External ID) is refused there too and reported as before.
 	stsCfg := c.platformConfig(p)
 	out, err := sts.NewFromConfig(stsCfg).AssumeRole(ctx, in)
-	if regionDisabled(err) && stsCfg.Region != stsFallbackRegion {
+	if (regionDisabled(err) || accessDenied(err)) && stsCfg.Region != stsFallbackRegion {
 		stsCfg.Region = stsFallbackRegion
 		out, err = sts.NewFromConfig(stsCfg).AssumeRole(ctx, in)
 	}

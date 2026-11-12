@@ -24,6 +24,7 @@ type fakeAWS struct {
 	assumeDenied bool
 	rolesXML     string
 	stsOffIn     string   // region whose STS answers RegionDisabledException
+	deniedIn     string   // region whose STS answers AccessDenied (opt-in region not enabled)
 	stsRegions   []string // region each AssumeRole was signed for
 	assumeKey    string   // access key that signed the last AssumeRole
 
@@ -107,6 +108,11 @@ func (f *fakeAWS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			f.stsRegions = append(f.stsRegions, region)
 			if i := strings.Index(r.Header.Get("Authorization"), "Credential="); i >= 0 {
 				f.assumeKey = strings.SplitN(r.Header.Get("Authorization")[i+len("Credential="):], "/", 2)[0]
+			}
+			if region == f.deniedIn {
+				w.WriteHeader(http.StatusForbidden)
+				_, _ = io.WriteString(w, `<ErrorResponse><Error><Type>Sender</Type><Code>AccessDenied</Code><Message>not authorized</Message></Error><RequestId>1</RequestId></ErrorResponse>`)
+				return
 			}
 			if region == f.stsOffIn {
 				w.WriteHeader(http.StatusForbidden)
@@ -320,5 +326,19 @@ func TestAssumeRoleUsesProcessIdentityNotTheConfiguredName(t *testing.T) {
 		default:
 			t.Errorf("AssumeRole sent unexpected field %s", k)
 		}
+	}
+}
+
+// The platform region is an opt-in region the customer never enabled: STS
+// there refuses, and the same call in us-east-1 succeeds.
+func TestAssumeRoleRetriesInUSEast1WhenRefusedInPlatformRegion(t *testing.T) {
+	f := &fakeAWS{rolesXML: oneRole, deniedIn: "ap-south-1"}
+	c, p := newTestClient(t, f, "")
+	role, _ := ParseRoleARN("arn:aws:iam::222222222222:role/NHIPlatformCollector")
+	if _, err := c.AssumeRole(context.Background(), p, role, "ext"); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(f.stsRegions, ",") != "ap-south-1,us-east-1" {
+		t.Fatalf("sts regions = %v", f.stsRegions)
 	}
 }
