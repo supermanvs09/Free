@@ -37,7 +37,7 @@ export default function LoginPage() {
   const destination = location.state?.from?.pathname || '/';
 
   /* Starts blank. People sign in with their workspace username, which reads
-     name@workspace (e.g. cirm@bimasugam). The API takes it as the login id. */
+     name@workspace. The API takes it as the login id. */
   const [values, setValues] = useState({ email: '', password: '' });
   const [fieldErrors, setFieldErrors] = useState({});
   const [formError, setFormError] = useState(null);
@@ -67,7 +67,7 @@ export default function LoginPage() {
     const login = values.email.trim();
     if (!login) errors.email = 'Enter your username.';
     else if (/\s/.test(login)) errors.email = 'Your username has no spaces.';
-    else if (!/^[^@]+@[^@]+$/.test(login)) errors.email = 'Enter your username as name@workspace, for example cirm@bimasugam.';
+    else if (!/^[^@]+@[^@]+$/.test(login)) errors.email = 'Enter your username as name@workspace.';
     if (!values.password) errors.password = 'Enter your password.';
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) return;
@@ -236,7 +236,6 @@ export default function LoginPage() {
                   </span>
                 }
                 htmlFor="login-username"
-                hint="Your name and workspace, like cirm@bimasugam."
                 error={fieldErrors.email}
               >
                 <Input

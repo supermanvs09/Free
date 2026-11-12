@@ -102,19 +102,27 @@ function fail(step, message, extra = {}) {
 
 /* ── Start ────────────────────────────────────────────────────────────── */
 
-/** Begin a run (or follow the one already going). */
-export async function start() {
+/**
+ * Begin a run (or follow the one already going) for these AWS accounts. With
+ * none given, the accounts of the previous run (Try again).
+ */
+export async function start(accountIds) {
   if (isActive(state.run)) return;
   if (state.cooldownUntil > Date.now()) {
     set({ notice: { kind: 'cooldown', until: state.cooldownUntil } });
     return;
   }
-  set({ notice: null, run: newRun() });
-  const result = await startDiscoveryScan();
+  const accounts = accountIds?.length ? [...accountIds] : (state.run?.accountIds ?? []);
+  set({ notice: null, run: { ...newRun(), accountIds: accounts } });
+  const result = await startDiscoveryScan(accounts);
   if (!state.run || state.run.stage !== 'start') return;
   switch (result.kind) {
     case 'started':
-      patchRun({ stage: 'discovery', discovery: { ...state.run.discovery, scanId: result.scanId, state: 'running', schema: result.schema } });
+      patchRun({
+        stage: 'discovery',
+        accountIds: result.accounts,
+        discovery: { ...state.run.discovery, scanId: result.scanId, state: 'running', schema: result.schema },
+      });
       break;
     case 'running':
       // Somebody (or an earlier click) already started this workspace's scan: follow it.

@@ -1,12 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, ChevronDown, Layers, Loader2, RefreshCw, Server } from 'lucide-react';
 import { useWorkspace } from '../../app/WorkspaceContext';
-import { syncAwsAccount } from '../../lib/api/integrations';
 import { formatDateTime, formatRelative } from '../../lib/format';
 import { Button } from '../../ui/Button';
 import { FloatingPanel } from '../../ui/Floating';
-import { useToast } from '../../ui/Toast';
 import { cn } from '../../ui/cn';
 import { useSync } from './SyncContext';
 
@@ -76,15 +73,12 @@ function syncableAccounts(integration) {
 /**
  * "Sync now": with one connected account it just syncs; with more it asks
  * which - every account (read, score, refresh every page: the full sync) or
- * one account (queued for the discovery worker, followed on Integrations).
+ * one account (the same sync, for that account only).
  */
 function SyncChooser({ base, cooling, cooldownUntil, now, start, openPanel }) {
   const workspace = useWorkspace();
-  const { notify } = useToast();
-  const navigate = useNavigate();
   const anchorRef = useRef(null);
   const [open, setOpen] = useState(false);
-  const [pending, setPending] = useState('');
   const accounts = syncableAccounts(workspace.integration);
   const choose = accounts.length > 1;
   const minutes = Math.ceil((cooldownUntil - now) / 60000);
@@ -92,28 +86,14 @@ function SyncChooser({ base, cooling, cooldownUntil, now, start, openPanel }) {
   const syncAll = () => {
     setOpen(false);
     if (cooling) openPanel();
-    else start();
+    else start(accounts.map((a) => a.accountId));
   };
 
-  const syncOne = async (account) => {
-    setPending(account.accountId);
-    try {
-      const { alreadyQueued } = await syncAwsAccount({ accountId: account.accountId });
-      setOpen(false);
-      notify({
-        variant: alreadyQueued ? 'info' : 'success',
-        title: alreadyQueued ? `${account.accountId} is already syncing` : `Sync of ${account.accountId} queued`,
-        description: alreadyQueued
-          ? 'A sync of this account is already queued or running.'
-          : 'Only this account is read. Follow it - or cancel it before it starts - on Integrations.',
-        action: { label: 'Open Integrations', onSelect: () => navigate('/integrations') },
-      });
-      workspace.refresh?.();
-    } catch (error) {
-      notify({ variant: 'error', title: `Could not sync ${account.accountId}`, description: error?.message });
-    } finally {
-      setPending('');
-    }
+  /* One account: the same sync (read, score, refresh), for that account only. */
+  const syncOne = (account) => {
+    setOpen(false);
+    if (cooling) openPanel();
+    else start([account.accountId]);
   };
 
   if (!choose) {
@@ -160,34 +140,28 @@ function SyncChooser({ base, cooling, cooldownUntil, now, start, openPanel }) {
           detail={
             cooling
               ? `Available again in ${minutes} min - the scanner runs one full sync every 10 minutes.`
-              : 'Reads every account, scores what it finds and refreshes every page. About 5 to 10 minutes.'
+              : 'Reads every account, scores what it finds and refreshes every page.'
           }
           disabled={cooling}
           onSelect={syncAll}
         />
         <div className="my-1 border-t border-line" />
         <p className="px-2.5 pt-1 pb-1 text-[11px] font-semibold tracking-[0.06em] text-ink-3 uppercase">One account</p>
-        {accounts.map((account) => {
-          const busy = account.sync.status === 'queued' || account.sync.status === 'running';
-          return (
-            <ChooserItem
-              key={account.accountId}
-              icon={Server}
-              mono
-              title={account.accountId}
-              detail={
-                busy
-                  ? account.sync.status === 'queued'
-                    ? 'Already queued'
-                    : 'Syncing now'
-                  : `${account.regions.length} region${account.regions.length === 1 ? '' : 's'}${account.sync.lastSyncedAt ? ` · last synced ${formatRelative(account.sync.lastSyncedAt)}` : ' · not synced yet'}`
-              }
-              loading={pending === account.accountId}
-              disabled={busy || Boolean(pending) || account.regions.length === 0}
-              onSelect={() => syncOne(account)}
-            />
-          );
-        })}
+        {accounts.map((account) => (
+          <ChooserItem
+            key={account.accountId}
+            icon={Server}
+            mono
+            title={account.accountId}
+            detail={
+              cooling
+                ? `Available again in ${minutes} min.`
+                : `${account.regions.length} region${account.regions.length === 1 ? '' : 's'}${account.sync.lastSyncedAt ? ` · last synced ${formatRelative(account.sync.lastSyncedAt)}` : ''}`
+            }
+            disabled={cooling || account.regions.length === 0}
+            onSelect={() => syncOne(account)}
+          />
+        ))}
       </FloatingPanel>
     </>
   );

@@ -5,7 +5,7 @@ import { readToken } from './session';
  * The discovery scanner's own scan API, called straight from the console (not
  * through the NHI backend):
  *
- *   POST {BASE}/api/v1/scan/start
+ *   POST {BASE}/api/v1/scan/start      { account_ids: ["548593215839", ...] }
  *   GET  {BASE}/api/v1/scan/status?scan_id=...
  *
  * BASE is a same-origin path (/scan-api) that the dev server and nginx forward
@@ -17,7 +17,7 @@ import { readToken } from './session';
  * reports "already running" and "wait before scanning again" as
  * { success: false, ... } with its own status codes:
  *
- *   started   { success: true, data: { scan_id, schema, status: "STARTED" } }
+ *   started   { success: true, data: { scan_id, schema, accounts, status: "STARTED" } }
  *   running   { success: false, scan_id, started_at, elapsed, message }
  *   cooldown  { success: false, retry_after_minutes, message }
  */
@@ -40,15 +40,15 @@ function unreachable(response) {
 
 /**
  * Start a scan. Resolves to one of
- *   { kind: 'started',  scanId, schema }
+ *   { kind: 'started',  scanId, schema, accounts }   accounts: the ones the scanner took
  *   { kind: 'running',  scanId, startedAt, elapsed, message }   someone already started one
  *   { kind: 'cooldown', retryAfterMinutes, message }            scanned too recently
  *   { kind: 'error',    message, unreachable }
  */
-export async function startDiscoveryScan() {
+export async function startDiscoveryScan(accountIds = []) {
   let response;
   try {
-    response = await http.post('/api/v1/scan/start', {});
+    response = await http.post('/api/v1/scan/start', { account_ids: accountIds });
     // A scanner that only answers GET on this path says so with 405.
     if (response.status === 405) response = await http.get('/api/v1/scan/start');
   } catch {
@@ -56,7 +56,14 @@ export async function startDiscoveryScan() {
   }
   const body = object(response.data);
   const data = object(body.data);
-  if (body.success === true && data.scan_id) return { kind: 'started', scanId: String(data.scan_id), schema: data.schema ? String(data.schema) : '' };
+  if (body.success === true && data.scan_id) {
+    return {
+      kind: 'started',
+      scanId: String(data.scan_id),
+      schema: data.schema ? String(data.schema) : '',
+      accounts: Array.isArray(data.accounts) ? data.accounts.map(String) : accountIds,
+    };
+  }
   if (body.success === false && body.scan_id) {
     return { kind: 'running', scanId: String(body.scan_id), startedAt: body.started_at ?? null, elapsed: body.elapsed ?? '', message: body.message ?? '' };
   }

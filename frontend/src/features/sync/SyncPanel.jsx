@@ -153,6 +153,8 @@ export function SyncPanel({ open, onClose }) {
   }
   if (failed) subtitle = 'The sync did not finish.';
   if (finished) subtitle = `Finished in ${clock((run.finishedAt ?? now) - run.startedAt)}.`;
+  const ids = run?.accountIds ?? [];
+  if (ids.length) subtitle = `${ids.length === 1 ? `Account ${ids[0]}` : `${ids.length} accounts`} · ${subtitle}`;
 
   const tryAgain = async () => {
     if (run?.postureRetry) {
@@ -160,8 +162,9 @@ export function SyncPanel({ open, onClose }) {
     } else if (run?.resumable) {
       engine.resume();
     } else {
+      const accounts = run?.accountIds;
       engine.dismiss();
-      await engine.start();
+      await engine.start(accounts);
     }
   };
 

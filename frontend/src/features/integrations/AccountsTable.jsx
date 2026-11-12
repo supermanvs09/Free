@@ -14,7 +14,7 @@ import {
   Trash2,
   XCircle,
 } from 'lucide-react';
-import { cancelAwsAccountSync, removeAwsAccount, syncAwsAccount, updateAwsAccountRegions, verifyAwsConnection } from '../../lib/api/integrations';
+import { cancelAwsAccountSync, removeAwsAccount, updateAwsAccountRegions, verifyAwsConnection } from '../../lib/api/integrations';
 import { formatDateTime, formatNumber, formatRelative } from '../../lib/format';
 import { Button } from '../../ui/Button';
 import { Field, Input, SearchInput } from '../../ui/Field';
@@ -69,25 +69,23 @@ export function useAccountActions(account, { onChanged, onEditRegions } = {}) {
   const { notify } = useToast();
   const [busy, setBusy] = useState('');
 
-  /* This account only: it is queued for the discovery worker, and the page
-     follows its state (queued -> syncing -> synced). The top bar's Sync now
-     offers every account at once. */
+  /* This account only: the same sync as the top bar's (read, score, refresh
+     every page), with account_ids = [this account]. Its progress is in the
+     sync panel. */
+  const { start: startSync, run, cooldownUntil } = useSync();
   const sync = async () => {
+    if (run && run.stage !== 'done' && run.stage !== 'failed') {
+      notify({ variant: 'info', title: 'A sync is already running', description: 'Wait for it to finish, then sync this account.' });
+      return;
+    }
+    if (cooldownUntil > Date.now()) {
+      notify({ variant: 'info', title: 'Sync again in a few minutes', description: `A sync can run every 10 minutes. The next one can start in ${Math.ceil((cooldownUntil - Date.now()) / 60000)} min.` });
+      return;
+    }
     setBusy('sync');
     try {
-      const { alreadyQueued } = await syncAwsAccount({ accountId: account.accountId });
-      notify(
-        alreadyQueued
-          ? { variant: 'info', title: `${account.accountId} is already syncing`, description: 'A sync of this account is already queued or running. This page follows it.' }
-          : {
-              variant: 'success',
-              title: `Sync of ${account.accountId} queued`,
-              description: 'It starts as soon as the discovery worker is free; this page follows it. You can cancel it until it starts.',
-            },
-      );
+      await startSync([account.accountId]);
       onChanged?.();
-    } catch (error) {
-      notify({ variant: 'error', title: `Could not sync ${account.accountId}`, description: error?.message });
     } finally {
       setBusy('');
     }

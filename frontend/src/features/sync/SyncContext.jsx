@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, u
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../app/AuthContext';
 import { useAccess } from '../../app/useAccess';
+import { useWorkspace } from '../../app/WorkspaceContext';
 import { useToast } from '../../ui/Toast';
 import * as engine from '../../lib/sync/engine';
 import { SyncPanel } from './SyncPanel';
@@ -53,10 +54,19 @@ export function SyncProvider({ children }) {
     [notify, navigate],
   );
 
-  const start = useCallback(async () => {
-    setPanelOpen(true);
-    await engine.start();
-  }, []);
+  /* Without a list: every connected AWS account (Sync all accounts). */
+  const workspace = useWorkspace();
+  const connected = useMemo(
+    () => (workspace.integration?.accounts ?? []).filter((a) => a.status === 'connected' && a.connectedAt).map((a) => a.accountId),
+    [workspace.integration],
+  );
+  const start = useCallback(
+    async (accountIds) => {
+      setPanelOpen(true);
+      await engine.start(Array.isArray(accountIds) && accountIds.length ? accountIds : connected);
+    },
+    [connected],
+  );
 
   const value = useMemo(
     () => ({
