@@ -504,3 +504,8 @@ html.is-translated font { background: none !important; box-shadow: none !importa
 .tone-d { --color-bg: #0a1230; background: #0a1230; }
 .wordmark { color: rgb(255 255 255 / .06); -webkit-text-stroke: 1px rgb(255 255 255 / .18); }
 .tour-side { display: none; }
+
+/* home hero runs under the floating navigation, like Yapay's nav inside the photo */
+.page > .hero-photo:first-child { margin-top: calc(-1 * var(--hdr) + 40px); }
+@media (min-width: 1024px) { .page > .hero-photo:first-child { margin-top: calc(-1 * var(--hdr) + 40px + 8px); } }
+.page > .hero-photo:first-child ~ * { position: relative; }

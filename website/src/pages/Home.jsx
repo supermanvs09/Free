@@ -99,38 +99,43 @@ export default function Home() {
     <>
       <Seo path="/" description={SITE.description} />
 
-      {/* 1. Hero (F Mindraft + A Yapay): full-bleed photograph, headline on it, glass call-outs */}
-      <section className="pb-6 pt-3">
+      {/* 1. Hero, after Yapay (shot 75): the photograph is the product at work.
+          A customer pays with a phone; a glass frame over the phone shows the
+          identity check Deep Algorithms makes at that moment. */}
+      <section className="hero-photo pb-6">
         <div className="container-wide">
-          <div className="relative isolate min-h-[640px] overflow-hidden rounded-[28px] md:min-h-[720px]">
-            <img src="/img/photos/hero-person.webp" alt="" width="1800" height="1440" fetchPriority="high" decoding="async"
-              className="absolute inset-0 -z-10 h-full w-full object-cover object-[78%_30%] md:object-[70%_30%]" />
-            <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgb(8_10_18/.92)_0%,rgb(8_10_18/.72)_38%,rgb(8_10_18/.15)_70%,transparent_100%)]" />
-            <div aria-hidden="true" className="absolute inset-x-0 bottom-0 -z-10 h-1/2 bg-[linear-gradient(0deg,rgb(8_10_18/.75),transparent)]" />
-            <div className="flex min-h-[640px] flex-col justify-between p-6 pt-24 md:min-h-[720px] md:p-12 md:pt-32 lg:p-16 lg:pt-36">
-              <div className="max-w-[720px] text-white">
-                <Link to="/prompt-heist" className="rise group inline-flex items-center gap-2.5 rounded-full border border-white/25 bg-white/10 py-1.5 pl-1.5 pr-4 text-[13.5px] text-white backdrop-blur-md transition hover:bg-white/15">
-                  <span className="rounded-full bg-white px-2.5 py-0.5 text-[12px] font-semibold text-ink">New</span>Prompt Heist is live. Win a job offer.
-                  <Icon name="ArrowRight" size={13} weight="bold" className="transition-transform group-hover:translate-x-1" />
-                </Link>
-                <SplitTitle as="h1" always className="t-display mt-7 !text-white">Every login proves a password. We prove the person.</SplitTitle>
-                <p className="rise mt-6 max-w-[540px] text-[17px] leading-relaxed text-white/80 md:text-[19px]" style={{ '--d': '240ms' }}>
-                  Deep Algorithms scores every person, machine identity and AI agent in real time, and stops the wrong one before it acts.
-                </p>
-                <div className="rise mt-9 flex flex-wrap gap-3" style={{ '--d': '320ms' }}>
-                  <Link to="/request-demo" className="btn btn-white btn-lg group">Book a demo<span className="arr-dot"><Icon name="ArrowUpRight" size={15} weight="bold" /></span></Link>
-                  <Link to="/products" className="btn btn-outline-inverse btn-lg">Explore products</Link>
-                </div>
+          <div className="relative isolate overflow-hidden rounded-[28px] bg-[#3a3631] max-lg:min-h-[760px] lg:aspect-[1360/780]">
+            <img src="/img/photos/bfsi.webp" alt="A customer pays at a counter with a phone." width="1200" height="800" fetchPriority="high" decoding="async"
+              className="absolute inset-0 -z-10 h-full w-full object-cover object-[64%_60%] brightness-[.82] lg:object-[50%_60%]" />
+            <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgb(20_18_16/.78)_0%,rgb(20_18_16/.45)_34%,transparent_58%)]" />
+            <div aria-hidden="true" className="absolute inset-x-0 bottom-0 -z-10 h-1/3 bg-[linear-gradient(0deg,rgb(20_18_16/.55),transparent)]" />
+
+            {/* headline */}
+            <div className="absolute left-6 right-6 top-[120px] md:left-12 lg:left-[5.5%] lg:right-auto lg:top-[22%] lg:w-[44%]">
+              <SplitTitle as="h1" always className="text-[46px] font-medium leading-[1.02] tracking-[-0.04em] text-white md:text-[64px] xl:text-[80px]">Trust the person, not just the password.</SplitTitle>
+            </div>
+
+            {/* glass frame around the phone (desktop), with the live decision */}
+            <div aria-hidden="true" className="rise absolute hidden rounded-[26px] border border-white/45 bg-white/[.08] shadow-[0_30px_60px_-20px_rgb(0_0_0/.5)] backdrop-blur-[1.5px] lg:block"
+              style={{ left: '56.5%', top: '27%', width: '21%', height: '62%', '--d': '300ms' }}>
+              <span className="absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-brand shadow-lg"><Icon name="Check" size={16} weight="bold" /></span>
+            </div>
+            <div role="group" aria-label="Decision: Payment approved" className="rise absolute left-6 right-6 top-[392px] rounded-[18px] md:left-12 md:right-auto md:w-[380px] bg-[linear-gradient(180deg,rgb(31_91_255/.88),rgb(21_70_214/.94))] p-4 text-white shadow-[0_24px_50px_-18px_rgb(31_91_255/.8)] backdrop-blur-md lg:left-[50%] lg:top-[73%] lg:w-[34%] xl:left-[53%] xl:w-[27%]" style={{ '--d': '480ms' }}>
+              <div className="flex items-center gap-3">
+                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-white/18"><Icon name="Fingerprint" size={20} /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[15px] font-semibold">It’s really Kavya</span>
+                  <span className="block truncate text-[12.5px] text-white/75">₹48,000 to a new payee</span>
+                </span>
+                <span className="text-right"><span className="block text-[15px] font-semibold">Approved</span><span className="block text-[12px] text-white/75">in 40 ms</span></span>
               </div>
-              <div className="rise mt-12 grid gap-3 md:grid-cols-2 lg:ml-auto lg:w-[680px]" style={{ '--d': '420ms' }}>
-                <Link to="/solutions/bfsi" className="group rounded-[18px] border border-white/20 bg-white/10 p-5 text-white backdrop-blur-md transition hover:bg-white/15">
-                  <span className="flex items-start justify-between"><span className="text-[17px] font-semibold">Run a bank?</span><Icon name="ArrowUpRight" size={18} className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></span>
-                  <span className="mt-1.5 block text-[13.5px] leading-snug text-white/75">Stop mule accounts and account takeover at the payee, with RBI-ready evidence.</span>
-                </Link>
-                <Link to="/agentic-ai/agentic-identity" className="group rounded-[18px] border border-white/20 bg-white/10 p-5 text-white backdrop-blur-md transition hover:bg-white/15">
-                  <span className="flex items-start justify-between"><span className="text-[17px] font-semibold">Rolling out AI agents?</span><Icon name="ArrowUpRight" size={18} className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></span>
-                  <span className="mt-1.5 block text-[13.5px] leading-snug text-white/75">Give every agent an owner, a task and a limit. Check every tool call first.</span>
-                </Link>
+            </div>
+
+            {/* bottom right: one line and the call (Yapay "Talk to Sales") */}
+            <div className="absolute bottom-[112px] left-6 right-6 flex flex-col gap-5 md:left-12 lg:bottom-[10%] lg:left-[5.5%] lg:right-auto lg:w-[380px]">
+              <p className="rise text-[15px] leading-relaxed text-white/85 lg:text-[16px]" style={{ '--d': '360ms' }}>From banks to ministries, we check that every login, payment and AI agent is who it claims to be, before it acts.</p>
+              <div className="rise flex flex-wrap gap-3" style={{ '--d': '420ms' }}>
+                <Link to="/request-demo" className="group inline-flex h-12 items-center gap-3 rounded-full bg-[#0c0e14] pl-5 pr-1.5 text-[15px] font-medium text-white transition hover:bg-black">Book a demo<span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand transition-transform group-hover:-rotate-45"><Icon name="ArrowRight" size={16} weight="bold" /></span></Link>
               </div>
             </div>
           </div>
