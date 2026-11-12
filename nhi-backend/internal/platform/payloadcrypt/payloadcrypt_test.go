@@ -6,7 +6,9 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
+	"encoding/pem"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -147,5 +149,19 @@ func TestPublicKeyHandler(t *testing.T) {
 	PublicKeyHandler(Config{})(rec, httptest.NewRequest("GET", "/api/v1/auth/payload-key", nil))
 	if strings.Contains(rec.Body.String(), `"key"`) || !strings.Contains(rec.Body.String(), `"enabled":false`) {
 		t.Fatal(rec.Body.String())
+	}
+}
+
+func TestParsePrivateKeyForms(t *testing.T) {
+	der, _ := x509.MarshalPKCS8PrivateKey(testKey)
+	b64 := base64.StdEncoding.EncodeToString(der)
+	pemText := string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der}))
+	for name, in := range map[string]string{"bare": b64, "bare with spaces": " " + b64[:40] + "\n" + b64[40:] + " ", "pem": pemText} {
+		if k, err := ParsePrivateKey(in); err != nil || k.N.Cmp(testKey.N) != 0 {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	if _, err := ParsePrivateKey("not a key"); err == nil {
+		t.Error("garbage accepted")
 	}
 }

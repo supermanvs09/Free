@@ -58,8 +58,8 @@ type Config struct {
 
 var defaultExempt = []string{"/api/v1/health", "/api/v1/auth/payload-key", "/api/v1/ispm-scans"}
 
-// FromEnv reads PAYLOAD_ENCRYPTION_ENABLED, PAYLOAD_RSA_PRIVATE_KEY (PEM; "\n"
-// escapes allowed) or PAYLOAD_RSA_PRIVATE_KEY_FILE, and
+// FromEnv reads PAYLOAD_ENCRYPTION_ENABLED, PAYLOAD_RSA_PRIVATE_KEY (the bare
+// base64 key, or PEM with "\n" escapes) or PAYLOAD_RSA_PRIVATE_KEY_FILE, and
 // PAYLOAD_ENCRYPTION_EXEMPT (comma-separated extra path prefixes). Enabled
 // without a usable key is an error: the service must not start believing it
 // encrypts when it does not.
@@ -90,20 +90,27 @@ func FromEnv() (Config, error) {
 	return cfg, nil
 }
 
-// ParsePrivateKey accepts PKCS#8 ("PRIVATE KEY") or PKCS#1 ("RSA PRIVATE KEY"), 2048 bits or more.
-func ParsePrivateKey(pemText string) (*rsa.PrivateKey, error) {
-	block, _ := pem.Decode([]byte(strings.TrimSpace(pemText)))
-	if block == nil {
-		return nil, errors.New("payloadcrypt: PAYLOAD_RSA_PRIVATE_KEY is not a PEM private key")
+// ParsePrivateKey accepts PKCS#8 ("PRIVATE KEY") or PKCS#1 ("RSA PRIVATE KEY"),
+// 2048 bits or more, as PEM or as the bare base64 key (one line, no
+// BEGIN/END lines).
+func ParsePrivateKey(text string) (*rsa.PrivateKey, error) {
+	text = strings.TrimSpace(text)
+	var der []byte
+	if block, _ := pem.Decode([]byte(text)); block != nil {
+		der = block.Bytes
+	} else if b, err := base64.StdEncoding.DecodeString(strings.Join(strings.Fields(text), "")); err == nil {
+		der = b
+	} else {
+		return nil, errors.New("payloadcrypt: PAYLOAD_RSA_PRIVATE_KEY is neither a PEM key nor a base64 key")
 	}
 	var key *rsa.PrivateKey
-	if k, err := x509.ParsePKCS8PrivateKey(block.Bytes); err == nil {
+	if k, err := x509.ParsePKCS8PrivateKey(der); err == nil {
 		rk, ok := k.(*rsa.PrivateKey)
 		if !ok {
 			return nil, errors.New("payloadcrypt: the private key is not RSA")
 		}
 		key = rk
-	} else if rk, err2 := x509.ParsePKCS1PrivateKey(block.Bytes); err2 == nil {
+	} else if rk, err2 := x509.ParsePKCS1PrivateKey(der); err2 == nil {
 		key = rk
 	} else {
 		return nil, fmt.Errorf("payloadcrypt: parse private key: %w", err)

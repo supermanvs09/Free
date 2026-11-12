@@ -405,11 +405,12 @@ console side `frontend/src/lib/api/payloadCrypto.js`):
 - body `{"iv", "data", "ts"}` = AES-256-GCM, bound to method, path and time (5 min);
 - the response is sealed with the same key: `{"iv", "data", "ct"}`, header `X-Payload-Encrypted: 1`.
 
-Settings: `PAYLOAD_RSA_PRIVATE_KEY` (PEM, `\n` escapes allowed) or
-`PAYLOAD_RSA_PRIVATE_KEY_FILE`; `PAYLOAD_ENCRYPTION_EXEMPT` adds path prefixes
-left in the clear (health, `/api/v1/auth/payload-key` and the worker's
-`/api/v1/ispm-scans` always are). Enabled without a usable key, the API refuses
-to start. A key: `openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out payload.pem`.
+Settings: `PAYLOAD_RSA_PRIVATE_KEY` - the private key as one base64 line (PEM
+also accepted) - or `PAYLOAD_RSA_PRIVATE_KEY_FILE`; `PAYLOAD_ENCRYPTION_EXEMPT`
+adds path prefixes left in the clear (health, `/api/v1/auth/payload-key` and the
+worker's `/api/v1/ispm-scans` always are). Enabled without a usable key, the API
+refuses to start. A key, printed as one line with no file written:
+`openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 | grep -v '^-----' | tr -d '\n'`.
 The console reads `GET /api/v1/auth/payload-key` at start, so switching it on or
 off needs no new console build. Query strings stay in the clear.
 
