@@ -72,6 +72,8 @@ type AWSIntegrationStore interface {
 	RequestSync(ctx context.Context, schema, accountID, actor string, at time.Time) (*AWSAccountRecord, bool, error)
 	CancelSync(ctx context.Context, schema, accountID string) (*AWSAccountRecord, error)
 	DeleteAccount(ctx context.Context, tenantID, schema, accountID string) (map[string]int64, error)
+	ArchiveAccount(ctx context.Context, tenantID, schema, accountID string) (map[string]int64, error)
+	RestoreAccount(ctx context.Context, schema, accountID string) (map[string]int64, error)
 	SaveCheckStart(ctx context.Context, tenantID, schema string, rec AWSAccountRecord) (*AWSAccountRecord, error)
 	SaveApprovalAsk(ctx context.Context, tenantID, schema string, rec AWSAccountRecord) (*AWSAccountRecord, error)
 	FinishPendingRequest(ctx context.Context, tenantID, accountID, outcome, detail string, checks []AWSCheck) error
@@ -285,15 +287,17 @@ func (s *AWSIntegrationService) Get(ctx context.Context, caller AWSCaller, canMa
 		if rec.Approval.Status == ApprovalPending {
 			out.AwaitingApproval = true
 		}
-		if rec.GitHubConnected || rec.CodeCommitConnected {
-			out.ExposureEnabled = true
+		if rec.CodeCommitConnected {
+			out.Platforms.CodeCommit = true
 		}
 	}
 
 	p, settings, err := s.platform(ctx, caller.TenantID)
 	if settings != nil {
 		out.Workspace.Domain = settings.Domain
+		out.Platforms.GitHub, out.Platforms.Bitbucket = settings.GitHubActive, settings.BitbucketActive
 	}
+	out.ExposureEnabled = out.Platforms.CodeCommit || out.Platforms.GitHub || out.Platforms.Bitbucket
 	if !canManage {
 		return out, nil
 	}
@@ -432,6 +436,13 @@ func (s *AWSIntegrationService) verify(ctx context.Context, caller AWSCaller, ra
 	// approval for the next. Only a re-check of an account that is itself
 	// approved runs the checks directly, with no e-mail. An account an admin
 	// rejected, or whose request is still open, stays in the approval flow.
+	// The same AWS account removed earlier with its data kept: the data comes
+	// back now. A failure leaves it archived (tried again on the next Verify).
+	if restored, err := s.store.RestoreAccount(ctx, caller.Schema, role.AccountID); err != nil {
+		logging.FromContext(ctx).Error("aws integration: restoring the removed account's data failed, it stays archived", "account_id", role.AccountID, "err", err)
+	} else if restored != nil {
+		logging.FromContext(ctx).Info("aws integration: the removed account's data is back", "account_id", role.AccountID, "tables", restored)
+	}
 	if !isApproved(existing) {
 		return s.askApprovalFirst(ctx, caller, settings, rec, requestID, existing)
 	}
@@ -610,13 +621,12 @@ func (s *AWSIntegrationService) SetExposure(ctx context.Context, caller AWSCalle
 	if rec.ConnectedAt == nil {
 		return nil, ErrAWSAccountNotConnected
 	}
-	var secret awsconnect.SecretARN
+	// GitHub is switched on for the whole company (nhi_global.tenants
+	// github_active), not per AWS account.
 	if req.GitHub {
-		secret, err = awsconnect.ParseSecretARN(req.GitHubSecretARN, accountID, s.opts.GitHubSecretPrefix)
-		if err != nil {
-			return nil, err
-		}
+		return nil, ErrGitHubPerCompany
 	}
+	var secret awsconnect.SecretARN
 
 	update := ExposureUpdate{Actor: caller.Actor, At: s.now().UTC()}
 	if !req.GitHub {
@@ -676,9 +686,12 @@ func (s *AWSIntegrationService) SetExposure(ctx context.Context, caller AWSCalle
 		"github", req.GitHub, "codecommit", req.CodeCommit, "by", caller.Actor)
 	resp := &AWSExposureResponse{Account: saved.ToAPI()}
 	for _, a := range all {
-		if a.GitHubConnected || a.CodeCommitConnected {
+		if a.CodeCommitConnected {
 			resp.ExposureEnabled = true
 		}
+	}
+	if settings, err := s.store.TenantSettings(saveCtx, caller.TenantID); err == nil && settings != nil && (settings.GitHubActive || settings.BitbucketActive) {
+		resp.ExposureEnabled = true
 	}
 	return resp, nil
 }
@@ -940,9 +953,16 @@ func (s *AWSIntegrationService) CancelSync(ctx context.Context, caller AWSCaller
 // and its permission on the central bus is revoked so its events are refused.
 // Nothing changes in the customer's AWS account; the page tells them to
 // delete the role and rule themselves.
-func (s *AWSIntegrationService) RemoveAccount(ctx context.Context, caller AWSCaller, accountID string) error {
-	log := logging.FromContext(ctx).With("account_id", accountID)
-	purged, err := s.store.DeleteAccount(ctx, caller.TenantID, caller.Schema, accountID)
+//
+// deleteData false keeps the data: it is moved to archive tables and comes
+// back when the same AWS account is connected again (see verify).
+func (s *AWSIntegrationService) RemoveAccount(ctx context.Context, caller AWSCaller, accountID string, deleteData bool) error {
+	log := logging.FromContext(ctx).With("account_id", accountID, "delete_data", deleteData)
+	remove, done := s.store.DeleteAccount, "aws integration: account removed with its data"
+	if !deleteData {
+		remove, done = s.store.ArchiveAccount, "aws integration: account removed, its data kept in the archive tables"
+	}
+	purged, err := remove(ctx, caller.TenantID, caller.Schema, accountID)
 	if err != nil {
 		if !errors.Is(err, ErrAWSAccountNotFound) {
 			log.Error("aws integration: removing the account failed, nothing was deleted", "err", err)
@@ -959,7 +979,7 @@ func (s *AWSIntegrationService) RemoveAccount(ctx context.Context, caller AWSCal
 		}
 		total += n
 	}
-	log.Info("aws integration: account removed with its data", "rows_deleted", total, "tables", purged)
+	log.Info(done, "rows", total, "tables", purged)
 	if len(skipped) > 0 {
 		sort.Strings(skipped)
 		log.Warn("aws integration: some of the removed account's rows could not be deleted, remove them by hand",

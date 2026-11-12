@@ -28,6 +28,8 @@ type fakeAWSStore struct {
 	mu        sync.Mutex
 	settings  *AWSTenantSettings
 	accounts  map[string]AWSAccountRecord // per account, single tenant
+	archived  map[string]AWSAccountRecord // removed with the data kept
+	restored  []string
 	claimed   bool
 	saved     []ExposureUpdate
 	approvals []ApprovalRequest
@@ -311,6 +313,32 @@ func (f *fakeAWSStore) DeleteAccount(_ context.Context, _, _, accountID string) 
 	}
 	delete(f.accounts, accountID)
 	return map[string]int64{}, nil
+}
+
+func (f *fakeAWSStore) ArchiveAccount(_ context.Context, _, _, accountID string) (map[string]int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	rec, ok := f.accounts[accountID]
+	if !ok {
+		return nil, ErrAWSAccountNotFound
+	}
+	if f.archived == nil {
+		f.archived = map[string]AWSAccountRecord{}
+	}
+	f.archived[accountID] = rec
+	delete(f.accounts, accountID)
+	return map[string]int64{accountsTable: 1}, nil
+}
+
+func (f *fakeAWSStore) RestoreAccount(_ context.Context, _, accountID string) (map[string]int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if _, ok := f.archived[accountID]; !ok {
+		return nil, nil
+	}
+	delete(f.archived, accountID)
+	f.restored = append(f.restored, accountID)
+	return map[string]int64{"identities": 1}, nil
 }
 
 type fakeVerifier struct {
@@ -1018,47 +1046,13 @@ func TestExposureCodeCommit(t *testing.T) {
 	}
 }
 
-func TestExposureGitHub(t *testing.T) {
-	cases := []struct {
-		name      string
-		v         *fakeVerifier
-		gh        *fakeGitHub
-		connected bool
-		want      string
-		fix       string
-	}{
-		{"enabled", &fakeVerifier{secretToken: "ghp_T0kenValue9f8e"}, &fakeGitHub{res: githubcheck.Result{Login: "bot", Repositories: 4}}, true, "pass,pass", ""},
-		{"secret missing", &fakeVerifier{secretErr: awsconnect.ErrSecretNotFound}, &fakeGitHub{}, false, "fail,skipped", "Check the secret ARN"},
-		{"secret denied", &fakeVerifier{secretErr: awsconnect.ErrAccessDenied}, &fakeGitHub{}, false, "fail,skipped", "Add the secret read policy to the role"},
-		{"kms denied", &fakeVerifier{secretErr: awsconnect.ErrKMSDenied}, &fakeGitHub{}, false, "fail,skipped", "Allow kms:Decrypt on the secret's key"},
-		{"empty secret", &fakeVerifier{secretErr: awsconnect.ErrSecretEmpty}, &fakeGitHub{}, false, "fail,skipped", "Store the GitHub token as the secret value"},
-		{"token rejected", &fakeVerifier{secretToken: "ghp_T0kenValue9f8e"}, &fakeGitHub{err: githubcheck.ErrTokenRejected}, false, "pass,fail", "Create a new token and update the secret"},
-		{"no repositories", &fakeVerifier{secretToken: "ghp_T0kenValue9f8e"}, &fakeGitHub{err: githubcheck.ErrNoRepositories}, false, "pass,fail", "Give the token access to your repositories"},
-		{"no contents", &fakeVerifier{secretToken: "ghp_T0kenValue9f8e"}, &fakeGitHub{err: githubcheck.ErrNoContents}, false, "pass,fail", "Give the token Contents: Read-only"},
-		{"github down", &fakeVerifier{secretToken: "ghp_T0kenValue9f8e"}, &fakeGitHub{err: githubcheck.ErrUnavailable}, false, "pass,error", ""},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			store := newFakeAWSStore()
-			connectedAccount(store)
-			res, err := newTestService(store, tc.v, tc.gh, nil).SetExposure(context.Background(), awsTestCaller, "222222222222",
-				AWSExposureRequest{GitHub: true, GitHubSecretARN: awsTestSecret})
-			if err != nil {
-				t.Fatal(err)
-			}
-			gh := res.Account.Exposure.GitHub
-			if gh.Connected != tc.connected || states(gh.Checks) != tc.want || gh.SecretARN != awsTestSecret {
-				t.Fatalf("got connected=%v %s arn=%q", gh.Connected, states(gh.Checks), gh.SecretARN)
-			}
-			if tc.fix != "" && !strings.Contains(fmtChecks(gh.Checks), tc.fix) {
-				t.Fatalf("missing fix %q: %+v", tc.fix, gh.Checks)
-			}
-			for _, c := range gh.Checks {
-				if strings.Contains(c.Message, tc.v.secretToken) && tc.v.secretToken != "" {
-					t.Fatalf("token leaked into a message: %q", c.Message)
-				}
-			}
-		})
+// GitHub is a company setting now: asking for it on an AWS account is refused.
+func TestExposureGitHubIsPerCompany(t *testing.T) {
+	store := newFakeAWSStore()
+	connectedAccount(store)
+	svc := newTestService(store, &fakeVerifier{}, &fakeGitHub{}, nil)
+	if _, err := svc.SetExposure(context.Background(), awsTestCaller, "222222222222", AWSExposureRequest{GitHub: true, GitHubSecretARN: "x"}); !errors.Is(err, ErrGitHubPerCompany) {
+		t.Fatalf("github on an account: %v", err)
 	}
 }
 
@@ -1073,12 +1067,6 @@ func TestExposurePreconditionsAndTurningOff(t *testing.T) {
 		t.Fatalf("never connected: %v", err)
 	}
 	connectedAccount(store)
-	var secretErr *awsconnect.ErrInvalidSecretARN
-	for _, arn := range []string{"", "nope", "arn:aws:secretsmanager:us-east-1:333333333333:secret:nhi/github-x", "arn:aws:secretsmanager:us-east-1:222222222222:secret:other-x"} {
-		if _, err := svc.SetExposure(context.Background(), awsTestCaller, "222222222222", AWSExposureRequest{GitHub: true, GitHubSecretARN: arn}); !errors.As(err, &secretErr) {
-			t.Fatalf("secret %q: %v", arn, err)
-		}
-	}
 	// Turning everything off needs no AWS call and clears both platforms.
 	rec := store.accounts["222222222222"]
 	rec.GitHubConnected, rec.CodeCommitConnected = true, true
@@ -1111,13 +1099,13 @@ func TestUpdateRegionsSyncRemove(t *testing.T) {
 	if res, _ := svc.RequestSync(context.Background(), awsTestCaller, "222222222222"); !res.AlreadyQueued {
 		t.Fatal("second sync should report already queued")
 	}
-	if err := svc.RemoveAccount(context.Background(), awsTestCaller, "222222222222"); err != nil {
+	if err := svc.RemoveAccount(context.Background(), awsTestCaller, "222222222222", true); err != nil {
 		t.Fatal(err)
 	}
 	if len(v.revoked) != 1 || v.revoked[0] != "222222222222" {
 		t.Fatalf("bus permission not revoked: %v", v.revoked)
 	}
-	if err := svc.RemoveAccount(context.Background(), awsTestCaller, "222222222222"); !errors.Is(err, ErrAWSAccountNotFound) {
+	if err := svc.RemoveAccount(context.Background(), awsTestCaller, "222222222222", true); !errors.Is(err, ErrAWSAccountNotFound) {
 		t.Fatalf("remove twice: %v", err)
 	}
 }
@@ -1426,4 +1414,24 @@ func TestApprovedAccountHeldByAnotherWorkspaceIsRefusedAfterApproval(t *testing.
 		t.Fatalf("checks after the refusal: %+v", rec.Checks)
 	}
 	waitFor(t, "the click's outcome", func() bool { _, _, fin, _ := store.request(1); return fin.outcome == "refused" })
+}
+
+// Removing without deleting keeps the data; verifying the same AWS account
+// again brings it back before anything else happens.
+func TestRemoveKeepsDataAndReconnectRestoresIt(t *testing.T) {
+	store := newFakeAWSStore()
+	approvedAccount(store)
+	svc := newTestService(store, &fakeVerifier{}, nil, fakeEvents{found: true})
+	if err := svc.RemoveAccount(context.Background(), awsTestCaller, "222222222222", false); err != nil {
+		t.Fatal(err)
+	}
+	if _, live := store.accounts["222222222222"]; live || store.archived["222222222222"].AccountID == "" {
+		t.Fatalf("not archived: live=%v archived=%v", live, store.archived)
+	}
+	if _, err := svc.Verify(context.Background(), awsTestCaller, awsTestRoleARN, []string{"us-east-1"}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(store.restored, ",") != "222222222222" {
+		t.Fatalf("restored = %v", store.restored)
+	}
 }

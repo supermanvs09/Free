@@ -18,6 +18,9 @@ type Patch struct {
 	ExternalID     *string   `json:"collector_external_id"`
 	EventBridgeARN *string   `json:"collector_event_bridge_arn"`
 	Regions        *[]string `json:"collector_regions"`
+	// GitHubActive switches GitHub scanning on for the company
+	// (tenants.github_active). Bitbucket is switched on by its own onboarding.
+	GitHubActive *bool `json:"github_active"`
 }
 
 // UpdateRequest carries the new values and, for the same fields, the values the
@@ -80,6 +83,18 @@ func joinRegions(r *[]string) *string {
 	return &j
 }
 
+// flag is a switch as the edit compares it: "1" on, "0" off, nil not edited.
+func flag(b *bool) *string {
+	if b == nil {
+		return nil
+	}
+	v := "0"
+	if *b {
+		v = "1"
+	}
+	return &v
+}
+
 func trimmed(p *string, lower bool) *string {
 	if p == nil {
 		return nil
@@ -122,6 +137,7 @@ func (s *Service) UpdateTenant(ctx context.Context, id string, req UpdateRequest
 		{"collector_external_id", "collector_external_id", trimmed(e.ExternalID, false), trimmed(c.ExternalID, false), false},
 		{"collector_event_bridge_arn", "collector_event_bridge_arn", trimmed(e.EventBridgeARN, false), trimmed(c.EventBridgeARN, false), false},
 		{"collector_regions", "collector_regions", joinRegions(regionsExp), joinRegions(regionsNew), true},
+		{"github_active", "github_active", flag(e.GitHubActive), flag(c.GitHubActive), false},
 	}
 	checks := map[string]func(string) string{
 		"domain_name":                checkDomain,
@@ -141,8 +157,10 @@ func (s *Service) UpdateTenant(ctx context.Context, id string, req UpdateRequest
 		asked++
 		if *ed.value == "" {
 			bad[ed.field] = "Enter a value. A saved detail can't be left empty."
-		} else if m := checks[ed.field](*ed.value); m != "" {
-			bad[ed.field] = m
+		} else if check := checks[ed.field]; check != nil {
+			if m := check(*ed.value); m != "" {
+				bad[ed.field] = m
+			}
 		}
 	}
 	if asked == 0 {
@@ -166,6 +184,15 @@ func (s *Service) UpdateTenant(ctx context.Context, id string, req UpdateRequest
 	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1)`, lockKey); err != nil {
 		return nil, fmt.Errorf("lock: %w", err)
 	}
+	if c.GitHubActive != nil {
+		// migrations/global/010 in nhi-backend, for a database that has not had it.
+		if _, err := tx.ExecContext(ctx, `ALTER TABLE `+s.table("tenants")+`
+			ADD COLUMN IF NOT EXISTS github_active smallint NOT NULL DEFAULT 0,
+			ADD COLUMN IF NOT EXISTS github_updated_by character varying(300),
+			ADD COLUMN IF NOT EXISTS github_updated_at timestamptz`); err != nil {
+			return nil, fmt.Errorf("prepare tenants table: %w", err)
+		}
+	}
 	cur, err := scanTenant(tx.QueryRowContext(ctx, `SELECT `+tenantColumns+` FROM `+s.table("tenants")+` WHERE tenant_id = $1::uuid FOR UPDATE`, id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, NotFoundError{}
@@ -179,6 +206,7 @@ func (s *Service) UpdateTenant(ctx context.Context, id string, req UpdateRequest
 		"collector_external_id":      cur.ExternalID,
 		"collector_event_bridge_arn": cur.EventBridgeARN,
 		"collector_regions":          strings.Join(cur.Regions, ","),
+		"github_active":              *flag(&cur.GitHubActive),
 	}
 
 	// Only the fields that really differ are written; each must still be what
@@ -204,6 +232,10 @@ func (s *Service) UpdateTenant(ctx context.Context, id string, req UpdateRequest
 		ph := fmt.Sprintf("$%d::text", len(args))
 		if ed.isList {
 			ph = "string_to_array(" + ph + ", ',')"
+		}
+		if ed.field == "github_active" {
+			ph += "::smallint"
+			set = append(set, "github_updated_at = now()")
 		}
 		set = append(set, ed.column+" = "+ph)
 	}

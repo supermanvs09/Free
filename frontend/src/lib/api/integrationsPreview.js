@@ -257,7 +257,8 @@ export async function getIntegration() {
     status: overall(accounts),
     /* The point of the preview: the console behaves as a connected workspace. */
     has_connected_account: true,
-    exposure_enabled: accounts.some((account) => account.exposure.github.connected || account.exposure.codecommit.connected),
+    exposure_enabled: accounts.some((account) => account.exposure.codecommit.connected),
+    platforms: { codecommit: accounts.some((account) => account.exposure.codecommit.connected), github: false, bitbucket: false },
     can_manage: canManage(),
     workspace: { domain: 'example.com' },
     setup: SETUP,

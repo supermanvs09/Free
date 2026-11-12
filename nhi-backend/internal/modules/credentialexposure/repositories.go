@@ -125,7 +125,7 @@ func (r *DeepScanRepository) Inventory(ctx context.Context, resolved *scope.Data
 		return " WHERE " + strings.Join(parts, " AND ")
 	}
 	for _, p := range ScannerPlatforms {
-		if platform != "" && platform != p {
+		if (platform != "" && platform != p) || !cat.on(p) {
 			continue
 		}
 		// Ledger: one row per scanned branch.

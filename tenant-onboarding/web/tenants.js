@@ -16,11 +16,12 @@
 
   const dlg = $('edit');
   const body = $('tenants-body');
-  const FIELDS = ['domain_name', 'collector_aws_account_id', 'collector_external_id', 'collector_event_bridge_arn', 'collector_regions'];
+  const FIELDS = ['domain_name', 'collector_aws_account_id', 'collector_external_id', 'collector_event_bridge_arn', 'collector_regions', 'github_active'];
   const LABELS = {
     domain_name: 'Domain', collector_aws_account_id: 'AWS account ID', collector_external_id: 'External ID',
-    collector_event_bridge_arn: 'Event bus ARN', collector_regions: 'Regions',
+    collector_event_bridge_arn: 'Event bus ARN', collector_regions: 'Regions', github_active: 'GitHub scanning',
   };
+  const SWITCHES = new Set(['github_active']);
 
   /* ---------- reading the list ---------- */
 
@@ -111,6 +112,9 @@
       el('td', { 'data-label': 'Company', class: 'company' },
         el('div', { class: 'name' }, t.db_name),
         el('div', { class: 'sub' }, t.domain_name || 'No domain'),
+        t.github_active || t.bitbucket_active
+          ? el('div', { class: 'chips' }, t.github_active ? el('span', { class: 'chip' }, 'GitHub') : null, t.bitbucket_active ? el('span', { class: 'chip' }, 'Bitbucket') : null)
+          : null,
         el('div', { class: 'idline' },
           el('code', { title: t.tenant_id }, t.tenant_id.slice(0, 8)),
           el('button', { type: 'button', class: 'mini', 'aria-label': 'Copy tenant ID of ' + t.db_name, onclick: () => copy(t.tenant_id, 'Tenant ID') }, 'Copy ID'))),
@@ -172,6 +176,7 @@
       collector_external_id: t.collector_external_id || '',
       collector_event_bridge_arn: t.collector_event_bridge_arn || '',
       collector_regions: (t.collector_regions || []).join(', '),
+      github_active: t.github_active ? '1' : '0',
     };
   }
 
@@ -179,7 +184,7 @@
 
   function current() {
     const v = {};
-    for (const f of FIELDS) v[f] = input(f).value.trim();
+    for (const f of FIELDS) v[f] = SWITCHES.has(f) ? (input(f).checked ? '1' : '0') : input(f).value.trim();
     v.domain_name = v.domain_name.toLowerCase();
     return v;
   }
@@ -215,7 +220,14 @@
     $('edit-id').textContent = t.tenant_id;
     $('edit-ws').textContent = t.db_name;
     $('edit-banner').hidden = true;
-    for (const f of FIELDS) { input(f).value = original[f]; clearField('edit_' + f); }
+    for (const f of FIELDS) {
+      if (SWITCHES.has(f)) input(f).checked = original[f] === '1';
+      else input(f).value = original[f];
+      clearField('edit_' + f);
+    }
+    $('edit-bitbucket-state').textContent = t.bitbucket_active
+      ? 'Bitbucket is on (switched on by its own onboarding).'
+      : 'Bitbucket is off (it is switched on by its own onboarding).';
     $('confirm-external').checked = false;
     $('edit-save').textContent = 'Save changes';
     const old = legacyFields(t);
@@ -260,6 +272,7 @@
       collector_regions: (v) => rules.regions(parseRegions(v)),
     };
     for (const f of FIELDS) {
+      if (SWITCHES.has(f)) continue;
       const v = now[f];
       const was = original[f].trim();
       if (!v) {
@@ -289,7 +302,7 @@
     }
 
     const now = current();
-    const wire = (src, f) => (f === 'collector_regions' ? parseRegions(src[f]) : src[f]);
+    const wire = (src, f) => (f === 'collector_regions' ? parseRegions(src[f]) : SWITCHES.has(f) ? src[f] === '1' : src[f]);
     const payload = { expected: {}, changes: {} };
     for (const f of changed) { payload.expected[f] = wire(original, f); payload.changes[f] = wire(now, f); }
 

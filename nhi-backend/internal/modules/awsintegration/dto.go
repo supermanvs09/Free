@@ -91,9 +91,14 @@ type AWSIntegrationResponse struct {
 	// HasConnectedAccount is true once any account has ever connected. The
 	// console opens past the setup screen from then on.
 	HasConnectedAccount bool `json:"has_connected_account"`
-	// ExposureEnabled is true when any account scans GitHub or CodeCommit:
-	// the console shows the exposed-credential pages from then on.
+	// ExposureEnabled is true when any credential-exposure source is on:
+	// CodeCommit on an AWS account, or GitHub / Bitbucket for the company. The
+	// console shows the exposed-credential pages from then on.
 	ExposureEnabled bool `json:"exposure_enabled"`
+	// Platforms says which credential-exposure sources are on. GitHub and
+	// Bitbucket are switched on for the whole company (nhi_global.tenants
+	// github_active / bitbucket_active), CodeCommit per AWS account.
+	Platforms ExposurePlatforms `json:"platforms"`
 	// AwaitingApproval is true while an account that passed every check waits
 	// for the platform's approval: the console shows "waiting for approval".
 	AwaitingApproval bool `json:"awaiting_approval"`
@@ -103,6 +108,12 @@ type AWSIntegrationResponse struct {
 	Workspace AWSWorkspace          `json:"workspace"`
 	Setup     *AWSSetupValues       `json:"setup"`
 	Accounts  []AWSConnectedAccount `json:"accounts"`
+}
+
+type ExposurePlatforms struct {
+	CodeCommit bool `json:"codecommit"`
+	GitHub     bool `json:"github"`
+	Bitbucket  bool `json:"bitbucket"`
 }
 
 type AWSWorkspace struct {
@@ -302,6 +313,9 @@ type AWSTenantSettings struct {
 	EventBusARN  string
 	// Regions limits what customers may choose; empty means every region.
 	Regions []string
+	// GitHubActive / BitbucketActive: the company scans that source
+	// (nhi_global.tenants github_active / bitbucket_active = 1).
+	GitHubActive, BitbucketActive bool
 }
 
 // AWSAccountRecord is the connection part of one <tenant schema>.accounts row.

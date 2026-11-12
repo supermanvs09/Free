@@ -3,10 +3,13 @@ package credentialexposure
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
 
+	"nhi-backend-api/internal/platform/config"
+	"nhi-backend-api/internal/platform/database"
 	"nhi-backend-api/internal/platform/scope"
 )
 
@@ -76,7 +79,12 @@ var findingColumns = func() string {
 type schemaCatalog struct {
 	tables map[string]map[string]bool
 	at     time.Time
+	// enabled is the company's switched-on sources (nil: every platform).
+	enabled map[string]bool
 }
+
+// on reports whether the company scans platform p.
+func (c *schemaCatalog) on(p string) bool { return c.enabled == nil || c.enabled[p] }
 
 func (c *schemaCatalog) has(table string) bool {
 	_, ok := c.tables[table]
@@ -102,13 +110,15 @@ func (c *schemaCatalog) platformTables(kind string) []platformTable {
 	out := make([]platformTable, 0, len(ScannerPlatforms))
 	if c.unified(kind) {
 		for _, p := range ScannerPlatforms {
-			out = append(out, platformTable{platform: p, table: "secscan_" + kind, where: platformIs(c, "secscan_"+kind, p)})
+			if c.on(p) {
+				out = append(out, platformTable{platform: p, table: "secscan_" + kind, where: platformIs(c, "secscan_"+kind, p)})
+			}
 		}
 		return out
 	}
 	for _, p := range ScannerPlatforms {
 		name := "secscan_" + kind + "_" + p
-		if c.has(name) {
+		if c.has(name) && c.on(p) {
 			out = append(out, platformTable{platform: p, table: name})
 		}
 	}
@@ -156,7 +166,7 @@ func loadCatalog(ctx context.Context, resolved *scope.DataScope) (*schemaCatalog
 	key := resolved.Schema
 	if v, ok := catalogCache.Load(key); ok {
 		if c := v.(*schemaCatalog); time.Since(c.at) < catalogTTL {
-			return c, nil
+			return withSources(ctx, resolved, c), nil
 		}
 	}
 	rows, err := resolved.DB.QueryContext(ctx, `SELECT table_name, column_name FROM information_schema.columns
@@ -180,7 +190,27 @@ func loadCatalog(ctx context.Context, resolved *scope.DataScope) (*schemaCatalog
 		return nil, fmt.Errorf("read scanner columns: %w", err)
 	}
 	catalogCache.Store(key, c)
-	return c, nil
+	return withSources(ctx, resolved, c), nil
+}
+
+// withSources is the catalog limited to the company's switched-on sources:
+// GitHub and Bitbucket by nhi_global.tenants github_active / bitbucket_active.
+// CodeCommit belongs to the company's AWS accounts and is always read. If the
+// switches cannot be read, nothing is hidden.
+func withSources(ctx context.Context, resolved *scope.DataScope, c *schemaCatalog) *schemaCatalog {
+	if resolved.TenantID == "" {
+		return c
+	}
+	var gh, bb bool
+	err := resolved.DB.QueryRowContext(ctx, `SELECT COALESCE(to_jsonb(t)->>'github_active', '0') = '1', COALESCE(to_jsonb(t)->>'bitbucket_active', '0') = '1'
+		FROM `+database.Table(config.DefaultGlobalSchema, "tenants")+` t WHERE t.tenant_id = $1::uuid`, resolved.TenantID).Scan(&gh, &bb)
+	if err != nil {
+		slog.Warn("credential exposure: could not read which sources are on, showing every platform", "tenant_id", resolved.TenantID, "err", err)
+		return c
+	}
+	out := *c
+	out.enabled = map[string]bool{"codecommit": true, "github": gh, "bitbucket": bb}
+	return &out
 }
 
 // forgetCatalog drops a schema's cached catalog (tests, and after a write
@@ -235,8 +265,22 @@ func emptyFindings() string {
 // unionOf is every non-allowlisted row of the kind's tables.
 func unionOf(cat *schemaCatalog, schema, kind string) string {
 	if cat.unified(kind) {
-		// One read of the merged table; platform comes from its column.
-		if q, ok := platformSelect(cat, schema, platformTable{table: "secscan_" + kind}); ok {
+		// One read of the merged table; platform comes from its column, and
+		// only the company's switched-on sources are read.
+		pt := platformTable{table: "secscan_" + kind}
+		if cat.enabled != nil {
+			on := []string{}
+			for _, p := range ScannerPlatforms {
+				if cat.on(p) {
+					on = append(on, "'"+p+"'")
+				}
+			}
+			if len(on) == 0 {
+				return emptyFindings()
+			}
+			pt.where = platformOf(cat, pt.table) + " IN (" + strings.Join(on, ",") + ")"
+		}
+		if q, ok := platformSelect(cat, schema, pt); ok {
 			return q
 		}
 		return emptyFindings()

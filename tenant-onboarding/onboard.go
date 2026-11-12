@@ -86,6 +86,9 @@ type Tenant struct {
 	ExternalID     string     `json:"collector_external_id"`
 	EventBridgeARN string     `json:"collector_event_bridge_arn"`
 	Regions        []string   `json:"collector_regions"`
+	// Credential-exposure sources switched on for the whole company.
+	GitHubActive    bool `json:"github_active"`
+	BitbucketActive bool `json:"bitbucket_active"`
 }
 
 // Difference is a submitted value that disagrees with the registered company.
@@ -404,13 +407,14 @@ func (s *Service) Onboard(ctx context.Context, raw Request) (*Result, error) {
 }
 
 const tenantColumns = `tenant_id::text, db_name, created_at, COALESCE(domain_name, ''), COALESCE(collector_aws_account_id, ''),
-	COALESCE(collector_external_id, ''), COALESCE(collector_event_bridge_arn, ''), COALESCE(array_to_string(collector_regions, ','), '')`
+	COALESCE(collector_external_id, ''), COALESCE(collector_event_bridge_arn, ''), COALESCE(array_to_string(collector_regions, ','), ''),
+	COALESCE(to_jsonb(tenants)->>'github_active', '0') = '1', COALESCE(to_jsonb(tenants)->>'bitbucket_active', '0') = '1'`
 
 func scanTenant(row interface{ Scan(...any) error }) (*Tenant, error) {
 	var t Tenant
 	var created sql.NullTime
 	var regions string
-	if err := row.Scan(&t.TenantID, &t.DBName, &created, &t.DomainName, &t.AWSAccountID, &t.ExternalID, &t.EventBridgeARN, &regions); err != nil {
+	if err := row.Scan(&t.TenantID, &t.DBName, &created, &t.DomainName, &t.AWSAccountID, &t.ExternalID, &t.EventBridgeARN, &regions, &t.GitHubActive, &t.BitbucketActive); err != nil {
 		return nil, err
 	}
 	if created.Valid {

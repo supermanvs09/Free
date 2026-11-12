@@ -99,6 +99,13 @@ export async function fetchAwsIntegration(signal) {
     status: d.status || 'not_connected',
     hasConnectedAccount: Boolean(d.has_connected_account),
     exposureEnabled: Boolean(d.exposure_enabled),
+    /* Which credential-exposure sources are on: GitHub and Bitbucket for the
+       whole company, CodeCommit per AWS account. */
+    platforms: {
+      codecommit: Boolean(d.platforms?.codecommit),
+      github: Boolean(d.platforms?.github),
+      bitbucket: Boolean(d.platforms?.bitbucket),
+    },
     awaitingApproval: Boolean(d.awaiting_approval),
     canManage: Boolean(d.can_manage),
     domain: d.workspace?.domain || '',
@@ -179,7 +186,8 @@ export async function cancelAwsAccountSync({ accountId }) {
   return { account: awsAccount(d.account) };
 }
 
-export async function removeAwsAccount({ accountId }) {
+/** Removes the account; its data is kept (and restored on reconnect) unless deleteData. */
+export async function removeAwsAccount({ accountId, deleteData = false }) {
   if (INTEGRATIONS_PREVIEW) return preview.remove(accountId);
-  return unwrapMain(await client.delete(`${BASE}/accounts/${enc(accountId)}`));
+  return unwrapMain(await client.delete(`${BASE}/accounts/${enc(accountId)}`, { data: { delete_data: Boolean(deleteData) } }));
 }

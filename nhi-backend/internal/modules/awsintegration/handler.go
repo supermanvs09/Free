@@ -183,11 +183,24 @@ func (h *AWSIntegrationHandler) Remove(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := h.service.RemoveAccount(r.Context(), caller, accountID); err != nil {
+	// Optional body {"delete_data": true}: delete the account's data for good.
+	// Without it the data is kept (archived) and comes back if the same AWS
+	// account is connected again.
+	var body struct {
+		DeleteData bool `json:"delete_data"`
+	}
+	if r.Body != nil {
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<10)
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil && !errors.Is(err, io.EOF) {
+			httpx.SendJSONResponse(w, http.StatusBadRequest, httpx.APIResponse{Success: false, Message: "Invalid request body", Error: "INVALID_REQUEST"})
+			return
+		}
+	}
+	if err := h.service.RemoveAccount(r.Context(), caller, accountID, body.DeleteData); err != nil {
 		writeAWSError(w, r, err, "Failed to remove the account", "AWS_REMOVE_FAILED")
 		return
 	}
-	httpx.SendJSONResponse(w, http.StatusOK, httpx.APIResponse{Success: true, Message: "AWS account removed", Data: map[string]string{"account_id": accountID}})
+	httpx.SendJSONResponse(w, http.StatusOK, httpx.APIResponse{Success: true, Message: "AWS account removed", Data: map[string]any{"account_id": accountID, "data_deleted": body.DeleteData}})
 }
 
 // adminCaller checks the token, the role and the query string shared by every
@@ -242,6 +255,8 @@ func writeAWSError(w http.ResponseWriter, r *http.Request, err error, fallback, 
 	var invalidSecret *awsconnect.ErrInvalidSecretARN
 	status, code, message := http.StatusInternalServerError, fallbackCode, fallback
 	switch {
+	case errors.Is(err, ErrGitHubPerCompany):
+		status, code, message = http.StatusBadRequest, "GITHUB_PER_COMPANY", "GitHub scanning is switched on for the whole company, not per AWS account. Contact support to turn it on."
 	case errors.As(err, &invalidSecret):
 		status, code, message = http.StatusBadRequest, "INVALID_SECRET_ARN", invalidSecret.Message
 	case errors.As(err, &invalidARN):

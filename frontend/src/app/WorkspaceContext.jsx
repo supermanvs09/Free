@@ -9,7 +9,9 @@ const WorkspaceContext = createContext(null);
  *
  *   hasConnectedAccount  an AWS account has connected at least once. Until
  *                        then the console shows only the Integrations setup.
- *   exposureEnabled      GitHub or CodeCommit scanning is on for an account.
+ *   exposureEnabled      a credential-exposure source is on (CodeCommit on an
+ *                        account, GitHub or Bitbucket for the company).
+ *   platforms            { codecommit, github, bitbucket }: which of them.
  *                        Until then the exposed-credential pages are hidden.
  *   status               loading | ready | error
  *
@@ -62,6 +64,7 @@ export function WorkspaceProvider({ children }) {
       integration: d,
       hasConnectedAccount: failedOpen ? true : Boolean(d?.hasConnectedAccount) || seenConnected.current.value,
       exposureEnabled: Boolean(d?.exposureEnabled),
+      platforms: d?.platforms ?? { codecommit: false, github: false, bitbucket: false },
       canManage: Boolean(d?.canManage),
       domain: d?.domain || '',
       refresh: () => load(token),

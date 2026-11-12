@@ -67,6 +67,7 @@ import (
 	"nhi-backend-api/internal/platform/logging"
 	"nhi-backend-api/internal/platform/mailer"
 	"nhi-backend-api/internal/platform/middleware"
+	"nhi-backend-api/internal/platform/payloadcrypt"
 	"nhi-backend-api/internal/platform/scope"
 	"nhi-backend-api/internal/routes"
 )
@@ -201,6 +202,13 @@ func main() {
 		os.Exit(1)
 	}
 	authHandler := auth.NewAuthHandler(authService)
+	// Every API body encrypted both ways when PAYLOAD_ENCRYPTION_ENABLED=true.
+	payloadCrypto, err := payloadcrypt.FromEnv()
+	if err != nil {
+		slog.Error("payload encryption", "err", err)
+		os.Exit(1)
+	}
+	slog.Info("payload encryption", "enabled", payloadCrypto.Enabled, "exempt", payloadCrypto.Exempt)
 	authMiddleware := middleware.NewAuthMiddleware(cfg.JWT, userRepo)
 
 	filterHandler := filters.NewFilterHandler(filters.NewFilterService(filters.NewFilterRepository(), resolver))
@@ -358,6 +366,7 @@ func main() {
 	router := routes.SetupRoutes(routes.HandlerContainer{
 		AuthHandler:                    authHandler,
 		AuthMiddleware:                 authMiddleware,
+		PayloadCrypto:                  payloadCrypto,
 		UsersHandler:                   usersHandler,
 		AuditLogHandler:                auditLogHandler,
 		AuditSink:                      auditStore,

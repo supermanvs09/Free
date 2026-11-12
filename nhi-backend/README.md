@@ -395,6 +395,41 @@ document's "Every Data API" flow are structurally impossible to skip.
 **No fallback.** `Manager.Tenant("")` returns `ErrTenantDBNotConfigured`. A tenant with no
 `db_name` is an error, never a silent switch to another schema.
 
+### Payload encryption (optional)
+
+Off by default. With `PAYLOAD_ENCRYPTION_ENABLED=true` every `/api/` request and
+response body is encrypted on top of HTTPS (`internal/platform/payloadcrypt`,
+console side `frontend/src/lib/api/payloadCrypto.js`):
+
+- per request a random AES-256 key, wrapped with RSA-OAEP-SHA256 -> header `X-Enc-Key`;
+- body `{"iv", "data", "ts"}` = AES-256-GCM, bound to method, path and time (5 min);
+- the response is sealed with the same key: `{"iv", "data", "ct"}`, header `X-Payload-Encrypted: 1`.
+
+Settings: `PAYLOAD_RSA_PRIVATE_KEY` (PEM, `\n` escapes allowed) or
+`PAYLOAD_RSA_PRIVATE_KEY_FILE`; `PAYLOAD_ENCRYPTION_EXEMPT` adds path prefixes
+left in the clear (health, `/api/v1/auth/payload-key` and the worker's
+`/api/v1/ispm-scans` always are). Enabled without a usable key, the API refuses
+to start. A key: `openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out payload.pem`.
+The console reads `GET /api/v1/auth/payload-key` at start, so switching it on or
+off needs no new console build. Query strings stay in the clear.
+
+### Removing an AWS account
+
+`DELETE /api/v1/integrations/aws/accounts/{id}` keeps the account's data: every
+row it owns (and rows referencing them through foreign keys) moves into
+`removed__<table>` in the tenant schema, with its `accounts` row. Every page and
+worker stops seeing it with no other change. Verifying the same AWS account again
+moves the data back. Body `{"delete_data": true}` deletes it for good instead.
+
+### GitHub and Bitbucket are company settings
+
+`nhi_global.tenants.github_active` / `bitbucket_active` (migrations/global/010,
+008) switch each source on for the whole company; the credential-exposure API
+returns nothing of a source that is off, and the console shows its tab only when
+on. GitHub is switched in the tenant-onboarding tool (Tenants -> Edit). The old
+per-account `accounts.github_*` columns are no longer read or written; they belong
+to the discovery pipeline's table, so drop them only once nothing else reads them.
+
 ### Running and testing locally
 
 ```bash

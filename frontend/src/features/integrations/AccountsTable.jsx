@@ -546,16 +546,23 @@ function RemoveAccountBody({ account, lastConnected, onClose, onRemoved }) {
   const [typed, setTyped] = useState('');
   const [removing, setRemoving] = useState(false);
   const [error, setError] = useState(null);
+  const [deleteData, setDeleteData] = useState(false);
   const confirmed = typed.trim() === account.accountId;
 
   const remove = async () => {
     setRemoving(true);
     setError(null);
     try {
-      await removeAwsAccount({ accountId: account.accountId });
+      await removeAwsAccount({ accountId: account.accountId, deleteData });
       // Its data is gone from every page: reload what is on screen (scope picker, counts).
       reloadAllData();
-      notify({ variant: 'success', title: `${account.accountId} removed`, description: 'Delete the role and rule in that AWS account to finish.' });
+      notify({
+        variant: 'success',
+        title: `${account.accountId} removed`,
+        description: deleteData
+          ? 'Its data was deleted for good. Delete the role and rule in that AWS account to finish.'
+          : 'Its data is kept and comes back if you connect it again. Delete the role and rule in that AWS account to finish.',
+      });
       onRemoved(account.accountId);
     } catch (failure) {
       setError(failure);
@@ -572,7 +579,9 @@ function RemoveAccountBody({ account, lastConnected, onClose, onRemoved }) {
         </li>
         <li className="flex gap-2">
           <span aria-hidden="true" className="mt-[7px] size-1.5 shrink-0 rounded-full bg-ink-3" />
-          Everything collected from it - identities, credentials, posture scores, findings and change history - is deleted from every page. Connecting it again scans it afresh.
+          {deleteData
+            ? 'Everything collected from it - identities, credentials, posture scores, findings and change history - is deleted for good. Connecting it again starts from nothing.'
+            : 'Its identities, credentials, posture scores, findings and history disappear from every page but are kept. Connect the same account again and they come back.'}
         </li>
         <li className="flex gap-2">
           <span aria-hidden="true" className="mt-[7px] size-1.5 shrink-0 rounded-full bg-ink-3" />
@@ -597,13 +606,30 @@ function RemoveAccountBody({ account, lastConnected, onClose, onRemoved }) {
           placeholder={account.accountId}
         />
       </Field>
+      <label
+        className={cn(
+          'flex cursor-pointer items-start gap-2.5 rounded-[var(--radius-control)] border px-3 py-2.5 text-[12.5px] leading-relaxed',
+          deleteData ? 'border-critical/40 bg-critical-soft text-ink' : 'border-line text-ink-2',
+        )}
+      >
+        <input
+          type="checkbox"
+          checked={deleteData}
+          onChange={(event) => setDeleteData(event.target.checked)}
+          className="mt-0.5 size-4 shrink-0 accent-[var(--color-critical)]"
+        />
+        <span>
+          <b className="font-semibold text-ink">Also delete all of its data permanently</b>
+          <span className="block text-ink-3">This cannot be undone. Leave it unticked to keep the data in case you connect the account again.</span>
+        </span>
+      </label>
       {error && <InlineError error={error} label="Not removed" />}
       <div className="flex justify-end gap-2">
         <Button variant="ghost" onClick={onClose} disabled={removing}>
           Cancel
         </Button>
         <Button variant="danger" icon={Trash2} onClick={remove} loading={removing} disabled={!confirmed}>
-          Remove account
+          {deleteData ? 'Remove and delete data' : 'Remove account'}
         </Button>
       </div>
     </div>

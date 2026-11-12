@@ -450,3 +450,127 @@ func TestApprovalRequestsClaimAnAccountOnlyOnceProven(t *testing.T) {
 		t.Fatalf("resolved click: %q %q %v", outcome, detail, err)
 	}
 }
+
+// Removing with the data kept moves every row of the account, and rows that
+// reference them through foreign keys, into removed__* tables; restoring puts
+// them back exactly. Another account's rows never move.
+func TestArchiveAndRestoreAgainstPostgres(t *testing.T) {
+	dsn := os.Getenv("NHI_TEST_DSN")
+	if dsn == "" {
+		t.Skip("NHI_TEST_DSN not set")
+	}
+	db, err := sql.Open("pgx", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	ctx := context.Background()
+	tag := randomHex(t, 5)
+	tenant, schema := randomUUID(t), "nhi_test_arc_"+tag
+	acct, other := randomAccountID(t), randomAccountID(t)
+	t.Cleanup(func() { _, _ = db.Exec(`DROP SCHEMA IF EXISTS "` + schema + `" CASCADE`) })
+	applyTenantMigration(t, db, schema)
+	T := func(name string) string { return database.Table(schema, name) }
+	for _, a := range []string{acct, other} {
+		mustExec(t, db, `INSERT INTO `+T("accounts")+` (tenant_id, account_id, client_role_arn, regions) VALUES ($1, $2, $3, '{global}')`,
+			tenant, a, "arn:aws:iam::"+a+":role/NHIPlatformCollector")
+	}
+	// identities (identity column, generated column) with a cascading child
+	// that has no account_id of its own; ispm posture and an identity-keyed table.
+	mustExec(t, db, `CREATE TABLE `+T("identities")+` (id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, account_id text, name text,
+		upper_name text GENERATED ALWAYS AS (upper(name)) STORED)`)
+	mustExec(t, db, `CREATE TABLE `+T("identity_tags")+` (identity_id bigint REFERENCES `+T("identities")+`(id) ON DELETE CASCADE, tag text)`)
+	mustExec(t, db, `CREATE TABLE `+T("ispm_identity_posture")+` (identity_id text, account_id text)`)
+	mustExec(t, db, `CREATE TABLE `+T("ispm_role_use")+` (identity_id text, uses int)`)
+	mustExec(t, db, `CREATE TABLE `+T("nhi_events_aws")+` (identity_arn text)`)
+	mustExec(t, db, `INSERT INTO `+T("identities")+` (account_id, name) VALUES ($1, 'a1'), ($1, 'a2'), ($2, 'b1')`, acct, other)
+	mustExec(t, db, `INSERT INTO `+T("identity_tags")+` SELECT id, 'tag-' || name FROM `+T("identities"))
+	mustExec(t, db, `INSERT INTO `+T("ispm_identity_posture")+` VALUES ('i-a', $1), ('i-b', $2)`, acct, other)
+	mustExec(t, db, `INSERT INTO `+T("ispm_role_use")+` VALUES ('i-a', 3), ('i-b', 4)`)
+	mustExec(t, db, `INSERT INTO `+T("nhi_events_aws")+` VALUES ($1), ($2)`, "arn:aws:iam::"+acct+":role/x", "arn:aws:iam::"+other+":role/y")
+
+	count := func(table string) int {
+		var n int
+		if err := db.QueryRow(`SELECT count(*) FROM ` + T(table)).Scan(&n); err != nil {
+			t.Fatalf("count %s: %v", table, err)
+		}
+		return n
+	}
+	snapshot := func() string {
+		var s string
+		if err := db.QueryRow(`SELECT string_agg(x, ';' ORDER BY x) FROM (
+			SELECT id || ':' || account_id || ':' || name || ':' || upper_name AS x FROM ` + T("identities") + `
+			UNION ALL SELECT identity_id || ':' || tag FROM ` + T("identity_tags") + `
+			UNION ALL SELECT identity_id || ':' || account_id FROM ` + T("ispm_identity_posture") + `
+			UNION ALL SELECT identity_id || ':' || uses FROM ` + T("ispm_role_use") + `
+			UNION ALL SELECT identity_arn FROM ` + T("nhi_events_aws") + `
+			UNION ALL SELECT account_id FROM ` + T("accounts") + `) s`).Scan(&s); err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+	before := snapshot()
+
+	u, _ := url.Parse(dsn)
+	pass, _ := u.User.Password()
+	pg, err := database.NewPostgresDB(&config.Config{Database: config.DatabaseConfig{
+		Host: u.Hostname(), DatabaseName: strings.TrimPrefix(u.Path, "/"), User: u.User.Username(), Password: pass,
+		Schema: config.DefaultGlobalSchema,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = pg.DB.Close() })
+	repo := NewAWSIntegrationRepository(pg)
+
+	moved, err := repo.ArchiveAccount(ctx, tenant, schema, acct)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]int64{"identities": 2, "identity_tags": 2, "ispm_identity_posture": 1, "ispm_role_use": 1, "nhi_events_aws": 1, "accounts": 1}
+	if !reflect.DeepEqual(moved, want) {
+		t.Fatalf("moved %v, want %v", moved, want)
+	}
+	for table, left := range map[string]int{"identities": 1, "identity_tags": 1, "ispm_identity_posture": 1, "ispm_role_use": 1, "nhi_events_aws": 1, "accounts": 1} {
+		if n := count(table); n != left {
+			t.Fatalf("%s: %d live rows, want the other account's %d", table, n, left)
+		}
+		if n := count(archiveTable(table)); n != int(want[table]) {
+			t.Fatalf("%s: %d archived, want %d", archiveTable(table), n, want[table])
+		}
+	}
+	if _, err := repo.ArchiveAccount(ctx, tenant, schema, acct); !errors.Is(err, ErrAWSAccountNotFound) {
+		t.Fatalf("archive twice: %v", err)
+	}
+
+	// Connected again: a fresh accounts row, then the data comes back.
+	mustExec(t, db, `INSERT INTO `+T("accounts")+` (tenant_id, account_id, client_role_arn, regions) VALUES ($1, $2, $3, '{global}')`,
+		tenant, acct, "arn:aws:iam::"+acct+":role/NHIPlatformCollector")
+	restored, err := repo.RestoreAccount(ctx, schema, acct)
+	if err != nil {
+		t.Fatal(err)
+	}
+	delete(want, "accounts")
+	if !reflect.DeepEqual(restored, want) {
+		t.Fatalf("restored %v, want %v", restored, want)
+	}
+	if after := snapshot(); after != before {
+		t.Fatalf("data differs after restore:\n before %s\n after  %s", before, after)
+	}
+	if n := count(archiveTable("identities")) + count(archiveTable("accounts")); n != 0 {
+		t.Fatalf("%d rows left in the archive", n)
+	}
+	if again, err := repo.RestoreAccount(ctx, schema, acct); err != nil || again != nil {
+		t.Fatalf("restore twice: %v %v", again, err)
+	}
+	// A new identity row still gets the next id (the sequence was not reused).
+	mustExec(t, db, `INSERT INTO `+T("identities")+` (account_id, name) VALUES ($1, 'a3')`, acct)
+
+	// Permanent delete never touches the archive tables.
+	if _, err := repo.DeleteAccount(ctx, tenant, schema, acct); err != nil {
+		t.Fatal(err)
+	}
+	if n := count("identities"); n != 1 {
+		t.Fatalf("after delete: %d identities, want 1", n)
+	}
+}

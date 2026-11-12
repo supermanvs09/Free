@@ -31,6 +31,7 @@ import (
 	"nhi-backend-api/internal/modules/users"
 	"nhi-backend-api/internal/platform/audit"
 	"nhi-backend-api/internal/platform/middleware"
+	"nhi-backend-api/internal/platform/payloadcrypt"
 )
 
 type HandlerContainer struct {
@@ -79,6 +80,10 @@ type HandlerContainer struct {
 	// AuditReads records ordinary GETs as well. Off unless asked for: a
 	// console that polls would bury the entries that matter.
 	AuditReads bool
+
+	// PayloadCrypto encrypts every request and response body when enabled
+	// (PAYLOAD_ENCRYPTION_ENABLED). The zero value leaves everything as is.
+	PayloadCrypto payloadcrypt.Config
 }
 
 func SetupRoutes(h HandlerContainer) *mux.Router {
@@ -87,6 +92,8 @@ func SetupRoutes(h HandlerContainer) *mux.Router {
 	r.Use(middleware.RequestLogger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RateLimit)
+	// Before the audit middleware, so it records the decrypted request.
+	r.Use(payloadcrypt.Middleware(h.PayloadCrypto))
 	// One middleware records every action, including a sign-in and anything
 	// refused, so an endpoint added later is covered without a line here.
 	if h.AuditSink != nil {
@@ -112,6 +119,8 @@ func SetupRoutes(h HandlerContainer) *mux.Router {
 	r.HandleFunc("/api/v1/health", func(w http.ResponseWriter, req *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "healthy", "service": "nhi-backend-api"})
 	}).Methods(http.MethodGet)
+
+	r.HandleFunc("/api/v1/auth/payload-key", payloadcrypt.PublicKeyHandler(h.PayloadCrypto)).Methods(http.MethodGet)
 
 	if h.AuthHandler != nil {
 		r.HandleFunc("/api/v1/auth/key", h.AuthHandler.PublicKey).Methods(http.MethodGet)

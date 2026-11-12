@@ -43,6 +43,8 @@ var (
 	ErrAWSSyncRunning   = errors.New("aws sync already running")
 	ErrAWSSyncNotQueued = errors.New("aws sync not queued")
 	// ErrAWSTablesMissing: a migration has not been applied.
+	// ErrGitHubPerCompany: GitHub scanning is a company setting, not an AWS account's.
+	ErrGitHubPerCompany = errors.New("GitHub scanning is switched on for the whole company, not per AWS account")
 	ErrAWSTablesMissing = errors.New("aws integration schema is missing: apply migrations/global/004_tenant_collector.sql and, per tenant schema, migrations/tenant/004_accounts_connection.sql")
 )
 
@@ -112,11 +114,12 @@ func (r *AWSIntegrationRepository) TenantSettings(ctx context.Context, tenantID 
 		return nil, err
 	}
 	q := `SELECT COALESCE(domain_name, ''), COALESCE(collector_aws_account_id, ''), COALESCE(collector_external_id, ''),
-			COALESCE(collector_event_bridge_arn, ''), COALESCE(to_jsonb(collector_regions), '[]'::jsonb)::text
-		FROM ` + database.Table(r.globalSchema, "tenants") + ` WHERE tenant_id = $1::uuid`
+			COALESCE(collector_event_bridge_arn, ''), COALESCE(to_jsonb(collector_regions), '[]'::jsonb)::text,
+			COALESCE(to_jsonb(t)->>'github_active', '0') = '1', COALESCE(to_jsonb(t)->>'bitbucket_active', '0') = '1'
+		FROM ` + database.Table(r.globalSchema, "tenants") + ` t WHERE tenant_id = $1::uuid`
 	var s AWSTenantSettings
 	var regions string
-	err = db.QueryRowContext(ctx, q, tenantID).Scan(&s.Domain, &s.AWSAccountID, &s.ExternalID, &s.EventBusARN, &regions)
+	err = db.QueryRowContext(ctx, q, tenantID).Scan(&s.Domain, &s.AWSAccountID, &s.ExternalID, &s.EventBusARN, &regions, &s.GitHubActive, &s.BitbucketActive)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -698,17 +701,52 @@ var purgeKeep = map[string]bool{accountsTable: true}
 const purgeSkipped = "skipped:"
 
 // purgeAccountData deletes the account's rows from every table of the tenant
-// schema that records an account, found from the catalog so tables added by
-// the scanners later are covered too:
+// schema that records it (see accountSelections). Partitions are reached
+// through their parent; foreign keys that cascade (finding history, runtime
+// config, permission usage) follow on their own.
+func purgeAccountData(ctx context.Context, tx *sql.Tx, schema, accountID string) (map[string]int64, error) {
+	sels, err := accountSelections(ctx, tx, schema, false)
+	if err != nil {
+		return nil, err
+	}
+	purged := map[string]int64{}
+	for _, sel := range sels {
+		n, skipped, err := inSavepoint(ctx, tx, func() (int64, error) {
+			res, err := tx.ExecContext(ctx, `DELETE FROM `+database.Table(schema, sel.table)+` WHERE `+sel.where, accountID)
+			if err != nil {
+				return 0, err
+			}
+			return res.RowsAffected()
+		})
+		if err != nil {
+			return nil, fmt.Errorf("remove account data from %s: %w", sel.table, err)
+		}
+		if skipped {
+			purged[purgeSkipped+sel.table] = -1
+		} else if n > 0 {
+			purged[sel.table] += n
+		}
+	}
+	return purged, nil
+}
+
+// selection is the account's rows in one table: WHERE where, with $1 = the
+// AWS account id.
+type selection struct{ table, where string }
+
+// accountSelections lists, in a safe order, every table of the tenant schema
+// that records the account, found from the catalog so tables added by the
+// scanners later are covered too:
 //   - ispm_* tables keyed only by identity_id (posture history, role use),
-//     through the account's identities in ispm_identity_posture;
+//     through the account's identities in ispm_identity_posture - first, as
+//     those posture rows are removed in the next pass;
 //   - tables with an account_id column;
 //   - the credential-exposure scanner's CodeCommit tables (client_id is the account);
 //   - tables with only an ARN (identity_arn or arn): the account is its fifth field.
 //
-// Partitions are reached through their parent; foreign keys that cascade
-// (finding history, runtime config, permission usage) follow on their own.
-func purgeAccountData(ctx context.Context, tx *sql.Tx, schema, accountID string) (map[string]int64, error) {
+// withAccounts adds the accounts row itself, last. Archive tables
+// (removed__*) are never listed.
+func accountSelections(ctx context.Context, tx *sql.Tx, schema string, withAccounts bool) ([]selection, error) {
 	rows, err := tx.QueryContext(ctx, `
 		SELECT c.relname,
 		       bool_or(a.attname = 'account_id'),
@@ -719,6 +757,7 @@ func purgeAccountData(ctx context.Context, tx *sql.Tx, schema, accountID string)
 		  JOIN pg_namespace n ON n.oid = c.relnamespace
 		  JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
 		 WHERE n.nspname = $1 AND c.relkind IN ('r', 'p') AND NOT c.relispartition
+		   AND c.relname NOT LIKE 'removed\_\_%'
 		 GROUP BY c.relname
 		 ORDER BY c.relname`, schema)
 	if err != nil {
@@ -747,41 +786,14 @@ func purgeAccountData(ctx context.Context, tx *sql.Tx, schema, accountID string)
 		return nil, fmt.Errorf("list tenant tables: %w", err)
 	}
 
-	purged := map[string]int64{}
-	// Each table in its own savepoint: one that refuses the delete (an
-	// append-only audit table, a trigger) is skipped and named in the log,
-	// and the account is still removed.
-	exec := func(name, q string) error {
-		if _, err := tx.ExecContext(ctx, `SAVEPOINT purge_table`); err != nil {
-			return fmt.Errorf("remove account data: %w", err)
-		}
-		res, err := tx.ExecContext(ctx, q, accountID)
-		if err != nil {
-			if _, rbErr := tx.ExecContext(ctx, `ROLLBACK TO SAVEPOINT purge_table`); rbErr != nil {
-				return fmt.Errorf("remove account data from %s: %w", name, err)
-			}
-			purged[purgeSkipped+name] = -1
-			return nil
-		}
-		if _, err := tx.ExecContext(ctx, `RELEASE SAVEPOINT purge_table`); err != nil {
-			return fmt.Errorf("remove account data: %w", err)
-		}
-		if n, _ := res.RowsAffected(); n > 0 {
-			purged[name] += n
-		}
-		return nil
-	}
-	// Identity-keyed posture tables first: they are found through the
-	// posture rows deleted in the next pass.
+	var out []selection
 	if hasPosture {
 		for _, t := range tables {
 			if t.hasAccount || !t.hasIdentity || !strings.HasPrefix(t.name, "ispm_") || purgeKeep[t.name] {
 				continue
 			}
-			if err := exec(t.name, `DELETE FROM `+database.Table(schema, t.name)+` WHERE identity_id::text IN (
-				SELECT identity_id::text FROM `+database.Table(schema, "ispm_identity_posture")+` WHERE account_id::text = $1)`); err != nil {
-				return nil, err
-			}
+			out = append(out, selection{t.name, `identity_id::text IN (
+				SELECT identity_id::text FROM ` + database.Table(schema, "ispm_identity_posture") + ` WHERE account_id::text = $1)`})
 		}
 	}
 	for _, t := range tables {
@@ -790,28 +802,41 @@ func purgeAccountData(ctx context.Context, tx *sql.Tx, schema, accountID string)
 		}
 		switch {
 		case t.hasAccount:
-			if err := exec(t.name, `DELETE FROM `+database.Table(schema, t.name)+` WHERE account_id::text = $1`); err != nil {
-				return nil, err
-			}
+			out = append(out, selection{t.name, `account_id::text = $1`})
 		case t.hasClient && (t.name == "secscan_findings" || t.name == "secscan_deep_findings"):
 			// The scanner's merged tables hold every platform; only CodeCommit
 			// is keyed by the AWS account (a row without platform is CodeCommit).
-			if err := exec(t.name, `DELETE FROM `+database.Table(schema, t.name)+` WHERE client_id = $1 AND COALESCE(NULLIF(platform, ''), 'codecommit') = 'codecommit'`); err != nil {
-				return nil, err
-			}
+			out = append(out, selection{t.name, `client_id = $1 AND COALESCE(NULLIF(platform, ''), 'codecommit') = 'codecommit'`})
 		case t.hasClient && strings.HasPrefix(t.name, "secscan_") && strings.HasSuffix(t.name, "_codecommit"):
-			// The credential-exposure scanner keys CodeCommit by the AWS account.
-			if err := exec(t.name, `DELETE FROM `+database.Table(schema, t.name)+` WHERE client_id = $1`); err != nil {
-				return nil, err
-			}
+			out = append(out, selection{t.name, `client_id = $1`})
 		case t.arnColumn != "":
-			col := `"` + t.arnColumn + `"`
-			if err := exec(t.name, `DELETE FROM `+database.Table(schema, t.name)+` WHERE split_part(`+col+`::text, ':', 5) = $1`); err != nil {
-				return nil, err
-			}
+			out = append(out, selection{t.name, `split_part("` + t.arnColumn + `"::text, ':', 5) = $1`})
 		}
 	}
-	return purged, nil
+	if withAccounts {
+		out = append(out, selection{accountsTable, `account_id::text = $1`})
+	}
+	return out, nil
+}
+
+// inSavepoint runs fn in its own savepoint: a table that refuses (an
+// append-only audit table, a trigger) is rolled back and reported as skipped,
+// and the rest goes on.
+func inSavepoint(ctx context.Context, tx *sql.Tx, fn func() (int64, error)) (n int64, skipped bool, err error) {
+	if _, err := tx.ExecContext(ctx, `SAVEPOINT account_table`); err != nil {
+		return 0, false, err
+	}
+	n, ferr := fn()
+	if ferr != nil {
+		if _, err := tx.ExecContext(ctx, `ROLLBACK TO SAVEPOINT account_table`); err != nil {
+			return 0, false, ferr
+		}
+		return 0, true, nil
+	}
+	if _, err := tx.ExecContext(ctx, `RELEASE SAVEPOINT account_table`); err != nil {
+		return 0, false, err
+	}
+	return n, false, nil
 }
 
 // scopeRegions is what accounts.regions stores: the chosen regions plus the

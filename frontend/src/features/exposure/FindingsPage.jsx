@@ -12,6 +12,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../../app/AuthContext';
+import { useWorkspace } from '../../app/WorkspaceContext';
 import { decideFinding, dismissFinding, fetchFindings, fetchFindingsSummary } from '../../lib/api/exposure';
 import { useMutation, useQuery } from '../../lib/hooks';
 import {
@@ -91,6 +92,7 @@ export default function FindingsPage() {
   const { notify } = useToast();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { platforms: enabledPlatforms } = useWorkspace();
   const [searchParams, setSearchParams] = useSearchParams();
   /* `?set=` picks one of the five lists (review, repeated, noise, flagged;
      none is the main list). A list is a different record set, not a filter, so
@@ -730,10 +732,13 @@ export default function FindingsPage() {
             })}
             tabs={[
               { value: 'all', label: 'All platforms', count: summary.total },
-              /* A platform shows once the workspace has its tables or rows:
-                 a Bitbucket tab that is always zero would only add noise. */
-              ...PLATFORM_ORDER.filter(
-                (key) => summary.byPlatform[key] > 0 || counts.data?.platforms?.includes(key) || platform === key,
+              /* GitHub and Bitbucket show only when the company has them switched
+                 on (the service returns nothing for a source that is off);
+                 CodeCommit once it has tables or rows. */
+              ...PLATFORM_ORDER.filter((key) =>
+                key === 'codecommit'
+                  ? summary.byPlatform[key] > 0 || counts.data?.platforms?.includes(key) || platform === key
+                  : Boolean(enabledPlatforms?.[key]),
               ).map((key) => ({ value: key, label: PLATFORMS[key].label, count: summary.byPlatform[key] })),
             ]}
           />

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { ApiError, describe } from './http';
+import { usePayloadCrypto } from './payloadCrypto';
 import { clearSession, readStoredUser, readToken, writeSession } from './session';
 
 /**
@@ -16,6 +17,10 @@ const client = axios.create({
   timeout: 20000,
   headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
 });
+/* First, so every other interceptor sees plain requests and responses. */
+usePayloadCrypto(client);
+/* Session renewal goes around the client's 401 handling, not around the encryption. */
+const refreshClient = usePayloadCrypto(axios.create());
 
 client.interceptors.request.use((config) => {
   const token = readToken();
@@ -50,7 +55,7 @@ let inflight = null;
 export function renewSession() {
   const run = async () => {
     try {
-      const res = await axios.post(`${client.defaults.baseURL}/api/v1/refresh`, null, {
+      const res = await refreshClient.post(`${client.defaults.baseURL}/api/v1/refresh`, null, {
         timeout: 15000,
         withCredentials: true,
       });
