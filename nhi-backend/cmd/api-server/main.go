@@ -20,6 +20,7 @@ import (
 	"nhi-backend-api/internal/modules/auditlog"
 	"nhi-backend-api/internal/modules/auth"
 	"nhi-backend-api/internal/modules/awsintegration"
+	"nhi-backend-api/internal/modules/codesources"
 	"nhi-backend-api/internal/modules/credentialexposure"
 	"nhi-backend-api/internal/modules/credentials"
 	"nhi-backend-api/internal/modules/dashboard"
@@ -383,6 +384,7 @@ func main() {
 		NewAPICredentialsHandler:       credentialsHandler,
 		NewAPICredentialDetailHandler:  credentialDetailHandler,
 		AWSIntegrationHandler:          awsIntegrationHandler,
+		CodeSources:                    codesources.NewHandler(db),
 		NewAPIPermissionSourceHandler:  permissionSourceHandler,
 		PostureHandlers:                postureHandlers,
 		GenomeHandlers:                 genomeHandlers,

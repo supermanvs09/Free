@@ -16,7 +16,7 @@
 
   const dlg = $('edit');
   const body = $('tenants-body');
-  const FIELDS = ['domain_name', 'collector_aws_account_id', 'collector_external_id', 'collector_event_bridge_arn', 'collector_regions', 'github_active'];
+  const FIELDS = ['domain_name', 'collector_aws_account_id', 'collector_external_id', 'collector_event_bridge_arn', 'collector_regions'];
   const LABELS = {
     domain_name: 'Domain', collector_aws_account_id: 'AWS account ID', collector_external_id: 'External ID',
     collector_event_bridge_arn: 'Event bus ARN', collector_regions: 'Regions', github_active: 'GitHub scanning',
@@ -225,9 +225,9 @@
       else input(f).value = original[f];
       clearField('edit_' + f);
     }
-    $('edit-bitbucket-state').textContent = t.bitbucket_active
-      ? 'Bitbucket is on (switched on by its own onboarding).'
-      : 'Bitbucket is off (it is switched on by its own onboarding).';
+    // Switched on by the company's admin in the console, once the check passed.
+    $('edit-sources-state').textContent = 'GitHub ' + (t.github_active ? 'on' : 'off') + ' · Bitbucket ' + (t.bitbucket_active ? 'on' : 'off') +
+      '. The company\u2019s admin connects these on the console\u2019s Integrations page; each switches on only after its check passes.';
     $('confirm-external').checked = false;
     $('edit-save').textContent = 'Save changes';
     const old = legacyFields(t);

@@ -4,8 +4,10 @@
 -- Safe to run again.
 ALTER TABLE nhi_global.tenants
     ADD COLUMN IF NOT EXISTS github_active smallint NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS github_org character varying(100),
     ADD COLUMN IF NOT EXISTS github_updated_by character varying(300),
-    ADD COLUMN IF NOT EXISTS github_updated_at timestamptz;
+    ADD COLUMN IF NOT EXISTS github_updated_at timestamptz,
+    ADD COLUMN IF NOT EXISTS github_last_verified_at timestamptz;
 
 DO $$
 BEGIN
@@ -14,6 +16,5 @@ BEGIN
     ALTER TABLE nhi_global.tenants ADD CONSTRAINT tenants_github_active_check CHECK (github_active IN (0, 1));
   END IF;
 END $$;
-
--- Companies that already had GitHub on for an AWS account keep it, now for the company.
--- (Run per database; tenant schemas are listed in nhi_global.tenants.db_name.)
+-- github_active is set by the console's GitHub "Verify" (internal/modules/codesources)
+-- once the GitHub App is found installed on github_org, or by the tenant-onboarding tool.

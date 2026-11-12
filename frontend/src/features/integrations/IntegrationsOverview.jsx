@@ -1,10 +1,14 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, Globe2, Layers, Plus, Settings2, ShieldCheck } from 'lucide-react';
 import { formatDateTime, formatNumber, formatRelative } from '../../lib/format';
 import { Button } from '../../ui/Button';
 import { cn } from '../../ui/cn';
 import { exposureState } from './ExposureBadges';
-import { AwsMark, CodeCommitMark } from './parts';
+import { AwsMark, BitbucketMark, CodeCommitMark, GitHubMark } from './parts';
+import { BitbucketDrawer, GitHubDrawer } from './CodeSourceDrawers';
+import { fetchCodeSources } from '../../lib/api/codeSources';
+import { useQuery } from '../../lib/hooks';
 import { useSync } from '../sync/SyncContext';
 
 /*
@@ -127,7 +131,8 @@ export function SourceCards({ accounts, exposureEnabled, canManage, canSeeFindin
         <h2 className="text-[14.5px] font-semibold text-ink">Data sources</h2>
         <p className="text-[12px] text-ink-3">Every connection is read-only. Nothing is written to your accounts or repositories.</p>
       </div>
-      <div className="grid gap-3 @min-[56rem]:grid-cols-3">
+      <p className="text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">Amazon Web Services</p>
+      <div className="grid gap-3 @min-[48rem]:grid-cols-2">
         <SourceCard
           mark={<AwsMark size="sm" />}
           name="Amazon Web Services"
@@ -179,6 +184,7 @@ export function SourceCards({ accounts, exposureEnabled, canManage, canSeeFindin
           );
         })}
       </div>
+      <CodeRepositoryCards canManage={canManage} />
       {exposureEnabled && canSeeFindings && (
         <p className="text-[12px] text-ink-3">
           Findings from code scanning are listed under{' '}
@@ -189,6 +195,67 @@ export function SourceCards({ accounts, exposureEnabled, canManage, canSeeFindin
         </p>
       )}
     </section>
+  );
+}
+
+/**
+ * GitHub and Bitbucket: switched on for the whole company, not per AWS
+ * account, and only once their check passed. The Exposed credentials page
+ * shows their tabs from then on.
+ */
+function CodeRepositoryCards({ canManage }) {
+  const query = useQuery((signal) => fetchCodeSources(signal), []);
+  const [open, setOpen] = useState(null);
+  const st = query.data;
+  const gh = st?.github ?? {};
+  const bb = st?.bitbucket ?? {};
+  const manage = canManage && st?.can_manage !== false;
+  const bbState = !bb.active
+    ? { tone: 'neutral', label: bb.configured ? 'Switched off' : 'Off' }
+    : bb.token_expiry_status === 'expired' || bb.token_expiry_status === 'expiring_soon'
+      ? { tone: 'medium', label: bb.token_expiry_status === 'expired' ? 'Token expired' : 'Token expiring' }
+      : { tone: 'low', label: 'Scanning' };
+
+  return (
+    <>
+      <p className="mt-1 text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">Code repositories</p>
+      <div className="grid gap-3 @min-[48rem]:grid-cols-2">
+        <SourceCard
+          mark={<GitHubMark size="sm" />}
+          name="GitHub"
+          kind="Code repositories · GitHub App"
+          state={gh.active ? { tone: 'low', label: 'Scanning' } : { tone: 'neutral', label: 'Off' }}
+          detail={
+            gh.active
+              ? `Scanning the repositories of ${gh.org} that the App can read${gh.verified_at ? `, checked ${formatRelative(gh.verified_at)}` : ''}.`
+              : 'Looks for keys, tokens and passwords committed to your GitHub repositories, through a read-only GitHub App.'
+          }
+          action={
+            <Button variant={gh.active ? 'secondary' : 'primary'} size="sm" icon={gh.active ? Settings2 : ShieldCheck} onClick={() => setOpen('github')} disabled={!st} aria-label={gh.active ? 'Manage GitHub' : 'Set up GitHub scanning'}>
+              {gh.active ? 'Manage' : manage ? 'Set up scanning' : 'How it works'}
+            </Button>
+          }
+        />
+        <SourceCard
+          mark={<BitbucketMark size="sm" />}
+          name="Bitbucket Data Center"
+          kind="Code repositories · self-hosted"
+          state={bbState}
+          detail={
+            bb.active
+              ? `Scanning ${bb.base_url}${bb.projects?.length ? ` (projects ${bb.projects.join(', ')})` : ''}.${bb.last_event_at ? ` Last push ${formatRelative(bb.last_event_at)}.` : ' No push received yet - check the webhook.'}`
+              : 'Looks for keys, tokens and passwords in your self-hosted Bitbucket, through a read-only access token and a push webhook.'
+          }
+          action={
+            <Button variant={bb.active ? 'secondary' : 'primary'} size="sm" icon={bb.active ? Settings2 : ShieldCheck} onClick={() => setOpen('bitbucket')} disabled={!st} aria-label={bb.active ? 'Manage Bitbucket' : 'Set up Bitbucket scanning'}>
+              {bb.active ? 'Manage' : manage ? 'Set up scanning' : 'How it works'}
+            </Button>
+          }
+        />
+      </div>
+      {open === 'github' && <GitHubDrawer status={st} canManage={manage} onClose={() => setOpen(null)} onChanged={query.refetch} />}
+      {open === 'bitbucket' && <BitbucketDrawer status={st} canManage={manage} onClose={() => setOpen(null)} onChanged={query.refetch} />}
+    </>
   );
 }
 

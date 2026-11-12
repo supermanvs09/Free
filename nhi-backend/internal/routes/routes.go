@@ -10,6 +10,7 @@ import (
 	"nhi-backend-api/internal/modules/auditlog"
 	"nhi-backend-api/internal/modules/auth"
 	"nhi-backend-api/internal/modules/awsintegration"
+	"nhi-backend-api/internal/modules/codesources"
 	"nhi-backend-api/internal/modules/credentialexposure"
 	"nhi-backend-api/internal/modules/credentials"
 	"nhi-backend-api/internal/modules/dashboard"
@@ -52,6 +53,8 @@ type HandlerContainer struct {
 	NewAPICredentialDetailHandler *credentials.CredentialDetailHandler
 	NewAPIPermissionSourceHandler *permissionsource.PermissionSourceHandler
 	AWSIntegrationHandler         *awsintegration.AWSIntegrationHandler
+	// GitHub and Bitbucket for the whole company (credential exposure).
+	CodeSources *codesources.Handler
 
 	// ISPM posture dashboard API (16 endpoints), mounted under PostureBasePath.
 	PostureHandlers *posture.Handlers
@@ -226,6 +229,9 @@ func registerProtected(router *mux.Router, h HandlerContainer, versioned bool) {
 		router.HandleFunc("/integrations/aws/accounts/{account_id}/sync", h.AWSIntegrationHandler.Sync).Methods(http.MethodPost)
 		router.HandleFunc("/integrations/aws/accounts/{account_id}/sync", h.AWSIntegrationHandler.CancelSync).Methods(http.MethodDelete)
 		router.HandleFunc("/integrations/aws/accounts/{account_id}", h.AWSIntegrationHandler.Remove).Methods(http.MethodDelete)
+		if h.CodeSources != nil {
+			h.CodeSources.Register(router)
+		}
 	}
 	registerPostures(router, h.PostureHandlers)
 	registerGenome(router, h.GenomeHandlers)
