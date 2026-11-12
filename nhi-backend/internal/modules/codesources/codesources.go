@@ -12,7 +12,9 @@
 //     for its installations and switches github_active on when the company's
 //     organisation is among them.
 //
-// Settings: NHI_SECRET_SCANNER_URL (the scanner's base URL),
+// Settings: NHI_GITHUB_SCANNING_ENABLED / NHI_BITBUCKET_SCANNING_ENABLED
+// (true|false, default false) show or hide each source on the page, refuse its
+// endpoints and keep its tab off; NHI_SECRET_SCANNER_URL (the scanner's base URL),
 // NHI_SECRET_SCANNER_ADMIN_KEY (its X-Admin-Key, server side only) and
 // NHI_GITHUB_APP_INSTALL_URL (the App's install link, shown on the page).
 package codesources
@@ -39,6 +41,18 @@ import (
 	"nhi-backend-api/internal/platform/httpx"
 	"nhi-backend-api/internal/platform/middleware"
 )
+
+// GitHubOn / BitbucketOn: the source is offered at all in this deployment.
+func GitHubOn() bool    { return envOn("NHI_GITHUB_SCANNING_ENABLED") }
+func BitbucketOn() bool { return envOn("NHI_BITBUCKET_SCANNING_ENABLED") }
+
+func envOn(name string) bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(name))) {
+	case "1", "true", "yes", "on":
+		return true
+	}
+	return false
+}
 
 type Handler struct {
 	db         *database.PostgresDB
@@ -103,6 +117,7 @@ func send(w http.ResponseWriter, status int, ok bool, msg, code string, data any
 /* ── Status ────────────────────────────────────────────────────────────── */
 
 type GitHubStatus struct {
+	Enabled         bool       `json:"enabled"` // offered in this deployment (NHI_GITHUB_SCANNING_ENABLED)
 	Active          bool       `json:"active"`
 	Org             string     `json:"org"`
 	VerifiedAt      *time.Time `json:"verified_at"`
@@ -111,6 +126,7 @@ type GitHubStatus struct {
 }
 
 type BitbucketStatus struct {
+	Enabled           bool       `json:"enabled"` // offered in this deployment (NHI_BITBUCKET_SCANNING_ENABLED)
 	Active            bool       `json:"active"`
 	Configured        bool       `json:"configured"`
 	BaseURL           string     `json:"base_url"`
@@ -163,7 +179,8 @@ func (h *Handler) status(ctx context.Context, c caller) (*Status, error) {
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
-	st.GitHub.Active, st.Bitbucket.Active = ghActive, bbActive
+	st.GitHub.Enabled, st.Bitbucket.Enabled = GitHubOn(), BitbucketOn()
+	st.GitHub.Active, st.Bitbucket.Active = ghActive && st.GitHub.Enabled, bbActive && st.Bitbucket.Enabled
 	st.GitHub.VerifiedAt, st.Bitbucket.LastVerifiedAt, st.Bitbucket.LastEventAt = timePtr(ghVerified), timePtr(bbVerified), timePtr(bbEvent)
 
 	st.Bitbucket.Projects, st.Bitbucket.Repositories, st.Bitbucket.TokenExpiryStatus = []string{}, []string{}, "unknown"
@@ -239,6 +256,10 @@ var orgRE = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$`
 func (h *Handler) VerifyGitHub(w http.ResponseWriter, r *http.Request) {
 	c, ok := h.caller(w, r, true)
 	if !ok {
+		return
+	}
+	if !GitHubOn() {
+		send(w, http.StatusNotFound, false, "This source is not offered here", "SOURCE_DISABLED", nil)
 		return
 	}
 	var body struct {
@@ -327,6 +348,10 @@ func (h *Handler) DisconnectGitHub(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if !GitHubOn() {
+		send(w, http.StatusNotFound, false, "This source is not offered here", "SOURCE_DISABLED", nil)
+		return
+	}
 	if err := h.ensureColumns(r.Context()); err == nil {
 		_, err = h.db.DB.ExecContext(r.Context(), `UPDATE `+database.Table(h.global, "tenants")+`
 			SET github_active = 0, github_updated_by = $2, github_updated_at = now() WHERE tenant_id = $1::uuid`, c.tenantID, c.actor)
@@ -351,6 +376,10 @@ type check struct {
 func (h *Handler) SaveBitbucket(w http.ResponseWriter, r *http.Request) {
 	c, ok := h.caller(w, r, true)
 	if !ok {
+		return
+	}
+	if !BitbucketOn() {
+		send(w, http.StatusNotFound, false, "This source is not offered here", "SOURCE_DISABLED", nil)
 		return
 	}
 	var in struct {
@@ -397,12 +426,20 @@ func (h *Handler) TestBitbucket(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if !BitbucketOn() {
+		send(w, http.StatusNotFound, false, "This source is not offered here", "SOURCE_DISABLED", nil)
+		return
+	}
 	h.forward(w, r, c, http.MethodPost, "/api/admin/bitbucket/connections/"+c.tenantID+"/test", nil, "Connection checked")
 }
 
 func (h *Handler) DisconnectBitbucket(w http.ResponseWriter, r *http.Request) {
 	c, ok := h.caller(w, r, true)
 	if !ok {
+		return
+	}
+	if !BitbucketOn() {
+		send(w, http.StatusNotFound, false, "This source is not offered here", "SOURCE_DISABLED", nil)
 		return
 	}
 	h.forward(w, r, c, http.MethodDelete, "/api/admin/bitbucket/connections/"+c.tenantID, nil, "Bitbucket scanning switched off")

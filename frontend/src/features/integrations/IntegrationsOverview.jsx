@@ -216,11 +216,14 @@ function CodeRepositoryCards({ canManage }) {
       ? { tone: 'medium', label: bb.token_expiry_status === 'expired' ? 'Token expired' : 'Token expiring' }
       : { tone: 'low', label: 'Scanning' };
 
+  /* Each source is offered only when the deployment switches it on
+     (NHI_GITHUB_SCANNING_ENABLED / NHI_BITBUCKET_SCANNING_ENABLED). */
+  if (!gh.enabled && !bb.enabled) return null;
   return (
     <>
       <p className="mt-1 text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">Code repositories</p>
       <div className="grid gap-3 @min-[48rem]:grid-cols-2">
-        <SourceCard
+        {gh.enabled && <SourceCard
           mark={<GitHubMark size="sm" />}
           name="GitHub"
           kind="Code repositories · GitHub App"
@@ -235,8 +238,8 @@ function CodeRepositoryCards({ canManage }) {
               {gh.active ? 'Manage' : manage ? 'Set up scanning' : 'How it works'}
             </Button>
           }
-        />
-        <SourceCard
+        />}
+        {bb.enabled && <SourceCard
           mark={<BitbucketMark size="sm" />}
           name="Bitbucket Data Center"
           kind="Code repositories · self-hosted"
@@ -251,7 +254,7 @@ function CodeRepositoryCards({ canManage }) {
               {bb.active ? 'Manage' : manage ? 'Set up scanning' : 'How it works'}
             </Button>
           }
-        />
+        />}
       </div>
       {open === 'github' && <GitHubDrawer status={st} canManage={manage} onClose={() => setOpen(null)} onChanged={query.refetch} />}
       {open === 'bitbucket' && <BitbucketDrawer status={st} canManage={manage} onClose={() => setOpen(null)} onChanged={query.refetch} />}

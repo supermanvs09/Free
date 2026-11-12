@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"nhi-backend-api/internal/modules/codesources"
 	"nhi-backend-api/internal/platform/awsconnect"
 	"nhi-backend-api/internal/platform/githubcheck"
 	"nhi-backend-api/internal/platform/logging"
@@ -295,7 +296,8 @@ func (s *AWSIntegrationService) Get(ctx context.Context, caller AWSCaller, canMa
 	p, settings, err := s.platform(ctx, caller.TenantID)
 	if settings != nil {
 		out.Workspace.Domain = settings.Domain
-		out.Platforms.GitHub, out.Platforms.Bitbucket = settings.GitHubActive, settings.BitbucketActive
+		out.Platforms.GitHub = settings.GitHubActive && codesources.GitHubOn()
+		out.Platforms.Bitbucket = settings.BitbucketActive && codesources.BitbucketOn()
 	}
 	out.ExposureEnabled = out.Platforms.CodeCommit || out.Platforms.GitHub || out.Platforms.Bitbucket
 	if !canManage {
@@ -690,7 +692,7 @@ func (s *AWSIntegrationService) SetExposure(ctx context.Context, caller AWSCalle
 			resp.ExposureEnabled = true
 		}
 	}
-	if settings, err := s.store.TenantSettings(saveCtx, caller.TenantID); err == nil && settings != nil && (settings.GitHubActive || settings.BitbucketActive) {
+	if settings, err := s.store.TenantSettings(saveCtx, caller.TenantID); err == nil && settings != nil && ((settings.GitHubActive && codesources.GitHubOn()) || (settings.BitbucketActive && codesources.BitbucketOn())) {
 		resp.ExposureEnabled = true
 	}
 	return resp, nil

@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"nhi-backend-api/internal/modules/codesources"
 	"nhi-backend-api/internal/platform/config"
 	"nhi-backend-api/internal/platform/database"
 	"nhi-backend-api/internal/platform/scope"
@@ -205,11 +206,13 @@ func withSources(ctx context.Context, resolved *scope.DataScope, c *schemaCatalo
 	err := resolved.DB.QueryRowContext(ctx, `SELECT COALESCE(to_jsonb(t)->>'github_active', '0') = '1', COALESCE(to_jsonb(t)->>'bitbucket_active', '0') = '1'
 		FROM `+database.Table(config.DefaultGlobalSchema, "tenants")+` t WHERE t.tenant_id = $1::uuid`, resolved.TenantID).Scan(&gh, &bb)
 	if err != nil {
-		slog.Warn("credential exposure: could not read which sources are on, showing every platform", "tenant_id", resolved.TenantID, "err", err)
-		return c
+		slog.Warn("credential exposure: could not read which sources are on, showing every platform the deployment offers", "tenant_id", resolved.TenantID, "err", err)
+		out := *c
+		out.enabled = map[string]bool{"codecommit": true, "github": codesources.GitHubOn(), "bitbucket": codesources.BitbucketOn()}
+		return &out
 	}
 	out := *c
-	out.enabled = map[string]bool{"codecommit": true, "github": gh, "bitbucket": bb}
+	out.enabled = map[string]bool{"codecommit": true, "github": gh && codesources.GitHubOn(), "bitbucket": bb && codesources.BitbucketOn()}
 	return &out
 }
 

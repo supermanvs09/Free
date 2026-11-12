@@ -423,6 +423,11 @@ moves the data back. Body `{"delete_data": true}` deletes it for good instead.
 
 ### GitHub and Bitbucket are company settings
 
+Shown at all only when the deployment offers them: `NHI_GITHUB_SCANNING_ENABLED`
+and `NHI_BITBUCKET_SCANNING_ENABLED` (default off). Off hides the card on
+Integrations, refuses `/integrations/code-sources/{github,bitbucket}` and keeps
+the tab off Exposed credentials, whatever the tenant row says.
+
 `nhi_global.tenants.github_active` / `bitbucket_active` (migrations/global/010,
 008) switch each source on for the whole company; the credential-exposure API
 returns nothing of a source that is off, and the console shows its tab only when
