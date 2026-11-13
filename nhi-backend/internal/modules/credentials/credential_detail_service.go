@@ -17,6 +17,7 @@ var validTabs = map[string]bool{
 	"trust":         true,
 	"activity":      true,
 	"rotation":      true,
+	"sessions":      true,
 	"relationships": true,
 	"raw":           true,
 	"changes":       true,
@@ -64,6 +65,12 @@ func (s *CredentialDetailService) GetDetail(ctx context.Context, userID, tenantI
 		return s.activity.CredentialActivity(ctx, resolved, subject, tr, "", f.Page, f.PageSize), nil
 	case "rotation":
 		return s.repo.GetRotation(ctx, resolved, f.CredentialID)
+	case "sessions":
+		subject, err := s.repo.GetActivitySubject(ctx, resolved, f.CredentialID)
+		if err != nil {
+			return nil, err
+		}
+		return s.activity.RoleSessions(ctx, resolved, subject, tr), nil
 	case "relationships":
 		return s.repo.GetRelationships(ctx, resolved, f.CredentialID, f.Depth, f.EdgeType, tr.Start, tr.End, src)
 	case "raw":

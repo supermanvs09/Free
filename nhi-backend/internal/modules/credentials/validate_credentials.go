@@ -22,6 +22,6 @@ var credentialSortColumnsAllowed = map[string]struct{}{
 }
 
 var validCredentialTabs = map[string]struct{}{
-	"overview": {}, "trust": {}, "activity": {}, "rotation": {},
+	"overview": {}, "trust": {}, "activity": {}, "rotation": {}, "sessions": {},
 	"relationships": {}, "raw": {}, "changes": {},
 }

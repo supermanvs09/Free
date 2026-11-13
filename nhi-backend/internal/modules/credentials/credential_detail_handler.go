@@ -144,7 +144,7 @@ func (h *CredentialDetailHandler) Get(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, ErrInvalidTab):
 			httpx.SendJSONResponse(w, http.StatusBadRequest, httpx.APIResponse{
 				Success: false,
-				Message: "Unsupported tab. Available tabs: overview, trust, activity, rotation, relationships, raw.",
+				Message: "Unsupported tab. Available tabs: overview, trust, activity, rotation, sessions, relationships, changes, raw.",
 				Error:   "INVALID_REQUEST",
 			})
 		case errors.Is(err, ErrCredentialNotFound):

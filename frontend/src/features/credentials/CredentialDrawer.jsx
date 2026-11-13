@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, Braces, Eye, Fingerprint, GitCompareArrows, History, KeyRound, Link2, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Braces, Eye, Fingerprint, GitCompareArrows, History, KeyRound, Link2, ShieldCheck, UsersRound } from 'lucide-react';
 import { fetchCredential } from '../../lib/api/inventory';
 import { EntityChangesTab } from '../changes/EntityChangesTab';
 import { useQuery } from '../../lib/hooks';
 import { identityRoute } from '../../lib/identityLinks';
-import { formatDate, formatDateTime, formatNumber, formatRelative, percentValue } from '../../lib/format';
+import { formatDate, formatDateTime, formatDuration, formatNumber, formatRelative, percentValue } from '../../lib/format';
 import { Drawer } from '../../ui/Overlay';
 import { DetailList, DetailRow, SectionLabel } from '../../ui/Panel';
 import { SegmentedControl, Tabs } from '../../ui/Tabs';
@@ -38,13 +38,17 @@ const TABS = [
   { value: 'changes', label: 'Changes', icon: GitCompareArrows },
   { value: 'raw', label: 'Raw', icon: Braces },
 ];
+/* A role has no secret to rotate or expire: its tab shows who opens sessions on it. */
+const SESSIONS_TAB = { value: 'sessions', label: 'Sessions', icon: UsersRound };
+const isRoleArn = (arn) => typeof arn === 'string' && arn.includes(':role/');
+const tabsFor = (arn) => (isRoleArn(arn) ? TABS.map((entry) => (entry.value === 'rotation' ? SESSIONS_TAB : entry)) : TABS);
 
 /**
  * One credential (`GET /api/v1/credentials/{id}?tab=`), opened over the
  * register. `row` is the list item, shown at once while the tabs load.
  */
 export function CredentialDrawer({ credentialId, row, onClose, initialTab }) {
-  const [tab, setTab] = useState(() => (TABS.some((entry) => entry.value === initialTab) ? initialTab : 'overview'));
+  const [picked, setPicked] = useState(() => initialTab || 'overview');
   const open = Boolean(credentialId);
 
   const overviewQuery = useCredentialTab(credentialId, 'overview', open);
@@ -53,6 +57,12 @@ export function CredentialDrawer({ credentialId, row, onClose, initialTab }) {
   const meta = credentialTypeMeta(credential?.credential_type);
   /* The overview's flags when it has them, else the register row's. */
   const flag = (key) => overviewQuery.data?.credential?.[key] ?? row?.[key];
+  const role = isRoleArn(credential?.arn);
+  const tabs = tabsFor(credential?.arn);
+  /* rotation <-> sessions follow the kind; anything unknown opens the overview. */
+  const asked = picked === 'rotation' && role ? 'sessions' : picked === 'sessions' && !role ? 'rotation' : picked;
+  const tab = tabs.some((entry) => entry.value === asked) ? asked : 'overview';
+  const setTab = setPicked;
 
   return (
     <Drawer
@@ -90,12 +100,13 @@ export function CredentialDrawer({ credentialId, row, onClose, initialTab }) {
       }
     >
       <div className="px-4 sm:px-5">
-        <Tabs tabs={TABS} value={tab} onChange={setTab} size="sm" />
+        <Tabs tabs={tabs} value={tab} onChange={setTab} size="sm" />
       </div>
       <div className="px-4 py-4 sm:px-5">
         {tab === 'overview' && <OverviewTab credentialId={credentialId} query={overviewQuery} />}
         {tab === 'trust' && <TrustTab credentialId={credentialId} />}
         {tab === 'rotation' && <RotationTab credentialId={credentialId} longLived={meta.longLived} />}
+        {tab === 'sessions' && <SessionsTab credentialId={credentialId} />}
         {tab === 'activity' && <ActivityTab credentialId={credentialId} />}
         {tab === 'relationships' && <RelationshipsTab credentialId={credentialId} />}
         {tab === 'changes' && <EntityChangesTab kind="credential" id={credentialId} />}
@@ -474,6 +485,172 @@ function RotationTab({ credentialId, longLived }) {
         </div>
       </div>
     </TabState>
+  );
+}
+
+/* ── Sessions (roles) ────────────────────────────────────────────────────── */
+
+const ASSUMER_KIND = {
+  iam_user: 'IAM user',
+  role_session: 'Another role',
+  aws_service: 'AWS service',
+  root: 'Root account',
+  other: 'Other principal',
+};
+
+function SessionsTab({ credentialId }) {
+  const [range, setRange] = useState('30d');
+  const query = useCredentialTab(credentialId, 'sessions', true, { time_range: range });
+  const data = query.data;
+  const assumers = data?.assumers ?? [];
+  const sessions = data?.sessions ?? [];
+  const total = Number(data?.sessions_total) || 0;
+  const hours = data?.hours_utc ?? [];
+  const peakHour = Math.max(0, ...hours.map(Number));
+  const longLived = assumers.filter((a) => a.long_lived_key).length;
+  const users = assumers.filter((a) => a.kind === 'iam_user').length;
+
+  return (
+    <div className="flex flex-col gap-5">
+      <p className="rounded-[var(--radius-control)] border border-line bg-surface-2 p-3.5 text-[12.5px] leading-relaxed text-ink-2">
+        A role has no secret of its own to rotate or expire - each session gets temporary keys. The risk is who can open
+        those sessions, especially IAM users signing in with a long-lived access key.
+      </p>
+      <SegmentedControl label="Time range" options={RANGES} value={range} onChange={setRange} className="self-start" />
+      <TabState query={query} label="Sessions unavailable">
+        {data && data.activity_data_available === false ? (
+          <EmptyState compact title="Event store unavailable" description="CloudTrail events cannot be read right now, so who uses this role is unknown - not nobody." />
+        ) : (
+          <div className={cn('flex flex-col gap-5', query.isRefreshing && 'opacity-60')}>
+            <dl className="grid grid-cols-3 gap-2">
+              {[
+                ['Assumed by', formatNumber(assumers.length), users ? `${formatNumber(users)} IAM user${users === 1 ? '' : 's'}` : null],
+                ['Long-lived keys', formatNumber(longLived), longLived ? 'standing path in' : 'none', longLived ? 'text-high' : ''],
+                ['Sessions', formatNumber(total), 'in this window'],
+              ].map(([label, value, hint, tone]) => (
+                <div key={label} className="rounded-[var(--radius-control)] border border-line px-3 py-2.5">
+                  <dt className="text-[11px] font-medium text-ink-3">{label}</dt>
+                  <dd className={cn('mt-0.5 text-[18px] font-semibold text-ink tabular-nums', tone)}>{value}</dd>
+                  {hint && <dd className="text-[11px] text-ink-3">{hint}</dd>}
+                </div>
+              ))}
+            </dl>
+
+            <div>
+              <SectionLabel>Who assumes it</SectionLabel>
+              {assumers.length === 0 ? (
+                <p className="mt-2 text-[12.5px] text-ink-3">Nobody assumed this role in this window.</p>
+              ) : (
+                <ul className="mt-2 flex flex-col divide-y divide-line rounded-[var(--radius-control)] border border-line">
+                  {assumers.map((a) => (
+                    <li key={a.arn} className="flex items-start gap-3 px-3 py-2.5">
+                      <span className="min-w-0 flex-1">
+                        {a.identity_id ? (
+                          <Link to={identityRoute(a.identity_id)} className="block truncate text-[13px] font-medium text-ink hover:text-brand hover:underline" title={a.arn}>
+                            {a.name}
+                          </Link>
+                        ) : (
+                          <span className="block truncate text-[13px] font-medium text-ink" title={a.arn}>
+                            {a.name}
+                          </span>
+                        )}
+                        <span className="mt-1 flex flex-wrap items-center gap-1.5">
+                          <Tag size="sm">{ASSUMER_KIND[a.kind] ?? ASSUMER_KIND.other}</Tag>
+                          {a.long_lived_key && (
+                            <Tag tone="high" size="sm">
+                              Long-lived access key
+                            </Tag>
+                          )}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-right text-[12px] text-ink-3">
+                        <span className="block font-medium text-ink-2 tabular-nums">
+                          {formatNumber(a.sessions)} session{Number(a.sessions) === 1 ? '' : 's'}
+                        </span>
+                        <span className="block" title={formatDateTime(a.last_assumed_at)}>
+                          last {formatRelative(a.last_assumed_at)}
+                        </span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {total > 0 && (
+              <div>
+                <SectionLabel>When sessions start (UTC)</SectionLabel>
+                <div className="mt-2 flex h-14 items-end gap-[3px]" role="img" aria-label="Sessions started per hour of the day, UTC">
+                  {Array.from({ length: 24 }, (_, h) => {
+                    const n = Number(hours[h]) || 0;
+                    return (
+                      <span
+                        key={h}
+                        title={`${String(h).padStart(2, '0')}:00 UTC - ${formatNumber(n)} session${n === 1 ? '' : 's'}`}
+                        className={cn('flex-1 rounded-sm', n ? 'bg-brand' : 'bg-surface-3')}
+                        style={{ height: n && peakHour ? `${Math.max(12, (n / peakHour) * 100)}%` : '4px' }}
+                      />
+                    );
+                  })}
+                </div>
+                <div className="mt-1 flex justify-between text-[10.5px] text-ink-3 tabular-nums">
+                  <span>00</span>
+                  <span>06</span>
+                  <span>12</span>
+                  <span>18</span>
+                  <span>23</span>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <SectionLabel>Recent sessions</SectionLabel>
+              {sessions.length === 0 ? (
+                <p className="mt-2 text-[12.5px] text-ink-3">No session made a call in this window.</p>
+              ) : (
+                <>
+                  <div className="mt-2 overflow-x-auto rounded-[var(--radius-control)] border border-line">
+                    <table className="w-full text-left text-[12.5px]">
+                      <thead className="bg-surface-2 text-[11px] text-ink-3">
+                        <tr>
+                          <th className="px-3 py-2 font-medium">Session</th>
+                          <th className="px-3 py-2 font-medium">Started</th>
+                          <th className="px-3 py-2 font-medium">Active for</th>
+                          <th className="px-3 py-2 text-right font-medium">Calls</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-line">
+                        {sessions.map((s) => (
+                          <tr key={`${s.caller_arn}-${s.started_at}`}>
+                            <td className="max-w-[180px] px-3 py-2">
+                              <span className="block truncate font-medium text-ink" title={s.caller_arn}>
+                                {s.session_name}
+                              </span>
+                              {s.source_ip && <span className="block truncate text-[11px] text-ink-3">{s.source_ip}</span>}
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap text-ink-2" title={formatDateTime(s.started_at)}>
+                              {formatRelative(s.started_at)}
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap text-ink-2" title={`Last call ${formatDateTime(s.last_call_at)}`}>
+                              {formatDuration(s.started_at, s.last_call_at)}
+                            </td>
+                            <td className="px-3 py-2 text-right text-ink-2 tabular-nums">{formatNumber(s.calls)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="mt-1.5 text-[11.5px] text-ink-3">
+                    {total > sessions.length ? `Latest ${formatNumber(sessions.length)} of ${formatNumber(total)} sessions. ` : ''}
+                    Times are first and last call seen in CloudTrail, not the session's expiry.
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </TabState>
+    </div>
   );
 }
 

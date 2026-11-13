@@ -12,7 +12,7 @@ import { cn } from '../ui/cn';
  * Navigation only - no brand, no user chrome, no search: those belong to the
  * top bar. Two short lists with plain headings (Overview, Settings), nothing
  * to open or close. Collapsed, the rail floats beside the content as two
- * pills of larger icons, Settings apart at the bottom.
+ * pills of larger icons, centred on the screen's height.
  */
 function SidebarLink({ item, onNavigate }) {
   const { pathname } = useLocation();
@@ -110,7 +110,7 @@ export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile
         <aside
           ref={asideRef}
           aria-label="Primary navigation"
-          className="fixed top-[76px] bottom-3 left-3 z-30 hidden w-[60px] flex-col items-center gap-3 lg:flex"
+          className="fixed top-16 bottom-0 left-3 z-30 hidden w-[60px] flex-col items-center justify-center gap-4 py-4 lg:flex"
         >
           <button
             type="button"
@@ -123,14 +123,14 @@ export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile
           </button>
           <nav
             aria-label="Primary"
-            className="flex flex-col items-center gap-1.5 rounded-full border border-line bg-surface px-2 py-3 shadow-[var(--t-shadow-lg)]"
+            className="flex flex-col items-center gap-3 rounded-full border border-line bg-surface px-2 py-4 shadow-[var(--t-shadow-lg)]"
           >
             {main.flatMap((group) => group.items).map((item) => (
               <RailLink key={item.to} item={item} />
             ))}
           </nav>
           {settings && (
-            <div className="mt-auto flex flex-col items-center gap-1.5 rounded-full border border-line bg-surface px-2 py-2 shadow-[var(--t-shadow-lg)]">
+            <div className="flex flex-col items-center gap-3 rounded-full border border-line bg-surface px-2 py-2 shadow-[var(--t-shadow-lg)]">
               {settings.items.map((item) => (
                 <RailLink key={item.to} item={item} />
               ))}
