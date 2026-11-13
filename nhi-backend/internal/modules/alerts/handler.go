@@ -2,15 +2,18 @@ package alerts
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-	"log/slog"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 
 	"nhi-backend-api/internal/modules/credentialexposure"
+	"nhi-backend-api/internal/modules/users"
+	"nhi-backend-api/internal/platform/authz"
 	"nhi-backend-api/internal/platform/httpx"
 	"nhi-backend-api/internal/platform/middleware"
 	"nhi-backend-api/internal/platform/scope"
@@ -21,17 +24,27 @@ import (
 type Handler struct {
 	repo     Repo
 	exposure *credentialexposure.FindingsRepository
+	genome   GenomeLister
+	users    UserLister
 	resolver *scope.Resolver
 }
 
-func NewHandler(resolver *scope.Resolver, exposure *credentialexposure.FindingsRepository) *Handler {
-	return &Handler{resolver: resolver, exposure: exposure}
+// UserLister lists the workspace's dashboard users (users.Repository).
+type UserLister interface {
+	List(ctx context.Context, tenantID, search, role, status string) ([]users.User, error)
+}
+
+func NewHandler(resolver *scope.Resolver, exposure *credentialexposure.FindingsRepository, genome GenomeLister, userList UserLister) *Handler {
+	return &Handler{resolver: resolver, exposure: exposure, genome: genome, users: userList}
 }
 
 // Register mounts the endpoints on the authenticated /api/v1 router.
 func (h *Handler) Register(r *mux.Router) {
 	r.HandleFunc("/alerts", h.List).Methods(http.MethodGet)
 	r.HandleFunc("/alerts/summary", h.Summary).Methods(http.MethodGet)
+	r.HandleFunc("/alerts/triage", h.Triage).Methods(http.MethodPost)
+	r.HandleFunc("/alerts/activity", h.Activity).Methods(http.MethodGet)
+	r.HandleFunc("/alerts/assignees", h.Assignees).Methods(http.MethodGet)
 	r.HandleFunc("/alerts/identities/{id:.+}", h.Identity).Methods(http.MethodGet)
 }
 
@@ -57,53 +70,6 @@ func (h *Handler) scope(w http.ResponseWriter, r *http.Request) *scope.DataScope
 	return ds
 }
 
-// build gathers the drops, the exposures and the summary.
-func (h *Handler) build(ctx context.Context, ds *scope.DataScope) (*ListResponse, error) {
-	drops, err := h.repo.ScoreDrops(ctx, ds)
-	if err != nil {
-		return nil, err
-	}
-	latest, previous, err := h.repo.LastSyncs(ctx, ds)
-	if err != nil {
-		return nil, err
-	}
-	out := &ListResponse{ScoreDrops: drops, Exposures: []Exposure{}}
-	out.Summary.ScoreDrops = len(drops)
-	if !latest.IsZero() {
-		out.Summary.LastSync = &latest
-	}
-	if !previous.IsZero() {
-		out.Summary.PreviousSync = &previous
-	}
-	/* "New" exposures are those found since the previous sync, or in the last
-	   day when there is no sync history. */
-	cutoff := time.Now().Add(-24 * time.Hour)
-	if !previous.IsZero() {
-		cutoff = previous
-	}
-	if h.exposure != nil {
-		items, _, err := h.exposure.List(ctx, ds, credentialexposure.FindingsFilter{Limit: exposureLimit})
-		if err != nil {
-			slog.Default().Info("alerts: credential exposure unavailable", "err", err)
-		} else {
-			out.Summary.ExposureAvailable = true
-			for _, f := range items {
-				e := Exposure{FindingID: f.FindingID, Detector: f.Detector, Severity: f.Severity, RiskTier: f.RiskTier,
-					VerificationStatus: f.VerificationStatus, Platform: f.Platform, Repository: f.Repository, FilePath: f.FilePath,
-					LineNumber: f.LineNumber, Author: f.Author, Redacted: f.Redacted, DetectedAt: f.CreatedAt}
-				if t, ok := parseTime(f.CreatedAt); ok && t.After(cutoff) {
-					e.New = true
-					out.Summary.NewExposures++
-				}
-				out.Exposures = append(out.Exposures, e)
-			}
-			out.Summary.Exposures = len(out.Exposures)
-		}
-	}
-	out.Summary.Badge = out.Summary.ScoreDrops + out.Summary.NewExposures
-	return out, nil
-}
-
 func parseTime(s string) (time.Time, bool) {
 	for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02 15:04:05.999999-07", "2006-01-02 15:04:05", "2006-01-02T15:04:05"} {
 		if t, err := time.Parse(layout, s); err == nil {
@@ -113,13 +79,14 @@ func parseTime(s string) (time.Time, bool) {
 	return time.Time{}, false
 }
 
-// List: GET /alerts
+// List: GET /alerts - the unified inbox.
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	ds := h.scope(w, r)
 	if ds == nil {
 		return
 	}
-	out, err := h.build(r.Context(), ds)
+	c := middleware.GetClaims(r)
+	out, err := h.inbox(r.Context(), ds, c.UserID, c.TenantID, c.DBName)
 	if err != nil {
 		httpx.SendServerError(w, r, err, "Alerts could not be loaded", "ALERTS_FAILED")
 		return
@@ -133,12 +100,145 @@ func (h *Handler) Summary(w http.ResponseWriter, r *http.Request) {
 	if ds == nil {
 		return
 	}
-	out, err := h.build(r.Context(), ds)
+	c := middleware.GetClaims(r)
+	out, err := h.inbox(r.Context(), ds, c.UserID, c.TenantID, c.DBName)
 	if err != nil {
 		httpx.SendServerError(w, r, err, "Alerts could not be loaded", "ALERTS_FAILED")
 		return
 	}
 	httpx.SendJSONResponse(w, http.StatusOK, httpx.APIResponse{Success: true, Message: "ok", Data: out.Summary})
+}
+
+var keyRe = regexp.MustCompile(`^(posture|genome|exposure):[^\s]{1,600}$`)
+
+// Triage: POST /alerts/triage {keys, status?, assignee?, note?} - assign,
+// move or comment on one or many alerts. Needs the write capability.
+func (h *Handler) Triage(w http.ResponseWriter, r *http.Request) {
+	c := middleware.GetClaims(r)
+	if c == nil {
+		fail(w, http.StatusUnauthorized, "Unauthorized", "UNAUTHORIZED")
+		return
+	}
+	if !authz.Can(authz.NormalizeRole(c.Role), authz.CapWrite) {
+		fail(w, http.StatusForbidden, "Your role can view alerts but not work them", "FORBIDDEN")
+		return
+	}
+	var body TriageChange
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<16)
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		fail(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST")
+		return
+	}
+	if len(body.Keys) == 0 || len(body.Keys) > 500 {
+		fail(w, http.StatusBadRequest, "Choose between 1 and 500 alerts", "INVALID_REQUEST")
+		return
+	}
+	for _, k := range body.Keys {
+		if !keyRe.MatchString(k) {
+			fail(w, http.StatusBadRequest, "Invalid alert key", "INVALID_REQUEST")
+			return
+		}
+	}
+	if body.Status != nil && !validStatus[*body.Status] {
+		fail(w, http.StatusBadRequest, "status must be open, in_progress, resolved or dismissed", "INVALID_REQUEST")
+		return
+	}
+	if len(body.Note) > 4000 {
+		fail(w, http.StatusBadRequest, "A comment can be at most 4000 characters", "INVALID_REQUEST")
+		return
+	}
+	if body.Status == nil && body.Assignee == nil && strings.TrimSpace(body.Note) == "" {
+		fail(w, http.StatusBadRequest, "Nothing to change", "INVALID_REQUEST")
+		return
+	}
+	ds := h.scope(w, r)
+	if ds == nil {
+		return
+	}
+	/* Only a dashboard user of this workspace can own an alert. */
+	if body.Assignee != nil && strings.TrimSpace(*body.Assignee) != "" {
+		ok, err := h.isUser(r.Context(), c.TenantID, *body.Assignee)
+		if err != nil {
+			httpx.SendServerError(w, r, err, "Users could not be checked", "USERS_FAILED")
+			return
+		}
+		if !ok {
+			fail(w, http.StatusBadRequest, "That person is not an active user of this workspace", "INVALID_ASSIGNEE")
+			return
+		}
+	}
+	if err := applyTriage(r.Context(), ds, c.UserID, body); err != nil {
+		httpx.SendServerError(w, r, err, "The alerts could not be updated", "TRIAGE_FAILED")
+		return
+	}
+	httpx.SendJSONResponse(w, http.StatusOK, httpx.APIResponse{Success: true, Message: "updated"})
+}
+
+// Activity: GET /alerts/activity?key= - who did what, newest first.
+func (h *Handler) Activity(w http.ResponseWriter, r *http.Request) {
+	key := r.URL.Query().Get("key")
+	if !keyRe.MatchString(key) {
+		fail(w, http.StatusBadRequest, "Invalid alert key", "INVALID_REQUEST")
+		return
+	}
+	ds := h.scope(w, r)
+	if ds == nil {
+		return
+	}
+	list, err := activityFor(r.Context(), ds, key)
+	if err != nil {
+		httpx.SendServerError(w, r, err, "The history could not be loaded", "ACTIVITY_FAILED")
+		return
+	}
+	httpx.SendJSONResponse(w, http.StatusOK, httpx.APIResponse{Success: true, Message: "ok", Data: list})
+}
+
+// Assignee is a person an alert can be given to.
+type Assignee struct {
+	Email    string `json:"email"`
+	FullName string `json:"full_name"`
+	Role     string `json:"role"`
+	CanWork  bool   `json:"can_work"`
+}
+
+// Assignees: GET /alerts/assignees - the workspace's active users.
+func (h *Handler) Assignees(w http.ResponseWriter, r *http.Request) {
+	c := middleware.GetClaims(r)
+	if c == nil {
+		fail(w, http.StatusUnauthorized, "Unauthorized", "UNAUTHORIZED")
+		return
+	}
+	out := []Assignee{}
+	if h.users != nil {
+		list, err := h.users.List(r.Context(), c.TenantID, "", "", "")
+		if err != nil {
+			httpx.SendServerError(w, r, err, "Users could not be loaded", "USERS_FAILED")
+			return
+		}
+		for _, u := range list {
+			if !strings.EqualFold(u.Status, "active") {
+				continue
+			}
+			out = append(out, Assignee{Email: u.Email, FullName: u.FullName, Role: u.Role, CanWork: authz.Can(authz.NormalizeRole(u.Role), authz.CapWrite)})
+		}
+	}
+	httpx.SendJSONResponse(w, http.StatusOK, httpx.APIResponse{Success: true, Message: "ok", Data: out})
+}
+
+func (h *Handler) isUser(ctx context.Context, tenantID, email string) (bool, error) {
+	if h.users == nil {
+		return false, nil
+	}
+	list, err := h.users.List(ctx, tenantID, "", "", "")
+	if err != nil {
+		return false, err
+	}
+	for _, u := range list {
+		if strings.EqualFold(u.Email, strings.TrimSpace(email)) && strings.EqualFold(u.Status, "active") {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // Identity: GET /alerts/identities/{id} - why one identity's score dropped.

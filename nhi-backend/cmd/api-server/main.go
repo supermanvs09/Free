@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"nhi-backend-api/internal/correlation"
 	"nhi-backend-api/internal/modules/alerts"
+	"nhi-backend-api/internal/modules/genome/anomalylist"
 	"os"
 	"os/signal"
 	"strings"
@@ -192,7 +193,8 @@ func main() {
 		auditStore.Close(ctx)
 		cancel()
 	}()
-	usersHandler := users.NewHandler(users.NewRepository(db, globalSchema))
+	usersRepo := users.NewRepository(db, globalSchema)
+	usersHandler := users.NewHandler(usersRepo)
 	auditLogHandler := auditlog.NewHandler(auditlog.NewRepository(db, globalSchema))
 
 	userRepo := auth.NewUserRepository(db)
@@ -395,13 +397,14 @@ func main() {
 		NewAPICredentialsHandler:       credentialsHandler,
 		NewAPICredentialDetailHandler:  credentialDetailHandler,
 		CorrelationHandler:             correlationHandler,
-		AlertsHandler:                  alerts.NewHandler(resolver, ceFindingsRepo),
-		AWSIntegrationHandler:          awsIntegrationHandler,
-		CodeSources:                    codesources.NewHandler(db),
-		NewAPIPermissionSourceHandler:  permissionSourceHandler,
-		PostureHandlers:                postureHandlers,
-		GenomeHandlers:                 genomeHandlers,
-		RemediationHandlers:            remApp.handlers(),
+		AlertsHandler: alerts.NewHandler(resolver, ceFindingsRepo,
+			anomalylist.NewService(genomefullcommon.NewMonitoredIdentityLookup(resolver), anomalylist.NewRepository(), genomeAlertEvents), usersRepo),
+		AWSIntegrationHandler:         awsIntegrationHandler,
+		CodeSources:                   codesources.NewHandler(db),
+		NewAPIPermissionSourceHandler: permissionSourceHandler,
+		PostureHandlers:               postureHandlers,
+		GenomeHandlers:                genomeHandlers,
+		RemediationHandlers:           remApp.handlers(),
 
 		CredentialExposureFindingsHandler:  ceFindingsHandler,
 		CredentialExposureAllowlistHandler: ceAllowlistHandler,
