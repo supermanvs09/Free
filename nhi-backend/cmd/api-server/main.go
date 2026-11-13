@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"nhi-backend-api/internal/correlation"
 	"os"
 	"os/signal"
 	"strings"
@@ -196,6 +197,14 @@ func main() {
 	userRepo := auth.NewUserRepository(db)
 	resolver := scope.NewResolver(db)
 
+	// Blast radius: the correlation engine runs in this process over the
+	// tenant's own tables; CloudTrail evidence is optional.
+	var correlationCH correlation.CHQuerier = correlation.NullCHClient{}
+	if chClient != nil {
+		correlationCH = correlation.NewCHAdapter(chClient.Conn(), chClient.TableFor, chClient.Timeout())
+	}
+	correlationHandler := correlation.NewHandler(correlation.NewEngine(correlation.NewPGRepo(correlationCH)), resolver)
+
 	authService := auth.NewAuthService(userRepo, cfg.JWT)
 	// Passwords arrive encrypted (see fieldcrypt); the key comes from the JWT secret.
 	if err := fieldcrypt.Init(cfg.JWT.Secret); err != nil {
@@ -383,6 +392,7 @@ func main() {
 		NewAPIIdentityEventsHandler:    identityEventsHandler,
 		NewAPICredentialsHandler:       credentialsHandler,
 		NewAPICredentialDetailHandler:  credentialDetailHandler,
+		CorrelationHandler:             correlationHandler,
 		AWSIntegrationHandler:          awsIntegrationHandler,
 		CodeSources:                    codesources.NewHandler(db),
 		NewAPIPermissionSourceHandler:  permissionSourceHandler,
