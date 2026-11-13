@@ -38,17 +38,12 @@ type Alert struct {
 	ScoreBefore *int              `json:"score_before,omitempty"`
 	ScoreNow    *int              `json:"score_now,omitempty"`
 	Facts       map[string]string `json:"facts,omitempty"`
-	Triage      Triage            `json:"triage"`
 }
 
 // InboxSummary is the header of the page and the badge.
 type InboxSummary struct {
 	Total        int             `json:"total"`
-	Open         int             `json:"open"`
-	InProgress   int             `json:"in_progress"`
-	Done         int             `json:"done"`
 	BySource     map[string]int  `json:"by_source"`
-	OpenBySource map[string]int  `json:"open_by_source"`
 	BySeverity   map[string]int  `json:"by_severity"`
 	Badge        int             `json:"badge"`
 	LastSync     *time.Time      `json:"last_sync"`
@@ -106,9 +101,10 @@ func dropSeverity(d ScoreDrop) string {
 	return "medium"
 }
 
-// inbox gathers every source, attaches triage, and summarises.
+// inbox gathers every source and summarises. Read-only: it reflects what is
+// wrong now, and an alert leaves the list when its cause clears.
 func (h *Handler) inbox(ctx context.Context, ds *scope.DataScope, userID, tenantID, dbName string) (*Inbox, error) {
-	out := &Inbox{Alerts: []Alert{}, Summary: InboxSummary{BySource: map[string]int{}, OpenBySource: map[string]int{}, BySeverity: map[string]int{}, Available: map[string]bool{}}}
+	out := &Inbox{Alerts: []Alert{}, Summary: InboxSummary{BySource: map[string]int{}, BySeverity: map[string]int{}, Available: map[string]bool{}}}
 
 	// Posture: identities whose score fell at the latest sync.
 	drops, err := h.repo.ScoreDrops(ctx, ds)
@@ -232,26 +228,6 @@ func (h *Handler) inbox(ctx context.Context, ds *scope.DataScope, userID, tenant
 		}
 	}
 
-	// Triage, with reopening: resolved or dismissed work that got worse again is new.
-	keys := make([]string, len(out.Alerts))
-	for i, a := range out.Alerts {
-		keys[i] = a.Key
-	}
-	tri, err := triageFor(ctx, ds, keys)
-	if err != nil {
-		return nil, err
-	}
-	for i := range out.Alerts {
-		a := &out.Alerts[i]
-		t, ok := tri[a.Key]
-		if !ok {
-			t = Triage{Status: StatusOpen}
-		} else if (t.Status == StatusResolved || t.Status == StatusDismissed) && t.UpdatedAt != nil && a.DetectedAt.After(*t.UpdatedAt) {
-			t.Status, t.Reopened = StatusOpen, true
-		}
-		a.Triage = t
-	}
-
 	sort.SliceStable(out.Alerts, func(i, j int) bool {
 		a, b := out.Alerts[i], out.Alerts[j]
 		if ra, rb := severityRank(a.Severity), severityRank(b.Severity); ra != rb {
@@ -263,20 +239,9 @@ func (h *Handler) inbox(ctx context.Context, ds *scope.DataScope, userID, tenant
 	for _, a := range out.Alerts {
 		s.Total++
 		s.BySource[a.Source]++
-		switch a.Triage.Status {
-		case StatusOpen:
-			s.Open++
-			s.OpenBySource[a.Source]++
-		case StatusInProgress:
-			s.InProgress++
-		default:
-			s.Done++
-		}
-		if a.Triage.Status == StatusOpen || a.Triage.Status == StatusInProgress {
-			s.BySeverity[a.Severity]++
-		}
+		s.BySeverity[a.Severity]++
 	}
-	s.Badge = s.Open
+	s.Badge = s.Total
 	return out, nil
 }
 

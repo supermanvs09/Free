@@ -398,7 +398,7 @@ func main() {
 		NewAPICredentialDetailHandler:  credentialDetailHandler,
 		CorrelationHandler:             correlationHandler,
 		AlertsHandler: alerts.NewHandler(resolver, ceFindingsRepo,
-			anomalylist.NewService(genomefullcommon.NewMonitoredIdentityLookup(resolver), anomalylist.NewRepository(), genomeAlertEvents), usersRepo),
+			anomalylist.NewService(genomefullcommon.NewMonitoredIdentityLookup(resolver), anomalylist.NewRepository(), genomeAlertEvents)),
 		AWSIntegrationHandler:         awsIntegrationHandler,
 		CodeSources:                   codesources.NewHandler(db),
 		NewAPIPermissionSourceHandler: permissionSourceHandler,

@@ -53,9 +53,6 @@ const subscribe = (fn) => {
   return () => listeners.delete(fn);
 };
 
-/** Ask every badge to re-read the counts (after a sync, after reviewing). */
-export const refreshAlerts = () => window.dispatchEvent(new Event('alerts:refresh'));
-
 /** The alert summary, or null until the first answer. `exposure` drops exposure counts when that feature is off. */
 export function useAlertSummary({ exposure = true } = {}) {
   useEffect(() => {
@@ -64,7 +61,7 @@ export function useAlertSummary({ exposure = true } = {}) {
   }, []);
   const value = useSyncExternalStore(subscribe, () => summary);
   if (!value) return null;
-  /* The badge is unworked alerts; exposure ones drop out when that feature is off. */
-  const hidden = exposure ? 0 : Number(value.open_by_source?.exposure) || 0;
+  /* The badge is every current alert; exposure ones drop out when that feature is off. */
+  const hidden = exposure ? 0 : Number(value.by_source?.exposure) || 0;
   return { ...value, badge: Math.max(0, (Number(value.badge) || 0) - hidden) };
 }
