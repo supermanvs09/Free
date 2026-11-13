@@ -26,7 +26,7 @@ import { RecordBar, ResultCount, ShowFiltersButton, WorkArea } from '../../ui/Wo
 import { CompositionDonut } from '../../charts/CompositionDonut';
 import { TrendChart } from '../../charts/TrendChart';
 import { AnomalyDrawer } from './AnomalyDrawer';
-import { AnomalyGroups } from './AnomalyGroups';
+import { AnomalyInbox } from './AnomalyInbox';
 import { useAccess } from '../../app/useAccess';
 import { anomalyStatusMeta, dimensionLabel, roleKindLabel, sourceTypeLabel } from './meta';
 
@@ -796,7 +796,7 @@ const STATES = [
 ];
 
 const VIEWS = [
-  { value: 'groups', label: 'By identity' },
+  { value: 'groups', label: 'Investigate' },
   { value: 'list', label: 'Every anomaly' },
 ];
 
@@ -1034,7 +1034,7 @@ function AnomaliesTab({ searchParams, setParams }) {
           if (view === 'groups') {
             if (query.isLoading && !query.data) return <div className="p-4"><ListSkeleton rows={5} /></div>;
             return (
-              <AnomalyGroups
+              <AnomalyInbox
                 items={filtered}
                 canAct={can('anomalies.review')}
                 onChanged={query.refetch}

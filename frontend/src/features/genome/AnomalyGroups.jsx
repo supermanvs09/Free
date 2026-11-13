@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Archive, CheckCircle2, ChevronDown, ChevronRight, Layers, Repeat2 } from 'lucide-react';
+import { Archive, CheckCircle2, Layers, Repeat2 } from 'lucide-react';
 import { setAnomalyDisposition } from '../../lib/api/genome';
 import { severityMeta } from '../../lib/domain';
 import { formatDateTime, formatNumber, formatRelative } from '../../lib/format';
@@ -8,7 +8,7 @@ import { Modal } from '../../ui/Overlay';
 import { Tag } from '../../ui/Tag';
 import { useToast } from '../../ui/Toast';
 import { TONE_BG, cn } from '../../ui/cn';
-import { dimensionLabel, sourceTypeLabel } from './meta';
+import { dimensionLabel } from './meta';
 
 const SEVERITY_ORDER = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNRATED'];
 const DAY_MS = 86400000;
@@ -84,7 +84,7 @@ export function groupAnomalies(items) {
 }
 
 /** Anomalies per day over the last two weeks, as a small bar sparkline. */
-function Spark({ items, className }) {
+export function Spark({ items, className }) {
   const bars = useMemo(() => {
     const end = Math.floor(Date.now() / DAY_MS);
     const counts = new Array(SPARK_DAYS).fill(0);
@@ -105,22 +105,6 @@ function Spark({ items, className }) {
           className={cn('w-[4px] rounded-full', bar.count ? 'bg-ink-3/60' : 'bg-line')}
           style={{ height: bar.h }}
         />
-      ))}
-    </span>
-  );
-}
-
-function SeverityCounts({ sev }) {
-  return (
-    <span className="flex flex-wrap gap-x-3 gap-y-1 text-[11.5px]">
-      {SEVERITY_ORDER.filter((s) => sev[s]).map((s) => (
-        <span key={s} className="flex items-center gap-1 text-ink-3">
-          <span className={cn('size-1.5 rounded-full', s === 'UNRATED' ? 'bg-neutral' : TONE_BG[severityMeta(s).tone])} />
-          <span data-numeric="" className="font-semibold text-ink-2">
-            {formatNumber(sev[s])}
-          </span>
-          {s === 'UNRATED' ? 'unrated' : severityMeta(s).label.toLowerCase()}
-        </span>
       ))}
     </span>
   );
@@ -229,7 +213,7 @@ function Trend({ days, hover, setHover }) {
  * whether it is rising, and where it concentrates. One number, one sentence,
  * one line - colour only where severity is the point.
  */
-function AnomalyOverview({ items, groups, onSeverity, activeSeverities = [] }) {
+export function AnomalyOverview({ items, groups, onSeverity, activeSeverities = [] }) {
   const [hover, setHover] = useState(null);
   const stats = useMemo(() => {
     const now = Date.now();
@@ -460,60 +444,9 @@ function PatternRow({ pattern, onOpen, canAct, onClose }) {
   );
 }
 
-function IdentityGroup({ group, expanded, onToggle, onOpen, canAct, onClose }) {
-  const total = group.items.length;
-  const repeating = group.patterns.filter((p) => p.items.length > 1).length;
-  return (
-    <li className={cn('overflow-hidden rounded-[var(--radius-panel)] border bg-surface transition-colors', expanded ? 'border-line-strong shadow-sm' : 'border-line')}>
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={expanded}
-        className="grid w-full gap-3 px-4 py-3.5 text-left hover:bg-surface-2 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto_auto] sm:items-center sm:px-5"
-      >
-        <span className="flex min-w-0 items-center gap-3">
-          {expanded ? <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-ink-3" /> : <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-ink-3" />}
-          <span className="min-w-0">
-            <span className="block truncate text-[14px] font-semibold text-ink" title={group.identity?.identity_name}>
-              {group.identity?.display_name || group.identity?.identity_name}
-            </span>
-            <span className="block truncate text-[11.5px] text-ink-3">
-              {sourceTypeLabel(group.identity?.source_type, group.identity?.identity_name)} · {formatNumber(group.patterns.length)}{' '}
-              {group.patterns.length === 1 ? 'pattern' : 'patterns'}
-              {repeating ? `, ${formatNumber(repeating)} repeating` : ''}
-            </span>
-          </span>
-        </span>
-        <span className="flex min-w-0 flex-col gap-1.5">
-          <SeverityCounts sev={group.sev} />
-        </span>
-        <Spark items={group.items} className="hidden md:flex" />
-        <span className="flex items-baseline gap-1.5 sm:justify-end">
-          <span data-numeric="" className="font-display text-[22px] leading-none font-bold text-ink">
-            {formatNumber(total)}
-          </span>
-          <span className="text-[11.5px] text-ink-3">
-            {total === 1 ? 'anomaly' : 'anomalies'}
-            <span className="block" title={formatDateTime(new Date(group.last).toISOString())}>
-              latest {formatRelative(new Date(group.last).toISOString())}
-            </span>
-          </span>
-        </span>
-      </button>
-      {expanded && (
-        <ul className="animate-fade divide-y divide-line border-t border-line bg-surface-2/40">
-          {group.patterns.map((pattern) => (
-            <PatternRow key={pattern.key} pattern={pattern} onOpen={onOpen} canAct={canAct} onClose={onClose} />
-          ))}
-        </ul>
-      )}
-    </li>
-  );
-}
-
 /* Asking to close every open repeat of a pattern: the confirmation, the
    progress while it runs, and the result. Shared by both anomaly lists. */
-function useCloseMany(onChanged) {
+export function useCloseMany(onChanged) {
   const [closing, setClosing] = useState(null); // { pattern, open }
   const [progress, setProgress] = useState(null);
   const { notify } = useToast();
@@ -571,53 +504,6 @@ export function AnomalyPatterns({ items, onOpen, canAct, onChanged }) {
           <PatternRow key={pattern.key} pattern={pattern} onOpen={onOpen} canAct={canAct} onClose={ask} />
         ))}
       </ul>
-      {modal}
-    </>
-  );
-}
-
-/** The grouped view of the Anomalies tab. */
-export function AnomalyGroups({ items, onOpen, canAct, onChanged, emptyState, onSeverity, activeSeverities }) {
-  const groups = useMemo(() => groupAnomalies(items), [items]);
-  /* null until the reader toggles a row: the first (worst) identity starts open. */
-  const [expanded, setExpanded] = useState(null);
-  const [shown, setShown] = useState(20);
-  const { ask, modal } = useCloseMany(onChanged);
-
-  const firstKey = groups[0]?.key;
-  const isOpen = (key) => (expanded ? expanded.has(key) : key === firstKey);
-  const toggle = (key) =>
-    setExpanded((current) => {
-      const next = new Set(current ?? (firstKey ? [firstKey] : []));
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-
-  if (groups.length === 0) return emptyState;
-  return (
-    <>
-      <AnomalyOverview items={items} groups={groups} onSeverity={onSeverity} activeSeverities={activeSeverities} />
-      <ul className="flex flex-col gap-2.5 p-3 sm:p-4">
-        {groups.slice(0, shown).map((group) => (
-          <IdentityGroup
-            key={group.key}
-            group={group}
-            expanded={isOpen(group.key)}
-            onToggle={() => toggle(group.key)}
-            onOpen={onOpen}
-            canAct={canAct}
-            onClose={ask}
-          />
-        ))}
-      </ul>
-      {groups.length > shown && (
-        <div className="flex justify-center border-t border-line p-3">
-          <Button variant="ghost" size="sm" onClick={() => setShown((n) => n + 20)}>
-            Show {formatNumber(Math.min(20, groups.length - shown))} more identities
-          </Button>
-        </div>
-      )}
       {modal}
     </>
   );
