@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"nhi-backend-api/internal/correlation"
+	"nhi-backend-api/internal/modules/alerts"
 	"os"
 	"os/signal"
 	"strings"
@@ -394,6 +395,7 @@ func main() {
 		NewAPICredentialsHandler:       credentialsHandler,
 		NewAPICredentialDetailHandler:  credentialDetailHandler,
 		CorrelationHandler:             correlationHandler,
+		AlertsHandler:                  alerts.NewHandler(resolver, ceFindingsRepo),
 		AWSIntegrationHandler:          awsIntegrationHandler,
 		CodeSources:                    codesources.NewHandler(db),
 		NewAPIPermissionSourceHandler:  permissionSourceHandler,

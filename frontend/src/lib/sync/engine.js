@@ -273,6 +273,8 @@ async function pollPosture(run) {
 function finish() {
   clearTimeout(timer);
   patchRun({ stage: 'done', finishedAt: Date.now() });
+  /* A finished sync can raise or clear alerts: every badge re-reads its count. */
+  window.dispatchEvent(new Event('alerts:refresh'));
   reloadAllData();
   emit('done');
 }

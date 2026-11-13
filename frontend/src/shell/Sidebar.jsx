@@ -7,6 +7,9 @@ import { isActiveItem, navGroupsFor } from './navigation';
 import { useWorkspace } from '../app/WorkspaceContext';
 import { IconButton } from '../ui/Button';
 import { cn } from '../ui/cn';
+import { useAlertSummary } from '../features/alerts/useAlertBadge';
+
+const badgeText = (n) => (n > 99 ? '99+' : String(n));
 
 /**
  * Navigation only - no brand, no user chrome, no search: those belong to the
@@ -14,7 +17,7 @@ import { cn } from '../ui/cn';
  * to open or close. Collapsed, the rail floats beside the content as two
  * pills of larger icons, centred on the screen's height.
  */
-function SidebarLink({ item, onNavigate }) {
+function SidebarLink({ item, onNavigate, badge = 0 }) {
   const { pathname } = useLocation();
   const active = isActiveItem(item, pathname);
   return (
@@ -36,18 +39,26 @@ function SidebarLink({ item, onNavigate }) {
       />
       <item.icon aria-hidden="true" className="size-[17px] shrink-0 opacity-85" />
       <span className="min-w-0 flex-1 truncate">{item.label}</span>
+      {badge > 0 && (
+        <span
+          aria-label={`${badge} new`}
+          className="min-w-[20px] rounded-full bg-critical px-1.5 py-px text-center text-[10.5px] leading-[16px] font-bold text-white tabular-nums"
+        >
+          {badgeText(badge)}
+        </span>
+      )}
     </Link>
   );
 }
 
 /** One icon of the floating rail: a 44px circle, its name on hover and to screen readers. */
-function RailLink({ item }) {
+function RailLink({ item, badge = 0 }) {
   const { pathname } = useLocation();
   const active = isActiveItem(item, pathname);
   return (
     <Link
       to={item.to}
-      aria-label={item.label}
+      aria-label={badge > 0 ? `${item.label}, ${badge} new` : item.label}
       aria-current={active ? 'page' : undefined}
       className={cn(
         'group relative grid size-11 place-items-center rounded-full transition-colors duration-150',
@@ -55,6 +66,14 @@ function RailLink({ item }) {
       )}
     >
       <item.icon aria-hidden="true" className="size-5" strokeWidth={1.9} />
+      {badge > 0 && (
+        <span
+          aria-hidden="true"
+          className="absolute -top-0.5 -right-0.5 min-w-[18px] rounded-full bg-critical px-1 text-center text-[10px] leading-[18px] font-bold text-white tabular-nums ring-2 ring-surface"
+        >
+          {badgeText(badge)}
+        </span>
+      )}
       {/* A label that appears beside the rail on hover or keyboard focus. */}
       <span
         aria-hidden="true"
@@ -73,6 +92,8 @@ export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile
   const main = groups.filter((g) => g.key !== 'settings');
   const settings = groups.find((g) => g.key === 'settings');
   const asideRef = useRef(null);
+  const alerts = useAlertSummary({ exposure: exposureEnabled });
+  const badgeFor = (item) => (item.badge === 'alerts' ? (alerts?.badge ?? 0) : 0);
   /* A wheel over the rail scrolls the rail; it never carries on into the page. */
   useContainedScroll(asideRef, { scroller: 'nav' });
 
@@ -85,7 +106,7 @@ export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile
           <p className="px-2.5 pt-1 pb-1.5 text-[10px] font-semibold tracking-[0.14em] text-ink-3 uppercase">{group.label}</p>
           <div className="flex flex-col gap-0.5">
             {group.items.map((item) => (
-              <SidebarLink key={item.to} item={item} onNavigate={onNavigate} />
+              <SidebarLink key={item.to} item={item} onNavigate={onNavigate} badge={badgeFor(item)} />
             ))}
           </div>
         </div>
@@ -116,13 +137,13 @@ export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile
             className="flex flex-col items-center gap-3 rounded-full border border-line bg-surface px-2 py-4 shadow-[var(--t-shadow-lg)]"
           >
             {main.flatMap((group) => group.items).map((item) => (
-              <RailLink key={item.to} item={item} />
+              <RailLink key={item.to} item={item} badge={badgeFor(item)} />
             ))}
           </nav>
           {settings && (
             <div className="flex flex-col items-center gap-3 rounded-full border border-line bg-surface px-2 py-2 shadow-[var(--t-shadow-lg)]">
               {settings.items.map((item) => (
-                <RailLink key={item.to} item={item} />
+                <RailLink key={item.to} item={item} badge={badgeFor(item)} />
               ))}
             </div>
           )}

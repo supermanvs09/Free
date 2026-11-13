@@ -16,6 +16,8 @@ import LoginPage from '../features/auth/LoginPage';
 /* Routes are split per screen. The charting and graph libraries only ship
    with the screens that draw them, so first paint after sign-in stays small. */
 const OverviewPage = lazy(() => import('../features/overview/OverviewPage'));
+const AlertsPage = lazy(() => import('../features/alerts/AlertsPage'));
+const AlertDetailPage = lazy(() => import('../features/alerts/AlertDetailPage'));
 const PosturePage = lazy(() => import('../features/posture/PosturePage'));
 const PostureIdentityPage = lazy(() => import('../features/posture/PostureIdentityPage'));
 const ScanChangesPage = lazy(() => import('../features/changes/ScanChangesPage'));
@@ -62,6 +64,8 @@ export default function App() {
               >
                 <Route index element={<HomeRedirect />} />
                 <Route path="/overview" element={<Screen><OverviewPage /></Screen>} />
+                <Route path="/alerts" element={<Screen><AlertsPage /></Screen>} />
+                <Route path="/alerts/identities/:id" element={<Screen><AlertDetailPage /></Screen>} />
                 <Route path="/posture" element={<Screen><PosturePage /></Screen>} />
                 {/* Posture detail is the Posture tab of the identity page;
                     old links still land on it. */}

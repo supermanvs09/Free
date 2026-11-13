@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"nhi-backend-api/internal/correlation"
+	"nhi-backend-api/internal/modules/alerts"
 	"nhi-backend-api/internal/platform/datasource"
 
 	"github.com/gorilla/mux"
@@ -53,7 +54,9 @@ type HandlerContainer struct {
 	NewAPICredentialsHandler      *credentials.CredentialsHandler
 	NewAPICredentialDetailHandler *credentials.CredentialDetailHandler
 	// CorrelationHandler serves blast radius (the correlation engine).
-	CorrelationHandler            *correlation.Handler
+	CorrelationHandler *correlation.Handler
+	// AlertsHandler serves the Alerts page (score drops, exposed credentials).
+	AlertsHandler                 *alerts.Handler
 	NewAPIPermissionSourceHandler *permissionsource.PermissionSourceHandler
 	AWSIntegrationHandler         *awsintegration.AWSIntegrationHandler
 	// GitHub and Bitbucket for the whole company (credential exposure).
@@ -222,6 +225,9 @@ func registerProtected(router *mux.Router, h HandlerContainer, versioned bool) {
 	}
 	if h.CorrelationHandler != nil {
 		h.CorrelationHandler.Register(router)
+	}
+	if h.AlertsHandler != nil {
+		h.AlertsHandler.Register(router)
 	}
 	if h.NewAPIPermissionSourceHandler != nil {
 		router.HandleFunc("/permission-source", h.NewAPIPermissionSourceHandler.Get).Methods(http.MethodGet)

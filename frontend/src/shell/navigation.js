@@ -1,5 +1,6 @@
 import {
   Activity,
+  BellRing,
   Dna,
   Waypoints,
   FileWarning,
@@ -32,6 +33,8 @@ export const NAV_GROUPS = [
     label: 'Overview',
     items: [
       { to: '/overview', label: 'Dashboard', icon: Gauge, end: true },
+      /* `badge`: the number of new alerts, shown on the item and on the collapsed rail. */
+      { to: '/alerts', label: 'Alerts', icon: BellRing, badge: 'alerts' },
       { to: '/posture', label: 'Posture', icon: ShieldCheck },
       { to: '/remediation', label: 'Remediation', icon: Wrench },
       { to: '/identities', label: 'Discovery', icon: Fingerprint, match: ['/identities', '/credentials', '/discovery'] },
@@ -89,6 +92,7 @@ export const ALL_NAV_ITEMS = [
  */
 export const BREADCRUMBS = {
   '/overview': ['Overview', 'Dashboard'],
+  '/alerts': ['Overview', 'Alerts'],
   '/posture': ['Overview', 'Posture'],
   '/remediation': ['Overview', 'Remediation'],
   '/identities': ['Overview', 'Discovery', 'Identities'],
@@ -108,6 +112,7 @@ export const BREADCRUMBS = {
  * table misses, so a record screen still says where it sits.
  */
 export const BREADCRUMB_PREFIXES = [
+  { prefix: '/alerts/', trail: ['Overview', 'Alerts', 'Score drop'] },
   { prefix: '/posture/', trail: ['Overview', 'Posture', 'Identity'] },
   { prefix: '/scans/', trail: ['Overview', 'Dashboard', 'Scan changes'] },
   { prefix: '/identities/', trail: ['Overview', 'Discovery', 'Identity'] },
