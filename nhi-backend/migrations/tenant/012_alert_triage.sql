@@ -4,9 +4,6 @@ CREATE TABLE IF NOT EXISTS :"schema".alert_triage (
   tenant_id   TEXT        NOT NULL,
   alert_key   TEXT        NOT NULL,
   status      TEXT        NOT NULL DEFAULT 'open',
-  assignee    TEXT,
-  assigned_by TEXT,
-  assigned_at TIMESTAMPTZ,
   updated_by  TEXT,
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (tenant_id, alert_key)

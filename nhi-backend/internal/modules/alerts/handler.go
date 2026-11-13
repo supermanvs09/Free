@@ -29,7 +29,8 @@ type Handler struct {
 	resolver *scope.Resolver
 }
 
-// UserLister lists the workspace's dashboard users (users.Repository).
+// UserLister lists the workspace's dashboard users (users.Repository), so
+// the history shows names.
 type UserLister interface {
 	List(ctx context.Context, tenantID, search, role, status string) ([]users.User, error)
 }
@@ -44,7 +45,6 @@ func (h *Handler) Register(r *mux.Router) {
 	r.HandleFunc("/alerts/summary", h.Summary).Methods(http.MethodGet)
 	r.HandleFunc("/alerts/triage", h.Triage).Methods(http.MethodPost)
 	r.HandleFunc("/alerts/activity", h.Activity).Methods(http.MethodGet)
-	r.HandleFunc("/alerts/assignees", h.Assignees).Methods(http.MethodGet)
 	r.HandleFunc("/alerts/identities/{id:.+}", h.Identity).Methods(http.MethodGet)
 }
 
@@ -111,8 +111,8 @@ func (h *Handler) Summary(w http.ResponseWriter, r *http.Request) {
 
 var keyRe = regexp.MustCompile(`^(posture|genome|exposure):[^\s]{1,600}$`)
 
-// Triage: POST /alerts/triage {keys, status?, assignee?, note?} - assign,
-// move or comment on one or many alerts. Needs the write capability.
+// Triage: POST /alerts/triage {keys, status?, note?} - move or comment on
+// one or many alerts. Needs the write capability.
 func (h *Handler) Triage(w http.ResponseWriter, r *http.Request) {
 	c := middleware.GetClaims(r)
 	if c == nil {
@@ -147,14 +147,8 @@ func (h *Handler) Triage(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "A comment can be at most 4000 characters", "INVALID_REQUEST")
 		return
 	}
-	if body.Status == nil && body.Assignee == nil && strings.TrimSpace(body.Note) == "" {
+	if body.Status == nil && strings.TrimSpace(body.Note) == "" {
 		fail(w, http.StatusBadRequest, "Nothing to change", "INVALID_REQUEST")
-		return
-	}
-	/* Ownership is self-service: you can take an alert or release it, not
-	   hand it to someone else. */
-	if body.Assignee != nil && strings.TrimSpace(*body.Assignee) != "" && !strings.EqualFold(strings.TrimSpace(*body.Assignee), c.UserID) {
-		fail(w, http.StatusForbidden, "You can take an alert yourself, not assign it to someone else", "ASSIGN_SELF_ONLY")
 		return
 	}
 	ds := h.scope(w, r)
@@ -184,39 +178,19 @@ func (h *Handler) Activity(w http.ResponseWriter, r *http.Request) {
 		httpx.SendServerError(w, r, err, "The history could not be loaded", "ACTIVITY_FAILED")
 		return
 	}
-	httpx.SendJSONResponse(w, http.StatusOK, httpx.APIResponse{Success: true, Message: "ok", Data: list})
-}
-
-// Assignee is a person an alert can be given to.
-type Assignee struct {
-	Email    string `json:"email"`
-	FullName string `json:"full_name"`
-	Role     string `json:"role"`
-	CanWork  bool   `json:"can_work"`
-}
-
-// Assignees: GET /alerts/assignees - the workspace's active users.
-func (h *Handler) Assignees(w http.ResponseWriter, r *http.Request) {
-	c := middleware.GetClaims(r)
-	if c == nil {
-		fail(w, http.StatusUnauthorized, "Unauthorized", "UNAUTHORIZED")
-		return
-	}
-	out := []Assignee{}
-	if h.users != nil {
-		list, err := h.users.List(r.Context(), c.TenantID, "", "", "")
-		if err != nil {
-			httpx.SendServerError(w, r, err, "Users could not be loaded", "USERS_FAILED")
-			return
-		}
-		for _, u := range list {
-			if !strings.EqualFold(u.Status, "active") {
-				continue
+	/* Show people by name, not e-mail. A failed lookup only costs the names. */
+	if h.users != nil && len(list) > 0 {
+		if people, err := h.users.List(r.Context(), middleware.GetClaims(r).TenantID, "", "", ""); err == nil {
+			names := map[string]string{}
+			for _, u := range people {
+				names[strings.ToLower(u.Email)] = u.FullName
 			}
-			out = append(out, Assignee{Email: u.Email, FullName: u.FullName, Role: u.Role, CanWork: authz.Can(authz.NormalizeRole(u.Role), authz.CapWrite)})
+			for i := range list {
+				list[i].ActorName = names[strings.ToLower(list[i].Actor)]
+			}
 		}
 	}
-	httpx.SendJSONResponse(w, http.StatusOK, httpx.APIResponse{Success: true, Message: "ok", Data: out})
+	httpx.SendJSONResponse(w, http.StatusOK, httpx.APIResponse{Success: true, Message: "ok", Data: list})
 }
 
 // Identity: GET /alerts/identities/{id} - why one identity's score dropped.

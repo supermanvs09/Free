@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowUpRight, CircleDot, Dna, FileWarning, Loader2, Send, ShieldAlert, UserPlus, X } from 'lucide-react';
-import { fetchAlertActivity, fetchAlerts, fetchAssignees, triageAlerts } from '../../lib/api/alerts';
+import { ArrowUpRight, CircleDot, Dna, FileWarning, Loader2, Send, ShieldAlert, X } from 'lucide-react';
+import { fetchAlertActivity, fetchAlerts, triageAlerts } from '../../lib/api/alerts';
 import { useQuery } from '../../lib/hooks/useQuery';
 import { formatDateTime, formatNumber, formatRelative } from '../../lib/format';
 import { genomeRoute } from '../../lib/identityLinks';
-import { useAuth } from '../../app/AuthContext';
 import { useAccess } from '../../app/useAccess';
 import { useWorkspace } from '../../app/WorkspaceContext';
 import { PageHeader } from '../../shell/PageHeader';
@@ -41,12 +40,11 @@ const STATUS = {
 };
 const QUEUES = [
   { key: 'active', label: 'Needs attention', test: (a) => a.triage.status === 'open' || a.triage.status === 'in_progress' },
-  { key: 'mine', label: 'Mine', test: (a, me) => (a.triage.status === 'open' || a.triage.status === 'in_progress') && sameUser(a.triage.assignee, me) },
-  { key: 'unassigned', label: 'Unassigned', test: (a) => (a.triage.status === 'open' || a.triage.status === 'in_progress') && !a.triage.assignee },
+  { key: 'new', label: 'New', test: (a) => a.triage.status === 'open' },
+  { key: 'in_progress', label: 'In progress', test: (a) => a.triage.status === 'in_progress' },
   { key: 'done', label: 'Closed', test: (a) => a.triage.status === 'resolved' || a.triage.status === 'dismissed' },
 ];
 
-const sameUser = (a, b) => Boolean(a) && Boolean(b) && String(a).toLowerCase() === String(b).toLowerCase();
 const initials = (name) =>
   String(name || '?')
     .split('@')[0]
@@ -57,10 +55,7 @@ const initials = (name) =>
     .map((p) => p[0].toUpperCase())
     .join('');
 
-function Avatar({ who, people, size = 22 }) {
-  if (!who) return null;
-  const person = people.find((p) => sameUser(p.email, who));
-  const name = person?.full_name || who;
+function Avatar({ name, size = 22 }) {
   return (
     <span
       title={name}
@@ -72,12 +67,11 @@ function Avatar({ who, people, size = 22 }) {
   );
 }
 
-const nameOf = (who, people) => people.find((p) => sameUser(p.email, who))?.full_name || who;
 const linkOf = (a) => (a.source === 'genome' && a.facts ? `${genomeRoute(a.facts.source_type, a.facts.identity_name)}?tab=anomalies` : a.link);
 
 /* ── One row ────────────────────────────────────────────────────────────── */
 
-function Row({ a, selected, checked, onCheck, onSelect, people, canWork }) {
+function Row({ a, selected, checked, onCheck, onSelect, canWork }) {
   const src = SOURCES[a.source];
   const sev = SEV[a.severity] ?? SEV.medium;
   const st = STATUS[a.triage.status] ?? STATUS.open;
@@ -114,9 +108,6 @@ function Row({ a, selected, checked, onCheck, onSelect, people, canWork }) {
           <span className="truncate">{src.label}</span>
           {a.triage.status !== 'open' && <span className={cn('rounded-full px-1.5 py-px text-[10.5px] font-semibold', st.tone)}>{st.label}</span>}
           {a.triage.comments > 0 && <span>· {a.triage.comments} {a.triage.comments === 1 ? 'comment' : 'comments'}</span>}
-          <span className="ml-auto flex items-center gap-1.5">
-            {a.triage.assignee ? <Avatar who={a.triage.assignee} people={people} size={20} /> : <span className="text-[11px] italic">Unassigned</span>}
-          </span>
         </span>
       </span>
     </div>
@@ -125,31 +116,9 @@ function Row({ a, selected, checked, onCheck, onSelect, people, canWork }) {
 
 /* ── The preview ────────────────────────────────────────────────────────── */
 
-/* Ownership is self-service: take an alert, hand it back, or take over one
-   someone else holds. ponytail: no assigning to others; add a picker back
-   (GET /alerts/assignees still lists people) if teams ask for it. */
-function OwnerControl({ people, current, me, onPick, disabled }) {
-  const mine = sameUser(current, me);
-  return (
-    <div className="flex h-9 items-center gap-2 rounded-[var(--radius-control)] border border-line bg-surface pr-1 pl-2.5 text-[12.5px]">
-      {current ? <Avatar who={current} people={people} /> : <UserPlus className="size-4 text-ink-3" />}
-      <span className="max-w-[160px] truncate text-ink">{mine ? 'You own this' : current ? nameOf(current, people) : 'Nobody owns this'}</span>
-      {mine ? (
-        <button type="button" disabled={disabled} onClick={() => onPick('')} className="rounded-[7px] px-2 py-1 text-[12px] text-ink-3 hover:bg-surface-2 hover:text-ink disabled:opacity-60">
-          Release
-        </button>
-      ) : (
-        <button type="button" disabled={disabled || !me} onClick={() => onPick(me)} className="rounded-[7px] bg-ink px-2.5 py-1 text-[12px] font-medium text-surface hover:opacity-90 disabled:opacity-60">
-          {current ? 'Take over' : 'Take it'}
-        </button>
-      )}
-    </div>
-  );
-}
+const ACTIONS = { status: 'moved it to', comment: 'commented' };
 
-const ACTIONS = { assigned: 'assigned it to', unassigned: 'unassigned it', status: 'moved it to', comment: 'commented' };
-
-function Preview({ a, people, me, canWork, onChange }) {
+function Preview({ a, canWork, onChange }) {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
   const { notify } = useToast();
@@ -191,7 +160,6 @@ function Preview({ a, people, me, canWork, onChange }) {
 
         {canWork ? (
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <OwnerControl people={people} current={a.triage.assignee} me={me} disabled={busy} onPick={(email) => change({ assignee: email }, email ? 'You own this alert now' : 'Released')} />
             <div className="flex rounded-[var(--radius-control)] border border-line p-0.5" role="group" aria-label="Status">
               {Object.entries(STATUS).map(([key, s]) => (
                 <button
@@ -210,7 +178,7 @@ function Preview({ a, people, me, canWork, onChange }) {
           </div>
         ) : (
           <p className="mt-4 text-[12px] text-ink-3">
-            {a.triage.assignee ? `Assigned to ${nameOf(a.triage.assignee, people)}. ` : ''}Your role can view alerts; an analyst or admin works them.
+            Your role can view alerts; an analyst or admin works them.
           </p>
         )}
       </header>
@@ -293,11 +261,10 @@ function Preview({ a, people, me, canWork, onChange }) {
           <ol className="mt-4 flex flex-col">
             {(act.data ?? []).map((e) => (
               <li key={e.id} className="relative flex gap-3 pb-4 pl-1 last:pb-0">
-                <Avatar who={e.actor} people={people} />
+                <Avatar name={e.actor_name || e.actor} />
                 <span className="min-w-0">
                   <span className="text-[12.5px] text-ink-2">
-                    <span className="font-medium text-ink">{nameOf(e.actor, people)}</span> {e.action === 'assigned' && sameUser(e.detail, e.actor) ? 'took it' : e.action === 'unassigned' ? 'released it' : (ACTIONS[e.action] ?? e.action)}{' '}
-                    {e.action === 'assigned' && !sameUser(e.detail, e.actor) && <span className="font-medium text-ink">{nameOf(e.detail, people)}</span>}
+                    <span className="font-medium text-ink">{e.actor_name || e.actor}</span> {ACTIONS[e.action] ?? e.action}{' '}
                     {e.action === 'status' && <span className="font-medium text-ink">{STATUS[e.detail]?.label ?? e.detail}</span>}
                   </span>
                   <span className="ml-1.5 text-[11px] text-ink-3" title={formatDateTime(e.created_at)}>
@@ -322,11 +289,9 @@ function Preview({ a, people, me, canWork, onChange }) {
 
 /**
  * Every alert that needs a person, from posture, NHI Genome and credential
- * exposure, in one inbox: take it, assign it, move it, comment, close it.
+ * exposure, in one inbox: move it, comment, close it.
  */
 export default function AlertsPage() {
-  const { user } = useAuth();
-  const me = user?.email || user?.user_id;
   const { can } = useAccess();
   const canWork = can('alerts.work');
   const { exposureEnabled } = useWorkspace();
@@ -344,22 +309,20 @@ export default function AlertsPage() {
   const listRef = useRef(null);
 
   const query = useQuery((signal) => fetchAlerts(signal), []);
-  const peopleQuery = useQuery((signal) => fetchAssignees(signal), []);
-  const people = peopleQuery.data ?? [];
   const reload = useCallback(async () => {
     await query.refetch();
     refreshAlerts();
   }, [query]);
 
   const all = useMemo(() => (query.data?.alerts ?? []).filter((a) => showExposure || a.source !== 'exposure'), [query.data, showExposure]);
-  const inQueue = useMemo(() => all.filter((a) => queue.test(a, me)), [all, queue, me]);
+  const inQueue = useMemo(() => all.filter((a) => queue.test(a)), [all, queue]);
   const shown = useMemo(() => {
     const term = q.trim().toLowerCase();
     return inQueue.filter(
       (a) =>
         (sources.length === 0 || sources.includes(a.source)) &&
         (sevs.length === 0 || sevs.includes(a.severity)) &&
-        (!term || [a.subject, a.title, a.summary, a.account_id, a.triage.assignee].some((v) => String(v ?? '').toLowerCase().includes(term))),
+        (!term || [a.subject, a.title, a.summary, a.account_id].some((v) => String(v ?? '').toLowerCase().includes(term))),
     );
   }, [inQueue, sources, sevs, q]);
   const current = shown.find((a) => a.key === selectedKey) ?? shown[0] ?? null;
@@ -368,7 +331,7 @@ export default function AlertsPage() {
     listRef.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
   }, [current?.key]);
 
-  const counts = useMemo(() => Object.fromEntries(QUEUES.map((qq) => [qq.key, all.filter((a) => qq.test(a, me)).length])), [all, me]);
+  const counts = useMemo(() => Object.fromEntries(QUEUES.map((qq) => [qq.key, all.filter((a) => qq.test(a)).length])), [all]);
   const countBy = (field, value) => inQueue.filter((a) => a[field] === value).length;
   const toggle = (list, set, v) => set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
@@ -415,8 +378,8 @@ export default function AlertsPage() {
         title="Alerts"
         lede={
           s
-            ? `${formatNumber(active)} need attention, ${formatNumber(s.open)} not picked up yet. Score drops, behaviour anomalies and exposed credentials, owned and closed in one place.`
-            : 'Score drops, behaviour anomalies and exposed credentials, owned and closed in one place.'
+            ? `${formatNumber(active)} need attention, ${formatNumber(s.open)} new. Score drops, behaviour anomalies and exposed credentials, worked and closed in one place.`
+            : 'Score drops, behaviour anomalies and exposed credentials, worked and closed in one place.'
         }
       />
 
@@ -495,7 +458,7 @@ export default function AlertsPage() {
                 </button>
               );
             })}
-            <SearchInput size="sm" value={q} onChange={setQ} placeholder="Search alerts, identities, people…" className="ml-auto w-full sm:w-72" aria-label="Search alerts" />
+            <SearchInput size="sm" value={q} onChange={setQ} placeholder="Search alerts, identities, accounts…" className="ml-auto w-full sm:w-72" aria-label="Search alerts" />
           </div>
 
           <section className="relative overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface" onKeyDown={onKey}>
@@ -504,11 +467,6 @@ export default function AlertsPage() {
               <div className="flex flex-wrap items-center gap-2 border-b border-line bg-ink px-4 py-2.5 text-surface">
                 <span className="text-[12.5px] font-semibold">{formatNumber(checked.size)} selected</span>
                 <span className="mx-1 h-4 w-px bg-surface/25" />
-                {me && (
-                  <button type="button" disabled={bulkBusy} onClick={() => bulk({ assignee: me }, 'now yours')} className="rounded-md px-2 py-1 text-[12.5px] hover:bg-white/10">
-                    Take them
-                  </button>
-                )}
                 <button type="button" disabled={bulkBusy} onClick={() => bulk({ status: 'in_progress' }, 'marked in progress')} className="rounded-md px-2 py-1 text-[12.5px] hover:bg-white/10">
                   In progress
                 </button>
@@ -527,7 +485,7 @@ export default function AlertsPage() {
 
             {shown.length === 0 ? (
               <ClearState
-                title={queue.key === 'mine' ? 'Nothing is yours yet' : queue.key === 'done' ? 'Nothing closed yet' : q || sources.length || sevs.length ? 'No alert matches' : 'All clear'}
+                title={queue.key === 'new' ? 'Nothing new' : queue.key === 'in_progress' ? 'Nothing in progress' : queue.key === 'done' ? 'Nothing closed yet' : q || sources.length || sevs.length ? 'No alert matches' : 'All clear'}
                 description={queue.key === 'active' && !q && !sources.length && !sevs.length ? 'No alert needs attention. New ones appear here after each sync.' : 'Try another queue or filter.'}
               />
             ) : (
@@ -562,7 +520,6 @@ export default function AlertsPage() {
                     <Row
                       key={a.key}
                       a={a}
-                      people={people}
                       canWork={canWork}
                       selected={a.key === current?.key}
                       checked={checked.has(a.key)}
@@ -587,7 +544,7 @@ export default function AlertsPage() {
                       ← All alerts
                     </button>
                   )}
-                  {current && <Preview key={current.key} a={current} people={people} me={me} canWork={canWork} onChange={reload} />}
+                  {current && <Preview key={current.key} a={current} canWork={canWork} onChange={reload} />}
                 </div>
               </div>
             )}

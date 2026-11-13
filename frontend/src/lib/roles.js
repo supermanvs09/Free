@@ -72,8 +72,6 @@ const PERMISSION_CAPABILITY = {
   'alerts.view': 'read',
   'alerts.viewAll': 'read',
   'alerts.work': 'write',
-  'alerts.take': 'write',
-  'alerts.assign': 'write',
   'alerts.dismiss': 'write',
   'alerts.bulk': 'write',
   'anomalies.review': 'write',

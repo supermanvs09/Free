@@ -47,8 +47,6 @@ type InboxSummary struct {
 	Open         int             `json:"open"`
 	InProgress   int             `json:"in_progress"`
 	Done         int             `json:"done"`
-	Mine         int             `json:"mine"`
-	Unassigned   int             `json:"unassigned"`
 	BySource     map[string]int  `json:"by_source"`
 	OpenBySource map[string]int  `json:"open_by_source"`
 	BySeverity   map[string]int  `json:"by_severity"`
@@ -274,14 +272,8 @@ func (h *Handler) inbox(ctx context.Context, ds *scope.DataScope, userID, tenant
 		default:
 			s.Done++
 		}
-		active := a.Triage.Status == StatusOpen || a.Triage.Status == StatusInProgress
-		if active {
+		if a.Triage.Status == StatusOpen || a.Triage.Status == StatusInProgress {
 			s.BySeverity[a.Severity]++
-			if a.Triage.Assignee == "" {
-				s.Unassigned++
-			} else if strings.EqualFold(a.Triage.Assignee, userID) {
-				s.Mine++
-			}
 		}
 	}
 	s.Badge = s.Open

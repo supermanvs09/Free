@@ -23,15 +23,12 @@ const (
 
 var validStatus = map[string]bool{StatusOpen: true, StatusInProgress: true, StatusResolved: true, StatusDismissed: true}
 
-// Triage is the human side of an alert: who owns it and where it stands.
+// Triage is the human side of an alert: where it stands and who moved it.
 type Triage struct {
-	Status     string     `json:"status"`
-	Assignee   string     `json:"assignee,omitempty"`
-	AssignedBy string     `json:"assigned_by,omitempty"`
-	AssignedAt *time.Time `json:"assigned_at,omitempty"`
-	UpdatedBy  string     `json:"updated_by,omitempty"`
-	UpdatedAt  *time.Time `json:"updated_at,omitempty"`
-	Comments   int        `json:"comments"`
+	Status    string     `json:"status"`
+	UpdatedBy string     `json:"updated_by,omitempty"`
+	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+	Comments  int        `json:"comments"`
 	// Reopened: it was resolved or dismissed, then got worse again.
 	Reopened bool `json:"reopened,omitempty"`
 }
@@ -40,7 +37,8 @@ type Triage struct {
 type Activity struct {
 	ID        int64     `json:"id"`
 	Actor     string    `json:"actor"`
-	Action    string    `json:"action"` // assigned | unassigned | status | comment
+	ActorName string    `json:"actor_name,omitempty"`
+	Action    string    `json:"action"` // status | comment
 	Detail    string    `json:"detail"`
 	CreatedAt time.Time `json:"created_at"`
 }
@@ -64,9 +62,6 @@ CREATE TABLE IF NOT EXISTS %[1]s (
   tenant_id   TEXT        NOT NULL,
   alert_key   TEXT        NOT NULL,
   status      TEXT        NOT NULL DEFAULT 'open',
-  assignee    TEXT,
-  assigned_by TEXT,
-  assigned_at TIMESTAMPTZ,
   updated_by  TEXT,
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (tenant_id, alert_key)
@@ -98,8 +93,7 @@ func triageFor(ctx context.Context, s *scope.DataScope, keys []string) (map[stri
 	if err := ensureTables(ctx, s); err != nil {
 		return nil, err
 	}
-	rows, err := s.DB.QueryContext(ctx, fmt.Sprintf(`SELECT t.alert_key, t.status, COALESCE(t.assignee,''), COALESCE(t.assigned_by,''), t.assigned_at,
-			COALESCE(t.updated_by,''), t.updated_at,
+	rows, err := s.DB.QueryContext(ctx, fmt.Sprintf(`SELECT t.alert_key, t.status, COALESCE(t.updated_by,''), t.updated_at,
 			(SELECT count(*) FROM %[2]s a WHERE a.tenant_id = t.tenant_id AND a.alert_key = t.alert_key AND a.action = 'comment')
 		FROM %[1]s t WHERE t.tenant_id = $1 AND t.alert_key = ANY($2)`, s.Table(tTriage), s.Table(tActivity)), s.TenantID, pq.Array(keys))
 	if err != nil {
@@ -109,13 +103,9 @@ func triageFor(ctx context.Context, s *scope.DataScope, keys []string) (map[stri
 	for rows.Next() {
 		var k string
 		var t Triage
-		var at sql.NullTime
 		var up time.Time
-		if err := rows.Scan(&k, &t.Status, &t.Assignee, &t.AssignedBy, &at, &t.UpdatedBy, &up, &t.Comments); err != nil {
+		if err := rows.Scan(&k, &t.Status, &t.UpdatedBy, &up, &t.Comments); err != nil {
 			return nil, err
-		}
-		if at.Valid {
-			t.AssignedAt = &at.Time
 		}
 		t.UpdatedAt = &up
 		out[k] = t
@@ -123,13 +113,11 @@ func triageFor(ctx context.Context, s *scope.DataScope, keys []string) (map[stri
 	return out, rows.Err()
 }
 
-// TriageChange is one bulk update. A nil field is left as it is; an empty
-// Assignee unassigns.
+// TriageChange is one bulk update. A nil Status is left as it is.
 type TriageChange struct {
-	Keys     []string `json:"keys"`
-	Status   *string  `json:"status"`
-	Assignee *string  `json:"assignee"`
-	Note     string   `json:"note"`
+	Keys   []string `json:"keys"`
+	Status *string  `json:"status"`
+	Note   string   `json:"note"`
 }
 
 // applyTriage writes a change for every key and records it in the history.
@@ -149,8 +137,7 @@ func applyTriage(ctx context.Context, s *scope.DataScope, actor string, c Triage
 	}
 	for _, key := range c.Keys {
 		var cur Triage
-		var assignee sql.NullString
-		err := tx.QueryRowContext(ctx, fmt.Sprintf(`SELECT status, assignee FROM %s WHERE tenant_id = $1 AND alert_key = $2 FOR UPDATE`, s.Table(tTriage)), s.TenantID, key).Scan(&cur.Status, &assignee)
+		err := tx.QueryRowContext(ctx, fmt.Sprintf(`SELECT status FROM %s WHERE tenant_id = $1 AND alert_key = $2 FOR UPDATE`, s.Table(tTriage)), s.TenantID, key).Scan(&cur.Status)
 		if err == sql.ErrNoRows {
 			cur.Status = StatusOpen
 			if _, err := tx.ExecContext(ctx, fmt.Sprintf(`INSERT INTO %s (tenant_id, alert_key, status, updated_by) VALUES ($1,$2,'open',$3) ON CONFLICT DO NOTHING`, s.Table(tTriage)), s.TenantID, key, actor); err != nil {
@@ -158,31 +145,6 @@ func applyTriage(ctx context.Context, s *scope.DataScope, actor string, c Triage
 			}
 		} else if err != nil {
 			return err
-		}
-		cur.Assignee = assignee.String
-		if c.Assignee != nil && strings.TrimSpace(*c.Assignee) != cur.Assignee {
-			who := strings.TrimSpace(*c.Assignee)
-			if _, err := tx.ExecContext(ctx, fmt.Sprintf(`UPDATE %s SET assignee = NULLIF($3,''), assigned_by = $4, assigned_at = now(), updated_by = $4, updated_at = now()
-				WHERE tenant_id = $1 AND alert_key = $2`, s.Table(tTriage)), s.TenantID, key, who, actor); err != nil {
-				return err
-			}
-			action := "assigned"
-			if who == "" {
-				action = "unassigned"
-			}
-			if err := logAct(key, action, who); err != nil {
-				return err
-			}
-			/* Taking an unowned alert moves it out of "new". */
-			if who != "" && cur.Status == StatusOpen && c.Status == nil {
-				st := StatusInProgress
-				if _, err := tx.ExecContext(ctx, fmt.Sprintf(`UPDATE %s SET status = $3 WHERE tenant_id = $1 AND alert_key = $2`, s.Table(tTriage)), s.TenantID, key, st); err != nil {
-					return err
-				}
-				if err := logAct(key, "status", st); err != nil {
-					return err
-				}
-			}
 		}
 		if c.Status != nil && *c.Status != cur.Status {
 			if _, err := tx.ExecContext(ctx, fmt.Sprintf(`UPDATE %s SET status = $3, updated_by = $4, updated_at = now() WHERE tenant_id = $1 AND alert_key = $2`, s.Table(tTriage)), s.TenantID, key, *c.Status, actor); err != nil {
