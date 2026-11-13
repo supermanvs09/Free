@@ -149,7 +149,7 @@ func (e *Engine) LoadPathTypes(ctx context.Context, ds *Scope) ([]PathType, erro
 // computed by older traversal logic and are treated as a miss. Move it forward
 // whenever a change alters what a computation returns; otherwise an upgrade
 // keeps serving the previous version's answers for up to 24 hours.
-var cacheNotBefore = time.Date(2026, 11, 4, 9, 30, 0, 0, time.UTC)
+var cacheNotBefore = time.Date(2026, 11, 13, 16, 30, 0, 0, time.UTC)
 
 // ComputeBlastRadius returns the cached blast radius if fresh, else computes it.
 func (e *Engine) ComputeBlastRadius(ctx context.Context, ds *Scope, credentialARN string) (*BlastRadiusResult, error) {
@@ -895,6 +895,13 @@ func confidenceFromRank(rank int) string {
 func resourceType(arn string) string {
 	// arn:aws:service:region:account:resource-type/resource-name
 	parts := strings.Split(arn, ":")
+	if len(parts) >= 6 && parts[2] == "s3" {
+		// arn:aws:s3:::bucket[/key]: S3 ARNs carry no resource-type segment.
+		if strings.Contains(parts[5], "/") {
+			return "object"
+		}
+		return "bucket"
+	}
 	if len(parts) >= 6 {
 		resourcePart := parts[5]
 		if idx := strings.Index(resourcePart, "/"); idx > 0 {
