@@ -21,12 +21,13 @@ import (
 // never from the request, so one tenant cannot read another's graph.
 type Handler struct {
 	engine *Engine
+	repo   *PGRepo
 	// scope resolves the caller's tenant scope (tests substitute a fixed one).
 	scope func(r *http.Request) (*Scope, int, error)
 }
 
-func NewHandler(engine *Engine, resolver *scope.Resolver) *Handler {
-	return &Handler{engine: engine, scope: func(r *http.Request) (*Scope, int, error) {
+func NewHandler(engine *Engine, repo *PGRepo, resolver *scope.Resolver) *Handler {
+	return &Handler{engine: engine, repo: repo, scope: func(r *http.Request) (*Scope, int, error) {
 		claims := middleware.GetClaims(r)
 		if claims == nil {
 			return nil, http.StatusUnauthorized, errUnauthorized
@@ -49,6 +50,7 @@ func (h *Handler) Register(r *mux.Router) {
 	r.HandleFunc("/correlations/reverse-access/{arn:.+}", h.ReverseAccess).Methods(http.MethodGet)
 	r.HandleFunc("/correlations/graph/{arn:.+}", h.Graph).Methods(http.MethodGet)
 	r.HandleFunc("/correlations/path", h.Path).Methods(http.MethodGet)
+	r.HandleFunc("/correlations/identities/{id}/credentials", h.IdentitySubjects).Methods(http.MethodGet)
 }
 
 // computeTimeout bounds one synchronous computation.
@@ -256,4 +258,27 @@ func (h *Handler) Path(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ok(w, map[string]any{"from": from, "to": to, "total": len(paths), "paths": paths})
+}
+
+var uuidRe = regexp.MustCompile(`^[0-9a-fA-F-]{36}$`)
+
+// IdentitySubjects: GET /correlations/identities/{id}/credentials - the
+// credentials an identity signs in with (roles first), whose blast radius is
+// the identity's.
+func (h *Handler) IdentitySubjects(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	if !uuidRe.MatchString(id) {
+		fail(w, http.StatusBadRequest, "Invalid identity ID", "INVALID_REQUEST")
+		return
+	}
+	ds := h.scopeFor(w, r)
+	if ds == nil {
+		return
+	}
+	list, err := h.repo.IdentityCredentials(r.Context(), ds, id)
+	if err != nil {
+		httpx.SendServerError(w, r, err, "The identity's credentials could not be loaded", "SUBJECTS_FAILED")
+		return
+	}
+	ok(w, map[string]any{"credentials": list})
 }

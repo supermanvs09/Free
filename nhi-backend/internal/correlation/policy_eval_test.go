@@ -234,7 +234,7 @@ func testRouter(repo Repo) *mux.Router {
 // '/' still route.
 func TestRoutesNeedASignedInUser(t *testing.T) {
 	r := mux.NewRouter()
-	NewHandler(NewEngine(fixture()), nil).Register(r.PathPrefix("/api/v1").Subrouter())
+	NewHandler(NewEngine(fixture()), nil, nil).Register(r.PathPrefix("/api/v1").Subrouter())
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest("GET", "/api/v1/correlations/blast-radius/"+arnDev, nil))
 	if w.Code != http.StatusUnauthorized {

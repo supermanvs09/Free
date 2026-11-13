@@ -1,6 +1,7 @@
 import { Component, useEffect, useMemo } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Braces, Dna, Fingerprint, GitCompareArrows, ShieldCheck, Waypoints } from 'lucide-react';
+import { ArrowLeft, Braces, Dna, Fingerprint, GitCompareArrows, Radar, ShieldCheck, Waypoints } from 'lucide-react';
+import { IdentityBlastRadius } from '../blast/IdentityBlastRadius';
 import { accessGraphRoute, genomeRouteFor } from '../../lib/identityLinks';
 import { BehaviourBaseline } from './BehaviourBaseline';
 import { EntityChangesTab } from '../changes/EntityChangesTab';
@@ -52,7 +53,7 @@ export default function IdentityPage() {
 
   const tabs = useMemo(() => {
     const base = recordTabs(overview);
-    return [base[0], { value: 'posture', label: 'Posture', icon: ShieldCheck }, ...base.slice(1), { value: 'changes', label: 'Changes', icon: GitCompareArrows }, { value: 'raw', label: 'Raw', icon: Braces }];
+    return [base[0], { value: 'posture', label: 'Posture', icon: ShieldCheck }, { value: 'blast', label: 'Blast radius', icon: Radar }, ...base.slice(1), { value: 'changes', label: 'Changes', icon: GitCompareArrows }, { value: 'raw', label: 'Raw', icon: Braces }];
   }, [overview]);
   const rawTab = searchParams.get('tab') || 'overview';
   const requested = RENAMED_TABS[rawTab] ?? rawTab;
@@ -169,6 +170,12 @@ export default function IdentityPage() {
       {tab === 'posture' && (
         <TabBoundary label="Posture">
           <PostureRecord identity={postureRef} />
+        </TabBoundary>
+      )}
+
+      {tab === 'blast' && (
+        <TabBoundary label="Blast radius">
+          <IdentityBlastRadius identity={identity} />
         </TabBoundary>
       )}
 

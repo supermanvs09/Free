@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, Braces, Eye, Fingerprint, GitCompareArrows, History, KeyRound, Link2, ShieldCheck, UsersRound } from 'lucide-react';
+import { AlertTriangle, Braces, Eye, Fingerprint, GitCompareArrows, History, KeyRound, Link2, Radar, ShieldCheck, UsersRound } from 'lucide-react';
+import { BlastRadiusView } from '../blast/BlastRadiusView';
 import { fetchCredential } from '../../lib/api/inventory';
 import { EntityChangesTab } from '../changes/EntityChangesTab';
 import { useQuery } from '../../lib/hooks';
@@ -32,6 +33,7 @@ import {
 const TABS = [
   { value: 'overview', label: 'Overview', icon: KeyRound },
   { value: 'trust', label: 'Trust & permissions', icon: ShieldCheck },
+  { value: 'blast', label: 'Blast radius', icon: Radar },
   { value: 'activity', label: 'Activity', icon: Eye },
   { value: 'rotation', label: 'Rotation', icon: History },
   { value: 'relationships', label: 'Relationships', icon: Link2 },
@@ -107,6 +109,7 @@ export function CredentialDrawer({ credentialId, row, onClose, initialTab }) {
         {tab === 'trust' && <TrustTab credentialId={credentialId} />}
         {tab === 'rotation' && <RotationTab credentialId={credentialId} longLived={meta.longLived} />}
         {tab === 'sessions' && <SessionsTab credentialId={credentialId} />}
+        {tab === 'blast' && credential?.arn && <BlastRadiusView arn={credential.arn} compact />}
         {tab === 'activity' && <ActivityTab credentialId={credentialId} />}
         {tab === 'relationships' && <RelationshipsTab credentialId={credentialId} />}
         {tab === 'changes' && <EntityChangesTab kind="credential" id={credentialId} />}

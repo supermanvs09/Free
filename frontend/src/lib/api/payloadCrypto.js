@@ -45,7 +45,16 @@ function loadSettings(baseURL) {
   return settings;
 }
 
-const pathOf = (config) => new URL(axios.getUri(config), window.location.origin).pathname;
+/* The path as the server sees it (Go's r.URL.Path is decoded): an ARN sent as
+   %3A / %2F must be bound as ':' and '/', or both sides seal different AADs. */
+const pathOf = (config) => {
+  const raw = new URL(axios.getUri(config), window.location.origin).pathname;
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+};
 
 async function encryptRequest(config) {
   if (EXEMPT.some((re) => re.test(config.url || ''))) return config;

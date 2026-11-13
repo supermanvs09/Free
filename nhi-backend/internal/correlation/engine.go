@@ -902,6 +902,15 @@ func resourceType(arn string) string {
 		}
 		return "bucket"
 	}
+	// Services whose ARN ends in the bare name carry no type segment.
+	if len(parts) == 6 && !strings.Contains(parts[5], "/") {
+		switch parts[2] {
+		case "sqs":
+			return "queue"
+		case "sns":
+			return "topic"
+		}
+	}
 	if len(parts) >= 6 {
 		resourcePart := parts[5]
 		if idx := strings.Index(resourcePart, "/"); idx > 0 {

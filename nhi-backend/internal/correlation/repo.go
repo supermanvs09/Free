@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -852,5 +853,51 @@ func (r *PGRepo) LoadPathTypes(ctx context.Context, ds *Scope) ([]PathType, erro
 		pt.IsActive = active
 		out = append(out, pt)
 	}
+	return out, rows.Err()
+}
+
+// SubjectCredential is a credential an identity signs in with, a candidate
+// subject for its blast radius.
+type SubjectCredential struct {
+	ARN            string `json:"arn"`
+	Name           string `json:"name"`
+	CredentialType string `json:"credential_type"`
+	IsPrimary      bool   `json:"is_primary"`
+}
+
+// IdentityCredentials lists the in-scope credentials bound to an identity,
+// roles and the primary binding first: what it can reach is what they grant.
+func (r *PGRepo) IdentityCredentials(ctx context.Context, ds *Scope, identityID string) ([]SubjectCredential, error) {
+	query := fmt.Sprintf(`
+		SELECT DISTINCT ON (c.arn) c.arn, COALESCE(c.name, ''), COALESCE(c.credential_type, ''), COALESCE(ic.is_primary, false)
+		FROM %s ic
+		JOIN %s c ON c.id::text = ic.credential_id::text AND c.deleted_at IS NULL
+		WHERE ic.identity_id::text = $1
+		  AND (cardinality($2::text[]) = 0 OR c.account_id = ANY($2::text[]))
+		  AND (cardinality($3::text[]) = 0 OR c.region = ANY($3::text[]))
+		ORDER BY c.arn, ic.is_primary DESC`, ds.Table("identity_credentials"), ds.Table("credentials"))
+	rows, err := ds.DB.QueryContext(ctx, query, identityID, pq.Array(ds.AccountIDs), pq.Array(ds.Regions))
+	if err != nil {
+		if isMissingTable(err) {
+			return []SubjectCredential{}, nil
+		}
+		return nil, fmt.Errorf("identity credentials: %w", err)
+	}
+	defer rows.Close()
+	out := []SubjectCredential{}
+	for rows.Next() {
+		var c SubjectCredential
+		if err := rows.Scan(&c.ARN, &c.Name, &c.CredentialType, &c.IsPrimary); err != nil {
+			return nil, fmt.Errorf("scan identity credential: %w", err)
+		}
+		out = append(out, c)
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		ri, rj := out[i].CredentialType == "iam_role", out[j].CredentialType == "iam_role"
+		if ri != rj {
+			return ri
+		}
+		return out[i].IsPrimary && !out[j].IsPrimary
+	})
 	return out, rows.Err()
 }

@@ -203,7 +203,8 @@ func main() {
 	if chClient != nil {
 		correlationCH = correlation.NewCHAdapter(chClient.Conn(), chClient.TableFor, chClient.Timeout())
 	}
-	correlationHandler := correlation.NewHandler(correlation.NewEngine(correlation.NewPGRepo(correlationCH)), resolver)
+	correlationRepo := correlation.NewPGRepo(correlationCH)
+	correlationHandler := correlation.NewHandler(correlation.NewEngine(correlationRepo), correlationRepo, resolver)
 
 	authService := auth.NewAuthService(userRepo, cfg.JWT)
 	// Passwords arrive encrypted (see fieldcrypt); the key comes from the JWT secret.
