@@ -102,23 +102,10 @@ function Spark({ items, className }) {
         <span
           key={index}
           title={`${formatNumber(bar.count)} on day ${index + 1} of ${SPARK_DAYS}`}
-          className={cn('w-[4px] rounded-[1px]', bar.count ? 'bg-brand/70' : 'bg-line')}
+          className={cn('w-[4px] rounded-full', bar.count ? 'bg-ink-3/60' : 'bg-line')}
           style={{ height: bar.h }}
         />
       ))}
-    </span>
-  );
-}
-
-/** Share of each severity, as one segmented bar. */
-function SeverityBar({ sev, total }) {
-  return (
-    <span className="flex h-1.5 w-full overflow-hidden rounded-full bg-track" aria-hidden="true">
-      {SEVERITY_ORDER.map((s) =>
-        sev[s] ? (
-          <span key={s} className={cn('h-full', s === 'UNRATED' ? 'bg-neutral' : TONE_BG[severityMeta(s).tone])} style={{ width: `${(sev[s] / total) * 100}%` }} />
-        ) : null,
-      )}
     </span>
   );
 }
@@ -145,128 +132,248 @@ function rangeText(pattern) {
 }
 
 const TIMELINE_DAYS = 30;
+const CHART_W = 600;
+const CHART_H = 132;
+
+/* A smooth line through the points (Catmull-Rom as cubic Béziers), clamped so
+   a curve between two days never dips below zero. */
+function smoothPath(points) {
+  if (points.length < 2) return '';
+  let d = `M${points[0][0]},${points[0][1]}`;
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const [x0, y0] = points[i - 1] ?? points[i];
+    const [x1, y1] = points[i];
+    const [x2, y2] = points[i + 1];
+    const [x3, y3] = points[i + 2] ?? points[i + 1];
+    const c1y = Math.min(CHART_H, y1 + (y2 - y0) / 6);
+    const c2y = Math.min(CHART_H, y2 - (y3 - y1) / 6);
+    d += ` C${x1 + (x2 - x0) / 6},${c1y} ${x2 - (x3 - x1) / 6},${c2y} ${x2},${y2}`;
+  }
+  return d;
+}
+
+const dayLabel = (index) =>
+  new Date((Math.floor(Date.now() / DAY_MS) - (TIMELINE_DAYS - 1 - index)) * DAY_MS).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+
+/** Thirty days of detections as one calm line; critical days carry a red mark. */
+function Trend({ days, hover, setHover }) {
+  const totals = days.map((d) => Object.values(d).reduce((a, b) => a + b, 0));
+  const peak = Math.max(1, ...totals);
+  const step = CHART_W / (TIMELINE_DAYS - 1);
+  const pts = totals.map((n, i) => [i * step, CHART_H - 6 - (n / peak) * (CHART_H - 22)]);
+  const line = smoothPath(pts);
+  const peakIndex = totals.indexOf(Math.max(...totals));
+  const focus = hover ?? null;
+
+  return (
+    <div className="relative">
+      <svg
+        viewBox={`0 0 ${CHART_W} ${CHART_H}`}
+        preserveAspectRatio="none"
+        className="block h-[132px] w-full overflow-visible"
+        role="img"
+        aria-label={`Anomalies detected per day over the last ${TIMELINE_DAYS} days. Peak ${formatNumber(totals[peakIndex])} on ${dayLabel(peakIndex)}.`}
+        onMouseLeave={() => setHover(null)}
+      >
+        <defs>
+          <linearGradient id="anomaly-trend-fill" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="var(--color-brand)" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="var(--color-brand)" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        {[0.25, 0.5, 0.75].map((f) => (
+          <line key={f} x1="0" x2={CHART_W} y1={CHART_H * f} y2={CHART_H * f} stroke="var(--color-line)" strokeDasharray="2 4" vectorEffect="non-scaling-stroke" />
+        ))}
+        <path d={`${line} L${CHART_W},${CHART_H} L0,${CHART_H} Z`} fill="url(#anomaly-trend-fill)" />
+        <path d={line} fill="none" stroke="var(--color-brand)" strokeWidth="1.75" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        {focus !== null && (
+          <line x1={pts[focus][0]} x2={pts[focus][0]} y1="0" y2={CHART_H} stroke="var(--color-ink-3)" strokeOpacity="0.5" vectorEffect="non-scaling-stroke" />
+        )}
+        {days.map((_, i) => (
+          <rect
+            key={i}
+            x={i * step - step / 2}
+            y="0"
+            width={step}
+            height={CHART_H}
+            fill="transparent"
+            onMouseEnter={() => setHover(i)}
+          />
+        ))}
+      </svg>
+      {/* Dots sit in HTML so they stay round while the SVG stretches. */}
+      {days.map((day, i) =>
+        day.CRITICAL || focus === i ? (
+          <span
+            key={i}
+            aria-hidden="true"
+            className={cn(
+              'pointer-events-none absolute size-[6px] -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-surface',
+              day.CRITICAL ? 'bg-critical' : 'bg-brand',
+            )}
+            style={{ left: `${(pts[i][0] / CHART_W) * 100}%`, top: `${(pts[i][1] / CHART_H) * 100}%` }}
+          />
+        ) : null,
+      )}
+      <div className="mt-2 flex justify-between text-[10.5px] tracking-wide text-ink-3 uppercase">
+        <span>{dayLabel(0)}</span>
+        <span>{dayLabel(Math.floor(TIMELINE_DAYS / 2))}</span>
+        <span>Today</span>
+      </div>
+    </div>
+  );
+}
 
 /**
- * What the reader needs before the list: how much is open, how much is
- * severe, how much is new, how many identities it touches, and whether it is
- * rising. Severity tiles filter the list.
+ * The first read of the tab: how much is waiting, how much of it is serious,
+ * whether it is rising, and where it concentrates. One number, one sentence,
+ * one line - colour only where severity is the point.
  */
-function AnomalyOverview({ items, groups, onSeverity }) {
+function AnomalyOverview({ items, groups, onSeverity, activeSeverities = [] }) {
+  const [hover, setHover] = useState(null);
   const stats = useMemo(() => {
     const now = Date.now();
     const today = Math.floor(now / DAY_MS);
     const days = Array.from({ length: TIMELINE_DAYS }, () => ({}));
     const dims = new Map();
-    let severe = 0;
+    const sev = {};
     let fresh = 0;
     let prior = 0;
     for (const item of items) {
       const at = new Date(item.detected_at).getTime() || 0;
-      const sev = sevKey(item);
-      if (sev === 'CRITICAL' || sev === 'HIGH') severe += 1;
+      const s = sevKey(item);
+      sev[s] = (sev[s] ?? 0) + 1;
       if (now - at < DAY_MS) fresh += 1;
       else if (now - at < 2 * DAY_MS) prior += 1;
       const index = TIMELINE_DAYS - 1 - (today - Math.floor(at / DAY_MS));
-      if (index >= 0 && index < TIMELINE_DAYS) days[index][sev] = (days[index][sev] ?? 0) + 1;
+      if (index >= 0 && index < TIMELINE_DAYS) days[index][s] = (days[index][s] ?? 0) + 1;
       dims.set(item.dimension, (dims.get(item.dimension) ?? 0) + 1);
     }
-    const totals = days.map((d) => Object.values(d).reduce((a, b) => a + b, 0));
     const top = [...dims.entries()].sort((a, b) => b[1] - a[1])[0];
-    return { days, totals, peak: Math.max(1, ...totals), severe, fresh, prior, top };
+    const totals = days.map((d) => Object.values(d).reduce((a, b) => a + b, 0));
+    const peak = Math.max(0, ...totals);
+    return { days, sev, fresh, prior, top, totals, peak, peakIndex: totals.lastIndexOf(peak) };
   }, [items]);
 
   const total = items.length;
+  const severe = (stats.sev.CRITICAL ?? 0) + (stats.sev.HIGH ?? 0);
   const worst = groups[0];
-  const tiles = [
-    {
-      label: 'Critical or high',
-      value: stats.severe,
-      hint: total ? `${Math.round((stats.severe / total) * 100)}% of these` : null,
-      tone: stats.severe ? 'text-critical' : 'text-ink',
-      onClick: stats.severe && onSeverity ? () => onSeverity(['CRITICAL', 'HIGH']) : null,
+  const trend =
+    stats.fresh === stats.prior
+      ? 'as many as the day before'
+      : stats.fresh > stats.prior
+        ? `up from ${formatNumber(stats.prior)} the day before`
+        : `down from ${formatNumber(stats.prior)} the day before`;
+  const facts = [
+    worst && {
+      label: 'Most affected',
+      value: worst.identity?.display_name || worst.identity?.identity_name,
+      detail: `${formatNumber(worst.items.length)} of ${formatNumber(total)}`,
     },
-    {
-      label: 'New in 24 hours',
-      value: stats.fresh,
-      hint: stats.fresh === stats.prior ? 'same as the day before' : `${stats.fresh > stats.prior ? 'up' : 'down'} from ${formatNumber(stats.prior)} the day before`,
-    },
-    { label: 'Identities affected', value: groups.length, hint: worst ? `most: ${worst.identity?.display_name || worst.identity?.identity_name}` : null },
-    {
-      label: 'Most common departure',
-      text: stats.top ? dimensionLabel(stats.top[0]) : '-',
-      hint: stats.top ? `${formatNumber(stats.top[1])} of ${formatNumber(total)}` : null,
-    },
-  ];
+    stats.top && { label: 'Most common departure', value: dimensionLabel(stats.top[0]), detail: `${Math.round((stats.top[1] / total) * 100)}% of all` },
+    { label: 'Identities affected', value: formatNumber(groups.length), detail: `${formatNumber(groups.reduce((n, g) => n + g.patterns.filter((p) => p.items.length > 1).length, 0))} repeating patterns` },
+  ].filter(Boolean);
 
   return (
-    <section aria-label="Anomaly summary" className="grid gap-3 border-b border-line p-3 sm:p-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-      <dl className="grid grid-cols-2 gap-2.5">
-        {tiles.map((tile) => {
-          const body = (
-            <>
-              <dt className="text-[11px] font-medium tracking-wide text-ink-3 uppercase">{tile.label}</dt>
-              <dd className={cn('mt-1 truncate font-display font-bold leading-none text-ink', tile.text ? 'text-[15px]' : 'text-[24px]', tile.tone)} data-numeric="">
-                {tile.text ?? formatNumber(tile.value)}
-              </dd>
-              {tile.hint && <dd className="mt-1.5 truncate text-[11.5px] text-ink-3" title={tile.hint}>{tile.hint}</dd>}
-            </>
-          );
-          return tile.onClick ? (
-            <button
-              key={tile.label}
-              type="button"
-              onClick={tile.onClick}
-              title="Show only critical and high"
-              className="rounded-[var(--radius-control)] border border-line bg-surface px-3.5 py-3 text-left transition-colors hover:border-critical/40 hover:bg-critical-soft/40"
-            >
-              {body}
-            </button>
-          ) : (
-            <div key={tile.label} className="rounded-[var(--radius-control)] border border-line bg-surface px-3.5 py-3">
-              {body}
-            </div>
-          );
-        })}
-      </dl>
-      <div className="flex min-w-0 flex-col rounded-[var(--radius-control)] border border-line bg-surface px-3.5 py-3">
-        <div className="flex items-baseline justify-between gap-2">
-          <p className="text-[11px] font-medium tracking-wide text-ink-3 uppercase">Detected per day</p>
-          <span className="flex flex-wrap gap-x-2.5 text-[10.5px] text-ink-3">
-            {SEVERITY_ORDER.slice(0, 4).map((s) => (
-              <span key={s} className="flex items-center gap-1">
-                <span className={cn('size-1.5 rounded-full', TONE_BG[severityMeta(s).tone])} />
-                {severityMeta(s).label}
-              </span>
-            ))}
-          </span>
+    <section aria-label="Anomaly summary" className="border-b border-line">
+      <div className="grid gap-x-10 gap-y-6 px-5 pt-6 pb-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
+        <div className="flex min-w-0 flex-col">
+          <p className="text-[11px] font-semibold tracking-[0.14em] text-ink-3 uppercase">Waiting for review</p>
+          <p className="mt-2 flex items-baseline gap-2.5">
+            <span data-numeric="" className="font-display text-[48px] leading-none font-bold tracking-tight text-ink">
+              {formatNumber(total)}
+            </span>
+            <span className="text-[14px] text-ink-2">{total === 1 ? 'anomaly' : 'anomalies'}</span>
+          </p>
+          <p className="mt-3 max-w-[44ch] text-[13.5px] leading-relaxed text-ink-2">
+            {severe > 0 ? (
+              <>
+                <span className="font-semibold text-critical" data-numeric="">
+                  {formatNumber(severe)} critical or high
+                </span>{' '}
+                - start there.{' '}
+              </>
+            ) : (
+              'Nothing critical or high. '
+            )}
+            <span data-numeric="">{formatNumber(stats.fresh)}</span> new in the last 24 hours, {trend}.
+          </p>
+
+          <div className="mt-auto pt-5">
+            <span className="flex h-[6px] w-full gap-[3px]" aria-hidden="true">
+              {SEVERITY_ORDER.map((s) =>
+                stats.sev[s] ? (
+                  <span
+                    key={s}
+                    className={cn('h-full rounded-full', s === 'UNRATED' ? 'bg-neutral' : TONE_BG[severityMeta(s).tone], 'opacity-90')}
+                    style={{ flexGrow: stats.sev[s], flexBasis: 0 }}
+                  />
+                ) : null,
+              )}
+            </span>
+            <span className="mt-2.5 flex flex-wrap gap-1.5">
+              {SEVERITY_ORDER.filter((s) => s !== 'UNRATED' && stats.sev[s]).map((s) => {
+                const active = activeSeverities.includes(s);
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => onSeverity?.(active ? [] : [s])}
+                    aria-pressed={active}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-full border px-2 py-[3px] text-[11.5px] transition-colors',
+                      active ? 'border-ink bg-ink text-surface' : 'border-line text-ink-2 hover:border-line-strong hover:bg-surface-2',
+                    )}
+                  >
+                    <span className={cn('size-1.5 rounded-full', TONE_BG[severityMeta(s).tone])} />
+                    {severityMeta(s).label}
+                    <span data-numeric="" className={cn('font-semibold', active ? 'text-surface' : 'text-ink')}>
+                      {formatNumber(stats.sev[s])}
+                    </span>
+                  </button>
+                );
+              })}
+            </span>
+          </div>
         </div>
-        <div className="mt-2 flex min-h-[84px] flex-1 items-end gap-[3px]" role="img" aria-label={`Anomalies detected per day over the last ${TIMELINE_DAYS} days, by severity`}>
-          {stats.days.map((day, index) => {
-            const n = stats.totals[index];
-            const date = new Date((Math.floor(Date.now() / DAY_MS) - (TIMELINE_DAYS - 1 - index)) * DAY_MS);
-            return (
-              <span
-                key={index}
-                title={`${date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}: ${formatNumber(n)}`}
-                className="flex flex-1 flex-col-reverse overflow-hidden rounded-[2px]"
-                style={{ height: n ? `${Math.max(6, (n / stats.peak) * 100)}%` : '2px' }}
-              >
-                {n === 0 ? (
-                  <span className="h-full bg-line" />
-                ) : (
-                  SEVERITY_ORDER.map((s) =>
-                    day[s] ? <span key={s} className={s === 'UNRATED' ? 'bg-neutral' : TONE_BG[severityMeta(s).tone]} style={{ height: `${(day[s] / n) * 100}%` }} /> : null,
-                  )
-                )}
-              </span>
-            );
-          })}
-        </div>
-        <div className="mt-1 flex justify-between text-[10.5px] text-ink-3">
-          <span>{TIMELINE_DAYS} days ago</span>
-          <span>Today</span>
+
+        <div className="min-w-0">
+          <div className="mb-3 flex min-h-[18px] items-baseline justify-between gap-3">
+            <p className="text-[11px] font-semibold tracking-[0.14em] text-ink-3 uppercase">Detected · last {TIMELINE_DAYS} days</p>
+            <span aria-live="polite" className="flex items-center gap-1.5 text-[11.5px] text-ink-3" data-numeric="">
+              {hover !== null ? (
+                <>
+                  <span className="font-medium text-ink-2">{dayLabel(hover)}</span>·
+                  <span className="font-semibold text-ink">{formatNumber(stats.totals[hover])}</span>
+                  {stats.totals[hover] === 1 ? 'anomaly' : 'anomalies'}
+                  {stats.days[hover].CRITICAL ? <span className="font-medium text-critical">· {formatNumber(stats.days[hover].CRITICAL)} critical</span> : null}
+                </>
+              ) : (
+                <>
+                  Peak <span className="font-semibold text-ink">{formatNumber(stats.peak)}</span> on {dayLabel(stats.peakIndex)}
+                  <span className="ml-2 size-[6px] rounded-full bg-critical" /> critical day
+                </>
+              )}
+            </span>
+          </div>
+          <Trend days={stats.days} hover={hover} setHover={setHover} />
         </div>
       </div>
+      <dl className="grid grid-cols-1 divide-y divide-line border-t border-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+        {facts.map((fact) => (
+          <div key={fact.label} className="min-w-0 px-5 py-3.5 sm:px-6">
+            <dt className="text-[11px] text-ink-3">{fact.label}</dt>
+            <dd className="mt-0.5 flex min-w-0 items-baseline gap-2">
+              <span className="min-w-0 truncate text-[13.5px] font-semibold text-ink" title={fact.value}>
+                {fact.value}
+              </span>
+              <span data-numeric="" className="shrink-0 text-[11.5px] text-ink-3">
+                {fact.detail}
+              </span>
+            </dd>
+          </div>
+        ))}
+      </dl>
     </section>
   );
 }
@@ -378,7 +485,6 @@ function IdentityGroup({ group, expanded, onToggle, onOpen, canAct, onClose }) {
           </span>
         </span>
         <span className="flex min-w-0 flex-col gap-1.5">
-          <SeverityBar sev={group.sev} total={total} />
           <SeverityCounts sev={group.sev} />
         </span>
         <Spark items={group.items} className="hidden md:flex" />
@@ -471,7 +577,7 @@ export function AnomalyPatterns({ items, onOpen, canAct, onChanged }) {
 }
 
 /** The grouped view of the Anomalies tab. */
-export function AnomalyGroups({ items, onOpen, canAct, onChanged, emptyState, onSeverity }) {
+export function AnomalyGroups({ items, onOpen, canAct, onChanged, emptyState, onSeverity, activeSeverities }) {
   const groups = useMemo(() => groupAnomalies(items), [items]);
   /* null until the reader toggles a row: the first (worst) identity starts open. */
   const [expanded, setExpanded] = useState(null);
@@ -491,7 +597,7 @@ export function AnomalyGroups({ items, onOpen, canAct, onChanged, emptyState, on
   if (groups.length === 0) return emptyState;
   return (
     <>
-      <AnomalyOverview items={items} groups={groups} onSeverity={onSeverity} />
+      <AnomalyOverview items={items} groups={groups} onSeverity={onSeverity} activeSeverities={activeSeverities} />
       <ul className="flex flex-col gap-2.5 p-3 sm:p-4">
         {groups.slice(0, shown).map((group) => (
           <IdentityGroup

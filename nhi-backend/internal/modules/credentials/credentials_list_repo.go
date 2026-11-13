@@ -95,6 +95,10 @@ func (r *CredentialsRepository) GetCredentialsList(ctx context.Context, resolved
 		return fmt.Sprintf("$%d", len(args))
 	}
 
+	// IAM roles have no secret of their own: they never expire and cannot be
+	// rotated, so the expiry and rotation-disabled filters leave them out.
+	const notRole = "LOWER(c.credential_type) <> 'iam_role'"
+
 	// ── inner (raw-column) filters — pushed down onto indexed columns ───
 	innerWhere := []string{"c.account_id = ANY($1::text[])", "c.region = ANY($2::text[])", "c.deleted_at IS NULL"}
 
@@ -113,18 +117,22 @@ func (r *CredentialsRepository) GetCredentialsList(ctx context.Context, resolved
 	}
 	if f.RotationEnabled != nil {
 		innerWhere = append(innerWhere, fmt.Sprintf("COALESCE(c.rotation_enabled, false) = %s", addArg(*f.RotationEnabled)))
+		if !*f.RotationEnabled {
+			innerWhere = append(innerWhere, notRole) // a role has nothing to rotate, so it is never "rotation disabled"
+		}
 	}
 	if f.MaxDaysUntilExpiry != nil {
 		innerWhere = append(innerWhere, fmt.Sprintf(
 			// Expiring within the window, not already expired: a credential
 			// that lapsed last month is not "expiring in 30 days".
-			"c.expires_at IS NOT NULL AND c.expires_at > NOW() AND c.expires_at <= NOW() + (%s::int * INTERVAL '1 day')", addArg(*f.MaxDaysUntilExpiry)))
+			"c.expires_at IS NOT NULL AND c.expires_at > NOW() AND c.expires_at <= NOW() + (%s::int * INTERVAL '1 day')", addArg(*f.MaxDaysUntilExpiry)),
+			notRole) // a role never expires; only the sessions it issues do
 	}
 
 	// ── outer (computed-column) filters ──────────────────────────────────
 	if f.Expired != nil {
 		if *f.Expired {
-			innerWhere = append(innerWhere, "c.expires_at IS NOT NULL AND c.expires_at <= NOW()")
+			innerWhere = append(innerWhere, "c.expires_at IS NOT NULL AND c.expires_at <= NOW()", notRole)
 		} else {
 			innerWhere = append(innerWhere, "(c.expires_at IS NULL OR c.expires_at > NOW())")
 		}

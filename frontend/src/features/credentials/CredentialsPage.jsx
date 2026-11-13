@@ -503,7 +503,8 @@ export default function CredentialsPage() {
             label="Expiring in 30 days"
             value={counts.flags.expiring}
             tone="critical"
-            caption={counts.flags.expired > 0 ? `${formatNumber(counts.flags.expired)} already expired` : 'None expired yet'}
+            caption={`${counts.flags.expired > 0 ? `${formatNumber(counts.flags.expired)} already expired` : 'None expired yet'} · excludes IAM roles`}
+            title="IAM roles are left out: a role never expires, only the short-lived sessions it issues do."
             className="animate-rise"
           />
           <MetricTile

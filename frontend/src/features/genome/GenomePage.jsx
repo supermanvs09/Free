@@ -1044,6 +1044,7 @@ function AnomaliesTab({ searchParams, setParams }) {
                 }}
                 emptyState={emptyState}
                 onSeverity={(list) => setParams({ sev: list.join(','), page: '' })}
+                activeSeverities={severities}
               />
             );
           }
