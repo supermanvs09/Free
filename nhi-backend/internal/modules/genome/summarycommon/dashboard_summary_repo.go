@@ -236,6 +236,61 @@ type BaselineStateRow struct {
 	ActiveSince   *time.Time
 }
 
+// ScopedBaselineStates returns every baseline row in the selected tenant
+// account and source-type scope. Dashboard population is derived from these
+// rows; discovery identities are used only for optional display enrichment.
+func (r *DashboardSummaryRepository) ScopedBaselineStates(
+	ctx context.Context,
+	resolved *scope.DataScope,
+	sourceType string,
+	accountID string,
+) ([]BaselineStateRow, error) {
+	out := []BaselineStateRow{}
+	accountIDs := resolved.AccountIDs
+	if strings.TrimSpace(accountID) != "" {
+		accountIDs = []string{strings.TrimSpace(accountID)}
+	}
+	if len(accountIDs) == 0 {
+		return out, nil
+	}
+	query := `SELECT b.source_type, b.identity_name, b.status,
+	                 b.days_remaining, b.active_since
+	          FROM ` + resolved.Table("baselines") + ` b
+	          WHERE b.account_id = ANY($1::text[])`
+	args := []any{pq.Array(accountIDs)}
+	if strings.TrimSpace(sourceType) != "" {
+		query += ` AND b.source_type = $2`
+		args = append(args, strings.ToUpper(strings.TrimSpace(sourceType)))
+	}
+	rows, err := resolved.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, WrapMonitoringErr("scoped baselines", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var row BaselineStateRow
+		var active sql.NullTime
+		if err := rows.Scan(
+			&row.Key.SourceType,
+			&row.Key.IdentityName,
+			&row.Status,
+			&row.DaysRemaining,
+			&active,
+		); err != nil {
+			return nil, WrapMonitoringErr("scoped baselines", err)
+		}
+		row.Key.SourceType = strings.ToUpper(strings.TrimSpace(row.Key.SourceType))
+		row.Key.IdentityName = strings.TrimSpace(row.Key.IdentityName)
+		row.Status = strings.ToLower(strings.TrimSpace(row.Status))
+		if active.Valid {
+			value := active.Time.UTC()
+			row.ActiveSince = &value
+		}
+		out = append(out, row)
+	}
+	return out, WrapMonitoringErr("scoped baselines", rows.Err())
+}
+
 // BaselineStates loads the baseline state for every key that has one.
 func (r *DashboardSummaryRepository) BaselineStates(ctx context.Context, resolved *scope.DataScope, keys []MonitoringKey) (map[MonitoringKey]BaselineStateRow, error) {
 	out := map[MonitoringKey]BaselineStateRow{}

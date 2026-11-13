@@ -115,10 +115,23 @@ export async function fetchGenomeFleet({ sort = 'risk_desc' } = {}, signal) {
 function fleetRow(row) {
   const baseline = row.baseline ?? {};
   const risk = row.risk ?? {};
+  /* The list is one row per baseline; its source_type / identity_name are the
+     baseline's own key. The identity's pages are addressed by its mapped
+     discovery identity's genome_key. A service that sends no links is the
+     older list, keyed by the identity itself. An unmapped baseline (links but
+     no genome_key) has no page to open: open stays null. */
+  const genomeKey = row.discovery_identities?.[0]?.genome_key ?? null;
+  const open = genomeKey
+    ? { sourceType: genomeKey.source_type, identityName: genomeKey.identity_name }
+    : row.links
+      ? null
+      : { sourceType: row.source_type, identityName: row.identity_name };
   return {
     id: row.id || `${row.source_type}:${row.identity_name}`,
-    sourceType: row.source_type,
-    identityName: row.identity_name,
+    sourceType: open?.sourceType ?? row.source_type,
+    identityName: open?.identityName ?? row.identity_name,
+    openable: Boolean(open),
+    mapped: row.mapping ? row.mapping.status === 'mapped' : true,
     name: row.display_name || row.identity_name,
     nhiType: row.nhi_identity_type ?? null,
     workloadKey: row.workload_key ?? null,
@@ -126,7 +139,7 @@ function fleetRow(row) {
        its own monitored principal sharing the task's inventory record. */
     roleKind: row.role_kind ?? null,
     principalArn: row.principal_arn ?? null,
-    inventoryId: row.inventory_id ?? null,
+    inventoryId: row.inventory_id ?? row.discovery_identities?.[0]?.inventory_id ?? null,
     resourceArn: row.resource_arn ?? null,
     status: row.status ?? null,
     accountId: row.account_id ?? null,

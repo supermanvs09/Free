@@ -222,7 +222,43 @@ func (s *DashboardSummaryService) GetSummary(
 	)
 
 	set := newIdentityIndex(ids)
-	keys := set.lookupKeys()
+
+	// The Dashboard Summary population is the same population as the Genome
+	// identities API: rows present in baselines. Discovery identities remain
+	// available only for display-name, account, region and link enrichment.
+	scopedBaselines, err := s.repo.ScopedBaselineStates(
+		ctx,
+		sc,
+		p.SourceType,
+		p.AccountID,
+	)
+	if err != nil {
+		return nil, &summarycommon.StoreUnavailableError{
+			Op:  "read scoped baselines",
+			Err: err,
+		}
+	}
+
+	baselineRows := make([]summarycommon.BaselineStateRow, 0, len(scopedBaselines))
+	keys := make([]summarycommon.MonitoringKey, 0, len(scopedBaselines))
+	seenKeys := make(map[summarycommon.MonitoringKey]struct{}, len(scopedBaselines))
+	for _, baseline := range scopedBaselines {
+		if p.Region != "" {
+			region := baselineRegion(baseline.Key.IdentityName)
+			if identityIndex, ok := set.indexOf(baseline.Key); ok {
+				region = ids[identityIndex].Region
+			}
+			if !strings.EqualFold(strings.TrimSpace(region), strings.TrimSpace(p.Region)) {
+				continue
+			}
+		}
+		if _, duplicate := seenKeys[baseline.Key]; duplicate {
+			continue
+		}
+		seenKeys[baseline.Key] = struct{}{}
+		baselineRows = append(baselineRows, baseline)
+		keys = append(keys, baseline.Key)
+	}
 
 	out := &DashboardSummaryResponse{
 		DeparturesByDimension:   []DashboardDimensionCount{},
@@ -230,58 +266,23 @@ func (s *DashboardSummaryService) GetSummary(
 		MostAnomalousIdentities: []DashboardAnomalousIdentity{},
 		RecentlyBaselined:       []DashboardRecentlyBaselined{},
 	}
+	out.Cards.WindowHours = int(p.Cards.To.Sub(p.Cards.From).Hours())
 
-	out.Cards.WindowHours = int(
-		p.Cards.To.Sub(
-			p.Cards.From,
-		).Hours(),
-	)
-
-	out.Cards.IdentitiesWatched =
-		summarycommon.IntPtr(len(ids))
-
-	baselines, err := s.repo.BaselineStates(
-		ctx,
-		sc,
-		keys,
-	)
-	if summarycommon.ReadOK(
-		ctx,
-		"dashboard summary baselines",
-		err,
-	) {
-		established := 0
-
-		for _, id := range ids {
-			if _, ok := set.activeBaselineFor(
-				baselines,
-				id,
-			); ok {
-				established++
-			}
+	established := 0
+	for _, baseline := range baselineRows {
+		if strings.EqualFold(strings.TrimSpace(baseline.Status), "active") {
+			established++
 		}
-
-		out.Cards.BaselinesEstablished =
-			summarycommon.IntPtr(established)
-
-		out.Cards.StillLearning =
-			summarycommon.IntPtr(
-				len(ids) - established,
-			)
-
-		if len(ids) > 0 {
-			coverage :=
-				float64(established) /
-					float64(len(ids)) *
-					100
-
-			out.Cards.BaselineCoveragePercent =
-				summarycommon.FloatPtr(
-					summarycommon.Round1(
-						coverage,
-					),
-				)
-		}
+	}
+	watched := len(baselineRows)
+	out.Cards.IdentitiesWatched = summarycommon.IntPtr(watched)
+	out.Cards.BaselinesEstablished = summarycommon.IntPtr(established)
+	out.Cards.StillLearning = summarycommon.IntPtr(watched - established)
+	if watched > 0 {
+		coverage := float64(established) / float64(watched) * 100
+		out.Cards.BaselineCoveragePercent = summarycommon.FloatPtr(
+			summarycommon.Round1(coverage),
+		)
 	}
 
 	if openAlerts, readErr := s.repo.CountOpenAlerts(
@@ -499,6 +500,23 @@ func (s *DashboardSummaryService) GetSummary(
 	}
 
 	return out, nil
+}
+
+// baselineRegion extracts the region from the persisted workload key or ARN.
+// A mapped discovery identity takes precedence when available.
+func baselineRegion(identityName string) string {
+	identityName = strings.TrimSpace(identityName)
+	parts := strings.SplitN(identityName, ":", 5)
+	if strings.HasPrefix(identityName, "arn:") {
+		if len(parts) >= 4 {
+			return parts[3]
+		}
+		return ""
+	}
+	if len(parts) >= 3 {
+		return parts[2]
+	}
+	return ""
 }
 
 // uniqueDiscoveryIdentityIDs produces the discovery IDs used to load

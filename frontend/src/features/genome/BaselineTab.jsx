@@ -4,7 +4,6 @@ import { fetchGenomeBaseline, fetchGenomeDrift, fetchGenomePeers } from '../../l
 import { useQuery } from '../../lib/hooks';
 import { formatDate, formatDateTime, formatNumber, formatRelative, titleCaseEnum } from '../../lib/format';
 import { genomeRoute } from '../../lib/identityLinks';
-import { Meter } from '../../ui/Meter';
 import { Panel, PanelHeader, DetailList, DetailRow } from '../../ui/Panel';
 import { EmptyState, InlineError } from '../../ui/States';
 import { ListSkeleton } from '../../ui/Skeleton';
@@ -38,7 +37,6 @@ export function BaselineTab({ sourceType, identityName }) {
 
 function LearningPanel({ query }) {
   const b = query.data;
-  const progress = b && b.required_days > 0 ? Math.min(100, (Number(b.built_days) / Number(b.required_days)) * 100) : null;
   return (
     <Panel prominence="lead" className="animate-rise">
       <PanelHeader prominence="lead" title="Learning progress" subtitle="Normal behaviour is learned from the identity's own calls over a learning period." />
@@ -49,16 +47,9 @@ function LearningPanel({ query }) {
       ) : (
         <div className="mt-4 flex flex-col gap-4">
           <div>
-            <div className="flex items-baseline justify-between gap-3">
-              <p className="text-[13px] font-medium text-ink">
-                {b.status === 'active' ? 'Baseline established' : b.status ? titleCaseEnum(b.status) : 'Learning'}
-              </p>
-              <p className="text-[12px] text-ink-3" data-numeric="">
-                {formatNumber(b.built_days)} of {formatNumber(b.required_days)} days
-              </p>
-            </div>
-            {progress !== null && <Meter className="mt-2" value={progress} tone={progress >= 100 ? 'low' : 'brand'} label="Share of the learning period completed" />}
-            {b.days_remaining > 0 && <p className="mt-1.5 text-[12px] text-ink-3">{formatNumber(b.days_remaining)} more days of activity are needed.</p>}
+            {/* Established or learning - no day counts: the pipeline's built
+                and required days do not add up reliably. */}
+            <p className="text-[13px] font-medium text-ink">{String(b.status).toLowerCase() === 'active' ? 'Baseline established' : 'Learning'}</p>
           </div>
           <DetailList>
             <DetailRow label="First seen">{b.first_seen_date ? formatDate(b.first_seen_date) : NOT_MEASURED}</DetailRow>

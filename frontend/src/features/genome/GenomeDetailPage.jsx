@@ -314,11 +314,6 @@ function GenomeIdentity({ sourceType, identityName }) {
                 {state.key === 'active' ? `since ${formatDate(state.at)}` : `started ${formatRelative(state.at)}`}
               </span>
             )}
-            {summary.data?.baseline && state.key !== 'active' && (
-              <Tag tone="neutral" size="sm">
-                Learned {formatNumber(summary.data.baseline.built_days)} of {formatNumber(summary.data.baseline.required_days)} days
-              </Tag>
-            )}
             {identity?.status && (
               <Tag tone="neutral" size="sm">
                 {titleCaseEnum(identity.status)}

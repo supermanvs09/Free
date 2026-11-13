@@ -20,10 +20,12 @@ func TestInventoryKeyIsTheGenomeKey(t *testing.T) {
 		{"lambda version folds to the function",
 			identitygraph.MonitoredIdentity{ARN: "arn:aws:lambda:ap-south-1:111111111111:function:billing:7", IdentityType: "lambda_function", AccountID: "111111111111", Region: "ap-south-1"},
 			"LAMBDA", "arn:aws:lambda:ap-south-1:111111111111:function:billing"},
-		{"ecs task is keyed by its task role",
+		/* The genome keys the inventory's ECS task row by its task definition;
+		   its task and execution roles are expanded as their own principals. */
+		{"ecs task row is keyed by its task definition",
 			identitygraph.MonitoredIdentity{ARN: "arn:aws:ecs:ap-south-1:111111111111:task-definition/web:3", IdentityType: "ecs_task", AccountID: "111111111111", Region: "ap-south-1",
 				TypeAttributes: []byte(`{"task_role_arn":"arn:aws:iam::111111111111:role/web-task"}`)},
-			"ECS", "arn:aws:iam::111111111111:role/web-task"},
+			"ECS", "arn:aws:ecs:ap-south-1:111111111111:task-definition/web:3"},
 	}
 	for _, tc := range cases {
 		key, ok := a.KeyFor(tc.in)

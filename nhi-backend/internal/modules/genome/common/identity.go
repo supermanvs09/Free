@@ -181,76 +181,174 @@ func NormalizeDiscoveryRow(row DiscoveryIdentityRow) (MonitoredIdentity, bool) {
 		"service",
 	)
 
-	if sub == "ecs_task" && id.ServiceName == "" {
-		id.ServiceName = strings.TrimPrefix(
+	if sub == "ecs_task" {
+		id.ClusterARN = strings.TrimSpace(
+			attrString(
+				attrs,
+				"cluster_arn",
+				"clusterArn",
+				"cluster",
+			),
+		)
+
+		id.TaskGroup = strings.TrimSpace(
+			attrString(
+				attrs,
+				"group",
+				"task_group",
+				"taskGroup",
+			),
+		)
+
+		id.TaskDefinition = strings.TrimSpace(
+			FirstNonEmpty(
+				attrString(
+					attrs,
+					"task_definition_arn",
+					"taskDefinitionArn",
+					"task_definition",
+					"taskDefinition",
+				),
+				id.TaskDefinition,
+			),
+		)
+
+		// ServiceName must contain only a real ECS service name. A
+		// task-definition family must not be copied into this field.
+		id.ServiceName = ""
+
+		if strings.HasPrefix(
 			id.TaskGroup,
 			"service:",
+		) {
+			id.ServiceName = strings.TrimSpace(
+				strings.TrimPrefix(
+					id.TaskGroup,
+					"service:",
+				),
+			)
+		} else {
+			id.ServiceName = strings.TrimSpace(
+				attrString(
+					attrs,
+					"service_name",
+					"serviceName",
+					"ecs_service_name",
+					"ecsServiceName",
+				),
+			)
+		}
+	}
+
+	if roleARN := attrString(
+		attrs,
+		"bound_role_arn",
+		"role_arn",
+		"roleArn",
+		"task_role_arn",
+		"taskRoleArn",
+		"execution_role_arn",
+		"executionRoleArn",
+		"iam_role_arn",
+		"service_role_arn",
+		"serviceRoleArn",
+		"service_role",
+		"execution_role",
+		"role",
+		"instance_profile_role_arn",
+		"job_role_arn",
+	); roleARN != "" {
+		id.RoleARN = strings.TrimSpace(roleARN)
+		id.RoleName = arnResourceName(
+			id.RoleARN,
 		)
 	}
 
-	id.TaskDefinition = attrString(
-		attrs,
-		"task_definition",
-		"taskDefinition",
-		"task_definition_arn",
-		"taskDefinitionArn",
-		"task_definition_family",
-	)
-
-	id.InstanceID = attrString(
-		attrs,
-		"instance_id",
-		"instanceId",
-	)
-	if roleARN := attrString(attrs, "bound_role_arn", "role_arn", "roleArn", "task_role_arn", "taskRoleArn",
-		"execution_role_arn", "executionRoleArn", "iam_role_arn", "service_role_arn", "serviceRoleArn",
-		"service_role", "execution_role", "role", "instance_profile_role_arn", "job_role_arn"); roleARN != "" {
-		id.RoleARN = roleARN
-		id.RoleName = arnResourceName(roleARN)
-	}
 	if sub == "ec2_instance" {
 		id.RoleType = "EC2_INSTANCE_PROFILE"
+
 		if id.InstanceID == "" {
 			id.InstanceID = resource
 		}
 	} else {
-		id.RoleType = attrString(attrs, "role_type", "roleType")
+		id.RoleType = attrString(
+			attrs,
+			"role_type",
+			"roleType",
+		)
 	}
-	if id.ServiceName == "" {
-		id.ServiceName = serverlessName(sub, attrs, resource)
+
+	// Generic service-name fallback is not valid for ECS. ECS service
+	// membership comes only from group=service:* or an explicit service field.
+	if sub != "ecs_task" &&
+		id.ServiceName == "" {
+		id.ServiceName = serverlessName(
+			sub,
+			attrs,
+			resource,
+		)
 	}
-	// Stable identity key: canonical ARN, otherwise a typed fallback key. The
-	// discovery row id is never used (it changes between scans).
+
 	if canonical != "" {
 		id.Key.IdentityName = canonical
 	} else {
-		id.Key.IdentityName = strings.ToLower(fam) + ":" + id.AccountID + ":" + id.Region + ":" + sub + ":" + dashed(FirstNonEmpty(row.Name, id.ServiceName))
+		id.Key.IdentityName = strings.Join(
+			[]string{
+				strings.ToLower(fam),
+				id.AccountID,
+				id.Region,
+				sub,
+				dashed(
+					FirstNonEmpty(
+						row.Name,
+						id.ServiceName,
+					),
+				),
+			},
+			":",
+		)
 	}
-	id.DisplayName = FirstNonEmpty(row.Name, resource, id.Key.IdentityName)
-	id.WorkloadKey = workloadKeyFor(id, sub, resource)
+
+	id.DisplayName = FirstNonEmpty(
+		row.Name,
+		resource,
+		id.Key.IdentityName,
+	)
+
+	id.WorkloadKey = workloadKeyFor(
+		id,
+		sub,
+		resource,
+	)
+
 	return id, true
 }
 
-// canonicalMonitoringARN removes execution/version qualifiers that would turn
-// one stable resource into many identities.
 func canonicalMonitoringARN(sub, arn string) string {
 	arn = strings.TrimSpace(arn)
 	parts := arnParts(arn)
 	if parts == nil {
 		return arn
 	}
-	prefix, resource := strings.Join(parts[:5], ":"), parts[5]
-	seg := strings.Split(resource, ":")
+
+	prefix := strings.Join(parts[:5], ":")
+	resource := parts[5]
+	segments := strings.Split(resource, ":")
+
 	switch sub {
-	case "lambda_function": // function:name[:qualifier] → function:name
-		if len(seg) >= 2 && seg[0] == "function" {
-			return prefix + ":function:" + seg[1]
+	case "lambda_function":
+		if len(segments) >= 2 && segments[0] == "function" {
+			return prefix + ":function:" + segments[1]
 		}
-	case "step_function": // execution:machine:id | stateMachine:name[:ver] → stateMachine:name
-		if len(seg) >= 2 && (seg[0] == "execution" || seg[0] == "express" || seg[0] == "stateMachine") {
-			return prefix + ":stateMachine:" + seg[1]
+	case "step_function":
+		if len(segments) >= 2 &&
+			(segments[0] == "execution" ||
+				segments[0] == "express" ||
+				segments[0] == "stateMachine") {
+			return prefix + ":stateMachine:" + segments[1]
 		}
 	}
+
 	return arn
 }
 
@@ -892,23 +990,54 @@ func ecsRoleWorkloadKey(
 		return ""
 	}
 
-	mode, workloadName := normalizeECSGroup(
-		FirstNonEmpty(
-			identity.TaskGroup,
-			identity.ServiceName,
-		),
+	taskGroup := strings.TrimSpace(
+		identity.TaskGroup,
 	)
+
+	serviceName := strings.TrimSpace(
+		identity.ServiceName,
+	)
+
+	mode := "standalone"
+	workloadName := ""
+
+	switch {
+	case strings.HasPrefix(
+		taskGroup,
+		"service:",
+	):
+		mode = "service"
+
+		workloadName = strings.TrimSpace(
+			strings.TrimPrefix(
+				taskGroup,
+				"service:",
+			),
+		)
+
+	case serviceName != "":
+		mode = "service"
+		workloadName = serviceName
+
+	case strings.HasPrefix(
+		taskGroup,
+		"family:",
+	):
+		workloadName = strings.TrimSpace(
+			strings.TrimPrefix(
+				taskGroup,
+				"family:",
+			),
+		)
+
+	default:
+		workloadName = taskGroup
+	}
 
 	family := lastPathSegment(
 		identity.TaskDefinition,
 	)
 
-	// Drop the ECS task-definition revision.
-	//
-	// Example:
-	// nhi-opentelemetry-task:17
-	// becomes:
-	// nhi-opentelemetry-task
 	if revisionIndex := strings.LastIndexByte(
 		family,
 		':',
@@ -924,37 +1053,38 @@ func ecsRoleWorkloadKey(
 	}
 
 	if mode == "service" {
-		serviceName := FirstNonEmpty(
-			workloadName,
-			identity.ServiceName,
-			family,
-			identity.DisplayName,
+		name := strings.TrimSpace(
+			FirstNonEmpty(
+				workloadName,
+				serviceName,
+			),
 		)
 
-		if strings.TrimSpace(serviceName) == "" {
+		if name == "" {
 			return ""
 		}
 
 		parts = append(
 			parts,
-			dashed(serviceName),
+			dashed(name),
 		)
 	} else {
-		standaloneName := FirstNonEmpty(
-			workloadName,
-			family,
-			identity.ServiceName,
-			identity.DisplayName,
+		name := strings.TrimSpace(
+			FirstNonEmpty(
+				workloadName,
+				family,
+				identity.DisplayName,
+			),
 		)
 
-		if strings.TrimSpace(standaloneName) == "" {
+		if name == "" {
 			return ""
 		}
 
 		parts = append(
 			parts,
 			"standalone",
-			dashed(standaloneName),
+			dashed(name),
 		)
 	}
 
@@ -1132,6 +1262,24 @@ func (l *MonitoredIdentityLookup) Fleet(
 	[]MonitoredIdentity,
 	error,
 ) {
+	resolvedScope, fleet, _, err := l.FleetWithDiscovery(ctx, userID, tenantID, dbName)
+	return resolvedScope, fleet, err
+}
+
+// FleetWithDiscovery is Fleet that also returns the raw discovery rows the
+// fleet was built from, for callers that need their attributes without
+// reading the identities table a second time.
+func (l *MonitoredIdentityLookup) FleetWithDiscovery(
+	ctx context.Context,
+	userID string,
+	tenantID string,
+	dbName string,
+) (
+	*scope.DataScope,
+	[]MonitoredIdentity,
+	[]DiscoveryIdentityRow,
+	error,
+) {
 	resolvedScope, err := l.resolver.Resolve(
 		ctx,
 		userID,
@@ -1139,7 +1287,7 @@ func (l *MonitoredIdentityLookup) Fleet(
 		dbName,
 	)
 	if err != nil {
-		return nil, nil, &StoreUnavailableError{
+		return nil, nil, nil, &StoreUnavailableError{
 			Op:  "resolve tenant scope",
 			Err: err,
 		}
@@ -1150,7 +1298,7 @@ func (l *MonitoredIdentityLookup) Fleet(
 		resolvedScope,
 	)
 	if err != nil {
-		return nil, nil, &StoreUnavailableError{
+		return nil, nil, nil, &StoreUnavailableError{
 			Op:  "read discovery identities",
 			Err: err,
 		}
@@ -1166,7 +1314,7 @@ func (l *MonitoredIdentityLookup) Fleet(
 		identityIDs,
 	)
 	if err != nil {
-		return nil, nil, &StoreUnavailableError{
+		return nil, nil, nil, &StoreUnavailableError{
 			Op:  "read identity credentials",
 			Err: err,
 		}
@@ -1250,7 +1398,7 @@ func (l *MonitoredIdentityLookup) Fleet(
 		}
 	}
 
-	return resolvedScope, fleet, nil
+	return resolvedScope, fleet, rows, nil
 }
 func uniqueDiscoveryIdentityIDs(
 	rows []DiscoveryIdentityRow,

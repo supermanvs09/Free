@@ -3,11 +3,10 @@ package identitybaseline
 import (
 	"context"
 	"encoding/json"
-	"strings"
-
 	"nhi-backend-api/internal/modules/genome/common"
 	"nhi-backend-api/internal/modules/genome/identitydrift"
 	"nhi-backend-api/internal/platform/scope"
+	"strings"
 )
 
 // Service implements:
@@ -287,11 +286,10 @@ func (s *Service) GetBaseline(
 	return response, nil
 }
 
-// activeBaseline checks candidate monitoring keys in preference order and
-// returns the first baseline whose status is active.
+// activeBaseline checks candidate monitoring keys in preference order.
 //
-// This prevents an inactive row stored under an IAM role ARN from hiding an
-// active row stored under a normalized ECS workload key.
+// The historical helper name is retained for compatibility. Despite the name,
+// both active and inactive baseline rows are returned exactly as stored.
 func (s *Service) activeBaseline(
 	ctx context.Context,
 	resolvedScope *scope.DataScope,
@@ -301,28 +299,15 @@ func (s *Service) activeBaseline(
 		row, err := s.repo.Baseline(
 			ctx,
 			resolvedScope,
-			[]common.MonitoringKey{
-				key,
-			},
+			[]common.MonitoringKey{key},
 		)
 		if err != nil {
 			return nil, err
 		}
-
-		if row == nil {
-			continue
+		if row != nil {
+			return row, nil
 		}
-
-		if !strings.EqualFold(
-			strings.TrimSpace(row.Status),
-			"active",
-		) {
-			continue
-		}
-
-		return row, nil
 	}
-
 	return nil, nil
 }
 

@@ -82,150 +82,388 @@ func (i MonitoredIdentity) AllKeys() []MonitoringKey {
 	return keys
 }
 
-// NormalizeDiscoveryRow converts a discovery row into a monitored identity.
-func NormalizeDiscoveryRow(row DiscoveryIdentityRow) (MonitoredIdentity, bool) {
-	sub, family, ok := resolveMonitoringType(row.IdentityType)
+// NormalizeDiscoveryRow converts one discovery inventory row into the base
+// monitored identity.
+//
+// ECS credential expansion happens later in ExpandCredentialIdentities(),
+// where one ECS discovery row can become:
+//
+//   - task-role monitored identity
+//   - execution-role monitored identity
+//
+// The base identity retains DiscoveryIdentityID and ResourceARN so every
+// expanded principal can navigate back to the same inventory record.
+func NormalizeDiscoveryRow(
+	row DiscoveryIdentityRow,
+) (
+	MonitoredIdentity,
+	bool,
+) {
+	subtype, family, ok := resolveMonitoringType(
+		row.IdentityType,
+	)
 	if !ok {
 		return MonitoredIdentity{}, false
 	}
 
-	attrs := map[string]any{}
+	attrs := make(map[string]any)
+
 	if len(row.TypeAttributes) > 0 {
-		_ = json.Unmarshal(row.TypeAttributes, &attrs)
+		_ = json.Unmarshal(
+			row.TypeAttributes,
+			&attrs,
+		)
 	}
 
-	canonical := canonicalMonitoringARN(sub, row.ARN)
-	resource := arnResourceName(canonical)
+	canonicalARN := canonicalMonitoringARN(
+		subtype,
+		row.ARN,
+	)
 
-	id := MonitoredIdentity{
+	resourceName := arnResourceName(
+		canonicalARN,
+	)
+
+	identity := MonitoredIdentity{
 		Key: MonitoringKey{
 			SourceType: family,
 		},
-		Subtype:             sub,
-		Status:              strings.TrimSpace(row.Status),
-		AccountID:           strings.TrimSpace(row.AccountID),
-		Region:              strings.TrimSpace(row.Region),
-		DiscoveryIdentityID: strings.TrimSpace(row.ID),
-		ResourceARN:         strings.TrimSpace(row.ARN),
+
+		Subtype: subtype,
+
+		Status: strings.TrimSpace(
+			row.Status,
+		),
+
+		AccountID: strings.TrimSpace(
+			row.AccountID,
+		),
+
+		Region: strings.TrimSpace(
+			row.Region,
+		),
+
+		DiscoveryIdentityID: strings.TrimSpace(
+			row.ID,
+		),
+
+		ResourceARN: strings.TrimSpace(
+			row.ARN,
+		),
 	}
 
-	if id.AccountID == "" {
-		id.AccountID = arnField(canonical, 4)
+	if identity.AccountID == "" {
+		identity.AccountID = arnField(
+			canonicalARN,
+			4,
+		)
 	}
-	if id.Region == "" {
-		id.Region = arnField(canonical, 3)
+
+	if identity.Region == "" {
+		identity.Region = arnField(
+			canonicalARN,
+			3,
+		)
 	}
 
-	id.ClusterName = lastPathSegment(attrString(
-		attrs,
-		"cluster_name",
-		"clusterName",
-		"cluster",
-		"cluster_arn",
-		"clusterArn",
-	))
-
-	id.ClusterARN = strings.TrimSpace(attrString(
-		attrs,
-		"cluster_arn",
-		"clusterArn",
-		"cluster",
-	))
-
-	if !strings.HasPrefix(id.ClusterARN, "arn:") {
-		clusterValue := strings.TrimSpace(attrString(
+	// Extract generic runtime metadata. ECS-specific values are normalized
+	// again below to prevent a task-definition family from being mistaken for
+	// an ECS service.
+	identity.ClusterName = lastPathSegment(
+		attrString(
 			attrs,
 			"cluster_name",
 			"clusterName",
-		))
-		if strings.HasPrefix(clusterValue, "arn:") {
-			id.ClusterARN = clusterValue
+			"cluster",
+			"cluster_arn",
+			"clusterArn",
+		),
+	)
+
+	identity.ServiceName = strings.TrimSpace(
+		attrString(
+			attrs,
+			"service_name",
+			"serviceName",
+			"service",
+			"workload_name",
+			"workloadName",
+			"project_name",
+			"projectName",
+			"application_name",
+			"applicationName",
+			"pipeline_name",
+			"pipelineName",
+			"stack_name",
+			"stackName",
+			"job_name",
+			"jobName",
+			"function_name",
+			"functionName",
+			"state_machine_name",
+			"stateMachineName",
+		),
+	)
+
+	identity.TaskDefinition = strings.TrimSpace(
+		attrString(
+			attrs,
+			"task_definition_arn",
+			"taskDefinitionArn",
+			"task_definition",
+			"taskDefinition",
+			"task_definition_family",
+			"taskDefinitionFamily",
+		),
+	)
+
+	identity.InstanceID = strings.TrimSpace(
+		attrString(
+			attrs,
+			"instance_id",
+			"instanceId",
+			"managed_instance_id",
+			"managedInstanceId",
+		),
+	)
+
+	// ECS normalization.
+	//
+	// The ECS group field is authoritative:
+	//
+	//   service:<service-name> -> ECS service task
+	//   family:<family-name>   -> standalone ECS task
+	//
+	// ServiceName must contain only a genuine ECS service name. It must never
+	// fall back to the task-definition family.
+	if subtype == "ecs_task" {
+		identity.ClusterARN = strings.TrimSpace(
+			attrString(
+				attrs,
+				"cluster_arn",
+				"clusterArn",
+				"cluster",
+			),
+		)
+
+		identity.TaskGroup = strings.TrimSpace(
+			attrString(
+				attrs,
+				"group",
+				"task_group",
+				"taskGroup",
+			),
+		)
+
+		identity.TaskDefinition = strings.TrimSpace(
+			firstNonEmpty(
+				attrString(
+					attrs,
+					"task_definition_arn",
+					"taskDefinitionArn",
+					"task_definition",
+					"taskDefinition",
+					"task_definition_family",
+					"taskDefinitionFamily",
+				),
+				identity.TaskDefinition,
+			),
+		)
+
+		// Some scanner versions place the full cluster ARN in cluster_name.
+		if identity.ClusterARN == "" {
+			clusterValue := strings.TrimSpace(
+				attrString(
+					attrs,
+					"cluster_name",
+					"clusterName",
+				),
+			)
+
+			if strings.HasPrefix(
+				clusterValue,
+				"arn:aws:ecs:",
+			) {
+				identity.ClusterARN =
+					clusterValue
+			}
+		}
+
+		if identity.ClusterName == "" {
+			identity.ClusterName =
+				lastPathSegment(
+					identity.ClusterARN,
+				)
+		}
+
+		// Clear the generic service value first. ECS service membership must be
+		// sourced only from group=service:* or an explicit service-name field.
+		identity.ServiceName = ""
+
+		switch {
+		case strings.HasPrefix(
+			identity.TaskGroup,
+			"service:",
+		):
+			identity.ServiceName =
+				strings.TrimSpace(
+					strings.TrimPrefix(
+						identity.TaskGroup,
+						"service:",
+					),
+				)
+
+		default:
+			identity.ServiceName =
+				strings.TrimSpace(
+					attrString(
+						attrs,
+						"service_name",
+						"serviceName",
+						"ecs_service_name",
+						"ecsServiceName",
+					),
+				)
+		}
+
+		// Preserve role ARNs from type_attributes as fallback metadata.
+		// identity_credentials remains authoritative during role expansion.
+		identity.TaskRoleARN = strings.TrimSpace(
+			attrString(
+				attrs,
+				"task_role_arn",
+				"taskRoleArn",
+				"bound_role_arn",
+				"boundRoleArn",
+			),
+		)
+
+		identity.ExecutionRoleARN =
+			strings.TrimSpace(
+				attrString(
+					attrs,
+					"execution_role_arn",
+					"executionRoleArn",
+				),
+			)
+
+		// The base ECS discovery identity represents the workload. The role
+		// fields are assigned later by ExpandCredentialIdentities().
+		identity.RoleARN = ""
+		identity.RoleName = ""
+		identity.RoleType = ""
+		identity.PrincipalARN = ""
+		identity.RoleKind = ""
+	} else {
+		roleARN := strings.TrimSpace(
+			attrString(
+				attrs,
+				"bound_role_arn",
+				"boundRoleArn",
+				"role_arn",
+				"roleArn",
+				"function_role_arn",
+				"functionRoleArn",
+				"execution_role_arn",
+				"executionRoleArn",
+				"service_role_arn",
+				"serviceRoleArn",
+				"instance_profile_role_arn",
+				"instanceProfileRoleArn",
+				"job_role_arn",
+				"jobRoleArn",
+				"automation_role_arn",
+				"automationRoleArn",
+				"compute_role_arn",
+				"computeRoleArn",
+			),
+		)
+
+		if roleARN != "" {
+			identity.RoleARN = roleARN
+			identity.PrincipalARN = roleARN
+			identity.RoleName = arnResourceName(
+				roleARN,
+			)
+		}
+
+		identity.RoleType = strings.TrimSpace(
+			attrString(
+				attrs,
+				"role_type",
+				"roleType",
+			),
+		)
+	}
+
+	if subtype == "ec2_instance" {
+		identity.RoleType =
+			"EC2_INSTANCE_PROFILE"
+
+		if identity.InstanceID == "" {
+			identity.InstanceID =
+				resourceName
 		}
 	}
 
-	id.TaskGroup = attrString(
-		attrs,
-		"group",
-		"task_group",
-		"taskGroup",
-	)
-
-	id.ServiceName = attrString(
-		attrs,
-		"service_name",
-		"serviceName",
-		"service",
-	)
-
-	if sub == "ecs_task" && id.ServiceName == "" {
-		id.ServiceName = normalizeECSGroupName(id.TaskGroup)
+	// Apply generic service-name fallback only to non-ECS workloads.
+	if subtype != "ecs_task" &&
+		identity.ServiceName == "" {
+		identity.ServiceName = firstNonEmpty(
+			strings.TrimSpace(
+				attrString(
+					attrs,
+					"name",
+					"resource_name",
+					"resourceName",
+				),
+			),
+			resourceName,
+		)
 	}
 
-	id.TaskDefinition = attrString(
-		attrs,
-		"task_definition",
-		"taskDefinition",
-		"task_definition_arn",
-		"taskDefinitionArn",
-		"task_definition_family",
-	)
-
-	id.InstanceID = attrString(attrs, "instance_id", "instanceId")
-
-	if roleARN := attrString(
-		attrs,
-		"bound_role_arn",
-		"role_arn",
-		"roleArn",
-		"task_role_arn",
-		"taskRoleArn",
-		"execution_role_arn",
-		"executionRoleArn",
-		"iam_role_arn",
-		"service_role_arn",
-		"serviceRoleArn",
-		"service_role",
-		"execution_role",
-		"role",
-		"instance_profile_role_arn",
-		"job_role_arn",
-	); roleARN != "" {
-		id.RoleARN = roleARN
-		id.RoleName = arnResourceName(roleARN)
-	}
-
-	if sub == "ec2_instance" {
-		id.RoleType = "EC2_INSTANCE_PROFILE"
-		if id.InstanceID == "" {
-			id.InstanceID = resource
-		}
+	// The canonical principal/resource ARN is preferred for the identity key.
+	// If an ARN is unavailable, build a stable typed fallback.
+	if canonicalARN != "" {
+		identity.Key.IdentityName =
+			canonicalARN
 	} else {
-		id.RoleType = attrString(attrs, "role_type", "roleType")
+		identity.Key.IdentityName =
+			strings.Join(
+				[]string{
+					strings.ToLower(
+						family,
+					),
+					identity.AccountID,
+					identity.Region,
+					subtype,
+					dashed(
+						firstNonEmpty(
+							row.Name,
+							identity.ServiceName,
+							resourceName,
+						),
+					),
+				},
+				":",
+			)
 	}
 
-	if id.ServiceName == "" {
-		id.ServiceName = serverlessName(sub, attrs, resource)
-	}
+	identity.DisplayName = firstNonEmpty(
+		row.Name,
+		identity.ServiceName,
+		resourceName,
+		identity.Key.IdentityName,
+	)
 
-	if canonical != "" {
-		id.Key.IdentityName = canonical
-	} else {
-		id.Key.IdentityName = strings.Join([]string{
-			strings.ToLower(family),
-			id.AccountID,
-			id.Region,
-			sub,
-			dashed(firstNonEmpty(row.Name, id.ServiceName)),
-		}, ":")
-	}
+	identity.WorkloadKey = workloadKeyFor(
+		identity,
+		subtype,
+		resourceName,
+	)
 
-	id.DisplayName = firstNonEmpty(row.Name, resource, id.Key.IdentityName)
-	id.WorkloadKey = workloadKeyFor(id, sub, resource)
-
-	return id, true
+	return identity, true
 }
-
-// canonicalMonitoringARN removes version and execution qualifiers.
 func canonicalMonitoringARN(sub, arn string) string {
 	arn = strings.TrimSpace(arn)
 	parts := arnParts(arn)
@@ -562,53 +800,135 @@ func ecsRoleKind(bindingType string) (string, bool) {
 // ecsRoleWorkloadKey builds a role-specific ECS workload key.
 func ecsRoleWorkloadKey(
 	identity MonitoredIdentity,
-	credentialARN string,
+	roleARN string,
 	roleKind string,
 ) string {
-	clusterARN := strings.TrimSpace(identity.ClusterARN)
-	credentialARN = strings.TrimSpace(credentialARN)
+	accountID := strings.TrimSpace(
+		identity.AccountID,
+	)
 
-	if clusterARN == "" || credentialARN == "" {
+	region := strings.TrimSpace(
+		identity.Region,
+	)
+
+	clusterARN := strings.TrimSpace(
+		identity.ClusterARN,
+	)
+
+	roleARN = strings.TrimSpace(roleARN)
+
+	roleKind = strings.ToLower(
+		strings.TrimSpace(roleKind),
+	)
+
+	if accountID == "" ||
+		region == "" ||
+		clusterARN == "" ||
+		roleARN == "" {
 		return ""
 	}
 
-	taskGroup := strings.TrimSpace(identity.TaskGroup)
-	workloadName := normalizeECSGroupName(taskGroup)
-	family := ecsTaskDefinitionFamily(identity.TaskDefinition)
-
-	if workloadName == "" {
-		workloadName = firstNonEmpty(
-			identity.ServiceName,
-			family,
-			identity.DisplayName,
-		)
+	if roleKind != "task" &&
+		roleKind != "execution" {
+		return ""
 	}
+
+	taskGroup := strings.TrimSpace(
+		identity.TaskGroup,
+	)
+
+	serviceName := strings.TrimSpace(
+		identity.ServiceName,
+	)
+
+	mode := "standalone"
+	workloadName := ""
+
+	switch {
+	case strings.HasPrefix(
+		taskGroup,
+		"service:",
+	):
+		mode = "service"
+
+		workloadName = strings.TrimSpace(
+			strings.TrimPrefix(
+				taskGroup,
+				"service:",
+			),
+		)
+
+	case serviceName != "":
+		mode = "service"
+		workloadName = serviceName
+
+	case strings.HasPrefix(
+		taskGroup,
+		"family:",
+	):
+		workloadName = strings.TrimSpace(
+			strings.TrimPrefix(
+				taskGroup,
+				"family:",
+			),
+		)
+
+	default:
+		workloadName = taskGroup
+	}
+
+	family := ecsTaskDefinitionFamily(
+		identity.TaskDefinition,
+	)
 
 	parts := []string{
 		"ecs",
-		identity.AccountID,
-		identity.Region,
+		accountID,
+		region,
 		clusterARN,
 	}
 
-	if strings.HasPrefix(taskGroup, "service:") {
+	if mode == "service" {
+		name := strings.TrimSpace(
+			firstNonEmpty(
+				workloadName,
+				serviceName,
+			),
+		)
+
+		if name == "" {
+			return ""
+		}
+
 		parts = append(
 			parts,
-			dashed(workloadName),
+			dashed(name),
 		)
 	} else {
+		name := strings.TrimSpace(
+			firstNonEmpty(
+				workloadName,
+				family,
+				identity.DisplayName,
+			),
+		)
+
+		if name == "" {
+			return ""
+		}
+
 		parts = append(
 			parts,
 			"standalone",
-			dashed(
-				firstNonEmpty(
-					workloadName,
-					family,
-				),
-			),
+			dashed(name),
 		)
 	}
-	parts = append(parts, credentialARN, roleKind)
+
+	parts = append(
+		parts,
+		roleARN,
+		roleKind,
+	)
 
 	return strings.Join(parts, ":")
 }

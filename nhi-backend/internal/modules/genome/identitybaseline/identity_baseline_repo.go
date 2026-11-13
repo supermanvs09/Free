@@ -59,7 +59,6 @@ func (r *Repository) Baseline(ctx context.Context, resolved *scope.DataScope, ke
           b.profile_json
       FROM ` + resolved.Table("baselines") + ` b` +
 		common.KeyPreferenceJoin("b") + `
-      WHERE LOWER(TRIM(b.status)) = 'active'
       ORDER BY k.preference
       LIMIT 1`
 	var (

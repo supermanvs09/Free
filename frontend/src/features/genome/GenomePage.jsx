@@ -42,9 +42,8 @@ const DAY_MS = 86400000;
 
 /**
  * Where an identity's baseline stands, from the genome list's baseline
- * status: active is established, inactive is learning (days learned of days
- * required when the pipeline reports them). An identity making calls without a
- * baseline row yet is learning too; one with neither is not started.
+ * status: active is established; anything else with activity (or a
+ * baselines row) is learning; neither is not started.
  * An identity that has never made a call is not learning anything, whatever
  * its baseline row says: it reads "No activity" (and sorts with the
  * not-started ones). lastSeen is undefined when activity could not be read,
@@ -55,14 +54,10 @@ export function learningState(baseline, lastSeen) {
   if (status === 'active') return { key: 'established', label: 'Established', tone: 'low' };
   const neverActive = lastSeen !== undefined && !lastSeen;
   if (neverActive) return { key: 'none', label: 'No activity', tone: 'neutral' };
-  /* Calls are coming in but there is no established baseline yet: it is
-     being learned, with or without a baselines row so far. */
-  if (status === 'inactive' || status || lastSeen) {
-    const built = Number(baseline?.builtDays) || 0;
-    const required = Number(baseline?.requiredDays) || 0;
-    const pct = required > 0 ? Math.min(100, (built / required) * 100) : null;
-    return { key: 'learning', label: 'Learning', tone: 'medium', built, required, pct, left: required > built ? required - built : 0 };
-  }
+  /* Calls are coming in (or a baselines row exists) but nothing is
+     established: it is learning. No day counts - the pipeline's numbers do
+     not add up reliably, and "learning" is what matters. */
+  if (status || lastSeen) return { key: 'learning', label: 'Learning', tone: 'medium' };
   return { key: 'none', label: 'Not started', tone: 'neutral' };
 }
 
@@ -80,7 +75,6 @@ const SORTS = [
   { value: 'baseline', label: 'Sort: Baselined and learning first' },
   { value: 'risk', label: 'Sort: Risk, highest first' },
   { value: 'seen', label: 'Sort: Last call, newest first' },
-  { value: 'learning', label: 'Sort: Closest to a baseline' },
   { value: 'name', label: 'Sort: Name' },
 ];
 
@@ -178,7 +172,7 @@ function OverviewTab({ summary, fleet, window, openTab }) {
       all
         .map((row) => ({ row, state: learningState(row.baseline, seenOrUnknown(row)) }))
         .filter((entry) => entry.state.key === 'learning')
-        .sort((a, b) => (b.state.pct ?? -1) - (a.state.pct ?? -1) || a.row.name.localeCompare(b.row.name)),
+        .sort((a, b) => (Date.parse(b.row.lastSeen ?? '') || 0) - (Date.parse(a.row.lastSeen ?? '') || 0) || a.row.name.localeCompare(b.row.name)),
     [all],
   );
 
@@ -224,7 +218,7 @@ function OverviewTab({ summary, fleet, window, openTab }) {
             <CompositionDonut className="mt-4" data={mix} centerLabel="Watched" onSelect={(item) => openTab('identities', { type: item.key })} />
           )}
         </Panel>
-        <LearningNow entries={learning} loading={fleet.isLoading && !fleet.data} onAll={() => openTab('identities', { baseline: 'learning', sort: 'learning' })} />
+        <LearningNow entries={learning} loading={fleet.isLoading && !fleet.data} onAll={() => openTab('identities', { baseline: 'learning' })} />
       </div>
 
       <div className="grid gap-4 @min-[52rem]:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
@@ -261,7 +255,7 @@ function SummaryCards({ cards, window, learningCount, openTab }) {
       key="learning"
       as="button"
       type="button"
-      onClick={() => openTab('identities', { baseline: 'learning', sort: 'learning' })}
+      onClick={() => openTab('identities', { baseline: 'learning' })}
       label="Still learning"
       /* Counted from the identity list when it is in: the summary's count
          also holds identities that never made a call, which are not learning. */
@@ -421,9 +415,8 @@ function MostAnomalous({ entries, onAll }) {
 }
 
 /**
- * Learning in progress: identities with a baseline row that is not yet
- * established, closest to done first. Each shows how many days it has
- * learned of how many it needs, so "no anomaly yet" reads as "in N days".
+ * Learning in progress: identities making calls whose baseline is not yet
+ * established, most recently active first.
  */
 function LearningNow({ entries, loading, onAll }) {
   const shown = entries.slice(0, 5);
@@ -449,16 +442,15 @@ function LearningNow({ entries, loading, onAll }) {
         </p>
       ) : (
         <ul className="mt-2 flex flex-col divide-y divide-line">
-          {shown.map(({ row, state }) => (
+          {shown.filter(({ row }) => row.openable).map(({ row }) => (
             <li key={row.id} className="py-2.5">
               <Link to={genomeRoute(row.sourceType, row.identityName)} className="group block" title={row.identityName}>
                 <span className="flex items-baseline gap-3">
                   <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-ink group-hover:text-brand">{row.name}</span>
-                  <span data-numeric="" className="shrink-0 text-[11.5px] text-ink-3">
-                    {state.required ? `Day ${formatNumber(state.built)} of ${formatNumber(state.required)}` : 'Learning in progress'}
+                  <span className="shrink-0 text-[11.5px] text-ink-3" title={row.lastSeen ? formatDateTime(row.lastSeen) : undefined}>
+                    {row.lastSeen ? `Last call ${formatRelative(row.lastSeen)}` : 'Learning'}
                   </span>
                 </span>
-                {state.pct !== null && <Meter className="mt-1.5" value={state.pct} tone="medium" height={5} label={`${row.name}: ${Math.round(state.pct ?? 0)}% learned`} />}
               </Link>
             </li>
           ))}
@@ -551,7 +543,6 @@ function IdentitiesTab({ fleet, searchParams, setParams }) {
       baseline: (a, b) => rank(a) - rank(b) || time(b.lastSeen) - time(a.lastSeen),
       risk: (a, b) => (b.risk.score ?? -1) - (a.risk.score ?? -1) || (b.openAnomalies ?? 0) - (a.openAnomalies ?? 0),
       seen: (a, b) => time(b.lastSeen) - time(a.lastSeen),
-      learning: (a, b) => (learningState(b.baseline, seenOrUnknown(b)).pct ?? -1) - (learningState(a.baseline, seenOrUnknown(a)).pct ?? -1),
       name: () => 0,
     }[sort];
     return out.sort((a, b) => by(a, b) || a.name.localeCompare(b.name));
@@ -573,8 +564,6 @@ function IdentitiesTab({ fleet, searchParams, setParams }) {
         { header: 'Account', value: (row) => row.accountId ?? '' },
         { header: 'Region', value: (row) => row.region ?? '' },
         { header: 'Baseline', value: (row) => learningState(row.baseline, seenOrUnknown(row)).label },
-        { header: 'Days learned', value: (row) => row.baseline.builtDays ?? '' },
-        { header: 'Days required', value: (row) => row.baseline.requiredDays ?? '' },
         { header: 'Risk', value: (row) => row.risk.score ?? '' },
         { header: 'Open anomalies', value: (row) => row.openAnomalies ?? '' },
         { header: 'Last call (UTC)', value: (row) => row.lastSeen ?? '' },
@@ -730,7 +719,7 @@ function IdentitiesTab({ fleet, searchParams, setParams }) {
           rowKey={(row) => row.id}
           loading={fleet.isLoading && !fleet.data}
           refreshing={fleet.isRefreshing}
-          onRowClick={(row) => navigate(genomeRoute(row.sourceType, row.identityName))}
+          onRowClick={(row) => row.openable && navigate(genomeRoute(row.sourceType, row.identityName))}
           density="comfortable"
           skeletonRows={8}
           emptyState={
@@ -781,7 +770,7 @@ function IdentitiesTab({ fleet, searchParams, setParams }) {
   );
 }
 
-/** Established, learning with how far along, or not started. */
+/** Established, learning, no activity or not started. */
 function LearningCell({ baseline, lastSeen }) {
   const state = learningState(baseline, lastSeen);
   if (state.key === 'established') {
@@ -793,15 +782,9 @@ function LearningCell({ baseline, lastSeen }) {
   }
   if (state.key === 'none') return <span className="text-[12px] text-ink-3">{state.label}</span>;
   return (
-    <span className="block w-full max-w-[11rem]">
-      <span className="flex items-baseline justify-between gap-2 text-[11.5px]">
-        <span className="font-medium text-medium">Learning</span>
-        <span data-numeric="" className="text-ink-3">
-          {state.required ? `${formatNumber(state.built)}/${formatNumber(state.required)} days` : 'in progress'}
-        </span>
-      </span>
-      {state.pct !== null && <Meter className="mt-1" value={state.pct} tone="medium" height={5} label={`${Math.round(state.pct ?? 0)}% learned`} />}
-    </span>
+    <Tag tone="medium" size="sm" dot>
+      Learning
+    </Tag>
   );
 }
 
