@@ -1043,6 +1043,7 @@ function AnomaliesTab({ searchParams, setParams }) {
                   setSelectedPattern(pattern ?? null);
                 }}
                 emptyState={emptyState}
+                onSeverity={(list) => setParams({ sev: list.join(','), page: '' })}
               />
             );
           }

@@ -144,6 +144,133 @@ function rangeText(pattern) {
   return `${formatNumber(pattern.min)} → ${formatNumber(pattern.max)}`;
 }
 
+const TIMELINE_DAYS = 30;
+
+/**
+ * What the reader needs before the list: how much is open, how much is
+ * severe, how much is new, how many identities it touches, and whether it is
+ * rising. Severity tiles filter the list.
+ */
+function AnomalyOverview({ items, groups, onSeverity }) {
+  const stats = useMemo(() => {
+    const now = Date.now();
+    const today = Math.floor(now / DAY_MS);
+    const days = Array.from({ length: TIMELINE_DAYS }, () => ({}));
+    const dims = new Map();
+    let severe = 0;
+    let fresh = 0;
+    let prior = 0;
+    for (const item of items) {
+      const at = new Date(item.detected_at).getTime() || 0;
+      const sev = sevKey(item);
+      if (sev === 'CRITICAL' || sev === 'HIGH') severe += 1;
+      if (now - at < DAY_MS) fresh += 1;
+      else if (now - at < 2 * DAY_MS) prior += 1;
+      const index = TIMELINE_DAYS - 1 - (today - Math.floor(at / DAY_MS));
+      if (index >= 0 && index < TIMELINE_DAYS) days[index][sev] = (days[index][sev] ?? 0) + 1;
+      dims.set(item.dimension, (dims.get(item.dimension) ?? 0) + 1);
+    }
+    const totals = days.map((d) => Object.values(d).reduce((a, b) => a + b, 0));
+    const top = [...dims.entries()].sort((a, b) => b[1] - a[1])[0];
+    return { days, totals, peak: Math.max(1, ...totals), severe, fresh, prior, top };
+  }, [items]);
+
+  const total = items.length;
+  const worst = groups[0];
+  const tiles = [
+    {
+      label: 'Critical or high',
+      value: stats.severe,
+      hint: total ? `${Math.round((stats.severe / total) * 100)}% of these` : null,
+      tone: stats.severe ? 'text-critical' : 'text-ink',
+      onClick: stats.severe && onSeverity ? () => onSeverity(['CRITICAL', 'HIGH']) : null,
+    },
+    {
+      label: 'New in 24 hours',
+      value: stats.fresh,
+      hint: stats.fresh === stats.prior ? 'same as the day before' : `${stats.fresh > stats.prior ? 'up' : 'down'} from ${formatNumber(stats.prior)} the day before`,
+    },
+    { label: 'Identities affected', value: groups.length, hint: worst ? `most: ${worst.identity?.display_name || worst.identity?.identity_name}` : null },
+    {
+      label: 'Most common departure',
+      text: stats.top ? dimensionLabel(stats.top[0]) : '-',
+      hint: stats.top ? `${formatNumber(stats.top[1])} of ${formatNumber(total)}` : null,
+    },
+  ];
+
+  return (
+    <section aria-label="Anomaly summary" className="grid gap-3 border-b border-line p-3 sm:p-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+      <dl className="grid grid-cols-2 gap-2.5">
+        {tiles.map((tile) => {
+          const body = (
+            <>
+              <dt className="text-[11px] font-medium tracking-wide text-ink-3 uppercase">{tile.label}</dt>
+              <dd className={cn('mt-1 truncate font-display font-bold leading-none text-ink', tile.text ? 'text-[15px]' : 'text-[24px]', tile.tone)} data-numeric="">
+                {tile.text ?? formatNumber(tile.value)}
+              </dd>
+              {tile.hint && <dd className="mt-1.5 truncate text-[11.5px] text-ink-3" title={tile.hint}>{tile.hint}</dd>}
+            </>
+          );
+          return tile.onClick ? (
+            <button
+              key={tile.label}
+              type="button"
+              onClick={tile.onClick}
+              title="Show only critical and high"
+              className="rounded-[var(--radius-control)] border border-line bg-surface px-3.5 py-3 text-left transition-colors hover:border-critical/40 hover:bg-critical-soft/40"
+            >
+              {body}
+            </button>
+          ) : (
+            <div key={tile.label} className="rounded-[var(--radius-control)] border border-line bg-surface px-3.5 py-3">
+              {body}
+            </div>
+          );
+        })}
+      </dl>
+      <div className="flex min-w-0 flex-col rounded-[var(--radius-control)] border border-line bg-surface px-3.5 py-3">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="text-[11px] font-medium tracking-wide text-ink-3 uppercase">Detected per day</p>
+          <span className="flex flex-wrap gap-x-2.5 text-[10.5px] text-ink-3">
+            {SEVERITY_ORDER.slice(0, 4).map((s) => (
+              <span key={s} className="flex items-center gap-1">
+                <span className={cn('size-1.5 rounded-full', TONE_BG[severityMeta(s).tone])} />
+                {severityMeta(s).label}
+              </span>
+            ))}
+          </span>
+        </div>
+        <div className="mt-2 flex min-h-[84px] flex-1 items-end gap-[3px]" role="img" aria-label={`Anomalies detected per day over the last ${TIMELINE_DAYS} days, by severity`}>
+          {stats.days.map((day, index) => {
+            const n = stats.totals[index];
+            const date = new Date((Math.floor(Date.now() / DAY_MS) - (TIMELINE_DAYS - 1 - index)) * DAY_MS);
+            return (
+              <span
+                key={index}
+                title={`${date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}: ${formatNumber(n)}`}
+                className="flex flex-1 flex-col-reverse overflow-hidden rounded-[2px]"
+                style={{ height: n ? `${Math.max(6, (n / stats.peak) * 100)}%` : '2px' }}
+              >
+                {n === 0 ? (
+                  <span className="h-full bg-line" />
+                ) : (
+                  SEVERITY_ORDER.map((s) =>
+                    day[s] ? <span key={s} className={s === 'UNRATED' ? 'bg-neutral' : TONE_BG[severityMeta(s).tone]} style={{ height: `${(day[s] / n) * 100}%` }} /> : null,
+                  )
+                )}
+              </span>
+            );
+          })}
+        </div>
+        <div className="mt-1 flex justify-between text-[10.5px] text-ink-3">
+          <span>{TIMELINE_DAYS} days ago</span>
+          <span>Today</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* Close many anomalies at once, a few requests at a time. */
 async function closeMany(items, disposition, onProgress) {
   const queue = [...items];
@@ -344,7 +471,7 @@ export function AnomalyPatterns({ items, onOpen, canAct, onChanged }) {
 }
 
 /** The grouped view of the Anomalies tab. */
-export function AnomalyGroups({ items, onOpen, canAct, onChanged, emptyState }) {
+export function AnomalyGroups({ items, onOpen, canAct, onChanged, emptyState, onSeverity }) {
   const groups = useMemo(() => groupAnomalies(items), [items]);
   /* null until the reader toggles a row: the first (worst) identity starts open. */
   const [expanded, setExpanded] = useState(null);
@@ -364,6 +491,7 @@ export function AnomalyGroups({ items, onOpen, canAct, onChanged, emptyState }) 
   if (groups.length === 0) return emptyState;
   return (
     <>
+      <AnomalyOverview items={items} groups={groups} onSeverity={onSeverity} />
       <ul className="flex flex-col gap-2.5 p-3 sm:p-4">
         {groups.slice(0, shown).map((group) => (
           <IdentityGroup
