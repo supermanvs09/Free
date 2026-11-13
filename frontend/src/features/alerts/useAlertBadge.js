@@ -64,6 +64,7 @@ export function useAlertSummary({ exposure = true } = {}) {
   }, []);
   const value = useSyncExternalStore(subscribe, () => summary);
   if (!value) return null;
-  const newExposures = exposure ? Number(value.new_exposures) || 0 : 0;
-  return { ...value, badge: (Number(value.score_drops) || 0) + newExposures, new_exposures: newExposures };
+  /* The badge is unworked alerts; exposure ones drop out when that feature is off. */
+  const hidden = exposure ? 0 : Number(value.open_by_source?.exposure) || 0;
+  return { ...value, badge: Math.max(0, (Number(value.badge) || 0) - hidden) };
 }

@@ -116,93 +116,47 @@ function rangeText(pattern) {
 }
 
 const TIMELINE_DAYS = 30;
-const CHART_W = 600;
-const CHART_H = 132;
-
-/* A smooth line through the points (Catmull-Rom as cubic Béziers), clamped so
-   a curve between two days never dips below zero. */
-function smoothPath(points) {
-  if (points.length < 2) return '';
-  let d = `M${points[0][0]},${points[0][1]}`;
-  for (let i = 0; i < points.length - 1; i += 1) {
-    const [x0, y0] = points[i - 1] ?? points[i];
-    const [x1, y1] = points[i];
-    const [x2, y2] = points[i + 1];
-    const [x3, y3] = points[i + 2] ?? points[i + 1];
-    const c1y = Math.min(CHART_H, y1 + (y2 - y0) / 6);
-    const c2y = Math.min(CHART_H, y2 - (y3 - y1) / 6);
-    d += ` C${x1 + (x2 - x0) / 6},${c1y} ${x2 - (x3 - x1) / 6},${c2y} ${x2},${y2}`;
-  }
-  return d;
-}
-
 const dayLabel = (index) =>
   new Date((Math.floor(Date.now() / DAY_MS) - (TIMELINE_DAYS - 1 - index)) * DAY_MS).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 
-/** Thirty days of detections as one calm line; critical days carry a red mark. */
+/* Heat steps for a day's count relative to the busiest day: calm, readable,
+   and one hue, so the only red is the dot under a critical day. */
+const HEAT = ['bg-surface-3', 'bg-brand/20', 'bg-brand/40', 'bg-brand/65', 'bg-brand'];
+
+/** Thirty days as a calendar strip: one cell a day, darker is busier, a red ring marks a critical. */
 function Trend({ days, hover, setHover }) {
   const totals = days.map((d) => Object.values(d).reduce((a, b) => a + b, 0));
   const peak = Math.max(1, ...totals);
-  const step = CHART_W / (TIMELINE_DAYS - 1);
-  const pts = totals.map((n, i) => [i * step, CHART_H - 6 - (n / peak) * (CHART_H - 22)]);
-  const line = smoothPath(pts);
-  const peakIndex = totals.indexOf(Math.max(...totals));
-  const focus = hover ?? null;
-
+  const level = (n) => (n === 0 ? 0 : Math.min(4, 1 + Math.floor((n / peak) * 3.999)));
   return (
-    <div className="relative">
-      <svg
-        viewBox={`0 0 ${CHART_W} ${CHART_H}`}
-        preserveAspectRatio="none"
-        className="block h-[132px] w-full overflow-visible"
-        role="img"
-        aria-label={`Anomalies detected per day over the last ${TIMELINE_DAYS} days. Peak ${formatNumber(totals[peakIndex])} on ${dayLabel(peakIndex)}.`}
-        onMouseLeave={() => setHover(null)}
-      >
-        <defs>
-          <linearGradient id="anomaly-trend-fill" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="var(--color-brand)" stopOpacity="0.22" />
-            <stop offset="100%" stopColor="var(--color-brand)" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        {[0.25, 0.5, 0.75].map((f) => (
-          <line key={f} x1="0" x2={CHART_W} y1={CHART_H * f} y2={CHART_H * f} stroke="var(--color-line)" strokeDasharray="2 4" vectorEffect="non-scaling-stroke" />
+    <div onMouseLeave={() => setHover(null)}>
+      <div className="flex gap-[3px]" role="img" aria-label={`Anomalies per day, last ${TIMELINE_DAYS} days`}>
+        {days.map((day, i) => (
+          <span key={i} onMouseEnter={() => setHover(i)} className="flex flex-1 flex-col items-center gap-1.5">
+            <span
+              className={cn(
+                'h-11 w-full rounded-[4px] transition-[transform,box-shadow] duration-150',
+                HEAT[level(totals[i])],
+                hover === i && 'scale-y-[1.08] shadow-[0_0_0_2px_var(--color-surface),0_0_0_3px_var(--color-ink-3)]',
+                i === days.length - 1 && 'shadow-[0_0_0_2px_var(--color-surface),0_0_0_3px_var(--color-brand)]',
+              )}
+            />
+            <span className={cn('size-1 rounded-full', day.CRITICAL ? 'bg-critical' : 'bg-transparent')} />
+          </span>
         ))}
-        <path d={`${line} L${CHART_W},${CHART_H} L0,${CHART_H} Z`} fill="url(#anomaly-trend-fill)" />
-        <path d={line} fill="none" stroke="var(--color-brand)" strokeWidth="1.75" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-        {focus !== null && (
-          <line x1={pts[focus][0]} x2={pts[focus][0]} y1="0" y2={CHART_H} stroke="var(--color-ink-3)" strokeOpacity="0.5" vectorEffect="non-scaling-stroke" />
-        )}
-        {days.map((_, i) => (
-          <rect
-            key={i}
-            x={i * step - step / 2}
-            y="0"
-            width={step}
-            height={CHART_H}
-            fill="transparent"
-            onMouseEnter={() => setHover(i)}
-          />
-        ))}
-      </svg>
-      {/* Dots sit in HTML so they stay round while the SVG stretches. */}
-      {days.map((day, i) =>
-        day.CRITICAL || focus === i ? (
-          <span
-            key={i}
-            aria-hidden="true"
-            className={cn(
-              'pointer-events-none absolute size-[6px] -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-surface',
-              day.CRITICAL ? 'bg-critical' : 'bg-brand',
-            )}
-            style={{ left: `${(pts[i][0] / CHART_W) * 100}%`, top: `${(pts[i][1] / CHART_H) * 100}%` }}
-          />
-        ) : null,
-      )}
-      <div className="mt-2 flex justify-between text-[10.5px] tracking-wide text-ink-3 uppercase">
+      </div>
+      <div className="mt-2 flex items-center justify-between gap-3 text-[10.5px] text-ink-3">
         <span>{dayLabel(0)}</span>
-        <span>{dayLabel(Math.floor(TIMELINE_DAYS / 2))}</span>
-        <span>Today</span>
+        <span className="flex items-center gap-1.5">
+          <span className="size-1 rounded-full bg-critical" /> critical day
+        </span>
+        <span className="flex items-center gap-1">
+          Less
+          {HEAT.map((c) => (
+            <span key={c} className={cn('size-2.5 rounded-[3px]', c)} />
+          ))}
+          More
+        </span>
       </div>
     </div>
   );
@@ -335,7 +289,6 @@ export function AnomalyOverview({ items, groups, onSeverity, activeSeverities = 
               ) : (
                 <>
                   Peak <span className="font-semibold text-ink">{formatNumber(stats.peak)}</span> on {dayLabel(stats.peakIndex)}
-                  <span className="ml-2 size-[6px] rounded-full bg-critical" /> critical day
                 </>
               )}
             </span>
