@@ -29,7 +29,7 @@ import (
 	"nhi-backend-api/internal/modules/remediation/listplans"
 	"nhi-backend-api/internal/modules/remediation/markdone"
 	"nhi-backend-api/internal/modules/remediation/rejectplan"
-	"nhi-backend-api/internal/modules/remediation/rollbackexecution"
+	"nhi-backend-api/internal/modules/remediation/rollbackplan"
 	"nhi-backend-api/internal/modules/remediation/submitbatch"
 	"nhi-backend-api/internal/modules/remediation/submitplan"
 	"nhi-backend-api/internal/modules/remediation/updateaccount"
@@ -57,7 +57,7 @@ type Handlers struct {
 	ConfirmExternal *confirmexternal.ConfirmExternalHandler
 	// executions
 	GetExecution        *getexecution.GetExecutionHandler
-	RollbackExecution   *rollbackexecution.RollbackExecutionHandler
+	RollbackPlan        *rollbackplan.RollbackPlanHandler
 	ExecutionCredential *executioncredential.ExecutionCredentialHandler
 	// batches
 	CreateBatch  *createbatch.CreateBatchHandler
@@ -96,7 +96,7 @@ func NewHandlers(core *engine.Service) *Handlers {
 		ConfirmExternal: confirmexternal.NewConfirmExternalHandler(confirmexternal.NewConfirmExternalService(confirmexternal.NewConfirmExternalRepository(core))),
 
 		GetExecution:        getexecution.NewGetExecutionHandler(getexecution.NewGetExecutionService(getexecution.NewGetExecutionRepository(core))),
-		RollbackExecution:   rollbackexecution.NewRollbackExecutionHandler(rollbackexecution.NewRollbackExecutionService(rollbackexecution.NewRollbackExecutionRepository(core))),
+		RollbackPlan:        rollbackplan.NewRollbackPlanHandler(rollbackplan.NewRollbackPlanService(rollbackplan.NewRollbackPlanRepository(core))),
 		ExecutionCredential: executioncredential.NewExecutionCredentialHandler(executioncredential.NewExecutionCredentialService(executioncredential.NewExecutionCredentialRepository(core))),
 
 		CreateBatch:  createbatch.NewCreateBatchHandler(createbatch.NewCreateBatchService(createbatch.NewCreateBatchRepository(core))),

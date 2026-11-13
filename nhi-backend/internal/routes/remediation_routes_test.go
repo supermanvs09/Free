@@ -86,7 +86,7 @@ func TestRemediationRolesAreEnforced(t *testing.T) {
 		{"analyst@x", http.MethodPost, plan + "/reject", ""},
 		{"manager@x", http.MethodPost, plan + "/execute", ""},
 		{"manager@x", http.MethodPost, plan + "/submit", ""},
-		{"viewer@x", http.MethodPost, base + "/executions/" + remTestPlan + "/rollback", ""},
+		{"viewer@x", http.MethodPost, plan + "/rollback", ""},
 		{"analyst@x", http.MethodPut, base + "/accounts/123456789012", `{}`},
 		{"analyst@x", http.MethodGet, base + "/accounts/123456789012/setup", ""},
 		{"manager@x", http.MethodPut, base + "/integrations/jira", `{}`},

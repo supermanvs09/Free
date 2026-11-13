@@ -33,7 +33,10 @@ type alertCursor struct {
 //
 // The two sources are combined with UNION ALL so each branch uses its own
 // index: findings by identity_id, and findings by credential_arn for the
-// credentials reached through the BOUND_TO edges.
+// credentials reached through the BOUND_TO edges. The credential branch keeps
+// only findings that belong to the credential itself (no owner identity): a
+// finding owned by another identity that shares the role is that identity's
+// finding, so it is not listed here.
 func (r *IdentityAlertsRepository) Get(ctx context.Context, s *scope.DataScope, id string, f IdentityAlertsFilter) ([]IdentityAlert, *string, error) {
 	if err := posturecommon.Need(s); err != nil {
 		return nil, nil, err
@@ -66,7 +69,7 @@ func (r *IdentityAlertsRepository) Get(ctx context.Context, s *scope.DataScope, 
 			FROM %[2]s f WHERE %[3]s AND f.identity_id = $2
 			UNION ALL
 			SELECT %[1]s, 'credential'::text AS source
-			FROM %[2]s f WHERE %[3]s AND f.identity_id IS DISTINCT FROM $2
+			FROM %[2]s f WHERE %[3]s AND f.identity_id IS NULL
 			  AND f.credential_arn IN (SELECT e.target_arn FROM %[4]s e
 			        WHERE e.tenant_id = $1 AND e.source_arn = $4 AND e.edge_type = 'BOUND_TO')
 		)

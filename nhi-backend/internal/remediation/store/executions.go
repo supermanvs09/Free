@@ -69,9 +69,38 @@ func (s *Store) dashboardExec() string {
 		s.tbl("remediation_plans"), s.tbl("remediation_executions"))
 }
 
+// QueuedByDashboard is the details.queued_by value on the EXECUTION_QUEUED audit row of a
+// ROLLBACK queued by this service (POST /plans/{id}/rollback).
+const QueuedByDashboard = "dashboard"
+
+// dashboardRollback is a condition on remediation_executions: a ROLLBACK queued by this service
+// (audit row EXECUTION_QUEUED with details.queued_by = dashboard). It lets the worker run the
+// rollback of a plan of the engine's automatic remediation; the engine's own executions are
+// never claimed here.
+func (s *Store) dashboardRollback() string {
+	t := s.tbl("remediation_executions")
+	return fmt.Sprintf(`(%s.kind = 'ROLLBACK' AND EXISTS (SELECT 1 FROM %s qa WHERE qa.tenant_id = %s.tenant_id
+		AND qa.execution_id = %s.execution_id AND qa.event = '%s' AND qa.details->>'queued_by' = '%s'))`,
+		t, s.tbl("remediation_audit_log"), t, t, domain.EvExecQueued, QueuedByDashboard)
+}
+
+// RollbackTargetExecution returns the newest succeeded EXECUTE execution of a plan: the one a
+// rollback replays. It is linked by plan_id on remediation_executions, or through the
+// execution_id the plan's rows in remediation_audit_log carry (plans of the engine's automatic
+// remediation record their plan_id there).
+func (s *Store) RollbackTargetExecution(ctx context.Context, planID string) (*domain.Execution, error) {
+	return scanExec(s.pool.QueryRow(ctx, fmt.Sprintf(`SELECT %s FROM %s
+		WHERE tenant_id = $1::uuid AND kind = 'EXECUTE' AND status = 'SUCCEEDED'
+		  AND (plan_id = $2::uuid OR execution_id IN (SELECT a.execution_id FROM %s a
+		       WHERE a.tenant_id = $1::uuid AND a.plan_id = $2::uuid AND a.execution_id IS NOT NULL))
+		ORDER BY completed_at DESC NULLS LAST, created_at DESC LIMIT 1`,
+		execCols, s.tbl("remediation_executions"), s.tbl("remediation_audit_log")), s.TenantID, planID))
+}
+
 // ClaimExecution takes the oldest due QUEUED execution of a dashboard plan of this tenant (or
 // one whose lease expired while RUNNING) with FOR UPDATE SKIP LOCKED, and leases it.
-// Executions of the engine's automatic plans (policy_id set) are claimed by the engine only.
+// Executions of the engine's automatic plans (policy_id set) are claimed by the engine, except
+// a ROLLBACK queued by this service (dashboardRollback).
 func (s *Store) ClaimExecution(ctx context.Context, worker string, lease time.Duration) (*domain.Execution, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -84,8 +113,8 @@ func (s *Store) ClaimExecution(ctx context.Context, worker string, lease time.Du
 		WHERE tenant_id = $1::uuid
 		  AND ((status = 'QUEUED' AND scheduled_for <= now())
 		    OR (status = 'RUNNING' AND locked_until < now() AND kind <> 'EXECUTE'))
-		  AND %s
-		ORDER BY scheduled_for LIMIT 1 FOR UPDATE SKIP LOCKED`, s.tbl("remediation_executions"), s.dashboardExec()), s.TenantID).Scan(&id)
+		  AND (%s OR %s)
+		ORDER BY scheduled_for LIMIT 1 FOR UPDATE SKIP LOCKED`, s.tbl("remediation_executions"), s.dashboardExec(), s.dashboardRollback()), s.TenantID).Scan(&id)
 	if err != nil {
 		return nil, notFound(err)
 	}

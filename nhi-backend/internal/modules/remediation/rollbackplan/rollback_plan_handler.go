@@ -1,4 +1,4 @@
-package rollbackexecution
+package rollbackplan
 
 import (
 	"net/http"
@@ -6,16 +6,16 @@ import (
 	"nhi-backend-api/internal/modules/remediation/common"
 )
 
-type RollbackExecutionHandler struct {
-	service *RollbackExecutionService
+type RollbackPlanHandler struct {
+	service *RollbackPlanService
 }
 
-func NewRollbackExecutionHandler(service *RollbackExecutionService) *RollbackExecutionHandler {
-	return &RollbackExecutionHandler{service: service}
+func NewRollbackPlanHandler(service *RollbackPlanService) *RollbackPlanHandler {
+	return &RollbackPlanHandler{service: service}
 }
 
-// Post handles POST /executions/{id}/rollback (202 Accepted).
-func (h *RollbackExecutionHandler) Post(w http.ResponseWriter, r *http.Request) {
+// Post handles POST /plans/{id}/rollback (202 Accepted). {id} is the plan_id.
+func (h *RollbackPlanHandler) Post(w http.ResponseWriter, r *http.Request) {
 	c, ok := common.Begin(w, r)
 	if !ok {
 		return
@@ -23,7 +23,7 @@ func (h *RollbackExecutionHandler) Post(w http.ResponseWriter, r *http.Request) 
 	if !common.StrictQuery(w, r.URL.Query(), common.Allow()) {
 		return
 	}
-	id, ok := common.UUIDParam(w, r, "id")
+	planID, ok := common.UUIDParam(w, r, "id")
 	if !ok {
 		return
 	}
@@ -31,7 +31,7 @@ func (h *RollbackExecutionHandler) Post(w http.ResponseWriter, r *http.Request) 
 	if !common.Decode(w, r, &body, true) {
 		return
 	}
-	ex, err := h.service.Rollback(r.Context(), c, id)
+	ex, err := h.service.Rollback(r.Context(), c, planID)
 	if err != nil {
 		common.Fail(w, r, "queue rollback", err)
 		return

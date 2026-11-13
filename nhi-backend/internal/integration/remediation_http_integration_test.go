@@ -156,7 +156,7 @@ func TestOneClickFlowHTTP(t *testing.T) {
 		t.Fatalf("want 1 account, got %d", len(l))
 	}
 
-	rb := data(call("ann@x", http.MethodPost, "/executions/"+execID+"/rollback", "", http.StatusAccepted))
+	rb := data(call("ann@x", http.MethodPost, "/plans/"+planID+"/rollback", "", http.StatusAccepted))
 	if run = claimWait(ctx, svc, st); run == nil || run.ID != rb["execution_id"] {
 		t.Fatalf("rollback not claimed: %v", run)
 	}

@@ -40,8 +40,8 @@ func hasBlock(p *domain.Plan) bool {
 }
 
 // engineOwned refuses a plan created by the engine's automatic remediation (policy_id set): the
-// engine executes, verifies and rolls it back. Here such a plan can only be approved, rejected or
-// cancelled.
+// engine submits, executes and verifies it. Here such a plan can be approved, rejected,
+// cancelled or rolled back (RollbackPlan, by plan_id).
 func engineOwned(p *domain.Plan, what string) error {
 	if p.PolicyID == nil {
 		return nil
@@ -317,8 +317,12 @@ func (s *Service) ConfirmExternal(ctx context.Context, actor domain.Actor, planI
 	return st.GetPlan(ctx, p.ID)
 }
 
-// Rollback undoes an applied execution (EXECUTE / SUCCEEDED) with its saved snapshot.
-func (s *Service) Rollback(ctx context.Context, actor domain.Actor, execID string) (*domain.Execution, error) {
+// RollbackPlan undoes the applied change of a plan, given its plan_id. It works for dashboard
+// plans and for plans of the rule engine's automatic remediation (policy_id set): the plan_id
+// (as written to remediation_audit_log) is linked to its last succeeded EXECUTE execution, found
+// in remediation_executions or through the execution_id on the plan's audit rows, and that
+// execution's saved snapshot is replayed.
+func (s *Service) RollbackPlan(ctx context.Context, actor domain.Actor, planID string) (*domain.Execution, error) {
 	if err := requireRole(actor, domain.PermExecute); err != nil {
 		return nil, err
 	}
@@ -326,9 +330,15 @@ func (s *Service) Rollback(ctx context.Context, actor domain.Actor, execID strin
 	if err != nil {
 		return nil, err
 	}
-	ex, err := st.GetExecution(ctx, execID)
+	if _, err := st.GetPlan(ctx, planID); err != nil {
+		if isStoreNotFound(err) {
+			return nil, notFoundErr("plan")
+		}
+		return nil, err
+	}
+	ex, err := st.RollbackTargetExecution(ctx, planID)
 	if isStoreNotFound(err) {
-		return nil, notFoundErr("execution")
+		return nil, conflict("plan %s has no succeeded execution to roll back", planID)
 	}
 	if err != nil {
 		return nil, err
@@ -337,11 +347,6 @@ func (s *Service) Rollback(ctx context.Context, actor domain.Actor, execID strin
 }
 
 func (s *Service) queueRollback(ctx context.Context, st *store.Store, by string, ex *domain.Execution) (*domain.Execution, error) {
-	if p0, err := st.GetPlan(ctx, ex.PlanID); err == nil {
-		if err := engineOwned(p0, "rolls back"); err != nil {
-			return nil, err
-		}
-	}
 	if ex.Kind != domain.KindExecute || ex.Status != domain.ExecSucceeded {
 		return nil, conflict("only a succeeded execution can be rolled back (this one is %s %s)", ex.Kind, ex.Status)
 	}
@@ -369,7 +374,10 @@ func (s *Service) queueRollback(ctx context.Context, st *store.Store, by string,
 	if err := st.InsertExecution(ctx, rb); err != nil {
 		return nil, err
 	}
-	st.Audit(ctx, p.ID, rb.ID, derefStr(p.BatchID), domain.EvExecQueued, by, map[string]any{"kind": "ROLLBACK", "rollback_of": ex.ID})
+	// queued_by=dashboard marks the ROLLBACK as this service's, so its worker also claims it
+	// when the plan belongs to the engine's automatic remediation (see store.ClaimExecution).
+	st.Audit(ctx, p.ID, rb.ID, derefStr(p.BatchID), domain.EvExecQueued, by,
+		map[string]any{"kind": "ROLLBACK", "rollback_of": ex.ID, "queued_by": store.QueuedByDashboard})
 	return st.GetExecution(ctx, rb.ID)
 }
 

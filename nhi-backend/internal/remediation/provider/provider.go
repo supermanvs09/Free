@@ -78,6 +78,9 @@ type RunResult struct {
 type RollbackInput struct {
 	RunInput
 	RollbackState map[string]any
+	// EngineFormat: RollbackState was written by the rule engine's automatic remediation
+	// (plan with policy_id); the provider converts it to its own snapshot format.
+	EngineFormat bool
 }
 
 type FinalizeInput struct {

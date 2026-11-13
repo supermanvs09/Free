@@ -103,7 +103,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &req) {
 		return
 	}
-	pw, err := fieldcrypt.Open(req.Password)
+	pw, err := fieldcrypt.OpenOrPlain(req.Password)
 	if err != nil {
 		invalid(w, "The password must be sent encrypted. Reload the page and try again.", "password")
 		return
@@ -236,7 +236,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if req.Password != nil {
-		pw, err := fieldcrypt.Open(*req.Password)
+		pw, err := fieldcrypt.OpenOrPlain(*req.Password)
 		if err != nil {
 			invalid(w, "The password must be sent encrypted. Reload the page and try again.", "password")
 			return

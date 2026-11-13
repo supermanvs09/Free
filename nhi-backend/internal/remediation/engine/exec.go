@@ -244,7 +244,8 @@ func (s *Service) doRollback(ctx context.Context, st *store.Store, ex *domain.Ex
 	ex.AssumedRoleARN, ex.SessionName = acct.RoleARN, "ispm-"+ex.ID
 	st.Audit(ctx, p.ID, ex.ID, derefStr(p.BatchID), domain.EvExecStarted, ex.TriggeredBy, map[string]any{"kind": "ROLLBACK"})
 	in := provider.RollbackInput{RunInput: provider.RunInput{Target: target, PlanID: p.ID, ExecutionID: ex.ID, SessionName: ex.ID,
-		Before: decodeMap(p.BeforeState), After: decodeMap(p.AfterState), DryRun: s.cfg.Safety.DryRunOnly}, RollbackState: decodeMap(ex.RollbackState)}
+		Before: decodeMap(p.BeforeState), After: decodeMap(p.AfterState), DryRun: s.cfg.Safety.DryRunOnly}, RollbackState: decodeMap(ex.RollbackState),
+		EngineFormat: p.PolicyID != nil} // engine auto-remediation plan: its snapshot is in the engine's format
 	res, err := prov.Rollback(ctx, in)
 	if res != nil {
 		ex.Steps, ex.Result = mustJSON(res.Steps, "[]"), mustJSON(res.Result, "{}")

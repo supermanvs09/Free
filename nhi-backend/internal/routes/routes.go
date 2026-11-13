@@ -391,12 +391,13 @@ func registerRemediation(router *mux.Router, h *remediation.Handlers) {
 	if h.ConfirmExternal != nil {
 		route(post, "/plans/{id}/confirm-external", h.ConfirmExternal.Post)
 	}
+	// rollback by plan_id (dashboard plans and the rule engine's automatic-remediation plans)
+	if h.RollbackPlan != nil {
+		route(post, "/plans/{id}/rollback", h.RollbackPlan.Post)
+	}
 	// executions
 	if h.GetExecution != nil {
 		route(get, "/executions/{id}", h.GetExecution.Get)
-	}
-	if h.RollbackExecution != nil {
-		route(post, "/executions/{id}/rollback", h.RollbackExecution.Post)
 	}
 	if h.ExecutionCredential != nil {
 		route(get, "/executions/{id}/credential", h.ExecutionCredential.Get)

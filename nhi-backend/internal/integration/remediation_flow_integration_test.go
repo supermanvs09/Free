@@ -201,11 +201,11 @@ func TestOneClickFlow(t *testing.T) {
 	}
 
 	// rollback restores the key
-	rb, err := svc.Rollback(ctx, approver, ex.ID)
+	rb, err := svc.RollbackPlan(ctx, approver, ex.PlanID)
 	if err == nil {
 		t.Fatalf("an approver must not roll back, got %v", rb)
 	}
-	rb, err = svc.Rollback(ctx, analyst, ex.ID)
+	rb, err = svc.RollbackPlan(ctx, analyst, ex.PlanID)
 	if err != nil {
 		t.Fatalf("rollback: %v", err)
 	}

@@ -79,7 +79,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Password, err = fieldcrypt.Open(req.Password); err != nil {
+	if req.Password, err = fieldcrypt.OpenOrPlain(req.Password); err != nil {
 		sendJSON(w, http.StatusBadRequest, httpx.APIResponse{
 			Success: false,
 			Message: "The password must be sent encrypted. Reload the page and try again.",

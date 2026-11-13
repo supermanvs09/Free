@@ -83,6 +83,16 @@ func Open(sealed string) (string, error) {
 	return openAt(sealed, time.Now())
 }
 
+// OpenOrPlain accepts both forms: a sealed value ("v1.…", what the console sends)
+// is opened and must be valid; any other value is taken as the plain password
+// (Postman, scripts). The console keeps encrypting; plain text relies on TLS only.
+func OpenOrPlain(v string) (string, error) {
+	if strings.HasPrefix(v, prefix) {
+		return Open(v)
+	}
+	return v, nil
+}
+
 func openAt(sealed string, now time.Time) (string, error) {
 	mu.RLock()
 	k := key

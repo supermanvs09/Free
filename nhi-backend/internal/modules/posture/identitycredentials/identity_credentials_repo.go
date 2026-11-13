@@ -21,7 +21,10 @@ func NewIdentityCredentialsRepository() *IdentityCredentialsRepository {
 // ispm_access_edges, joined on arn with the credential tables (see
 // credentialSource: the scanner's credentials, else the posture sample data in
 // dummy_credentials). The number
-// of open findings per credential comes from ispm_nhi_findings.
+// of open findings per credential comes from ispm_nhi_findings: the findings on
+// that credential that belong to this identity, or to no identity. A finding
+// owned by another identity that shares the role is not counted, so the number
+// agrees with the Alerts tab.
 func (r *IdentityCredentialsRepository) Get(ctx context.Context, s *scope.DataScope, id string) ([]IdentityCredential, error) {
 	if err := common.Need(s); err != nil {
 		return nil, err
@@ -45,12 +48,13 @@ func (r *IdentityCredentialsRepository) Get(ctx context.Context, s *scope.DataSc
 			COALESCE(c.credential_type, ''), COALESCE(c.status, ''), c.created_at_aws, c.last_used_at,
 			c.permission_boundary_arn, c.max_session_duration,
 			(SELECT count(*)::int FROM %s f
-			  WHERE f.tenant_id = e.tenant_id AND f.credential_arn = e.target_arn AND f.status = 'OPEN')
+			  WHERE f.tenant_id = e.tenant_id AND f.credential_arn = e.target_arn
+			    AND (f.identity_id = $3 OR f.identity_id IS NULL) AND f.status = 'OPEN')
 		FROM %s e
 		%s
 		WHERE e.tenant_id = $1 AND e.source_arn = $2 AND e.edge_type = 'BOUND_TO'
 		ORDER BY e.target_arn`, s.Table(common.TFindings), s.Table(common.TAccessEdges), common.LatestCredential(src))
-	rows, err := s.DB.QueryContext(ctx, q, s.TenantID, ref.ARN)
+	rows, err := s.DB.QueryContext(ctx, q, s.TenantID, ref.ARN, id)
 	if err != nil {
 		return nil, fmt.Errorf("query identity credentials: %w", err)
 	}

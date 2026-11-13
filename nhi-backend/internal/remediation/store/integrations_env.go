@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"nhi-backend-api/internal/platform/config"
 	"nhi-backend-api/internal/remediation/domain"
@@ -90,9 +91,15 @@ func (s *Store) ensureEnvRow(ctx context.Context, typ string) error {
 	if _, ok := envFor(typ); !ok {
 		return ErrNotFound
 	}
-	_, err := s.pool.Exec(ctx, fmt.Sprintf(`INSERT INTO %s (integration_id, tenant_id, type, enabled, config)
-		VALUES ($1::uuid, $2::uuid, $3, true, '{"from_env": true}'::jsonb) ON CONFLICT (tenant_id, type) DO NOTHING`,
+	// NOT EXISTS rather than ON CONFLICT: a tenant schema restored without the
+	// (tenant_id, type) unique constraint would otherwise fail every listing.
+	_, err := s.pool.Exec(ctx, fmt.Sprintf(`INSERT INTO %[1]s (integration_id, tenant_id, type, enabled, config)
+		SELECT $1::uuid, $2::uuid, $3, true, '{"from_env": true}'::jsonb
+		WHERE NOT EXISTS (SELECT 1 FROM %[1]s WHERE tenant_id = $2::uuid AND type = $3)`,
 		s.tbl("remediation_integrations")), uuid.NewString(), s.TenantID, typ)
+	if isUniqueViolation(err) { // a concurrent request created it first
+		return nil
+	}
 	return err
 }
 
@@ -118,4 +125,10 @@ func nonNil(l []string) []string {
 		return []string{}
 	}
 	return l
+}
+
+// isUniqueViolation reports a unique_violation (23505).
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }

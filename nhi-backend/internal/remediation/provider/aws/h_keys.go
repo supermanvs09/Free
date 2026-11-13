@@ -341,11 +341,15 @@ func (h *rotateKey) rollback(ctx context.Context, c *Clients, r *run, snap map[s
 			return err
 		}
 	}
-	if err := r.do("make sure the old key is Active", "iam:UpdateAccessKey", func() (smithymw.Metadata, error) {
-		o, err := c.IAM.UpdateAccessKey(ctx, &iam.UpdateAccessKeyInput{UserName: aws.String(user), AccessKeyId: aws.String(oldID), Status: iamtypes.StatusTypeActive})
-		return mdOf(o, err)
-	}); err != nil {
-		return err
+	// oldID is empty for an engine rotation: the engine deactivates the old key in a separate
+	// follow-up plan, so its rollback only deletes the new key.
+	if oldID != "" {
+		if err := r.do("make sure the old key is Active", "iam:UpdateAccessKey", func() (smithymw.Metadata, error) {
+			o, err := c.IAM.UpdateAccessKey(ctx, &iam.UpdateAccessKeyInput{UserName: aws.String(user), AccessKeyId: aws.String(oldID), Status: iamtypes.StatusTypeActive})
+			return mdOf(o, err)
+		}); err != nil {
+			return err
+		}
 	}
 	if sec, prev := str(snap, "delivery_secret_arn"), str(snap, "previous_secret_version"); sec != "" && prev != "" {
 		d, err := c.Secrets.DescribeSecret(ctx, &secretsmanager.DescribeSecretInput{SecretId: aws.String(sec)})

@@ -268,6 +268,16 @@ func (p *Provider) Rollback(ctx context.Context, in provider.RollbackInput) (*pr
 	if err != nil {
 		return nil, err
 	}
+	if in.EngineFormat { // plan of the rule engine's automatic remediation (engine_snapshot.go)
+		if in.ActionType == catalog.ScopePolicy {
+			return p.engineScopeUndo(ctx, in)
+		}
+		snap, err := fromEngineSnapshot(in.ActionType, in.RollbackState)
+		if err != nil {
+			return &provider.RunResult{}, err
+		}
+		in.RollbackState = snap
+	}
 	c, err := p.clients(ctx, in.Target, in.SessionName, h, true)
 	if err != nil {
 		return &provider.RunResult{}, err

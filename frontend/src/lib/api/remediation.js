@@ -13,7 +13,7 @@ import { ApiError } from './http';
  *   POST /plans/{id}/cancel            { reason }
  *   POST /plans/{id}/mark-done         { note }
  *   POST /plans/{id}/submit|execute|confirm-external   (rare)
- *   GET  /executions/{id}, POST /executions/{id}/rollback
+ *   GET  /executions/{id}, POST /plans/{id}/rollback (by plan, also for automatic remediation)
  *   GET  /audit?plan_id=
  *   GET  /actions, GET /accounts[/{id}], PUT /accounts/{id},
  *   POST /accounts/{id}/validate, GET /accounts/{id}/setup
@@ -172,8 +172,8 @@ export async function fetchExecution(executionId, signal) {
   return normalizeExecution(data(await client.get(`${BASE}/executions/${enc(executionId)}`, { signal })));
 }
 
-export async function rollbackExecution(executionId) {
-  const b = body(await client.post(`${BASE}/executions/${enc(executionId)}/rollback`, {}));
+export async function rollbackPlan(planId) {
+  const b = body(await client.post(`${BASE}/plans/${enc(planId)}/rollback`, {}));
   return { execution: normalizeExecution(b.data), statusUrl: b.status_url || '' };
 }
 
