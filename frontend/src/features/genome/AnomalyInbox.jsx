@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, Dna, Repeat2, X } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Dna, Repeat2 } from 'lucide-react';
 import { severityMeta } from '../../lib/domain';
 import { formatDateTime, formatNumber, formatRelative } from '../../lib/format';
 import { genomeRoute } from '../../lib/identityLinks';
@@ -66,13 +66,13 @@ const numbersIn = (text) => (String(text ?? '').match(/-?\d+(?:\.\d+)?/g) ?? [])
 
 /* ── The selected identity ──────────────────────────────────────────────── */
 
-function Investigation({ group, priority, onOpen, canAct, onClose, onBack, only, onShowAll }) {
+function Investigation({ group, priority, onOpen, canAct, onClose, onBack }) {
   const worst = group.patterns[0];
   const worstSev = severityMeta(worst?.worst === 'UNRATED' ? '' : worst?.worst);
   const kinds = new Set(group.items.map((i) => i.dimension)).size;
   /* Patterns on a timeline, newest first, under day headings. */
   const byDay = useMemo(() => {
-    const sorted = group.patterns.filter((p) => !only || p.dimension === only).sort((a, b) => b.last - a.last);
+    const sorted = [...group.patterns].sort((a, b) => b.last - a.last);
     const out = [];
     for (const p of sorted) {
       const label = dayLabel(p.last);
@@ -80,7 +80,7 @@ function Investigation({ group, priority, onOpen, canAct, onClose, onBack, only,
       out[out.length - 1].items.push(p);
     }
     return out;
-  }, [group, only]);
+  }, [group]);
   const latest = group.items.reduce((a, b) => (new Date(b.detected_at) > new Date(a.detected_at) ? b : a));
   const name = group.identity?.display_name || group.identity?.identity_name;
 
@@ -129,15 +129,6 @@ function Investigation({ group, priority, onOpen, canAct, onClose, onBack, only,
             </span>
           ))}
         </div>
-        {only && (
-          <button
-            type="button"
-            onClick={onShowAll}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-ink px-2.5 py-1 text-[12px] font-medium text-surface hover:opacity-90"
-          >
-            Only {dimensionLabel(only).toLowerCase()} <X className="size-3.5" aria-label="Show every departure" />
-          </button>
-        )}
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
@@ -216,7 +207,6 @@ export function AnomalyInbox({ items, onOpen, canAct, onChanged, emptyState, onS
     [groups],
   );
   const [selectedKey, setSelectedKey] = useState(null);
-  const [only, setOnly] = useState(null);
   const [mobileDetail, setMobileDetail] = useState(false);
   const { ask, modal } = useCloseMany(onChanged);
   const listRef = useRef(null);
@@ -242,18 +232,7 @@ export function AnomalyInbox({ items, onOpen, canAct, onChanged, emptyState, onS
 
   return (
     <>
-      <AnomalyOverview
-        items={items}
-        ranked={ranked}
-        onSeverity={onSeverity}
-        activeSeverities={activeSeverities}
-        picked={only ? { key: current.group.key, dimension: only } : null}
-        onPick={(key, dimension) => {
-          setSelectedKey(key);
-          setOnly(dimension);
-          setMobileDetail(true);
-        }}
-      />
+      <AnomalyOverview items={items} onSeverity={onSeverity} activeSeverities={activeSeverities} />
       <div className="flex h-[min(78vh,880px)] min-h-[560px]">
         <div
           ref={listRef}
@@ -279,7 +258,6 @@ export function AnomalyInbox({ items, onOpen, canAct, onChanged, emptyState, onS
                 aria-selected={selected}
                 onClick={() => {
                   setSelectedKey(group.key);
-                  setOnly(null);
                   setMobileDetail(true);
                 }}
                 className={cn(
@@ -313,8 +291,6 @@ export function AnomalyInbox({ items, onOpen, canAct, onChanged, emptyState, onS
             canAct={canAct}
             onClose={ask}
             onBack={() => setMobileDetail(false)}
-            only={only}
-            onShowAll={() => setOnly(null)}
           />
         </div>
       </div>

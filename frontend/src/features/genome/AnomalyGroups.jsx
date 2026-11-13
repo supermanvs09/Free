@@ -115,119 +115,12 @@ function rangeText(pattern) {
   return `${formatNumber(pattern.min)} → ${formatNumber(pattern.max)}`;
 }
 
-const CELL = {
-  CRITICAL: 'bg-critical-soft text-critical',
-  HIGH: 'bg-high-soft text-high',
-  MEDIUM: 'bg-medium-soft text-medium',
-  LOW: 'bg-low-soft text-low',
-  UNRATED: 'bg-surface-3 text-ink-2',
-};
-const MATRIX_ROWS = 6;
-
-/**
- * Where it concentrates: the highest-priority identities against the ways
- * they departed. A cell is how many times, tinted by its worst severity, so
- * "payments-processor, new region, critical" reads in one glance and one
- * click opens exactly that.
- */
-function Concentration({ rows, total, picked, onPick }) {
-  const dims = useMemo(() => {
-    const count = new Map();
-    for (const r of rows) for (const i of r.group.items) count.set(i.dimension, (count.get(i.dimension) ?? 0) + 1);
-    return [...count.entries()].sort((a, b) => b[1] - a[1]).map(([d, n]) => ({ d, n }));
-  }, [rows]);
-  const cells = useMemo(
-    () =>
-      rows.map(({ group }) => {
-        const m = {};
-        for (const i of group.items) {
-          const c = (m[i.dimension] ??= { n: 0, worst: 'UNRATED' });
-          c.n += 1;
-          const s = sevKey(i);
-          if (SEVERITY_ORDER.indexOf(s) < SEVERITY_ORDER.indexOf(c.worst)) c.worst = s;
-        }
-        return m;
-      }),
-    [rows],
-  );
-  const shown = rows.slice(0, MATRIX_ROWS);
-  return (
-    <div className="min-w-0 overflow-x-auto">
-      <table className="w-full table-fixed border-separate border-spacing-[3px] text-[12px]" aria-label="Anomalies by identity and departure type">
-        <thead>
-          <tr>
-            <th className="w-[150px] px-1 pb-1 text-left align-bottom text-[10.5px] font-medium text-ink-3">Identity</th>
-            {dims.map(({ d, n }) => (
-              <th key={d} scope="col" className="px-1 pb-1 text-center align-bottom text-[10.5px] leading-tight font-medium text-ink-3">
-                {dimensionLabel(d)}
-                <span data-numeric="" className="block text-ink-3/70">
-                  {formatNumber(n)}
-                </span>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {shown.map(({ group }, ri) => {
-            const name = group.identity?.display_name || group.identity?.identity_name;
-            return (
-              <tr key={group.key}>
-                <th scope="row" className="max-w-0 truncate px-1 text-left text-[12.5px] font-medium text-ink" title={name}>
-                  <button type="button" onClick={() => onPick(group.key, null)} className="max-w-full truncate hover:text-brand">
-                    {name}
-                  </button>
-                </th>
-                {dims.map(({ d }) => {
-                  const c = cells[ri][d];
-                  const on = picked && picked.key === group.key && picked.dimension === d;
-                  return (
-                    <td key={d} className="p-0">
-                      {c ? (
-                        <button
-                          type="button"
-                          onClick={() => onPick(group.key, d)}
-                          aria-pressed={on}
-                          title={`${name} · ${dimensionLabel(d)} · ${c.n} (worst ${severityMeta(c.worst === 'UNRATED' ? '' : c.worst).label})`}
-                          className={cn(
-                            'h-8 w-full rounded-[6px] font-semibold transition-[box-shadow,transform] hover:-translate-y-px',
-                            CELL[c.worst],
-                            on && 'shadow-[0_0_0_2px_var(--color-surface),0_0_0_3.5px_var(--color-ink)]',
-                          )}
-                        >
-                          <span data-numeric="">{formatNumber(c.n)}</span>
-                        </button>
-                      ) : (
-                        <span className="block h-8 rounded-[6px] bg-surface-2/70" aria-label="none" />
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-[10.5px] text-ink-3">
-        {rows.length > MATRIX_ROWS ? `Top ${MATRIX_ROWS} of ${formatNumber(rows.length)} identities` : `${formatNumber(rows.length)} ${rows.length === 1 ? 'identity' : 'identities'}`} ·{' '}
-        {formatNumber(total)} anomalies · cell colour is its worst severity
-        <span className="ml-auto flex items-center gap-1">
-          {['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map((k) => (
-            <span key={k} className={cn('rounded-[3px] px-1 text-[10px] font-semibold', CELL[k])}>
-              {severityMeta(k).label}
-            </span>
-          ))}
-        </span>
-      </p>
-    </div>
-  );
-}
-
 /**
  * The first read of the tab: how much is waiting, how much of it is serious,
  * whether it is rising, and where it concentrates. One number, one sentence,
  * one line - colour only where severity is the point.
  */
-export function AnomalyOverview({ items, ranked, onSeverity, activeSeverities = [], picked, onPick }) {
+export function AnomalyOverview({ items, onSeverity, activeSeverities = [] }) {
   const stats = useMemo(() => {
     const now = Date.now();
     const sev = {};
@@ -253,7 +146,7 @@ export function AnomalyOverview({ items, ranked, onSeverity, activeSeverities = 
         : `down from ${formatNumber(stats.prior)} the day before`;
   return (
     <section aria-label="Anomaly summary" className="border-b border-line">
-      <div className="grid gap-x-8 gap-y-6 px-5 pt-6 pb-5 sm:px-6 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.5fr)]">
+      <div className="px-5 pt-6 pb-5 sm:px-6">
         <div className="flex min-w-0 flex-col">
           <p className="text-[11px] font-semibold tracking-[0.14em] text-ink-3 uppercase">Waiting for review</p>
           <p className="mt-2 flex items-baseline gap-2.5">
@@ -276,7 +169,7 @@ export function AnomalyOverview({ items, ranked, onSeverity, activeSeverities = 
             <span data-numeric="">{formatNumber(stats.fresh)}</span> new in the last 24 hours, {trend}.
           </p>
 
-          <div className="mt-auto pt-5">
+          <div className="mt-auto max-w-[560px] pt-5">
             <span className="flex h-[6px] w-full gap-[3px]" aria-hidden="true">
               {SEVERITY_ORDER.map((s) =>
                 stats.sev[s] ? (
@@ -312,11 +205,6 @@ export function AnomalyOverview({ items, ranked, onSeverity, activeSeverities = 
               })}
             </span>
           </div>
-        </div>
-
-        <div className="min-w-0">
-          <p className="mb-2 px-1 text-[11px] font-semibold tracking-[0.14em] text-ink-3 uppercase">Where it concentrates</p>
-          <Concentration rows={ranked} total={total} picked={picked} onPick={onPick} />
         </div>
       </div>
     </section>
