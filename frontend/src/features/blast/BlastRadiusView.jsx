@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState } from 'react';
-import { ArrowRight, ChevronDown, ChevronRight, KeyRound, Lock, RefreshCw, ShieldAlert, UserRoundCog } from 'lucide-react';
+import { ArrowRight, ChevronDown, ChevronRight, Lock, RefreshCw, ShieldAlert } from 'lucide-react';
 import { fetchBlastRadius, fetchWhoCanAssume } from '../../lib/api/blastRadius';
 import { useQuery } from '../../lib/hooks/useQuery';
 import { formatDateTime, formatNumber, formatRelative } from '../../lib/format';
@@ -9,6 +9,7 @@ import { Tag } from '../../ui/Tag';
 import { DetailSkeleton } from '../../ui/Skeleton';
 import { ClearState, EmptyState, ErrorState } from '../../ui/States';
 import { cn } from '../../ui/cn';
+import { BlastExplorer } from './BlastExplorer';
 
 /* ── Vocabulary ─────────────────────────────────────────────────────────── */
 
@@ -90,134 +91,6 @@ function Gauge({ score, level }) {
         </span>
         <span className="mt-1 text-[10.5px] font-semibold tracking-[0.14em] text-ink-3 uppercase">of 10</span>
       </div>
-    </div>
-  );
-}
-
-/* ── How it spreads: identity → roles it can become → services ──────────── */
-
-const ROW = 52;
-
-function SpreadMap({ result }) {
-  const model = useMemo(() => {
-    const source = result.source_arn;
-    const roles = (result.reachable_identities ?? []).slice(0, 6);
-    const services = [...(result.reach_by_service ?? [])].sort((a, b) => b.max_score - a.max_score).slice(0, 7);
-    const serviceIndex = new Map(services.map((s, i) => [s.service, i]));
-    const roleIndex = new Map(roles.map((r, i) => [r.arn, i]));
-    const edges = new Map(); // key -> {from:{col,i}, to:{col,i}, sensitive, cross}
-    for (const res of result.reachable_resources ?? []) {
-      const to = serviceIndex.get(res.service);
-      if (to === undefined) continue;
-      const via = (res.path_arns ?? []).slice(1, -1).filter((a) => roleIndex.has(a));
-      const from = via.length ? { col: 1, i: roleIndex.get(via[via.length - 1]) } : { col: 0, i: 0 };
-      const key = `${from.col}:${from.i}->${to}`;
-      const cross = accountOf(res.arn) && accountOf(res.arn) !== accountOf(source);
-      const prev = edges.get(key);
-      edges.set(key, { from, to: { col: 2, i: to }, sensitive: (prev?.sensitive ?? false) || isSensitive(res), cross: (prev?.cross ?? false) || cross });
-    }
-    for (const role of roles) {
-      edges.set(`src->${role.arn}`, { from: { col: 0, i: 0 }, to: { col: 1, i: roleIndex.get(role.arn) }, sensitive: false, cross: accountOf(role.arn) !== accountOf(source) });
-    }
-    return { roles, services, edges: [...edges.values()] };
-  }, [result]);
-
-  const counts = [1, model.roles.length, model.services.length];
-  const height = Math.max(...counts, 1) * ROW;
-  const centred = (col, i) => (height - counts[col] * ROW) / 2 + i * ROW + ROW / 2;
-  /* A role sits level with the services it leads to, so the identity's own
-     direct lines do not run through it; roles never overlap each other. */
-  const roleY = (() => {
-    const want = model.roles.map((_, i) => {
-      const ys = model.edges.filter((e) => e.from.col === 1 && e.from.i === i).map((e) => centred(2, e.to.i));
-      return ys.length ? ys.reduce((a, b) => a + b, 0) / ys.length : centred(1, i);
-    });
-    const order = want.map((y, i) => [y, i]).sort((a, b) => a[0] - b[0]);
-    const out = [];
-    let floor = ROW / 2;
-    for (const [y, i] of order) {
-      out[i] = Math.min(height - ROW / 2, Math.max(floor, y));
-      floor = out[i] + ROW;
-    }
-    return out;
-  })();
-  const yOf = (col, i) => (col === 1 ? roleY[i] : centred(col, i));
-  const X = { 0: [0, 22], 1: [39, 61], 2: [78, 100] };
-  const colX = (col) => X[col];
-
-  const node = (col, i, children, extra) => {
-    const [left, right] = colX(col);
-    return (
-      <div
-        key={`${col}-${i}`}
-        className={cn('absolute flex -translate-y-1/2 items-center', extra)}
-        style={{ left: `${left}%`, width: `${right - left}%`, top: yOf(col, i) }}
-      >
-        {children}
-      </div>
-    );
-  };
-
-  return (
-    <div className="relative" style={{ height }} aria-hidden="true">
-      <svg className="absolute inset-0 h-full w-full overflow-visible" viewBox={`0 0 100 ${height}`} preserveAspectRatio="none">
-        {model.edges.map((e, k) => {
-          const x1 = colX(e.from.col)[1];
-          const x2 = colX(e.to.col)[0];
-          const y1 = yOf(e.from.col, e.from.i);
-          const y2 = yOf(e.to.col, e.to.i);
-          const mid = (x1 + x2) / 2;
-          return (
-            <path
-              key={k}
-              d={`M${x1},${y1} C${mid},${y1} ${mid},${y2} ${x2},${y2}`}
-              fill="none"
-              stroke={e.sensitive ? 'var(--color-critical)' : 'var(--color-ink-3)'}
-              strokeOpacity={e.sensitive ? 0.7 : 0.35}
-              strokeWidth={e.sensitive ? 1.6 : 1.2}
-              strokeDasharray={e.cross ? '4 4' : undefined}
-              vectorEffect="non-scaling-stroke"
-            />
-          );
-        })}
-      </svg>
-      {node(
-        0,
-        0,
-        <span className="flex w-full min-w-0 items-center gap-2 rounded-full bg-ink px-3 py-2 text-surface shadow-[var(--t-shadow-lg)]">
-          <UserRoundCog className="size-4 shrink-0" />
-          <span className="min-w-0 truncate text-[12.5px] font-semibold">{result.source_name || lastSegment(result.source_arn)}</span>
-        </span>,
-      )}
-      {model.roles.map((role, i) =>
-        node(
-          1,
-          i,
-          <span className="flex w-full min-w-0 items-center gap-2 rounded-full border border-line bg-surface px-3 py-1.5" title={role.arn}>
-            <KeyRound className="size-3.5 shrink-0 text-ink-3" />
-            <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-ink">{lastSegment(role.arn)}</span>
-            {accountOf(role.arn) !== accountOf(result.source_arn) && <span className="shrink-0 text-[10.5px] text-ink-3">other acct</span>}
-          </span>,
-        ),
-      )}
-      {model.services.map((svc, i) =>
-        node(
-          2,
-          i,
-          <span
-            className={cn(
-              'flex w-full min-w-0 items-center gap-2 rounded-[10px] border px-3 py-1.5',
-              SENSITIVE.has(svc.service) ? 'border-critical/30 bg-critical-soft/50' : 'border-line bg-surface',
-            )}
-          >
-            <span className={cn('size-1.5 shrink-0 rounded-full', SENSITIVE.has(svc.service) ? 'bg-critical' : 'bg-ink-3/50')} />
-            <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-ink">{serviceLabel(svc.service)}</span>
-            <span data-numeric="" className="shrink-0 text-[11.5px] font-semibold text-ink-2">
-              {svc.wildcard ? 'all' : formatNumber(svc.resources)}
-            </span>
-          </span>,
-        ),
-      )}
     </div>
   );
 }
@@ -489,28 +362,14 @@ export function BlastRadiusView({ arn, compact = false }) {
         </dl>
       </section>
 
-      {/* How it spreads */}
+      {/* Explore the attack surface */}
       {!compact && (
-        <section className="hidden rounded-[var(--radius-panel)] border border-line bg-surface @2xl:block">
-          <header className="flex items-baseline justify-between gap-3 px-5 pt-4">
-            <h3 className="text-[13px] font-semibold text-ink">How it spreads</h3>
-            <span className="flex items-center gap-3 text-[11px] text-ink-3">
-              <span className="flex items-center gap-1.5">
-                <span className="h-px w-5 bg-critical" /> to secrets & keys
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-5 border-t border-dashed border-ink-3" /> into another account
-              </span>
-            </span>
+        <section className="hidden overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface @3xl:block">
+          <header className="flex items-baseline justify-between gap-3 border-b border-line px-5 py-3.5">
+            <h3 className="text-[13.5px] font-semibold text-ink">Attack surface</h3>
+            <span className="text-[12px] text-ink-3">Select any node to trace how an attacker gets there</span>
           </header>
-          <div className="px-5 pt-3 pb-5">
-            <div className="relative mb-3 h-4 text-[10.5px] font-semibold tracking-[0.12em] text-ink-3 uppercase">
-              <span className="absolute left-0">Identity</span>
-              {(result.reachable_identities ?? []).length > 0 && <span className="absolute left-[39%]">Roles it can become</span>}
-              <span className="absolute left-[78%]">What it reaches</span>
-            </div>
-            <SpreadMap result={result} />
-          </div>
+          <BlastExplorer result={result} />
         </section>
       )}
 
