@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Background,
   BackgroundVariant,
+  BaseEdge,
+  EdgeLabelRenderer,
+  getSmoothStepPath,
   Controls,
   MiniMap,
   Panel as FlowPanel,
@@ -17,6 +20,30 @@ import { HOP_METRICS, hopLabels, layoutHops } from './hopLayout';
 import { nodeTypes } from './GraphNodes';
 import { IconButton } from '../../ui/Button';
 import { cn } from '../../ui/cn';
+
+/* A smoothstep edge whose label sits on the straight run into its target,
+   not at the path's midpoint: React Flow centres labels on the vertical bend,
+   which lands them under the source box when one node fans out to several. */
+function LabeledEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style, markerEnd, markerStart, label, className }) {
+  const [path] = getSmoothStepPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
+  const gap = HOP_METRICS.COLUMN_WIDTH - HOP_METRICS.NODE_WIDTH;
+  return (
+    <>
+      <BaseEdge id={id} path={path} style={style} markerEnd={markerEnd} markerStart={markerStart} className={className} />
+      {label && (
+        <EdgeLabelRenderer>
+          <span
+            className="nodrag nopan pointer-events-none absolute max-w-[150px] truncate rounded-[5px] border border-line bg-surface px-1.5 py-px text-[10.5px] font-medium text-ink-2 shadow-[var(--t-shadow-sm)]"
+            style={{ transform: `translate(-50%, -50%) translate(${targetX - gap / 2}px, ${targetY}px)` }}
+          >
+            {label}
+          </span>
+        </EdgeLabelRenderer>
+      )}
+    </>
+  );
+}
+const edgeTypes = { labeled: LabeledEdge };
 
 /* Below this the 12px node labels stop being readable, so the fit stops
    shrinking and starts cropping instead. */
@@ -161,7 +188,7 @@ function FlowInner({
         id: edge.id,
         source: reversed ? edge.to : edge.from,
         target: reversed ? edge.from : edge.to,
-        type: 'smoothstep',
+        type: 'labeled',
         animated: false,
         label: active ? meta.label : edge.crossAccount ? 'another account' : undefined,
         ariaLabel: `${meta.label}${edge.callCount ? `, ${edge.callCount} calls` : ''}`,
@@ -499,6 +526,7 @@ function FlowInner({
           nodes={placedNodes}
           edges={flowEdges}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           onNodesChange={onNodesChange}
           onNodeClick={onNodeClick}
           onNodeMouseEnter={(_event, node) => setHoverId(node.id)}

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowUpRight, CheckCheck, CircleDot, Dna, FileWarning, Loader2, Send, ShieldAlert, UserPlus, X } from 'lucide-react';
+import { ArrowUpRight, CircleDot, Dna, FileWarning, Loader2, Send, ShieldAlert, UserPlus, X } from 'lucide-react';
 import { fetchAlertActivity, fetchAlerts, fetchAssignees, triageAlerts } from '../../lib/api/alerts';
 import { useQuery } from '../../lib/hooks/useQuery';
 import { formatDateTime, formatNumber, formatRelative } from '../../lib/format';
@@ -41,7 +41,7 @@ const STATUS = {
 };
 const QUEUES = [
   { key: 'active', label: 'Needs attention', test: (a) => a.triage.status === 'open' || a.triage.status === 'in_progress' },
-  { key: 'mine', label: 'Assigned to me', test: (a, me) => (a.triage.status === 'open' || a.triage.status === 'in_progress') && sameUser(a.triage.assignee, me) },
+  { key: 'mine', label: 'Mine', test: (a, me) => (a.triage.status === 'open' || a.triage.status === 'in_progress') && sameUser(a.triage.assignee, me) },
   { key: 'unassigned', label: 'Unassigned', test: (a) => (a.triage.status === 'open' || a.triage.status === 'in_progress') && !a.triage.assignee },
   { key: 'done', label: 'Closed', test: (a) => a.triage.status === 'resolved' || a.triage.status === 'dismissed' },
 ];
@@ -125,61 +125,23 @@ function Row({ a, selected, checked, onCheck, onSelect, people, canWork }) {
 
 /* ── The preview ────────────────────────────────────────────────────────── */
 
-function AssignMenu({ people, current, me, onPick, disabled }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-  useEffect(() => {
-    if (!open) return undefined;
-    const close = (e) => !ref.current?.contains(e.target) && setOpen(false);
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, [open]);
-  const workers = people.filter((p) => p.can_work);
+/* Ownership is self-service: take an alert, hand it back, or take over one
+   someone else holds. ponytail: no assigning to others; add a picker back
+   (GET /alerts/assignees still lists people) if teams ask for it. */
+function OwnerControl({ people, current, me, onPick, disabled }) {
+  const mine = sameUser(current, me);
   return (
-    <div className="relative" ref={ref}>
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => setOpen((v) => !v)}
-        className="flex h-9 min-w-[180px] items-center gap-2 rounded-[var(--radius-control)] border border-line bg-surface px-2.5 text-left text-[12.5px] hover:border-line-strong disabled:opacity-60"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-      >
-        {current ? <Avatar who={current} people={people} /> : <UserPlus className="size-4 text-ink-3" />}
-        <span className="min-w-0 flex-1 truncate text-ink">{current ? nameOf(current, people) : 'Unassigned'}</span>
-      </button>
-      {open && (
-        <div role="listbox" className="absolute right-0 z-30 mt-1.5 w-64 overflow-hidden rounded-[12px] border border-line bg-surface py-1 shadow-[var(--t-shadow-lg)]">
-          {me && !sameUser(current, me) && (
-            <button type="button" onClick={() => (onPick(me), setOpen(false))} className="flex w-full items-center gap-2 px-3 py-2 text-left text-[12.5px] font-medium text-brand hover:bg-surface-2">
-              <UserPlus className="size-3.5" /> Assign to me
-            </button>
-          )}
-          {workers.map((p) => (
-            <button
-              key={p.email}
-              type="button"
-              role="option"
-              aria-selected={sameUser(current, p.email)}
-              onClick={() => (onPick(p.email), setOpen(false))}
-              className="flex w-full items-center gap-2.5 px-3 py-2 text-left hover:bg-surface-2"
-            >
-              <Avatar who={p.email} people={people} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[12.5px] text-ink">{p.full_name || p.email}</span>
-                <span className="block truncate text-[11px] text-ink-3">
-                  {p.email} · {p.role}
-                </span>
-              </span>
-              {sameUser(current, p.email) && <CheckCheck className="size-3.5 text-brand" />}
-            </button>
-          ))}
-          {current && (
-            <button type="button" onClick={() => (onPick(''), setOpen(false))} className="flex w-full items-center gap-2 border-t border-line px-3 py-2 text-left text-[12.5px] text-ink-3 hover:bg-surface-2">
-              <X className="size-3.5" /> Unassign
-            </button>
-          )}
-        </div>
+    <div className="flex h-9 items-center gap-2 rounded-[var(--radius-control)] border border-line bg-surface pr-1 pl-2.5 text-[12.5px]">
+      {current ? <Avatar who={current} people={people} /> : <UserPlus className="size-4 text-ink-3" />}
+      <span className="max-w-[160px] truncate text-ink">{mine ? 'You own this' : current ? nameOf(current, people) : 'Nobody owns this'}</span>
+      {mine ? (
+        <button type="button" disabled={disabled} onClick={() => onPick('')} className="rounded-[7px] px-2 py-1 text-[12px] text-ink-3 hover:bg-surface-2 hover:text-ink disabled:opacity-60">
+          Release
+        </button>
+      ) : (
+        <button type="button" disabled={disabled || !me} onClick={() => onPick(me)} className="rounded-[7px] bg-ink px-2.5 py-1 text-[12px] font-medium text-surface hover:opacity-90 disabled:opacity-60">
+          {current ? 'Take over' : 'Take it'}
+        </button>
       )}
     </div>
   );
@@ -229,7 +191,7 @@ function Preview({ a, people, me, canWork, onChange }) {
 
         {canWork ? (
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <AssignMenu people={people} current={a.triage.assignee} me={me} disabled={busy} onPick={(email) => change({ assignee: email }, email ? `Assigned to ${nameOf(email, people)}` : 'Unassigned')} />
+            <OwnerControl people={people} current={a.triage.assignee} me={me} disabled={busy} onPick={(email) => change({ assignee: email }, email ? 'You own this alert now' : 'Released')} />
             <div className="flex rounded-[var(--radius-control)] border border-line p-0.5" role="group" aria-label="Status">
               {Object.entries(STATUS).map(([key, s]) => (
                 <button
@@ -334,8 +296,8 @@ function Preview({ a, people, me, canWork, onChange }) {
                 <Avatar who={e.actor} people={people} />
                 <span className="min-w-0">
                   <span className="text-[12.5px] text-ink-2">
-                    <span className="font-medium text-ink">{nameOf(e.actor, people)}</span> {ACTIONS[e.action] ?? e.action}{' '}
-                    {e.action === 'assigned' && <span className="font-medium text-ink">{nameOf(e.detail, people)}</span>}
+                    <span className="font-medium text-ink">{nameOf(e.actor, people)}</span> {e.action === 'assigned' && sameUser(e.detail, e.actor) ? 'took it' : e.action === 'unassigned' ? 'released it' : (ACTIONS[e.action] ?? e.action)}{' '}
+                    {e.action === 'assigned' && !sameUser(e.detail, e.actor) && <span className="font-medium text-ink">{nameOf(e.detail, people)}</span>}
                     {e.action === 'status' && <span className="font-medium text-ink">{STATUS[e.detail]?.label ?? e.detail}</span>}
                   </span>
                   <span className="ml-1.5 text-[11px] text-ink-3" title={formatDateTime(e.created_at)}>
@@ -543,24 +505,10 @@ export default function AlertsPage() {
                 <span className="text-[12.5px] font-semibold">{formatNumber(checked.size)} selected</span>
                 <span className="mx-1 h-4 w-px bg-surface/25" />
                 {me && (
-                  <button type="button" disabled={bulkBusy} onClick={() => bulk({ assignee: me }, 'assigned to you')} className="rounded-md px-2 py-1 text-[12.5px] hover:bg-white/10">
-                    Assign to me
+                  <button type="button" disabled={bulkBusy} onClick={() => bulk({ assignee: me }, 'now yours')} className="rounded-md px-2 py-1 text-[12.5px] hover:bg-white/10">
+                    Take them
                   </button>
                 )}
-                <select
-                  disabled={bulkBusy}
-                  value=""
-                  onChange={(e) => e.target.value && bulk({ assignee: e.target.value }, `assigned to ${nameOf(e.target.value, people)}`)}
-                  className="rounded-md bg-white/10 px-2 py-1 text-[12.5px] text-surface outline-none"
-                  aria-label="Assign selected to"
-                >
-                  <option value="">Assign to…</option>
-                  {people.filter((p) => p.can_work).map((p) => (
-                    <option key={p.email} value={p.email} className="text-ink">
-                      {p.full_name || p.email}
-                    </option>
-                  ))}
-                </select>
                 <button type="button" disabled={bulkBusy} onClick={() => bulk({ status: 'in_progress' }, 'marked in progress')} className="rounded-md px-2 py-1 text-[12.5px] hover:bg-white/10">
                   In progress
                 </button>
@@ -579,7 +527,7 @@ export default function AlertsPage() {
 
             {shown.length === 0 ? (
               <ClearState
-                title={queue.key === 'mine' ? 'Nothing assigned to you' : queue.key === 'done' ? 'Nothing closed yet' : q || sources.length || sevs.length ? 'No alert matches' : 'All clear'}
+                title={queue.key === 'mine' ? 'Nothing is yours yet' : queue.key === 'done' ? 'Nothing closed yet' : q || sources.length || sevs.length ? 'No alert matches' : 'All clear'}
                 description={queue.key === 'active' && !q && !sources.length && !sevs.length ? 'No alert needs attention. New ones appear here after each sync.' : 'Try another queue or filter.'}
               />
             ) : (

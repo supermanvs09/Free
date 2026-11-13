@@ -23,7 +23,7 @@
 const ROW_PITCH = 76;
 const NODE_HEIGHT = 56;
 const MORE_HEIGHT = 32;
-const COLUMN_WIDTH = 344; // leaves room for the "cross-account" edge label
+const COLUMN_WIDTH = 424; // 180px between columns: room for an edge label on the run into its target
 const NODE_WIDTH = 244;
 
 export const HOP_METRICS = { ROW_PITCH, NODE_HEIGHT, MORE_HEIGHT, COLUMN_WIDTH, NODE_WIDTH };

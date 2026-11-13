@@ -115,49 +115,109 @@ function rangeText(pattern) {
   return `${formatNumber(pattern.min)} → ${formatNumber(pattern.max)}`;
 }
 
-const TIMELINE_DAYS = 30;
-const dayLabel = (index) =>
-  new Date((Math.floor(Date.now() / DAY_MS) - (TIMELINE_DAYS - 1 - index)) * DAY_MS).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+const CELL = {
+  CRITICAL: 'bg-critical-soft text-critical',
+  HIGH: 'bg-high-soft text-high',
+  MEDIUM: 'bg-medium-soft text-medium',
+  LOW: 'bg-low-soft text-low',
+  UNRATED: 'bg-surface-3 text-ink-2',
+};
+const MATRIX_ROWS = 6;
 
-/* Heat steps for a day's count relative to the busiest day: calm, readable,
-   and one hue, so the only red is the dot under a critical day. */
-const HEAT = ['bg-surface-3', 'bg-brand/20', 'bg-brand/40', 'bg-brand/65', 'bg-brand'];
-
-/** Thirty days as a calendar strip: one cell a day, darker is busier, a red ring marks a critical. */
-function Trend({ days, hover, setHover }) {
-  const totals = days.map((d) => Object.values(d).reduce((a, b) => a + b, 0));
-  const peak = Math.max(1, ...totals);
-  const level = (n) => (n === 0 ? 0 : Math.min(4, 1 + Math.floor((n / peak) * 3.999)));
+/**
+ * Where it concentrates: the highest-priority identities against the ways
+ * they departed. A cell is how many times, tinted by its worst severity, so
+ * "payments-processor, new region, critical" reads in one glance and one
+ * click opens exactly that.
+ */
+function Concentration({ rows, total, picked, onPick }) {
+  const dims = useMemo(() => {
+    const count = new Map();
+    for (const r of rows) for (const i of r.group.items) count.set(i.dimension, (count.get(i.dimension) ?? 0) + 1);
+    return [...count.entries()].sort((a, b) => b[1] - a[1]).map(([d, n]) => ({ d, n }));
+  }, [rows]);
+  const cells = useMemo(
+    () =>
+      rows.map(({ group }) => {
+        const m = {};
+        for (const i of group.items) {
+          const c = (m[i.dimension] ??= { n: 0, worst: 'UNRATED' });
+          c.n += 1;
+          const s = sevKey(i);
+          if (SEVERITY_ORDER.indexOf(s) < SEVERITY_ORDER.indexOf(c.worst)) c.worst = s;
+        }
+        return m;
+      }),
+    [rows],
+  );
+  const shown = rows.slice(0, MATRIX_ROWS);
   return (
-    <div onMouseLeave={() => setHover(null)}>
-      <div className="flex gap-[3px]" role="img" aria-label={`Anomalies per day, last ${TIMELINE_DAYS} days`}>
-        {days.map((day, i) => (
-          <span key={i} onMouseEnter={() => setHover(i)} className="flex flex-1 flex-col items-center gap-1.5">
-            <span
-              className={cn(
-                'h-11 w-full rounded-[4px] transition-[transform,box-shadow] duration-150',
-                HEAT[level(totals[i])],
-                hover === i && 'scale-y-[1.08] shadow-[0_0_0_2px_var(--color-surface),0_0_0_3px_var(--color-ink-3)]',
-                i === days.length - 1 && 'shadow-[0_0_0_2px_var(--color-surface),0_0_0_3px_var(--color-brand)]',
-              )}
-            />
-            <span className={cn('size-1 rounded-full', day.CRITICAL ? 'bg-critical' : 'bg-transparent')} />
-          </span>
-        ))}
-      </div>
-      <div className="mt-2 flex items-center justify-between gap-3 text-[10.5px] text-ink-3">
-        <span>{dayLabel(0)}</span>
-        <span className="flex items-center gap-1.5">
-          <span className="size-1 rounded-full bg-critical" /> critical day
-        </span>
-        <span className="flex items-center gap-1">
-          Less
-          {HEAT.map((c) => (
-            <span key={c} className={cn('size-2.5 rounded-[3px]', c)} />
+    <div className="min-w-0 overflow-x-auto">
+      <table className="w-full table-fixed border-separate border-spacing-[3px] text-[12px]" aria-label="Anomalies by identity and departure type">
+        <thead>
+          <tr>
+            <th className="w-[150px] px-1 pb-1 text-left align-bottom text-[10.5px] font-medium text-ink-3">Identity</th>
+            {dims.map(({ d, n }) => (
+              <th key={d} scope="col" className="px-1 pb-1 text-center align-bottom text-[10.5px] leading-tight font-medium text-ink-3">
+                {dimensionLabel(d)}
+                <span data-numeric="" className="block text-ink-3/70">
+                  {formatNumber(n)}
+                </span>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {shown.map(({ group }, ri) => {
+            const name = group.identity?.display_name || group.identity?.identity_name;
+            return (
+              <tr key={group.key}>
+                <th scope="row" className="max-w-0 truncate px-1 text-left text-[12.5px] font-medium text-ink" title={name}>
+                  <button type="button" onClick={() => onPick(group.key, null)} className="max-w-full truncate hover:text-brand">
+                    {name}
+                  </button>
+                </th>
+                {dims.map(({ d }) => {
+                  const c = cells[ri][d];
+                  const on = picked && picked.key === group.key && picked.dimension === d;
+                  return (
+                    <td key={d} className="p-0">
+                      {c ? (
+                        <button
+                          type="button"
+                          onClick={() => onPick(group.key, d)}
+                          aria-pressed={on}
+                          title={`${name} · ${dimensionLabel(d)} · ${c.n} (worst ${severityMeta(c.worst === 'UNRATED' ? '' : c.worst).label})`}
+                          className={cn(
+                            'h-8 w-full rounded-[6px] font-semibold transition-[box-shadow,transform] hover:-translate-y-px',
+                            CELL[c.worst],
+                            on && 'shadow-[0_0_0_2px_var(--color-surface),0_0_0_3.5px_var(--color-ink)]',
+                          )}
+                        >
+                          <span data-numeric="">{formatNumber(c.n)}</span>
+                        </button>
+                      ) : (
+                        <span className="block h-8 rounded-[6px] bg-surface-2/70" aria-label="none" />
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-[10.5px] text-ink-3">
+        {rows.length > MATRIX_ROWS ? `Top ${MATRIX_ROWS} of ${formatNumber(rows.length)} identities` : `${formatNumber(rows.length)} ${rows.length === 1 ? 'identity' : 'identities'}`} ·{' '}
+        {formatNumber(total)} anomalies · cell colour is its worst severity
+        <span className="ml-auto flex items-center gap-1">
+          {['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map((k) => (
+            <span key={k} className={cn('rounded-[3px] px-1 text-[10px] font-semibold', CELL[k])}>
+              {severityMeta(k).label}
+            </span>
           ))}
-          More
         </span>
-      </div>
+      </p>
     </div>
   );
 }
@@ -167,13 +227,9 @@ function Trend({ days, hover, setHover }) {
  * whether it is rising, and where it concentrates. One number, one sentence,
  * one line - colour only where severity is the point.
  */
-export function AnomalyOverview({ items, groups, onSeverity, activeSeverities = [] }) {
-  const [hover, setHover] = useState(null);
+export function AnomalyOverview({ items, ranked, onSeverity, activeSeverities = [], picked, onPick }) {
   const stats = useMemo(() => {
     const now = Date.now();
-    const today = Math.floor(now / DAY_MS);
-    const days = Array.from({ length: TIMELINE_DAYS }, () => ({}));
-    const dims = new Map();
     const sev = {};
     let fresh = 0;
     let prior = 0;
@@ -183,38 +239,21 @@ export function AnomalyOverview({ items, groups, onSeverity, activeSeverities = 
       sev[s] = (sev[s] ?? 0) + 1;
       if (now - at < DAY_MS) fresh += 1;
       else if (now - at < 2 * DAY_MS) prior += 1;
-      const index = TIMELINE_DAYS - 1 - (today - Math.floor(at / DAY_MS));
-      if (index >= 0 && index < TIMELINE_DAYS) days[index][s] = (days[index][s] ?? 0) + 1;
-      dims.set(item.dimension, (dims.get(item.dimension) ?? 0) + 1);
     }
-    const top = [...dims.entries()].sort((a, b) => b[1] - a[1])[0];
-    const totals = days.map((d) => Object.values(d).reduce((a, b) => a + b, 0));
-    const peak = Math.max(0, ...totals);
-    return { days, sev, fresh, prior, top, totals, peak, peakIndex: totals.lastIndexOf(peak) };
+    return { sev, fresh, prior };
   }, [items]);
 
   const total = items.length;
   const severe = (stats.sev.CRITICAL ?? 0) + (stats.sev.HIGH ?? 0);
-  const worst = groups[0];
   const trend =
     stats.fresh === stats.prior
       ? 'as many as the day before'
       : stats.fresh > stats.prior
         ? `up from ${formatNumber(stats.prior)} the day before`
         : `down from ${formatNumber(stats.prior)} the day before`;
-  const facts = [
-    worst && {
-      label: 'Most affected',
-      value: worst.identity?.display_name || worst.identity?.identity_name,
-      detail: `${formatNumber(worst.items.length)} of ${formatNumber(total)}`,
-    },
-    stats.top && { label: 'Most common departure', value: dimensionLabel(stats.top[0]), detail: `${Math.round((stats.top[1] / total) * 100)}% of all` },
-    { label: 'Identities affected', value: formatNumber(groups.length), detail: `${formatNumber(groups.reduce((n, g) => n + g.patterns.filter((p) => p.items.length > 1).length, 0))} repeating patterns` },
-  ].filter(Boolean);
-
   return (
     <section aria-label="Anomaly summary" className="border-b border-line">
-      <div className="grid gap-x-10 gap-y-6 px-5 pt-6 pb-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
+      <div className="grid gap-x-8 gap-y-6 px-5 pt-6 pb-5 sm:px-6 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.5fr)]">
         <div className="flex min-w-0 flex-col">
           <p className="text-[11px] font-semibold tracking-[0.14em] text-ink-3 uppercase">Waiting for review</p>
           <p className="mt-2 flex items-baseline gap-2.5">
@@ -276,41 +315,10 @@ export function AnomalyOverview({ items, groups, onSeverity, activeSeverities = 
         </div>
 
         <div className="min-w-0">
-          <div className="mb-3 flex min-h-[18px] items-baseline justify-between gap-3">
-            <p className="text-[11px] font-semibold tracking-[0.14em] text-ink-3 uppercase">Detected · last {TIMELINE_DAYS} days</p>
-            <span aria-live="polite" className="flex items-center gap-1.5 text-[11.5px] text-ink-3" data-numeric="">
-              {hover !== null ? (
-                <>
-                  <span className="font-medium text-ink-2">{dayLabel(hover)}</span>·
-                  <span className="font-semibold text-ink">{formatNumber(stats.totals[hover])}</span>
-                  {stats.totals[hover] === 1 ? 'anomaly' : 'anomalies'}
-                  {stats.days[hover].CRITICAL ? <span className="font-medium text-critical">· {formatNumber(stats.days[hover].CRITICAL)} critical</span> : null}
-                </>
-              ) : (
-                <>
-                  Peak <span className="font-semibold text-ink">{formatNumber(stats.peak)}</span> on {dayLabel(stats.peakIndex)}
-                </>
-              )}
-            </span>
-          </div>
-          <Trend days={stats.days} hover={hover} setHover={setHover} />
+          <p className="mb-2 px-1 text-[11px] font-semibold tracking-[0.14em] text-ink-3 uppercase">Where it concentrates</p>
+          <Concentration rows={ranked} total={total} picked={picked} onPick={onPick} />
         </div>
       </div>
-      <dl className="grid grid-cols-1 divide-y divide-line border-t border-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-        {facts.map((fact) => (
-          <div key={fact.label} className="min-w-0 px-5 py-3.5 sm:px-6">
-            <dt className="text-[11px] text-ink-3">{fact.label}</dt>
-            <dd className="mt-0.5 flex min-w-0 items-baseline gap-2">
-              <span className="min-w-0 truncate text-[13.5px] font-semibold text-ink" title={fact.value}>
-                {fact.value}
-              </span>
-              <span data-numeric="" className="shrink-0 text-[11.5px] text-ink-3">
-                {fact.detail}
-              </span>
-            </dd>
-          </div>
-        ))}
-      </dl>
     </section>
   );
 }

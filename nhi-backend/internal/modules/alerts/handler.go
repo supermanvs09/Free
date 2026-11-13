@@ -151,21 +151,15 @@ func (h *Handler) Triage(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, "Nothing to change", "INVALID_REQUEST")
 		return
 	}
+	/* Ownership is self-service: you can take an alert or release it, not
+	   hand it to someone else. */
+	if body.Assignee != nil && strings.TrimSpace(*body.Assignee) != "" && !strings.EqualFold(strings.TrimSpace(*body.Assignee), c.UserID) {
+		fail(w, http.StatusForbidden, "You can take an alert yourself, not assign it to someone else", "ASSIGN_SELF_ONLY")
+		return
+	}
 	ds := h.scope(w, r)
 	if ds == nil {
 		return
-	}
-	/* Only a dashboard user of this workspace can own an alert. */
-	if body.Assignee != nil && strings.TrimSpace(*body.Assignee) != "" {
-		ok, err := h.isUser(r.Context(), c.TenantID, *body.Assignee)
-		if err != nil {
-			httpx.SendServerError(w, r, err, "Users could not be checked", "USERS_FAILED")
-			return
-		}
-		if !ok {
-			fail(w, http.StatusBadRequest, "That person is not an active user of this workspace", "INVALID_ASSIGNEE")
-			return
-		}
 	}
 	if err := applyTriage(r.Context(), ds, c.UserID, body); err != nil {
 		httpx.SendServerError(w, r, err, "The alerts could not be updated", "TRIAGE_FAILED")
@@ -223,22 +217,6 @@ func (h *Handler) Assignees(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	httpx.SendJSONResponse(w, http.StatusOK, httpx.APIResponse{Success: true, Message: "ok", Data: out})
-}
-
-func (h *Handler) isUser(ctx context.Context, tenantID, email string) (bool, error) {
-	if h.users == nil {
-		return false, nil
-	}
-	list, err := h.users.List(ctx, tenantID, "", "", "")
-	if err != nil {
-		return false, err
-	}
-	for _, u := range list {
-		if strings.EqualFold(u.Email, strings.TrimSpace(email)) && strings.EqualFold(u.Status, "active") {
-			return true, nil
-		}
-	}
-	return false, nil
 }
 
 // Identity: GET /alerts/identities/{id} - why one identity's score dropped.

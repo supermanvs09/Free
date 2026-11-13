@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Crosshair, ExternalLink, Fingerprint, Radius } from 'lucide-react';
+import { ChevronRight, Crosshair, ExternalLink, Fingerprint, Radius } from 'lucide-react';
 import { findPosture, getCredentialTab, getIdentityTab } from '../../lib/api/access';
 import { useQuery } from '../../lib/hooks/useQuery';
 import { accessDetailRoute, genomeRouteFor, identityRoute } from '../../lib/identityLinks';
@@ -344,38 +344,18 @@ function SummaryPane({ node, isFocusNode, detail, posture, discoveryId, onFocus 
       )}
 
       {(discoveryId || genome) && (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-col gap-2">
           {!isFocusNode && discoveryId && (
-            <Button variant="secondary" size="sm" icon={Crosshair} onClick={() => onFocus(discoveryId)}>
+            <Button variant="secondary" size="sm" icon={Crosshair} onClick={() => onFocus(discoveryId)} className="w-full justify-center">
               Start the graph here
             </Button>
           )}
-          {node.identityId && (
-            <Button variant="ghost" size="sm" as={Link} to={accessDetailRoute(node.identityId)} iconRight={Radius}>
-              Full access detail
-            </Button>
-          )}
-          {node.identityId && (
-            <Button variant="ghost" size="sm" as={Link} to={identityRoute(node.identityId)} iconRight={ExternalLink}>
-              Open identity
-            </Button>
-          )}
-          {!node.identityId && node.credentialId && (
-            <Button
-              variant="ghost"
-              size="sm"
-              as={Link}
-              to={`/credentials?search=${encodeURIComponent(node.name)}`}
-              iconRight={ExternalLink}
-            >
-              Open credential
-            </Button>
-          )}
-          {genome && (
-            <Button variant="ghost" size="sm" as={Link} to={genome} iconRight={Fingerprint}>
-              Normal behaviour
-            </Button>
-          )}
+          <nav aria-label="Open elsewhere" className="flex flex-col divide-y divide-line overflow-hidden rounded-[10px] border border-line">
+            {node.identityId && <GoRow to={accessDetailRoute(node.identityId)} icon={Radius} label="Full access detail" />}
+            {node.identityId && <GoRow to={identityRoute(node.identityId)} icon={ExternalLink} label="Open identity" />}
+            {!node.identityId && node.credentialId && <GoRow to={`/credentials?search=${encodeURIComponent(node.name)}`} icon={ExternalLink} label="Open credential" />}
+            {genome && <GoRow to={genome} icon={Fingerprint} label="Normal behaviour" />}
+          </nav>
         </div>
       )}
 
@@ -584,6 +564,17 @@ function PermissionsPane({ permissions, identityId }) {
         </Button>
       )}
     </>
+  );
+}
+
+/** One "go to" row: icon, label, chevron - every exit from the panel looks the same. */
+function GoRow({ to, icon: Icon, label }) {
+  return (
+    <Link to={to} className="group flex items-center gap-2.5 px-3 py-2.5 text-[12.5px] font-medium text-ink hover:bg-surface-2">
+      <Icon className="size-4 text-ink-3 group-hover:text-brand" aria-hidden="true" />
+      <span className="flex-1">{label}</span>
+      <ChevronRight className="size-4 text-ink-3 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+    </Link>
   );
 }
 
