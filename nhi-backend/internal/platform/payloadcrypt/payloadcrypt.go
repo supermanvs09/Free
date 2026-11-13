@@ -131,6 +131,9 @@ func PublicKeyHandler(cfg Config) http.HandlerFunc {
 		der, _ := x509.MarshalPKIXPublicKey(&cfg.Key.PublicKey)
 		data["alg"] = Alg
 		data["key"] = base64.StdEncoding.EncodeToString(der)
+		// The paths left in the clear, so the console sends them plain too:
+		// one setting covers an API served by another service (genome, say).
+		data["exempt"] = cfg.Exempt
 	}
 	body, _ := json.Marshal(map[string]any{"success": true, "message": "Payload encryption", "data": data})
 	return func(w http.ResponseWriter, _ *http.Request) {
@@ -198,6 +201,11 @@ func requestCipher(key *rsa.PrivateKey, r *http.Request) (cipher.AEAD, error) {
 			return nil, errors.New("the request body is too large or unreadable")
 		}
 		raw = bytes.TrimSpace(b)
+		// A client library that sends JSON null for "no body" (axios does)
+		// has no body to encrypt.
+		if string(raw) == "null" {
+			raw = nil
+		}
 	}
 	if len(raw) > 0 {
 		if err := json.Unmarshal(raw, &env); err != nil || env.IV == "" || env.Data == "" {

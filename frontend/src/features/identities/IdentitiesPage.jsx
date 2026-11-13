@@ -10,7 +10,7 @@ import { useDebouncedValue, useQuery } from '../../lib/hooks';
 import { useAccess } from '../../app/useAccess';
 import { formatDate, formatNumber, formatRelative } from '../../lib/format';
 import { exportRowsToCsv, timestampedName } from '../../lib/csv';
-import { PageHeader } from '../../shell/PageHeader';
+import { DiscoveryTabs, PageHeader } from '../../shell/PageHeader';
 import { Button, IconButton } from '../../ui/Button';
 import { Panel } from '../../ui/Panel';
 import { SearchInput, Select } from '../../ui/Field';
@@ -508,8 +508,9 @@ export default function IdentitiesPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Identities"
+        title="Discovery"
         lede="Workloads, services and automations that act in your AWS accounts. Select one to see what it can do, who can use it and what it did."
+        sections={<DiscoveryTabs />}
         /* The views are lenses on the same identities, not a breakdown of the
            total: an identity unused for 90 days is also idle for 30, and a
            public one can be idle too. Said once, where the numbers are, so

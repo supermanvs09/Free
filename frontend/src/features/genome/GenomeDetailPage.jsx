@@ -163,7 +163,8 @@ function baselineState(baseline, items, lastSeen) {
   if (lastSeen !== undefined && !lastSeen) {
     return { key: 'none', label: 'No activity yet', tone: 'neutral', at: null };
   }
-  if (baseline || learning) return { key: 'learning', label: 'Learning', tone: 'medium', at: learning?.occurred_at ?? null };
+  /* Calls are coming in, so its normal behaviour is being learned. */
+  if (baseline || learning || lastSeen) return { key: 'learning', label: 'Learning', tone: 'medium', at: learning?.occurred_at ?? null };
   return { key: 'none', label: 'No baseline yet', tone: 'neutral', at: null };
 }
 

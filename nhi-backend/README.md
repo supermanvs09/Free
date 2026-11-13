@@ -407,7 +407,7 @@ console side `frontend/src/lib/api/payloadCrypto.js`):
 
 Settings: `PAYLOAD_RSA_PRIVATE_KEY` - the private key as one base64 line (PEM
 also accepted) - or `PAYLOAD_RSA_PRIVATE_KEY_FILE`; `PAYLOAD_ENCRYPTION_EXEMPT`
-adds path prefixes left in the clear (health, `/api/v1/auth/payload-key` and the
+adds path prefixes left in the clear - published with the key, so the console sends them plain too (use it when another service, e.g. genome, answers a path) - (health, `/api/v1/auth/payload-key` and the
 worker's `/api/v1/ispm-scans` always are). Enabled without a usable key, the API
 refuses to start. A key, printed as one line with no file written:
 `openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 | grep -v '^-----' | tr -d '\n'`.

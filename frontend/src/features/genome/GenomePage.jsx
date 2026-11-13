@@ -43,7 +43,8 @@ const DAY_MS = 86400000;
 /**
  * Where an identity's baseline stands, from the genome list's baseline
  * status: active is established, inactive is learning (days learned of days
- * required when the pipeline reports them), no baseline row is not started.
+ * required when the pipeline reports them). An identity making calls without a
+ * baseline row yet is learning too; one with neither is not started.
  * An identity that has never made a call is not learning anything, whatever
  * its baseline row says: it reads "No activity" (and sorts with the
  * not-started ones). lastSeen is undefined when activity could not be read,
@@ -54,9 +55,11 @@ export function learningState(baseline, lastSeen) {
   if (status === 'active') return { key: 'established', label: 'Established', tone: 'low' };
   const neverActive = lastSeen !== undefined && !lastSeen;
   if (neverActive) return { key: 'none', label: 'No activity', tone: 'neutral' };
-  if (status === 'inactive' || status) {
-    const built = Number(baseline.builtDays) || 0;
-    const required = Number(baseline.requiredDays) || 0;
+  /* Calls are coming in but there is no established baseline yet: it is
+     being learned, with or without a baselines row so far. */
+  if (status === 'inactive' || status || lastSeen) {
+    const built = Number(baseline?.builtDays) || 0;
+    const required = Number(baseline?.requiredDays) || 0;
     const pct = required > 0 ? Math.min(100, (built / required) * 100) : null;
     return { key: 'learning', label: 'Learning', tone: 'medium', built, required, pct, left: required > built ? required - built : 0 };
   }

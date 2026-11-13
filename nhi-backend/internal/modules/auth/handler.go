@@ -220,6 +220,12 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 // Logout handles POST /api/v1/logout
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	clearRefreshCookie(w) // whatever happens next, this browser is signed out
+	// No session left to end (it expired, or was ended in another tab): the
+	// browser is signed out all the same, which is what was asked.
+	if c, err := r.Cookie(refreshCookie); (err != nil || strings.TrimSpace(c.Value) == "") && r.ContentLength <= 0 {
+		sendJSON(w, http.StatusOK, httpx.APIResponse{Success: true, Message: "Logged out"})
+		return
+	}
 	token, ok := decodeRefreshRequest(w, r)
 	if !ok {
 		return

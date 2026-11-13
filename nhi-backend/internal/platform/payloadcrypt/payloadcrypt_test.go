@@ -165,3 +165,15 @@ func TestParsePrivateKeyForms(t *testing.T) {
 		t.Error("garbage accepted")
 	}
 }
+
+// A POST with a JSON null body (axios's "no body") is a bodiless request.
+func TestNullBodyIsNoBody(t *testing.T) {
+	c := newClient(t)
+	r := c.request(t, "POST", "/api/v1/logout", "", nil, time.Now())
+	r.Body = io.NopCloser(strings.NewReader("null"))
+	rec := httptest.NewRecorder()
+	Middleware(on())(echo).ServeHTTP(rec, r)
+	if plain, _ := c.open(t, "POST", "/api/v1/logout", rec); plain != `{"got":""}` {
+		t.Fatalf("plain %s", plain)
+	}
+}

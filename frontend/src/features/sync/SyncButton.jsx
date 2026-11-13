@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, ChevronDown, Layers, Loader2, RefreshCw, Server } from 'lucide-react';
 import { useWorkspace } from '../../app/WorkspaceContext';
-import { formatDateTime, formatRelative } from '../../lib/format';
+import { formatRelative } from '../../lib/format';
 import { Button } from '../../ui/Button';
 import { FloatingPanel } from '../../ui/Floating';
 import { cn } from '../../ui/cn';
@@ -12,15 +12,14 @@ const STEP_OF = { start: 1, discovery: 2, posture: 3, refresh: 4 };
 /**
  * The scan control in the top bar, where it is on every screen:
  *
- *   idle       "Sync now" with when the data was last synced beside it
+ *   idle       "Sync now" (each account's last sync is in its chooser)
  *   running    "Syncing · step 2 of 4": opens the progress panel
  *   cooling    the next sync's countdown (the scanner allows one every 10 minutes)
  *   failed     "Sync didn't finish": opens the panel
  *
- * A role that may not start scans still sees when the data is from.
  */
 export function SyncButton() {
-  const { run, cooldownUntil, lastScanAt, canScan, openPanel, start } = useSync();
+  const { run, cooldownUntil, canScan, openPanel, start } = useSync();
   const [now, setNow] = useState(() => Date.now());
   const cooling = cooldownUntil > now;
   useEffect(() => {
@@ -50,19 +49,10 @@ export function SyncButton() {
     );
   }
 
-  const last = lastScanAt ? (
-    <span className="hidden text-[12px] text-topbar-muted xl:inline" title={formatDateTime(lastScanAt)}>
-      Synced {formatRelative(lastScanAt)}
-    </span>
-  ) : null;
-
-  if (!canScan) return <div className="hidden sm:flex">{last}</div>;
-  return (
-    <>
-      {last}
-      <SyncChooser base={base} cooling={cooling} cooldownUntil={cooldownUntil} now={now} start={start} openPanel={openPanel} />
-    </>
-  );
+  /* No "Synced N ago" beside it: each account's last sync is in the chooser,
+     where it is per account and not one misleading time for all of them. */
+  if (!canScan) return null;
+  return <SyncChooser base={base} cooling={cooling} cooldownUntil={cooldownUntil} now={now} start={start} openPanel={openPanel} />;
 }
 
 /** Accounts a sync can read: connected, with regions to read. */

@@ -36,13 +36,18 @@ export function AuthProvider({ children }) {
     setStatus('anonymous');
   }, []);
 
+  /* The session ends on this screen at once, so no page keeps polling with a
+     token the server is about to revoke (those calls would fail with 401);
+     the server is told in the background - it is sent before the token is
+     cleared, and the cookie goes with it. */
   const logout = useCallback(async ({ reason = 'signout' } = {}) => {
-    await logoutRequest();
+    const told = logoutRequest();
     clearSession();
     clearLastActivity();
     clearFacetRailState();
     setEndReason(reason);
     endSession();
+    await told;
   }, [endSession]);
 
   /* Back after signing out must not show the console again. A page the

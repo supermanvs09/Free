@@ -67,6 +67,8 @@ export default function App() {
                     old links still land on it. */}
                 <Route path="/posture/:id" element={<Screen><PostureIdentityPage /></Screen>} />
                 <Route path="/scans/:scanId/changes" element={<Screen><ScanChangesPage /></Screen>} />
+                {/* Discovery is Identities and Credentials as two tabs. */}
+                <Route path="/discovery" element={<Navigate to="/identities" replace />} />
                 <Route path="/identities" element={<Screen><IdentitiesPage /></Screen>} />
                 <Route path="/identities/:id" element={<Screen><IdentityPage /></Screen>} />
                 <Route path="/credentials" element={<Screen><CredentialsPage /></Screen>} />

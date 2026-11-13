@@ -33,7 +33,10 @@ function loadSettings(baseURL) {
       if (!data.enabled) return { enabled: false };
       if (!globalThis.crypto?.subtle) throw new Error('This console needs a secure (HTTPS) connection.');
       const publicKey = await crypto.subtle.importKey('spki', fromB64(data.key), { name: 'RSA-OAEP', hash: 'SHA-256' }, false, ['encrypt']);
-      return { enabled: true, publicKey };
+      /* Paths the server leaves in the clear (PAYLOAD_ENCRYPTION_EXEMPT): sent
+         plain, with no key header - they may be served by another service. */
+      const exempt = (Array.isArray(data.exempt) ? data.exempt : []).map((p) => String(p).replace(/\/+$/, '')).filter(Boolean);
+      return { enabled: true, publicKey, exempt };
     })
     .catch((error) => {
       settings = null; // ask again on the next request
@@ -46,8 +49,10 @@ const pathOf = (config) => new URL(axios.getUri(config), window.location.origin)
 
 async function encryptRequest(config) {
   if (EXEMPT.some((re) => re.test(config.url || ''))) return config;
-  const { enabled, publicKey } = await loadSettings(config.baseURL);
+  const { enabled, publicKey, exempt } = await loadSettings(config.baseURL);
   if (!enabled) return config;
+  const path = pathOf(config);
+  if (exempt.some((p) => path === p || path.startsWith(`${p}/`))) return config;
 
   const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
   const raw = await crypto.subtle.exportKey('raw', key);
@@ -60,13 +65,14 @@ async function encryptRequest(config) {
   if (!('_plainData' in config)) config._plainData = config.data;
   const plain = config._plainData;
   if (plain === undefined || plain === null || plain instanceof FormData) {
-    config.data = plain;
+    /* No body at all: axios would otherwise send JSON "null". */
+    config.data = plain instanceof FormData ? plain : undefined;
     return config;
   }
   const text = typeof plain === 'string' ? plain : JSON.stringify(plain);
   const ts = Date.now();
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const aad = enc.encode(`${(config.method || 'get').toUpperCase()} ${pathOf(config)} ${ts}`);
+  const aad = enc.encode(`${(config.method || 'get').toUpperCase()} ${path} ${ts}`);
   const data = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: aad }, key, enc.encode(text));
   config.data = { iv: toB64(iv), data: toB64(data), ts };
   config.headers['Content-Type'] = 'application/json';

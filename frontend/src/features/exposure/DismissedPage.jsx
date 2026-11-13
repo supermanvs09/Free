@@ -282,7 +282,7 @@ export default function DismissedPage() {
     const detail = describeExposureError(query.error);
     return (
       <div className="flex flex-col gap-6">
-        <PageHeader title="Accepted exposures" />
+        <PageHeader title="Marked safe" />
         <Panel>
           <ErrorState error={{ message: detail.message, code: query.error?.code }} title={detail.title} onRetry={query.refetch} />
         </Panel>
@@ -370,12 +370,12 @@ export default function DismissedPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Accepted exposures"
+        title="Marked safe"
         lede="Findings marked as safe. They no longer appear in Exposed credentials; restore one to bring it back."
         actions={
           <>
             <Button as={Link} to="/exposure" variant="ghost" icon={ArrowLeft}>
-              Back to findings
+              Back to exposed credentials
             </Button>
           </>
         }

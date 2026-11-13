@@ -6,7 +6,7 @@ import { fetchCredentials, fetchIdentities } from '../lib/api/inventory';
 import { useDebouncedValue, useQuery, useScrollLock } from '../lib/hooks';
 import { useAccess } from '../app/useAccess';
 import { useWorkspace } from '../app/WorkspaceContext';
-import { navGroupsFor } from './navigation';
+import { navGroupsFor, PROFILE_ITEMS } from './navigation';
 import { identityRoute } from '../lib/identityLinks';
 import { credentialTypeMeta, identityTypeLabel } from '../features/identities/meta';
 import { Skeleton } from '../ui/Skeleton';
@@ -57,9 +57,13 @@ export function CommandPalette({ open, onClose }) {
   const { exposureEnabled } = useWorkspace();
   const navMatches = useMemo(() => {
     const needle = term.trim().toLowerCase();
-    const allowed = navGroupsFor(can, role, { exposure: exposureEnabled }).flatMap((group) =>
-      group.items.map((item) => ({ ...item, group: group.label })),
-    );
+    const allowed = [
+      ...navGroupsFor(can, role, { exposure: exposureEnabled }).flatMap((group) =>
+        group.items.map((item) => ({ ...item, group: group.label })),
+      ),
+      /* In the profile menu rather than the rail, but still worth finding by name. */
+      ...PROFILE_ITEMS.filter((item) => !item.permission || can(item.permission)).map((item) => ({ ...item, group: 'Settings' })),
+    ];
     if (!needle) return allowed;
     return allowed.filter(
       (item) => item.label.toLowerCase().includes(needle) || item.group.toLowerCase().includes(needle),

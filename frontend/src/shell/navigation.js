@@ -6,90 +6,62 @@ import {
   Fingerprint,
   Gauge,
   // History, - reinstate with the Scans nav item
-  KeyRound,
   Plug,
   ScrollText,
   UsersRound,
   ShieldCheck,
-  ShieldOff,
   Wrench,
 } from 'lucide-react';
 
 /**
- * Information architecture.
+ * Information architecture: two short lists, no folders. Overview is every
+ * screen that reads the estate, in the order an operator works through it:
+ * how exposed (Dashboard, Posture, Remediation), what exists (Discovery: its
+ * identities and credentials as tabs), what leaked (Credential exposure, with
+ * the findings marked safe inside it), what it could do (Access graph), what
+ * it did (NHI Genome, Activity). Settings is the one place that changes how
+ * the estate is collected. Users & roles and the audit log live in the
+ * profile menu, not here.
  *
- * Grouped by the question an operator is answering, not by the API surface:
- * "how exposed am I" (Overview), "what exists" (Inventory), "what leaked"
- * (Credential exposure), how it behaves (Behaviour), "what happened"
- * (Operations).
+ * `match` lists the paths an item stands for when it is more than its own
+ * (Discovery is /identities and /credentials).
  */
 export const NAV_GROUPS = [
   {
     key: 'overview',
     label: 'Overview',
-    /* The dashboard says what the estate holds; Posture scores how exposed
-       each identity is. */
     items: [
       { to: '/overview', label: 'Dashboard', icon: Gauge, end: true },
       { to: '/posture', label: 'Posture', icon: ShieldCheck },
-      /* Fixing what Posture found: plans, approvals and their runs. */
       { to: '/remediation', label: 'Remediation', icon: Wrench },
+      { to: '/identities', label: 'Discovery', icon: Fingerprint, match: ['/identities', '/credentials', '/discovery'] },
+      /* Shown once a code source is switched on (`feature: 'exposure'`). */
+      { to: '/exposure', label: 'Credential exposure', icon: FileWarning, permission: 'exposure.view', feature: 'exposure' },
+      /* Separate from the genome on purpose: the genome is what an identity
+         has done, the graph what it could do. */
+      { to: '/access-graph', label: 'Access graph', icon: Waypoints },
+      { to: '/genome', label: 'NHI Genome', icon: Dna },
+      { to: '/activity', label: 'Activity', icon: Activity },
     ],
-  },
-  {
-    key: 'inventory',
-    label: 'Inventory',
-    items: [
-      { to: '/identities', label: 'Identities', icon: Fingerprint },
-      { to: '/credentials', label: 'Credentials', icon: KeyRound },
-    ],
-  },
-  {
-    key: 'exposure',
-    label: 'Credential exposure',
-    /* Shown once GitHub or CodeCommit scanning is switched on for an AWS
-       account on the Integrations page (`feature: 'exposure'`). */
-    items: [
-      { to: '/exposure', label: 'Exposed credentials', icon: FileWarning, end: true, permission: 'exposure.view', feature: 'exposure' },
-      { to: '/exposure/dismissed', label: 'Accepted', icon: ShieldOff, permission: 'exposure.view', feature: 'exposure' },
-    ],
-  },
-  {
-    key: 'access',
-    label: 'Access',
-    /* Separate from Behaviour on purpose. The genome is what an identity has
-       done; the graph is what it could do. Conflating observed behaviour with
-       granted entitlement is how a quiet identity with administrator access
-       gets mistaken for a safe one. */
-    items: [{ to: '/access-graph', label: 'Access graph', icon: Waypoints, end: true }],
-  },
-  {
-    key: 'behaviour',
-    label: 'Behaviour',
-    items: [{ to: '/genome', label: 'NHI Genome', icon: Dna }],
-  },
-  {
-    key: 'operations',
-    label: 'Operations',
-    /* Alerts, Reports, Scans and User management have no API yet; they
-       return here with their endpoints. */
-    items: [{ to: '/activity', label: 'Activity', icon: Activity }],
   },
   {
     key: 'settings',
     label: 'Settings',
-    /* Last in the rail on purpose. Everything above reads the estate; this is
-       the one group that changes how the estate is collected. */
-    /* Users & roles administers the console itself (admins only); the audit
-       log is open to everyone, who see their own actions (admins and
-       operators see everyone's). */
-    items: [
-      { to: '/integrations', label: 'Integrations', icon: Plug },
-      { to: '/settings/users', label: 'Users & roles', icon: UsersRound, permission: 'users.manage' },
-      { to: '/audit-log', label: 'Audit log', icon: ScrollText },
-    ],
+    items: [{ to: '/integrations', label: 'Integrations', icon: Plug }],
   },
 ];
+
+/* Reached from the profile menu, not the rail; listed for search and breadcrumbs. */
+export const PROFILE_ITEMS = [
+  { to: '/settings/users', label: 'Users & roles', icon: UsersRound, permission: 'users.manage' },
+  { to: '/audit-log', label: 'Audit log', icon: ScrollText },
+];
+
+/** Whether item stands for the screen at pathname. */
+export function isActiveItem(item, pathname) {
+  const paths = item.match ?? [item.to];
+  return paths.some((p) => pathname === p || (!item.end && pathname.startsWith(`${p}/`)));
+}
 
 /**
  * The navigation a role can use: items it lacks the permission for, items
@@ -105,9 +77,10 @@ export function navGroupsFor(can, role, features = {}) {
   })).filter((group) => group.items.length > 0);
 }
 
-export const ALL_NAV_ITEMS = NAV_GROUPS.flatMap((group) =>
-  group.items.map((item) => ({ ...item, group: group.label || 'Overview' })),
-);
+export const ALL_NAV_ITEMS = [
+  ...NAV_GROUPS.flatMap((group) => group.items.map((item) => ({ ...item, group: group.label || 'Overview' }))),
+  ...PROFILE_ITEMS.map((item) => ({ ...item, group: 'Settings' })),
+];
 
 /**
  * Breadcrumb trail per route. A console is a place people get lost in, so
@@ -118,13 +91,13 @@ export const BREADCRUMBS = {
   '/overview': ['Overview', 'Dashboard'],
   '/posture': ['Overview', 'Posture'],
   '/remediation': ['Overview', 'Remediation'],
-  '/identities': ['Inventory', 'Identities'],
-  '/credentials': ['Inventory', 'Credentials'],
-  '/exposure': ['Credential exposure', 'Exposed credentials'],
-  '/exposure/dismissed': ['Credential exposure', 'Accepted'],
-  '/access-graph': ['Access', 'Access graph'],
-  '/genome': ['Behaviour', 'NHI Genome'],
-  '/activity': ['Operations', 'Activity'],
+  '/identities': ['Overview', 'Discovery', 'Identities'],
+  '/credentials': ['Overview', 'Discovery', 'Credentials'],
+  '/exposure': ['Overview', 'Credential exposure'],
+  '/exposure/dismissed': ['Overview', 'Credential exposure', 'Marked safe'],
+  '/access-graph': ['Overview', 'Access graph'],
+  '/genome': ['Overview', 'NHI Genome'],
+  '/activity': ['Overview', 'Activity'],
   '/integrations': ['Settings', 'Integrations'],
   '/settings/users': ['Settings', 'Users & roles'],
   '/audit-log': ['Settings', 'Audit log'],
@@ -137,9 +110,9 @@ export const BREADCRUMBS = {
 export const BREADCRUMB_PREFIXES = [
   { prefix: '/posture/', trail: ['Overview', 'Posture', 'Identity'] },
   { prefix: '/scans/', trail: ['Overview', 'Dashboard', 'Scan changes'] },
-  { prefix: '/identities/', trail: ['Inventory', 'Identities', 'Identity'] },
-  { prefix: '/access-graph/', trail: ['Access', 'Access graph', 'Identity'] },
-  { prefix: '/genome/', trail: ['Behaviour', 'NHI Genome', 'Identity'] },
+  { prefix: '/identities/', trail: ['Overview', 'Discovery', 'Identity'] },
+  { prefix: '/access-graph/', trail: ['Overview', 'Access graph', 'Identity'] },
+  { prefix: '/genome/', trail: ['Overview', 'NHI Genome', 'Identity'] },
   { prefix: '/remediation/findings/', trail: ['Overview', 'Remediation', 'Finding'] },
   { prefix: '/remediation/plans/', trail: ['Overview', 'Remediation', 'Plan'] },
 ];

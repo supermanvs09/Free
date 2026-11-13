@@ -6,7 +6,7 @@ import { useDebouncedValue, useQuery } from '../../lib/hooks';
 import { useAccess } from '../../app/useAccess';
 import { formatDateTime, formatNumber, formatRelative, percentValue } from '../../lib/format';
 import { exportRowsToCsv, timestampedName } from '../../lib/csv';
-import { PageHeader } from '../../shell/PageHeader';
+import { DiscoveryTabs, PageHeader } from '../../shell/PageHeader';
 import { Button, IconButton } from '../../ui/Button';
 import { Panel, PanelHeader } from '../../ui/Panel';
 import { SearchInput, Select } from '../../ui/Field';
@@ -469,7 +469,11 @@ export default function CredentialsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Credential register" />
+      <PageHeader
+        title="Discovery"
+        lede="The roles, keys, secrets and certificates your identities sign in with. Select one to see who uses it and how risky it is."
+        sections={<DiscoveryTabs />}
+      />
 
       {countsQuery.isError && !counts ? (
         <InlineError error={countsQuery.error} onRetry={countsQuery.refetch} label="Counts unavailable" />
