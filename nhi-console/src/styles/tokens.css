@@ -1,0 +1,285 @@
+/* ==========================================================================
+   Deep Algorithms - NHI Console design tokens
+   Neutral, restrained enterprise palette: zinc-like greys with no blue cast,
+   pure white surfaces set apart by hairlines rather than shadows, and one
+   blue accent used only where it means something (active, primary,
+   selected). Risk and chart colours are unchanged: they carry meaning.
+   ========================================================================== */
+
+/* The light palette is declared for `:root` AND for any element carrying
+   `data-theme='light'`, so a subtree can opt back into light inside a dark
+   document - the sign-in card does exactly that. Declaring it only on `:root`
+   made nested `data-theme='light'` inert: the dark values inherited straight
+   through it, which is why the card's inputs rendered dark for anyone whose
+   theme was dark. */
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+
+  /* Brand ---------------------------------------------------------------- */
+  --t-brand: #1d63ed;
+  --t-brand-strong: #1650c4;
+  --t-brand-deep: #0b1a33;
+  --t-accent: #12b0f0;
+  --t-accent-strong: #0b93cc;
+
+  /* Surfaces ------------------------------------------------------------- */
+  /* A white work area. Depth comes from crisp neutral borders around cards
+     and soft grey fills for what is nested inside them, not from a tinted
+     page behind them. The sidebar is the one grey plane. */
+  --t-canvas: #ffffff;
+  --t-surface: #ffffff;
+  --t-surface-2: #f4f4f5;
+  --t-surface-3: #ebebed;
+  --t-surface-inset: #f4f4f5;
+
+  /* ── Graph marks ────────────────────────────────────────────────────────
+     A mark on a canvas is a different job from a tag or a line of text, and
+     it answers to a different rule: the lightness band and the all-pairs
+     colour-vision separation that a node-link diagram needs, where any two
+     nodes can end up side by side. These two are the graph's entire chromatic
+     vocabulary - everything else on the canvas is neutral. Both validated
+     all-pairs against `--t-surface-inset` in this mode:
+     risk vs accent, delta-E 23.5 under deuteranopia, 30.2 with normal vision. */
+  --t-graph-accent: #0c6eb4;
+  --t-graph-risk: #b42318;
+  /* Edges at rest. They used to be drawn in line-strong, which sits at 1.36:1
+     against this canvas - the flowing dashes were running, and nobody could
+     see them. The accent family, one step lighter than the accent itself so
+     a selected node's border still reads above its edges: 4.02:1 here, over
+     the 3:1 a visible mark needs. */
+  --t-graph-flow: #2f7cc0;
+  /* Meter and bar tracks. A wash rather than a fixed surface, so a track keeps
+     the same contrast whether it sits on a white panel or a recessed one -
+     `surface-3` on `surface-2` was only 10/255 apart and the bars looked like
+     they were floating. */
+  --t-track: color-mix(in srgb, var(--t-ink-3) 20%, transparent);
+  --t-line: #e4e4e7;
+  --t-line-strong: #d4d4d8;
+  --t-overlay: rgba(9, 9, 11, 0.4);
+
+  /* Ink ------------------------------------------------------------------ */
+  --t-ink: #18181b;
+  --t-ink-2: #52525b;
+  --t-ink-3: #71717a;
+  --t-ink-inverse: #fafafa;
+
+  /* Top bar - follows the theme. Application chrome, not a marketing header. */
+  --t-topbar: #ffffff;
+  --t-topbar-line: #e4e4e7;
+  --t-topbar-ink: #171717;
+  --t-topbar-muted: #737373;
+  --t-topbar-hover: #f5f5f5;
+  --t-topbar-field: #fafafa;
+
+  /* Sidebar - an application surface that recedes behind the content ----- */
+  --t-sidebar: #f7f7f8;
+  --t-sidebar-line: #e4e4e7;
+
+  /* Risk / status -------------------------------------------------------- */
+  --t-critical: #b42318;
+  --t-critical-soft: #fdeceb;
+  --t-high: #b54a07;
+  --t-high-soft: #fdf0e6;
+  --t-medium: #8f5f02;
+  --t-medium-soft: #fdf6e3;
+  --t-low: #05734b;
+  --t-low-soft: #e7f6ef;
+  --t-info: #1d63ed;
+  --t-info-soft: #eef3fe;
+  --t-neutral: #737373;
+  --t-neutral-soft: #f5f5f5;
+
+  /* Categorical series - fixed slot order, validated for CVD separation and
+     contrast against the light surface. Slot 8 is a reserved neutral used for
+     "Unclassified"/"Other" and is never treated as a hue. */
+  --t-series-1: #1668b0;
+  --t-series-2: #c4520a;
+  --t-series-3: #0f8f7a;
+  --t-series-4: #7a4fd0;
+  --t-series-5: #1f8fb5;
+  --t-series-6: #7d8b1c;
+  --t-series-7: #b03a86;
+  --t-series-8: #64748b;
+
+  /* Sequential ramp (single hue) for magnitude-only charts such as the
+     credential-type bar list. */
+  --t-ramp-1: #cfe3f3;
+  --t-ramp-2: #9cc5e6;
+  --t-ramp-3: #5b9fd4;
+  --t-ramp-4: #1668b0;
+  --t-ramp-5: #0d4b83;
+
+  /* Chart chrome */
+  --t-chart-grid: #efefef;
+  --t-chart-axis: #a1a1aa;
+
+  /* Elevation ------------------------------------------------------------ */
+  --t-shadow-sm: 0 1px 1px rgba(24, 24, 27, 0.03);
+  --t-shadow-md: 0 2px 8px -2px rgba(16, 16, 20, 0.07), 0 1px 2px rgba(16, 16, 20, 0.04);
+  --t-shadow-lg: 0 24px 48px -16px rgba(16, 16, 20, 0.2), 0 2px 6px rgba(16, 16, 20, 0.05);
+  --t-focus-ring: 0 0 0 3px rgba(29, 99, 237, 0.25);
+
+  /* Sign-in ------------------------------------------------------------- */
+  /* Every value below was sampled from the supplied sign-in design rather
+     than chosen, so the screen matches the artwork it was drawn from. The
+     sign-in screen is the same in both themes, so these live outside the
+     light/dark split. */
+  --t-auth-canvas: #0a192f;
+  --t-auth-ink: #ffffff;
+  --t-auth-ink-2: #94a3b8;
+  --t-auth-accent: #53c9ed;
+  --t-auth-link: #1aa6d9;
+  --t-auth-action: #0e79a6;
+  --t-auth-action-hover: #0b6a92;
+  --t-auth-badge: #0b243c;
+  --t-auth-badge-ink: #9dd3ea;
+  --t-auth-card: #ffffff;
+  --t-auth-card-line: #e2e8f0;
+}
+
+/* Matches at the root or on any nested element, for the same reason. */
+[data-theme='dark'] {
+  color-scheme: dark;
+  --t-canvas: #09090b;
+  --t-surface: #111114;
+  --t-surface-2: #16161a;
+  --t-surface-3: #1d1d22;
+  --t-surface-inset: #0d0d10;
+
+  /* Stepped for the dark surface rather than reused from light: the dark
+     severity red (#f2837a) sits at OKLCH L 0.73, above the 0.67 ceiling a
+     mark has to stay under, so it reads as a glow instead of an edge. This
+     step validates all-pairs on the dark canvas - delta-E 22.7 deuteranopia,
+     31.2 normal vision, both above 3:1 contrast. */
+  --t-graph-accent: #2f92d8;
+  --t-graph-risk: #d03b3b;
+  /* 6.53:1 against the dark canvas; the old edge colour was 1.36:1. */
+  --t-graph-flow: #4f9fe0;
+  --t-track: color-mix(in srgb, var(--t-ink-3) 30%, transparent);
+  --t-line: #26262c;
+  --t-line-strong: #34343c;
+  --t-overlay: rgba(0, 0, 0, 0.6);
+
+  --t-ink: #f4f4f5;
+  --t-ink-2: #a8a8b3;
+  --t-ink-3: #8a8a95;
+  --t-ink-inverse: #111113;
+
+  --t-topbar: #0d0d10;
+  --t-topbar-line: #222227;
+  --t-topbar-ink: #f4f4f5;
+  --t-topbar-muted: #8a8a95;
+  --t-topbar-hover: rgba(255, 255, 255, 0.07);
+  --t-topbar-field: rgba(255, 255, 255, 0.06);
+
+  --t-sidebar: #0d0d10;
+  --t-sidebar-line: #222227;
+
+  --t-brand: #5b8cff;
+  --t-brand-strong: #3f74f5;
+
+  --t-critical: #f2837a;
+  --t-critical-soft: rgba(180, 35, 24, 0.18);
+  --t-high: #f0a06a;
+  --t-high-soft: rgba(196, 82, 10, 0.18);
+  --t-medium: #e0bd63;
+  --t-medium-soft: rgba(160, 106, 2, 0.2);
+  --t-low: #55c79b;
+  --t-low-soft: rgba(5, 115, 75, 0.2);
+  --t-info: #6b9bff;
+  --t-info-soft: rgba(59, 110, 245, 0.18);
+  --t-neutral: #9a9aa5;
+  --t-neutral-soft: rgba(154, 154, 165, 0.14);
+
+  --t-series-1: #3d93d4;
+  --t-series-2: #c96c24;
+  --t-series-3: #1e9c7d;
+  --t-series-4: #7f6ad8;
+  --t-series-5: #1f9db6;
+  --t-series-6: #8b9838;
+  --t-series-7: #c45fa2;
+  --t-series-8: #7c8ea6;
+
+  --t-ramp-1: #123047;
+  --t-ramp-2: #1a4a6d;
+  --t-ramp-3: #2a6c9e;
+  --t-ramp-4: #3d93d4;
+  --t-ramp-5: #6fb4ec;
+
+  --t-chart-grid: #222227;
+  --t-chart-axis: #5c5c66;
+
+  --t-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --t-shadow-md: 0 4px 18px -6px rgba(0, 0, 0, 0.6), 0 1px 3px rgba(0, 0, 0, 0.4);
+  --t-shadow-lg: 0 28px 70px -20px rgba(0, 0, 0, 0.78), 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+@theme inline {
+  --color-brand: var(--t-brand);
+  --color-brand-strong: var(--t-brand-strong);
+  --color-brand-deep: var(--t-brand-deep);
+  --color-accent: var(--t-accent);
+  --color-accent-strong: var(--t-accent-strong);
+
+  --color-canvas: var(--t-canvas);
+  --color-surface: var(--t-surface);
+  --color-surface-2: var(--t-surface-2);
+  --color-surface-3: var(--t-surface-3);
+  --color-track: var(--t-track);
+  --color-inset: var(--t-surface-inset);
+  --color-line: var(--t-line);
+  --color-line-strong: var(--t-line-strong);
+
+  --color-ink: var(--t-ink);
+  --color-ink-2: var(--t-ink-2);
+  --color-ink-3: var(--t-ink-3);
+  --color-ink-inverse: var(--t-ink-inverse);
+
+  --color-topbar: var(--t-topbar);
+  --color-topbar-field: var(--t-topbar-field);
+  --color-topbar-line: var(--t-topbar-line);
+  --color-topbar-ink: var(--t-topbar-ink);
+  --color-topbar-muted: var(--t-topbar-muted);
+  --color-topbar-hover: var(--t-topbar-hover);
+  --color-sidebar: var(--t-sidebar);
+  --color-sidebar-line: var(--t-sidebar-line);
+
+  --color-critical: var(--t-critical);
+  --color-critical-soft: var(--t-critical-soft);
+  --color-high: var(--t-high);
+  --color-high-soft: var(--t-high-soft);
+  --color-medium: var(--t-medium);
+  --color-medium-soft: var(--t-medium-soft);
+  --color-low: var(--t-low);
+  --color-low-soft: var(--t-low-soft);
+  --color-info: var(--t-info);
+  --color-info-soft: var(--t-info-soft);
+  --color-neutral: var(--t-neutral);
+  --color-neutral-soft: var(--t-neutral-soft);
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  --color-ramp-1: var(--t-ramp-1);
+  --color-ramp-2: var(--t-ramp-2);
+  --color-ramp-3: var(--t-ramp-3);
+  --color-ramp-4: var(--t-ramp-4);
+  --color-ramp-5: var(--t-ramp-5);
+  --color-chart-grid: var(--t-chart-grid);
+  --color-chart-axis: var(--t-chart-axis);
+
+  --radius-panel: 10px;
+  --radius-control: 8px;
+
+  --shadow-sm: var(--t-shadow-sm);
+  --shadow-md: var(--t-shadow-md);
+  --shadow-lg: var(--t-shadow-lg);
+
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Softer than out-quint: it leaves rest slowly and settles without the
+     late snap, which is what makes a long entrance read as smooth rather
+     than as a slide that stops. */
+  --ease-soft: cubic-bezier(0.16, 0.84, 0.24, 1);
+}

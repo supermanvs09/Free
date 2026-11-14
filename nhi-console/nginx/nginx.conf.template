@@ -1,0 +1,135 @@
+# NHI Console - production web tier.
+#
+# The console runs in the browser and needs no backend. nginx serves the
+# single-page app, and forwards /notify-api/* to the notification relay that
+# runs in the same container (server/notify-relay.mjs, 127.0.0.1:8787): the
+# one process that sends alert email through Amazon SES and opens Jira issues.
+#
+# A template: the image's entrypoint runs envsubst over it at start.
+#   NOTIFY_RELAY_PORT     where the relay listens inside the container (8787)
+#
+# In the order a request meets them:
+#   1. /notify-api/*   the notification relay, same origin (no CORS)
+#   2. everything else the single-page app, with index.html as the fallback so a
+#                      deep link survives a hard refresh.
+
+server {
+    # IPv4 only, deliberately. `listen [::]:3000` makes nginx refuse to start
+    # outright on a host without IPv6 - which includes many container runtimes
+    # and CI environments - and a container bound to 0.0.0.0 is reachable in a
+    # dual-stack network anyway, because the runtime maps the published port.
+    # Add the IPv6 line only where IPv6 is known to be present.
+    listen 3000;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Do not advertise the version to anyone probing the service.
+    server_tokens off;
+
+    # Uploads are not a feature of this app; its writes are small JSON bodies.
+    client_max_body_size 1m;
+
+    # Compress what benefits from it. Images and fonts arrive compressed
+    # already, so re-compressing them only burns CPU.
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_min_length 1024;
+    gzip_types
+        text/plain
+        text/css
+        text/javascript
+        application/javascript
+        application/json
+        application/manifest+json
+        image/svg+xml;
+
+    # Security headers are included per location, not here: a location with
+    # no add_header of its own would inherit them, and /api must send only the
+    # API's own set (twice-sent headers are a finding of their own).
+
+    # ── 1. Notification relay ─────────────────────────────────────────
+    # Alert email (Amazon SES) and Jira issues. The relay listens on loopback
+    # only; this is the one way in, and it is same-origin for the browser.
+    location ^~ /notify-api/ {
+        proxy_pass http://127.0.0.1:${NOTIFY_RELAY_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header Connection "";
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Origin $http_origin;
+        proxy_connect_timeout 5s;
+        proxy_send_timeout 20s;
+        proxy_read_timeout 20s;
+        client_max_body_size 300k;
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "no-store" always;
+    }
+
+    # ── 2. The single-page app ──────────────────────────────────────────────
+    # Fingerprinted assets are immutable: the filename changes whenever the
+    # contents do, so a year of caching can never serve a stale one.
+    location /assets/ {
+        try_files $uri =404;
+        include /etc/nginx/snippets/security-headers.conf;
+        # Set through add_header rather than `expires`, which emits a
+        # Cache-Control of its own and would send the header twice.
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        access_log off;
+    }
+
+    # Brand files are referenced by stable names, so they get a short cache
+    # with revalidation rather than a year.
+    location /brand/ {
+        try_files $uri =404;
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "public, max-age=3600, must-revalidate" always;
+    }
+
+    # index.html is never cached: it is the document that names which asset
+    # bundle to load, so a cached copy pins a browser to a deployment that no
+    # longer exists.
+    location = /index.html {
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "no-store, must-revalidate" always;
+    }
+
+    # Client-side routing: /genome/some-identity is a route, not a file, so
+    # anything not on disk is answered with the app shell.
+    location / {
+        try_files $uri $uri/ /index.html;
+        include /etc/nginx/snippets/security-headers.conf;
+    }
+
+    # ── Health ──────────────────────────────────────────────────────────────
+    # Answered by nginx alone, with no upstream call. This reports whether the
+    # web tier is serving, which is what a liveness probe asks. Whether the
+    # APIs are reachable is a different question, and the app already answers
+    # that on screen rather than by failing to start.
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "no-store" always;
+        return 200 "ok\n";
+    }
+
+    # Source maps and source files are never built into the image; if one ever
+    # is, it is still not served.
+    location ~* \.(map|jsx|tsx?|mjs\.map|env|lock|log)$ {
+        include /etc/nginx/snippets/security-headers.conf;
+        return 404;
+    }
+
+    # Do not serve dotfiles, whatever ends up in the image.
+    location ~ /\. {
+        include /etc/nginx/snippets/security-headers.conf;
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+}

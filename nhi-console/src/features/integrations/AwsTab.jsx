@@ -1,0 +1,660 @@
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { AlertTriangle, CheckCircle2, Clock3, KeyRound, LayoutDashboard, Plus, RotateCw, ShieldCheck, X } from 'lucide-react';
+import { useAuth } from '../../app/AuthContext';
+import { useWorkspace } from '../../app/WorkspaceContext';
+import { useAccess } from '../../app/useAccess';
+import { fetchAwsIntegration } from '../../lib/api/integrations';
+import { fetchFilters } from '../../lib/api/inventory';
+import { useQuery } from '../../lib/hooks';
+import { formatDateTime, formatRelative } from '../../lib/format';
+import { getEpoch, subscribeEpoch } from '../../lib/sync/engine';
+import { Button, IconButton } from '../../ui/Button';
+import { Panel } from '../../ui/Panel';
+import { Skeleton } from '../../ui/Skeleton';
+import { EmptyState, ErrorState } from '../../ui/States';
+import { useToast } from '../../ui/Toast';
+import { cn } from '../../ui/cn';
+import { AccountDrawer } from './AccountDrawer';
+import { AccountsTable } from './AccountsTable';
+import { AWS_STATUS, isChecking, isWatching } from './awsSetup';
+import { AwsConnectWizard } from './AwsConnectWizard';
+import { ExposureDrawer } from './ExposureDrawer';
+import { OverviewTiles, SourceCards } from './IntegrationsOverview';
+import { AwsMark } from './parts';
+import { AppHeader } from './hubParts';
+
+const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+/**
+ * Integrations: where a workspace connects the AWS accounts its data comes
+ * from, and switches on exposed-credential scanning. Two situations, one
+ * screen:
+ *
+ *   Onboarding  No account has ever connected. `ConnectionGate` reduces the
+ *               console to this page; the first verified account opens the
+ *               dashboard.
+ *   Manage      At least one account has connected: account health, regions,
+ *               sync, "Connect another account" (?add=1 opens it directly)
+ *               and exposed-credential scanning (?exposure=<account> opens it).
+ *
+ * The page reads the same answer the gate and the sidebar do
+ * (`useWorkspace`), so a change made here - an account connected or removed,
+ * scanning switched on - moves the navigation with it.
+ */
+export function AwsTab({ app }) {
+  const { user } = useAuth();
+  const workspace = useWorkspace();
+  const { notify } = useToast();
+  const { can } = useAccess();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const data = workspace.integration;
+  const manage = workspace.hasConnectedAccount && Boolean(data);
+
+  const setParam = (key, value) => {
+    const next = new URLSearchParams(searchParams);
+    if (value) next.set(key, value);
+    else next.delete(key);
+    setSearchParams(next, { replace: true });
+  };
+  const adding = searchParams.get('add') === '1';
+  const exposureParam = searchParams.get('exposure');
+  const accountParam = searchParams.get('account');
+  const [editing, setEditing] = useState(null);
+  const [removing, setRemoving] = useState(null);
+
+  /* What each account brought in, for the table and the overview. A failure
+     only blanks those counts. */
+  const filters = useQuery((signal) => (manage ? fetchFilters(signal) : Promise.resolve(null)), [manage, data?.accounts?.length]);
+  const inventory = useMemo(() => {
+    const rows = filters.data?.accounts;
+    if (!Array.isArray(rows)) return null;
+    return new Map(rows.map((row) => [String(row.account_id), { identities: Number(row.identity_count) || 0, credentials: Number(row.credential_count) || 0 }]));
+  }, [filters.data, data?.accounts]);
+  const regionNames = useMemo(() => new Map((data?.setup?.regions ?? []).map((region) => [region.code, region.name])), [data?.setup?.regions]);
+
+  /* A new key per opening: every account needs its own role and rule, so the
+     setup for the next account starts from step 1. */
+  const [wizardKey, setWizardKey] = useState(0);
+  const [justAdded, setJustAdded] = useState('');
+  const [onboardingDone, setOnboardingDone] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const storageKey = `nhi.awsSetup.${user?.tenantId ?? user?.tenant_id ?? 'workspace'}`;
+  const anotherKey = `${storageKey}.another`;
+
+  const addSectionRef = useRef(null);
+  /* Once, when the section opens - not on every background refresh of the
+     accounts (every few seconds while a sync runs), which used to pull the
+     reader back to it wherever they had scrolled. */
+  const scrolledToAdd = useRef(false);
+  const hasData = Boolean(data);
+  useEffect(() => {
+    if (!adding) {
+      scrolledToAdd.current = false;
+      return;
+    }
+    if (hasData && !scrolledToAdd.current) {
+      scrolledToAdd.current = true;
+      addSectionRef.current?.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' });
+    }
+  }, [adding, hasData]);
+
+  /* While a sync is queued or running, an events check watches, or a
+     connection waits for approval, keep the page current on its own. */
+  const syncing = (data?.accounts ?? []).some((account) => account.sync.status === 'queued' || account.sync.status === 'running');
+  const watching = manage && (data?.accounts ?? []).some((account) => isWatching(account.checks) || isChecking(account));
+  const awaiting = manage && (data?.accounts ?? []).some((account) => account.status === 'pending_approval');
+  const refresh = workspace.refresh;
+  const pollEvery = watching ? 5000 : syncing ? 8000 : awaiting ? 30000 : 0;
+  useEffect(() => {
+    if (!pollEvery) return undefined;
+    const id = setInterval(() => refresh(), pollEvery);
+    return () => clearInterval(id);
+  }, [pollEvery, refresh]);
+
+  /* A sync from this console ended: read the accounts' own sync state again. */
+  const syncEpoch = useSyncExternalStore(subscribeEpoch, getEpoch);
+  useEffect(() => {
+    if (syncEpoch > 0) refresh();
+  }, [syncEpoch, refresh]);
+
+  const reload = async () => {
+    setRefreshing(true);
+    try {
+      await refresh();
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const onVerified = (outcome) => {
+    if (outcome.status === 'connected' && outcome.phase !== 'watching') {
+      if (!workspace.hasConnectedAccount) {
+        /* The first account: celebrate here, and open the console only when
+           the reader moves on - refreshing now would swap the shell under them. */
+        setOnboardingDone(outcome.accountId);
+        return;
+      }
+      setJustAdded(outcome.accountId);
+      setParam('add', null);
+      setWizardKey((value) => value + 1);
+      try {
+        localStorage.removeItem(anotherKey);
+      } catch {
+        /* progress is a convenience */
+      }
+    }
+    if (outcome.saved) refresh();
+  };
+
+  /* Read the new state and move in the same tick, so the gate opens and the
+     route changes together - no flash of the setup inside the full console. */
+  const leaveOnboarding = async (to) => {
+    try {
+      const next = await fetchAwsIntegration();
+      workspace.apply(next);
+      navigate(to, { replace: true });
+    } catch (error) {
+      notify({ variant: 'error', title: 'Could not open the dashboard', description: error?.message });
+    }
+  };
+
+  /* Previous unconnected attempt, so the setup reopens where it was left: one
+     waiting for approval or still watching first, then the latest other. */
+  const unconnected = (data?.accounts ?? []).filter((account) => account.status !== 'connected');
+  const previous = !manage
+    ? (unconnected.find((account) => account.status === 'pending_approval' || isWatching(account.checks) || isChecking(account)) ?? unconnected[0] ?? null)
+    : null;
+
+  if (!workspace.hasConnectedAccount && onboardingDone) {
+    return (
+      <OnboardingSuccess
+        accountId={onboardingDone}
+        onOpen={() => leaveOnboarding('/overview')}
+        onAnother={() => leaveOnboarding('/integrations?add=1')}
+      />
+    );
+  }
+
+  const exposureAccounts = (data?.accounts ?? []).filter((account) => account.connectedAt);
+  const openAccount = accountParam ? (data?.accounts ?? []).find((account) => account.accountId === accountParam) ?? null : null;
+  const exposureOpen = manage && exposureParam !== null && data?.setup && data.canManage && exposureAccounts.length > 0;
+
+  return (
+    <div className="flex flex-col gap-5">
+      {!manage ? (
+        <>
+          <OnboardingIntro name={user?.name} canManage={data?.canManage ?? true} />
+        </>
+      ) : (
+        <Panel>
+          <AppHeader
+            app={app ?? { key: 'aws', name: 'Amazon Web Services', status: 'connected' }}
+            actions={
+              <>
+                <Button variant="secondary" size="sm" icon={RotateCw} loading={refreshing} onClick={reload} title="Read the accounts' connection state again">
+                  Refresh
+                </Button>
+                {data?.canManage && data?.setup && (
+                  <Button variant="primary" size="sm" icon={Plus} onClick={() => setParam('add', '1')} disabled={adding}>
+                    Connect AWS account
+                  </Button>
+                )}
+              </>
+            }
+          >
+            Each AWS account is read through a read-only IAM role and an EventBridge rule that forwards CloudTrail events. CodeCommit secret scanning is switched on per account below.
+          </AppHeader>
+        </Panel>
+      )}
+
+      {!data && workspace.status === 'loading' && <PageSkeleton />}
+
+      {!data && workspace.status === 'error' && (
+        <Panel>
+          <ErrorState
+            error={workspace.error}
+            onRetry={reload}
+            title={workspace.error?.code === 'AWS_PLATFORM_NOT_CONFIGURED' ? 'AWS connections are not available yet' : undefined}
+          />
+        </Panel>
+      )}
+
+      {data && (
+        <>
+          {!manage && <ProviderHero data={data} manage={manage} />}
+
+          {manage && justAdded && <AddedBanner accountId={justAdded} onDismiss={() => setJustAdded('')} />}
+
+          {manage && <AttentionBanner accounts={data.accounts} onOpen={(account) => setParam('account', account.accountId)} />}
+
+          {manage && <ApprovalBanner accounts={data.accounts} onOpen={(account) => setParam('account', account.accountId)} />}
+
+          {manage && <OverviewTiles accounts={data.accounts} inventory={inventory} regionNames={regionNames} />}
+
+          {manage && (
+            <AccountsTable
+              accounts={data.accounts}
+              catalogue={data.setup?.regions ?? []}
+              inventory={inventory}
+              canManage={data.canManage}
+              onChanged={refresh}
+              onRemoved={(accountId) => {
+                if (accountParam === accountId) setParam('account', null);
+                refresh();
+              }}
+              onOpen={(account) => setParam('account', account.accountId)}
+              onExposure={data.canManage && data.setup ? (account) => setParam('exposure', account.accountId) : null}
+              editing={editing}
+              setEditing={setEditing}
+              removing={removing}
+              setRemoving={setRemoving}
+            />
+          )}
+
+          {manage && adding && data.setup && (
+            <section ref={addSectionRef} className="scroll-mt-24" aria-label="Connect another AWS account">
+              <AwsConnectWizard
+                key={wizardKey}
+                setup={data.setup}
+                storageKey={anotherKey}
+                title="Connect another AWS account"
+                onVerified={onVerified}
+                onCancel={() => setParam('add', null)}
+              />
+            </section>
+          )}
+
+          {manage && (
+            <SourceCards
+              accounts={data.accounts}
+              exposureEnabled={data.exposureEnabled}
+              canManage={data.canManage && Boolean(data.setup)}
+              canSeeFindings={can('exposure.view')}
+              onConnect={() => setParam('add', '1')}
+              onExposure={(accountId) => setParam('exposure', accountId || exposureAccounts[0]?.accountId || '')}
+            />
+          )}
+
+          {!manage &&
+            (data.canManage && data.setup ? (
+              <AwsConnectWizard setup={data.setup} previous={previous} storageKey={storageKey} onVerified={onVerified} />
+            ) : (
+              <Panel>
+                <EmptyState
+                  icon={Clock3}
+                  title={data.setup ? 'Waiting for an admin to connect AWS' : 'AWS connections are not set up for your workspace yet'}
+                  description={
+                    data.setup
+                      ? 'Connecting an account needs the admin role. Once an admin has connected one, your dashboard opens.'
+                      : 'Our team finishes this when your workspace is created. Contact support if it has been more than a day.'
+                  }
+                  action={
+                    <Button variant="secondary" size="sm" icon={RotateCw} loading={refreshing} onClick={reload}>
+                      Check again
+                    </Button>
+                  }
+                />
+              </Panel>
+            ))}
+
+          {manage && openAccount && (
+            <AccountDrawer
+              key={openAccount.accountId}
+              account={openAccount}
+              setup={data.setup}
+              catalogue={data.setup?.regions ?? []}
+              counts={inventory?.get(openAccount.accountId) ?? null}
+              canManage={data.canManage}
+              onClose={() => setParam('account', null)}
+              onChanged={refresh}
+              onEditRegions={() => setEditing(openAccount)}
+              onRemove={() => setRemoving(openAccount)}
+              onExposure={data.canManage && data.setup && openAccount.connectedAt ? () => setParam('exposure', openAccount.accountId) : null}
+            />
+          )}
+
+          {exposureOpen && (
+            <ExposureDrawer
+              accounts={exposureAccounts}
+              accountId={exposureParam || exposureAccounts[0].accountId}
+              setup={data.setup}
+              onClose={() => setParam('exposure', null)}
+              onSaved={() => refresh()}
+            />
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ── Onboarding ──────────────────────────────────────────────────────────── */
+
+function OnboardingIntro({ name, canManage }) {
+  const word = String(name ?? '').trim().split(/\s+/)[0];
+  const first = word ? word[0].toUpperCase() + word.slice(1) : '';
+  return (
+    <header className="pt-2">
+      <p className="text-[12.5px] font-medium text-brand">{first ? `Welcome, ${first}` : 'Welcome'}</p>
+      <h1 className="mt-1 text-[26px] leading-tight font-extrabold tracking-[-0.026em] text-ink sm:text-[28px]">
+        {canManage ? 'Connect your first AWS account' : 'Your workspace is almost ready'}
+      </h1>
+      <p className="mt-2 max-w-2xl text-[13.5px] leading-relaxed text-ink-2">
+        {canManage
+          ? 'We discover the non-human identities and credentials in your AWS accounts. Connect one to begin - your dashboard opens as soon as the connection is verified.'
+          : 'Your dashboard opens once an AWS account is connected to this workspace.'}
+      </p>
+    </header>
+  );
+}
+
+/**
+ * The moment the first account connects. Opens the dashboard on its own after
+ * a short, visible countdown that can be stopped; "Connect another account"
+ * is offered here because teams with several accounts usually do them in one
+ * sitting.
+ */
+function OnboardingSuccess({ accountId, onOpen, onAnother }) {
+  const [remaining, setRemaining] = useState(8);
+  const [paused, setPaused] = useState(false);
+  const [leaving, setLeaving] = useState('');
+  const openRef = useRef(onOpen);
+  useEffect(() => {
+    openRef.current = onOpen;
+  });
+
+  useEffect(() => {
+    if (paused || leaving) return undefined;
+    const id = setInterval(() => setRemaining((value) => Math.max(0, value - 1)), 1000);
+    return () => clearInterval(id);
+  }, [paused, leaving]);
+
+  /* At zero the dashboard opens; the ref keeps a re-render from opening it twice. */
+  const autoOpened = useRef(false);
+  useEffect(() => {
+    if (!paused && !leaving && remaining === 0 && !autoOpened.current) {
+      autoOpened.current = true;
+      openRef.current();
+    }
+  }, [remaining, paused, leaving]);
+
+  return (
+    <div className="grid min-h-[calc(100dvh-10rem)] place-items-center">
+      <section
+        role="status"
+        className="animate-rise w-full max-w-xl rounded-[var(--radius-panel)] border border-line-strong bg-surface p-6 text-center shadow-[var(--t-shadow-lg)] sm:p-8"
+      >
+        <span className="animate-pop mx-auto grid size-16 place-items-center rounded-full bg-low-soft shadow-[0_0_0_8px_color-mix(in_srgb,var(--t-low)_10%,transparent)]">
+          <CheckCircle2 aria-hidden="true" className="size-8 text-low" />
+        </span>
+        <h1 className="mt-5 text-[22px] font-extrabold tracking-[-0.02em] text-ink">AWS is connected</h1>
+        <p className="mt-1.5 text-[13.5px] text-ink-2">
+          Account <span className="font-mono font-semibold text-ink">{accountId}</span> was approved and passed all three checks. We now discover its
+          identities and credentials; your dashboard fills in after the first scan.
+        </p>
+        <div className="mt-6 flex flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
+          <Button
+            variant="primary"
+            size="lg"
+            icon={LayoutDashboard}
+            loading={leaving === 'open'}
+            disabled={Boolean(leaving)}
+            onClick={() => {
+              setLeaving('open');
+              onOpen();
+            }}
+          >
+            Open the dashboard
+          </Button>
+          <Button
+            variant="secondary"
+            size="lg"
+            icon={Plus}
+            loading={leaving === 'another'}
+            disabled={Boolean(leaving)}
+            onClick={() => {
+              setLeaving('another');
+              onAnother();
+            }}
+          >
+            Connect another account
+          </Button>
+        </div>
+        <p className="mt-4 text-[12px] text-ink-3" aria-live="off">
+          {paused ? (
+            'Staying on this page.'
+          ) : leaving || remaining === 0 ? (
+            'Opening…'
+          ) : (
+            <>
+              Opening the dashboard in <span data-numeric="">{remaining}</span>s ·{' '}
+              <button type="button" onClick={() => setPaused(true)} className="font-medium text-brand hover:underline">
+                Stay here
+              </button>
+            </>
+          )}
+        </p>
+        <p className="mt-5 border-t border-line pt-4 text-[12px] leading-relaxed text-ink-3">
+          Want us to look for credentials leaked into CodeCommit too? Switch it on from Integrations at any time.
+        </p>
+      </section>
+    </div>
+  );
+}
+
+/* ── Provider header ─────────────────────────────────────────────────────── */
+
+function StatusPill({ status }) {
+  const meta = AWS_STATUS[status] ?? AWS_STATUS.not_connected;
+  const live = status === 'connected';
+  const dot = { low: 'bg-low', medium: 'bg-medium', neutral: 'bg-ink-3' }[meta.tone] ?? 'bg-ink-3';
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[12px] font-medium',
+        meta.tone === 'low'
+          ? 'border-low/30 bg-low-soft text-low'
+          : meta.tone === 'medium'
+            ? 'border-medium/30 bg-medium-soft text-medium'
+            : 'border-line-strong bg-surface-2 text-ink-2',
+      )}
+    >
+      <span className="relative flex size-2">
+        {live && <span className={cn('absolute inline-flex size-full rounded-full opacity-60 motion-safe:animate-ping', dot)} />}
+        <span className={cn('relative inline-flex size-2 rounded-full', dot)} />
+      </span>
+      {meta.label}
+    </span>
+  );
+}
+
+/**
+ * Which provider, its state, and the three facts a reviewer asks about first.
+ * Once connected, the right side carries the account health at a glance.
+ */
+function ProviderHero({ data, manage }) {
+  const total = data.accounts.length;
+  const healthy = data.accounts.filter((account) => account.status === 'connected').length;
+  const lastChecked = data.accounts
+    .map((account) => account.lastVerifiedAt)
+    .filter(Boolean)
+    .sort()
+    .at(-1);
+
+  return (
+    <section
+      aria-label="Amazon Web Services"
+      className="relative overflow-hidden rounded-[var(--radius-panel)] border border-line-strong bg-surface shadow-[var(--t-shadow-md)]"
+    >
+      {/* Ambient light from the top right and a dot grid fading in from the
+          right edge: depth without a second accent colour. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_140%_at_100%_0%,color-mix(in_srgb,var(--t-brand)_11%,transparent)_0%,transparent_60%)]"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(var(--t-line-strong)_1px,transparent_1px)] [mask-image:linear-gradient(to_left,black,transparent)] bg-[size:14px_14px] opacity-50"
+      />
+      <div className="relative flex flex-wrap items-center gap-x-6 gap-y-5 p-5 sm:p-6">
+        <AwsMark size="lg" />
+        <div className="min-w-0 flex-1 basis-[22rem]">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <h2 className="text-[19px] font-bold tracking-[-0.015em] text-ink">Amazon Web Services</h2>
+            {/* Before the first connection, a failed attempt is still setup, not a fault. */}
+            <StatusPill status={manage ? data.status : 'not_connected'} />
+          </div>
+          <p className="mt-1 max-w-xl text-[13px] leading-relaxed text-ink-2">
+            Discovers the non-human identities and credentials in your accounts.
+          </p>
+          <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-[12px] text-ink-2">
+            <li className="inline-flex items-center gap-1.5">
+              <ShieldCheck aria-hidden="true" className="size-3.5 text-low" />
+              Read-only access
+            </li>
+            <li className="inline-flex items-center gap-1.5">
+              <KeyRound aria-hidden="true" className="size-3.5 text-low" />
+              No access keys shared
+            </li>
+            <li className="inline-flex items-center gap-1.5">
+              <Clock3 aria-hidden="true" className="size-3.5 text-ink-3" />
+              About 10 minutes per account
+            </li>
+          </ul>
+        </div>
+
+        {manage && total > 0 && (
+          <dl className="flex shrink-0 divide-x divide-line rounded-[var(--radius-control)] border border-line bg-surface/80 backdrop-blur-sm">
+            <HeroStat label="Accounts" value={total} />
+            <HeroStat label="Healthy" value={`${healthy}/${total}`} tone={healthy === total ? 'text-low' : 'text-medium'} />
+            <HeroStat label="Last checked" value={lastChecked ? formatRelative(lastChecked) : '-'} small title={formatDateTime(lastChecked)} />
+          </dl>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function HeroStat({ label, value, tone, small, title }) {
+  return (
+    <div className="flex min-w-[92px] flex-col gap-1 px-4 py-2.5" title={title}>
+      <dt className="text-[11px] text-ink-3">{label}</dt>
+      <dd data-numeric="" className={cn('leading-none font-bold tracking-[-0.02em] text-ink', small ? 'text-[14px]' : 'text-[22px]', tone)}>
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+function AttentionBanner({ accounts, onOpen }) {
+  const broken = accounts.filter((account) => account.status === 'action_needed');
+  if (broken.length === 0) return null;
+  return (
+    <div role="status" className="animate-rise flex flex-col gap-2 rounded-[var(--radius-panel)] border border-medium/40 bg-medium-soft px-4 py-3">
+      {broken.map((account) => {
+        const failing = account.checks.find((check) => check.state === 'fail' || check.state === 'error');
+        return (
+          <div key={account.accountId} className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <AlertTriangle aria-hidden="true" className="size-4.5 shrink-0 text-medium" />
+            <p className="min-w-0 flex-1 text-[13px] text-ink-2">
+              <span className="font-semibold text-ink">
+                Account <span className="font-mono">{account.accountId}</span> needs attention
+              </span>
+              {failing ? ` - "${failing.label}" did not pass. ` : '. '}
+              {failing?.fix ? <span className="text-ink-3">{failing.fix}</span> : 'Its data stops updating until this is fixed.'}
+            </p>
+            <Button variant="secondary" size="sm" onClick={() => onOpen(account)}>
+              Open account
+            </Button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Accounts that wait for adapID's approval (nothing is checked until then), and any it did not approve. */
+function ApprovalBanner({ accounts, onOpen }) {
+  const waiting = accounts.filter((account) => account.status === 'pending_approval');
+  const rejected = accounts.filter((account) => account.status === 'rejected');
+  if (waiting.length === 0 && rejected.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-2">
+      {waiting.length > 0 && (
+        <div role="status" className="animate-rise flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-[var(--radius-panel)] border border-info/30 bg-info-soft px-4 py-3">
+          <Clock3 aria-hidden="true" className="size-4.5 shrink-0 text-info" />
+          <p className="min-w-0 flex-1 text-[13px] text-ink-2">
+            <span className="font-semibold text-ink">
+              {waiting.length === 1 ? (
+                <>
+                  Account <span className="font-mono">{waiting[0].accountId}</span> is waiting for approval
+                </>
+              ) : (
+                `${waiting.length} accounts are waiting for approval`
+              )}
+            </span>{' '}
+            - nothing is read from the account until it is approved; the checks then run by themselves. This page updates on its own.
+          </p>
+          {waiting.length === 1 && (
+            <Button variant="secondary" size="sm" onClick={() => onOpen(waiting[0])}>
+              Open account
+            </Button>
+          )}
+        </div>
+      )}
+      {rejected.map((account) => (
+        <div key={account.accountId} role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-[var(--radius-panel)] border border-critical/30 bg-critical-soft px-4 py-3">
+          <AlertTriangle aria-hidden="true" className="size-4.5 shrink-0 text-critical" />
+          <p className="min-w-0 flex-1 text-[13px] text-ink-2">
+            <span className="font-semibold text-ink">
+              Account <span className="font-mono">{account.accountId}</span> was not approved
+            </span>
+            {account.approval.note ? ` - “${account.approval.note}”` : '.'} Fix the setup, then re-check the connection to ask again.
+          </p>
+          <Button variant="secondary" size="sm" onClick={() => onOpen(account)}>
+            Open account
+          </Button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Shown after an additional account connects; the first one gets the onboarding success screen. */
+function AddedBanner({ accountId, onDismiss }) {
+  return (
+    <div role="status" className="animate-rise flex items-center gap-3 rounded-[var(--radius-panel)] border border-low/35 bg-low-soft px-4 py-3">
+      <CheckCircle2 aria-hidden="true" className="size-5 shrink-0 text-low" />
+      <p className="min-w-0 flex-1 text-[13px] text-ink-2">
+        <span className="font-semibold text-ink">
+          Account <span className="font-mono">{accountId}</span> connected.
+        </span>{' '}
+        It is included from the next scan.
+      </p>
+      <IconButton icon={X} label="Dismiss" size="sm" onClick={onDismiss} />
+    </div>
+  );
+}
+
+function PageSkeleton() {
+  return (
+    <div className="flex flex-col gap-5" aria-busy="true">
+      <div className="flex items-center gap-5 rounded-[var(--radius-panel)] border border-line bg-surface shadow-[var(--t-shadow-sm)] p-6">
+        <Skeleton className="size-14 rounded-[14px]" />
+        <div className="flex-1">
+          <Skeleton className="h-5 w-56 rounded" />
+          <Skeleton className="mt-2.5 h-3 w-96 max-w-full rounded" />
+          <Skeleton className="mt-3 h-3 w-72 max-w-full rounded" />
+        </div>
+      </div>
+      <Skeleton className="h-72 rounded-[var(--radius-panel)]" />
+      <span role="status" className="sr-only">
+        Loading your AWS connection
+      </span>
+    </div>
+  );
+}
+
+

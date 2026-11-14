@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "createdAt": "2026-11-14T18:00:47.576Z",
+        "reason": "Existing design system: the original console's tokens.css and index.html already set Inter as the product typeface; the alert email matches it"
+      }
+    ]
+  }
+}
