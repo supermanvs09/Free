@@ -18,6 +18,7 @@ import { SegmentedControl } from '../../ui/Tabs';
 import { Tag } from '../../ui/Tag';
 import { TableSettings } from '../../ui/TableTools';
 import { cn } from '../../ui/cn';
+import { useSync } from '../sync/SyncContext';
 import { CHANGE_GRID, CHANGE_META, CHANGE_TYPES, ChangeRow, ENTITY_META, ENTITY_TYPES } from './parts';
 
 const PAGE_SIZE = 25;
@@ -54,6 +55,7 @@ const STAT_STYLE = {
  */
 export default function ScanChangesPage() {
   const { scanId } = useParams();
+  const sync = useSync();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const changeType = CHANGE_TYPES.includes(searchParams.get('change_type')) ? searchParams.get('change_type') : '';
@@ -140,7 +142,21 @@ export default function ScanChangesPage() {
       <div className="flex flex-col gap-6">
         <PageHeader title="Scan changes" actions={back} />
         <Panel>
-          {missing ? (
+          {missing && scanId === 'latest' ? (
+            /* A new workspace: no sync has finished, so there is no "latest" to show. */
+            <EmptyState
+              icon={History}
+              title="No sync has finished yet"
+              description="Changes appear here after each sync: what was added, removed or modified since the one before."
+              action={
+                sync.canScan ? (
+                  <Button variant="primary" size="sm" onClick={sync.openPanel}>
+                    Sync now
+                  </Button>
+                ) : null
+              }
+            />
+          ) : missing ? (
             <EmptyState
               icon={SearchX}
               title="Scan not found"

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../app/AuthContext';
 import { useAccess } from '../../app/useAccess';
@@ -20,6 +20,11 @@ export function SyncProvider({ children }) {
   const { notify } = useToast();
   const navigate = useNavigate();
   const [panelOpen, setPanelOpen] = useState(false);
+  /* The panel already shows the outcome; a toast on top would repeat it and cover its buttons. */
+  const panelOpenRef = useRef(false);
+  useEffect(() => {
+    panelOpenRef.current = panelOpen;
+  }, [panelOpen]);
   const snapshot = useSyncExternalStore(engine.subscribe, engine.getState);
 
   const owner = user?.username || user?.name || '';
@@ -33,7 +38,7 @@ export function SyncProvider({ children }) {
   useEffect(
     () =>
       engine.onEvent(({ type, run }) => {
-        if (type === 'done') {
+        if (type === 'done' && !panelOpenRef.current) {
           const d = run.discovery;
           notify({
             variant: 'success',
@@ -47,7 +52,7 @@ export function SyncProvider({ children }) {
             action: { label: 'See what changed', onSelect: () => navigate('/scans/latest/changes') },
             duration: 12000,
           });
-        } else if (type === 'failed') {
+        } else if (type === 'failed' && !panelOpenRef.current) {
           notify({ variant: 'error', title: "The sync didn't finish", description: run.error, action: { label: 'Open', onSelect: () => setPanelOpen(true) }, duration: 12000 });
         }
       }),

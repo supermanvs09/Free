@@ -1,3 +1,4 @@
+import { customerAwsError } from '../../lib/awsErrors';
 import { useMemo, useState } from 'react';
 import { CheckCircle2, Globe2, KeyRound, RefreshCw, ShieldCheck, Trash2, XCircle } from 'lucide-react';
 import { formatDateTime, formatNumber, formatRelative } from '../../lib/format';
@@ -249,7 +250,11 @@ function SyncTab({ account, blocked }) {
         </DetailRow>
         <DetailRow label="Started">{sync.startedAt ? formatDateTime(sync.startedAt) : <span className="text-ink-3">-</span>}</DetailRow>
         <DetailRow label="Last finished">{sync.lastSyncedAt ? formatDateTime(sync.lastSyncedAt) : <span className="text-ink-3">Not yet</span>}</DetailRow>
-        {sync.lastError && <DetailRow label="Last error">{sync.lastError}</DetailRow>}
+        {sync.lastError && (
+          <DetailRow label="Last error">
+            <span className="[overflow-wrap:anywhere]">{customerAwsError(sync.lastError)}</span>
+          </DetailRow>
+        )}
       </DetailList>
     </>
   );

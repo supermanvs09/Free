@@ -74,7 +74,7 @@ export function ToastProvider({ children }) {
               <div className="min-w-0 flex-1">
                 <p className="text-[13px] font-semibold text-ink">{toast.title}</p>
                 {toast.description && (
-                  <p className="mt-0.5 text-[12.5px] leading-relaxed text-ink-2">{toast.description}</p>
+                  <p className="mt-0.5 line-clamp-5 text-[12.5px] leading-relaxed [overflow-wrap:anywhere] text-ink-2">{toast.description}</p>
                 )}
                 {toast.action && (
                   <button

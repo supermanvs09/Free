@@ -27,6 +27,7 @@ import { useSync } from '../sync/SyncContext';
 import { reloadAllData } from '../../lib/sync/engine';
 import { useToast } from '../../ui/Toast';
 import { cn } from '../../ui/cn';
+import { customerAwsError } from '../../lib/awsErrors';
 import { ACCOUNT_STATUS } from './awsSetup';
 import { AwsMark } from './parts';
 import { ExposureBadges } from './ExposureBadges';
@@ -46,7 +47,7 @@ export const SYNC = {
 /** The line under the sync state: when it was asked for, started, or last finished. */
 export function syncDetail(account, { withActor = false } = {}) {
   const { sync } = account;
-  if (sync.status === 'failed' && sync.lastError) return sync.lastError;
+  if (sync.status === 'failed' && sync.lastError) return customerAwsError(sync.lastError);
   if (sync.status === 'running' && sync.startedAt) return `Started ${formatRelative(sync.startedAt)}`;
   if (sync.status === 'queued' && sync.requestedAt)
     return `Requested ${formatRelative(sync.requestedAt)}${withActor && sync.requestedBy ? ` by ${sync.requestedBy}` : ''}`;

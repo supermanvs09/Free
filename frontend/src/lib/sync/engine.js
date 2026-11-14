@@ -1,3 +1,4 @@
+import { customerAwsError } from '../awsErrors';
 import client from '../api/client';
 import { fetchDiscoveryScanStatus, startDiscoveryScan } from '../api/discoveryScan';
 import { fetchPostureScanJob, startPostureScan } from '../api/posture';
@@ -95,6 +96,7 @@ const isActive = (run) => Boolean(run) && run.stage !== 'done' && run.stage !== 
 export const isRunActive = () => isActive(state.run);
 
 function fail(step, message, extra = {}) {
+  message = customerAwsError(message);
   clearTimeout(timer);
   patchRun({ stage: 'failed', failedStep: step, error: message, finishedAt: Date.now(), ...extra });
   emit('failed');

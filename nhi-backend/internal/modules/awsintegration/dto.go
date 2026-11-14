@@ -1,6 +1,8 @@
 package awsintegration
 
 import (
+	"nhi-backend-api/internal/platform/awserr"
+
 	"time"
 )
 
@@ -391,7 +393,7 @@ func (r AWSAccountRecord) ToAPI() AWSConnectedAccount {
 			RequestedBy: r.SyncRequestedBy,
 			StartedAt:   r.SyncStartedAt,
 			LastSyncAt:  r.LastSyncedAt,
-			LastError:   r.LastSyncError,
+			LastError:   awserr.ScrubCaller(r.LastSyncError),
 		},
 	}
 }

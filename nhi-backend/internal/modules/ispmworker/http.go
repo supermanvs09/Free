@@ -1,6 +1,8 @@
 package ispmworker
 
 import (
+	"nhi-backend-api/internal/platform/awserr"
+
 	"encoding/json"
 	"errors"
 	"io"
@@ -140,7 +142,7 @@ func (h *Handler) PublicJob(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, r, "load scan job", err)
 		return
 	}
-	writeJSON(w, http.StatusOK, Response{Data: job})
+	writeJSON(w, http.StatusOK, Response{Data: scrubJob(job)})
 }
 
 // canScan: the roles that may start a scan from the console (the console's
@@ -200,7 +202,7 @@ func (h *Handler) Job(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, r, "load scan job", err)
 		return
 	}
-	writeJSON(w, http.StatusOK, Response{Data: job})
+	writeJSON(w, http.StatusOK, Response{Data: scrubJob(job)})
 }
 
 func (h *Handler) respondStart(w http.ResponseWriter, r *http.Request, start func() (*StartResult, error)) {
@@ -393,4 +395,21 @@ func (l *addrLimiter) allow(addr string, now time.Time) (bool, time.Duration) {
 		return true, 0
 	}
 	return false, time.Duration((1 - b.tokens) / l.perMin * float64(time.Minute))
+}
+
+// scrubJob removes our scanner's identity from per-tenant error text before a
+// job leaves the API: customers see their own account and role, never ours.
+func scrubJob(job map[string]any) map[string]any {
+	tenants, _ := job["tenants"].([]any)
+	for _, t := range tenants {
+		if m, ok := t.(map[string]any); ok {
+			if e, ok := m["error"].(string); ok {
+				m["error"] = awserr.ScrubCaller(e)
+			}
+		}
+	}
+	if e, ok := job["error"].(string); ok {
+		job["error"] = awserr.ScrubCaller(e)
+	}
+	return job
 }

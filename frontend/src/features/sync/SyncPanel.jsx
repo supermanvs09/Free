@@ -233,7 +233,7 @@ export function SyncPanel({ open, onClose }) {
         {run && (
           <>
             {failed && (
-              <p className="rounded-[var(--radius-control)] border border-critical/30 bg-critical-soft px-3.5 py-3 text-[12.5px] leading-relaxed text-ink" role="alert">
+              <p className="rounded-[var(--radius-control)] border border-critical/30 bg-critical-soft px-3.5 py-3 text-[12.5px] leading-relaxed [overflow-wrap:anywhere] text-ink" role="alert">
                 {run.error}
               </p>
             )}
