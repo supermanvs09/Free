@@ -2,8 +2,9 @@
 #
 # Two stages. The first has Node and the dependency tree and builds the bundle;
 # the second is nginx serving the bundle, plus the zero-dependency notification
-# relay (server/notify-relay.mjs) that sends alert email through Amazon SES and
-# opens Jira issues. Nothing else from the build stage is carried forward.
+# console server (server/): the live workspace everyone shares, alert email
+# through Gmail (or Amazon SES) and Jira issues. Nothing else from the build
+# stage is carried forward.
 #
 # Build:
 #   docker build -t nhi-console:latest .
@@ -35,18 +36,24 @@ RUN apk add --no-cache nodejs
 ENV NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx/conf.d \
     NGINX_ENVSUBST_FILTER='(NOTIFY_RELAY_PORT)$' \
     NOTIFY_RELAY_PORT=8787 \
-    NOTIFY_RELAY_ENABLED=true
+    NOTIFY_RELAY_ENABLED=true \
+    DATA_DIR=/var/lib/nhi
 
 RUN rm -f /etc/nginx/conf.d/default.conf
 COPY nginx/nginx.conf.template /etc/nginx/templates/nhi-console.conf.template
 COPY nginx/security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY --chmod=0755 docker/18-default-env.envsh /docker-entrypoint.d/18-default-env.envsh
 COPY --chmod=0755 docker/40-notify-relay.sh /docker-entrypoint.d/40-notify-relay.sh
-COPY server/notify-relay.mjs /opt/notify-relay/notify-relay.mjs
+COPY server/ /opt/notify-relay/
 COPY --from=build /app/dist /usr/share/nginx/html
 
-RUN chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /var/log/nginx /etc/nginx/conf.d \
+RUN mkdir -p /var/lib/nhi \
+    && chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /var/log/nginx /etc/nginx/conf.d /var/lib/nhi \
     && touch /var/run/nginx.pid && chown nginx:nginx /var/run/nginx.pid
+
+# The shared workspace (users, audit log, settings, alerts) is saved here.
+# Mount a volume to keep it across container restarts.
+VOLUME ["/var/lib/nhi"]
 
 USER nginx
 EXPOSE 3000

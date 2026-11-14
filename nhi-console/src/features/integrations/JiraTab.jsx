@@ -4,6 +4,7 @@ import { useWorkspace } from '../../app/WorkspaceContext';
 import { fetchDeliveries, fetchJiraCredentials, saveAppSettings } from '../../lib/api/hub';
 import { useQuery } from '../../lib/hooks';
 import { createJiraIssue, testJira } from '../../lib/notify';
+import { isShared } from '../../lib/local/state';
 import { jiraIssueFor, recordDelivery, testEvent } from '../../lib/local/notifyBus';
 import { Button } from '../../ui/Button';
 import { Field, Input, PasswordInput, Select } from '../../ui/Field';
@@ -134,7 +135,7 @@ export function JiraTab({ app, canManage }) {
             <Field label="Account email" htmlFor="j-email" required error={errors.email}>
               <Input id="j-email" value={form.email} placeholder="security-bot@company.com" onChange={(e) => set('email', e.target.value)} disabled={!canManage} invalid={Boolean(errors.email)} />
             </Field>
-            <Field label="API token" htmlFor="j-token" required={!app.api_token_set} error={errors.api_token} hint={app.api_token_set ? 'A token is saved. Paste a new one to replace it.' : 'Kept in this workspace’s browser storage; sent only to the relay.'}>
+            <Field label="API token" htmlFor="j-token" required={!app.api_token_set} error={errors.api_token} hint={app.api_token_set ? 'A token is saved. Paste a new one to replace it.' : isShared() ? 'Kept on the server only - never sent to anyone’s browser.' : 'Kept in this browser only.'}>
               <PasswordInput id="j-token" value={form.api_token} placeholder={app.api_token_set ? '••••••••••••' : ''} onChange={(e) => set('api_token', e.target.value)} disabled={!canManage} invalid={Boolean(errors.api_token)} autoComplete="off" />
             </Field>
             <Field label="Project key" htmlFor="j-proj" required error={errors.project_key}>

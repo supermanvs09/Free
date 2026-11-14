@@ -36,10 +36,15 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
+import fss from 'node:fs';
+import nodePath from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createHub, VAULT } from './sync-hub.mjs';
+import { sendSmtp } from './smtp.mjs';
 
 const env = process.env;
-const PORT = Number(env.PORT || 8787);
-const HOST = env.HOST || '127.0.0.1';
+const PORT = Number(env.PORT || (process.argv.includes('--serve') ? 3000 : 8787));
+const HOST = env.HOST || (env.SERVE_STATIC === 'true' || env.STATIC_DIR || process.argv.includes('--serve') ? '0.0.0.0' : '127.0.0.1');
 const REGION = env.SES_REGION || env.AWS_REGION || env.AWS_DEFAULT_REGION || 'ap-south-1';
 const MAIL_FROM = (env.MAIL_FROM || '').trim();
 const MAIL_FROM_NAME = (env.MAIL_FROM_NAME || 'NHI Security').trim();
@@ -48,7 +53,22 @@ const ALLOWED_ORIGINS = list(env.ALLOWED_ORIGINS);
 const JIRA_HOSTS = list(env.JIRA_ALLOWED_HOSTS);
 const RATE = Number(env.RATE_LIMIT_PER_MIN || 30);
 const SES_ENDPOINT = env.SES_ENDPOINT || `https://email.${REGION}.amazonaws.com`;
-const MAX_BODY = 256 * 1024;
+const MAX_BODY = 2 * 1024 * 1024;
+const HERE = nodePath.dirname(fileURLToPath(import.meta.url));
+const DATA_DIR = env.DATA_DIR || nodePath.resolve(HERE, '..', 'data');
+const SERVE = env.SERVE_STATIC === 'true' || process.argv.includes('--serve');
+const STATIC_DIR = env.STATIC_DIR || (SERVE ? nodePath.resolve(HERE, '..', 'dist') : '');
+const SYNC_RATE = Number(env.SYNC_RATE_LIMIT_PER_MIN || 1200);
+/* SMTP (Gmail, Google Workspace or any SMTP server). GMAIL_* is shorthand. */
+const SMTP = {
+  host: (env.SMTP_HOST || (env.GMAIL_USER ? 'smtp.gmail.com' : '')).trim(),
+  port: Number(env.SMTP_PORT || 465),
+  secure: env.SMTP_SECURE ? env.SMTP_SECURE === 'true' : undefined,
+  user: (env.SMTP_USER || env.GMAIL_USER || '').trim(),
+  pass: (env.SMTP_PASS || env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, ''),
+  from: (env.SMTP_FROM || env.MAIL_FROM || env.SMTP_USER || env.GMAIL_USER || '').trim(),
+  rejectUnauthorized: env.SMTP_TLS_INSECURE !== 'true',
+};
 const EMAIL = /^[^@\s<>",;]+@[^@\s<>",;]+\.[^@\s<>",;]+$/;
 
 function list(value) {
@@ -59,6 +79,44 @@ function list(value) {
 }
 
 const log = (level, msg, extra = {}) => process.stdout.write(`${JSON.stringify({ t: new Date().toISOString(), level, msg, ...extra })}\n`);
+
+/* The shared workspace (see sync-hub.mjs). */
+const hub = env.SYNC_ENABLED === 'false' ? null : createHub({ dataDir: DATA_DIR, log });
+
+/* A Gmail sender set up in the console (Integrations → Gmail). */
+function workspaceSender() {
+  const g = hub?.snapshot().doc?.apps?.gmail;
+  const pass = hub?.secret('apps.gmail.app_password').replace(/\s+/g, '');
+  if (!g?.sender_email || !pass) return null;
+  return {
+    host: env.WORKSPACE_SMTP_HOST || 'smtp.gmail.com',
+    port: Number(env.WORKSPACE_SMTP_PORT || 465),
+    secure: env.WORKSPACE_SMTP_SECURE ? env.WORKSPACE_SMTP_SECURE === 'true' : undefined,
+    rejectUnauthorized: env.SMTP_TLS_INSECURE !== 'true',
+    user: g.sender_email,
+    pass,
+    from: g.sender_email,
+    fromName: g.sender_name || MAIL_FROM_NAME,
+  };
+}
+
+/** How email leaves: SMTP from the environment, the console's Gmail sender, or SES. */
+function transport() {
+  if (SMTP.host && SMTP.user && SMTP.pass) return { kind: 'smtp', source: 'environment', ...SMTP, fromName: MAIL_FROM_NAME };
+  const ws = workspaceSender();
+  if (ws) return { kind: 'smtp', source: 'workspace', ...ws };
+  if (MAIL_FROM) return { kind: 'ses', from: MAIL_FROM };
+  return null;
+}
+
+/* The same alert is sent once, however many consoles ask. */
+const sentKeys = new Map();
+function seen(key) {
+  if (!key) return null;
+  const now = Date.now();
+  for (const [k, v] of sentKeys) if (now - v.at > 30 * 60 * 1000) sentKeys.delete(k);
+  return sentKeys.get(key) ?? null;
+}
 
 /* ── AWS credentials ───────────────────────────────────────────────────── */
 let cached = null;
@@ -136,8 +194,11 @@ export function signV4({ method, url, headers = {}, body = '', service, region, 
 }
 
 /* ── SES ───────────────────────────────────────────────────────────────── */
-async function sendEmail({ to, subject, text, html }) {
-  if (!MAIL_FROM) throw httpError(503, 'MAIL_FROM is not set on the relay.', 'NOT_CONFIGURED');
+async function sendEmail({ to, subject, text, html, idempotency_key: key }) {
+  const prior = seen(key ? `email:${key}` : null);
+  if (prior) return { ...prior.result, duplicate: true };
+  const way = transport();
+  if (!way) throw httpError(503, 'No sender is set up yet. Add a Gmail sender in Integrations → Gmail.', 'NOT_CONFIGURED');
   const recipients = [...new Set((Array.isArray(to) ? to : [to]).map((x) => String(x).trim().toLowerCase()).filter(Boolean))];
   if (!recipients.length) throw httpError(400, 'Add at least one recipient.', 'NO_RECIPIENTS');
   if (recipients.length > 50) throw httpError(400, 'At most 50 recipients per alert.', 'TOO_MANY_RECIPIENTS');
@@ -148,6 +209,22 @@ async function sendEmail({ to, subject, text, html }) {
     if (outside) throw httpError(403, `${outside} is outside the domains this relay may email (${ALLOWED_DOMAINS.join(', ')}).`, 'RECIPIENT_NOT_ALLOWED');
   }
   if (!subject || String(subject).length > 300) throw httpError(400, 'A subject of up to 300 characters is required.', 'BAD_SUBJECT');
+  if (way.kind === 'smtp') {
+    try {
+      const out = await sendSmtp({ ...way, to: recipients, subject: String(subject), text, html });
+      const result = { message_id: out.message_id, from: way.from, to: recipients, via: 'gmail' };
+      if (key) sentKeys.set(`email:${key}`, { at: Date.now(), result });
+      return result;
+    } catch (error) {
+      const code = error.smtpCode;
+      const signIn = error.stage === 'Sign-in' || code === 535 || code === 534;
+      throw httpError(
+        signIn ? 401 : code && code < 500 ? 503 : 502,
+        signIn ? 'Gmail did not accept the address and app password. Use a 16-character app password, not your Google password.' : `The mail server refused the email: ${error.message}`,
+        signIn ? 'SMTP_AUTH' : 'SMTP_ERROR',
+      );
+    }
+  }
   const payload = {
     FromEmailAddress: MAIL_FROM_NAME ? `${MAIL_FROM_NAME.replace(/[<>"]/g, '')} <${MAIL_FROM}>` : MAIL_FROM,
     Destination: { ToAddresses: recipients },
@@ -178,7 +255,9 @@ async function sendEmail({ to, subject, text, html }) {
     const message = data.message || data.Message || `SES answered ${res.status}`;
     throw httpError(res.status === 400 || res.status === 403 ? res.status : 502, `SES refused the email: ${message}`, data.__type || data.code || 'SES_ERROR');
   }
-  return { message_id: data.MessageId, from: MAIL_FROM, to: recipients };
+  const result = { message_id: data.MessageId, from: MAIL_FROM, to: recipients, via: 'ses' };
+  if (key) sentKeys.set(`email:${key}`, { at: Date.now(), result });
+  return result;
 }
 
 /* ── Jira ──────────────────────────────────────────────────────────────── */
@@ -186,7 +265,8 @@ function jiraConfig(input = {}) {
   const server = env.JIRA_BASE_URL && env.JIRA_EMAIL && env.JIRA_API_TOKEN;
   const site = String(server ? env.JIRA_BASE_URL : input.site_url || '').replace(/\/+$/, '');
   const email = server ? env.JIRA_EMAIL : input.email;
-  const token = server ? env.JIRA_API_TOKEN : input.api_token;
+  let token = server ? env.JIRA_API_TOKEN : input.api_token;
+  if (!server && (!token || token === VAULT)) token = hub?.secret('apps.jira.api_token') || '';
   let host;
   try {
     const u = new URL(site);
@@ -243,8 +323,19 @@ async function jiraTest(input) {
 
 async function jiraIssue(input) {
   const cfg = jiraConfig(input);
+  const key = input.idempotency_key ? `jira:${input.idempotency_key}` : null;
+  const prior = seen(key);
+  if (prior) return { ...prior.result, duplicate: true };
+  const result = await jiraIssueOnce(cfg, input);
+  if (key) sentKeys.set(key, { at: Date.now(), result });
+  return result;
+}
+
+async function jiraIssueOnce(cfg, input) {
   const labels = (Array.isArray(input.labels) ? input.labels : []).map((l) => String(l).replace(/\s+/g, '-').slice(0, 255)).filter(Boolean).slice(0, 10);
   const dedupe = String(input.dedupe_label || '').replace(/[^\w.-]/g, '');
+  /* The issue carries its dedupe label, so the next firing finds it. */
+  if (dedupe && !labels.includes(dedupe)) labels.push(dedupe);
   if (dedupe) {
     const jql = `project = "${cfg.project}" AND labels = "${dedupe}" ORDER BY created DESC`;
     let found = null;
@@ -290,13 +381,13 @@ function httpError(status, message, code) {
 }
 
 const hits = new Map();
-function limited(ip) {
+function limited(key, max = RATE) {
   const now = Date.now();
-  const recent = (hits.get(ip) || []).filter((t) => now - t < 60000);
+  const recent = (hits.get(key) || []).filter((t) => now - t < 60000);
   recent.push(now);
-  hits.set(ip, recent);
+  hits.set(key, recent);
   if (hits.size > 5000) hits.clear();
-  return recent.length > RATE;
+  return recent.length > max;
 }
 
 function readBody(req) {
@@ -328,56 +419,140 @@ function send(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
+/* ── Static files (single-process deployments without nginx) ───────────── */
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.woff': 'font/woff', '.txt': 'text/plain; charset=utf-8', '.webmanifest': 'application/manifest+json' };
+const SECURITY_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+};
+
+async function serveStatic(req, res, pathname) {
+  const root = nodePath.resolve(STATIC_DIR);
+  let rel = decodeURIComponent(pathname);
+  if (rel.includes('\0')) throw httpError(400, 'Bad path.', 'BAD_PATH');
+  let file = nodePath.resolve(root, `.${rel}`);
+  if (!file.startsWith(root)) throw httpError(404, 'Not found.', 'NOT_FOUND');
+  let stat = await fs.stat(file).catch(() => null);
+  if (stat?.isDirectory()) {
+    file = nodePath.join(file, 'index.html');
+    stat = await fs.stat(file).catch(() => null);
+  }
+  const ext = nodePath.extname(file);
+  if (!stat && (!ext || ext === '.html')) {
+    /* A client-side route: answer with the app shell. */
+    file = nodePath.join(root, 'index.html');
+    stat = await fs.stat(file).catch(() => null);
+  }
+  if (!stat || /\.(map|env|lock|log)$/i.test(file) || nodePath.basename(file).startsWith('.')) throw httpError(404, 'Not found.', 'NOT_FOUND');
+  const isAsset = rel.startsWith('/assets/');
+  const type = TYPES[nodePath.extname(file)] || 'application/octet-stream';
+  const headers = { ...SECURITY_HEADERS, 'Content-Type': type, 'Cache-Control': isAsset ? 'public, max-age=31536000, immutable' : file.endsWith('index.html') ? 'no-store' : 'public, max-age=3600' };
+  const gz = /gzip/.test(String(req.headers['accept-encoding'] || '')) && /text|javascript|json|svg/.test(type) && stat.size > 1024;
+  if (gz) {
+    const zlib = await import('node:zlib');
+    res.writeHead(200, { ...headers, 'Content-Encoding': 'gzip', Vary: 'Accept-Encoding' });
+    fss.createReadStream(file).pipe(zlib.createGzip()).pipe(res);
+  } else {
+    res.writeHead(200, { ...headers, 'Content-Length': stat.size });
+    if (req.method === 'HEAD') return res.end();
+    fss.createReadStream(file).pipe(res);
+  }
+}
+
+async function health() {
+  const way = transport();
+  let credentialsSource = null;
+  let credentialsError = null;
+  if (way?.kind === 'ses') {
+    try {
+      credentialsSource = (await credentials()).source;
+    } catch (error) {
+      credentialsError = error.message;
+    }
+  }
+  const ok = way?.kind === 'smtp' || (way?.kind === 'ses' && Boolean(credentialsSource));
+  return {
+    ok,
+    via: way?.kind === 'smtp' ? 'gmail' : way?.kind === 'ses' ? 'ses' : null,
+    sender_source: way?.source ?? (way ? 'environment' : null),
+    from: way?.from || null,
+    smtp_host: way?.kind === 'smtp' ? way.host : null,
+    region: REGION,
+    credentials: credentialsSource,
+    allowed_domains: ALLOWED_DOMAINS,
+    jira_server_token: Boolean(env.JIRA_BASE_URL && env.JIRA_EMAIL && env.JIRA_API_TOKEN),
+    jira_token_stored: Boolean(hub?.secret('apps.jira.api_token')),
+    sync: hub ? { enabled: true, ...hub.stats() } : { enabled: false },
+    message: ok ? 'ready' : !way ? 'No sender is set up yet.' : `No AWS credentials: ${credentialsError}`,
+  };
+}
+
 const server = http.createServer(async (req, res) => {
-  const path = new URL(req.url, 'http://relay').pathname.replace(/^\/notify-api/, '');
+  const url = new URL(req.url, 'http://relay');
+  const prefixed = url.pathname.startsWith('/notify-api/') || url.pathname === '/notify-api';
+  const path = url.pathname.replace(/^\/notify-api/, '');
   const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
   try {
-    if (req.method === 'GET' && path === '/health') {
-      let credentialsSource = null;
-      let credentialsError = null;
-      try {
-        credentialsSource = (await credentials()).source;
-      } catch (error) {
-        credentialsError = error.message;
+    if (STATIC_DIR && !prefixed) {
+      if (url.pathname === '/healthz') {
+        res.writeHead(200, { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' });
+        return res.end('ok\n');
       }
-      const ok = Boolean(MAIL_FROM) && Boolean(credentialsSource);
-      return send(res, 200, {
-        ok,
-        from: MAIL_FROM || null,
-        region: REGION,
-        credentials: credentialsSource,
-        allowed_domains: ALLOWED_DOMAINS,
-        jira_server_token: Boolean(env.JIRA_BASE_URL && env.JIRA_EMAIL && env.JIRA_API_TOKEN),
-        message: ok ? 'ready' : !MAIL_FROM ? 'MAIL_FROM is not set on the relay.' : `No AWS credentials: ${credentialsError}`,
-      });
+      if (req.method !== 'GET' && req.method !== 'HEAD') throw httpError(405, 'Not allowed.', 'METHOD');
+      return await serveStatic(req, res, url.pathname);
     }
+    if (req.method === 'GET' && path === '/health') return send(res, 200, await health());
+
+    /* ── The shared workspace ─────────────────────────────────────────── */
+    if (path.startsWith('/sync/')) {
+      if (!hub) throw httpError(404, 'Sharing is switched off on this server.', 'SYNC_DISABLED');
+      if (req.method === 'GET' && path === '/sync/state') return send(res, 200, { ok: true, ...hub.snapshot() });
+      if (req.method === 'GET' && path === '/sync/stream') return hub.stream(req, res, url.searchParams);
+      if (req.method !== 'POST') throw httpError(405, 'Not allowed.', 'METHOD');
+      const origin = req.headers.origin;
+      if (ALLOWED_ORIGINS.length && origin && !ALLOWED_ORIGINS.includes(origin)) throw httpError(403, 'This origin may not use the workspace.', 'ORIGIN');
+      if (!String(req.headers['content-type'] || '').includes('application/json')) throw httpError(415, 'Send JSON.', 'CONTENT_TYPE');
+      if (limited(`sync:${ip}`, SYNC_RATE)) throw httpError(429, 'Too many changes from this client. Try again in a minute.', 'RATE_LIMITED');
+      const body = await readBody(req);
+      if (path === '/sync/ops') return send(res, 200, { ok: true, ...hub.applyOps(body) });
+      if (path === '/sync/presence') return send(res, 200, { ok: hub.presence(body) });
+      if (path === '/sync/reset') return send(res, 200, { ok: true, ...hub.reset(body) });
+      throw httpError(404, 'Not found.', 'NOT_FOUND');
+    }
+
     if (req.method !== 'POST') throw httpError(405, 'Not allowed.', 'METHOD');
     const origin = req.headers.origin;
     if (ALLOWED_ORIGINS.length && origin && !ALLOWED_ORIGINS.includes(origin)) throw httpError(403, 'This origin may not use the relay.', 'ORIGIN');
     if (!String(req.headers['content-type'] || '').includes('application/json')) throw httpError(415, 'Send JSON.', 'CONTENT_TYPE');
-    if (limited(ip)) throw httpError(429, 'Too many notifications from this client. Try again in a minute.', 'RATE_LIMITED');
+    if (limited(ip, RATE)) throw httpError(429, 'Too many notifications from this client. Try again in a minute.', 'RATE_LIMITED');
     const body = await readBody(req);
     if (path === '/email') {
       const out = await sendEmail(body);
-      log('info', 'email sent', { to: out.to.length, message_id: out.message_id });
+      log('info', out.duplicate ? 'email already sent' : 'email sent', { to: out.to.length, via: out.via, message_id: out.message_id });
       return send(res, 200, { ok: true, ...out });
     }
     if (path === '/jira/test') return send(res, 200, { ok: true, ...(await jiraTest(body)) });
     if (path === '/jira/issue') {
       const out = await jiraIssue(body);
-      log('info', out.updated ? 'jira issue updated' : 'jira issue created', { key: out.key });
+      log('info', out.duplicate ? 'jira issue already handled' : out.updated ? 'jira issue updated' : 'jira issue created', { key: out.key });
       return send(res, 200, { ok: true, ...out });
     }
     throw httpError(404, 'Not found.', 'NOT_FOUND');
   } catch (error) {
     const status = error.status || 500;
     if (status >= 500) log('error', error.message, { path });
+    if (res.headersSent) return res.end();
     send(res, status, { ok: false, error: error.code || 'ERROR', message: status >= 500 && !error.status ? 'The relay failed.' : error.message });
   }
 });
+/* Event streams stay open; the default request timeout would cut them. */
+server.requestTimeout = 0;
+server.headersTimeout = 30000;
 
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop())) {
-  server.listen(PORT, HOST, () => log('info', 'notify relay listening', { host: HOST, port: PORT, region: REGION, from: MAIL_FROM || '(MAIL_FROM not set)' }));
+  server.listen(PORT, HOST, () => log('info', 'console server listening', { host: HOST, port: PORT, static: STATIC_DIR || null, sync: Boolean(hub), data: hub ? DATA_DIR : null, mail: transport()?.kind ?? 'not set up' }));
   for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => server.close(() => process.exit(0)));
 }
 

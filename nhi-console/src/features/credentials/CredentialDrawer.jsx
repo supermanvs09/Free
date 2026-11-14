@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ProviderIcon, providerOf } from '../../ui/ProviderIcon';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Braces, Eye, Fingerprint, GitCompareArrows, History, KeyRound, Link2, Radar, ShieldCheck, UsersRound } from 'lucide-react';
 import { BlastRadiusView } from '../blast/BlastRadiusView';
@@ -72,7 +73,14 @@ export function CredentialDrawer({ credentialId, row, onClose, initialTab }) {
       onClose={onClose}
       width="lg"
       eyebrow={meta.label}
-      title={credential?.name || (overviewQuery.isLoading ? 'Loading credential…' : 'Credential')}
+      title={
+        credential?.name ? (
+          <span className="flex min-w-0 items-center gap-2">
+            <ProviderIcon row={credential} size={18} />
+            <span className="truncate">{credential.name}</span>
+          </span>
+        ) : overviewQuery.isLoading ? 'Loading credential…' : 'Credential'
+      }
       subtitle={
         credential ? (
           <span className="flex flex-col gap-1.5">
@@ -230,7 +238,7 @@ function OverviewBody({ data, privilege, record, recordLoading }) {
           <ul className="mt-2 flex flex-col gap-2">
             {bound.map((identity) => (
               <li key={identity.identity_id} className="flex items-center gap-3 rounded-[var(--radius-control)] border border-line bg-surface-2 px-3.5 py-2.5">
-                <Fingerprint aria-hidden="true" className="size-4 shrink-0 text-ink-3" />
+                {providerOf(identity) || providerOf(credential) ? <ProviderIcon row={providerOf(identity) ? identity : credential} size={16} /> : <Fingerprint aria-hidden="true" className="size-4 shrink-0 text-ink-3" />}
                 <span className="min-w-0 flex-1">
                   <Link to={identityRoute(identity.identity_id)} className="block truncate text-[13px] font-medium text-ink hover:text-brand hover:underline">
                     {identity.name}

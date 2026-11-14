@@ -2,11 +2,12 @@
 import { ORG, PEOPLE } from './seed';
 import { save, slice, state } from './state';
 import { DAY, HOUR, MIN, NOW, ago, iso, rng } from './util';
+import { hashPassword } from './hash';
 
 export const DEFAULT_PASSWORD = 'Welcome@2026';
 
 export function users() {
-  return slice('users', () =>
+  const list = slice('users', () =>
     PEOPLE.map((p, i) => ({
       id: `usr_${String(i + 1).padStart(3, '0')}`,
       email: p.email,
@@ -18,15 +19,44 @@ export function users() {
       tenant_id: ORG.tenantId,
       created_at: ago((420 - i * 23) * DAY),
       last_login_at: p.key === 'meghana' ? ago(64 * DAY) : ago((i * 7 + 3) * HOUR),
-      password: DEFAULT_PASSWORD,
+      password_hash: hashPassword(`usr_${String(i + 1).padStart(3, '0')}`, DEFAULT_PASSWORD),
+      session_epoch: 0,
       created_by: i < 2 ? 'system' : PEOPLE[0].email,
     })),
   );
+  /* Accounts kept by an older build held the password itself. */
+  let migrated = false;
+  for (const u of list) {
+    if (u.password !== undefined) {
+      u.password_hash = hashPassword(u.id, u.password);
+      delete u.password;
+      migrated = true;
+    }
+  }
+  if (migrated) save();
+  return list;
+}
+
+export const checkPassword = (u, password) => Boolean(u?.password_hash) && u.password_hash === hashPassword(u.id, String(password ?? ''));
+
+/** Sets a new password and signs the account out of every other browser. */
+export function setPassword(u, password, { keepSession = false } = {}) {
+  u.password_hash = hashPassword(u.id, password);
+  endSessions(u);
+  if (keepSession) {
+    const s = activeSession();
+    if (s?.user_id === u.id) setSession({ ...s, epoch: u.session_epoch });
+  }
+}
+
+/** Every browser signed in as this person is signed out. */
+export function endSessions(u) {
+  u.session_epoch = (u.session_epoch ?? 0) + 1;
 }
 
 export const publicUser = (u) => {
   if (!u) return null;
-  const { password: _p, ...rest } = u;
+  const { password: _p, password_hash: _h, session_epoch: _e, ...rest } = u;
   return rest;
 };
 
@@ -37,7 +67,7 @@ export const findUser = (email) => users().find((u) => u.email.toLowerCase() ===
 export function startSession(user) {
   const token = `nhi_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
   user.last_login_at = iso(Date.now());
-  setSession({ token, user_id: user.id, started_at: iso(Date.now()) });
+  setSession({ token, user_id: user.id, epoch: user.session_epoch ?? 0, started_at: iso(Date.now()) });
   return token;
 }
 
@@ -56,7 +86,14 @@ export function currentUser(authorization) {
   if (token && token !== s.token) return null;
   if (!token) return null;
   const u = users().find((x) => x.id === s.user_id);
-  return u && u.status === 'active' ? u : null;
+  return u && u.status === 'active' && (s.epoch ?? 0) === (u.session_epoch ?? 0) ? u : null;
+}
+
+/** The session kept in this browser is still good (active, not signed out elsewhere). */
+export function sessionValid(s = activeSession()) {
+  if (!s) return null;
+  const u = users().find((x) => x.id === s.user_id);
+  return u && u.status === 'active' && (s.epoch ?? 0) === (u.session_epoch ?? 0) ? u : null;
 }
 
 export function sessionUser() {

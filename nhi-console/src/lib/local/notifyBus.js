@@ -9,7 +9,7 @@
  * Lock); the others see the result through the shared state.
  */
 import { apps, isOn } from './apps';
-import { slice, save, onStateChange } from './state';
+import { slice, save, onStateChange, isShared, isSyncLeader, onLeaderChange, getSyncStatus } from './state';
 import { estate, scopeById } from './seed';
 import { sendEmail, createJiraIssue } from '../notify';
 import { postureId } from './postureEngine';
@@ -22,6 +22,9 @@ const listeners = new Set();
 export const liveEvents = () => slice('liveEvents', () => []);
 export const deliveries = () => slice('deliveries', () => []);
 const cursor = () => slice('liveCursor', () => ({ next: 0, last: 0 }));
+/* Alerts this console has handed to Gmail and Jira (or decided not to). */
+const handled = new Set();
+let seenTop = null;
 
 export function onLiveEvent(fn) {
   listeners.add(fn);
@@ -45,6 +48,7 @@ export function emitEvent(partial) {
   const identity = partial.identity ?? (partial.who ? byName(partial.who) : null);
   const event = {
     id: partial.id ?? `evt_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+    dedupe_key: partial.dedupe_key ?? null,
     kind: partial.kind,
     severity: partial.severity,
     title: partial.title,
@@ -54,12 +58,14 @@ export function emitEvent(partial) {
     identity: identity ? { id: identity.id, name: identity.name, provider: identity.provider, arn: identity.arn, account_id: identity.account_id, account_name: scopeById(identity.account_id)?.name, region: identity.region, identity_type: identity.identity_type } : null,
     link: linkFor(partial.kind, identity),
   };
+  if (liveEvents().some((e) => e.id === event.id)) return event;
   liveEvents().unshift(event);
   if (liveEvents().length > 60) liveEvents().length = 60;
+  seenTop = event.id;
   save();
   for (const fn of listeners) fn(event);
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('alerts:refresh'));
-  dispatch(event);
+  if (leader) dispatch(event);
   return event;
 }
 
@@ -123,8 +129,10 @@ export function jiraIssueFor(event, cfg) {
     project_key: cfg.project_key,
     issue_type: cfg.issue_type || 'Bug',
     priority: cfg.priority_map?.[event.severity],
-    labels: [...(cfg.labels ?? []), `nhi-${event.kind}`, `nhi-${event.id}`],
-    dedupe_label: `nhi-${event.id}`,
+    labels: [...(cfg.labels ?? []), `nhi-${event.kind}`, `nhi-${event.dedupe_key ?? event.id}`],
+    /* The same detection firing again comments on its issue. */
+    dedupe_label: `nhi-${event.dedupe_key ?? event.id}`,
+    idempotency_key: event.id,
     summary: `[NHI ${event.severity}] ${event.title}`.slice(0, 250),
     description: [
       event.summary,
@@ -148,73 +156,121 @@ function record(entry) {
 }
 
 async function dispatch(event) {
-  if (!leader) return;
+  if (handled.has(event.id)) return;
+  handled.add(event.id);
+  /* Someone else's console already delivered it. */
+  if (deliveries().some((d) => d.event_id === event.id)) return;
   const a = apps();
   if (isOn('gmail') && a.gmail.recipients?.length && matches(a.gmail, event)) {
     const mail = emailFor(event);
-    const res = await sendEmail({ to: a.gmail.recipients, ...mail });
-    record({ channel: 'gmail', event_id: event.id, title: event.title, severity: event.severity, to: a.gmail.recipients.join(', '), status: res.ok ? 'sent' : 'failed', message: res.ok ? `Sent (SES message ${res.message_id ?? ''})`.trim() : res.message, message_id: res.message_id ?? null });
+    const res = await sendEmail({ to: a.gmail.recipients, ...mail, idempotency_key: event.id });
+    if (!res.duplicate) record({ channel: 'gmail', event_id: event.id, title: event.title, severity: event.severity, to: a.gmail.recipients.join(', '), status: res.ok ? 'sent' : 'failed', message: res.ok ? `Delivered via ${res.via === 'ses' ? 'Amazon SES' : 'Gmail'}${res.from ? ` from ${res.from}` : ''}` : res.message, message_id: res.message_id ?? null });
   }
   if (isOn('jira') && a.jira.site_url && a.jira.project_key && matches(a.jira, event)) {
     const res = await createJiraIssue(jiraIssueFor(event, a.jira));
-    record({ channel: 'jira', event_id: event.id, title: event.title, severity: event.severity, to: a.jira.project_key, status: res.ok ? 'sent' : 'failed', message: res.ok ? `${res.updated ? 'Updated' : 'Created'} ${res.key}` : res.message, issue_key: res.key ?? null, issue_url: res.url ?? null });
+    if (!res.duplicate) record({ channel: 'jira', event_id: event.id, title: event.title, severity: event.severity, to: a.jira.project_key, status: res.ok ? 'sent' : 'failed', message: res.ok ? `${res.updated ? 'Updated' : 'Created'} ${res.key}` : res.message, issue_key: res.key ?? null, issue_url: res.url ?? null });
   }
 }
 
 /* ── The watcher ───────────────────────────────────────────────────────── */
+/*
+ * Exactly one console watches and sends. With the shared workspace, the hub
+ * names it (across everyone's browsers); on its own, this browser's tabs
+ * agree through a Web Lock. Whoever it is also delivers alerts that other
+ * people's consoles raised (a posture drop after someone's change, say).
+ */
 let leader = false;
+let lockHeld = false;
 let timer = null;
 const FIRST_AFTER = 50 * 1000;
 const EVERY = 4 * MIN;
+/* After the first run of detections, the watchers keep finding things now and then. */
+const AGAIN_EVERY = 11 * MIN;
+
+function specAt(n) {
+  const base = UPCOMING[n % UPCOMING.length];
+  const round = Math.floor(n / UPCOMING.length);
+  return { ...base, id: `evt_live_${n}`, dedupe_key: `live-${n % UPCOMING.length}`, ...(round > 0 ? { summary: `${base.summary} Seen again ${round === 1 ? 'since the last time' : `${round + 1} times now`}.` } : {}) };
+}
 
 function tick() {
   const c = cursor();
-  if (c.next >= UPCOMING.length) return;
-  const spec = UPCOMING[c.next];
+  const n = c.next;
   c.next += 1;
   c.last = Date.now();
   save();
-  emitEvent(spec);
+  emitEvent(specAt(n));
 }
 
 function schedule() {
   clearTimeout(timer);
+  if (!leader) return;
   const c = cursor();
-  if (c.next >= UPCOMING.length) return;
-  const since = Date.now() - (c.last || 0);
-  const wait = c.last ? Math.max(5000, EVERY - since) : FIRST_AFTER;
+  const every = c.next >= UPCOMING.length ? AGAIN_EVERY : EVERY;
+  /* Anchored in the shared workspace, so handing the watch to another
+     console does not start the clock over. */
+  if (!c.last && !c.started) {
+    c.started = Date.now();
+    save();
+  }
+  const wait = c.last ? Math.max(5000, every - (Date.now() - c.last)) : Math.max(3000, FIRST_AFTER - (Date.now() - c.started));
   timer = setTimeout(() => {
+    if (!leader) return;
     tick();
     schedule();
   }, wait);
 }
 
-/** Starts watching in the tab that holds the lock. Safe to call more than once. */
+function decide() {
+  const next = isShared() && getSyncStatus() !== 'local' ? isSyncLeader() : lockHeld;
+  if (next === leader) return;
+  leader = next;
+  if (leader) {
+    /* What is already in the inbox was someone else's to send. */
+    for (const e of liveEvents()) handled.add(e.id);
+    schedule();
+  } else clearTimeout(timer);
+}
+
+/** Starts watching. Safe to call more than once. */
 export function startWatching() {
   if (typeof window === 'undefined' || startWatching.started) return;
   startWatching.started = true;
-  const become = () => {
-    leader = true;
-    schedule();
-    return new Promise(() => {}); /* held until the tab closes */
-  };
-  if (navigator.locks?.request) navigator.locks.request('nhi.live.watcher', become);
-  else become();
-  /* Other tabs: show the toast when the leader adds an event. */
-  let seen = liveEvents()[0]?.id;
+  for (const e of liveEvents()) handled.add(e.id);
+  if (!isShared()) {
+    const become = () => {
+      lockHeld = true;
+      decide();
+      return new Promise(() => {}); /* held until the tab closes */
+    };
+    if (navigator.locks?.request) navigator.locks.request('nhi.live.watcher', become);
+    else become();
+  }
+  onLeaderChange(decide);
+  decide();
+  /* New alerts raised elsewhere: show them here, and the watcher sends them. */
+  seenTop = liveEvents()[0]?.id ?? null;
   onStateChange(() => {
-    const top = liveEvents()[0];
-    if (!leader && top && top.id !== seen) {
-      seen = top.id;
-      for (const fn of listeners) fn(top);
-      window.dispatchEvent(new CustomEvent('alerts:refresh'));
+    const list = liveEvents();
+    const top = list[0];
+    if (!top || top.id === seenTop) return;
+    const fresh = [];
+    for (const e of list) {
+      if (e.id === seenTop) break;
+      fresh.push(e);
+      if (fresh.length >= 10) break;
     }
+    seenTop = top.id;
+    for (const e of fresh.reverse()) {
+      for (const fn of listeners) fn(e);
+      if (leader) dispatch(e);
+    }
+    window.dispatchEvent(new CustomEvent('alerts:refresh'));
   });
 }
 
-/** "Sync now" finds the next detection straight away. */
+/** "Sync now" finds the next detection straight away, whoever presses it. */
 export function detectNow() {
-  if (!leader) return;
   tick();
   schedule();
 }

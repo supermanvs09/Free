@@ -28,7 +28,7 @@ const TRUST_MARKS = [
  * palette with `data-theme="light"`.
  */
 export default function LoginPage() {
-  const { signIn, isAuthenticated, expired, endReason, clearExpired } = useAuth();
+  const { signIn, isAuthenticated, expired, expiredWhy, endReason, clearExpired } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   /* Where to go after signing in: the screen a deep link asked for, if any,
@@ -208,7 +208,13 @@ export default function LoginPage() {
                 className="mt-5 flex items-start gap-2 rounded-[var(--radius-control)] border border-medium/25 bg-medium-soft px-3 py-2.5 text-[clamp(12px,0.85vw,16px)] text-ink-2"
               >
                 <AlertTriangle aria-hidden="true" className="mt-px size-4 shrink-0 text-medium" />
-                Your session expired. Sign in again to continue where you left off.
+                {expiredWhy === 'off'
+                  ? 'An admin switched off your account, so you were signed out. Ask an admin to turn it back on.'
+                  : expiredWhy === 'removed'
+                    ? 'Your account was removed by an admin, so you were signed out.'
+                    : expiredWhy === 'password'
+                      ? 'Your password was changed, so you were signed out everywhere. Sign in with the new password.'
+                      : 'Your session expired. Sign in again to continue where you left off.'}
               </p>
             )}
 

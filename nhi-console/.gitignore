@@ -46,3 +46,6 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# The shared workspace saved by the console server (server/sync-hub.mjs)
+data/

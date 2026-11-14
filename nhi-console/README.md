@@ -1,26 +1,35 @@
 # NHI Console - frontend
 
-React 19 + Vite + Tailwind v4. The full console runs in the browser with **no
-backend and no database**: every screen reads the built-in API in
-`src/lib/local`, which answers the same endpoints the platform API serves, from
-a consistent estate generated at load time. Changes people make (verdicts,
-plans, users, integration settings) are kept in the browser's localStorage and
-shared by its tabs.
+React 19 + Vite + Tailwind v4. The console runs in the browser: every screen
+reads the built-in API in `src/lib/local`, which answers the same endpoints the
+platform API serves.
 
-The one server-side piece is a ~400-line, zero-dependency **notification relay**
-(`server/notify-relay.mjs`) that runs next to nginx in the same container. It
-sends alert email through **Amazon SES** and opens **Jira** issues, because a
-browser cannot do either safely.
+What people change - **users and roles, the audit log, verdicts, plans,
+integration settings and alerts** - is one **live workspace shared by everyone
+who opens the same address**. A change made in one browser appears in every
+other open console within a moment, with no reload. There is no database: a
+small zero-dependency Node server (`server/`) keeps the workspace in memory,
+saves it to one JSON file, and streams changes to every console.
+
+The same server sends alert **email through Gmail** (or Amazon SES) and opens
+**Jira** issues, because a browser cannot do either safely.
 
 ## Run locally
 
 ```sh
-npm install                 # creates package-lock.json (the old one was removed with axios)
-cp .env.example .env
-npm run dev                 # http://localhost:3000
-npm run relay               # optional, in a second terminal: email + Jira
-npm run lint && npm run build
+npm install
+npm run build && npm start      # http://localhost:3000 - console + live workspace + alerts
 ```
+
+For development with hot reload, two terminals:
+
+```sh
+npm run relay                   # the workspace + alert server on :8787
+npm run dev                     # http://localhost:3000, proxies /notify-api to it
+```
+
+Open the address in two browsers (or a normal and a private window), sign in
+as two different people, and change something in one: it appears in the other.
 
 Sign in with any of these (password `Welcome@2026`):
 
@@ -31,8 +40,57 @@ Sign in with any of these (password `Welcome@2026`):
 | swathi@, vamsi@, sashi@, venkat@deepalgorithms.ai | Analyst |
 | sanju@, kiran@, divya@deepalgorithms.ai | Viewer |
 
-Admins can add people, change roles and reset passwords in **Users & roles**.
-To start over in a browser: `localStorage.removeItem('nhi.console.state.v2')`.
+Admins add people, change roles, reset passwords and switch accounts off in
+**Users & roles**. Each takes effect for that person straight away: a new role
+changes what they see within a second, and a switched-off account or a reset
+password signs them out of every browser.
+
+## Deploy
+
+The console needs **one Node 20+ process** (no database, no other services).
+
+| Where | How |
+|---|---|
+| Render | New → Blueprint → this repository (`render.yaml`, includes a 1 GB disk for the workspace) |
+| Railway, Fly.io, a VM | `npm ci && npm run build && npm start` (listens on `$PORT`, default 3000) |
+| ECS / EKS / Kubernetes | `docker build -t nhi-console .` (nginx + the server; mount a volume at `/var/lib/nhi`) |
+
+Point everyone at the same deployment. Set `DATA_DIR` to a persistent disk so
+the workspace survives restarts and redeploys (without one it starts over).
+
+A static-only host (Netlify, Vercel static, S3) also works, but then each
+browser keeps its own copy and nothing is shared or emailed.
+
+## The live workspace
+
+`src/lib/local/state.js` replicates the console's state through the server
+(`server/sync-hub.mjs`):
+
+- Changes travel as small path-level operations (`server/shared-ops.mjs`, used
+  by both sides). Rows of a list are addressed by id, so two people editing
+  different users, findings or plans at the same moment never overwrite each
+  other.
+- Every console holds a Server-Sent Events stream (`/notify-api/sync/stream`):
+  changes, **who is online and on which screen** (top bar), and which console
+  is the alert watcher.
+- Other people's actions show as a toast ("Harika Reddy - Accepted a posture
+  finding"), and every open screen refreshes in place.
+- Offline: changes are kept and sent when the connection is back.
+- Who is signed in stays per browser. Passwords are stored as salted hashes.
+- Secrets typed in the console (the Jira API token, the Gmail app password) are
+  kept by the server only (`DATA_DIR/secrets.json`, mode 600) and never sent to
+  anyone's browser.
+
+`DATA_DIR/workspace.json` is the whole workspace. Delete it (with the server
+stopped) to start over.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `PORT` | 3000 with `npm start`, 8787 for `npm run relay` | Where it listens |
+| `DATA_DIR` | `./data` | Where the workspace and secrets are saved |
+| `SYNC_ENABLED` | `true` | `false`: no shared workspace (each browser on its own) |
+| `ALLOWED_ORIGINS` | any | Comma list of origins allowed to post changes |
+| `SYNC_RATE_LIMIT_PER_MIN` | `1200` | Changes per client IP per minute |
 
 ## Integrations
 
@@ -63,30 +121,54 @@ brand mark (`src/ui/ProviderIcon.jsx`, from `react-icons`).
 New detections (an exposed credential, a behaviour anomaly, a posture drop,
 newly discovered identities) arrive while the console is open. Each one:
 
-1. appears as a toast and at the top of **Alerts** (the badge updates),
+1. appears as a toast in **everyone's** console and at the top of **Alerts**,
 2. is emailed to the Gmail recipients if Gmail is on and the alert matches its
    severity and kinds,
 3. opens a Jira issue if Jira is on and the alert matches its rules. The same
-   alert firing again comments on its issue instead of opening a duplicate.
+   detection firing again comments on its issue instead of opening a duplicate.
 
-Exactly one tab of a browser does the watching and sending (Web Locks).
-**Sync now** picks up the next detection immediately.
+Exactly one console across all users does the watching and sending (the server
+names it, and hands the job on when that console closes), and the server sends
+each alert once however many consoles ask. **Sync now** picks up the next
+detection immediately, from anyone's console.
 
-### How email is sent (SES, no keys)
+### Gmail (two minutes, no server settings)
 
-The browser cannot use the IAM role of the service it is served from - its
-JavaScript runs on each user's machine. So the relay runs **inside the
-frontend container**, bound to 127.0.0.1, and nginx forwards `/notify-api/*`
-to it. The relay signs SES requests (SigV4, verified against AWS's test
-vectors) with the container's own credentials, found in this order:
+In **Integrations → Gmail** an admin enters the Gmail or Google Workspace
+address alerts come from and an **app password** (Google Account → Security →
+2-Step Verification → [App passwords](https://myaccount.google.com/apppasswords)),
+adds recipients, and presses **Send a test email**. Mail goes out through
+`smtp.gmail.com:465` (TLS). Google limits a Gmail account to about 500
+recipients a day; use a Workspace account or SES for more.
+
+Instead, the sender can be set on the server (it then overrides the console):
+
+| Variable | Meaning |
+|---|---|
+| `GMAIL_USER`, `GMAIL_APP_PASSWORD` | Gmail / Workspace sender |
+| `SMTP_HOST`, `SMTP_PORT` (465), `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Any SMTP server (587 uses STARTTLS) |
+| `MAIL_FROM` + an AWS role | Amazon SES (below), used when no SMTP sender is set |
+
+### Jira
+
+In **Integrations → Jira**: site (`https://yourteam.atlassian.net`), the
+account email, an [API token](https://id.atlassian.com/manage-profile/security/api-tokens),
+the project key, issue type and priority mapping. **Test connection** checks
+the account and project; **Create a test issue** opens one. Issues are created
+with Jira Cloud REST v3; repeats are found by label and get a comment.
+
+### Amazon SES (optional)
+
+The server signs SES requests (SigV4) with the credentials of the service it
+runs on, found in this order:
 
 1. `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` (avoid in production)
 2. ECS task role / EKS Pod Identity (container credentials endpoint)
 3. EKS IRSA (`AWS_WEB_IDENTITY_TOKEN_FILE` + `AWS_ROLE_ARN`)
 4. EC2 instance profile (IMDSv2)
 
-So: **attach this policy to the frontend service's task/pod/instance role** and
-set `MAIL_FROM` to an SES-verified identity:
+Attach this policy to the service's role and set `MAIL_FROM` to an
+SES-verified identity:
 
 ```json
 {
@@ -106,7 +188,7 @@ While the SES account is in the sandbox, recipients must be verified too.
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `MAIL_FROM` | - | Required for email. The From address (a verified SES identity) |
+| `MAIL_FROM` | - | The From address for SES (a verified SES identity) |
 | `MAIL_FROM_NAME` | `NHI Security` | Display name |
 | `AWS_REGION` / `SES_REGION` | `ap-south-1` | SES region |
 | `SES_CONFIGURATION_SET` | - | Optional SES configuration set |
@@ -118,7 +200,7 @@ While the SES account is in the sandbox, recipients must be verified too.
 | `NOTIFY_RELAY_ENABLED` | `true` | Set `false` to not start the relay |
 
 `GET /notify-api/health` reports whether the relay is ready; the Gmail tab shows
-it as **Sender**.
+the result under **Sender**.
 
 ## Docker
 
@@ -137,10 +219,13 @@ relay is restarted automatically if it exits.
 |---|---|
 | `src/lib/api/client.js` | axios-compatible client; routes every request to the built-in API |
 | `src/lib/local/` | the built-in API: estate (`seed.js`), scoping (`world.js`), posture rules, exposure, genome, remediation, alerts, users, integrations, live alerts (`notifyBus.js`) |
-| `src/lib/notify.js` | the only network calls: the relay |
+| `src/lib/local/state.js` | the shared workspace: replication, presence, live refresh |
+| `src/lib/notify.js` | email and Jira calls to the server |
+| `server/notify-relay.mjs` | the server: static files, workspace, Gmail/SES, Jira |
+| `server/sync-hub.mjs`, `server/shared-ops.mjs` | the live workspace and its change operations |
+| `server/smtp.mjs` | SMTP client for Gmail (no dependencies) |
 | `src/features/integrations/` | the Integrations hub and each application's tab |
 | `src/ui/ProviderIcon.jsx` | brand marks |
-| `server/notify-relay.mjs` | SES + Jira relay |
 
 To point the console at a real platform API later, replace the body of
 `request()` in `src/lib/api/client.js` with an HTTP call; every API module and
@@ -148,8 +233,10 @@ screen stays as it is.
 
 ## Limits to know
 
-- Alerts are emailed and ticketed while at least one console tab is open; there
-  is no server-side scheduler.
-- What people change is kept per browser (localStorage), not shared between people.
-- A Jira token entered in the console is kept in that browser's storage and sent
-  only to the relay. Prefer the `JIRA_*` relay variables in production.
+- Alerts are detected and delivered while at least one console is open
+  somewhere; there is no separate scheduler.
+- The workspace is one JSON document in memory (a few MB at most). It suits a
+  team, not thousands of concurrent users; run one server process, not several
+  replicas behind a load balancer.
+- Anyone who can reach the address can use the console's sign-in; put it behind
+  your SSO proxy or VPN if it should not be public.

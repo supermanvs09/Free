@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "relay": "node --env-file-if-exists=.env server/notify-relay.mjs",
-    "lint": "oxlint src"
+    "lint": "oxlint src",
+    "start": "node --env-file-if-exists=.env server/notify-relay.mjs --serve"
   },
   "dependencies": {
     "@xyflow/react": "^12.11.6",
@@ -25,5 +26,8 @@
     "oxlint": "^1.79.0",
     "tailwindcss": "^4.3.3",
     "vite": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=20.6"
   }
 }

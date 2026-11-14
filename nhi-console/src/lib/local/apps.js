@@ -15,7 +15,7 @@ export const APP_CATALOG = [
   { key: 'vault', name: 'HashiCorp Vault', short: 'Vault', category: 'identity', summary: 'AppRoles, Kubernetes roles, tokens and dynamic secret leases, with audit-device activity.' },
   { key: 'github', name: 'GitHub', short: 'GitHub', category: 'exposure', summary: 'Scans repositories and history for secrets that belong to your identities.' },
   { key: 'bitbucket', name: 'Bitbucket', short: 'Bitbucket', category: 'exposure', summary: 'Scans Bitbucket Data Center projects and history for leaked credentials.' },
-  { key: 'gmail', name: 'Gmail', short: 'Gmail', category: 'notify', summary: 'Real-time alert email, delivered through Amazon SES.' },
+  { key: 'gmail', name: 'Gmail', short: 'Gmail', category: 'notify', summary: 'Real-time alert email, sent from your Gmail or Google Workspace account.' },
   { key: 'jira', name: 'Jira', short: 'Jira', category: 'notify', summary: 'Opens and updates Jira issues for the alerts you choose.' },
 ];
 export const APP_KEYS = APP_CATALOG.map((a) => a.key);
@@ -191,9 +191,10 @@ export function setEnabled(key, enabled, actor) {
 export function publicApp(key) {
   const meta = APP_CATALOG.find((x) => x.key === key);
   const a = apps()[key];
-  const { api_token: token, ...rest } = a;
+  const { api_token: token, app_password: appPassword, ...rest } = a;
   const out = { ...meta, ...rest };
   if (key === 'jira') out.api_token_set = Boolean(token);
+  if (key === 'gmail') out.app_password_set = Boolean(appPassword);
   out.status = statusOf(key);
   return out;
 }

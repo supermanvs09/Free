@@ -1,6 +1,6 @@
 /* People, roles, passwords and the audit log. */
 import { ok, fail, iso } from '../util';
-import { users, publicUser, findUser, audit, auditLog } from '../users';
+import { users, publicUser, findUser, audit, auditLog, checkPassword, setPassword, endSessions } from '../users';
 import { ROLE_LIST, can } from '../roles';
 import { save } from '../state';
 import { ORG } from '../seed';
@@ -25,10 +25,12 @@ export default function register(r) {
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail(400, 'Enter a valid email address.', 'VALIDATION_ERROR', 'email');
     if (findUser(email)) return fail(409, 'Someone with this email already has an account.', 'USER_EXISTS', 'email');
     if (!strong(body.password)) return fail(400, 'Use at least 10 characters with upper and lower case letters and a number.', 'VALIDATION_ERROR', 'password');
-    const u = { id: `usr_${Date.now().toString(36)}`, email, full_name: body.full_name || email.split('@')[0], team: body.team || '', department: body.department || '', role: body.role || 'viewer', status: body.status || 'active', tenant_id: ORG.tenantId, created_at: iso(Date.now()), last_login_at: null, password: body.password };
+    const u = { id: `usr_${Date.now().toString(36)}`, email, full_name: body.full_name || email.split('@')[0], team: body.team || '', department: body.department || '', role: body.role || 'viewer', status: body.status || 'active', tenant_id: ORG.tenantId, created_at: iso(Date.now()), last_login_at: null, session_epoch: 0, created_by: user.email };
+    setPassword(u, body.password);
+    u.session_epoch = 0;
     users().push(u);
     save();
-    audit(user, 'user.create', `Added ${u.full_name} as ${u.role}`);
+    audit(user, 'user.create', `Added ${u.full_name} as ${u.role}`, { target: u.email });
     return { status: 201, body: { success: true, message: 'Created', data: publicUser(u) } };
   });
 
@@ -38,9 +40,19 @@ export default function register(r) {
     if (!u) return fail(404, 'That person no longer has an account.', 'NOT_FOUND');
     if (u.id === user.id && body.role && body.role !== 'admin') return fail(400, 'You cannot remove your own admin role.', 'VALIDATION_ERROR', 'role');
     if (body.password !== undefined && !strong(body.password)) return fail(400, 'Use at least 10 characters with upper and lower case letters and a number.', 'VALIDATION_ERROR', 'password');
-    for (const k of ['full_name', 'team', 'department', 'role', 'status', 'password']) if (body[k] !== undefined) u[k] = body[k];
+    const before = { role: u.role, status: u.status };
+    for (const k of ['full_name', 'team', 'department', 'role', 'status']) if (body[k] !== undefined) u[k] = body[k];
+    if (body.password !== undefined) setPassword(u, body.password);
+    if (body.status === 'inactive' && before.status !== 'inactive') endSessions(u);
     save();
-    audit(user, 'user.update', `Updated ${u.full_name}${body.role ? ` (role ${body.role})` : ''}${body.status ? ` (${body.status})` : ''}`);
+    const what = body.password !== undefined && Object.keys(body).length === 1
+      ? `Reset the password of ${u.full_name}`
+      : body.role && body.role !== before.role
+        ? `Changed ${u.full_name}'s role from ${before.role} to ${u.role}`
+        : body.status && body.status !== before.status
+          ? `${u.status === 'active' ? 'Turned on' : 'Switched off'} ${u.full_name}'s account`
+          : `Updated ${u.full_name}`;
+    audit(user, body.password !== undefined && Object.keys(body).length === 1 ? 'user.password.reset' : 'user.update', what, { target: u.email });
     return ok(publicUser(u));
   });
 
@@ -52,14 +64,14 @@ export default function register(r) {
     if (i < 0) return fail(404, 'That person no longer has an account.', 'NOT_FOUND');
     const [gone] = list.splice(i, 1);
     save();
-    audit(user, 'user.delete', `Removed ${gone.full_name}`);
+    audit(user, 'user.delete', `Removed ${gone.full_name}`, { target: gone.email });
     return ok({ id: params.id });
   });
 
   r.patch('/api/v1/me/password', ({ body, user }) => {
-    if (body.current_password !== user.password) return fail(400, 'Your current password is not right.', 'WRONG_PASSWORD', 'current_password');
+    if (!checkPassword(user, body.current_password)) return fail(400, 'Your current password is not right.', 'WRONG_PASSWORD', 'current_password');
     if (!strong(body.new_password)) return fail(400, 'Use at least 10 characters with upper and lower case letters and a number.', 'VALIDATION_ERROR', 'new_password');
-    user.password = body.new_password;
+    setPassword(user, body.new_password, { keepSession: true });
     save();
     audit(user, 'auth.password', 'Changed their password');
     return ok({ changed: true });

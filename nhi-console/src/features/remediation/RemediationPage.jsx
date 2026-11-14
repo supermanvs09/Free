@@ -1,3 +1,4 @@
+import { ProviderIcon } from '../../ui/ProviderIcon';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, Clock3, Hand, ListTodo, SearchX, ShieldCheck } from 'lucide-react';
@@ -140,8 +141,11 @@ function FindingsTab({ params, set, summaryQuery }) {
             <span className="block truncate text-[13.5px] font-semibold text-ink" title={f.title}>
               {f.title || f.rule_name}
             </span>
-            <span className="block truncate text-[12px] text-ink-3">
-              {f.identity_name} · {f.rule_id} {f.rule_name ? `· ${f.rule_name}` : ''}
+            <span className="flex min-w-0 items-center gap-1.5 text-[12px] text-ink-3">
+              <ProviderIcon row={f} size={13} decorative />
+              <span className="min-w-0 truncate">
+                {f.identity_name} · {f.rule_id} {f.rule_name ? `· ${f.rule_name}` : ''}
+              </span>
             </span>
           </span>
         </span>

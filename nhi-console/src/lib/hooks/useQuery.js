@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { getEpoch, subscribeEpoch } from '../sync/engine';
+import { getLiveEpoch, subscribeLiveEpoch } from '../local/state';
 
 /**
  * Minimal data-fetching primitive: aborts superseded requests, distinguishes
@@ -17,6 +18,8 @@ export function useQuery(fetcher, deps = [], { enabled = true, keepPrevious = tr
 
   /* A finished scan (lib/sync/engine.js) reloads every query on screen. */
   const dataEpoch = useSyncExternalStore(subscribeEpoch, getEpoch);
+  /* Someone else changed the workspace: reload in place, without dimming. */
+  const liveEpoch = useSyncExternalStore(subscribeLiveEpoch, getLiveEpoch);
 
   const fetcherRef = useRef(fetcher);
   fetcherRef.current = fetcher;
@@ -37,11 +40,13 @@ export function useQuery(fetcher, deps = [], { enabled = true, keepPrevious = tr
       const controller = new AbortController();
       controllerRef.current = controller;
 
-      setState((prev) => ({
-        data: keepPrevious ? prev.data : undefined,
-        error: null,
-        status: prev.data !== undefined && mode === 'refresh' ? 'refreshing' : 'loading',
-      }));
+      if (mode !== 'silent') {
+        setState((prev) => ({
+          data: keepPrevious ? prev.data : undefined,
+          error: null,
+          status: prev.data !== undefined && mode === 'refresh' ? 'refreshing' : 'loading',
+        }));
+      }
 
       try {
         const data = await fetcherRef.current(controller.signal);
@@ -49,6 +54,7 @@ export function useQuery(fetcher, deps = [], { enabled = true, keepPrevious = tr
         setState({ data, error: null, status: 'success' });
       } catch (error) {
         if (!mountedRef.current || controller.signal.aborted || error?.code === 'CANCELLED') return;
+        if (mode === 'silent') return;
         setState((prev) => ({
           data: keepPrevious ? prev.data : undefined,
           error,
@@ -67,6 +73,12 @@ export function useQuery(fetcher, deps = [], { enabled = true, keepPrevious = tr
     run('refresh');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, run, dataEpoch, ...deps]);
+
+  const firstLive = useRef(liveEpoch);
+  useEffect(() => {
+    if (!enabled || liveEpoch === firstLive.current) return;
+    run('silent');
+  }, [enabled, run, liveEpoch]);
 
   /* A refetch keeps what is on screen and dims it ('refreshing'), like a
      background reload. It used to start over as a first load: the data was

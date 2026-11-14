@@ -1,0 +1,21 @@
+# One-click deploy on Render (render.com): New → Blueprint → this repository.
+# One Node process serves the console, the live workspace and alert delivery.
+services:
+  - type: web
+    name: nhi-console
+    runtime: node
+    rootDir: nhi-console
+    plan: starter
+    buildCommand: npm ci || npm install; npm run build
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: DATA_DIR
+        value: /var/data/nhi
+    # Keeps the shared workspace across deploys and restarts.
+    disk:
+      name: nhi-data
+      mountPath: /var/data
+      sizeGB: 1

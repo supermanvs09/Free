@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
+import { ProviderIcon } from '../../ui/ProviderIcon';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Boxes, Dna, Fingerprint as FingerprintIcon, History, Network, SearchX } from 'lucide-react';
 import {
@@ -273,7 +274,12 @@ function GenomeIdentity({ sourceType, identityName }) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title={title}
+        title={
+          <span className="flex min-w-0 items-center gap-2.5">
+            <ProviderIcon row={identity ?? record ?? identityName} size={22} />
+            <span className="min-w-0 truncate">{title}</span>
+          </span>
+        }
         lede={[sourceTypeLabel(sourceType, identityName), roleKindLabel(identity?.role_kind), identity?.account_id ?? record?.account_id, identity?.region ?? record?.region]
           .filter(Boolean)
           .join(' · ')}

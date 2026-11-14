@@ -2,6 +2,10 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { fetchMe, login as loginRequest, logout as logoutRequest, profileFrom } from '../lib/api/auth';
 import { onSessionExpired, renewSession } from '../lib/api/client';
 import { clearFacetRailState } from '../ui/FacetRail';
+import { onRemoteChange, setPresenceUser } from '../lib/local/state';
+import { activeSession, users as accountList } from '../lib/local/users';
+import { ROLES } from '../lib/roles';
+import { useToast } from '../ui/Toast';
 import { clearLastActivity, clearSession, readStoredUser, readToken, subscribeSignOut, writeLastActivity, writeSession, writeStoredUser } from '../lib/api/session';
 
 const AuthContext = createContext(null);
@@ -24,11 +28,30 @@ export function AuthProvider({ children }) {
      cookie may hold a session another tab started. */
   const [status, setStatus] = useState('verifying');
   const [expired, setExpired] = useState(false);
+  /* Why a session ended underneath the person: 'off' (an admin switched the
+     account off), 'removed', 'password' (reset by an admin) or null. */
+  const [expiredWhy, setExpiredWhy] = useState(null);
   /* Why the last session ended, for the sign-in page: 'signout' (the person
      chose to), 'switch' (sign in as another user), 'idle' (no activity for
      the idle limit), 'expired' (the server ended it). After the first two the
      next sign-in opens the dashboard rather than the screen they left. */
   const [endReason, setEndReason] = useState(null);
+  /* Bumped when someone changes the accounts: who this is gets checked again. */
+  const [accountsVersion, setAccountsVersion] = useState(0);
+  const { notify } = useToast();
+
+  useEffect(
+    () =>
+      onRemoteChange(({ ops }) => {
+        if (ops.some((op) => op.path?.[0] === 'users')) setAccountsVersion((v) => v + 1);
+      }),
+    [],
+  );
+
+  /* Everyone else sees who is here. */
+  useEffect(() => {
+    setPresenceUser(token && user ? { name: user.name, email: user.email, role: user.role } : null);
+  }, [token, user]);
 
   const endSession = useCallback(() => {
     setToken(null);
@@ -66,6 +89,9 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     onSessionExpired(() => {
+      const s = activeSession();
+      const account = s ? accountList().find((u) => u.id === s.user_id) : null;
+      setExpiredWhy(!s ? null : !account ? 'removed' : account.status !== 'active' ? 'off' : (s.epoch ?? 0) !== (account.session_epoch ?? 0) ? 'password' : null);
       setExpired(true);
       setEndReason('expired');
       endSession();
@@ -107,7 +133,12 @@ export function AuthProvider({ children }) {
           ...profileFrom({ ...stored, full_name: stored.name, email: stored.email }, me),
           lastLoginAt: stored.lastLoginAt ?? null,
         };
-        setUser(profile);
+        setUser((prev) => {
+          if (accountsVersion > 0 && prev?.role && profile.role && prev.role !== profile.role) {
+            notify({ variant: 'info', title: `You are now ${ROLES[profile.role]?.label ?? profile.role}`, description: 'An admin changed your role. What you can see and do has been updated.', duration: 9000 });
+          }
+          return profile;
+        });
         writeStoredUser(profile);
         setStatus('authenticated');
       } catch (error) {
@@ -125,7 +156,8 @@ export function AuthProvider({ children }) {
       }
     })();
     return () => controller.abort();
-  }, [token, endSession]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, endSession, accountsVersion]);
 
   const signIn = useCallback(async ({ email, password }) => {
     const result = await loginRequest({ email, password });
@@ -145,13 +177,14 @@ export function AuthProvider({ children }) {
       token,
       status,
       expired,
+      expiredWhy,
       endReason,
       isAuthenticated: Boolean(token),
       signIn,
       logout,
       clearExpired: () => setExpired(false),
     }),
-    [user, token, status, expired, endReason, signIn, logout],
+    [user, token, status, expired, expiredWhy, endReason, signIn, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

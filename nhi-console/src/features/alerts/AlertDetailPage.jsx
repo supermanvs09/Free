@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { ProviderIcon } from '../../ui/ProviderIcon';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, ChevronDown, ChevronRight, Fingerprint, GitCommitVertical, Radius, ShieldCheck, Wrench } from 'lucide-react';
 import { fetchIdentityAlert } from '../../lib/api/alerts';
@@ -311,7 +312,12 @@ export default function AlertDetailPage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        title={<span className="font-mono">{a.identity_name}</span>}
+        title={
+          <span className="flex min-w-0 items-center gap-2.5">
+            <ProviderIcon row={a.provider ? { provider: a.provider } : { arn: a.identity_arn ?? a.arn, identity_type: a.identity_type }} size={22} />
+            <span className="min-w-0 truncate font-mono">{a.identity_name}</span>
+          </span>
+        }
         lede={`${identityTypeLabel(a.identity_type)} in account ${a.account_name ? `${a.account_name} (${a.account_id})` : a.account_id}${a.region ? `, ${a.region}` : ''}`}
         actions={back}
       />

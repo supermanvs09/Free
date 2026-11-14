@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { ProviderIcon } from '../../ui/ProviderIcon';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, Dna, Repeat2 } from 'lucide-react';
 import { severityMeta } from '../../lib/domain';
@@ -95,8 +96,9 @@ function Investigation({ group, priority, onOpen, canAct, onClose, onBack }) {
         <div className="flex items-start gap-4">
           <PriorityRing score={priority.score} tone={priority.tone} size={52} />
           <div className="min-w-0 flex-1">
-            <h3 className="truncate text-[17px] font-semibold text-ink" title={group.identity?.identity_name}>
-              {name}
+            <h3 className="flex min-w-0 items-center gap-2 text-[17px] font-semibold text-ink" title={group.identity?.identity_name}>
+              <ProviderIcon row={group.identity} size={18} />
+              <span className="truncate">{name}</span>
             </h3>
             <p className="mt-0.5 truncate text-[12.5px] text-ink-3">{sourceTypeLabel(group.identity?.source_type, group.identity?.identity_name)}</p>
           </div>
@@ -269,7 +271,10 @@ export function AnomalyInbox({ items, onOpen, canAct, onChanged, emptyState, onS
                 <PriorityRing score={priority.score} tone={priority.tone} />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-baseline justify-between gap-2">
-                    <span className="truncate text-[13.5px] font-semibold text-ink">{group.identity?.display_name || group.identity?.identity_name}</span>
+                    <span className="flex min-w-0 items-center gap-1.5 text-[13.5px] font-semibold text-ink">
+                      <ProviderIcon row={group.identity} size={13} decorative />
+                      <span className="truncate">{group.identity?.display_name || group.identity?.identity_name}</span>
+                    </span>
                     <span className="shrink-0 text-[11px] text-ink-3">{formatRelative(new Date(group.last).toISOString())}</span>
                   </span>
                   <span className="mt-0.5 block truncate text-[12px] text-ink-2">

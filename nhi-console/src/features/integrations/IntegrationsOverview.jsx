@@ -119,10 +119,8 @@ const CODE_SOURCES = [
 ];
 
 /** AWS plus the two code sources, each with its state and its next action. */
-export function SourceCards({ accounts, exposureEnabled, canManage, canSeeFindings, onConnect, onExposure }) {
+export function SourceCards({ accounts, exposureEnabled, canManage, canSeeFindings, onExposure }) {
   const eligible = accounts.filter((account) => account.connectedAt);
-  const connected = accounts.filter((account) => account.status === 'connected').length;
-  const attention = accounts.some((account) => account.status === 'action_needed');
 
   return (
     <section aria-label="Data sources" className="flex flex-col gap-3">

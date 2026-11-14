@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { LiveAlerts } from '../features/live/LiveAlerts';
+import { LiveActivity } from '../features/live/Presence';
 import { ContextBar } from './ContextBar';
 import { CommandPalette } from './CommandPalette';
 import { ScreenErrorBoundary } from './ScreenErrorBoundary';
@@ -100,6 +101,7 @@ export function AppShell() {
         </a>
 
         <LiveAlerts />
+        <LiveActivity />
         <TopBar onOpenNav={() => setMobileOpen(true)} onOpenCommand={() => setCommandOpen(true)} />
 
         <Sidebar

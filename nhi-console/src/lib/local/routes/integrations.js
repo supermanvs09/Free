@@ -91,9 +91,17 @@ export default function register(r) {
       const s = body.settings;
       const bad = (s.recipients ?? []).find((x) => !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x));
       if (bad) return fail(400, `${bad} is not an email address.`, 'VALIDATION_ERROR', 'recipients');
-      Object.assign(a, { recipients: [...new Set((s.recipients ?? []).map((x) => x.trim().toLowerCase()))], min_severity: s.min_severity ?? a.min_severity, events: { ...a.events, ...(s.events ?? {}) }, digest: s.digest ?? a.digest });
+      if (s.sender_email !== undefined && s.sender_email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s.sender_email)) return fail(400, 'Enter the Gmail address alerts are sent from.', 'VALIDATION_ERROR', 'sender_email');
+      if (s.app_password !== undefined && s.app_password && String(s.app_password).replace(/\s+/g, '').length < 16) return fail(400, 'An app password is 16 letters. Create one at myaccount.google.com/apppasswords.', 'VALIDATION_ERROR', 'app_password');
+      if (s.recipients !== undefined) a.recipients = [...new Set((s.recipients ?? []).map((x) => x.trim().toLowerCase()))];
+      Object.assign(a, { min_severity: s.min_severity ?? a.min_severity, events: { ...a.events, ...(s.events ?? {}) }, digest: s.digest ?? a.digest });
+      const senderChanged = s.sender_email !== undefined || s.app_password || s.clear_sender;
+      if (s.sender_email !== undefined) a.sender_email = String(s.sender_email).trim().toLowerCase();
+      if (s.sender_name !== undefined) a.sender_name = String(s.sender_name).trim().slice(0, 80);
+      if (s.app_password) a.app_password = String(s.app_password).replace(/\s+/g, '');
+      if (s.clear_sender) Object.assign(a, { sender_email: '', sender_name: '', app_password: '' });
       save();
-      audit(user, 'integration.update', 'Changed Gmail alert settings', { target: 'gmail' });
+      audit(user, 'integration.update', senderChanged ? (s.clear_sender ? 'Removed the Gmail sender' : `Set the Gmail sender to ${a.sender_email}`) : 'Changed Gmail alert settings', { target: 'gmail' });
     }
     if (params.key === 'jira' && body.settings) {
       const s = body.settings;
