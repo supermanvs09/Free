@@ -89,7 +89,7 @@ export function TrendChart({
             }}
           />
           {bars ? (
-            <Bar dataKey={dataKey} fill={color} radius={[3, 3, 0, 0]} maxBarSize={28} isAnimationActive animationDuration={600} />
+            <Bar dataKey={dataKey} fill={color} radius={[3, 3, 0, 0]} maxBarSize={28} isAnimationActive={false} />
           ) : (
             <Area
               type="monotone"
@@ -99,8 +99,7 @@ export function TrendChart({
               fill={`url(#${gradientId})`}
               dot={false}
               activeDot={{ r: 4, strokeWidth: 2, stroke: 'var(--t-surface)' }}
-              isAnimationActive
-              animationDuration={760}
+              isAnimationActive={false}
             />
           )}
         </Chart>

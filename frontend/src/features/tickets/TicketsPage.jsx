@@ -81,7 +81,7 @@ export default function TicketsPage() {
                         onDragStart={() => setDragKey(t.key)}
                         onDragEnd={() => setDragKey(null)}
                         onClick={() => setOpen(t.key)}
-                        className={cn('animate-fade w-full cursor-grab rounded-[8px] border border-line bg-surface p-2.5 text-left shadow-[0_1px_1px_rgba(9,30,66,0.12)] transition-[box-shadow,background-color] hover:bg-surface-2 active:cursor-grabbing', dragKey === t.key && 'opacity-50')}
+                        className={cn('w-full cursor-grab rounded-[8px] border border-line bg-surface p-2.5 text-left shadow-[0_1px_1px_rgba(9,30,66,0.12)] transition-[box-shadow,background-color] hover:bg-surface-2 active:cursor-grabbing', dragKey === t.key && 'opacity-50')}
                       >
                         <p className={cn('text-[13px] leading-snug text-ink', t.status === 'Done' && 'text-ink-3 line-through decoration-ink-3/40')}>{t.summary}</p>
                         {t.links?.[0] && <p className="mt-1.5 truncate rounded bg-surface-3 px-1.5 py-0.5 text-[11px] text-ink-2">{t.links[0].kind}: {recordLabel(t.links[0], view)}</p>}

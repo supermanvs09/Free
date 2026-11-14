@@ -220,10 +220,10 @@
   --color-neutral: var(--t-neutral);
   --color-neutral-soft: var(--t-neutral-soft);
 
-  --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-display: 'Geist', ui-sans-serif, system-ui, sans-serif;
-  --font-serif: 'Newsreader', 'Iowan Old Style', Georgia, serif;
-  --font-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --font-sans: 'IBM Plex Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-display: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-serif: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 
   --color-ramp-1: var(--t-ramp-1);
   --color-ramp-2: var(--t-ramp-2);

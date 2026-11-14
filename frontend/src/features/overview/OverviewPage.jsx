@@ -155,7 +155,7 @@ export default function OverviewPage() {
           <PanelHeader title="Team activity" subtitle="Everyone in the workspace sees this as it happens." actions={<Button as={Link} to="/audit-log" variant="ghost" size="sm">Audit log</Button>} />
           <ol className="mt-3 space-y-3.5">
             {view.activity.slice(0, 8).map((a) => (
-              <li key={a.id} className="animate-fade flex gap-3">
+              <li key={a.id} className="flex gap-3">
                 <Avatar refId={a.actor} size={26} />
                 <div className="min-w-0 flex-1 text-[12.5px] leading-snug">
                   <p className="text-ink-2"><span className="font-medium text-ink">{personName(a.actor, view)}</span> {a.verb} <Link to={recordPath(a.target)} className="text-ink hover:underline">{a.text}</Link></p>

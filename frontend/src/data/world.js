@@ -304,8 +304,20 @@ function identityForConnection(conn, index, r, people, owners) {
   const locator = {
     aws: `arn:aws:iam::${conn.locator}:${type === 'aws.user' ? 'user' : 'role'}/${name}`,
     azure: `objectId ${r.hex(8)}-${r.hex(4)}-${r.hex(4)}-${r.hex(4)}-${r.hex(12)}`,
-    github: type === 'github.actions' ? `${conn.name}/${r.pick(['payments-api', 'infra-terraform', 'web-app', 'data-pipelines', 'mobile'])}/.github/workflows/${name}` : `${conn.name} · ${t.label}`,
-    bitbucket: `${conn.name} · ${t.label}`,
+    github: {
+      'github.actions': `${conn.name}/${r.pick(['payments-api', 'infra-terraform', 'web-app', 'data-pipelines', 'mobile'])}/.github/workflows/${name}`,
+      'github.app': `github.com/apps/${name} on ${conn.name}`,
+      'github.oauth': `OAuth app authorised on ${conn.name}`,
+      'github.pat': `Token with access to ${conn.name}`,
+      'github.deploykey': `${conn.name}/${r.pick(['helm-charts', 'infra-terraform', 'ledger-service', 'docs'])}`,
+    }[type],
+    bitbucket: {
+      'bitbucket.pipelines': `${conn.name}/${r.pick(['billing-batch', 'crm-connector'])}/bitbucket-pipelines.yml`,
+      'bitbucket.repotoken': `${conn.name}/${r.pick(['billing-batch', 'report-engine', 'partner-sync'])}`,
+      'bitbucket.wstoken': `Workspace ${conn.name}`,
+      'bitbucket.apppassword': `App password on ${conn.name}`,
+      'bitbucket.oauth': `OAuth consumer on ${conn.name}`,
+    }[type],
     vault: type === 'vault.token' ? `accessor ${r.hex(8)}…` : `auth/${type === 'vault.approle' ? 'approle' : type === 'vault.k8s' ? 'kubernetes' : type === 'vault.awsauth' ? 'aws' : 'database'}/role/${name}`,
   }[provider];
 
@@ -316,6 +328,7 @@ function identityForConnection(conn, index, r, people, owners) {
   const series = Array.from({ length: 30 }, (_, i) => {
     const day = 29 - i;
     if (status !== 'active' && day < lastUsedDays) return 0;
+    if (day > createdDays) return 0;
     const weekday = new Date(ANCHOR - day * DAY).getUTCDay();
     const weekend = weekday === 0 || weekday === 6 ? 0.45 : 1;
     return Math.round(baseRate * weekend * (0.7 + r.next() * 0.6));
@@ -598,10 +611,11 @@ export function buildWorld(extraConnections = []) {
   findings.filter((f) => f.status === 'in_progress').forEach((f, k) => (f.assignee = ['p-elena', 'p-noah', 'p-sofia', 'p-marcus'][k % 4]));
 
   /* Detections - behaviour that breaks an identity's baseline. */
-  const pickId = (pred, n = 0) => identities.filter(pred)[n] || identities[n];
+  /* Behaviour detections need a baseline: only identities with months of history. */
+  const pickId = (pred, n = 0) => identities.filter((i) => ANCHOR - Date.parse(i.createdAt) > 120 * DAY && pred(i))[n] || identities.filter(pred)[n] || identities[n];
   const detSpecs = [
     { title: 'Access key used from a country never seen before', sev: 'critical', tactic: 'T1078.004 · Valid accounts: cloud accounts', who: pickId((i) => i.type === 'aws.user' && i.status === 'active'), hours: 2,
-      observed: 'GetCallerIdentity, ListBuckets, GetObject x 1,284 from 185.220.101.47 (RO, Tor exit)', baseline: 'Only from 3.91.x.x (us-east-1 NAT) in 180 days', metric: ['Countries', 1, 2] },
+      observed: 'GetCallerIdentity, ListBuckets, GetObject x 1,284 from 185.220.101.47 (RO, Tor exit)', baseline: 'Only from 3.91.204.17 (NAT us-east-1) and the production VPC in 180 days', metric: ['Countries', 1, 2] },
     { title: 'GitHub token cloned 142 repositories in 6 minutes', sev: 'critical', tactic: 'T1213 · Data from information repositories', who: pickId((i) => i.type === 'github.pat'), hours: 5,
       observed: '142 git clone operations, 38 private repositories', baseline: 'Pushes to 2 repositories, weekdays 09:00–18:00 UTC', metric: ['Repos read / hour', 3, 142] },
     { title: 'Vault token read 30x its usual number of secrets', sev: 'high', tactic: 'T1555 · Credentials from password stores', who: pickId((i) => i.type === 'vault.token'), hours: 9,
@@ -625,6 +639,7 @@ export function buildWorld(extraConnections = []) {
     { title: 'AppRole secret ID used from two clusters at once', sev: 'high', tactic: 'T1550 · Use alternate authentication material', who: pickId((i) => i.type === 'vault.approle'), hours: 190,
       observed: 'Logins from 10.40.0.0/16 and 172.31.0.0/16 within 4 minutes', baseline: 'Single consumer in 10.40.0.0/16', metric: ['Source networks', 1, 2] },
   ];
+  for (const d of detSpecs) if (/country|network|travel|asn/i.test(d.title) && d.who) d.who.countries = ['US'];
   const detections = detSpecs.map((d, k) => {
     const r = rngFor(`det:${k}`);
     const at = ANCHOR - d.hours * HOUR - r.int(0, 50) * 60e3;

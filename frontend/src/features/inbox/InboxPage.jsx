@@ -140,7 +140,7 @@ function Message({ m, onReply }) {
   const view = useView();
   const s = senderOf(m, view);
   return (
-    <article className="animate-fade flex h-full flex-col">
+    <article className="flex h-full flex-col">
       <header className="border-b border-line p-5">
         <h2 className="text-[18px] font-bold tracking-[-0.015em] text-ink">{m.subject}</h2>
         <div className="mt-3 flex items-start gap-3">

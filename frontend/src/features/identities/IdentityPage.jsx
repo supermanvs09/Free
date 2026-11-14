@@ -73,7 +73,7 @@ export default function IdentityPage() {
             <IdentityLogo type={i.type} size={52} />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="truncate font-serif text-[28px] leading-tight font-normal tracking-[-0.02em] text-ink">{i.name}</h1>
+                <h1 className="truncate text-[22px] leading-tight font-semibold tracking-[-0.01em] text-ink">{i.name}</h1>
                 <StatusPill status={i.status} />
                 {i.permissions.adminLike && <span className="rounded-full border border-high/30 bg-high-soft px-2 py-0.5 text-[11px] font-semibold text-high">{i.permissions.scopes[0]}</span>}
                 {i.tags.map((t) => <span key={t} className="rounded-full border border-line bg-surface-2 px-2 py-0.5 text-[11px] text-ink-2">{t}</span>)}

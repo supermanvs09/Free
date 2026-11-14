@@ -36,7 +36,7 @@ export function CommentThread({ target, placeholder = 'Add a comment. Type @ to 
       {comments.length === 0 && <p className="text-[12.5px] text-ink-3">No comments yet. Notes here are visible to everyone on the team.</p>}
       <ol className="space-y-3">
         {comments.map((c) => (
-          <li key={c.id} className="animate-fade flex gap-2.5">
+          <li key={c.id} className="flex gap-2.5">
             <Avatar refId={c.author} size={26} />
             <div className="min-w-0 flex-1">
               <p className="flex flex-wrap items-baseline gap-x-2 text-[12.5px]">

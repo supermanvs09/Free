@@ -82,4 +82,5 @@ export const BREADCRUMBS = Object.fromEntries(NAV_GROUPS.flatMap((g) => g.items.
 export const BREADCRUMB_PREFIXES = [
   { prefix: '/identities/', trail: ['Inventory', 'Identities', 'Identity'] },
   { prefix: '/access-graph/', trail: ['Investigate', 'Attack paths', 'Identity'] },
+  { prefix: '/genome/', trail: ['Investigate', 'NHI Genome', 'Identity'] },
 ];

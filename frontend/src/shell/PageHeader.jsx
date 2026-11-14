@@ -18,7 +18,7 @@ export function PageHeader({ title, lede, actions, sections, tabs, meta, classNa
       <div className="mx-auto w-full max-w-[1760px]">
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 pb-3.5">
           <div className="min-w-0">
-            <h1 className="font-serif text-[26px] leading-[1.15] font-normal tracking-[-0.02em] text-ink sm:text-[30px]">
+            <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.01em] text-ink sm:text-[24px]">
               {title}
             </h1>
             {lede && (

@@ -62,6 +62,18 @@ const SOURCES = {
   vault: ['10.40.0.0/16 (k8s prod)', '10.20.0.5 (jenkins-legacy)', '172.31.8.14 (batch)'],
 };
 
+/* Where each kind of workload actually runs from. */
+const SOURCES_BY_TYPE = {
+  'aws.user': ['3.91.204.17 (NAT us-east-1)', '10.40.12.8 (vpc-prod)'],
+  'aws.role': ['3.91.204.17 (NAT us-east-1)', '10.40.12.8 (vpc-prod)', 'sts.amazonaws.com'],
+  'aws.lambda': ['lambda.amazonaws.com'],
+  'aws.ec2': ['10.40.12.8 (vpc-prod)'],
+  'aws.ecs': ['ecs-tasks.amazonaws.com', '10.40.12.8 (vpc-prod)'],
+  'aws.eks': ['eks.amazonaws.com', '10.40.0.0/16 (k8s prod)'],
+  'github.actions': ['140.82.112.4 (GitHub Actions)'],
+  'bitbucket.pipelines': ['18.205.93.0 (Bitbucket Pipelines)'],
+};
+
 /** The newest entries for one identity in its application's log. */
 export function eventsFor(identity, count = 36) {
   if (!identity?.lastUsedAt) return [];
@@ -71,7 +83,7 @@ export function eventsFor(identity, count = 36) {
     return seed / 4294967296;
   };
   const actions = ACTIONS[identity.provider];
-  const sources = SOURCES[identity.provider];
+  const sources = SOURCES_BY_TYPE[identity.type] || SOURCES[identity.provider];
   const out = [];
   let t = Math.min(ANCHOR, Date.parse(identity.lastUsedAt));
   for (let k = 0; k < count; k += 1) {

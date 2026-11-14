@@ -84,7 +84,7 @@ export default function IdentitiesPage() {
     { key: 'risk', header: 'Risk', width: '10%', sortable: true, cell: (r) => <RiskBar value={r.risk} /> },
     { key: 'findings', header: 'Findings', width: '8%', sortable: true, align: 'right', cell: (r) => <span data-numeric="" className={findingsBy.get(r.id) ? 'font-semibold text-ink' : 'text-ink-3'}>{findingsBy.get(r.id) || 0}</span> },
     { key: 'status', header: 'Status', width: '9%', priority: 'wide', cell: (r) => <StatusPill status={r.status} /> },
-    { key: 'lastUsedAt', header: 'Last used', width: '12%', sortable: true, priority: 'wide', cell: (r) => <span className="flex flex-col gap-0.5"><Time at={r.lastUsedAt} className="text-[12.5px]" /><MiniBars values={r.series.slice(-14)} className="h-3.5" /></span> },
+    { key: 'lastUsedAt', header: 'Last used', width: '12%', sortable: true, priority: 'wide', cell: (r) => <span className="flex flex-col gap-0.5"><Time at={r.lastUsedAt} className="text-[12.5px]" /><MiniBars values={r.series} /></span> },
   ];
 
   return (

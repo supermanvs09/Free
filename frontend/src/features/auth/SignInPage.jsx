@@ -47,12 +47,12 @@ export default function SignInPage() {
             <span aria-hidden="true" className="size-[0.45em] rounded-full bg-[var(--t-auth-accent)]" />
             Enterprise Security Platform
           </p>
-          <h1 style={{ '--step': 2 }} className="animate-auth mt-[clamp(1.5rem,2.6vw,3.25rem)] font-serif text-[clamp(42px,5vw,92px)] leading-[1.02] font-normal tracking-[-0.03em] text-[var(--t-auth-ink)]">
+          <h1 style={{ '--step': 2 }} className="animate-auth mt-[clamp(1.5rem,2.6vw,3.25rem)] text-[clamp(40px,4.6vw,84px)] leading-[1.04] font-semibold tracking-[-0.025em] text-[var(--t-auth-ink)]">
             Non-Human
             <br />
             Identity
             <br />
-            <span className="text-[var(--t-auth-ink-2)] italic">Security</span>
+            <span className="text-[var(--t-auth-ink-2)]">Security</span>
           </h1>
           <p style={{ '--step': 3 }} className="animate-auth mt-[clamp(1.25rem,2vw,2.5rem)] max-w-[48ch] text-[clamp(14px,1.15vw,22px)] leading-[1.6] text-[var(--t-auth-ink-2)]">
             One inventory of every service account, workload, token and pipeline across your clouds, code and secrets manager. See what each can reach, catch leaks and misuse as they happen, and fix them with the team in Jira.

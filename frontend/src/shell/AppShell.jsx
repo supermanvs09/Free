@@ -110,7 +110,7 @@ export function AppShell() {
         <div
           className={cn(
             'flex min-h-dvh flex-col pt-16 transition-[padding] duration-250 ease-[var(--ease-out-quint)]',
-            collapsed ? 'lg:pl-[60px]' : 'lg:pl-[236px]',
+            collapsed ? 'lg:pl-[80px]' : 'lg:pl-[236px]',
           )}
         >
           <ContextBar />

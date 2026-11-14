@@ -30,16 +30,9 @@ export function SeverityTag({ severity, size = 'sm', className }) {
   );
 }
 
-/* Severity is carried by shape as well as colour: bars filled 4/3/2/1. */
+/* A small dot in the severity colour; the word carries the meaning. */
 export function SeverityGlyph({ severity, className }) {
-  const n = { critical: 4, high: 3, medium: 2, low: 1 }[severity] || 0;
-  return (
-    <span aria-hidden="true" className={cn('inline-flex items-end gap-[1.5px]', className)}>
-      {[0, 1, 2, 3].map((k) => (
-        <span key={k} className={cn('w-[2.5px] rounded-[1px] bg-current', k < n ? 'opacity-100' : 'opacity-25')} style={{ height: 4 + k * 2 }} />
-      ))}
-    </span>
-  );
+  return <span aria-hidden="true" className={cn('inline-block size-1.5 rounded-full bg-current', { critical: 'text-critical', high: 'text-high', medium: 'text-medium', low: 'text-low' }[severity], className)} />;
 }
 
 const STATUS = {
@@ -74,9 +67,7 @@ export function StatusPill({ status, className, pulse = false }) {
   const [label, cls, dot] = STATUS[status] || [status, 'border-line bg-neutral-soft text-ink-2', 'bg-neutral'];
   return (
     <span className={cn('inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium', cls.replace(/border-\S+/g, ''), className)}>
-      <span className={cn('relative size-1.5 rounded-full', dot)}>
-        {pulse && <span className={cn('absolute inset-0 animate-ping rounded-full opacity-60', dot)} />}
-      </span>
+      <span className={cn('size-1.5 rounded-full', dot)} />
       {label}
     </span>
   );
@@ -313,14 +304,17 @@ export function Kbd({ children }) {
   return <kbd className="rounded border border-line bg-surface-2 px-1.5 py-0.5 font-mono text-[10.5px] text-ink-3">{children}</kbd>;
 }
 
-/** Tiny bar sparkline for a 30-day series. */
-export function MiniBars({ values = [], className, tone = 'var(--t-series-1)' }) {
+/** A 30-day trend as a thin line, with today's value marked. */
+export function MiniBars({ values = [], className }) {
+  const W = 72;
+  const H = 18;
   const max = Math.max(1, ...values);
+  if (!values.some(Boolean)) return <span className={cn('block text-[11px] text-ink-3', className)}>No calls</span>;
+  const pts = values.map((v, k) => `${(k / Math.max(1, values.length - 1)) * W},${H - 2 - (v / max) * (H - 4)}`).join(' ');
   return (
-    <span className={cn('inline-flex h-6 items-end gap-[1.5px]', className)} aria-hidden="true">
-      {values.map((v, k) => (
-        <span key={k} className="w-[3px] rounded-[1px]" style={{ height: `${Math.max(6, (v / max) * 100)}%`, background: v ? tone : 'var(--t-track)', opacity: v ? 0.85 : 1 }} />
-      ))}
-    </span>
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className={className} aria-hidden="true">
+      <polyline points={pts} fill="none" stroke="var(--t-ink-3)" strokeWidth="1.25" strokeLinejoin="round" />
+      <circle cx={W} cy={H - 2 - (values.at(-1) / max) * (H - 4)} r="2" fill="var(--t-ink)" />
+    </svg>
   );
 }

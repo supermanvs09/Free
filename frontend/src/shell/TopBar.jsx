@@ -26,7 +26,7 @@ function Presence() {
       </span>
       <span className="flex items-center gap-1.5 text-[12px] text-topbar-muted">
         <span className="relative size-2 rounded-full bg-low">
-          <span className="absolute inset-0 animate-ping rounded-full bg-low opacity-50" />
+
         </span>
         {unique.length ? `${unique.length} online` : 'Live'}
       </span>

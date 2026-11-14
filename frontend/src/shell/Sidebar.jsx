@@ -117,11 +117,11 @@ export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile
   return (
     <>
       {collapsed ? (
-        <aside ref={asideRef} aria-label="Primary navigation" className="fixed top-16 bottom-0 left-0 z-30 hidden w-[60px] flex-col items-center border-r border-sidebar-line bg-sidebar py-2.5 lg:flex">
+        <aside ref={asideRef} aria-label="Primary navigation" className="fixed top-[76px] bottom-3 left-3 z-30 hidden w-[56px] flex-col items-center rounded-[14px] border border-line bg-surface py-2 shadow-[var(--t-shadow-lg)] lg:flex">
           <button type="button" onClick={onToggleCollapse} aria-label="Expand navigation" title="Expand navigation" className="mb-1 grid size-9 shrink-0 place-items-center rounded-[8px] text-ink-3 transition-colors hover:bg-surface-3 hover:text-ink">
             <PanelLeftOpen aria-hidden="true" className="size-[18px]" />
           </button>
-          <nav aria-label="Primary" className="nav-scroll flex min-h-0 flex-1 flex-col items-center gap-0.5 overflow-y-auto">
+          <nav aria-label="Primary" className="flex min-h-0 flex-1 flex-col items-center gap-0.5">
             {NAV_GROUPS.map((g, k) => (
               <div key={g.key} className="flex flex-col items-center gap-0.5">
                 {k > 0 && <span aria-hidden="true" className="my-1.5 h-px w-6 bg-line" />}
