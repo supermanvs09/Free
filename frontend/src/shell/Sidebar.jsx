@@ -92,7 +92,7 @@ export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile
   const main = groups.filter((g) => g.key !== 'settings');
   const settings = groups.find((g) => g.key === 'settings');
   const asideRef = useRef(null);
-  const alerts = useAlertSummary({ exposure: can('exposure.view') });
+  const alerts = useAlertSummary({ exposure: exposureEnabled && can('exposure.view') });
   const badgeFor = (item) => (item.badge === 'alerts' ? (alerts?.badge ?? 0) : 0);
   /* A wheel over the rail scrolls the rail; it never carries on into the page. */
   useContainedScroll(asideRef, { scroller: 'nav' });

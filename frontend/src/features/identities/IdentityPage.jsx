@@ -1,6 +1,6 @@
 import { Component, useEffect, useMemo } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Braces, Dna, Fingerprint, GitCompareArrows, Radar, ShieldCheck, Waypoints } from 'lucide-react';
+import { ArrowLeft, Dna, Fingerprint, GitCompareArrows, Radar, ShieldCheck, Waypoints } from 'lucide-react';
 import { IdentityBlastRadius } from '../blast/IdentityBlastRadius';
 import { accessGraphRoute, genomeRouteFor } from '../../lib/identityLinks';
 import { BehaviourBaseline } from './BehaviourBaseline';
@@ -20,7 +20,7 @@ import { IdentityTags } from './IdentityDrawer';
 import { IdentityRecordPanels, recordTabs, useIdentityTab } from './IdentityRecord';
 import { identityTypeLabel } from './meta';
 
-const RECORD_KEYS = new Set(['overview', 'permissions', 'credentials', 'relationships', 'raw']);
+const RECORD_KEYS = new Set(['overview', 'permissions', 'credentials', 'relationships']);
 /* Old tab names, so a saved link still lands: Role use became Relationships. */
 const RENAMED_TABS = { roles: 'relationships' };
 /* Event-view keys the Activity tab keeps in the URL; dropped when leaving it. */
@@ -53,7 +53,7 @@ export default function IdentityPage() {
 
   const tabs = useMemo(() => {
     const base = recordTabs(overview);
-    return [base[0], { value: 'posture', label: 'Posture', icon: ShieldCheck }, { value: 'blast', label: 'Blast radius', icon: Radar }, ...base.slice(1), { value: 'changes', label: 'Changes', icon: GitCompareArrows }, { value: 'raw', label: 'Raw', icon: Braces }];
+    return [base[0], { value: 'posture', label: 'Posture', icon: ShieldCheck }, { value: 'blast', label: 'Blast radius', icon: Radar }, ...base.slice(1), { value: 'changes', label: 'Changes', icon: GitCompareArrows }];
   }, [overview]);
   const rawTab = searchParams.get('tab') || 'overview';
   const requested = RENAMED_TABS[rawTab] ?? rawTab;

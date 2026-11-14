@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"nhi-backend-api/internal/modules/credentialexposure"
+	"nhi-backend-api/internal/platform/authz"
 	"nhi-backend-api/internal/platform/httpx"
 	"nhi-backend-api/internal/platform/middleware"
 	"nhi-backend-api/internal/platform/scope"
@@ -72,7 +73,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c := middleware.GetClaims(r)
-	out, err := h.inbox(r.Context(), ds, c.UserID, c.TenantID, c.DBName)
+	out, err := h.inbox(r.Context(), ds, c.UserID, c.TenantID, c.DBName, authz.Can(authz.NormalizeRole(c.Role), authz.CapExposure))
 	if err != nil {
 		httpx.SendServerError(w, r, err, "Alerts could not be loaded", "ALERTS_FAILED")
 		return
@@ -87,7 +88,7 @@ func (h *Handler) Summary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c := middleware.GetClaims(r)
-	out, err := h.inbox(r.Context(), ds, c.UserID, c.TenantID, c.DBName)
+	out, err := h.inbox(r.Context(), ds, c.UserID, c.TenantID, c.DBName, authz.Can(authz.NormalizeRole(c.Role), authz.CapExposure))
 	if err != nil {
 		httpx.SendServerError(w, r, err, "Alerts could not be loaded", "ALERTS_FAILED")
 		return

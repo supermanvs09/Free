@@ -13,7 +13,7 @@ import { CopyableValue } from '../../ui/Copyable';
 import { DataGrid } from '../../ui/DataGrid';
 import { Meter } from '../../ui/Meter';
 import { DetailSkeleton, Skeleton } from '../../ui/Skeleton';
-import { JsonBlock, RawJson } from '../../ui/RawJson';
+import { JsonBlock } from '../../ui/RawJson';
 import { cn } from '../../ui/cn';
 import { EmptyState, InlineError } from '../../ui/States';
 import { EventTimeline } from '../activity/EventTimeline';
@@ -107,7 +107,6 @@ export function IdentityRecordPanels({ identityId, tab, active = true, overviewQ
         {tab === 'activity' && active && <CompactActivity identityId={identityId} />}
       </TabPanel>
       <TabPanel tabValue="raw" value={tab}>
-        {tab === 'raw' && active && <RawPanel identityId={identityId} name={overviewQuery.data?.identity?.name} />}
       </TabPanel>
     </>
   );
@@ -1032,30 +1031,6 @@ function RelList({ rows, linkFor, showCalls = false, when = 'Last seen' }) {
         </li>
       ))}
     </ul>
-  );
-}
-
-/* ── Raw ─────────────────────────────────────────────────────────────────── */
-
-function RawPanel({ identityId, name }) {
-  const query = useIdentityTab(identityId, 'raw');
-  const data = query.data;
-
-  if (query.isError && !data) return <TabError query={query} label="Raw record unavailable" />;
-  if (!data) return <DetailSkeleton rows={6} />;
-
-  return (
-    <RawJson
-      intro="Everything the discovery scan stored for this identity, exactly as received: the inventory record, the AWS response when it was kept, and the credential it was matched to. Useful for audits and support tickets."
-      filename={`identity-${name || identityId}.json`}
-      payload={data}
-      blocks={[
-        { key: 'identity_record', label: 'Identity record', value: data.identity_record },
-        { key: 'resolved_credential', label: 'Resolved credential', value: data.resolved_credential },
-        { key: 'type_attributes', label: 'Type attributes', value: data.type_attributes },
-        { key: 'raw_api_response', label: 'Raw API response', value: data.raw_api_response },
-      ]}
-    />
   );
 }
 

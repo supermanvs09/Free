@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, ChevronRight, Fingerprint, GitCommitVertical, ShieldCheck, Wrench } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronRight, Fingerprint, GitCommitVertical, Radius, ShieldCheck, Wrench } from 'lucide-react';
 import { fetchIdentityAlert } from '../../lib/api/alerts';
 import { useQuery } from '../../lib/hooks/useQuery';
 import { formatDateTime, formatNumber, formatRelative } from '../../lib/format';
@@ -77,71 +77,6 @@ function Trend({ points, beforeAt }) {
   );
 }
 
-/* ── Where the points went: a staircase from the old score to the new ───── */
-
-function Waterfall({ before, now, steps }) {
-  const explained = steps.reduce((n, s) => n + (Number(s.points) || 0), 0);
-  const rest = before - now - explained;
-  const rows = [...steps.map((s) => ({ ...s, kind: 'check' })), ...(rest !== 0 ? [{ title: rest > 0 ? 'Other recalculated checks' : 'Checks that improved', points: rest, kind: 'rest' }] : [])];
-  let level = before;
-  return (
-    <ol className="flex flex-col">
-      <li className="grid grid-cols-[minmax(0,1.4fr)_minmax(120px,1.6fr)_52px] items-center gap-4 py-2.5">
-        <span className="text-[13px] text-ink-2">Score at the previous sync</span>
-        <span className="relative h-2.5 rounded-full bg-track">
-          <span className="absolute inset-y-0 left-0 rounded-full bg-ink-3/40" style={{ width: `${before}%` }} />
-        </span>
-        <span data-numeric="" className="text-right text-[14px] font-semibold text-ink">
-          {before}
-        </span>
-      </li>
-      {rows.map((r, i) => {
-        const from = level;
-        level -= Number(r.points) || 0;
-        const lo = Math.max(0, Math.min(from, level));
-        const hi = Math.min(100, Math.max(from, level));
-        const sev = severityMeta(r.severity);
-        return (
-          <li key={i} className="grid grid-cols-[minmax(0,1.4fr)_minmax(120px,1.6fr)_52px] items-center gap-4 border-t border-line py-2.5">
-            <span className="min-w-0">
-              <span className="block text-[13px] leading-snug font-medium text-ink" title={r.description || r.title}>
-                {r.title}
-              </span>
-              {r.kind === 'check' && (
-                <span className="mt-0.5 block text-[11.5px] leading-snug text-ink-3">
-                  {r.severity && (
-                    <span className="mr-1.5 inline-flex items-center gap-1 align-middle">
-                      <span className={cn('size-1.5 rounded-full', TONE_BG[sev.tone] ?? 'bg-ink-3')} />
-                      {sev.label}
-                    </span>
-                  )}
-                  {r.detail}
-                </span>
-              )}
-            </span>
-            <span className="relative h-2.5 rounded-full bg-track">
-              <span className="absolute inset-y-0 left-0 rounded-full bg-ink-3/15" style={{ width: `${lo}%` }} />
-              <span className={cn('absolute inset-y-0 rounded-full', r.points > 0 ? 'bg-critical' : 'bg-low')} style={{ left: `${lo}%`, width: `${Math.max(1, hi - lo)}%` }} />
-            </span>
-            <span data-numeric="" className={cn('text-right text-[14px] font-semibold', r.points > 0 ? 'text-critical' : 'text-low')}>
-              {r.points > 0 ? `−${r.points}` : `+${-r.points}`}
-            </span>
-          </li>
-        );
-      })}
-      <li className="grid grid-cols-[minmax(0,1.4fr)_minmax(120px,1.6fr)_52px] items-center gap-4 border-t border-line-strong py-2.5">
-        <span className="text-[13px] font-semibold text-ink">Score now</span>
-        <span className="relative h-2.5 rounded-full bg-track">
-          <span className={cn('absolute inset-y-0 left-0 rounded-full', TONE_BG[bandFor(now).tone])} style={{ width: `${now}%` }} />
-        </span>
-        <span data-numeric="" className="text-right font-display text-[16px] font-bold text-ink">
-          {now}
-        </span>
-      </li>
-    </ol>
-  );
-}
-
 /* ── One cause, with the AWS change behind it ───────────────────────────── */
 
 function ChangeItem({ c }) {
@@ -178,48 +113,140 @@ function ChangeItem({ c }) {
   );
 }
 
-function FindingCard({ f }) {
-  const sev = severityMeta(f.severity);
-  const evidence = f.evidence && typeof f.evidence === 'object' ? Object.entries(f.evidence).slice(0, 4) : [];
+/* ── The causes: one share bar, then each cause with its own fix ───────── */
+
+const SEV_TEXT = { low: 'text-low', medium: 'text-medium', high: 'text-high', critical: 'text-critical' };
+
+/** The drop as one bar split by cause: how much of it each one explains. */
+function ShareBar({ causes, rest, total }) {
+  if (total <= 0) return null;
   return (
-    <article className="rounded-[12px] border border-line bg-surface p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <Tag size="sm" tone={sev.tone} dot>
-            {sev.label}
-          </Tag>
-          <h4 className="mt-2 text-[14px] font-semibold text-ink">{f.title}</h4>
-        </div>
-        <Button as={Link} to={`/remediation/findings/${f.finding_id}`} size="sm" variant="primary" icon={Wrench}>
-          Fix it
-        </Button>
+    <div>
+      <div className="flex h-3 w-full gap-[3px] overflow-hidden rounded-full" role="img" aria-label="How much of the drop each cause explains">
+        {causes.map((c, i) => (
+          <span
+            key={c.rule_id}
+            title={`${String(i + 1).padStart(2, '0')} ${c.title}: −${c.points}`}
+            className={cn('h-full first:rounded-l-full last:rounded-r-full', TONE_BG[severityMeta(c.severity).tone] ?? 'bg-ink-3')}
+            style={{ flexGrow: c.points, flexBasis: 0, opacity: 1 - i * 0.12 }}
+          />
+        ))}
+        {rest > 0 && <span title={`Other recalculated checks: −${rest}`} className="h-full rounded-r-full bg-ink-3/30" style={{ flexGrow: rest, flexBasis: 0 }} />}
       </div>
-      {f.risk_explanation && <p className="mt-2 text-[13px] leading-relaxed text-ink-2">{f.risk_explanation}</p>}
-      {evidence.length > 0 && (
-        <dl className="mt-3 grid gap-x-4 gap-y-1.5 rounded-[10px] bg-surface-2 px-3 py-2.5 text-[12px] sm:grid-cols-[auto_minmax(0,1fr)]">
-          {evidence.map(([k, v]) => (
-            <div key={k} className="contents">
-              <dt className="text-ink-3">{k.replaceAll('_', ' ')}</dt>
-              <dd className="min-w-0 truncate font-mono text-ink-2" title={String(v)}>
-                {typeof v === 'object' ? JSON.stringify(v) : String(v)}
-              </dd>
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-ink-3">
+        {causes.map((c, i) => (
+          <span key={c.rule_id} className="flex items-center gap-1.5">
+            <span className="font-mono text-ink-2">{String(i + 1).padStart(2, '0')}</span>
+            <span data-numeric="">{Math.round((c.points / total) * 100)}%</span>
+          </span>
+        ))}
+        {rest > 0 && (
+          <span className="flex items-center gap-1.5">
+            <span className="size-1.5 rounded-full bg-ink-3/40" /> other checks <span data-numeric="">{Math.round((rest / total) * 100)}%</span>
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Evidence({ evidence }) {
+  const rows = evidence && typeof evidence === 'object' ? Object.entries(evidence).slice(0, 4) : [];
+  if (!rows.length) return null;
+  return (
+    <dl className="mt-3 grid gap-x-4 gap-y-1 text-[12px] sm:grid-cols-[auto_minmax(0,1fr)]">
+      {rows.map(([k, v]) => (
+        <div key={k} className="contents">
+          <dt className="text-ink-3">{k.replaceAll('_', ' ')}</dt>
+          <dd className="min-w-0 truncate font-mono text-ink-2" title={String(v)}>
+            {typeof v === 'object' ? JSON.stringify(v) : String(v)}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/** One cause: what failed, what it cost, and - when posture raised a finding for it - how to fix it. */
+function Cause({ c, n, total, finding, postureLink }) {
+  const sev = severityMeta(c.severity);
+  return (
+    <li className="animate-rise group relative grid grid-cols-[2.25rem_minmax(0,1fr)] gap-x-4 border-t border-line py-6 first:border-t-0 first:pt-2" style={{ animationDelay: `${n * 70}ms` }}>
+      <span aria-hidden="true" className="pt-0.5 font-mono text-[13px] font-medium text-ink-3 transition-colors group-hover:text-ink">
+        {String(n + 1).padStart(2, '0')}
+      </span>
+      <div className="min-w-0">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h3 className="text-[15.5px] leading-snug font-semibold tracking-[-0.01em] text-balance text-ink">{c.title}</h3>
+            <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[12px] text-ink-3">
+              <span className="flex items-center gap-1.5">
+                <span className={cn('size-1.5 rounded-full', TONE_BG[sev.tone] ?? 'bg-ink-3')} />
+                {sev.label}
+              </span>
+              {c.category && <span>· {c.category.replaceAll('_', ' ')}</span>}
+            </p>
+          </div>
+          <div className="shrink-0 text-right">
+            <span data-numeric="" className={cn('block font-display text-[26px] leading-none font-bold tracking-tight', SEV_TEXT[sev.tone] ?? 'text-ink')}>
+              −{formatNumber(c.points)}
+            </span>
+            {total > 0 && (
+              <span data-numeric="" className="mt-1 block text-[11px] text-ink-3">
+                {Math.round((c.points / total) * 100)}% of the drop
+              </span>
+            )}
+          </div>
+        </div>
+        {c.detail && <p className="mt-3 max-w-[64ch] text-[13.5px] leading-relaxed text-ink-2">{c.detail}</p>}
+
+        {finding ? (
+          <div className="mt-4 rounded-[12px] bg-surface-2/70 p-4 transition-colors group-hover:bg-surface-2">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium text-ink-3">The finding posture raised</p>
+                <p className="mt-0.5 text-[13px] font-semibold text-ink">{finding.title}</p>
+              </div>
+              <Button as={Link} to={`/remediation/findings/${finding.finding_id}`} size="sm" variant="primary" icon={Wrench}>
+                Fix it
+              </Button>
             </div>
-          ))}
-        </dl>
-      )}
-      {f.remediation && (
-        <p className="mt-3 text-[12.5px] text-ink-2">
-          <span className="font-semibold text-ink">How to fix: </span>
-          {f.remediation}
-        </p>
-      )}
-    </article>
+            {finding.risk_explanation && <p className="mt-2 max-w-[64ch] text-[12.5px] leading-relaxed text-ink-2">{finding.risk_explanation}</p>}
+            <Evidence evidence={finding.evidence} />
+            {finding.remediation && (
+              <p className="mt-3 border-t border-line pt-3 text-[12.5px] leading-relaxed text-ink-2">
+                <span className="font-semibold text-ink">How to fix · </span>
+                {finding.remediation}
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="mt-3 text-[12px] text-ink-3">
+            No remediation finding for this check yet.{' '}
+            <Link to={postureLink} className="font-medium text-brand hover:underline">
+              See it in the posture record
+            </Link>
+          </p>
+        )}
+      </div>
+    </li>
+  );
+}
+
+function RailLink({ to, icon: Icon, children }) {
+  return (
+    <Link to={to} className="group flex items-center gap-2.5 px-4 py-2.5 text-[12.5px] font-medium text-ink transition-colors hover:bg-surface-2 active:translate-y-px">
+      <Icon className="size-4 text-ink-3 transition-colors group-hover:text-brand" aria-hidden="true" />
+      <span className="flex-1">{children}</span>
+      <ChevronRight className="size-4 text-ink-3 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+    </Link>
   );
 }
 
 /**
- * The full answer to "why did this identity's score drop": from what to what,
- * where every point went, what changed in AWS to cause it, and how to fix it.
+ * The full answer to "why did this identity's score drop", read top to
+ * bottom: the verdict, the causes ranked by what they cost (each with its own
+ * fix), and beside them the evidence - what changed in AWS and who did it.
  */
 export default function AlertDetailPage() {
   const { id } = useParams();
@@ -227,10 +254,24 @@ export default function AlertDetailPage() {
   const a = query.data;
   const [showOld, setShowOld] = useState(false);
 
-  const header = useMemo(() => {
+  const view = useMemo(() => {
     if (!a) return null;
     const dropped = a.score_before != null && a.score_before > a.score_now;
-    return { dropped, delta: dropped ? a.score_now - a.score_before : 0, sev: dropSeverity(a.score_now - (a.score_before ?? a.score_now), a.band_before, a.band_now) };
+    const total = dropped ? a.score_before - a.score_now : 0;
+    const causes = [...a.new_failing_checks].sort((x, y) => (Number(y.points) || 0) - (Number(x.points) || 0));
+    const explained = causes.reduce((n, c) => n + (Number(c.points) || 0), 0);
+    /* A finding belongs to a cause when it names the same rule - exact, not inferred. */
+    const findingOf = (c) => a.new_findings.find((f) => (c.finding_id && f.finding_id === c.finding_id) || (f.rule_id && f.rule_id === c.rule_id));
+    const linked = new Set(causes.map(findingOf).filter(Boolean).map((f) => f.finding_id));
+    return {
+      dropped,
+      total,
+      causes,
+      rest: Math.max(0, total - explained),
+      findingOf,
+      orphans: a.new_findings.filter((f) => !linked.has(f.finding_id)),
+      sev: dropSeverity(a.score_now - (a.score_before ?? a.score_now), a.band_before, a.band_now),
+    };
   }, [a]);
 
   const back = (
@@ -261,35 +302,32 @@ export default function AlertDetailPage() {
   }
 
   const fellBand = a.band_before && a.band_before.toLowerCase() !== String(a.band_now).toLowerCase();
+  const postureLink = `/posture/${encodeURIComponent(a.identity_id)}`;
+  const sentence = view.dropped
+    ? a.why_this_score ||
+      `${a.identity_name} lost ${formatNumber(view.total)} points: ${view.causes.length === 1 ? 'one check' : `${view.causes.length} checks`} started failing${a.inventory_changes.length ? ' after a change in AWS' : ''}.`
+    : 'The score did not drop at the latest sync.';
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <PageHeader
         title={<span className="font-mono">{a.identity_name}</span>}
         lede={`${identityTypeLabel(a.identity_type)} in account ${a.account_name ? `${a.account_name} (${a.account_id})` : a.account_id}${a.region ? `, ${a.region}` : ''}`}
-        actions={
-          <>
-            {back}
-            {a.discovery_id && (
-              <Button as={Link} to={`/identities/${a.discovery_id}`} variant="secondary" icon={Fingerprint}>
-                Open identity
-              </Button>
-            )}
-            <Button as={Link} to={`/posture/${encodeURIComponent(a.identity_id)}`} variant="secondary" icon={ShieldCheck}>
-              Posture record
-            </Button>
-          </>
-        }
-        meta={a.identity_arn ? <CopyableValue value={a.identity_arn} /> : null}
+        actions={back}
       />
 
-      {/* Verdict */}
-      <section className="animate-rise grid overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
-        <div className="flex flex-col justify-between gap-6 p-6 sm:p-7">
-          <div>
+      {/* The verdict */}
+      <section
+        aria-label="Verdict"
+        className="animate-rise relative overflow-hidden rounded-[var(--radius-panel)] bg-surface shadow-[var(--t-shadow-sm)] ring-1 ring-line"
+      >
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_140%_at_0%_0%,var(--color-critical-soft),transparent_60%)] opacity-80" />
+        <div className="relative grid gap-8 p-6 sm:p-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:gap-12">
+          <div className="flex flex-col">
             <div className="flex flex-wrap items-center gap-2">
-              {header.dropped && (
-                <Tag tone={header.sev.tone} size="sm" dot>
-                  {header.sev.label}
+              {view.dropped && (
+                <Tag tone={view.sev.tone} size="sm" dot>
+                  {view.sev.label}
                 </Tag>
               )}
               {fellBand && (
@@ -297,124 +335,167 @@ export default function AlertDetailPage() {
                   {bandFor(a.score_before).label} → {bandFor(a.score_now).label}
                 </Tag>
               )}
+              <span className="text-[12px] text-ink-3" title={formatDateTime(a.detected_at)}>
+                at the sync {formatRelative(a.detected_at)}
+              </span>
             </div>
-            <div className="mt-5">
-              {a.score_before != null ? <ScoreShift before={a.score_before} now={a.score_now} size="lg" /> : <span className="font-display text-[40px] font-bold">{a.score_now}</span>}
-            </div>
-            <p className="mt-4 max-w-[52ch] text-[14.5px] leading-relaxed text-ink">
-              {header.dropped ? (
-                <>
-                  <span className="font-semibold">{a.identity_name}</span> lost{' '}
-                  <span className="font-semibold text-critical">{formatNumber(-header.delta)} points</span> at the sync{' '}
-                  <span title={formatDateTime(a.detected_at)}>{formatRelative(a.detected_at)}</span>
-                  {a.new_failing_checks.length > 0
-                    ? ` - ${a.new_failing_checks.length === 1 ? 'one check' : `${a.new_failing_checks.length} checks`} started failing${a.inventory_changes.length ? ' after a change in AWS' : ''}.`
-                    : '.'}
-                </>
-              ) : (
-                <>The score did not drop at the latest sync.</>
-              )}
-            </p>
+            <div className="mt-6">{a.score_before != null ? <ScoreShift before={a.score_before} now={a.score_now} size="lg" /> : <span className="font-display text-[40px] font-bold">{a.score_now}</span>}</div>
+            <p className="mt-5 max-w-[46ch] text-[16px] leading-relaxed font-medium tracking-[-0.005em] text-pretty text-ink">{sentence}</p>
+            <dl className="mt-auto flex flex-wrap gap-x-8 gap-y-3 pt-7 text-[12px]">
+              <div>
+                <dt className="text-ink-3">Checks failing</dt>
+                <dd data-numeric="" className="mt-0.5 text-[15px] font-semibold text-ink">
+                  {formatNumber(a.checks_failed)}
+                  <span className="text-[12px] font-normal text-ink-3"> of {formatNumber(a.checks_evaluated)}</span>
+                </dd>
+              </div>
+              <div>
+                <dt className="text-ink-3">New at this sync</dt>
+                <dd data-numeric="" className={cn('mt-0.5 text-[15px] font-semibold', view.causes.length ? 'text-critical' : 'text-ink')}>
+                  {formatNumber(view.causes.length)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-ink-3">Compared with</dt>
+                <dd className="mt-0.5 text-[13px] font-medium text-ink" title={a.before_at ? formatDateTime(a.before_at) : undefined}>
+                  {a.before_at ? `the sync ${formatRelative(a.before_at)}` : '-'}
+                </dd>
+              </div>
+            </dl>
           </div>
-          <dl className="grid grid-cols-3 gap-4 border-t border-line pt-4 text-[12px]">
-            <div>
-              <dt className="text-ink-3">Checks failing</dt>
-              <dd data-numeric="" className="mt-0.5 text-[16px] font-semibold text-ink">
-                {formatNumber(a.checks_failed)}
-                <span className="text-[12px] font-normal text-ink-3"> / {formatNumber(a.checks_evaluated)}</span>
-              </dd>
-            </div>
-            <div>
-              <dt className="text-ink-3">New since last sync</dt>
-              <dd data-numeric="" className={cn('mt-0.5 text-[16px] font-semibold', a.new_failing_checks.length ? 'text-critical' : 'text-ink')}>
-                {formatNumber(a.new_failing_checks.length)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-ink-3">Previous sync</dt>
-              <dd className="mt-0.5 text-[13px] font-medium text-ink" title={a.before_at ? formatDateTime(a.before_at) : undefined}>
-                {a.before_at ? formatRelative(a.before_at) : '-'}
-              </dd>
-            </div>
-          </dl>
-        </div>
-        <div className="border-t border-line bg-surface-2/40 p-6 sm:p-7 lg:border-t-0 lg:border-l">
-          {a.timeline.length > 1 ? <Trend points={a.timeline} beforeAt={a.before_at} /> : <p className="text-[12.5px] text-ink-3">Not enough history yet to draw a trend.</p>}
+          <div className="rounded-[14px] bg-surface/70 p-5 ring-1 ring-line backdrop-blur-sm">
+            {a.timeline.length > 1 ? <Trend points={a.timeline} beforeAt={a.before_at} /> : <p className="text-[12.5px] text-ink-3">Not enough history yet to draw a trend.</p>}
+          </div>
         </div>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
-        {/* Where the points went */}
-        {a.score_before != null && header.dropped && (
-          <section className="rounded-[var(--radius-panel)] border border-line bg-surface p-6">
-            <h2 className="text-[15px] font-semibold text-ink">Where the {formatNumber(-header.delta)} points went</h2>
-            <p className="mt-1 text-[12.5px] text-ink-3">Each check that started failing since the previous sync, and what it cost.</p>
-            <div className="mt-4">
-              <Waterfall before={a.score_before} now={a.score_now} steps={a.new_failing_checks} />
+      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.65fr)_minmax(280px,1fr)]">
+        {/* The causes */}
+        <section aria-label="Causes" className="min-w-0">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-[19px] font-semibold tracking-[-0.015em] text-ink">{view.dropped ? `What cost the ${formatNumber(view.total)} points` : 'What is failing'}</h2>
+              <p className="mt-1 text-[13px] text-ink-3">Checks that started failing at this sync, biggest first. Each one carries its fix.</p>
             </div>
-          </section>
-        )}
-
-        {/* What changed in AWS */}
-        <section className="rounded-[var(--radius-panel)] border border-line bg-surface p-6">
-          <h2 className="flex items-center gap-2 text-[15px] font-semibold text-ink">
-            <GitCommitVertical className="size-4 text-ink-3" />
-            What changed in AWS
-          </h2>
-          <p className="mt-1 text-[12.5px] text-ink-3">Changes to this identity and the credentials it uses since the previous sync.</p>
-          {a.inventory_changes.length === 0 ? (
-            <p className="mt-4 rounded-[10px] border border-dashed border-line px-4 py-5 text-center text-[12.5px] text-ink-3">
-              No configuration change was recorded. The drop comes from checks re-evaluated against existing settings or activity.
-            </p>
-          ) : (
-            <ol className="mt-5">
-              {a.inventory_changes.map((c, i) => (
-                <ChangeItem key={i} c={c} />
+          </div>
+          {view.dropped && (
+            <div className="mt-5">
+              <ShareBar causes={view.causes} rest={view.rest} total={view.total} />
+            </div>
+          )}
+          {view.causes.length > 0 ? (
+            <ol className="mt-4">
+              {view.causes.map((c, i) => (
+                <Cause key={c.rule_id} c={c} n={i} total={view.total} finding={view.findingOf(c)} postureLink={postureLink} />
               ))}
             </ol>
+          ) : (
+            <p className="mt-5 rounded-[12px] bg-surface-2/70 px-4 py-5 text-[13px] text-ink-2">No check started failing at this sync. The score moved because existing checks were re-weighted.</p>
+          )}
+          {view.rest > 0 && (
+            <p className="mt-2 border-t border-line pt-4 text-[12.5px] text-ink-3">
+              The other <span className="font-semibold text-ink-2">{formatNumber(view.rest)} points</span> came from checks that were already failing and were re-scored.
+            </p>
+          )}
+
+          {view.orphans.length > 0 && (
+            <section className="mt-8">
+              <h3 className="text-[14px] font-semibold text-ink">Other new findings</h3>
+              <ul className="mt-3 flex flex-col gap-2">
+                {view.orphans.map((f) => (
+                  <li key={f.finding_id} className="flex items-center gap-3 rounded-[12px] bg-surface-2/70 px-4 py-3">
+                    <span className={cn('size-1.5 shrink-0 rounded-full', TONE_BG[severityMeta(f.severity).tone] ?? 'bg-ink-3')} />
+                    <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{f.title}</span>
+                    <Button as={Link} to={`/remediation/findings/${f.finding_id}`} size="sm" variant="secondary" icon={Wrench}>
+                      Fix it
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {a.still_failing_checks.length > 0 && (
+            <section className="mt-8 border-t border-line pt-2">
+              <button type="button" onClick={() => setShowOld((v) => !v)} aria-expanded={showOld} className="flex w-full items-center justify-between gap-3 rounded-[10px] py-3 text-left transition-colors hover:text-ink">
+                <span>
+                  <span className="text-[13.5px] font-semibold text-ink">Already failing before this sync</span>
+                  <span className="ml-2 text-[12.5px] text-ink-3">
+                    {formatNumber(a.still_failing_checks.length)} {a.still_failing_checks.length === 1 ? 'check' : 'checks'} · not part of this drop
+                  </span>
+                </span>
+                <ChevronDown className={cn('size-4 text-ink-3 transition-transform duration-200', showOld && 'rotate-180')} />
+              </button>
+              {showOld && (
+                <ul className="animate-fade divide-y divide-line">
+                  {a.still_failing_checks.map((c) => (
+                    <li key={c.rule_id} className="flex items-center justify-between gap-4 py-3">
+                      <span className="min-w-0">
+                        <span className="block truncate text-[13px] text-ink">{c.title}</span>
+                        {c.failing_since && <span className="text-[11.5px] text-ink-3">failing since {formatRelative(c.failing_since)}</span>}
+                      </span>
+                      <span data-numeric="" className="shrink-0 text-[12.5px] font-semibold text-ink-2">
+                        −{c.points}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
           )}
         </section>
+
+        {/* The evidence */}
+        <aside className="flex flex-col gap-5 lg:sticky lg:top-20">
+          <section className="rounded-[var(--radius-panel)] bg-surface p-5 ring-1 ring-line">
+            <h2 className="flex items-center gap-2 text-[13.5px] font-semibold text-ink">
+              <GitCommitVertical className="size-4 text-ink-3" />
+              Changed in AWS
+            </h2>
+            <p className="mt-1 text-[12px] text-ink-3">Since the previous sync, on this identity and the credentials it uses.</p>
+            {a.inventory_changes.length === 0 ? (
+              <p className="mt-4 text-[12.5px] text-ink-3">No configuration change was recorded. The drop comes from checks re-evaluated against existing settings or activity.</p>
+            ) : (
+              <ol className="mt-5">
+                {a.inventory_changes.map((c, i) => (
+                  <ChangeItem key={i} c={c} />
+                ))}
+              </ol>
+            )}
+          </section>
+
+          <section className="overflow-hidden rounded-[var(--radius-panel)] bg-surface ring-1 ring-line">
+            <div className="px-4 pt-4 pb-3">
+              <h2 className="text-[13.5px] font-semibold text-ink">Identity</h2>
+              {a.identity_arn && (
+                <div className="mt-2">
+                  <CopyableValue value={a.identity_arn} />
+                </div>
+              )}
+              {a.credential_arn && a.credential_arn !== a.identity_arn && (
+                <p className="mt-1.5 text-[11.5px] text-ink-3">
+                  runs as <span className="font-mono text-ink-2">{shortRef(a.credential_arn)}</span>
+                </p>
+              )}
+            </div>
+            <nav aria-label="Open elsewhere" className="divide-y divide-line border-t border-line">
+              {a.discovery_id && (
+                <>
+                  <RailLink to={`/identities/${encodeURIComponent(a.discovery_id)}`} icon={Fingerprint}>
+                    Open identity
+                  </RailLink>
+                  <RailLink to={`/identities/${encodeURIComponent(a.discovery_id)}?tab=blast`} icon={Radius}>
+                    Blast radius
+                  </RailLink>
+                </>
+              )}
+              <RailLink to={postureLink} icon={ShieldCheck}>
+                Posture record
+              </RailLink>
+            </nav>
+          </section>
+        </aside>
       </div>
-
-      {a.new_findings.length > 0 && (
-        <section>
-          <h2 className="mb-3 text-[15px] font-semibold text-ink">New findings to fix</h2>
-          <div className="grid gap-3 lg:grid-cols-2">
-            {a.new_findings.map((f) => (
-              <FindingCard key={f.finding_id} f={f} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {a.still_failing_checks.length > 0 && (
-        <section className="rounded-[var(--radius-panel)] border border-line bg-surface">
-          <button type="button" onClick={() => setShowOld((v) => !v)} aria-expanded={showOld} className="flex w-full items-center justify-between gap-3 px-6 py-4 text-left">
-            <span>
-              <span className="text-[14px] font-semibold text-ink">Already failing before this sync</span>
-              <span className="ml-2 text-[12.5px] text-ink-3">
-                {formatNumber(a.still_failing_checks.length)} {a.still_failing_checks.length === 1 ? 'check' : 'checks'} · not part of this drop
-              </span>
-            </span>
-            {showOld ? <ChevronDown className="size-4 text-ink-3" /> : <ChevronRight className="size-4 text-ink-3" />}
-          </button>
-          {showOld && (
-            <ul className="divide-y divide-line border-t border-line">
-              {a.still_failing_checks.map((c) => (
-                <li key={c.rule_id} className="flex items-center justify-between gap-4 px-6 py-3">
-                  <span className="min-w-0">
-                    <span className="block truncate text-[13px] text-ink">{c.title}</span>
-                    {c.failing_since && <span className="text-[11.5px] text-ink-3">failing since {formatRelative(c.failing_since)}</span>}
-                  </span>
-                  <span data-numeric="" className="shrink-0 text-[12.5px] font-semibold text-ink-2">
-                    −{c.points}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
     </div>
   );
 }

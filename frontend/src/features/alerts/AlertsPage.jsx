@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, Dna, FileWarning, Fingerprint, GitCommitVertical, Layers, Radius, ShieldAlert, Sparkles } from 'lucide-react';
+import { ArrowUpRight, Dna, FileWarning, Fingerprint, GitCommitVertical, Radius, ShieldAlert } from 'lucide-react';
 import { fetchAlerts, fetchIdentityAlert } from '../../lib/api/alerts';
 import { fetchBlastRadius } from '../../lib/api/blastRadius';
 import { useQuery } from '../../lib/hooks/useQuery';
@@ -40,13 +40,11 @@ const VERIFIED = {
 const BLAST = { CRITICAL: 'text-critical', HIGH: 'text-high', MEDIUM: 'text-medium', LOW: 'text-low' };
 
 const linkOf = (a) => (a.source === 'genome' && a.facts ? `${genomeRoute(a.facts.source_type, a.facts.identity_name)}?tab=anomalies` : a.link);
-/* Identity alerts (posture, genome) on the same identity are one story; exposure is about a repository. */
-const subjectKey = (a) => (a.source === 'exposure' ? null : String(a.subject || '').toLowerCase());
 const postureId = (a) => (a.source === 'posture' ? a.key.slice('posture:'.length) : null);
 
 /* ── One row ────────────────────────────────────────────────────────────── */
 
-function Row({ a, selected, onSelect, isNew, others }) {
+function Row({ a, selected, onSelect, isNew }) {
   const src = SOURCES[a.source];
   const sev = SEV[a.severity] ?? SEV.medium;
   return (
@@ -70,11 +68,6 @@ function Row({ a, selected, onSelect, isNew, others }) {
         <span className="mt-1.5 flex items-center gap-2 text-[11.5px] text-ink-3">
           <src.icon className="size-3.5" />
           <span className="truncate">{src.label}</span>
-          {others > 0 && (
-            <span className="ml-auto flex shrink-0 items-center gap-1 rounded-full bg-high-soft px-1.5 py-px text-[10.5px] font-semibold text-high" title="Other alerts on the same identity">
-              <Layers className="size-3" /> +{others} {others === 1 ? 'signal' : 'signals'}
-            </span>
-          )}
         </span>
       </span>
     </div>
@@ -260,7 +253,7 @@ function Actions({ children }) {
   return <div className="mt-4 flex flex-wrap items-center gap-2">{children}</div>;
 }
 
-function Preview({ a, related, onPick, exposurePage }) {
+function Preview({ a, exposurePage }) {
   const src = SOURCES[a.source];
   const sev = SEV[a.severity] ?? SEV.medium;
   return (
@@ -284,30 +277,6 @@ function Preview({ a, related, onPick, exposurePage }) {
       </header>
 
       <div className="px-6 py-5">
-        {related.length > 0 && (
-          <section className="mb-5 rounded-[14px] border border-high/30 bg-high-soft/40 p-4">
-            <p className="flex items-center gap-1.5 text-[12.5px] font-semibold text-ink">
-              <Sparkles className="size-3.5 text-high" />
-              {a.subject} has {related.length + 1} signals at once
-            </p>
-            <p className="mt-1 text-[12px] text-ink-2">A posture drop and a behaviour change on the same identity is a stronger sign than either alone. Look at them together.</p>
-            <ul className="mt-2.5 flex flex-col gap-1.5">
-              {related.map((r) => {
-                const RIcon = SOURCES[r.source].icon;
-                return (
-                  <li key={r.key}>
-                    <button type="button" onClick={() => onPick(r.key)} className="flex w-full items-center gap-2 rounded-[8px] bg-surface px-2.5 py-1.5 text-left text-[12.5px] hover:bg-surface-2">
-                      <RIcon className="size-3.5 text-ink-3" />
-                      <span className="min-w-0 flex-1 truncate text-ink">{r.title}</span>
-                      <span className="shrink-0 text-[11px] text-ink-3">{formatRelative(r.detected_at)}</span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        )}
-
         <SectionTitle>{a.source === 'exposure' ? 'Where it was found' : 'Why'}</SectionTitle>
         {a.source === 'posture' && <PostureWhy a={a} />}
         {a.source === 'genome' && <GenomeWhy a={a} />}
@@ -333,9 +302,8 @@ function Preview({ a, related, onPick, exposurePage }) {
 export default function AlertsPage() {
   const { can } = useAccess();
   const { exposureEnabled } = useWorkspace();
-  /* Exposure alerts follow the data and the role, not the source switch:
-     a finding already stored is still a leaked credential. */
-  const showExposure = can('exposure.view');
+  /* Same rule as the Credential exposure page: shown once code scanning is on. */
+  const showExposure = exposureEnabled && can('exposure.view');
   const [sources, setSources] = useState([]);
   const [sevs, setSevs] = useState([]);
   const [onlyNew, setOnlyNew] = useState(false);
@@ -349,16 +317,6 @@ export default function AlertsPage() {
   const isNew = (a) => prev !== null && new Date(a.detected_at).getTime() > prev;
 
   const all = useMemo(() => (query.data?.alerts ?? []).filter((a) => showExposure || a.source !== 'exposure'), [query.data, showExposure]);
-  const bySubject = useMemo(() => {
-    const m = new Map();
-    for (const a of all) {
-      const k = subjectKey(a);
-      if (k) m.set(k, [...(m.get(k) ?? []), a]);
-    }
-    return m;
-  }, [all]);
-  const relatedOf = (a) => (subjectKey(a) ? (bySubject.get(subjectKey(a)) ?? []).filter((r) => r.key !== a.key) : []);
-  const multi = [...bySubject.values()].filter((list) => new Set(list.map((x) => x.source)).size > 1).length;
   const newCount = all.filter(isNew).length;
 
   const shown = useMemo(() => {
@@ -397,7 +355,6 @@ export default function AlertsPage() {
     ? [
         `${formatNumber(all.length)} ${all.length === 1 ? 'alert' : 'alerts'}`,
         newCount ? `${formatNumber(newCount)} new since the previous sync` : null,
-        multi ? `${formatNumber(multi)} ${multi === 1 ? 'identity has' : 'identities have'} more than one signal` : null,
       ]
         .filter(Boolean)
         .join(' · ') + (lastSync ? `. Last sync ${formatRelative(lastSync)}.` : '.')
@@ -418,7 +375,7 @@ export default function AlertsPage() {
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-2">
-            <SearchInput size="sm" value={q} onChange={setQ} placeholder="Search identity, repo, account…" className="w-full sm:w-56" aria-label="Search alerts" />
+            <SearchInput size="sm" value={q} onChange={setQ} placeholder="Search alerts" className="w-full sm:w-56" aria-label="Search alerts" />
             {newCount > 0 && (
               <>
                 <button type="button" aria-pressed={onlyNew} onClick={() => setOnlyNew((v) => !v)} className={chip(onlyNew)}>
@@ -493,7 +450,6 @@ export default function AlertsPage() {
                       key={a.key}
                       a={a}
                       isNew={isNew(a)}
-                      others={relatedOf(a).length}
                       selected={a.key === current?.key}
                       onSelect={() => {
                         setSelectedKey(a.key);
@@ -512,16 +468,7 @@ export default function AlertsPage() {
                     <Preview
                       key={current.key}
                       a={current}
-                      related={relatedOf(current)}
                       exposurePage={exposureEnabled}
-                      onPick={(key) => {
-                        /* Clear filters that would hide the picked alert. */
-                        setSources([]);
-                        setSevs([]);
-                        setOnlyNew(false);
-                        setQ('');
-                        setSelectedKey(key);
-                      }}
                     />
                   )}
                 </div>

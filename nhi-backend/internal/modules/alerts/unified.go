@@ -103,7 +103,9 @@ func dropSeverity(d ScoreDrop) string {
 
 // inbox gathers every source and summarises. Read-only: it reflects what is
 // wrong now, and an alert leaves the list when its cause clears.
-func (h *Handler) inbox(ctx context.Context, ds *scope.DataScope, userID, tenantID, dbName string) (*Inbox, error) {
+// canExposure: exposure findings (paths, authors, masked values) go only to
+// roles that may read them on the Credential exposure page.
+func (h *Handler) inbox(ctx context.Context, ds *scope.DataScope, userID, tenantID, dbName string, canExposure bool) (*Inbox, error) {
 	out := &Inbox{Alerts: []Alert{}, Summary: InboxSummary{BySource: map[string]int{}, BySeverity: map[string]int{}, Available: map[string]bool{}}}
 
 	// Posture: identities whose score fell at the latest sync.
@@ -205,7 +207,7 @@ func (h *Handler) inbox(ctx context.Context, ds *scope.DataScope, userID, tenant
 	}
 
 	// Credential exposure: each live-looking credential found in code.
-	if h.exposure != nil {
+	if h.exposure != nil && canExposure {
 		items, _, err := h.exposure.List(ctx, ds, credentialexposure.FindingsFilter{Limit: exposureLimit})
 		if err != nil {
 			slog.Default().Info("alerts: credential exposure unavailable", "err", err)
