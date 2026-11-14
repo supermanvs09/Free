@@ -14,6 +14,7 @@ import FindingsPage from '../features/findings/FindingsPage';
 import DetectionsPage from '../features/detections/DetectionsPage';
 import ExposurePage from '../features/exposure/ExposurePage';
 import AttackPathsPage from '../features/access/AttackPathsPage';
+import GenomePage from '../features/genome/GenomePage';
 import RemediationPage from '../features/remediation/RemediationPage';
 import TicketsPage from '../features/tickets/TicketsPage';
 import InboxPage from '../features/inbox/InboxPage';
@@ -129,6 +130,8 @@ function Gate() {
           <Route path="/findings" element={<FindingsPage />} />
           <Route path="/detections" element={<DetectionsPage />} />
           <Route path="/exposure" element={<ExposurePage />} />
+          <Route path="/genome" element={<GenomePage />} />
+          <Route path="/genome/:id" element={<GenomePage />} />
           <Route path="/access-graph" element={<AttackPathsPage />} />
           <Route path="/access-graph/:id" element={<AttackPathsPage />} />
           <Route path="/remediation" element={<RemediationPage />} />

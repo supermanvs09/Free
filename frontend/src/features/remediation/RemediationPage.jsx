@@ -151,7 +151,7 @@ function RunCard({ r }) {
           const state = k < r.step ? 'done' : k === r.step ? 'now' : 'next';
           return (
             <li key={s} className="flex items-center gap-2.5 text-[12.5px]">
-              <span className={cn('grid size-5 shrink-0 place-items-center rounded-full', state === 'done' && 'bg-low text-white', state === 'now' && 'bg-info-soft text-info', state === 'next' && 'bg-surface-3 text-ink-3')}>
+              <span className={cn('grid size-5 shrink-0 place-items-center rounded-full', state === 'done' && 'bg-low-soft text-low', state === 'now' && 'bg-info-soft text-info', state === 'next' && 'bg-surface-3 text-ink-3')}>
                 {state === 'done' ? <Check aria-hidden="true" className="size-3" /> : state === 'now' ? <Loader2 aria-hidden="true" className="size-3 animate-spin" /> : <Clock aria-hidden="true" className="size-3" />}
               </span>
               <span className={cn(state === 'next' ? 'text-ink-3' : 'text-ink')}>{s}</span>

@@ -8,23 +8,18 @@ const BASE =
   'active:translate-y-[0.5px] disabled:pointer-events-none disabled:opacity-55';
 
 const VARIANTS = {
-  primary:
-    'bg-brand text-white border border-brand-strong/70 shadow-sm hover:bg-brand-strong ' +
-    'dark:text-ink-inverse',
-  accent:
-    'text-white border border-transparent shadow-sm ' +
-    'bg-[linear-gradient(135deg,var(--t-accent)_0%,var(--t-brand)_100%)] hover:brightness-[1.06]',
+  primary: 'bg-brand text-on-brand border border-transparent hover:opacity-[0.88] active:scale-[0.98]',
+  accent: 'bg-brand text-on-brand border border-transparent hover:opacity-[0.88] active:scale-[0.98]',
   secondary:
-    'bg-surface text-ink border border-line-strong hover:bg-surface-2 hover:border-ink-3/50 shadow-sm',
+    'bg-surface text-ink border border-line-strong hover:bg-surface-3 active:scale-[0.98]',
   ghost: 'bg-transparent text-ink-2 border border-transparent hover:bg-surface-3 hover:text-ink',
-  danger: 'bg-critical text-white border border-critical/60 shadow-sm hover:brightness-110',
+  danger: 'bg-critical-soft text-critical border border-critical/25 hover:border-critical/50 active:scale-[0.98]',
   link: 'bg-transparent border-0 text-brand hover:underline underline-offset-4 px-0',
   /* Sign-in only. The supplied design's action is a flat #1492c4 - sampling
      across its full width returned the same value at both ends, so the
      gradient this used to carry was invention. */
   auth:
-    'text-white border border-transparent shadow-sm bg-[var(--t-auth-action)] ' +
-    'hover:bg-[var(--t-auth-action-hover)]',
+    'text-on-brand border border-transparent bg-brand hover:opacity-[0.88]',
 };
 
 const SIZES = {

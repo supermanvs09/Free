@@ -1,6 +1,7 @@
 import {
   Activity,
   BellRing,
+  Dna,
   FileWarning,
   Fingerprint,
   Gauge,
@@ -32,6 +33,7 @@ export const NAV_GROUPS = [
     label: 'Investigate',
     items: [
       { to: '/detections', label: 'Detections', icon: BellRing, badge: 'detections' },
+      { to: '/genome', label: 'NHI Genome', icon: Dna },
       { to: '/findings', label: 'Posture findings', icon: ShieldCheck },
       { to: '/exposure', label: 'Leaked secrets', icon: FileWarning, badge: 'exposure' },
       { to: '/access-graph', label: 'Attack paths', icon: Waypoints },

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, Mail, ShieldCheck, Wrench } from 'lucide-react';
 import { PageHeader } from '../../shell/PageHeader';
 import { Panel } from '../../ui/Panel';
@@ -25,10 +25,11 @@ const SEV_W = { critical: 0, high: 1, medium: 2, low: 3 };
 export default function FindingsPage() {
   const view = useView();
   const [openId, setOpen] = useOpenParam();
-  const [status, setStatus] = useState('active');
+  const [params] = useSearchParams();
+  const [status, setStatus] = useState(params.get('view') || 'active');
   const [provider, setProvider] = useState('');
   const [sev, setSev] = useState([]);
-  const [rules, setRules] = useState([]);
+  const [rules, setRules] = useState(params.get('rule') ? [params.get('rule')] : []);
   const [q, setQ] = useState('');
   const [selected, setSelected] = useState([]);
   const [bulk, setBulk] = useState(null);
@@ -38,6 +39,7 @@ export default function FindingsPage() {
     return view.findings.filter((f) => {
       if (status === 'active' && !(f.status === 'open' || f.status === 'in_progress')) return false;
       if (status === 'mine' && f.assignee !== view.me?.ref) return false;
+      if (status === 'overdue' && !((f.status === 'open' || f.status === 'in_progress') && Date.parse(f.dueAt) < Date.now())) return false;
       if (status === 'closed' && !(f.status === 'resolved' || f.status === 'risk_accepted')) return false;
       if (provider && f.provider !== provider) return false;
       if (sev.length && !sev.includes(f.severity)) return false;
@@ -46,7 +48,7 @@ export default function FindingsPage() {
       return true;
     });
   }, [view, status, provider, sev, rules, q]);
-  const table = useTable(rows, { sort: { key: 'severity', direction: 'asc' }, getters: { severity: (f) => SEV_W[f.severity] * 1e13 - Date.parse(f.firstSeenAt) / 1, firstSeenAt: (f) => Date.parse(f.firstSeenAt) } });
+  const table = useTable(rows, { sort: { key: 'severity', direction: 'asc' }, getters: { dueAt: (f) => Date.parse(f.dueAt), severity: (f) => SEV_W[f.severity] * 1e13 - Date.parse(f.firstSeenAt) / 1, firstSeenAt: (f) => Date.parse(f.firstSeenAt) } });
 
   const active = view.findings.filter((f) => f.status === 'open' || f.status === 'in_progress');
   const pillars = ['Credential hygiene', 'Least privilege', 'Lifecycle', 'Ownership', 'Trust', 'Third party'].map((p) => {
@@ -71,7 +73,7 @@ export default function FindingsPage() {
     { key: 'identity', header: 'Identity', width: '24%', cell: (f) => { const i = view.idById.get(f.identityId); return <span className="flex min-w-0 items-center gap-2"><IdentityLogo type={i?.type} size={22} /><span className="min-w-0"><span className="block truncate text-[12.5px] text-ink">{i?.name}</span><span className="block truncate text-[11px] text-ink-3">{view.connById.get(i?.connectionId)?.name}</span></span></span>; } },
     { key: 'assignee', header: 'Assignee', width: '13%', priority: 'wide', cell: (f) => <span className="flex min-w-0 items-center gap-1.5"><Avatar refId={f.assignee} size={20} /><PersonName refId={f.assignee} className="text-[12.5px]" /></span> },
     { key: 'status', header: 'Status', width: '12%', cell: (f) => <span className="flex flex-col items-start gap-1"><StatusPill status={f.status} />{f.ticketKey && <TicketLink ticketKey={f.ticketKey} compact />}</span> },
-    { key: 'firstSeenAt', header: 'Opened', width: '9%', sortable: true, priority: 'wide', cell: (f) => <Time at={f.firstSeenAt} className="text-[12px]" /> },
+    { key: 'dueAt', header: 'Due', width: '10%', sortable: true, priority: 'wide', cell: (f) => <DueCell f={f} /> },
   ];
 
   const sel = selected.map((id) => view.findingById.get(id)).filter(Boolean);
@@ -96,6 +98,7 @@ export default function FindingsPage() {
         <div className="border-b border-line px-3 pt-1">
           <Tabs value={status} onChange={setStatus} tabs={[
             { value: 'active', label: 'Open', count: active.length },
+            { value: 'overdue', label: 'Past SLA', count: active.filter((f) => Date.parse(f.dueAt) < Date.now()).length },
             { value: 'mine', label: 'Assigned to me', count: view.findings.filter((f) => f.assignee === view.me?.ref).length },
             { value: 'closed', label: 'Closed', count: view.findings.length - active.length },
             { value: 'all', label: 'All' },
@@ -132,6 +135,13 @@ export default function FindingsPage() {
       {bulk === 'assign' && <BulkAssign findings={sel} onDone={() => { setBulk(null); setSelected([]); }} />}
     </div>
   );
+}
+
+function DueCell({ f }) {
+  const closed = f.status === 'resolved' || f.status === 'risk_accepted';
+  const left = Math.round((Date.parse(f.dueAt) - Date.now()) / 864e5);
+  if (closed) return <span className="text-[12px] text-ink-3">Closed</span>;
+  return <span className={cn('text-[12px]', left < 0 ? 'font-medium text-critical' : left <= 3 ? 'text-ink' : 'text-ink-3')} title={`SLA due ${new Date(f.dueAt).toLocaleDateString()}`}>{left < 0 ? `${-left}d overdue` : left === 0 ? 'Due today' : `${left}d left`}</span>;
 }
 
 function BulkAssign({ findings, onDone }) {
@@ -194,6 +204,7 @@ export function FindingDrawer({ id, onClose }) {
           <DetailList className="mt-1">
             {Object.entries(f.evidence || {}).map(([k, v]) => <DetailRow key={k} label={k.replace(/_/g, ' ')} mono>{String(v)}</DetailRow>)}
             <DetailRow label="First seen"><Time at={f.firstSeenAt} /></DetailRow>
+            <DetailRow label="SLA"><DueCell f={f} /> · due {new Date(f.dueAt).toLocaleDateString()}</DetailRow>
             {f.resolvedAt && <DetailRow label="Resolved"><Time at={f.resolvedAt} />{f.resolvedBy ? ` by ${f.resolvedBy}` : ''}</DetailRow>}
             {rule?.frameworks?.length > 0 && <DetailRow label="Controls">{rule.frameworks.join(' · ')}</DetailRow>}
           </DetailList>

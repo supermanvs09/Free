@@ -15,6 +15,7 @@ import { AppLogo, CredentialLogo, IdentityLogo } from '../../components/Logo';
 import { AlsoViewing, Avatar, PersonPicker, ScoreRing, SeverityTag, StatusPill, Time } from '../../components/bits';
 import { CommentThread, CreateTicketModal, EmailModal, TicketLink } from '../../components/collab';
 import { RemediateModal } from '../../components/RemediateModal';
+import { GenomeDetail } from '../genome/GenomePage';
 import { formatDateTime, formatNumber } from '../../lib/format';
 import { cn } from '../../ui/cn';
 
@@ -58,20 +59,21 @@ export default function IdentityPage() {
     { value: 'permissions', label: 'Permissions' },
     { value: 'credentials', label: 'Credentials', count: data.creds.length },
     { value: 'findings', label: 'Findings', count: openFindings.length },
+    { value: 'behaviour', label: 'Behaviour' },
     { value: 'activity', label: 'Activity' },
     { value: 'discussion', label: 'Discussion', count: data.comments.length },
   ];
 
   return (
     <div className="flex flex-col gap-4">
-      <header className="-mx-3 -mt-4 border-b border-line bg-surface px-3 pt-4 sm:-mx-5 sm:px-5 lg:-mx-6 lg:px-6">
+      <header className="-mx-3 -mt-4 border-b border-line bg-canvas px-3 pt-4 sm:-mx-5 sm:px-5 lg:-mx-6 lg:px-6">
         <div className="mx-auto w-full max-w-[1760px]">
           <Link to="/identities" className="inline-flex items-center gap-1 text-[12px] font-medium text-ink-3 hover:text-ink"><ArrowLeft aria-hidden="true" className="size-3.5" />Identities</Link>
           <div className="mt-2 flex flex-wrap items-start gap-4 pb-4">
             <IdentityLogo type={i.type} size={52} />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="truncate text-[22px] leading-tight font-extrabold tracking-[-0.026em] text-ink">{i.name}</h1>
+                <h1 className="truncate font-serif text-[28px] leading-tight font-normal tracking-[-0.02em] text-ink">{i.name}</h1>
                 <StatusPill status={i.status} />
                 {i.permissions.adminLike && <span className="rounded-full border border-high/30 bg-high-soft px-2 py-0.5 text-[11px] font-semibold text-high">{i.permissions.scopes[0]}</span>}
                 {i.tags.map((t) => <span key={t} className="rounded-full border border-line bg-surface-2 px-2 py-0.5 text-[11px] text-ink-2">{t}</span>)}
@@ -190,6 +192,7 @@ export default function IdentityPage() {
       {tab === 'credentials' && <CredentialsTab creds={data.creds} identity={i} onRotate={() => setModal('fix')} />}
       {tab === 'findings' && <FindingsTab findings={data.findings} identity={i} />}
       {tab === 'activity' && <ActivityTab i={i} />}
+      {tab === 'behaviour' && <GenomeDetail identity={i} compact />}
       {tab === 'discussion' && (
         <Panel className="max-w-3xl">
           <PanelHeader title="Discussion" icon={MessageSquare} subtitle="Notes for whoever picks this up next." />

@@ -11,14 +11,14 @@ export function PageHeader({ title, lede, actions, sections, tabs, meta, classNa
   return (
     <header
       className={cn(
-        '-mx-3 -mt-4 border-b border-line bg-surface px-3 pt-4 sm:-mx-5 sm:px-5 lg:-mx-6 lg:px-6',
+        '-mx-3 -mt-4 border-b border-line bg-canvas px-3 pt-5 sm:-mx-5 sm:px-5 lg:-mx-6 lg:px-6',
         className,
       )}
     >
       <div className="mx-auto w-full max-w-[1760px]">
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 pb-3.5">
           <div className="min-w-0">
-            <h1 className="text-[21px] leading-tight font-extrabold tracking-[-0.026em] text-ink sm:text-[23px]">
+            <h1 className="font-serif text-[26px] leading-[1.15] font-normal tracking-[-0.02em] text-ink sm:text-[30px]">
               {title}
             </h1>
             {lede && (

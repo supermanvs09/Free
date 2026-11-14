@@ -95,7 +95,7 @@ function Notifications() {
         className={iconButton}
       >
         <Bell aria-hidden="true" className="size-5" />
-        {unread > 0 && <span className="absolute top-1.5 right-1.5 min-w-[17px] rounded-full bg-critical px-1 text-center text-[10px] leading-[17px] font-bold text-white ring-2 ring-topbar">{unread > 9 ? '9+' : unread}</span>}
+        {unread > 0 && <span className="absolute top-1.5 right-1.5 min-w-[17px] rounded-full bg-brand px-1 text-center text-[10px] leading-[17px] font-semibold text-on-brand ring-2 ring-topbar">{unread > 9 ? '9+' : unread}</span>}
       </button>
       {open && (
         <div {...panelProps} className="animate-pop absolute right-0 z-50 mt-2 flex w-[min(400px,calc(100vw-24px))] flex-col overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface shadow-lg">

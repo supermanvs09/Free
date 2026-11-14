@@ -58,7 +58,7 @@ Owner: ${personName(i?.owner)}`;
   if (!note && !sample) return null;
 
   return (
-    <section className="rounded-[12px] border border-brand/25 bg-[linear-gradient(135deg,color-mix(in_srgb,var(--t-accent)_8%,transparent),transparent_60%)] p-3.5">
+    <section className="rounded-[12px] border border-line bg-surface-2 p-3.5">
       <div className="flex items-center gap-2">
         <Sparkles aria-hidden="true" className="size-4 text-brand" />
         <p className="text-[12.5px] font-semibold text-ink">Triage note</p>

@@ -10,8 +10,8 @@
     "lint": "oxlint src"
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
     "@xyflow/react": "^12.11.6",
-    "lucide-react": "^1.43.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.3",

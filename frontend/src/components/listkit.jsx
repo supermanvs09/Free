@@ -33,7 +33,7 @@ export function FacetSelect({ label, options, value = [], onChange, className })
     <div ref={wrapperRef} className={cn('relative', className)}>
       <button ref={triggerRef} type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className={cn('inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-control)] border px-2.5 text-[12.5px] font-medium transition-colors', active ? 'border-brand/50 bg-info-soft text-brand' : 'border-line-strong bg-surface text-ink-2 hover:border-ink-3/50')}>
         {label}
-        {active && <span className="rounded-full bg-brand px-1.5 text-[10.5px] leading-4 text-white">{value.length}</span>}
+        {active && <span className="rounded-full bg-brand px-1.5 text-[10.5px] leading-4 text-on-brand">{value.length}</span>}
         <ChevronDown aria-hidden="true" className="size-3.5" />
       </button>
       {open && (
@@ -42,7 +42,7 @@ export function FacetSelect({ label, options, value = [], onChange, className })
             const on = value.includes(o.value);
             return (
               <button key={o.value} type="button" onClick={() => onChange(on ? value.filter((v) => v !== o.value) : [...value, o.value])} className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-[12.5px] text-ink hover:bg-surface-2">
-                <span className={cn('grid size-4 shrink-0 place-items-center rounded border', on ? 'border-brand bg-brand text-white' : 'border-line-strong')}>{on && <Check aria-hidden="true" className="size-3" />}</span>
+                <span className={cn('grid size-4 shrink-0 place-items-center rounded border', on ? 'border-brand bg-brand text-on-brand' : 'border-line-strong')}>{on && <Check aria-hidden="true" className="size-3" />}</span>
                 {o.icon}
                 <span className="min-w-0 flex-1 truncate">{o.label}</span>
                 {o.count !== undefined && <span className="text-[11px] text-ink-3">{o.count}</span>}

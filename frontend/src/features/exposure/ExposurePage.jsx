@@ -76,7 +76,7 @@ function ExposureDetail({ x }) {
   const [modal, setModal] = useState(null);
   const cred = view.credById.get(x.credentialId);
   const identity = view.idById.get(x.identityId);
-  const author = view.people.find((p) => p.name === x.author);
+  const author = view.personByRef.get(x.authorRef);
   const host = x.provider === 'github' ? 'github.com' : 'bitbucket.org';
   const playbook = { 'aws.accesskey': 'pb-rotate-aws-key', 'azure.secret': 'pb-rotate-azure-secret', 'github.pat': 'pb-revoke-pat', 'github.finepat': 'pb-revoke-pat', 'vault.token': 'pb-revoke-vault-token', 'bitbucket.apppassword': 'pb-bb-token' }[x.secretType];
 
@@ -91,8 +91,8 @@ function ExposureDetail({ x }) {
             <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-ink-3">
               <span className="inline-flex items-center gap-1"><GitBranch aria-hidden="true" className="size-3.5" />{x.branch}</span>
               <span className="inline-flex items-center gap-1 font-mono"><GitCommit aria-hidden="true" className="size-3.5" />{x.commit.slice(0, 10)}</span>
-              <span>by {x.author}</span>
-              <span>· found <Time at={x.detectedAt} /></span>
+              <span>committed <Time at={x.committedAt} /> by {x.author}{author?.former ? ' (has left)' : ''}</span>
+              <span>· found <Time at={x.detectedAt} />{author?.former ? ' in a history rescan' : ''}</span>
             </p>
           </div>
           <AlsoViewing path={`/exposure?open=${x.id}`} />
@@ -151,8 +151,8 @@ function ExposureDetail({ x }) {
       </div>
 
       <RemediateModal open={modal === 'fix'} onClose={() => setModal(null)} identityIds={identity ? [identity.id] : []} playbookId={playbook} />
-      <CreateTicketModal open={modal === 'ticket'} onClose={() => setModal(null)} link={{ kind: 'exposure', id: x.id }} defaults={{ summary: `Leaked ${CREDENTIAL_TYPES[x.secretType]?.label} in ${x.repo}`, type: 'Incident', priority: x.visibility === 'public' ? 'Highest' : 'High', assignee: author?.ref || null, description: `${host}/${x.repo}/${x.file}#L${x.line}\nCommit ${x.commit}\n\n1. Revoke the secret at the source\n2. Rotate consumers\n3. Purge it from git history` }} />
-      <EmailModal open={modal === 'email'} onClose={() => setModal(null)} link={{ kind: 'exposure', id: x.id }} defaults={{ to: author ? [author.ref] : [], subject: `Secret committed to ${x.repo}`, body: `Hi ${x.author.split(' ')[0]},\n\nCommit ${x.commit.slice(0, 10)} on ${x.branch} adds a ${CREDENTIAL_TYPES[x.secretType]?.label} to ${x.file} (line ${x.line}).\n\nWe are rotating it now. Please remove it from the branch and use the secrets manager instead.\n\nThanks` }} />
+      <CreateTicketModal open={modal === 'ticket'} onClose={() => setModal(null)} link={{ kind: 'exposure', id: x.id }} defaults={{ summary: `Leaked ${CREDENTIAL_TYPES[x.secretType]?.label} in ${x.repo}`, type: 'Incident', priority: x.visibility === 'public' ? 'Highest' : 'High', assignee: author && !author.former ? author.ref : null, description: `${host}/${x.repo}/${x.file}#L${x.line}\nCommit ${x.commit}\n\n1. Revoke the secret at the source\n2. Rotate consumers\n3. Purge it from git history` }} />
+      <EmailModal open={modal === 'email'} onClose={() => setModal(null)} link={{ kind: 'exposure', id: x.id }} defaults={{ to: author && !author.former ? [author.ref] : [], subject: `Secret committed to ${x.repo}`, body: `Hi ${x.author.split(' ')[0]},\n\nCommit ${x.commit.slice(0, 10)} on ${x.branch} adds a ${CREDENTIAL_TYPES[x.secretType]?.label} to ${x.file} (line ${x.line}).\n\nWe are rotating it now. Please remove it from the branch and use the secrets manager instead.\n\nThanks` }} />
     </div>
   );
 }

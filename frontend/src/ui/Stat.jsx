@@ -46,22 +46,17 @@ export function MetricTile({
         /* w-full h-full: a <button> tile sizes to its content otherwise and spills out of its grid cell. */
         'group relative flex h-full w-full min-w-0 flex-col overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface p-3.5 text-left',
         interactive &&
-          'transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-px hover:border-line-strong hover:shadow-md',
+          'transition-[border-color,box-shadow,transform] duration-200 hover:border-line-strong hover:shadow-[var(--t-shadow-md)]',
         className,
       )}
       {...rest}
     >
-      <span
-        aria-hidden="true"
-        className="absolute inset-y-0 left-0 w-[3px]"
-        style={{ background: TONE_VAR[tone] }}
-      />
 
       <div className="flex items-start justify-between gap-3">
-        <span className="text-[10.5px] font-semibold tracking-[0.085em] text-ink-3 uppercase">
+        <span className="text-[11px] font-medium tracking-[0.06em] text-ink-3 uppercase">
           {label}
         </span>
-        {Icon && <Icon aria-hidden="true" className={cn('size-4 shrink-0', TONE_FG[tone])} />}
+        {Icon && <Icon aria-hidden="true" className="size-4 shrink-0 text-ink-3" />}
         {interactive && !Icon && (
           <ArrowUpRight
             aria-hidden="true"
@@ -73,7 +68,7 @@ export function MetricTile({
       <div className="mt-2 flex items-baseline gap-1.5">
         <span
           data-numeric=""
-          className="font-display text-[27px] leading-none font-extrabold tracking-[-0.03em] text-ink"
+          className="font-display text-[28px] leading-none font-semibold tracking-[-0.03em] text-ink"
         >
           {display}
         </span>

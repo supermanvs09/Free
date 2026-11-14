@@ -79,26 +79,26 @@ export const ORG = {
 export const TEAMS = ['Platform', 'Payments', 'Data', 'Identity & Access', 'Security Operations', 'Developer Experience', 'Machine Learning'];
 
 export const PEOPLE = [
-  { id: 'p-priya', name: 'Priya Raman', title: 'Head of Cloud Security', team: 'Security Operations', role: 'admin' },
-  { id: 'p-marcus', name: 'Marcus Chen', title: 'Staff Platform Engineer', team: 'Platform', role: 'operator' },
-  { id: 'p-elena', name: 'Elena Novak', title: 'Security Engineer', team: 'Identity & Access', role: 'analyst' },
-  { id: 'p-daniel', name: 'Daniel Okafor', title: 'Payments Tech Lead', team: 'Payments', role: 'operator' },
-  { id: 'p-sofia', name: 'Sofia Alvarez', title: 'Detection Engineer', team: 'Security Operations', role: 'analyst' },
-  { id: 'p-james', name: 'James Whitfield', title: 'Data Platform Lead', team: 'Data', role: 'operator' },
-  { id: 'p-aisha', name: 'Aisha Karim', title: 'DevEx Engineer', team: 'Developer Experience', role: 'operator' },
-  { id: 'p-tomas', name: 'Tomás Herrera', title: 'SRE', team: 'Platform', role: 'operator' },
-  { id: 'p-hannah', name: 'Hannah Lindqvist', title: 'GRC Manager', team: 'Security Operations', role: 'viewer' },
-  { id: 'p-kenji', name: 'Kenji Watanabe', title: 'ML Infrastructure Engineer', team: 'Machine Learning', role: 'operator' },
-  { id: 'p-ravi', name: 'Ravi Menon', title: 'Cloud Architect', team: 'Platform', role: 'admin' },
-  { id: 'p-olivia', name: 'Olivia Grant', title: 'Backend Engineer', team: 'Payments', role: 'operator' },
-  { id: 'p-noah', name: 'Noah Fischer', title: 'Security Analyst', team: 'Security Operations', role: 'analyst' },
-  { id: 'p-leila', name: 'Leila Haddad', title: 'Data Engineer', team: 'Data', role: 'operator' },
+  { id: 'p-priya', name: 'Pranav Reddy', title: 'Head of Cloud Security', team: 'Security Operations', role: 'admin' },
+  { id: 'p-marcus', name: 'Charan Kumar', title: 'Staff Platform Engineer', team: 'Platform', role: 'operator' },
+  { id: 'p-elena', name: 'Nikitha Rao', title: 'Security Engineer', team: 'Identity & Access', role: 'analyst' },
+  { id: 'p-daniel', name: 'Vamsi Krishna', title: 'Payments Tech Lead', team: 'Payments', role: 'operator' },
+  { id: 'p-sofia', name: 'Satya Prakash', title: 'Detection Engineer', team: 'Security Operations', role: 'analyst' },
+  { id: 'p-james', name: 'Raj Malhotra', title: 'Data Platform Lead', team: 'Data', role: 'operator' },
+  { id: 'p-aisha', name: 'Divya Nair', title: 'DevEx Engineer', team: 'Developer Experience', role: 'operator' },
+  { id: 'p-tomas', name: 'Karthik Subramanian', title: 'SRE', team: 'Platform', role: 'operator' },
+  { id: 'p-hannah', name: 'Ananya Sharma', title: 'GRC Manager', team: 'Security Operations', role: 'viewer' },
+  { id: 'p-kenji', name: 'Harsha Vardhan', title: 'ML Infrastructure Engineer', team: 'Machine Learning', role: 'operator' },
+  { id: 'p-ravi', name: 'Ravi Kumar', title: 'Cloud Architect', team: 'Platform', role: 'admin' },
+  { id: 'p-olivia', name: 'Sneha Patel', title: 'Backend Engineer', team: 'Payments', role: 'operator' },
+  { id: 'p-noah', name: 'Rohit Verma', title: 'Security Analyst', team: 'Security Operations', role: 'analyst' },
+  { id: 'p-leila', name: 'Keerthi Menon', title: 'Data Engineer', team: 'Data', role: 'operator' },
 ].map((p) => ({ ...p, email: `${p.name.split(' ')[0].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')}.${p.name.split(' ')[1].toLowerCase()}@${ORG.domain}` }));
 
 /* People who have left: still named as owners on identities nobody re-homed. */
 export const FORMER = [
-  { id: 'p-greg', name: 'Greg Holloway', title: 'Former DevOps Engineer', team: 'Platform', departed: ago(74 * DAY), email: `greg.holloway@${ORG.domain}` },
-  { id: 'p-mira', name: 'Mira Petrov', title: 'Former Data Engineer', team: 'Data', departed: ago(131 * DAY), email: `mira.petrov@${ORG.domain}` },
+  { id: 'p-greg', name: 'Kiran Reddy', title: 'Former DevOps Engineer', team: 'Platform', departed: ago(74 * DAY), email: `kiran.reddy@${ORG.domain}` },
+  { id: 'p-mira', name: 'Meera Iyer', title: 'Former Data Engineer', team: 'Data', departed: ago(131 * DAY), email: `meera.iyer@${ORG.domain}` },
 ];
 
 /* ── Providers ─────────────────────────────────────────────────────────── */
@@ -210,12 +210,12 @@ const NAMES = {
   'azure.app': ['app-corvane-portal', 'app-hr-sync', 'app-teams-bot', 'app-partner-api', 'app-mail-processor'],
   'github.app': ['corvane-release-bot', 'renovate', 'snyk-security', 'linear-sync', 'argo-cd-image-updater'],
   'github.oauth': ['vercel-preview', 'sonarcloud', 'codecov'],
-  'github.pat': ['gh-pat-greg-automation', 'gh-pat-release-scripts', 'gh-pat-docs-publisher', 'gh-pat-mirror-sync'],
+  'github.pat': ['gh-pat-kiran-automation', 'gh-pat-release-scripts', 'gh-pat-docs-publisher', 'gh-pat-mirror-sync'],
   'github.deploykey': ['deploy-key-helm-charts', 'deploy-key-infra-ro', 'deploy-key-ledger-prod', 'deploy-key-docs-site'],
   'github.actions': ['deploy-payments-api.yml', 'terraform-apply.yml', 'publish-images.yml', 'nightly-data-sync.yml', 'release-mobile.yml'],
   'bitbucket.repotoken': ['billing-batch-ci', 'report-engine-ci', 'partner-sync-deploy'],
   'bitbucket.wstoken': ['workspace-backup', 'jira-dev-panel'],
-  'bitbucket.apppassword': ['svc-jenkins-legacy', 'mira-etl-scripts', 'ftp-bridge-pusher'],
+  'bitbucket.apppassword': ['svc-jenkins-legacy', 'meera-etl-scripts', 'ftp-bridge-pusher'],
   'bitbucket.oauth': ['sonarqube-legacy', 'crowd-sso-bridge'],
   'bitbucket.pipelines': ['billing-batch-deploy', 'crm-connector-release'],
   'vault.approle': ['approle-payments-api', 'approle-ledger', 'approle-jenkins', 'approle-airflow', 'approle-partner-gateway'],
@@ -276,12 +276,15 @@ function identityForConnection(conn, index, r, people, owners) {
 
   const formerOwner = r.chance(0.07);
   const orphan = !formerOwner && r.chance(0.06);
-  const owner = formerOwner ? r.pick(FORMER).id : orphan ? null : r.pick(owners);
+  /* An identity named after a person belongs to that person. */
+  const namedFor = [...people, ...FORMER].find((p) => name.includes(`-${p.name.split(' ')[0].toLowerCase()}-`) || name.startsWith(`${p.name.split(' ')[0].toLowerCase()}-`));
+  const owner = namedFor ? namedFor.id : formerOwner ? r.pick(FORMER).id : orphan ? null : r.pick(owners);
   const ownerPerson = people.find((p) => p.id === owner);
   const team = ownerPerson?.team || FORMER.find((p) => p.id === owner)?.team || r.pick(TEAMS);
 
-  const createdDays = r.int(20, 1300);
-  const lastUsedDays = r.weighted([[0, 6], [1, 3], [r.int(2, 20), 3], [r.int(30, 89), 1.4], [r.int(90, 420), 1.6]]);
+  /* A few are new this fortnight: still being learned by NHI Genome. */
+  const createdDays = r.chance(0.07) ? r.int(3, 13) : r.int(20, 1300);
+  const lastUsedDays = createdDays < 14 ? r.int(0, 1) : r.weighted([[0, 6], [1, 3], [r.int(2, 20), 3], [r.int(30, 89), 1.4], [r.int(90, 420), 1.6]]);
   const neverUsed = r.chance(0.04);
   const lastUsedAt = neverUsed ? null : ago(lastUsedDays * DAY + r.int(1, 1200) * 60e3);
 
@@ -460,6 +463,8 @@ export const RULES = [
 ];
 
 const SEV_ORDER = { critical: 0, high: 1, medium: 2, low: 3 };
+/* Remediation targets by severity, in days. */
+export const SLA_DAYS = { critical: 7, high: 30, medium: 90, low: 180 };
 
 export const PLAYBOOKS = [
   { id: 'pb-rotate-aws-key', title: 'Rotate AWS access key', provider: 'aws', approval: false, est: '2 min',
@@ -492,6 +497,8 @@ export function buildWorld(extraConnections = []) {
   const people = PEOPLE;
   const owners = people.filter((p) => p.team !== 'Security Operations').map((p) => p.id);
   const connections = [...BASE_CONNECTIONS.map((c) => buildConnection(c)), ...WORKFLOW_CONNECTIONS.map((c) => buildConnection(c))];
+  const shared = connections.find((c) => c.id === 'c-aws-shared');
+  if (shared) Object.assign(shared, { connectedAt: ago(11 * HOUR), connectedBy: 'p-marcus' });
   const sourceConnections = [...connections.filter((c) => SOURCE_PROVIDERS.includes(c.provider)), ...extraConnections];
 
   const identities = [];
@@ -504,6 +511,18 @@ export function buildWorld(extraConnections = []) {
       identities.push(identity);
       credentials.push(...credentialsFor(identity, rngFor(`cred:${identity.id}`)));
     }
+  }
+
+  /* Names are unique within an application (AWS repeats a role name per account, as real estates do). */
+  const seenNames = new Set();
+  const EXTRA = ['ops', 'sync', 'batch', 'edge', 'eu', 'v2', 'reporting', 'canary', 'legacy', 'internal'];
+  for (const i of identities) {
+    if (i.provider === 'aws') continue;
+    let n = i.name;
+    let k = 0;
+    while (seenNames.has(`${i.provider}:${n}`)) n = i.name.endsWith('.yml') ? i.name.replace('.yml', `-${EXTRA[k++ % EXTRA.length]}.yml`) : `${i.name}-${EXTRA[k++ % EXTRA.length]}`;
+    seenNames.add(`${i.provider}:${n}`);
+    i.name = n;
   }
 
   /* Cross-application trust: the chains that make a leaked CI token a cloud
@@ -565,12 +584,14 @@ export function buildWorld(extraConnections = []) {
         connectionId: i.connectionId,
         environment: i.environment,
         evidence,
-        firstSeenAt: ago(r.int(1, 120) * DAY + r.int(0, 23) * HOUR),
+        firstSeenAt: ago({ critical: r.int(0, 9), high: r.int(1, 38), medium: r.int(2, 110), low: r.int(5, 190) }[rule.severity] * DAY + r.int(0, 23) * HOUR),
         status: r.weighted([['open', 7], ['in_progress', 1.5], ['risk_accepted', 0.4]]),
         assignee: null,
         playbook: rule.playbook,
         frameworks: rule.frameworks,
       });
+      const f = findings.at(-1);
+      f.dueAt = new Date(Date.parse(f.firstSeenAt) + SLA_DAYS[f.severity] * DAY).toISOString();
     }
   }
   findings.sort((a, b) => SEV_ORDER[a.severity] - SEV_ORDER[b.severity] || Date.parse(b.firstSeenAt) - Date.parse(a.firstSeenAt));
@@ -632,22 +653,30 @@ export function buildWorld(extraConnections = []) {
 
   /* Leaked secrets in code. */
   const leakSpecs = [
-    { repo: 'corvane/payments-api', provider: 'github', file: 'scripts/backfill_settlements.py', line: 14, type: 'aws.accesskey', vis: 'private', author: 'Olivia Grant', hours: 3, live: true,
+    { repo: 'corvane/payments-api', provider: 'github', file: 'scripts/backfill_settlements.py', line: 14, type: 'aws.accesskey', vis: 'private', pick: (i) => i.type === 'aws.user' && i.connectionId === 'c-aws-pay', hours: 3, live: true,
       code: ['import boto3', '', '# TODO move to env before merge', 'session = boto3.Session(', '    aws_access_key_id="AKIA4XQ7••••••••PL2M",', '    aws_secret_access_key="••••••••••••••••••••••••••••••",', '    region_name="us-east-1",', ')'] },
-    { repo: 'corvane-labs/llm-eval-sandbox', provider: 'github', file: '.env.example', line: 3, type: 'azure.secret', vis: 'public', author: 'Kenji Watanabe', hours: 20, live: true,
+    { repo: 'corvane-labs/llm-eval-sandbox', provider: 'github', file: '.env.example', line: 3, type: 'azure.secret', vis: 'public', pick: (i) => (i.type === 'azure.sp' || i.type === 'azure.app') && i.owner === 'p-kenji', hours: 20, live: true,
       code: ['AZURE_TENANT_ID=corvane.onmicrosoft.com', 'AZURE_CLIENT_ID=4c1f2a9e-…', 'AZURE_CLIENT_SECRET=Kx38Q~••••••••••••••Va', 'OPENAI_API_BASE=https://…'] },
-    { repo: 'corvane-legacy/billing-batch', provider: 'bitbucket', file: 'deploy/run.sh', line: 22, type: 'github.pat', vis: 'private', author: 'Greg Holloway', hours: 52, live: true,
+    { repo: 'corvane-legacy/billing-batch', provider: 'bitbucket', file: 'deploy/run.sh', line: 22, type: 'github.pat', vis: 'private', pick: (i) => i.name.startsWith('gh-pat-kiran'), hours: 52, live: true,
       code: ['#!/usr/bin/env bash', 'set -euo pipefail', '', 'git clone https://ghp_9fKd••••••••••••Qm1@github.com/corvane/ledger-service.git', 'cd ledger-service && make release'] },
-    { repo: 'corvane/infra-terraform', provider: 'github', file: 'modules/vault/backend.tf', line: 7, type: 'vault.token', vis: 'private', author: 'Tomás Herrera', hours: 140, live: false,
+    { repo: 'corvane/infra-terraform', provider: 'github', file: 'modules/vault/backend.tf', line: 7, type: 'vault.token', vis: 'private', pick: (i) => i.type === 'vault.token' && i.name.startsWith('token-terraform'), hours: 140, live: false,
       code: ['provider "vault" {', '  address = "https://vault.corvane.internal:8200"', '  token   = "hvs.CAESI••••••••••••••••"', '}'] },
-    { repo: 'corvane-legacy/partner-sync', provider: 'bitbucket', file: 'config/settings.yaml', line: 31, type: 'bitbucket.apppassword', vis: 'private', author: 'Mira Petrov', hours: 300, live: true,
-      code: ['bitbucket:', '  user: mira-etl', '  app_password: ATBB••••••••••••7Kq', 'schedule: "0 */6 * * *"'] },
-    { repo: 'corvane/web-app', provider: 'github', file: 'src/config/analytics.ts', line: 9, type: 'github.finepat', vis: 'private', author: 'Aisha Karim', hours: 420, live: false,
+    { repo: 'corvane-legacy/partner-sync', provider: 'bitbucket', file: 'config/settings.yaml', line: 31, type: 'bitbucket.apppassword', vis: 'private', pick: (i) => i.name.startsWith('meera-etl-scripts'), hours: 300, live: true,
+      code: ['bitbucket:', '  user: meera-etl', '  app_password: ATBB••••••••••••7Kq', 'schedule: "0 */6 * * *"'] },
+    { repo: 'corvane/web-app', provider: 'github', file: 'src/config/analytics.ts', line: 9, type: 'github.finepat', vis: 'private', pick: (i) => i.type === 'github.pat' && !i.name.includes('kiran'), hours: 420, live: false,
       code: ['export const analytics = {', "  token: 'github_pat_11AB••••••••••••',", "  endpoint: 'https://api.github.com/graphql',", '};'] },
   ];
   const exposures = leakSpecs.map((l, k) => {
     const r = rngFor(`leak:${k}`);
-    const cred = credentials.find((c) => c.type === l.type) || credentials[k];
+    /* The leak belongs to a real identity, and its author is that identity's owner. */
+    const identity = identities.find((i) => l.pick(i) && credentials.some((c) => c.identityId === i.id)) || identities.find((i) => i.provider === l.type.split('.')[0] && credentials.some((c) => c.identityId === i.id));
+    const cred = credentials.find((c) => c.identityId === identity?.id && c.type === l.type) || credentials.find((c) => c.identityId === identity?.id);
+    const owner = [...PEOPLE, ...FORMER].find((p) => p.id === identity?.owner);
+    /* An identity with no owner was committed by someone on its team. */
+    const ownerPerson = owner || PEOPLE.find((p) => p.team === identity?.team) || PEOPLE[6];
+    /* Someone who has left committed it while they were here; a history rescan found it. */
+    const committedAt = ownerPerson.departed ? new Date(Date.parse(ownerPerson.departed) - (20 + k * 9) * DAY).toISOString() : ago(l.hours * HOUR + 40 * 60e3);
+    if (cred && l.live) cred.status = 'active';
     return {
       id: `X-${780 + k * 3}`,
       provider: l.provider,
@@ -656,9 +685,11 @@ export function buildWorld(extraConnections = []) {
       line: l.line,
       commit: r.hex(40),
       branch: k % 3 === 0 ? 'main' : `feature/${r.pick(['settlement-backfill', 'eval-harness', 'cleanup', 'vault-module'])}`,
-      author: l.author,
+      author: ownerPerson.name,
+      authorRef: ownerPerson.id,
+      committedAt,
       detectedAt: ago(l.hours * HOUR),
-      secretType: l.type,
+      secretType: cred?.type || l.type,
       credentialId: cred?.id,
       identityId: cred?.identityId,
       visibility: l.vis,
@@ -677,7 +708,7 @@ export function buildWorld(extraConnections = []) {
     { s: 'Investigate mass clone by GitHub token', link: { kind: 'detection', id: detections[1].id }, pr: 'Highest', st: 'In Progress', as: 'p-sofia', rep: 'p-priya', h: 4 },
     { s: `Remove ${crit[0] ? identities.find((i) => i.id === crit[0].identityId)?.name : 'workload'} administrator access`, link: crit[0] && { kind: 'finding', id: crit[0].id }, pr: 'High', st: 'To Do', as: 'p-marcus', rep: 'p-elena', h: 30 },
     { s: 'Revoke orphan Vault token from Terraform', link: findings.find((f) => f.ruleId === 'NHI-012') && { kind: 'finding', id: findings.find((f) => f.ruleId === 'NHI-012').id }, pr: 'High', st: 'In Review', as: 'p-tomas', rep: 'p-elena', h: 70 },
-    { s: 'Re-home identities owned by Greg Holloway', link: findings.find((f) => f.ruleId === 'NHI-004') && { kind: 'finding', id: findings.find((f) => f.ruleId === 'NHI-004').id }, pr: 'Medium', st: 'To Do', as: 'p-ravi', rep: 'p-hannah', h: 120 },
+    { s: 'Re-home identities owned by Kiran Reddy', link: findings.find((f) => f.ruleId === 'NHI-004') && { kind: 'finding', id: findings.find((f) => f.ruleId === 'NHI-004').id }, pr: 'Medium', st: 'To Do', as: 'p-ravi', rep: 'p-hannah', h: 120 },
     { s: 'Migrate Bitbucket app passwords to access tokens', link: findings.find((f) => f.ruleId === 'NHI-010') && { kind: 'finding', id: findings.find((f) => f.ruleId === 'NHI-010').id }, pr: 'Medium', st: 'To Do', as: 'p-aisha', rep: 'p-elena', h: 160 },
     { s: 'Azure client secret for sp-powerbi-refresh expiring', link: findings.find((f) => f.ruleId === 'NHI-006') && { kind: 'finding', id: findings.find((f) => f.ruleId === 'NHI-006').id }, pr: 'High', st: 'Done', as: 'p-james', rep: 'p-noah', h: 200 },
     { s: 'Pin GitHub OIDC subject for terraform-apply workflow', link: findings.find((f) => f.ruleId === 'NHI-014') && { kind: 'finding', id: findings.find((f) => f.ruleId === 'NHI-014').id }, pr: 'High', st: 'Done', as: 'p-ravi', rep: 'p-elena', h: 260 },
@@ -703,26 +734,41 @@ export function buildWorld(extraConnections = []) {
   }));
   for (const t of tickets) {
     for (const l of t.links) {
-      if (l.kind === 'finding') { const f = findings.find((x) => x.id === l.id); if (f) { f.ticketKey = t.key; if (t.status === 'Done') f.status = 'resolved'; else if (t.status !== 'To Do') { f.status = 'in_progress'; f.assignee = t.assignee; } } }
+      if (l.kind === 'finding') { const f = findings.find((x) => x.id === l.id); if (f) { f.ticketKey = t.key; const opened = Date.parse(t.createdAt) - (2 + (hashString(f.id) % 4)) * DAY;
+        if (Date.parse(f.firstSeenAt) > opened) { f.firstSeenAt = new Date(opened).toISOString(); f.dueAt = new Date(opened + SLA_DAYS[f.severity] * DAY).toISOString(); }
+        if (t.status === 'Done') { f.status = 'resolved'; f.resolvedAt = t.updatedAt; f.resolvedBy = t.key; } else if (t.status !== 'To Do') { f.status = 'in_progress'; f.assignee = t.assignee; } } }
       if (l.kind === 'detection') { const d = detections.find((x) => x.id === l.id); if (d) d.ticketKey = t.key; }
       if (l.kind === 'exposure') { const x = exposures.find((e) => e.id === l.id); if (x) x.ticketKey = t.key; }
     }
   }
 
   /* Mail already delivered. */
+  const digestWindow = findings.filter((f) => { const age = ANCHOR - Date.parse(f.firstSeenAt); return age > 26 * HOUR && age <= 50 * HOUR; });
+  const digest = {
+    newCount: digestWindow.length,
+    resolved: 2,
+    lines: Object.entries(digestWindow.reduce((m, f) => ({ ...m, [`${f.severity}: ${f.title}`]: (m[`${f.severity}: ${f.title}`] || 0) + 1 }), {})).map(([k, n]) => `• ${n} ${k}`).join('\n'),
+  };
   const mail = [
     { id: 'm-seed-1', h: 2, from: ORG.mailFrom, to: ['secops@corvane.io'], subject: `[Critical] Live AWS access key committed to corvane/payments-api`, kind: 'alert', link: { kind: 'exposure', id: exposures[0].id },
       body: `A live AWS access key was found in scripts/backfill_settlements.py (line 14) on branch ${exposures[0].branch}.\n\nThe key belongs to an IAM user with write access to production buckets. It was validated against AWS and is active.\n\nRecommended: rotate the key now and remove it from the commit history.` },
-    { id: 'm-seed-2', h: 4, from: `jira@${ORG.jiraSite}`, to: ['sofia.alvarez@corvane.io'], subject: `[JIRA] Priya Raman assigned SEC-1420 to you`, kind: 'jira', link: { kind: 'ticket', id: 'SEC-1420' },
-      body: `SEC-1420 Investigate mass clone by GitHub token\n\nPriority: Highest\nReporter: Priya Raman\n\nPlease confirm whether the token owner ran this clone and rotate the token if not.` },
+    { id: 'm-seed-2', h: 4, from: `jira@${ORG.jiraSite}`, to: ['p-sofia'], subject: `[JIRA] Pranav Reddy assigned SEC-1420 to you`, kind: 'jira', link: { kind: 'ticket', id: 'SEC-1420' },
+      body: `SEC-1420 Investigate mass clone by GitHub token\n\nPriority: Highest\nReporter: Pranav Reddy\n\nPlease confirm whether the token owner ran this clone and rotate the token if not.` },
     { id: 'm-seed-3', h: 9, from: ORG.mailFrom, to: ['secops@corvane.io'], subject: `[High] Vault token read 30x its usual number of secrets`, kind: 'alert', link: { kind: 'detection', id: detections[2].id },
       body: `${detections[2].observed}.\nBaseline: ${detections[2].baseline}.\n\nThis token has no expiry and was issued outside Terraform.` },
-    { id: 'm-seed-4', h: 20, from: ORG.mailFrom, to: ['kenji.watanabe@corvane.io', 'secops@corvane.io'], subject: `[Critical] Azure client secret exposed in a public repository`, kind: 'alert', link: { kind: 'exposure', id: exposures[1].id },
+    { id: 'm-seed-4', h: 20, from: ORG.mailFrom, to: ['p-kenji', 'secops@corvane.io'], subject: `[Critical] Azure client secret exposed in a public repository`, kind: 'alert', link: { kind: 'exposure', id: exposures[1].id },
       body: `corvane-labs/llm-eval-sandbox is public and .env.example contains a working client secret for a production service principal.\n\nThe secret is live. Rotate it and make the repository private until the history is cleaned.` },
-    { id: 'm-seed-5', h: 26, from: ORG.mailFrom, to: ['priya.raman@corvane.io'], subject: 'Daily digest: 4 new findings, 2 resolved, fleet score 71', kind: 'digest',
-      body: `New since yesterday\n• 2 high: Access key older than 90 days\n• 1 high: Client secret expires within 14 days\n• 1 medium: Deploy key has write access\n\nResolved\n• SEC-1430 Azure client secret rotated\n• Orphan token revoked on vault-dr\n\nFleet posture score: 71 (+2 this week).` },
-    { id: 'm-seed-6', h: 70, from: `jira@${ORG.jiraSite}`, to: ['tomas.herrera@corvane.io'], subject: `[JIRA] SEC-1424 moved to In Review`, kind: 'jira', link: { kind: 'ticket', id: 'SEC-1424' },
-      body: `Elena Novak moved SEC-1424 Revoke orphan Vault token from Terraform from In Progress to In Review.` },
+    { id: 'm-seed-5', h: 26, from: ORG.mailFrom, to: ['p-priya', 'secops@corvane.io'], subject: `Daily digest: ${digest.newCount} new finding${digest.newCount === 1 ? '' : 's'}, ${digest.resolved} resolved`, kind: 'digest',
+      body: `New in the 24 hours before this digest
+${digest.lines || '• None'}
+
+Resolved through Jira
+• SEC-1430 Azure client secret rotated
+• SEC-1432 OIDC subject pinned for terraform-apply
+
+Open critical findings: ${crit.length}.` },
+    { id: 'm-seed-6', h: 70, from: `jira@${ORG.jiraSite}`, to: ['p-tomas'], subject: `[JIRA] SEC-1424 moved to In Review`, kind: 'jira', link: { kind: 'ticket', id: 'SEC-1424' },
+      body: `Nikitha Rao moved SEC-1424 Revoke orphan Vault token from Terraform from In Progress to In Review.` },
     { id: 'm-seed-7', h: 168, from: ORG.mailFrom, to: ['leadership@corvane.io'], subject: 'Weekly NHI posture report', kind: 'digest',
       body: `Machine identities: ${identities.length} across 5 applications\nCritical findings: ${crit.length}\nMean time to remediate (critical): 2.4 days\nCredentials past rotation policy: ${credentials.filter((c) => c.rotationDays && c.ageDays > c.rotationDays).length}\n\nThe largest risk this week is long-lived CI credentials in Bitbucket pipelines that reach production AWS.` },
   ].map((m) => ({ ...m, at: ago(m.h * HOUR), seed: true }));
@@ -747,9 +793,9 @@ export function buildWorld(extraConnections = []) {
     { h: 1, actor: 'p-daniel', verb: 'moved', target: { kind: 'ticket', id: 'SEC-1418' }, text: 'SEC-1418 to In Progress' },
     { h: 2, actor: 'system', verb: 'detected', target: { kind: 'exposure', id: exposures[0].id }, text: 'a live AWS access key in corvane/payments-api' },
     { h: 3, actor: 'p-sofia', verb: 'created', target: { kind: 'ticket', id: 'SEC-1418' }, text: 'SEC-1418 from a leaked secret' },
-    { h: 4, actor: 'p-priya', verb: 'assigned', target: { kind: 'ticket', id: 'SEC-1420' }, text: 'SEC-1420 to Sofia Alvarez' },
-    { h: 5, actor: 'system', verb: 'detected', target: { kind: 'detection', id: detections[1].id }, text: detections[1].title.toLowerCase() },
-    { h: 9, actor: 'system', verb: 'detected', target: { kind: 'detection', id: detections[2].id }, text: detections[2].title.toLowerCase() },
+    { h: 4, actor: 'p-priya', verb: 'assigned', target: { kind: 'ticket', id: 'SEC-1420' }, text: 'SEC-1420 to Satya Prakash' },
+    { h: 5, actor: 'system', verb: 'raised', target: { kind: 'detection', id: detections[1].id }, text: detections[1].title },
+    { h: 9, actor: 'system', verb: 'raised', target: { kind: 'detection', id: detections[2].id }, text: detections[2].title },
     { h: 11, actor: 'p-marcus', verb: 'connected', target: { kind: 'connection', id: 'c-aws-shared' }, text: 'AWS account shared-services' },
     { h: 19, actor: 'p-sofia', verb: 'created', target: { kind: 'ticket', id: 'SEC-1436' }, text: 'SEC-1436 for a public Azure secret' },
     { h: 30, actor: 'p-elena', verb: 'created', target: { kind: 'ticket', id: 'SEC-1422' }, text: 'SEC-1422 from a critical finding' },

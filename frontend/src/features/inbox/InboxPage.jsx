@@ -75,7 +75,7 @@ export default function InboxPage() {
               <button key={f.key} type="button" onClick={() => setFolder(f.key)} className={cn('flex shrink-0 items-center gap-2.5 rounded-[8px] px-2.5 py-2 text-left text-[13px]', folder === f.key ? 'bg-surface font-semibold text-ink shadow-sm' : 'text-ink-2 hover:bg-surface')}>
                 {f.logo ? <AppLogo name={f.logo} size={18} /> : <f.icon aria-hidden="true" className="size-4" />}
                 <span className="flex-1">{f.label}</span>
-                {unread > 0 && f.key !== 'all' && f.key !== 'sent' && <span className="rounded-full bg-brand px-1.5 text-[10.5px] leading-[17px] font-bold text-white">{unread}</span>}
+                {unread > 0 && f.key !== 'all' && f.key !== 'sent' && <span className="rounded-full bg-brand px-1.5 text-[10.5px] leading-[17px] font-bold text-on-brand">{unread}</span>}
               </button>
             );
           })}

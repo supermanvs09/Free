@@ -306,7 +306,12 @@ export function getView() {
     }
     for (const t of r.targets || []) effects.set(t, [...(effects.get(t) || []), { playbook: r.playbook, at: r.finishedAt, run: r.id }]);
   }
-  for (const c of connections) if (lastSync?.[c.id]) c.lastSyncAt = lastSync[c.id];
+  /* Collection runs on a schedule, so "last synced" always sits inside it. */
+  for (const c of connections) {
+    const every = PROVIDERS[c.provider]?.kind === 'workflow' ? 5 : 15;
+    if (c.status !== 'paused') c.lastSyncAt = new Date(now - (((Math.floor(now / 60000) + hashString(c.id)) % every) * 60000 + 20000)).toISOString();
+    if (lastSync?.[c.id] && Date.parse(lastSync[c.id]) > Date.parse(c.lastSyncAt)) c.lastSyncAt = lastSync[c.id];
+  }
   const syncing = runs.find((r) => r.kind === 'sync' && (r.status === 'running' || r.status === 'queued'));
   for (const c of connections) if (syncing?.connections?.includes(c.id)) c.syncing = true;
 
@@ -356,6 +361,8 @@ export function getView() {
 
   const detections = world.detections.filter((d) => idById.has(d.identityId)).map((d) => ({ ...d, ...(overlay('detection', d.id) || {}) }));
   const detById = new Map(detections.map((d) => [d.id, d]));
+  const genomeFeedback = new Map();
+  for (const o of state.docs.ovr.values()) if (o?.kind === 'genome' && Array.isArray(o.feedback)) genomeFeedback.set(o.targetId, o.feedback);
   const exposures = world.exposures.map((x) => ({ ...x, ...(overlay('exposure', x.id) || {}) }));
   const expById = new Map(exposures.map((x) => [x.id, x]));
 
@@ -421,6 +428,7 @@ export function getView() {
     findingById,
     detections,
     detById,
+    genomeFeedback,
     exposures,
     expById,
     tickets,
@@ -473,6 +481,7 @@ export function recordPath(target) {
     connection: '/integrations',
     run: '/remediation',
     rule: '/automations',
+    genome: '/genome',
     member: '/settings/team',
     mail: `/inbox?open=${id}`,
   }[kind] || '/overview';
@@ -512,6 +521,16 @@ export const actions = {
       await logActivity({ verb: 'assigned', target: { kind: 'detection', id }, text: `${d?.title || id} to ${personName(patch.assignee)}`, recipients: [patch.assignee].filter((r) => r && r !== meRef()) });
       if (patch.assignee && patch.assignee !== meRef()) await sendSystemMail({ to: [patch.assignee], subject: `[${(d?.severity || '').toUpperCase()}] You're on detection ${id}`, body: `${d?.title}\n\nObserved: ${d?.observed}\nBaseline: ${d?.baseline}`, link: { kind: 'detection', id }, kind: 'assignment' });
     }
+  },
+  /* Team feedback to NHI Genome: confirm a deviation, or teach the model it is expected. */
+  async genomeFeedback(identityId, detectionId, verdict, note = '') {
+    const view = getView();
+    const d = view.detById.get(detectionId);
+    const current = state.docs.ovr.get(safeId(`genome:${identityId}`))?.feedback || [];
+    const entry = { detectionId, verdict, note: note || d?.title || '', by: meRef(), at: nowIso() };
+    await patchOverlay('genome', identityId, { feedback: [...current, entry] });
+    if (d) await patchOverlay('detection', detectionId, verdict === 'expected' ? { status: 'false_positive', closedReason: 'Expected behaviour, added to the baseline' } : { status: d.status === 'new' ? 'investigating' : d.status, confirmedBy: meRef() });
+    await logActivity({ verb: verdict === 'expected' ? 'taught NHI Genome' : 'confirmed', target: { kind: 'detection', id: detectionId }, text: verdict === 'expected' ? `that ${view.idById.get(identityId)?.name} ${note || 'behaviour'} is expected` : `${d?.title} as a real deviation`, recipients: [d?.assignee].filter((r) => r && r !== meRef()) });
   },
   async updateExposure(id, patch, verbText) {
     const x = getView().expById.get(id);

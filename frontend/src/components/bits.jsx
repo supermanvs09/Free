@@ -13,14 +13,14 @@ export function SeverityTag({ severity, size = 'sm', className }) {
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full border font-semibold',
-        size === 'sm' ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-[12px]',
+        'inline-flex items-center gap-1.5 rounded-full font-medium tracking-[0.05em] uppercase',
+        size === 'sm' ? 'px-2 py-0.5 text-[10.5px]' : 'px-2.5 py-1 text-[11px]',
         {
-          critical: 'border-critical/30 bg-critical-soft text-critical',
-          high: 'border-high/30 bg-high-soft text-high',
-          medium: 'border-medium/30 bg-medium-soft text-medium',
-          low: 'border-low/30 bg-low-soft text-low',
-        }[severity] || 'border-line bg-neutral-soft text-ink-2',
+          critical: 'bg-critical-soft text-critical',
+          high: 'bg-high-soft text-high',
+          medium: 'bg-medium-soft text-medium',
+          low: 'bg-low-soft text-low',
+        }[severity] || 'bg-neutral-soft text-ink-2',
         className,
       )}
     >
@@ -73,7 +73,7 @@ export const STATUS_LABEL = Object.fromEntries(Object.entries(STATUS).map(([k, v
 export function StatusPill({ status, className, pulse = false }) {
   const [label, cls, dot] = STATUS[status] || [status, 'border-line bg-neutral-soft text-ink-2', 'bg-neutral'];
   return (
-    <span className={cn('inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-semibold', cls, className)}>
+    <span className={cn('inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium', cls.replace(/border-\S+/g, ''), className)}>
       <span className={cn('relative size-1.5 rounded-full', dot)}>
         {pulse && <span className={cn('absolute inset-0 animate-ping rounded-full opacity-60', dot)} />}
       </span>
@@ -121,7 +121,8 @@ export function JiraTypeIcon({ type, size = 16 }) {
 }
 
 /* ── People ────────────────────────────────────────────────────────────── */
-const AVATAR_HUES = ['#1668b0', '#c4520a', '#0f8f7a', '#7a4fd0', '#1f8fb5', '#7d8b1c', '#b03a86', '#b42318'];
+/* Pastel grounds with ink initials: people are told apart by initials, not loud colour. */
+const AVATAR_HUES = [['#E1F3FE', '#1F6C9F'], ['#EDF3EC', '#346538'], ['#FBF3DB', '#8A6100'], ['#FDEBEC', '#9F2F2D'], ['#F1F0ED', '#4B4A47'], ['#F3EEF8', '#6B4A8A'], ['#FBEEE4', '#A4521F']];
 function hueFor(ref = '') {
   let h = 0;
   for (let i = 0; i < ref.length; i += 1) h = (h * 31 + ref.charCodeAt(i)) >>> 0;
@@ -148,7 +149,7 @@ export function Avatar({ person, refId, size = 24, className, ring = false }) {
   }
   if (refId === 'system') {
     return (
-      <span className={cn('grid shrink-0 place-items-center rounded-full bg-[linear-gradient(135deg,var(--t-accent),var(--t-brand))] font-bold text-white', ring && 'ring-2 ring-surface', className)} style={{ width: size, height: size, fontSize: size * 0.42 }} title={name}>
+      <span className={cn('grid shrink-0 place-items-center rounded-full bg-brand font-bold text-on-brand', ring && 'ring-2 ring-surface', className)} style={{ width: size, height: size, fontSize: size * 0.42 }} title={name}>
         C
       </span>
     );
@@ -156,8 +157,8 @@ export function Avatar({ person, refId, size = 24, className, ring = false }) {
   return (
     <span
       title={name}
-      className={cn('grid shrink-0 place-items-center rounded-full font-semibold text-white', p?.former && 'grayscale', ring && 'ring-2 ring-surface', className)}
-      style={{ width: size, height: size, fontSize: Math.max(9, size * 0.4), background: p?.color || hueFor(p?.ref || refId) }}
+      className={cn('grid shrink-0 place-items-center rounded-full font-semibold', p?.former && 'opacity-60', ring && 'ring-2 ring-surface', className)}
+      style={{ width: size, height: size, fontSize: Math.max(9, size * 0.38), background: hueFor(p?.ref || refId)[0], color: hueFor(p?.ref || refId)[1] }}
     >
       {initialsOf(name)}
     </span>

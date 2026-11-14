@@ -43,23 +43,23 @@ export default function SignInPage() {
     <div className="auth-canvas relative overflow-hidden">
       <main className="relative mx-auto grid min-h-[inherit] w-full max-w-[1900px] grid-cols-1 content-center items-start gap-x-[clamp(2rem,4vw,6rem)] gap-y-12 px-[clamp(1.25rem,5.9vw,7rem)] py-[clamp(2rem,3.6vh,3.5rem)] lg:grid-cols-[minmax(0,1fr)_clamp(23rem,32.7vw,38.75rem)]">
         <section>
-          <p style={{ '--step': 1 }} className="animate-auth inline-flex w-fit items-center gap-2.5 rounded-full bg-[var(--t-auth-badge)] px-[clamp(0.9rem,1.1vw,1.35rem)] py-[clamp(0.4rem,0.55vw,0.65rem)] text-[clamp(10px,0.79vw,15px)] font-semibold tracking-[0.15em] text-[var(--t-auth-badge-ink)] uppercase">
+          <p style={{ '--step': 1 }} className="animate-auth inline-flex w-fit items-center gap-2.5 rounded-full border border-line bg-[var(--t-auth-badge)] px-[clamp(0.9rem,1.1vw,1.35rem)] py-[clamp(0.4rem,0.55vw,0.65rem)] text-[clamp(10px,0.79vw,15px)] font-semibold tracking-[0.15em] text-[var(--t-auth-badge-ink)] uppercase">
             <span aria-hidden="true" className="size-[0.45em] rounded-full bg-[var(--t-auth-accent)]" />
             Enterprise Security Platform
           </p>
-          <h1 style={{ '--step': 2 }} className="animate-auth mt-[clamp(1.5rem,2.6vw,3.25rem)] font-display text-[clamp(38px,4.6vw,88px)] leading-[1.08] font-extrabold tracking-[-0.035em] text-[var(--t-auth-ink)]">
+          <h1 style={{ '--step': 2 }} className="animate-auth mt-[clamp(1.5rem,2.6vw,3.25rem)] font-serif text-[clamp(42px,5vw,92px)] leading-[1.02] font-normal tracking-[-0.03em] text-[var(--t-auth-ink)]">
             Non-Human
             <br />
             Identity
             <br />
-            <span className="text-[var(--t-auth-accent)]">Security</span>
+            <span className="text-[var(--t-auth-ink-2)] italic">Security</span>
           </h1>
           <p style={{ '--step': 3 }} className="animate-auth mt-[clamp(1.25rem,2vw,2.5rem)] max-w-[48ch] text-[clamp(14px,1.15vw,22px)] leading-[1.6] text-[var(--t-auth-ink-2)]">
             One inventory of every service account, workload, token and pipeline across your clouds, code and secrets manager. See what each can reach, catch leaks and misuse as they happen, and fix them with the team in Jira.
           </p>
           <ul style={{ '--step': 4 }} className="animate-auth mt-[clamp(1.5rem,2.4vw,3rem)] flex flex-wrap items-center gap-3">
             {SOURCE_PROVIDERS.map((p) => (
-              <li key={p} className="flex items-center gap-2 rounded-full bg-white/[0.06] py-1.5 pr-3.5 pl-1.5 text-[clamp(12px,0.95vw,17px)] text-[var(--t-auth-ink)] ring-1 ring-white/10">
+              <li key={p} className="flex items-center gap-2 rounded-[8px] border border-line bg-surface py-1.5 pr-3.5 pl-1.5 text-[clamp(12px,0.95vw,17px)] text-[var(--t-auth-ink)]">
                 <AppLogo name={PROVIDERS[p].logo} size={26} />
                 {PROVIDERS[p].short}
               </li>
@@ -75,9 +75,9 @@ export default function SignInPage() {
           </ul>
         </section>
 
-        <section data-theme="light" style={{ '--step': 2 }} className="animate-auth-card rounded-[clamp(18px,1.5vw,28px)] border border-[var(--t-auth-card-line)] bg-[var(--t-auth-card)] p-[clamp(1.5rem,2.6vw,3.25rem)] text-ink shadow-[0_40px_90px_-30px_rgba(0,0,0,0.6)]">
+        <section data-theme="light" style={{ '--step': 2 }} className="animate-auth-card rounded-[12px] border border-[var(--t-auth-card-line)] bg-[var(--t-auth-card)] p-[clamp(1.5rem,2.6vw,3.25rem)] text-ink">
           <BrandLockup variant="light" height={36} />
-          <h2 className="mt-[clamp(1.25rem,2vw,2.25rem)] text-[clamp(22px,1.7vw,32px)] font-extrabold tracking-[-0.02em]">Sign in to your workspace</h2>
+          <h2 className="mt-[clamp(1.25rem,2vw,2.25rem)] text-[clamp(20px,1.5vw,28px)] font-semibold tracking-[-0.02em]">Sign in to your workspace</h2>
           <p className="mt-1.5 text-[clamp(13px,0.95vw,17px)] text-ink-3">corvane.io · Production estate</p>
 
           {viewer === undefined && <div className="mt-8 h-24 animate-pulse rounded-xl bg-surface-3" />}
@@ -100,10 +100,10 @@ export default function SignInPage() {
           {viewer === null && (
             <form onSubmit={go} className="mt-8 space-y-4" noValidate>
               <Field label="Full name" htmlFor="si-name" required>
-                <Input id="si-name" size="auth" value={name} onChange={(e) => { setName(e.target.value); setError(null); }} autoComplete="name" autoFocus placeholder="Alex Morgan" />
+                <Input id="si-name" size="auth" value={name} onChange={(e) => { setName(e.target.value); setError(null); }} autoComplete="name" autoFocus placeholder="Your full name" />
               </Field>
               <Field label="Work email" htmlFor="si-email" hint="Optional. Used to address mail sent to you.">
-                <Input id="si-email" size="auth" type="email" value={email} onChange={(e) => { setEmail(e.target.value); setError(null); }} autoComplete="email" placeholder="alex.morgan@corvane.io" />
+                <Input id="si-email" size="auth" type="email" value={email} onChange={(e) => { setEmail(e.target.value); setError(null); }} autoComplete="email" placeholder="name@corvane.io" />
               </Field>
               {error && <p role="alert" className="text-[13px] font-medium text-critical">{error}</p>}
               <Button type="submit" variant="auth" size="auth" className="w-full" loading={busy} iconRight={ArrowRight}>

@@ -33,7 +33,7 @@ export default function DetectionsPage() {
     <div className="flex flex-col gap-4">
       <PageHeader
         title="Detections"
-        lede="Behaviour that breaks an identity's own baseline: new places, new volumes, new actions. Each one is scored against 30 days of that identity's history."
+        lede="Raised by NHI Genome when an identity leaves its own baseline: new places, new volumes, new actions, odd hours."
         meta={
           <div className="flex flex-wrap gap-2 text-[12.5px]">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-critical/30 bg-critical-soft px-2.5 py-1 font-semibold text-critical">{counts.new} need triage</span>
@@ -167,6 +167,10 @@ function DetectionDrawer({ id, onClose }) {
             <p className="mt-2 flex items-center gap-1.5 text-[12px] font-medium text-brand"><Activity aria-hidden="true" className="size-3.5" />See its activity</p>
           </Link>
           {d.ticketKey && <div><SectionLabel>Incident</SectionLabel><div className="mt-1.5"><TicketCard ticketKey={d.ticketKey} /></div></div>}
+          <Link to={`/genome/${i?.id}`} className="block rounded-[10px] border border-line p-3 text-[12px] hover:border-line-strong">
+            <p className="font-medium text-ink">Raised by NHI Genome</p>
+            <p className="mt-0.5 text-ink-3">Compared with {i?.name}'s own baseline. Open its behaviour model.</p>
+          </Link>
           <div className="rounded-[12px] bg-surface-2 p-3 text-[12px] text-ink-2">
             <p className="font-semibold text-ink">Detected</p>
             <p>{formatDateTime(d.detectedAt)}</p>

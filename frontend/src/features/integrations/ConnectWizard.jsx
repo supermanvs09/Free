@@ -168,7 +168,7 @@ export function ConnectWizard({ provider, onClose }) {
         <span className="mt-2 flex items-center gap-2">
           {stepsLabel.map((s, k) => (
             <span key={s} className={cn('inline-flex items-center gap-1.5 text-[11.5px] font-semibold', k === step ? 'text-brand' : k < step ? 'text-low' : 'text-ink-3')}>
-              <span className={cn('grid size-4.5 place-items-center rounded-full text-[10px]', k === step ? 'bg-brand text-white' : k < step ? 'bg-low text-white' : 'bg-surface-3')}>{k < step ? <Check aria-hidden="true" className="size-3" /> : k + 1}</span>
+              <span className={cn('grid size-4.5 place-items-center rounded-full text-[10px]', k === step ? 'bg-brand text-on-brand' : k < step ? 'bg-low-soft text-low' : 'bg-surface-3')}>{k < step ? <Check aria-hidden="true" className="size-3" /> : k + 1}</span>
               {s}
               {k < 2 && <span className="mx-1 h-px w-4 bg-line-strong" />}
             </span>
@@ -249,7 +249,7 @@ export function ConnectWizard({ provider, onClose }) {
             const state = k < checked ? 'ok' : k === checked ? 'run' : 'wait';
             return (
               <li key={c} className="flex items-center gap-3 rounded-[10px] border border-line px-3 py-2.5">
-                <span className={cn('grid size-6 place-items-center rounded-full', state === 'ok' ? 'bg-low text-white' : state === 'run' ? 'bg-info-soft text-info' : 'bg-surface-3 text-ink-3')}>
+                <span className={cn('grid size-6 place-items-center rounded-full', state === 'ok' ? 'bg-low-soft text-low' : state === 'run' ? 'bg-info-soft text-info' : 'bg-surface-3 text-ink-3')}>
                   {state === 'ok' ? <Check aria-hidden="true" className="size-3.5" /> : state === 'run' ? <Loader2 aria-hidden="true" className="size-3.5 animate-spin" /> : <span className="size-1.5 rounded-full bg-current" />}
                 </span>
                 <span className={cn('text-[13px]', state === 'wait' ? 'text-ink-3' : 'text-ink')}>{c}</span>
