@@ -128,7 +128,7 @@ export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile
             onClick={onToggleCollapse}
             aria-label="Expand navigation"
             title="Expand navigation"
-            className="grid size-[52px] shrink-0 place-items-center rounded-full bg-ink text-surface shadow-[var(--t-shadow-lg)] transition-transform hover:scale-[1.04]"
+            className="grid size-[52px] shrink-0 place-items-center rounded-full bg-brand text-white shadow-[var(--t-shadow-lg)] transition-transform hover:scale-[1.04] focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
           >
             <PanelLeftOpen aria-hidden="true" className="size-5" />
           </button>
