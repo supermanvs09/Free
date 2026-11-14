@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, ChevronRight, Clock3, Hand, ListTodo, SearchX, ShieldCheck } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Clock3, Hand, ListTodo, SearchX, ShieldCheck } from 'lucide-react';
 import { fetchActions, fetchFindingsToFix, fetchPlans } from '../../lib/api/remediation';
 import { useDebouncedValue, useQuery } from '../../lib/hooks';
 import { formatNumber, formatRelative } from '../../lib/format';
@@ -47,7 +47,7 @@ function Journey({ summary, active, onPick }) {
   const sev = summary.by_severity ?? {};
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {STAGES.map((stage, i) => {
+      {STAGES.map((stage) => {
         const on = active === stage.key;
         return (
           <button
@@ -57,17 +57,16 @@ function Journey({ summary, active, onPick }) {
             aria-pressed={on}
             className={cn(
               'group relative flex flex-col rounded-[var(--radius-panel)] border bg-surface p-4 text-left transition-[border-color,box-shadow] sm:p-5',
-              on ? 'border-brand shadow-[0_0_0_3px_color-mix(in_oklab,var(--t-brand)_14%,transparent)]' : 'border-line hover:border-line-strong',
+              on ? 'border-brand bg-info-soft/50' : 'border-line hover:border-line-strong',
             )}
           >
-            <span className="flex items-center gap-2 text-[12.5px] font-medium text-ink-3">
-              <span className={cn('grid size-7 place-items-center rounded-full', stage.key === 'fixed' ? 'bg-low-soft text-low' : stage.key === 'todo' ? 'bg-high-soft text-high' : 'bg-info-soft text-brand')}>
-                <stage.icon aria-hidden="true" className="size-3.5" />
+            <span className="flex items-center justify-between gap-2 text-[12.5px] font-medium text-ink-2">
+              {stage.label}
+              <span className="grid size-7 shrink-0 place-items-center rounded-[7px] border border-line bg-surface">
+                <stage.icon aria-hidden="true" className={cn('size-3.5', stage.key === 'fixed' ? 'text-low' : stage.key === 'todo' ? 'text-high' : 'text-brand')} />
               </span>
-              <span className="font-semibold tracking-[0.04em] uppercase">{stage.label}</span>
-              {i < STAGES.length - 1 && <ChevronRight aria-hidden="true" className="ml-auto hidden size-4 text-ink-3/60 xl:block" />}
             </span>
-            <span data-numeric="" className="mt-3 font-display text-[30px] leading-none font-bold text-ink">
+            <span data-numeric="" className="mt-3 font-display text-[28px] leading-none font-semibold tracking-[-0.025em] text-ink">
               {formatNumber(value[stage.key] ?? 0)}
             </span>
             <span className="mt-2 text-[12px] text-ink-3">{stage.hint}</span>

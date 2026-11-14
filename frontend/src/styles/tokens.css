@@ -1,8 +1,9 @@
 /* ==========================================================================
    Deep Algorithms - NHI Console design tokens
-   Derived from the brand mark: deep signal blue (#0C6EB4), cyan slash
-   (#12B0F0) and near-black wordmark, extended into a full enterprise
-   surface / ink / risk system for light and dark canvases.
+   Neutral, restrained enterprise palette: zinc-like greys with no blue cast,
+   pure white surfaces set apart by hairlines rather than shadows, and one
+   blue accent used only where it means something (active, primary,
+   selected). Risk and chart colours are unchanged: they carry meaning.
    ========================================================================== */
 
 /* The light palette is declared for `:root` AND for any element carrying
@@ -16,18 +17,18 @@
   color-scheme: light;
 
   /* Brand ---------------------------------------------------------------- */
-  --t-brand: #0c6eb4;
-  --t-brand-strong: #095a95;
-  --t-brand-deep: #071b33;
+  --t-brand: #1d63ed;
+  --t-brand-strong: #1650c4;
+  --t-brand-deep: #0b1a33;
   --t-accent: #12b0f0;
   --t-accent-strong: #0b93cc;
 
   /* Surfaces ------------------------------------------------------------- */
-  --t-canvas: #f3f6fa;
+  --t-canvas: #f6f6f7;
   --t-surface: #ffffff;
-  --t-surface-2: #f8fafc;
-  --t-surface-3: #eef2f7;
-  --t-surface-inset: #f1f5f9;
+  --t-surface-2: #fafafa;
+  --t-surface-3: #f1f1f3;
+  --t-surface-inset: #f4f4f5;
 
   /* ── Graph marks ────────────────────────────────────────────────────────
      A mark on a canvas is a different job from a tag or a line of text, and
@@ -50,27 +51,27 @@
      `surface-3` on `surface-2` was only 10/255 apart and the bars looked like
      they were floating. */
   --t-track: color-mix(in srgb, var(--t-ink-3) 20%, transparent);
-  --t-line: #e3e9f1;
-  --t-line-strong: #cbd6e4;
-  --t-overlay: rgba(7, 27, 51, 0.42);
+  --t-line: #e6e6e9;
+  --t-line-strong: #d4d4d8;
+  --t-overlay: rgba(9, 9, 11, 0.4);
 
   /* Ink ------------------------------------------------------------------ */
-  --t-ink: #0b1b2e;
-  --t-ink-2: #4a5b70;
-  --t-ink-3: #5a6b81;
-  --t-ink-inverse: #f7fafe;
+  --t-ink: #111113;
+  --t-ink-2: #4b4b52;
+  --t-ink-3: #6b6b75;
+  --t-ink-inverse: #fafafa;
 
   /* Top bar - follows the theme. Application chrome, not a marketing header. */
   --t-topbar: #ffffff;
-  --t-topbar-line: #dfe6f0;
-  --t-topbar-ink: #0b1b2e;
-  --t-topbar-muted: #5a6b81;
-  --t-topbar-hover: #eef2f7;
-  --t-topbar-field: #f4f7fb;
+  --t-topbar-line: #e6e6e9;
+  --t-topbar-ink: #111113;
+  --t-topbar-muted: #6b6b75;
+  --t-topbar-hover: #f1f1f3;
+  --t-topbar-field: #f6f6f7;
 
   /* Sidebar - an application surface that recedes behind the content ----- */
-  --t-sidebar: #f8fafc;
-  --t-sidebar-line: #e3e9f1;
+  --t-sidebar: #fbfbfb;
+  --t-sidebar-line: #e6e6e9;
 
   /* Risk / status -------------------------------------------------------- */
   --t-critical: #b42318;
@@ -81,10 +82,10 @@
   --t-medium-soft: #fdf6e3;
   --t-low: #05734b;
   --t-low-soft: #e7f6ef;
-  --t-info: #0c6eb4;
-  --t-info-soft: #e8f2fb;
-  --t-neutral: #5d6b7e;
-  --t-neutral-soft: #eef1f5;
+  --t-info: #1d63ed;
+  --t-info-soft: #eef3fe;
+  --t-neutral: #6b6b75;
+  --t-neutral-soft: #f1f1f3;
 
   /* Categorical series - fixed slot order, validated for CVD separation and
      contrast against the light surface. Slot 8 is a reserved neutral used for
@@ -107,14 +108,14 @@
   --t-ramp-5: #0d4b83;
 
   /* Chart chrome */
-  --t-chart-grid: #e8edf4;
-  --t-chart-axis: #98a6b8;
+  --t-chart-grid: #ededf0;
+  --t-chart-axis: #a1a1aa;
 
   /* Elevation ------------------------------------------------------------ */
-  --t-shadow-sm: 0 1px 2px rgba(11, 27, 46, 0.06);
-  --t-shadow-md: 0 4px 16px -4px rgba(11, 27, 46, 0.12), 0 1px 3px rgba(11, 27, 46, 0.05);
-  --t-shadow-lg: 0 24px 60px -18px rgba(11, 27, 46, 0.28), 0 2px 8px rgba(11, 27, 46, 0.06);
-  --t-focus-ring: 0 0 0 3px rgba(18, 176, 240, 0.34);
+  --t-shadow-sm: 0 1px 2px rgba(16, 16, 20, 0.04);
+  --t-shadow-md: 0 2px 8px -2px rgba(16, 16, 20, 0.07), 0 1px 2px rgba(16, 16, 20, 0.04);
+  --t-shadow-lg: 0 24px 48px -16px rgba(16, 16, 20, 0.2), 0 2px 6px rgba(16, 16, 20, 0.05);
+  --t-focus-ring: 0 0 0 3px rgba(29, 99, 237, 0.25);
 
   /* Sign-in ------------------------------------------------------------- */
   /* Every value below was sampled from the supplied sign-in design rather
@@ -137,11 +138,11 @@
 /* Matches at the root or on any nested element, for the same reason. */
 [data-theme='dark'] {
   color-scheme: dark;
-  --t-canvas: #060d18;
-  --t-surface: #0c1626;
-  --t-surface-2: #111e31;
-  --t-surface-3: #17263c;
-  --t-surface-inset: #0a1322;
+  --t-canvas: #09090b;
+  --t-surface: #111114;
+  --t-surface-2: #16161a;
+  --t-surface-3: #1d1d22;
+  --t-surface-inset: #0d0d10;
 
   /* Stepped for the dark surface rather than reused from light: the dark
      severity red (#f2837a) sits at OKLCH L 0.73, above the 0.67 ceiling a
@@ -153,27 +154,27 @@
   /* 6.53:1 against the dark canvas; the old edge colour was 1.36:1. */
   --t-graph-flow: #4f9fe0;
   --t-track: color-mix(in srgb, var(--t-ink-3) 30%, transparent);
-  --t-line: #1e2e46;
-  --t-line-strong: #2b3f5c;
-  --t-overlay: rgba(2, 7, 14, 0.66);
+  --t-line: #26262c;
+  --t-line-strong: #34343c;
+  --t-overlay: rgba(0, 0, 0, 0.6);
 
-  --t-ink: #eef3fa;
-  --t-ink-2: #a5b5c9;
-  --t-ink-3: #8392a8;
-  --t-ink-inverse: #0b1b2e;
+  --t-ink: #f4f4f5;
+  --t-ink-2: #a8a8b3;
+  --t-ink-3: #8a8a95;
+  --t-ink-inverse: #111113;
 
-  --t-topbar: #08121f;
-  --t-topbar-line: #1c2a3f;
-  --t-topbar-ink: #eef3fa;
-  --t-topbar-muted: #8ba0b8;
+  --t-topbar: #0d0d10;
+  --t-topbar-line: #222227;
+  --t-topbar-ink: #f4f4f5;
+  --t-topbar-muted: #8a8a95;
   --t-topbar-hover: rgba(255, 255, 255, 0.07);
   --t-topbar-field: rgba(255, 255, 255, 0.06);
 
-  --t-sidebar: #0a1322;
-  --t-sidebar-line: #1e2e46;
+  --t-sidebar: #0d0d10;
+  --t-sidebar-line: #222227;
 
-  --t-brand: #3a9ae0;
-  --t-brand-strong: #1c7cbf;
+  --t-brand: #5b8cff;
+  --t-brand-strong: #3f74f5;
 
   --t-critical: #f2837a;
   --t-critical-soft: rgba(180, 35, 24, 0.18);
@@ -183,10 +184,10 @@
   --t-medium-soft: rgba(160, 106, 2, 0.2);
   --t-low: #55c79b;
   --t-low-soft: rgba(5, 115, 75, 0.2);
-  --t-info: #5aa9e2;
-  --t-info-soft: rgba(12, 110, 180, 0.2);
-  --t-neutral: #93a3b7;
-  --t-neutral-soft: rgba(147, 163, 183, 0.14);
+  --t-info: #6b9bff;
+  --t-info-soft: rgba(59, 110, 245, 0.18);
+  --t-neutral: #9a9aa5;
+  --t-neutral-soft: rgba(154, 154, 165, 0.14);
 
   --t-series-1: #3d93d4;
   --t-series-2: #c96c24;
@@ -203,8 +204,8 @@
   --t-ramp-4: #3d93d4;
   --t-ramp-5: #6fb4ec;
 
-  --t-chart-grid: #1b2a40;
-  --t-chart-axis: #5d708a;
+  --t-chart-grid: #222227;
+  --t-chart-axis: #5c5c66;
 
   --t-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --t-shadow-md: 0 4px 18px -6px rgba(0, 0, 0, 0.6), 0 1px 3px rgba(0, 0, 0, 0.4);
@@ -255,7 +256,7 @@
   --color-neutral-soft: var(--t-neutral-soft);
 
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-display: 'Manrope', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 
   --color-ramp-1: var(--t-ramp-1);
@@ -266,8 +267,8 @@
   --color-chart-grid: var(--t-chart-grid);
   --color-chart-axis: var(--t-chart-axis);
 
-  --radius-panel: 14px;
-  --radius-control: 9px;
+  --radius-panel: 12px;
+  --radius-control: 8px;
 
   --shadow-sm: var(--t-shadow-sm);
   --shadow-md: var(--t-shadow-md);

@@ -22,19 +22,22 @@ const TONES = {
   low: 'var(--t-low)',
   medium: 'var(--t-medium)',
   info: 'var(--t-brand)',
-  neutral: 'var(--t-line-strong)',
+  neutral: 'var(--t-ink-3)',
 };
 
 function Tile({ icon: Icon, label, value, unit, caption, tone = 'info', title }) {
   return (
-    <div className="relative flex flex-col overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface p-3.5" title={title}>
-      <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[3px]" style={{ background: TONES[tone] }} />
-      <span className="flex items-center gap-1.5 text-[10.5px] font-semibold tracking-[0.1em] text-ink-3 uppercase">
-        {Icon && <Icon aria-hidden="true" className="size-3.5" />}
+    <div className="relative flex flex-col overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface p-4" title={title}>
+      <span className="flex items-center justify-between gap-2 text-[12.5px] font-medium text-ink-2">
         {label}
+        {Icon && (
+          <span className="grid size-7 shrink-0 place-items-center rounded-[7px] border border-line bg-surface">
+            <Icon aria-hidden="true" className="size-3.5" style={{ color: TONES[tone] }} />
+          </span>
+        )}
       </span>
-      <span className="mt-1.5 flex items-baseline gap-1.5">
-        <span data-numeric="" className="text-[22px] leading-none font-bold tracking-[-0.02em] text-ink">
+      <span className="mt-2.5 flex items-baseline gap-1.5">
+        <span data-numeric="" className="text-[24px] leading-none font-semibold tracking-[-0.02em] text-ink">
           {value}
         </span>
         {unit && <span className="text-[12px] text-ink-3">{unit}</span>}

@@ -56,7 +56,7 @@ export function Panel({
 }
 
 const TITLE_SIZE = {
-  lead: 'text-[17px] font-bold tracking-[-0.012em]',
+  lead: 'text-[16px] font-semibold tracking-[-0.01em]',
   default: 'text-[14.5px] font-semibold',
   quiet: 'text-[13px] font-semibold',
 };
