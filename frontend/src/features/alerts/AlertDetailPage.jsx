@@ -14,7 +14,7 @@ import { EmptyState, ErrorState } from '../../ui/States';
 import { Tag } from '../../ui/Tag';
 import { cn } from '../../ui/cn';
 import { identityTypeLabel } from '../posture/parts';
-import { ScoreShift, dropSeverity } from './parts';
+import { ScoreShift, actorOf, dropSeverity, shortRef } from './parts';
 
 const TONE_BG = { low: 'bg-low', medium: 'bg-medium', high: 'bg-high', critical: 'bg-critical' };
 
@@ -143,18 +143,6 @@ function Waterfall({ before, now, steps }) {
 }
 
 /* ── One cause, with the AWS change behind it ───────────────────────────── */
-
-/* "arn:aws:iam::444455556666:root" -> "account 444455556666"; else the last part. */
-function shortRef(v) {
-  const text = String(v);
-  const root = text.match(/^arn:aws[a-z-]*:iam::(\d{12}):root$/);
-  return root ? `account ${root[1]}` : text.split(/[:/]/).filter(Boolean).pop();
-}
-
-function actorOf(details) {
-  const by = details?.by || details?.actor || details?.changed_by;
-  return by ? String(by).split(/[:/]/).filter(Boolean).pop() : '';
-}
 
 function ChangeItem({ c }) {
   const by = actorOf(c.details);

@@ -42,3 +42,15 @@ export const detectorLabel = (d) => {
   const text = String(d || 'secret').replace(/_/g, ' ');
   return text.charAt(0).toUpperCase() + text.slice(1);
 };
+
+/* "arn:aws:iam::444455556666:root" -> "account 444455556666"; else the last part. */
+export function shortRef(v) {
+  const text = String(v);
+  const root = text.match(/^arn:aws[a-z-]*:iam::(\d{12}):root$/);
+  return root ? `account ${root[1]}` : text.split(/[:/]/).filter(Boolean).pop();
+}
+
+export function actorOf(details) {
+  const by = details?.by || details?.actor || details?.changed_by;
+  return by ? String(by).split(/[:/]/).filter(Boolean).pop() : '';
+}

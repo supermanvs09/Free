@@ -1,19 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, Dna, FileWarning, ShieldAlert } from 'lucide-react';
-import { fetchAlerts } from '../../lib/api/alerts';
+import { ArrowUpRight, Dna, FileWarning, Fingerprint, GitCommitVertical, Layers, Radius, ShieldAlert, Sparkles } from 'lucide-react';
+import { fetchAlerts, fetchIdentityAlert } from '../../lib/api/alerts';
+import { fetchBlastRadius } from '../../lib/api/blastRadius';
 import { useQuery } from '../../lib/hooks/useQuery';
 import { formatDateTime, formatNumber, formatRelative } from '../../lib/format';
 import { genomeRoute } from '../../lib/identityLinks';
 import { useAccess } from '../../app/useAccess';
 import { useWorkspace } from '../../app/WorkspaceContext';
 import { PageHeader } from '../../shell/PageHeader';
+import { Button } from '../../ui/Button';
 import { SearchInput } from '../../ui/Field';
 import { ListSkeleton } from '../../ui/Skeleton';
 import { ClearState, ErrorState } from '../../ui/States';
 import { cn } from '../../ui/cn';
 import { identityTypeLabel } from '../posture/parts';
-import { ScoreShift } from './parts';
+import { ScoreShift, actorOf } from './parts';
 
 /* ── Vocabulary ─────────────────────────────────────────────────────────── */
 
@@ -29,12 +31,22 @@ const SEV = {
   medium: { label: 'Medium', dot: 'bg-medium', soft: 'bg-medium-soft text-medium' },
   low: { label: 'Low', dot: 'bg-low', soft: 'bg-low-soft text-low' },
 };
+const VERIFIED = {
+  verified: 'Yes - the credential works',
+  unverified: 'Checked - did not work',
+  unsupported: 'Cannot be checked automatically',
+  unknown: 'Not checked yet',
+};
+const BLAST = { CRITICAL: 'text-critical', HIGH: 'text-high', MEDIUM: 'text-medium', LOW: 'text-low' };
 
 const linkOf = (a) => (a.source === 'genome' && a.facts ? `${genomeRoute(a.facts.source_type, a.facts.identity_name)}?tab=anomalies` : a.link);
+/* Identity alerts (posture, genome) on the same identity are one story; exposure is about a repository. */
+const subjectKey = (a) => (a.source === 'exposure' ? null : String(a.subject || '').toLowerCase());
+const postureId = (a) => (a.source === 'posture' ? a.key.slice('posture:'.length) : null);
 
 /* ── One row ────────────────────────────────────────────────────────────── */
 
-function Row({ a, selected, onSelect }) {
+function Row({ a, selected, onSelect, isNew, others }) {
   const src = SOURCES[a.source];
   const sev = SEV[a.severity] ?? SEV.medium;
   return (
@@ -49,6 +61,7 @@ function Row({ a, selected, onSelect }) {
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">
           <span className="truncate text-[13.5px] font-semibold text-ink">{a.subject}</span>
+          {isNew && <span className="shrink-0 rounded-full bg-brand px-1.5 text-[10px] font-semibold tracking-wide text-white uppercase">New</span>}
           <span className="ml-auto shrink-0 text-[11px] text-ink-3" title={formatDateTime(a.detected_at)}>
             {formatRelative(a.detected_at)}
           </span>
@@ -57,15 +70,197 @@ function Row({ a, selected, onSelect }) {
         <span className="mt-1.5 flex items-center gap-2 text-[11.5px] text-ink-3">
           <src.icon className="size-3.5" />
           <span className="truncate">{src.label}</span>
+          {others > 0 && (
+            <span className="ml-auto flex shrink-0 items-center gap-1 rounded-full bg-high-soft px-1.5 py-px text-[10.5px] font-semibold text-high" title="Other alerts on the same identity">
+              <Layers className="size-3" /> +{others} {others === 1 ? 'signal' : 'signals'}
+            </span>
+          )}
         </span>
       </span>
     </div>
   );
 }
 
-/* ── The preview ────────────────────────────────────────────────────────── */
+/* ── Preview: what happened, why, and what to do ────────────────────────── */
 
-function Preview({ a }) {
+function SectionTitle({ children }) {
+  return <h3 className="mb-2.5 text-[11px] font-semibold tracking-[0.14em] text-ink-3 uppercase">{children}</h3>;
+}
+
+/** Posture: the checks that cost the points and the AWS changes behind them. */
+function PostureWhy({ a }) {
+  const id = postureId(a);
+  const q = useQuery((signal) => fetchIdentityAlert(id, signal), [id]);
+  const d = q.data;
+  const subject = d ? d.credential_arn || (String(d.identity_arn).includes(':iam::') ? d.identity_arn : '') : '';
+  const blast = useQuery((signal) => (subject ? fetchBlastRadius(subject, {}, signal) : Promise.resolve(null)), [subject]);
+  const b = blast.data;
+  return (
+    <>
+      <section className="rounded-[14px] border border-line p-4">
+        <div className="flex items-baseline justify-between gap-3">
+          <ScoreShift before={a.score_before} now={a.score_now} />
+          {d?.checks_evaluated ? (
+            <span className="text-[11.5px] text-ink-3" data-numeric="">
+              {formatNumber(d.checks_failed)} of {formatNumber(d.checks_evaluated)} checks failing
+            </span>
+          ) : null}
+        </div>
+        {!d ? (
+          <p className="mt-3 text-[12.5px] text-ink-3">{q.isError ? a.summary : 'Loading why…'}</p>
+        ) : (
+          <>
+            {d.new_failing_checks.length > 0 && (
+              <ul className="mt-3 flex flex-col divide-y divide-line">
+                {d.new_failing_checks.slice(0, 4).map((c) => (
+                  <li key={c.rule_id} className="flex items-start gap-3 py-2">
+                    <span className={cn('mt-[6px] size-1.5 shrink-0 rounded-full', SEV[String(c.severity).toLowerCase()]?.dot ?? 'bg-ink-3')} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[13px] font-medium text-ink">{c.title}</span>
+                      {c.detail && <span className="block truncate text-[11.5px] text-ink-3" title={c.detail}>{c.detail}</span>}
+                    </span>
+                    <span data-numeric="" className="shrink-0 text-[13px] font-semibold text-critical">
+                      −{formatNumber(c.points)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {d.inventory_changes.length > 0 && (
+              <div className="mt-3 rounded-[10px] bg-surface-2/70 px-3 py-2.5">
+                <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-ink-3">
+                  <GitCommitVertical className="size-3.5" /> What changed in AWS
+                </p>
+                <ul className="flex flex-col gap-1">
+                  {d.inventory_changes.slice(0, 3).map((c, i) => {
+                    const by = actorOf(c.details);
+                    return (
+                      <li key={i} className="text-[12.5px] text-ink-2">
+                        <span className="text-ink">{c.summary}</span>
+                        <span className="text-ink-3">
+                          {by ? ` · by ${by}` : ''} · {formatRelative(c.detected_at)}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+          </>
+        )}
+      </section>
+      {b && (
+        <section className="mt-3 flex items-center gap-3 rounded-[14px] border border-line px-4 py-3">
+          <Radius className="size-4 shrink-0 text-ink-3" />
+          <p className="min-w-0 flex-1 text-[12.5px] text-ink-2">
+            If its role is taken over, an attacker reaches <span className="font-semibold text-ink">{formatNumber((b.reachable_resources ?? []).length)} resources</span>
+            {(b.reachable_identities ?? []).length ? ` and can become ${formatNumber(b.reachable_identities.length)} more ${b.reachable_identities.length === 1 ? 'role' : 'roles'}` : ''}.
+          </p>
+          <span data-numeric="" className={cn('shrink-0 text-[15px] font-bold', BLAST[b.risk_level] ?? 'text-ink')} title="Blast radius score">
+            {Number(b.blast_radius_score ?? 0).toFixed(1)}
+          </span>
+        </section>
+      )}
+      <Actions>
+        <Button as={Link} to={a.link} size="sm" variant="primary" iconRight={ArrowUpRight}>
+          Why it dropped, in full
+        </Button>
+        {d?.discovery_id && (
+          <>
+            <Button as={Link} to={`/identities/${encodeURIComponent(d.discovery_id)}?tab=blast`} size="sm" variant="secondary" icon={Radius}>
+              Blast radius
+            </Button>
+            <Button as={Link} to={`/identities/${encodeURIComponent(d.discovery_id)}`} size="sm" variant="ghost" icon={Fingerprint}>
+              Identity
+            </Button>
+          </>
+        )}
+      </Actions>
+    </>
+  );
+}
+
+function GenomeWhy({ a }) {
+  return (
+    <>
+      <section className="rounded-[14px] border border-line p-4">
+        <p className="text-[13px] text-ink-2">
+          <span className="font-semibold text-ink" data-numeric="">
+            {formatNumber(a.count)}
+          </span>{' '}
+          open {a.count === 1 ? 'departure' : 'departures'} from the behaviour it learned - {a.summary}.
+        </p>
+        {a.facts?.latest && (
+          <p className="mt-3 rounded-[10px] bg-surface-2/70 px-3 py-2 text-[12.5px] text-ink-2">
+            <span className="text-ink-3">Latest · </span>
+            {a.facts.latest}
+          </p>
+        )}
+        <p className="mt-3 text-[12px] text-ink-3">Each departure is behaviour this identity had never shown before. Check whether a deploy or config change explains it; if not, treat it as a possible takeover.</p>
+      </section>
+      <Actions>
+        <Button as={Link} to={linkOf(a)} size="sm" variant="primary" iconRight={ArrowUpRight}>
+          Investigate the departures
+        </Button>
+        {a.facts?.identity_name && (
+          <Button as={Link} to={genomeRoute(a.facts.source_type, a.facts.identity_name)} size="sm" variant="secondary" icon={Dna}>
+            Its normal behaviour
+          </Button>
+        )}
+      </Actions>
+    </>
+  );
+}
+
+function ExposureWhy({ a, pageOn }) {
+  const f = a.facts ?? {};
+  const rows = [
+    ['Repository', a.subject],
+    ['File', f.file ? `${f.file}${f.line && f.line !== '0' ? `:${f.line}` : ''}` : ''],
+    ['Branch', f.branch],
+    ['Commit', f.commit ? f.commit.slice(0, 10) : ''],
+    ['Committed by', f.author],
+    ['Value', f.redacted],
+    ['Verified', VERIFIED[String(f.verification).toLowerCase()] ?? (f.verification ? f.verification.toLowerCase().replaceAll('_', ' ') : '')],
+  ].filter(([, v]) => v);
+  return (
+    <>
+      <section className="rounded-[14px] border border-line p-4">
+        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-1.5 text-[12.5px]">
+          {rows.map(([k, v]) => (
+            <div key={k} className="contents">
+              <dt className="text-ink-3">{k}</dt>
+              <dd className={cn('truncate text-ink', ['File', 'Commit', 'Value'].includes(k) && 'font-mono text-[12px]')} title={v}>
+                {v}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+      <section className="mt-3 rounded-[14px] border border-line p-4">
+        <SectionTitle>What to do</SectionTitle>
+        <ol className="flex list-decimal flex-col gap-1.5 pl-4 text-[12.5px] text-ink-2 marker:text-ink-3">
+          <li>Revoke or rotate the credential where it was issued. Deleting the file does not make it safe: it stays in the history.</li>
+          <li>Check the provider's logs for use since it was committed{f.author ? ` by ${f.author}` : ''}.</li>
+          <li>Move it to a secrets manager and remove it from the code.</li>
+        </ol>
+      </section>
+      {pageOn && (
+        <Actions>
+          <Button as={Link} to={linkOf(a)} size="sm" variant="primary" iconRight={ArrowUpRight}>
+            Open the finding
+          </Button>
+        </Actions>
+      )}
+    </>
+  );
+}
+
+function Actions({ children }) {
+  return <div className="mt-4 flex flex-wrap items-center gap-2">{children}</div>;
+}
+
+function Preview({ a, related, onPick, exposurePage }) {
   const src = SOURCES[a.source];
   const sev = SEV[a.severity] ?? SEV.medium;
   return (
@@ -89,51 +284,36 @@ function Preview({ a }) {
       </header>
 
       <div className="px-6 py-5">
-        <section className="rounded-[14px] border border-line bg-surface-2/40 p-4">
-          {a.source === 'posture' && (
-            <>
-              <ScoreShift before={a.score_before} now={a.score_now} />
-              <p className="mt-2 text-[13px] text-ink-2">{a.summary}</p>
-            </>
-          )}
-          {a.source === 'genome' && (
-            <>
-              <p className="text-[13px] text-ink-2">
-                <span className="font-semibold text-ink">{formatNumber(a.count)}</span> open {a.count === 1 ? 'departure' : 'departures'} from its learned baseline - {a.summary}.
-              </p>
-              {a.facts?.latest && <p className="mt-2 rounded-[10px] bg-surface px-3 py-2 text-[12.5px] text-ink-2">Latest: {a.facts.latest}</p>}
-            </>
-          )}
-          {a.source === 'exposure' && (
-            <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-[12.5px]">
-              <dt className="text-ink-3">Where</dt>
-              <dd className="truncate font-mono text-ink">{a.summary}</dd>
-              {a.facts?.redacted && (
-                <>
-                  <dt className="text-ink-3">Value</dt>
-                  <dd className="truncate font-mono text-ink-2">{a.facts.redacted}</dd>
-                </>
-              )}
-              {a.facts?.author && (
-                <>
-                  <dt className="text-ink-3">Committed by</dt>
-                  <dd className="truncate text-ink-2">{a.facts.author}</dd>
-                </>
-              )}
-              {a.facts?.verification && (
-                <>
-                  <dt className="text-ink-3">Verified</dt>
-                  <dd className="text-ink-2">{a.facts.verification.toLowerCase().replaceAll('_', ' ')}</dd>
-                </>
-              )}
-            </dl>
-          )}
-          <Link to={linkOf(a)} className="mt-3 inline-flex items-center gap-1 text-[12.5px] font-medium text-brand hover:underline">
-            {a.source === 'posture' ? 'See exactly why the score dropped' : a.source === 'genome' ? 'Investigate in NHI Genome' : 'Open in Credential exposure'}
-            <ArrowUpRight className="size-3.5" />
-          </Link>
-        </section>
-        <p className="mt-4 text-[12px] text-ink-3">
+        {related.length > 0 && (
+          <section className="mb-5 rounded-[14px] border border-high/30 bg-high-soft/40 p-4">
+            <p className="flex items-center gap-1.5 text-[12.5px] font-semibold text-ink">
+              <Sparkles className="size-3.5 text-high" />
+              {a.subject} has {related.length + 1} signals at once
+            </p>
+            <p className="mt-1 text-[12px] text-ink-2">A posture drop and a behaviour change on the same identity is a stronger sign than either alone. Look at them together.</p>
+            <ul className="mt-2.5 flex flex-col gap-1.5">
+              {related.map((r) => {
+                const RIcon = SOURCES[r.source].icon;
+                return (
+                  <li key={r.key}>
+                    <button type="button" onClick={() => onPick(r.key)} className="flex w-full items-center gap-2 rounded-[8px] bg-surface px-2.5 py-1.5 text-left text-[12.5px] hover:bg-surface-2">
+                      <RIcon className="size-3.5 text-ink-3" />
+                      <span className="min-w-0 flex-1 truncate text-ink">{r.title}</span>
+                      <span className="shrink-0 text-[11px] text-ink-3">{formatRelative(r.detected_at)}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
+
+        <SectionTitle>{a.source === 'exposure' ? 'Where it was found' : 'Why'}</SectionTitle>
+        {a.source === 'posture' && <PostureWhy a={a} />}
+        {a.source === 'genome' && <GenomeWhy a={a} />}
+        {a.source === 'exposure' && <ExposureWhy a={a} pageOn={exposurePage} />}
+
+        <p className="mt-6 border-t border-line pt-4 text-[11.5px] text-ink-3">
           {src.label} raised this {formatRelative(a.detected_at)}. It leaves this list once the cause is fixed and the next sync no longer sees it.
         </p>
       </div>
@@ -145,33 +325,52 @@ function Preview({ a }) {
 
 /**
  * Every alert from posture, NHI Genome and credential exposure in one
- * read-only list. ponytail: no status or comments (no tables of our own);
- * an alert lasts as long as its cause. Add triage back if teams need to
- * mark work done.
+ * read-only list: what is new since the last sync, which identities carry
+ * more than one signal, and for each one why and what to do.
+ * ponytail: no status or comments (no tables of our own); an alert lasts as
+ * long as its cause. Add triage back if teams need to mark work done.
  */
 export default function AlertsPage() {
   const { can } = useAccess();
   const { exposureEnabled } = useWorkspace();
-  const showExposure = exposureEnabled && can('exposure.view');
+  /* Exposure alerts follow the data and the role, not the source switch:
+     a finding already stored is still a leaked credential. */
+  const showExposure = can('exposure.view');
   const [sources, setSources] = useState([]);
   const [sevs, setSevs] = useState([]);
+  const [onlyNew, setOnlyNew] = useState(false);
   const [q, setQ] = useState('');
   const [selectedKey, setSelectedKey] = useState(null);
   const [mobileDetail, setMobileDetail] = useState(false);
   const listRef = useRef(null);
 
   const query = useQuery((signal) => fetchAlerts(signal), []);
+  const prev = query.data?.summary?.previous_sync ? new Date(query.data.summary.previous_sync).getTime() : null;
+  const isNew = (a) => prev !== null && new Date(a.detected_at).getTime() > prev;
 
   const all = useMemo(() => (query.data?.alerts ?? []).filter((a) => showExposure || a.source !== 'exposure'), [query.data, showExposure]);
+  const bySubject = useMemo(() => {
+    const m = new Map();
+    for (const a of all) {
+      const k = subjectKey(a);
+      if (k) m.set(k, [...(m.get(k) ?? []), a]);
+    }
+    return m;
+  }, [all]);
+  const relatedOf = (a) => (subjectKey(a) ? (bySubject.get(subjectKey(a)) ?? []).filter((r) => r.key !== a.key) : []);
+  const multi = [...bySubject.values()].filter((list) => new Set(list.map((x) => x.source)).size > 1).length;
+  const newCount = all.filter(isNew).length;
+
   const shown = useMemo(() => {
     const term = q.trim().toLowerCase();
     return all.filter(
       (a) =>
         (sources.length === 0 || sources.includes(a.source)) &&
         (sevs.length === 0 || sevs.includes(a.severity)) &&
+        (!onlyNew || (prev !== null && new Date(a.detected_at).getTime() > prev)) &&
         (!term || [a.subject, a.title, a.summary, a.account_id].some((v) => String(v ?? '').toLowerCase().includes(term))),
     );
-  }, [all, sources, sevs, q]);
+  }, [all, sources, sevs, onlyNew, prev, q]);
   const current = shown.find((a) => a.key === selectedKey) ?? shown[0] ?? null;
 
   useEffect(() => {
@@ -180,6 +379,7 @@ export default function AlertsPage() {
 
   const countBy = (field, value) => all.filter((a) => a[field] === value).length;
   const toggle = (list, set, v) => set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
+  const filtered = q || sources.length || sevs.length || onlyNew;
   const onKey = (e) => {
     if (e.target.closest('input')) return;
     const i = shown.findIndex((a) => a.key === current?.key);
@@ -194,8 +394,16 @@ export default function AlertsPage() {
 
   const lastSync = query.data?.summary?.last_sync;
   const lede = query.data
-    ? `${formatNumber(all.length)} ${all.length === 1 ? 'alert' : 'alerts'} from score drops, behaviour anomalies and exposed credentials${lastSync ? `, as of the sync ${formatRelative(lastSync)}` : ''}.`
+    ? [
+        `${formatNumber(all.length)} ${all.length === 1 ? 'alert' : 'alerts'}`,
+        newCount ? `${formatNumber(newCount)} new since the previous sync` : null,
+        multi ? `${formatNumber(multi)} ${multi === 1 ? 'identity has' : 'identities have'} more than one signal` : null,
+      ]
+        .filter(Boolean)
+        .join(' · ') + (lastSync ? `. Last sync ${formatRelative(lastSync)}.` : '.')
     : 'Score drops, behaviour anomalies and exposed credentials in one place.';
+
+  const chip = (on) => cn('flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[12px] transition-colors', on ? 'border-ink bg-ink text-surface' : 'border-line bg-surface text-ink-2 hover:border-line-strong');
 
   return (
     <div className="flex flex-col gap-5">
@@ -210,39 +418,41 @@ export default function AlertsPage() {
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-2">
+            <SearchInput size="sm" value={q} onChange={setQ} placeholder="Search identity, repo, account…" className="w-full sm:w-56" aria-label="Search alerts" />
+            {newCount > 0 && (
+              <>
+                <button type="button" aria-pressed={onlyNew} onClick={() => setOnlyNew((v) => !v)} className={chip(onlyNew)}>
+                  <span className={cn('size-1.5 rounded-full', onlyNew ? 'bg-surface' : 'bg-brand')} />
+                  New since last sync
+                  <span data-numeric="" className="font-semibold">
+                    {newCount}
+                  </span>
+                </button>
+                <span className="h-5 w-px bg-line" aria-hidden="true" />
+              </>
+            )}
             {Object.entries(SOURCES)
               .filter(([k]) => k !== 'exposure' || showExposure)
               .map(([k, src]) => {
                 const on = sources.includes(k);
+                const n = countBy('source', k);
                 return (
-                  <button
-                    key={k}
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() => toggle(sources, setSources, k)}
-                    className={cn('flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] transition-colors', on ? 'border-ink bg-ink text-surface' : 'border-line bg-surface text-ink-2 hover:border-line-strong')}
-                  >
+                  <button key={k} type="button" aria-pressed={on} onClick={() => toggle(sources, setSources, k)} className={chip(on)} disabled={!n && !on}>
                     <src.icon className="size-3.5" />
                     {src.label}
                     <span data-numeric="" className="font-semibold">
-                      {countBy('source', k)}
+                      {n}
                     </span>
                   </button>
                 );
               })}
-            <span className="mx-1 h-5 w-px bg-line" aria-hidden="true" />
+            <span className="h-5 w-px bg-line" aria-hidden="true" />
             {SEVERITIES.map((k) => {
               const on = sevs.includes(k);
               const n = countBy('severity', k);
               if (!n && !on) return null;
               return (
-                <button
-                  key={k}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => toggle(sevs, setSevs, k)}
-                  className={cn('flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[12px] transition-colors', on ? 'border-ink bg-ink text-surface' : 'border-line bg-surface text-ink-2 hover:border-line-strong')}
-                >
+                <button key={k} type="button" aria-pressed={on} onClick={() => toggle(sevs, setSevs, k)} className={chip(on)}>
                   <span className={cn('size-1.5 rounded-full', SEV[k].dot)} />
                   {SEV[k].label}
                   <span data-numeric="" className="font-semibold">
@@ -251,23 +461,22 @@ export default function AlertsPage() {
                 </button>
               );
             })}
-            <SearchInput size="sm" value={q} onChange={setQ} placeholder="Search alerts, identities, accounts…" className="ml-auto w-full sm:w-72" aria-label="Search alerts" />
           </div>
 
           <section className="relative overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface" onKeyDown={onKey}>
             {shown.length === 0 ? (
               <ClearState
-                title={q || sources.length || sevs.length ? 'No alert matches' : 'All clear'}
-                description={q || sources.length || sevs.length ? 'Try another filter or search.' : 'Nothing needs attention. New alerts appear here after each sync.'}
+                title={filtered ? 'No alert matches' : 'All clear'}
+                description={filtered ? 'Try another filter or search.' : 'Nothing needs attention. New alerts appear here after each sync.'}
               />
             ) : (
-              <div className="flex h-[min(76vh,860px)] min-h-[540px]">
+              <div className="flex h-[min(78vh,880px)] min-h-[560px]">
                 <div
                   ref={listRef}
                   role="listbox"
                   tabIndex={0}
                   aria-label="Alerts"
-                  className={cn('min-h-0 w-full shrink-0 overflow-y-auto border-r border-line outline-none lg:block lg:w-[440px]', mobileDetail ? 'hidden' : 'block')}
+                  className={cn('min-h-0 w-full shrink-0 overflow-y-auto border-r border-line outline-none lg:block lg:w-[420px]', mobileDetail ? 'hidden' : 'block')}
                 >
                   <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-line bg-surface/95 px-4 py-2 text-[11px] text-ink-3 backdrop-blur">
                     {formatNumber(shown.length)} · worst first
@@ -283,6 +492,8 @@ export default function AlertsPage() {
                     <Row
                       key={a.key}
                       a={a}
+                      isNew={isNew(a)}
+                      others={relatedOf(a).length}
                       selected={a.key === current?.key}
                       onSelect={() => {
                         setSelectedKey(a.key);
@@ -297,7 +508,22 @@ export default function AlertsPage() {
                       ← All alerts
                     </button>
                   )}
-                  {current && <Preview key={current.key} a={current} />}
+                  {current && (
+                    <Preview
+                      key={current.key}
+                      a={current}
+                      related={relatedOf(current)}
+                      exposurePage={exposureEnabled}
+                      onPick={(key) => {
+                        /* Clear filters that would hide the picked alert. */
+                        setSources([]);
+                        setSevs([]);
+                        setOnlyNew(false);
+                        setQ('');
+                        setSelectedKey(key);
+                      }}
+                    />
+                  )}
                 </div>
               </div>
             )}
