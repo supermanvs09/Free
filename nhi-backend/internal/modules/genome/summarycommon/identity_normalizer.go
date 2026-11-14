@@ -2,6 +2,7 @@ package summarycommon
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 
 	"nhi-backend-api/internal/modules/genome/workloadtypes"
@@ -40,6 +41,10 @@ type MonitoredIdentity struct {
 	RoleKind         string
 	TaskRoleARN      string
 	ExecutionRoleARN string
+
+	// Aliases are other keys the behaviour pipeline monitors this identity
+	// under (its discovery id, nhi_genome_identities keys).
+	Aliases []MonitoringKey
 }
 
 // EventName returns the identity name used by log_events.
@@ -77,6 +82,13 @@ func (i MonitoredIdentity) AllKeys() []MonitoringKey {
 
 	if wk, ok := i.MonitoringWorkloadKey(); ok {
 		keys = append(keys, wk)
+	}
+
+	// Aliases last: callers treat keys[0] as the identity's own key.
+	for _, k := range i.Aliases {
+		if !slices.Contains(keys, k) {
+			keys = append(keys, k)
+		}
 	}
 
 	return keys

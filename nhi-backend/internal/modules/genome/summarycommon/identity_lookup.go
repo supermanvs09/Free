@@ -3,6 +3,9 @@ package summarycommon
 import (
 	"context"
 	"errors"
+	"log/slog"
+	"nhi-backend-api/internal/modules/genome/registry"
+	"slices"
 	"strings"
 
 	"nhi-backend-api/internal/platform/logging"
@@ -261,6 +264,7 @@ func (l *MonitoredIdentityLookup) Fleet(
 		}
 	}
 
+	attachRegistryAliases(ctx, resolvedScope, fleet)
 	return resolvedScope, fleet, nil
 }
 
@@ -382,4 +386,35 @@ func EventsReadOK(
 	}
 
 	return false
+}
+
+// attachRegistryAliases adds the keys the behaviour pipeline monitors each
+// identity under, when they are not keys this backend derives: the
+// identity's discovery id, and every nhi_genome_identities row matched to it
+// (see package registry). A registry that cannot be read only costs the
+// aliases.
+func attachRegistryAliases(ctx context.Context, s *scope.DataScope, fleet []MonitoredIdentity) {
+	cands := make([]registry.Candidate, len(fleet))
+	for i, id := range fleet {
+		keys := []string{id.Key.IdentityName}
+		if id.WorkloadKey != "" {
+			keys = append(keys, id.WorkloadKey)
+		}
+		cands[i] = registry.Candidate{SourceType: id.Key.SourceType, Keys: keys, DiscoveryID: id.DiscoveryIdentityID,
+			ResourceARN: id.ResourceARN, RoleARN: id.RoleARN, InstanceID: id.InstanceID}
+		if d := strings.TrimSpace(id.DiscoveryIdentityID); d != "" && d != id.Key.IdentityName {
+			fleet[i].Aliases = append(fleet[i].Aliases, MonitoringKey{SourceType: id.Key.SourceType, IdentityName: d})
+		}
+	}
+	rows, err := registry.Load(ctx, s)
+	if err != nil {
+		slog.Default().Info("genome: identity registry unavailable", "err", err)
+		return
+	}
+	for _, a := range registry.Match(rows, cands) {
+		k := MonitoringKey{SourceType: a.SourceType, IdentityName: a.IdentityName}
+		if !slices.Contains(fleet[a.Index].Aliases, k) {
+			fleet[a.Index].Aliases = append(fleet[a.Index].Aliases, k)
+		}
+	}
 }

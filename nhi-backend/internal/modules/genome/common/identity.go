@@ -5,7 +5,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/url"
+	"nhi-backend-api/internal/modules/genome/registry"
+	"slices"
 	"strings"
 	"time"
 
@@ -63,6 +66,10 @@ type MonitoredIdentity struct {
 	RoleKind         string
 	TaskRoleARN      string
 	ExecutionRoleARN string
+
+	// Aliases are other keys the behaviour pipeline monitors this identity
+	// under (its discovery id, nhi_genome_identities keys).
+	Aliases []MonitoringKey
 }
 
 // Ref renders the identity as its dashboard reference.
@@ -116,6 +123,13 @@ func (i MonitoredIdentity) AllKeys() []MonitoringKey {
 
 	if wk, ok := i.WorkloadMonitoringKey(); ok {
 		keys = append(keys, wk)
+	}
+
+	// Aliases last: callers treat keys[0] as the identity's own key.
+	for _, k := range i.Aliases {
+		if !slices.Contains(keys, k) {
+			keys = append(keys, k)
+		}
 	}
 
 	return keys
@@ -1398,6 +1412,7 @@ func (l *MonitoredIdentityLookup) FleetWithDiscovery(
 		}
 	}
 
+	attachRegistryAliases(ctx, resolvedScope, fleet)
 	return resolvedScope, fleet, rows, nil
 }
 func uniqueDiscoveryIdentityIDs(
@@ -1487,11 +1502,12 @@ type IdentityIndex struct {
 	IDs        []MonitoredIdentity
 	byKey      map[MonitoringKey]int
 	byWorkload map[MonitoringKey]int // first identity sharing the workload key
+	byAlias    map[MonitoringKey]int // pipeline-only keys (see registry)
 }
 
 // NewIdentityIndex builds the index over ids.
 func NewIdentityIndex(ids []MonitoredIdentity) *IdentityIndex {
-	set := &IdentityIndex{IDs: ids, byKey: map[MonitoringKey]int{}, byWorkload: map[MonitoringKey]int{}}
+	set := &IdentityIndex{IDs: ids, byKey: map[MonitoringKey]int{}, byWorkload: map[MonitoringKey]int{}, byAlias: map[MonitoringKey]int{}}
 	for i, id := range ids {
 		if _, dup := set.byKey[id.Key]; !dup {
 			set.byKey[id.Key] = i
@@ -1499,6 +1515,11 @@ func NewIdentityIndex(ids []MonitoredIdentity) *IdentityIndex {
 		if wk, ok := id.WorkloadMonitoringKey(); ok {
 			if _, dup := set.byWorkload[wk]; !dup {
 				set.byWorkload[wk] = i
+			}
+		}
+		for _, k := range id.Aliases {
+			if _, dup := set.byAlias[k]; !dup {
+				set.byAlias[k] = i
 			}
 		}
 	}
@@ -1529,7 +1550,19 @@ func (s *IdentityIndex) IndexOf(k MonitoringKey) (int, bool) {
 	if i, ok := s.byWorkload[k]; ok {
 		return i, true
 	}
+	if i, ok := s.byAlias[k]; ok {
+		return i, true
+	}
 	return 0, false
+}
+
+// IsAlias reports whether k reaches an identity only through an alias, a
+// key the pipeline uses that is not the identity's own or workload key.
+func (s *IdentityIndex) IsAlias(k MonitoringKey) bool {
+	_, own := s.byKey[k]
+	_, wk := s.byWorkload[k]
+	_, alias := s.byAlias[k]
+	return alias && !own && !wk
 }
 
 // CompareDesc orders two optional values descending with nulls last; cmp
@@ -1588,4 +1621,35 @@ var FingerprintDimensions = []string{
 	"source_network_class", "user_agent_family", "hour_of_week_utc", "timing",
 	"cluster_name", "launch_type", "task_definition_family", // ECS
 	"state_machine_name", "execution_status", // Step Functions
+}
+
+// attachRegistryAliases adds the keys the behaviour pipeline monitors each
+// identity under, when they are not keys this backend derives: the
+// identity's discovery id, and every nhi_genome_identities row matched to it
+// (see package registry). A registry that cannot be read only costs the
+// aliases.
+func attachRegistryAliases(ctx context.Context, s *scope.DataScope, fleet []MonitoredIdentity) {
+	cands := make([]registry.Candidate, len(fleet))
+	for i, id := range fleet {
+		keys := []string{id.Key.IdentityName}
+		if id.WorkloadKey != "" {
+			keys = append(keys, id.WorkloadKey)
+		}
+		cands[i] = registry.Candidate{SourceType: id.Key.SourceType, Keys: keys, DiscoveryID: id.DiscoveryIdentityID,
+			ResourceARN: id.ResourceARN, RoleARN: id.RoleARN, InstanceID: id.InstanceID}
+		if d := strings.TrimSpace(id.DiscoveryIdentityID); d != "" && d != id.Key.IdentityName {
+			fleet[i].Aliases = append(fleet[i].Aliases, MonitoringKey{SourceType: id.Key.SourceType, IdentityName: d})
+		}
+	}
+	rows, err := registry.Load(ctx, s)
+	if err != nil {
+		slog.Default().Info("genome: identity registry unavailable", "err", err)
+		return
+	}
+	for _, a := range registry.Match(rows, cands) {
+		k := MonitoringKey{SourceType: a.SourceType, IdentityName: a.IdentityName}
+		if !slices.Contains(fleet[a.Index].Aliases, k) {
+			fleet[a.Index].Aliases = append(fleet[a.Index].Aliases, k)
+		}
+	}
 }

@@ -176,6 +176,11 @@ func AnomalyIdentityRefFor(a AlertRow, set *IdentityIndex) AnomalyIdentityRef {
 	ref := AnomalyIdentityRef{SourceType: a.Key.SourceType, IdentityName: a.Key.IdentityName}
 	i, ok := set.IndexOf(a.Key)
 	ref.Monitored = ok
+	/* A pipeline-only key (registry alias): report the identity's own key,
+	   so the alert groups and links with the rest of that identity. */
+	if ok && set.IsAlias(a.Key) {
+		ref.SourceType, ref.IdentityName = set.IDs[i].Key.SourceType, set.IDs[i].Key.IdentityName
+	}
 	if ok && set.IDs[i].DisplayName != "" {
 		ref.DisplayName = set.IDs[i].DisplayName
 		return ref
