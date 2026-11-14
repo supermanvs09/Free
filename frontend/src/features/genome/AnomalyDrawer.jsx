@@ -216,7 +216,7 @@ export function AnomalyDrawer({ anomaly, pattern, onClose, onReviewed }) {
         <div className="px-4 py-4 sm:px-5"><DetailSkeleton rows={6} /></div>
       ) : (
         <div className="flex flex-col gap-4 px-4 py-4 sm:px-5">
-          <div className="relative overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface p-4 pl-5">
+          <div className="relative overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface shadow-[var(--t-shadow-sm)] p-4 pl-5">
             <span aria-hidden="true" className={cn('absolute inset-y-0 left-0 w-1', sev.weight ? TONE_BG[sev.tone] : 'bg-line-strong')} />
             <div className="flex flex-wrap items-center gap-1.5">
               {sev.weight ? <Tag tone={sev.tone} size="sm" dot>{sev.label}</Tag> : null}

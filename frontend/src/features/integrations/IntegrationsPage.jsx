@@ -672,7 +672,7 @@ function AddedBanner({ accountId, onDismiss }) {
 function PageSkeleton() {
   return (
     <div className="flex flex-col gap-5" aria-busy="true">
-      <div className="flex items-center gap-5 rounded-[var(--radius-panel)] border border-line bg-surface p-6">
+      <div className="flex items-center gap-5 rounded-[var(--radius-panel)] border border-line bg-surface shadow-[var(--t-shadow-sm)] p-6">
         <Skeleton className="size-14 rounded-[14px]" />
         <div className="flex-1">
           <Skeleton className="h-5 w-56 rounded" />

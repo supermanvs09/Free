@@ -348,7 +348,7 @@ export function AnomalyPatterns({ items, onOpen, canAct, onChanged }) {
   const { ask, modal } = useCloseMany(onChanged);
   return (
     <>
-      <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface">
+      <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface shadow-[var(--t-shadow-sm)]">
         {patterns.map((pattern) => (
           <PatternRow key={pattern.key} pattern={pattern} onOpen={onOpen} canAct={canAct} onClose={ask} />
         ))}

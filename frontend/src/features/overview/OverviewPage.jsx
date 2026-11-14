@@ -309,7 +309,7 @@ function HeadlineTiles({ kpis, activity, exposure, findingsQuery, findingSummary
 function CodeExposureTile({ query, summary }) {
   if (query.isLoading && !query.data) {
     return (
-      <div className="rounded-[var(--radius-panel)] border border-line bg-surface p-4" aria-busy="true">
+      <div className="rounded-[var(--radius-panel)] border border-line bg-surface shadow-[var(--t-shadow-sm)] p-4" aria-busy="true">
         <Skeleton className="h-3 w-28 rounded" />
         <Skeleton className="mt-3 h-8 w-16 rounded" />
         <Skeleton className="mt-3 h-1.5 w-full rounded-full" />
@@ -320,7 +320,7 @@ function CodeExposureTile({ query, summary }) {
   if (query.isError && !query.data) {
     const detail = describeExposureError(query.error);
     return (
-      <div className="flex flex-col justify-between rounded-[var(--radius-panel)] border border-line bg-surface p-4">
+      <div className="flex flex-col justify-between rounded-[var(--radius-panel)] border border-line bg-surface shadow-[var(--t-shadow-sm)] p-4">
         <p className="text-[11px] font-semibold tracking-[0.09em] text-ink-3 uppercase">Exposed secrets</p>
         <p className="mt-2 text-[12.5px] leading-snug text-ink-2">{detail.title}</p>
         <Button variant="ghost" size="sm" icon={RotateCw} onClick={query.refetch} className="mt-2 self-start">

@@ -24,11 +24,11 @@
   --t-accent-strong: #0b93cc;
 
   /* Surfaces ------------------------------------------------------------- */
-  --t-canvas: #f6f6f7;
+  --t-canvas: #ffffff;
   --t-surface: #ffffff;
-  --t-surface-2: #fafafa;
-  --t-surface-3: #f1f1f3;
-  --t-surface-inset: #f4f4f5;
+  --t-surface-2: #f6f6f6;
+  --t-surface-3: #f0f0f0;
+  --t-surface-inset: #f5f5f5;
 
   /* ── Graph marks ────────────────────────────────────────────────────────
      A mark on a canvas is a different job from a tag or a line of text, and
@@ -51,27 +51,27 @@
      `surface-3` on `surface-2` was only 10/255 apart and the bars looked like
      they were floating. */
   --t-track: color-mix(in srgb, var(--t-ink-3) 20%, transparent);
-  --t-line: #e6e6e9;
-  --t-line-strong: #d4d4d8;
+  --t-line: #e5e5e5;
+  --t-line-strong: #d4d4d4;
   --t-overlay: rgba(9, 9, 11, 0.4);
 
   /* Ink ------------------------------------------------------------------ */
-  --t-ink: #111113;
-  --t-ink-2: #4b4b52;
-  --t-ink-3: #6b6b75;
+  --t-ink: #171717;
+  --t-ink-2: #525252;
+  --t-ink-3: #737373;
   --t-ink-inverse: #fafafa;
 
   /* Top bar - follows the theme. Application chrome, not a marketing header. */
   --t-topbar: #ffffff;
-  --t-topbar-line: #e6e6e9;
-  --t-topbar-ink: #111113;
-  --t-topbar-muted: #6b6b75;
-  --t-topbar-hover: #f1f1f3;
-  --t-topbar-field: #f6f6f7;
+  --t-topbar-line: #e5e5e5;
+  --t-topbar-ink: #171717;
+  --t-topbar-muted: #737373;
+  --t-topbar-hover: #f5f5f5;
+  --t-topbar-field: #fafafa;
 
   /* Sidebar - an application surface that recedes behind the content ----- */
-  --t-sidebar: #fbfbfb;
-  --t-sidebar-line: #e6e6e9;
+  --t-sidebar: #fafafa;
+  --t-sidebar-line: #e5e5e5;
 
   /* Risk / status -------------------------------------------------------- */
   --t-critical: #b42318;
@@ -84,8 +84,8 @@
   --t-low-soft: #e7f6ef;
   --t-info: #1d63ed;
   --t-info-soft: #eef3fe;
-  --t-neutral: #6b6b75;
-  --t-neutral-soft: #f1f1f3;
+  --t-neutral: #737373;
+  --t-neutral-soft: #f5f5f5;
 
   /* Categorical series - fixed slot order, validated for CVD separation and
      contrast against the light surface. Slot 8 is a reserved neutral used for
@@ -108,11 +108,11 @@
   --t-ramp-5: #0d4b83;
 
   /* Chart chrome */
-  --t-chart-grid: #ededf0;
+  --t-chart-grid: #efefef;
   --t-chart-axis: #a1a1aa;
 
   /* Elevation ------------------------------------------------------------ */
-  --t-shadow-sm: 0 1px 2px rgba(16, 16, 20, 0.04);
+  --t-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(0, 0, 0, 0.01);
   --t-shadow-md: 0 2px 8px -2px rgba(16, 16, 20, 0.07), 0 1px 2px rgba(16, 16, 20, 0.04);
   --t-shadow-lg: 0 24px 48px -16px rgba(16, 16, 20, 0.2), 0 2px 6px rgba(16, 16, 20, 0.05);
   --t-focus-ring: 0 0 0 3px rgba(29, 99, 237, 0.25);
@@ -267,7 +267,7 @@
   --color-chart-grid: var(--t-chart-grid);
   --color-chart-axis: var(--t-chart-axis);
 
-  --radius-panel: 12px;
+  --radius-panel: 10px;
   --radius-control: 8px;
 
   --shadow-sm: var(--t-shadow-sm);

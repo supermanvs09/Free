@@ -27,7 +27,7 @@ const TONES = {
 
 function Tile({ icon: Icon, label, value, unit, caption, tone = 'info', title }) {
   return (
-    <div className="relative flex flex-col overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface p-4" title={title}>
+    <div className="relative flex flex-col overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface p-4 shadow-[var(--t-shadow-sm)]" title={title}>
       <span className="flex items-center justify-between gap-2 text-[12.5px] font-medium text-ink-2">
         {label}
         {Icon && (

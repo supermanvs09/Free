@@ -138,7 +138,7 @@ export function FacetRail({
           type="button"
           onClick={() => setOpenOnMobile((value) => !value)}
           aria-expanded={openOnMobile}
-          className="flex w-full items-center gap-2 rounded-[var(--radius-panel)] border border-line bg-surface px-3.5 py-2.5 text-left"
+          className="flex w-full items-center gap-2 rounded-[var(--radius-panel)] border border-line bg-surface shadow-[var(--t-shadow-sm)] px-3.5 py-2.5 text-left"
         >
           <SlidersHorizontal aria-hidden="true" className="size-4 shrink-0 text-ink-3" />
           <span className="text-[13px] font-medium text-ink">{mobileTitle}</span>
@@ -159,7 +159,7 @@ export function FacetRail({
           />
         </button>
         {openOnMobile && (
-          <div className="animate-fade mt-2 overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface">
+          <div className="animate-fade mt-2 overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface shadow-[var(--t-shadow-sm)]">
             {body}
           </div>
         )}
@@ -169,7 +169,7 @@ export function FacetRail({
         ref={railRef}
         aria-label="Filters"
         className={cn(
-          'sticky top-[calc(104px/var(--content-zoom))] hidden max-h-[calc((100dvh-120px)/var(--content-zoom))] flex-col overflow-hidden overscroll-contain rounded-[var(--radius-panel)] border border-line bg-surface lg:flex',
+          'sticky top-[calc(104px/var(--content-zoom))] hidden max-h-[calc((100dvh-120px)/var(--content-zoom))] flex-col overflow-hidden overscroll-contain rounded-[var(--radius-panel)] border border-line bg-surface shadow-[var(--t-shadow-sm)] lg:flex',
           className,
         )}
       >

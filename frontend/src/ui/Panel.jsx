@@ -15,9 +15,9 @@ import { cn } from './cn';
  *   quiet   reference material. Recessed onto the canvas tint, no elevation.
  */
 const PROMINENCE = {
-  lead: 'border-line-strong bg-surface shadow-[var(--t-shadow-md)]',
-  default: 'border-line bg-surface',
-  quiet: 'border-line bg-surface-2',
+  lead: 'border-line bg-surface shadow-[var(--t-shadow-sm)]',
+  default: 'border-line bg-surface shadow-[var(--t-shadow-sm)]',
+  quiet: 'border-line bg-surface shadow-[var(--t-shadow-sm)]',
 };
 
 const PADDING = {

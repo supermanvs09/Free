@@ -318,7 +318,7 @@ export function EventsWatch({ checks, setup }) {
   const pct = Number.isFinite(span) && span > 0 ? Math.min(100, Math.max(0, ((now - started) / span) * 100)) : 0;
   const waiting = list.filter((r) => !r.seen).map((r) => r.region);
   return (
-    <section aria-label="Events from your regions" className="rounded-[var(--radius-panel)] border border-line bg-surface">
+    <section aria-label="Events from your regions" className="rounded-[var(--radius-panel)] border border-line bg-surface shadow-[var(--t-shadow-sm)]">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
         <div>
           <p className="text-[13px] font-semibold text-ink" aria-live="polite">

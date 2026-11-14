@@ -197,7 +197,7 @@ function WhoCanBecome({ arn }) {
   const callers = (data.callers ?? []).filter((c) => (c.hops ?? 1) > 1);
   if (principals.length === 0 && callers.length === 0) return null;
   return (
-    <section className="rounded-[var(--radius-panel)] border border-line bg-surface">
+    <section className="rounded-[var(--radius-panel)] border border-line bg-surface shadow-[var(--t-shadow-sm)]">
       <header className="flex items-baseline justify-between gap-3 border-b border-line px-4 py-3">
         <h3 className="text-[13px] font-semibold text-ink">Who can become this role</h3>
         {data.public_trust && (
@@ -304,7 +304,7 @@ export function BlastRadiusView({ arn, compact = false }) {
   return (
     <div className={cn('@container flex flex-col gap-4', query.isRefreshing && 'opacity-70 transition-opacity')}>
       {/* Verdict */}
-      <section className="overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface">
+      <section className="overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface shadow-[var(--t-shadow-sm)]">
         <div className="flex flex-col gap-5 p-5 @xl:flex-row @xl:items-center @xl:gap-7 sm:p-6">
           <div className="flex items-center gap-4">
             <Gauge score={result.blast_radius_score} level={result.risk_level} />
@@ -364,7 +364,7 @@ export function BlastRadiusView({ arn, compact = false }) {
 
       {/* Explore the attack surface */}
       {!compact && (
-        <section className="hidden overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface @3xl:block">
+        <section className="hidden overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface shadow-[var(--t-shadow-sm)] @3xl:block">
           <header className="flex items-baseline justify-between gap-3 border-b border-line px-5 py-3.5">
             <h3 className="text-[13.5px] font-semibold text-ink">Attack surface</h3>
             <span className="text-[12px] text-ink-3">Select any node to trace how an attacker gets there</span>
@@ -374,7 +374,7 @@ export function BlastRadiusView({ arn, compact = false }) {
       )}
 
       {/* What it can reach */}
-      <section className="overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface">
+      <section className="overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface shadow-[var(--t-shadow-sm)]">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3">
           <h3 className="text-[13px] font-semibold text-ink">
             What it can reach{' '}

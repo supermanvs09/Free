@@ -46,7 +46,7 @@ export function ScopeStrip({ scope, lastScanAt, onScopeSaved }) {
 
   if (scope.isLoading && !scope.data) {
     return (
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-[var(--radius-panel)] border border-line bg-surface px-4 py-3" aria-busy="true">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-[var(--radius-panel)] border border-line bg-surface shadow-[var(--t-shadow-sm)] px-4 py-3" aria-busy="true">
         {Array.from({ length: 4 }).map((_, index) => (
           <div key={index} className="flex flex-col gap-1.5">
             <Skeleton className="h-2.5 w-16 rounded" />
@@ -59,7 +59,7 @@ export function ScopeStrip({ scope, lastScanAt, onScopeSaved }) {
 
   if (scope.isError && !scope.data) {
     return (
-      <div className="flex items-center gap-2.5 rounded-[var(--radius-panel)] border border-line bg-surface px-4 py-3 text-[12.5px] text-ink-3">
+      <div className="flex items-center gap-2.5 rounded-[var(--radius-panel)] border border-line bg-surface shadow-[var(--t-shadow-sm)] px-4 py-3 text-[12.5px] text-ink-3">
         <Database aria-hidden="true" className="size-4 shrink-0 text-ink-3" />
         <span className="min-w-0 flex-1">
           Your data scope could not be loaded, so the figures below cannot be attributed to a set of

@@ -369,7 +369,7 @@ export default function AlertsPage() {
       {query.isError && !query.data ? (
         <ErrorState error={query.error} onRetry={query.refetch} />
       ) : !query.data ? (
-        <div className="rounded-[var(--radius-panel)] border border-line bg-surface p-4">
+        <div className="rounded-[var(--radius-panel)] border border-line bg-surface shadow-[var(--t-shadow-sm)] p-4">
           <ListSkeleton rows={8} />
         </div>
       ) : (
@@ -420,7 +420,7 @@ export default function AlertsPage() {
             })}
           </div>
 
-          <section className="relative overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface" onKeyDown={onKey}>
+          <section className="relative overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface shadow-[var(--t-shadow-sm)]" onKeyDown={onKey}>
             {shown.length === 0 ? (
               <ClearState
                 title={filtered ? 'No alert matches' : 'All clear'}
