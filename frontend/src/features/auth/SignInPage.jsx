@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, BadgeCheck, Clock3, ShieldCheck } from 'lucide-react';
-import { detectViewer, signIn } from '../../data/store';
+import { detectViewer, signIn, useView } from '../../data/store';
 import { PROVIDERS, SOURCE_PROVIDERS } from '../../data/world';
 import { Button } from '../../ui/Button';
 import { Field, Input } from '../../ui/Field';
@@ -24,6 +24,7 @@ export default function SignInPage() {
   const [email, setEmail] = useState('');
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  const relay = useView((v) => v.mode === 'relay');
 
   useEffect(() => {
     detectViewer().then((v) => setViewer(v && v.name ? v : null));
@@ -33,6 +34,7 @@ export default function SignInPage() {
     event?.preventDefault();
     if (!viewer) {
       if (!name.trim()) return setError('Enter your name so teammates know who did what.');
+      if (relay && !email.trim()) return setError('Enter your work email. Jira and alert mail are sent there.');
       if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) return setError('That email address does not look complete.');
     }
     setBusy(true);
@@ -102,7 +104,7 @@ export default function SignInPage() {
               <Field label="Full name" htmlFor="si-name" required>
                 <Input id="si-name" size="auth" value={name} onChange={(e) => { setName(e.target.value); setError(null); }} autoComplete="name" autoFocus placeholder="Your full name" />
               </Field>
-              <Field label="Work email" htmlFor="si-email" hint="Optional. Used to address mail sent to you.">
+              <Field label="Work email" htmlFor="si-email" required={relay} hint={relay ? 'Alerts, assignments and Jira updates are emailed here.' : 'Optional. Used to address mail sent to you.'}>
                 <Input id="si-email" size="auth" type="email" value={email} onChange={(e) => { setEmail(e.target.value); setError(null); }} autoComplete="email" placeholder="name@corvane.io" />
               </Field>
               {error && <p role="alert" className="text-[13px] font-medium text-critical">{error}</p>}

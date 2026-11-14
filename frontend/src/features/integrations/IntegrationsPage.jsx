@@ -7,7 +7,9 @@ import { Button } from '../../ui/Button';
 import { Menu } from '../../ui/Menu';
 import { Modal } from '../../ui/Overlay';
 import { useToast } from '../../ui/Toast';
-import { actions, useView } from '../../data/store';
+import { actions, testIntegration, useView } from '../../data/store';
+import { Container, KeyValues } from '../../ui/Container';
+import { Input } from '../../ui/Field';
 import { PROVIDERS, SOURCE_PROVIDERS } from '../../data/world';
 import { AppLogo } from '../../components/Logo';
 import { PersonName, StatusPill, Time } from '../../components/bits';
@@ -103,41 +105,7 @@ export default function IntegrationsPage() {
         </div>
       </section>
 
-      <section>
-        <h2 className="mb-2.5 text-[12px] font-semibold tracking-[0.12em] text-ink-3 uppercase">Tickets and notifications</h2>
-        <div className="grid gap-4 @min-[60rem]:grid-cols-2">
-          {['jira', 'email'].map((p) => {
-            const c = view.connections.find((x) => x.provider === p);
-            return (
-              <Panel key={p}>
-                <div className="flex items-start gap-3.5">
-                  <AppLogo name={PROVIDERS[p].logo} size={44} />
-                  <div className="min-w-0 flex-1">
-                    <p className="flex flex-wrap items-center gap-2 text-[15px] font-bold text-ink">{PROVIDERS[p].name}{c && <StatusPill status={c.status} />}</p>
-                    <p className="mt-1 text-[12.5px] leading-relaxed text-ink-3">{BLURB[p]}</p>
-                  </div>
-                </div>
-                {c ? (
-                  <dl className="mt-4 grid grid-cols-2 gap-3 rounded-[10px] bg-surface-2 p-3 text-[12.5px]">
-                    <div><dt className="text-ink-3">{p === 'jira' ? 'Site' : 'Delivered by'}</dt><dd className="font-medium text-ink">{c.name}</dd></div>
-                    <div><dt className="text-ink-3">{p === 'jira' ? 'Project' : 'From'}</dt><dd className="font-medium text-ink">{p === 'jira' ? 'SEC · Security Engineering' : c.locator}</dd></div>
-                    <div><dt className="text-ink-3">{p === 'jira' ? 'Issues raised' : 'Messages sent'}</dt><dd className="font-medium text-ink" data-numeric="">{p === 'jira' ? view.tickets.length : view.mail.length}</dd></div>
-                    <div><dt className="text-ink-3">Routing</dt><dd><Link to="/automations" className="font-medium text-brand hover:underline">{view.rules.filter((r) => r.enabled && (p === 'jira' ? r.actions?.jira : r.actions?.email?.length)).length} automations</Link></dd></div>
-                  </dl>
-                ) : (
-                  <Button className="mt-4" variant="primary" size="sm" icon={Plus} onClick={() => setWizard(p)}>Connect</Button>
-                )}
-                {c && (
-                  <div className="mt-3 flex gap-2">
-                    <Button size="sm" variant="secondary" as={Link} to={p === 'jira' ? '/tickets' : '/inbox'}>{p === 'jira' ? 'Open board' : 'Open inbox'}</Button>
-                    <Button size="sm" variant="ghost" onClick={() => setWizard(p)}>Reconfigure</Button>
-                  </div>
-                )}
-              </Panel>
-            );
-          })}
-        </div>
-      </section>
+      <WorkflowIntegrations onReconfigure={setWizard} />
 
       {wizard && <ConnectWizard provider={wizard} onClose={() => setWizard(null)} />}
       <Modal
@@ -159,3 +127,75 @@ export default function IntegrationsPage() {
 }
 
 
+
+/* Jira and Gmail: live through the relay, with a test that proves each end to end. */
+function WorkflowIntegrations({ onReconfigure }) {
+  const view = useView();
+  const live = view.integrations;
+  const relay = view.mode === 'relay';
+  return (
+    <section className="flex flex-col gap-4">
+      <h2 className="text-[15px] font-semibold text-ink">Tickets and email</h2>
+      {!relay && (
+        <div className="rounded-[10px] border border-line bg-surface-2 px-5 py-4 text-[13px] text-ink-2">
+          <p className="font-medium text-ink">Real Jira issues and Gmail delivery run through the relay.</p>
+          <p className="mt-1">Deploy the console with the relay (one Cloudflare Worker, free plan) and open it from that address. Issues and mail created here are then created in Jira and sent by Gmail, and Jira status changes flow back live. Setup steps are in <code className="rounded bg-inset px-1 font-mono text-[12px]">relay/README.md</code>.</p>
+        </div>
+      )}
+      <div className="grid gap-4 @min-[60rem]:grid-cols-2">
+        <IntegrationCard
+          logo="jira"
+          title="Jira Cloud"
+          state={live?.jira?.configured ? 'live' : relay ? 'off' : 'local'}
+          items={live?.jira?.configured ? [['Site', live.jira.site], ['Project', live.jira.project], ['Status from Jira', live.jira.webhook ? 'Webhook on, live' : 'Webhook not set'], ['Issues created', view.tickets.filter((t) => t.jiraKey).length]] : [['Issues in the console', view.tickets.length], ['Sync', 'Console only']]}
+          test="jira"
+          steps={['Create an API token at id.atlassian.com, Security, API tokens.', 'npx wrangler secret put JIRA_BASE_URL (https://your-site.atlassian.net), JIRA_EMAIL, JIRA_API_TOKEN, JIRA_WEBHOOK_SECRET.', 'In Jira: Settings, System, WebHooks. Add <relay>/api/jira/webhook?secret=<secret> for issue updated and comment created, JQL: labels = nhi.']}
+          onReconfigure={() => onReconfigure('jira')}
+        />
+        <IntegrationCard
+          logo="gmail"
+          title="Gmail"
+          state={live?.email?.configured ? 'live' : relay ? 'off' : 'local'}
+          items={live?.email?.configured ? [['Sends as', live.email.sender || 'the authorised mailbox'], ['Allowed domains', live.email.allowedDomains?.join(', ') || 'Any'], ['Delivered', view.mail.filter((m) => m.delivery?.status === 'sent').length], ['Held back', view.mail.filter((m) => m.delivery?.status === 'held').length]] : [['Messages in the console', view.mail.length], ['Delivery', 'Console inbox only']]}
+          test="email"
+          steps={['Google Cloud console: enable the Gmail API, create an OAuth client (web application).', 'Authorise the sending mailbox once with scope gmail.send and keep the refresh token.', 'npx wrangler secret put GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN, GMAIL_SENDER, MAIL_ALLOWED_DOMAINS.']}
+          onReconfigure={() => onReconfigure('email')}
+        />
+      </div>
+    </section>
+  );
+}
+
+function IntegrationCard({ logo, title, state, items, steps, test }) {
+  const me = useView((v) => v.me);
+  const [to, setTo] = useState(me?.email || '');
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null);
+  const label = { live: ['Connected', 'bg-low-soft text-low'], off: ['Not configured', 'bg-medium-soft text-medium'], local: ['Console only', 'bg-surface-3 text-ink-2'] }[state];
+  const run = async () => {
+    setBusy(true);
+    setResult(await testIntegration(test, to));
+    setBusy(false);
+  };
+  return (
+    <Container
+      title={<span className="flex items-center gap-2.5"><AppLogo name={logo} size={26} />{title}</span>}
+      actions={<span className={`rounded-full px-2 py-0.5 text-[11.5px] font-medium ${label[1]}`}>{label[0]}</span>}
+      footer={state === 'live' ? (
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {test === 'email' && <Input size="sm" className="w-56" value={to} onChange={(e) => setTo(e.target.value)} placeholder="you@company.com" aria-label="Send a test to" />}
+          <Button size="sm" variant="secondary" loading={busy} onClick={run}>{test === 'email' ? 'Send test email' : 'Test connection'}</Button>
+        </div>
+      ) : null}
+    >
+      <KeyValues columns={2} items={items} />
+      {result && <p className={`mt-4 text-[13px] ${result.ok ? 'text-low' : 'text-critical'}`}>{result.detail}</p>}
+      {state !== 'live' && (
+        <details className="mt-4 rounded-[8px] border border-line px-4 py-3 text-[13px]">
+          <summary className="cursor-pointer font-medium text-ink">How to connect</summary>
+          <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-ink-2">{steps.map((s) => <li key={s}>{s}</li>)}</ol>
+        </details>
+      )}
+    </Container>
+  );
+}

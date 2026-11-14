@@ -163,6 +163,7 @@ function Message({ m, onReply }) {
           </Link>
         )}
         {m.triggeredBy && m.triggeredBy !== 'system' && <p className="mt-6 text-[11.5px] text-ink-3">Sent because of an action by {personName(m.triggeredBy, view)}.</p>}
+        <Delivery m={m} />
       </div>
       <footer className="flex flex-wrap gap-2 border-t border-line p-3">
         <Button size="sm" variant="secondary" icon={Reply} onClick={() => onReply('reply')}>Reply</Button>
@@ -171,4 +172,18 @@ function Message({ m, onReply }) {
       </footer>
     </article>
   );
+}
+
+/* Whether this message also went out as real email. */
+function Delivery({ m }) {
+  const integrations = useView((v) => v.integrations);
+  if (m.seed) return null;
+  const d = m.delivery;
+  if (d?.status === 'jira') return <p className="mt-3 text-[12px] text-ink-3">Jira emails the people on this issue directly.</p>;
+  if (m.kind === 'jira' && !d && !integrations?.email?.configured) return null;
+  if (d?.status === 'sent') return <p className="mt-3 text-[12px] text-low">Delivered by Gmail to {d.to.join(', ')}{d.held?.length ? `. Held for ${d.held.join(', ')} (outside allowed domains).` : '.'}</p>;
+  if (d?.status === 'held') return <p className="mt-3 text-[12px] text-medium">Not emailed: {d.held.join(', ') || 'no address'} is outside the allowed domains.</p>;
+  if (m.syncError) return <p className="mt-3 text-[12px] text-critical">Email failed: {m.syncError}</p>;
+  if (integrations?.email?.configured) return <p className="mt-3 text-[12px] text-ink-3">Sending by Gmail…</p>;
+  return <p className="mt-3 text-[12px] text-ink-3">Delivered in the console only. Connect email in Integrations to send real mail.</p>;
 }

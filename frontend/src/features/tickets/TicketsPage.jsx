@@ -87,7 +87,7 @@ export default function TicketsPage() {
                         {t.links?.[0] && <p className="mt-1.5 truncate rounded bg-surface-3 px-1.5 py-0.5 text-[11px] text-ink-2">{t.links[0].kind}: {recordLabel(t.links[0], view)}</p>}
                         <div className="mt-2.5 flex items-center gap-1.5">
                           <JiraTypeIcon type={t.type} />
-                          <span className={cn('text-[11.5px] font-semibold text-ink-3', t.status === 'Done' && 'line-through')}>{t.key}</span>
+                          <span className={cn('text-[11.5px] font-semibold text-ink-3', t.status === 'Done' && 'line-through')}>{t.displayKey}</span>
                           {t.auto && <span className="rounded bg-surface-3 px-1 text-[10px] text-ink-3">auto</span>}
                           <span className="ml-auto flex items-center gap-1.5"><JiraPriority priority={t.priority} /><Avatar refId={t.assignee} size={22} /></span>
                         </div>
@@ -110,7 +110,7 @@ export default function TicketsPage() {
               <tbody className="divide-y divide-line">
                 {tickets.map((t) => (
                   <tr key={t.key} onClick={() => setOpen(t.key)} className="cursor-pointer hover:bg-surface-2">
-                    <td className="px-4 py-2.5 whitespace-nowrap"><span className="inline-flex items-center gap-1.5"><JiraTypeIcon type={t.type} /><span className="font-semibold text-ink-2">{t.key}</span></span></td>
+                    <td className="px-4 py-2.5 whitespace-nowrap"><span className="inline-flex items-center gap-1.5"><JiraTypeIcon type={t.type} /><span className="font-semibold text-ink-2">{t.displayKey}</span></span></td>
                     <td className="max-w-[420px] truncate px-4 py-2.5 text-ink">{t.summary}</td>
                     <td className="px-4 py-2.5"><JiraStatus status={t.status} /></td>
                     <td className="px-4 py-2.5"><JiraPriority priority={t.priority} withLabel /></td>
@@ -139,7 +139,7 @@ function TicketDrawer({ ticketKey, onClose }) {
       open
       onClose={onClose}
       width="xl"
-      eyebrow={<span className="inline-flex items-center gap-1.5 normal-case tracking-normal"><AppLogo name="jira" size={16} />{ORG.jiraProject.name} / <span className="font-semibold">{t.key}</span></span>}
+      eyebrow={<span className="inline-flex items-center gap-1.5 normal-case tracking-normal"><AppLogo name="jira" size={16} />{ORG.jiraProject.name} / <span className="font-semibold">{t.displayKey}</span></span>}
       title={t.summary}
       subtitle={<AlsoViewing path={`/tickets?open=${t.key}`} />}
     >
@@ -181,9 +181,26 @@ function TicketDrawer({ ticketKey, onClose }) {
               <div><dt className="mb-1 text-ink-3">Labels</dt><dd className="flex flex-wrap gap-1">{(t.labels || []).map((l) => <span key={l} className="rounded bg-surface-3 px-1.5 py-0.5 text-[11.5px]">{l}</span>)}</dd></div>
             </dl>
           </div>
+          <JiraSync t={t} />
           <p className="text-[11.5px] leading-relaxed text-ink-3">Created {formatDateTime(t.createdAt)}<br />Updated <Time at={t.updatedAt} /></p>
         </aside>
       </div>
     </Drawer>
   );
+}
+
+/* Where this issue lives in Jira, and whether the last change reached it. */
+function JiraSync({ t }) {
+  const integrations = useView((v) => v.integrations);
+  if (t.jiraUrl) {
+    return (
+      <div className="rounded-[8px] border border-line p-3 text-[12.5px]">
+        <a href={t.jiraUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 font-medium text-ink hover:underline"><AppLogo name="jira" size={16} />Open {t.jiraKey} in Jira</a>
+        {t.syncError ? <p className="mt-1.5 text-critical">Last change did not reach Jira: {t.syncError}</p> : <p className="mt-1 text-ink-3">In sync{t.jiraAssignee ? ` · assigned in Jira to ${t.jiraAssignee}` : ''}</p>}
+      </div>
+    );
+  }
+  if (t.seed) return <p className="text-[12px] text-ink-3">Imported from Jira history.</p>;
+  if (integrations?.jira?.configured) return <p className="text-[12px] text-ink-3">{t.syncError ? <span className="text-critical">Could not create in Jira: {t.syncError}</span> : 'Creating in Jira…'}</p>;
+  return <p className="text-[12px] text-ink-3">Kept in the console. Connect Jira in Integrations to create real issues.</p>;
 }

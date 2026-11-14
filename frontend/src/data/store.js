@@ -71,6 +71,15 @@ export function boot() {
   bootPromise ??= (async () => {
     rt = await connectRealtime();
     state.mode = rt.db.mode;
+    if (rt.relay) {
+      const s = readSession();
+      rt.relay.onStatus((st) => {
+        state.relayStatus = st;
+        state.integrations = rt.relay.integrations();
+        bump();
+      });
+      rt.relay.start({ name: s?.name || '', ref: s?.ref || '' });
+    }
     const startedAt = Date.now();
     for (const name of COLLECTIONS) {
       rt.db.collection(name).onSnapshot(
@@ -110,7 +119,9 @@ export function boot() {
     if (rt.room) {
       try {
         rt.room.onPeers(({ peers }) => {
-          state.peers = peers.filter((p) => !p.isMe && p.kind === 'viewer');
+          state.peers = rt.relay
+            ? peers.filter((p) => p.ref && p.ref !== state.me?.ref).map((p) => ({ ...p, profile: { name: p.name } }))
+            : peers.filter((p) => !p.isMe && p.kind === 'viewer');
           refreshProfiles();
           bump();
         });
@@ -175,6 +186,7 @@ export async function signIn({ viewer, name, email, title }) {
     /* this visit only */
   }
   state.me = session;
+  setPresence({ name: session.name, ref });
   const member = {
     ref,
     userId,
@@ -196,6 +208,7 @@ export async function signIn({ viewer, name, email, title }) {
 }
 export function restoreSession(session) {
   state.me = session;
+  setPresence({ name: session.name, ref: session.ref });
   bump();
 }
 export function signOut() {
@@ -206,6 +219,15 @@ export function signOut() {
   }
   state.me = null;
   bump();
+}
+/** Settings → Integrations: prove the relay's Jira or Gmail credentials end to end. */
+export async function testIntegration(kind, to) {
+  if (!rt?.relay) return { ok: false, detail: 'Integrations run through the relay. Open the console from its deployed address.' };
+  try {
+    return await rt.relay.testIntegration(kind, to);
+  } catch (error) {
+    return { ok: false, detail: String(error?.message || error) };
+  }
 }
 export function setPresence(patch) {
   try {
@@ -368,7 +390,9 @@ export function getView() {
 
   /* Tickets */
   const tickets = [...world.tickets.map((t) => ({ ...t, ...(overlay('ticket', t.key) || {}) })), ...values(state.docs.tickets)].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  for (const t of tickets) t.displayKey = t.jiraKey || t.key;
   const ticketByKey = new Map(tickets.map((t) => [t.key, t]));
+  for (const t of tickets) if (t.jiraKey) ticketByKey.set(t.jiraKey, t);
   for (const t of tickets) {
     for (const l of t.links || []) {
       const rec = l.kind === 'finding' ? findingById.get(l.id) : l.kind === 'detection' ? detById.get(l.id) : l.kind === 'exposure' ? expById.get(l.id) : null;
@@ -417,7 +441,9 @@ export function getView() {
     mode: state.mode,
     status: state.status,
     me: state.me,
-    peers: state.peers.map((p) => ({ ...p, profile: state.profiles.get(p.by) })),
+    peers: state.peers.map((p) => ({ ...p, profile: p.profile || state.profiles.get(p.by) })),
+    integrations: state.integrations || null,
+    relayStatus: state.relayStatus || null,
     connections,
     connById: new Map(connections.map((c) => [c.id, c])),
     identities,
@@ -456,6 +482,7 @@ export function useView(selector = (v) => v) {
 export function personName(ref, view = getView()) {
   if (!ref) return 'Unassigned';
   if (ref === 'system') return 'Corvane';
+  if (String(ref).startsWith('jira:')) return `${ref.slice(5)} (Jira)`;
   return view.personByRef.get(ref)?.name || 'Teammate';
 }
 export function recordLabel(target, view = getView()) {
@@ -486,6 +513,12 @@ export function recordPath(target) {
     mail: `/inbox?open=${id}`,
   }[kind] || '/overview';
 }
+
+/* Real addresses for people and lists, for mail the relay delivers. */
+function emailsFor(refs = [], view = getView()) {
+  return [...new Set(refs.map((r) => (String(r).includes('@') ? r : view.personByRef.get(r)?.email)).filter(Boolean))];
+}
+const linkPathOf = (link) => (link ? recordPath(link).split('?')[0].replace(/^\//, '').replace(/\//g, '--') : '');
 
 /* Who hears about a record: its owner, assignee and the people on its ticket. */
 function stakeholders(target, extra = []) {
@@ -557,7 +590,7 @@ export const actions = {
     const max = view.tickets.reduce((m, t) => Math.max(m, Number(String(t.key).split('-')[1]) || 0), 1440);
     const key = `${ORG.jiraProject.key}-${max + 1 + (hashString(meRef() + Date.now()) % 2)}`;
     const id = newId('t');
-    const ticket = { id, key, summary, description, priority, type, status: 'To Do', assignee, reporter: meRef(), links, labels, createdAt: nowIso(), updatedAt: nowIso(), auto };
+    const ticket = { id, key, summary, description, priority, type, status: 'To Do', assignee, assigneeEmail: emailsFor([assignee], view)[0] || null, reporter: meRef(), reporterName: personName(meRef(), view), links, labels, createdAt: nowIso(), updatedAt: nowIso(), auto };
     await safeWrite('tickets', id, ticket);
     for (const l of links) {
       if (l.kind === 'finding') await patchOverlay('finding', l.id, { ticketKey: key, ...(assignee ? { assignee } : {}) });
@@ -572,7 +605,8 @@ export const actions = {
     const view = getView();
     const t = view.ticketByKey.get(key);
     if (!t) return;
-    const body = { ...patch, updatedAt: nowIso() };
+    const body = { ...patch, updatedAt: nowIso(), fromJira: false };
+    if ('assignee' in patch) body.assigneeEmail = emailsFor([patch.assignee], view)[0] || null;
     if (t.seed) await patchOverlay('ticket', key, body);
     else await safeWrite('tickets', t.id, { ...state.docs.tickets.get(t.id), ...body });
     if (patch.status && patch.status !== t.status) {
@@ -597,14 +631,14 @@ export const actions = {
     const id = newId('c');
     const view = getView();
     const mentions = view.people.filter((p) => body.includes(`@${p.name}`)).map((p) => p.ref);
-    await safeWrite('comments', id, { id, target: `${target.kind}:${target.id}`, body, author: meRef(), at: nowIso(), mentions });
+    await safeWrite('comments', id, { id, target: `${target.kind}:${target.id}`, body, author: meRef(), authorName: personName(meRef(), view), at: nowIso(), mentions });
     await logActivity({ verb: 'commented on', target, text: recordLabel(target), recipients: [...new Set([...stakeholders(target), ...mentions])].filter((r) => r !== meRef()) });
     for (const ref of mentions) if (ref !== meRef()) await sendSystemMail({ to: [ref], subject: `${personName(meRef())} mentioned you on ${recordLabel(target)}`, body: `"${body}"`, link: target, kind: 'mention' });
   },
 
   async sendMail({ to, cc = [], subject, body, link = null }) {
     const id = newId('m');
-    await safeWrite('mail', id, { id, at: nowIso(), from: meRef(), to, cc, subject, body, link, kind: 'message' });
+    await safeWrite('mail', id, { id, at: nowIso(), from: meRef(), to, cc, subject, body, link, kind: 'message', toEmails: emailsFor(to), ccEmails: emailsFor(cc), deliver: true, linkPath: linkPathOf(link) });
     await logActivity({ verb: 'emailed', target: link || { kind: 'mail', id }, text: `${to.map((r) => (r.includes('@') ? r : personName(r))).join(', ')}: ${subject}`, recipients: to.filter((r) => !r.includes('@')) });
     return id;
   },
@@ -733,7 +767,7 @@ export function matchRule(rule, view = getView()) {
 
 async function sendSystemMail({ to, subject, body, link, kind }) {
   const id = newId('m');
-  await safeWrite('mail', id, { id, at: nowIso(), from: ORG.mailFrom, to, cc: [], subject, body, link, kind, triggeredBy: meRef() });
+  await safeWrite('mail', id, { id, at: nowIso(), from: ORG.mailFrom, to, cc: [], subject, body, link, kind, triggeredBy: meRef(), toEmails: emailsFor(to), deliver: true, linkPath: linkPathOf(link) });
 }
 async function jiraMail(ticket, ref, headline) {
   const id = newId('m');
@@ -748,6 +782,9 @@ async function jiraMail(ticket, ref, headline) {
     link: { kind: 'ticket', id: ticket.key },
     kind: 'jira',
     triggeredBy: meRef(),
+    toEmails: emailsFor([ref]),
+    deliver: true,
+    linkPath: 'tickets',
   });
 }
 

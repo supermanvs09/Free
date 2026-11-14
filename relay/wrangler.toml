@@ -1,0 +1,25 @@
+name = "corvane-nhi-console"
+main = "src/index.js"
+compatibility_date = "2025-06-01"
+
+# The console itself, served from the same origin as the API and WebSocket.
+[assets]
+directory = "../frontend/dist"
+binding = "ASSETS"
+run_worker_first = ["/api/*", "/ws"]
+
+[[durable_objects.bindings]]
+name = "WORKSPACE"
+class_name = "Workspace"
+
+# SQLite-backed Durable Objects are available on the Workers Free plan.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Workspace"]
+
+[vars]
+JIRA_PROJECT_KEY = "SEC"
+# Secrets (set with `npx wrangler secret put NAME`, never committed):
+# JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_TOKEN, JIRA_WEBHOOK_SECRET,
+# GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN, GMAIL_SENDER,
+# MAIL_ALLOWED_DOMAINS, CONSOLE_ORIGIN

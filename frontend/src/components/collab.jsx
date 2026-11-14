@@ -99,7 +99,7 @@ export function TicketLink({ ticketKey, compact = false }) {
   return (
     <Link to={`/tickets?open=${ticketKey}`} className={cn('inline-flex max-w-full items-center gap-1.5 rounded-md border border-line bg-surface px-1.5 py-0.5 text-[12px] hover:border-line-strong', compact && 'border-0 bg-transparent px-0')} title={t?.summary}>
       <AppLogo name="jira" size={16} />
-      <span className="font-semibold text-ink">{ticketKey}</span>
+      <span className="font-semibold text-ink">{t?.displayKey || ticketKey}</span>
       {t && !compact && <JiraStatus status={t.status} />}
     </Link>
   );
@@ -243,7 +243,7 @@ export function TicketCard({ ticketKey }) {
     <Link to={`/tickets?open=${t.key}`} className="block rounded-[10px] border border-line bg-surface p-3 transition-colors hover:border-line-strong">
       <div className="flex items-center gap-2">
         <AppLogo name="jira" size={18} />
-        <span className="text-[12px] font-semibold text-ink-2">{t.key}</span>
+        <span className="text-[12px] font-semibold text-ink-2">{t.displayKey}</span>
         <JiraStatus status={t.status} />
         <span className="ml-auto"><JiraPriority priority={t.priority} /></span>
       </div>
