@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, Dna, FileWarning, Fingerprint, GitCommitVertical, Radius, ShieldAlert } from 'lucide-react';
+import { ArrowUpRight, CheckCheck, Dna, FileWarning, Fingerprint, GitCommitVertical, Radius, ShieldAlert } from 'lucide-react';
 import { fetchAlerts, fetchIdentityAlert } from '../../lib/api/alerts';
 import { fetchBlastRadius } from '../../lib/api/blastRadius';
 import { useQuery } from '../../lib/hooks/useQuery';
@@ -16,13 +16,19 @@ import { ClearState, ErrorState } from '../../ui/States';
 import { cn } from '../../ui/cn';
 import { identityTypeLabel } from '../posture/parts';
 import { ScoreShift, actorOf } from './parts';
+import { useAlertReads } from './useAlertBadge';
 
 /* ── Vocabulary ─────────────────────────────────────────────────────────── */
 
 const SOURCES = {
-  posture: { label: 'Posture', icon: ShieldAlert, what: 'Score drop' },
-  genome: { label: 'NHI Genome', icon: Dna, what: 'Behaviour anomaly' },
-  exposure: { label: 'Credential exposure', icon: FileWarning, what: 'Exposed credential' },
+  posture: {
+    label: 'Score drops',
+    icon: ShieldAlert,
+    what: 'Score drop',
+    hint: 'Identities whose posture score fell at the latest sync. Identities that were already low stay on the Posture page; they only appear here when they get worse.',
+  },
+  genome: { label: 'NHI Genome', icon: Dna, what: 'Behaviour anomaly', hint: 'Identities doing something their learned behaviour never showed.' },
+  exposure: { label: 'Credential exposure', icon: FileWarning, what: 'Exposed credential', hint: 'Credentials found in code.' },
 };
 const SEVERITIES = ['critical', 'high', 'medium', 'low'];
 const SEV = {
@@ -39,12 +45,20 @@ const VERIFIED = {
 };
 const BLAST = { CRITICAL: 'text-critical', HIGH: 'text-high', MEDIUM: 'text-medium', LOW: 'text-low' };
 
-const linkOf = (a) => (a.source === 'genome' && a.facts ? `${genomeRoute(a.facts.source_type, a.facts.identity_name)}?tab=anomalies` : a.link);
+/* A genome alert for an identity discovery no longer sees (or that is out of
+   scope) has no identity page; its anomalies are still listed, so link there. */
+const genomeMonitored = (a) => a.facts?.monitored !== 'false';
+const linkOf = (a) =>
+  a.source === 'genome' && a.facts
+    ? genomeMonitored(a)
+      ? `${genomeRoute(a.facts.source_type, a.facts.identity_name)}?tab=anomalies`
+      : `/genome?tab=anomalies&q=${encodeURIComponent(a.facts.identity_name)}`
+    : a.link;
 const postureId = (a) => (a.source === 'posture' ? a.key.slice('posture:'.length) : null);
 
 /* ── One row ────────────────────────────────────────────────────────────── */
 
-function Row({ a, selected, onSelect, isNew }) {
+function Row({ a, selected, onSelect, isNew, unread }) {
   const src = SOURCES[a.source];
   const sev = SEV[a.severity] ?? SEV.medium;
   return (
@@ -58,7 +72,8 @@ function Row({ a, selected, onSelect, isNew }) {
       <span className={cn('mt-[7px] size-2 shrink-0 rounded-full', sev.dot)} title={sev.label} />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">
-          <span className="truncate text-[13.5px] font-semibold text-ink">{a.subject}</span>
+          {unread && <span aria-label="Unread" className="size-1.5 shrink-0 rounded-full bg-brand" />}
+          <span className={cn('truncate text-[13.5px]', unread ? 'font-semibold text-ink' : 'font-medium text-ink-2')}>{a.subject}</span>
           {isNew && <span className="shrink-0 rounded-full bg-brand px-1.5 text-[10px] font-semibold tracking-wide text-white uppercase">New</span>}
           <span className="ml-auto shrink-0 text-[11px] text-ink-3" title={formatDateTime(a.detected_at)}>
             {formatRelative(a.detected_at)}
@@ -195,7 +210,7 @@ function GenomeWhy({ a }) {
         <Button as={Link} to={linkOf(a)} size="sm" variant="primary" iconRight={ArrowUpRight}>
           Investigate the departures
         </Button>
-        {a.facts?.identity_name && (
+        {a.facts?.identity_name && genomeMonitored(a) && (
           <Button as={Link} to={genomeRoute(a.facts.source_type, a.facts.identity_name)} size="sm" variant="secondary" icon={Dna}>
             Its normal behaviour
           </Button>
@@ -311,6 +326,7 @@ export default function AlertsPage() {
   const [selectedKey, setSelectedKey] = useState(null);
   const [mobileDetail, setMobileDetail] = useState(false);
   const listRef = useRef(null);
+  const { isUnread, markRead, markAllRead } = useAlertReads();
 
   const query = useQuery((signal) => fetchAlerts(signal), []);
   const prev = query.data?.summary?.previous_sync ? new Date(query.data.summary.previous_sync).getTime() : null;
@@ -318,6 +334,12 @@ export default function AlertsPage() {
 
   const all = useMemo(() => (query.data?.alerts ?? []).filter((a) => showExposure || a.source !== 'exposure'), [query.data, showExposure]);
   const newCount = all.filter(isNew).length;
+  const unreadCount = all.filter(isUnread).length;
+  /* Opening an alert reads it; the list keeps it, only its weight changes. */
+  const open = (a) => {
+    setSelectedKey(a.key);
+    markRead(a);
+  };
 
   const shown = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -343,10 +365,10 @@ export default function AlertsPage() {
     const i = shown.findIndex((a) => a.key === current?.key);
     if ((e.key === 'j' || e.key === 'ArrowDown') && shown[i + 1]) {
       e.preventDefault();
-      setSelectedKey(shown[i + 1].key);
+      open(shown[i + 1]);
     } else if ((e.key === 'k' || e.key === 'ArrowUp') && shown[i - 1]) {
       e.preventDefault();
-      setSelectedKey(shown[i - 1].key);
+      open(shown[i - 1]);
     }
   };
 
@@ -355,6 +377,7 @@ export default function AlertsPage() {
     ? [
         `${formatNumber(all.length)} ${all.length === 1 ? 'alert' : 'alerts'}`,
         newCount ? `${formatNumber(newCount)} new since the previous sync` : null,
+        unreadCount ? `${formatNumber(unreadCount)} unread` : null,
       ]
         .filter(Boolean)
         .join(' · ') + (lastSync ? `. Last sync ${formatRelative(lastSync)}.` : '.')
@@ -394,7 +417,7 @@ export default function AlertsPage() {
                 const on = sources.includes(k);
                 const n = countBy('source', k);
                 return (
-                  <button key={k} type="button" aria-pressed={on} onClick={() => toggle(sources, setSources, k)} className={chip(on)} disabled={!n && !on}>
+                  <button key={k} type="button" aria-pressed={on} onClick={() => toggle(sources, setSources, k)} className={chip(on)} disabled={!n && !on} title={src.hint}>
                     <src.icon className="size-3.5" />
                     {src.label}
                     <span data-numeric="" className="font-semibold">
@@ -437,7 +460,19 @@ export default function AlertsPage() {
                 >
                   <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-line bg-surface/95 px-4 py-2 text-[11px] text-ink-3 backdrop-blur">
                     {formatNumber(shown.length)} · worst first
-                    <span className="ml-auto hidden gap-1 sm:flex">
+                    {unreadCount > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => markAllRead(all)}
+                        className="ml-auto inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-medium text-brand hover:bg-info-soft"
+                      >
+                        <CheckCheck className="size-3.5" />
+                        Mark all {formatNumber(unreadCount)} as read
+                      </button>
+                    ) : (
+                      <span className="ml-auto">All read</span>
+                    )}
+                    <span className="hidden gap-1 sm:flex">
                       {['j', 'k'].map((k) => (
                         <kbd key={k} className="rounded border border-line px-1 font-mono text-[10px]">
                           {k}
@@ -450,9 +485,10 @@ export default function AlertsPage() {
                       key={a.key}
                       a={a}
                       isNew={isNew(a)}
+                      unread={isUnread(a)}
                       selected={a.key === current?.key}
                       onSelect={() => {
-                        setSelectedKey(a.key);
+                        open(a);
                         setMobileDetail(true);
                       }}
                     />

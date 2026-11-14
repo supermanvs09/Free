@@ -51,7 +51,7 @@ function SidebarLink({ item, onNavigate, badge = 0 }) {
   );
 }
 
-/** One icon of the floating rail: a 44px circle, its name on hover and to screen readers. */
+/** One icon of the floating rail: a 36px circle, its name on hover and to screen readers. */
 function RailLink({ item, badge = 0 }) {
   const { pathname } = useLocation();
   const active = isActiveItem(item, pathname);
@@ -61,15 +61,15 @@ function RailLink({ item, badge = 0 }) {
       aria-label={badge > 0 ? `${item.label}, ${badge} new` : item.label}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'group relative grid size-11 place-items-center rounded-full transition-colors duration-150',
+        'group relative grid size-9 place-items-center rounded-full transition-colors duration-150',
         active ? 'bg-brand text-white shadow-[var(--t-shadow-sm)]' : 'text-ink-2 hover:bg-surface-3 hover:text-ink',
       )}
     >
-      <item.icon aria-hidden="true" className="size-5" strokeWidth={1.9} />
+      <item.icon aria-hidden="true" className="size-[17px]" strokeWidth={1.9} />
       {badge > 0 && (
         <span
           aria-hidden="true"
-          className="absolute -top-0.5 -right-0.5 min-w-[18px] rounded-full bg-critical px-1 text-center text-[10px] leading-[18px] font-bold text-white tabular-nums ring-2 ring-surface"
+          className="absolute -top-1 -right-1.5 min-w-[16px] rounded-full bg-critical px-1 text-center text-[9.5px] leading-[16px] font-bold text-white tabular-nums ring-2 ring-surface"
         >
           {badgeText(badge)}
         </span>
@@ -121,27 +121,27 @@ export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile
         <aside
           ref={asideRef}
           aria-label="Primary navigation"
-          className="fixed top-16 bottom-0 left-3 z-30 hidden w-[60px] flex-col items-center justify-center gap-4 py-4 lg:flex"
+          className="fixed top-16 bottom-0 left-3 z-30 hidden w-[48px] flex-col items-center justify-center gap-2.5 py-4 lg:flex"
         >
           <button
             type="button"
             onClick={onToggleCollapse}
             aria-label="Expand navigation"
             title="Expand navigation"
-            className="grid size-[52px] shrink-0 place-items-center rounded-full bg-brand text-white shadow-[var(--t-shadow-lg)] transition-transform hover:scale-[1.04] focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+            className="grid size-10 shrink-0 place-items-center rounded-full bg-brand text-white shadow-[var(--t-shadow-md)] transition-transform hover:scale-[1.04] focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
           >
-            <PanelLeftOpen aria-hidden="true" className="size-5" />
+            <PanelLeftOpen aria-hidden="true" className="size-[17px]" />
           </button>
           <nav
             aria-label="Primary"
-            className="flex flex-col items-center gap-3 rounded-full border border-line bg-surface px-2 py-4 shadow-[var(--t-shadow-lg)]"
+            className="flex flex-col items-center gap-1 rounded-full border border-line bg-surface p-1.5 shadow-[var(--t-shadow-md)]"
           >
             {main.flatMap((group) => group.items).map((item) => (
               <RailLink key={item.to} item={item} badge={badgeFor(item)} />
             ))}
           </nav>
           {settings && (
-            <div className="flex flex-col items-center gap-3 rounded-full border border-line bg-surface px-2 py-2 shadow-[var(--t-shadow-lg)]">
+            <div className="flex flex-col items-center gap-1 rounded-full border border-line bg-surface p-1.5 shadow-[var(--t-shadow-md)]">
               {settings.items.map((item) => (
                 <RailLink key={item.to} item={item} badge={badgeFor(item)} />
               ))}

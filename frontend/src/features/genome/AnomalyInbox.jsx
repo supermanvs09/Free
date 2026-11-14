@@ -101,9 +101,11 @@ function Investigation({ group, priority, onOpen, canAct, onClose, onBack }) {
             <p className="mt-0.5 truncate text-[12.5px] text-ink-3">{sourceTypeLabel(group.identity?.source_type, group.identity?.identity_name)}</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <Button as={Link} to={genomeRoute(group.identity?.source_type, group.identity?.identity_name)} size="sm" variant="secondary" icon={Dna}>
-              Genome
-            </Button>
+            {group.identity?.monitored !== false && (
+              <Button as={Link} to={genomeRoute(group.identity?.source_type, group.identity?.identity_name)} size="sm" variant="secondary" icon={Dna}>
+                Genome
+              </Button>
+            )}
             <Button size="sm" variant="primary" onClick={() => onOpen(latest, worst)}>
               Review latest
             </Button>

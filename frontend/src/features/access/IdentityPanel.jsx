@@ -14,6 +14,7 @@ import { InlineError } from '../../ui/States';
 import { Tag } from '../../ui/Tag';
 import { cn } from '../../ui/cn';
 import { KIND_LABEL, riskReason } from './graphTheme';
+import { BlastGlance } from '../blast/BlastGlance';
 import { NODE_KINDS, edgeKindMeta, edgeLabel, edgesOf, subtypeLabel } from './graphModel';
 
 /**
@@ -272,6 +273,13 @@ function SummaryPane({ node, isFocusNode, detail, posture, discoveryId, onFocus 
               );
             })}
           </ul>
+        </div>
+      )}
+
+      {(node.identityId || (node.credentialId && node.arn?.includes(':iam::'))) && (
+        <div>
+          <SectionLabel>If it is taken over</SectionLabel>
+          <BlastGlance key={node.id} identityId={node.identityId} arn={node.arn} />
         </div>
       )}
 

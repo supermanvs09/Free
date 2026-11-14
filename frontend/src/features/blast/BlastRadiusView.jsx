@@ -10,6 +10,7 @@ import { DetailSkeleton } from '../../ui/Skeleton';
 import { ClearState, EmptyState, ErrorState } from '../../ui/States';
 import { cn } from '../../ui/cn';
 import { BlastExplorer } from './BlastExplorer';
+import { CATEGORIES, accountOf, categoryOf, shrinkSteps, summarize } from './blastModel';
 
 /* ── Vocabulary ─────────────────────────────────────────────────────────── */
 
@@ -54,7 +55,6 @@ const RISK = {
   NONE: { label: 'None', tone: 'neutral', stroke: 'var(--color-ink-3)' },
 };
 
-const accountOf = (arn) => String(arn ?? '').split(':')[4] || '';
 const lastSegment = (arn) => {
   const text = String(arn ?? '');
   if (text.startsWith('*:')) return `All ${serviceLabel(text.slice(2))} resources`;
@@ -229,11 +229,36 @@ function WhoCanBecome({ arn }) {
 
 /* ── The view ───────────────────────────────────────────────────────────── */
 
-const FILTERS = [
-  { value: 'all', label: 'All' },
-  { value: 'sensitive', label: 'Secrets & keys' },
-  { value: 'cross', label: 'Other accounts' },
-];
+const STEP_TONE = { critical: 'bg-critical', high: 'bg-high', medium: 'bg-medium' };
+
+/** What would shrink the radius, from the data itself. */
+function ShrinkIt({ steps }) {
+  if (!steps.length) return null;
+  return (
+    <section className="overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface shadow-[var(--t-shadow-sm)]">
+      <header className="flex items-baseline justify-between gap-3 border-b border-line px-5 py-3.5">
+        <h3 className="text-[13.5px] font-semibold text-ink">How to shrink it</h3>
+        <span className="text-[12px] text-ink-3">Most effective first</span>
+      </header>
+      <ol className="divide-y divide-line">
+        {steps.map((step, i) => (
+          <li key={step.key} className="flex gap-3.5 px-5 py-3.5">
+            <span className="mt-px grid size-6 shrink-0 place-items-center rounded-full border border-line text-[11.5px] font-semibold text-ink-2" data-numeric="">
+              {i + 1}
+            </span>
+            <span className="min-w-0">
+              <span className="flex items-center gap-2 text-[13px] font-semibold text-ink">
+                <span aria-hidden="true" className={cn('size-1.5 shrink-0 rounded-full', STEP_TONE[step.tone])} />
+                {step.title}
+              </span>
+              <span className="mt-0.5 block text-[12.5px] leading-relaxed text-ink-2">{step.body}</span>
+            </span>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
 
 /**
  * What an attacker reaches if this credential is taken over: every resource
@@ -249,13 +274,8 @@ export function BlastRadiusView({ arn, compact = false }) {
 
   const derived = useMemo(() => {
     if (!result) return null;
-    const resources = result.reachable_resources ?? [];
-    const source = accountOf(result.source_arn);
-    const sensitive = resources.filter(isSensitive);
-    const accounts = new Set(resources.map((r) => accountOf(r.arn)).filter((a) => a && a !== source));
-    const viaRoles = resources.filter((r) => (r.hops ?? 1) > 1).length;
-    const used = resources.filter((r) => r.observed_activity).length;
-    return { resources, sensitive, accounts, viaRoles, used };
+    const s = summarize(result);
+    return { ...s, sensitive: s.resources.filter(isSensitive), steps: shrinkSteps(s) };
   }, [result]);
 
   if (query.isError && !result) {
@@ -292,9 +312,17 @@ export function BlastRadiusView({ arn, compact = false }) {
     );
   }
 
-  const shown = derived.resources.filter((r) =>
-    filter === 'sensitive' ? isSensitive(r) : filter === 'cross' ? accountOf(r.arn) && accountOf(r.arn) !== accountOf(result.source_arn) : true,
-  );
+  const isCross = (r) => accountOf(r.arn) && accountOf(r.arn) !== accountOf(result.source_arn);
+  const shown = derived.resources.filter((r) => (filter === 'all' ? true : filter === 'cross' ? isCross(r) : categoryOf(r) === filter));
+  const filters = [
+    { value: 'all', label: 'All' },
+    ...CATEGORIES.filter((c) => derived.byCategory[c.key] || filter === c.key).map((c) => ({ value: c.key, label: c.label })),
+    ...(derived.accounts.size ? [{ value: 'cross', label: 'Other accounts' }] : []),
+  ];
+  const pick = (value) => {
+    setFilter((cur) => (cur === value ? 'all' : value));
+    globalThis.requestAnimationFrame?.(() => document.getElementById('blast-reach')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  };
   const sentence = [
     derived.sensitive.length ? `${formatNumber(derived.sensitive.length)} of them secrets, keys or roles` : null,
     derived.accounts.size ? `across ${formatNumber(derived.accounts.size + 1)} AWS accounts` : null,
@@ -344,23 +372,39 @@ export function BlastRadiusView({ arn, compact = false }) {
             </p>
           </div>
         </div>
-        <dl className="grid grid-cols-2 divide-line border-t border-line @2xl:grid-cols-4 @2xl:divide-x">
-          {[
-            ['Reachable', total, 'resources'],
-            ['Sensitive', derived.sensitive.length, 'secrets, keys, roles'],
-            ['Roles it can become', (result.reachable_identities ?? []).length, 'by assuming them'],
-            ['Other accounts', derived.accounts.size, derived.accounts.size ? [...derived.accounts].slice(0, 2).join(', ') : 'stays in its own'],
-          ].map(([label, value, hint]) => (
-            <div key={label} className="min-w-0 border-line px-5 py-3 not-last:border-b @2xl:not-last:border-b-0">
-              <dt className="text-[11px] text-ink-3">{label}</dt>
-              <dd data-numeric="" className={cn('mt-0.5 font-display text-[20px] leading-tight font-bold text-ink', label === 'Sensitive' && value > 0 && 'text-critical')}>
-                {formatNumber(value)}
-              </dd>
-              <dd className="truncate text-[11px] text-ink-3">{hint}</dd>
-            </div>
-          ))}
-        </dl>
+        {/* What is at risk, by kind. Each tile filters the list below. */}
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-px border-t border-line bg-line">
+          {CATEGORIES.filter((c) => derived.byCategory[c.key]).map((c) => {
+            const value = derived.byCategory[c.key];
+            const active = filter === c.key;
+            return (
+              <button
+                key={c.key}
+                type="button"
+                disabled={!value}
+                onClick={() => pick(c.key)}
+                aria-pressed={active}
+                className={cn(
+                  'min-w-0 px-5 py-3 text-left transition-colors',
+                  active ? 'bg-info-soft' : 'bg-surface hover:bg-surface-2',
+                  'disabled:cursor-default',
+                )}
+              >
+                <span className="block text-[11.5px] font-medium text-ink-2">{c.label}</span>
+                <span
+                  data-numeric=""
+                  className={cn('mt-0.5 block text-[22px] leading-tight font-semibold', !value ? 'text-ink-3' : c.key === 'secrets' ? 'text-critical' : 'text-ink')}
+                >
+                  {formatNumber(value)}
+                </span>
+                <span className="block truncate text-[11px] text-ink-3">{c.key === 'identity' && derived.roles ? `${formatNumber(derived.roles)} it can become` : c.hint}</span>
+              </button>
+            );
+          })}
+        </div>
       </section>
+
+      <ShrinkIt steps={derived.steps} />
 
       {/* Explore the attack surface */}
       {!compact && (
@@ -374,7 +418,7 @@ export function BlastRadiusView({ arn, compact = false }) {
       )}
 
       {/* What it can reach */}
-      <section className="overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface shadow-[var(--t-shadow-sm)]">
+      <section id="blast-reach" className="scroll-mt-20 overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface shadow-[var(--t-shadow-sm)]">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3">
           <h3 className="text-[13px] font-semibold text-ink">
             What it can reach{' '}
@@ -382,7 +426,7 @@ export function BlastRadiusView({ arn, compact = false }) {
               {formatNumber(shown.length)}
             </span>
           </h3>
-          <SegmentedControl label="Show" options={FILTERS} value={filter} onChange={setFilter} />
+          <SegmentedControl label="Show" options={filters} value={filter} onChange={setFilter} />
         </header>
         {shown.length === 0 ? (
           <p className="px-4 py-6 text-center text-[12.5px] text-ink-3">Nothing in this view.</p>

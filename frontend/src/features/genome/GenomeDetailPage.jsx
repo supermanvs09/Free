@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Boxes, Dna, Fingerprint as FingerprintIcon, History, Network, SearchX } from 'lucide-react';
+import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Boxes, Dna, ListFilter, Fingerprint as FingerprintIcon, History, Network, SearchX } from 'lucide-react';
 import {
   fetchGenomeActivity,
   fetchGenomeIdentity,
@@ -9,7 +9,8 @@ import {
   resolveDiscoveryIdentity,
   WINDOW_MS,
 } from '../../lib/api/genome';
-import { accessGraphRoute, identityRoute, parseGenomeId } from '../../lib/identityLinks';
+import { accessGraphRoute, genomeRouteFor, identityRoute, parseGenomeId } from '../../lib/identityLinks';
+import { fetchIdentity } from '../../lib/api/inventory';
 import { useQuery } from '../../lib/hooks';
 import { severityMeta } from '../../lib/domain';
 import { formatDate, formatDateTime, formatNumber, formatRelative, titleCaseEnum } from '../../lib/format';
@@ -230,30 +231,7 @@ function GenomeIdentity({ sourceType, identityName }) {
   /* Every genome endpoint resolves the identity in the caller's scope first,
      so a 404 means the identity is not monitored here. */
   if ((timeline.isError && timeline.error?.status === 404) || (summary.isError && summary.error?.status === 404)) {
-    return (
-      <div className="flex flex-col gap-6">
-        <PageHeader
-          title="Genome"
-          actions={
-            <Button variant="secondary" as={Link} to="/genome" icon={ArrowLeft}>
-              Fleet
-            </Button>
-          }
-        />
-        <Panel prominence="lead">
-          <EmptyState
-            icon={SearchX}
-            title="This identity is not monitored in your scope"
-            description="It is outside the accounts and regions you selected, or discovery no longer sees it. Change the scope from the dashboard to include its region."
-            action={
-              <Button variant="secondary" size="sm" as={Link} to={`/identities?search=${encodeURIComponent(inventoryName || identityName)}`} icon={Boxes}>
-                Look it up in the inventory
-              </Button>
-            }
-          />
-        </Panel>
-      </div>
-    );
+    return <NotMonitored sourceType={sourceType} identityName={identityName} lookup={inventoryName || identityName} />;
   }
 
   const record = discovery.data;
@@ -1137,3 +1115,51 @@ function TimelineTab({ timeline }) {
   );
 }
 
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The genome service could not place this key in the caller's scope. Some
+ * pipeline alerts key an identity by its discovery id rather than its ARN:
+ * when the key is one, open the identity under its real genome key. Otherwise
+ * say so, and still offer its anomalies, which are listed regardless.
+ */
+function NotMonitored({ sourceType, identityName, lookup }) {
+  const byId = UUID.test(identityName);
+  const record = useQuery((signal) => (byId ? fetchIdentity(identityName, 'overview', {}, signal).catch(() => null) : Promise.resolve(null)), [identityName]);
+  const identity = record.data?.identity;
+  const route = identity ? genomeRouteFor({ identity_type: identity.identity_type, arn: identity.arn }) : null;
+  const self = `/genome/${encodeURIComponent(`${sourceType}:${identityName}`)}`;
+  if (route && route !== self) return <Navigate replace to={`${route}?tab=anomalies`} />;
+  if (byId && record.isLoading) return <ChartSkeleton />;
+
+  return (
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="Genome"
+        actions={
+          <Button variant="secondary" as={Link} to="/genome" icon={ArrowLeft}>
+            Fleet
+          </Button>
+        }
+      />
+      <Panel prominence="lead">
+        <EmptyState
+          icon={SearchX}
+          title="No behaviour profile to show for this identity"
+          description="It is outside the accounts and regions you selected, or discovery no longer sees it, so there is no baseline to compare against. Its anomalies are still on record."
+          action={
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button variant="primary" size="sm" as={Link} to={`/genome?tab=anomalies&q=${encodeURIComponent(identityName)}`} icon={ListFilter}>
+                See its anomalies
+              </Button>
+              <Button variant="secondary" size="sm" as={Link} to={identity ? identityRoute(identity.id) : `/identities?search=${encodeURIComponent(lookup)}`} icon={Boxes}>
+                {identity ? 'Open the identity' : 'Look it up in the inventory'}
+              </Button>
+            </div>
+          }
+        />
+      </Panel>
+    </div>
+  );
+}

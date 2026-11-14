@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -167,7 +168,7 @@ func (h *Handler) inbox(ctx context.Context, ds *scope.DataScope, userID, tenant
 						name = it.Identity.IdentityName
 					}
 					g = &agg{kinds: map[string]int{}, a: Alert{Key: SourceGenome + ":" + id, Source: SourceGenome, Subject: name, SubjectType: it.Identity.SourceType,
-						Facts: map[string]string{"source_type": it.Identity.SourceType, "identity_name": it.Identity.IdentityName}}}
+						Facts: map[string]string{"source_type": it.Identity.SourceType, "identity_name": it.Identity.IdentityName, "monitored": strconv.FormatBool(it.Identity.Monitored)}}}
 					byID[id] = g
 				}
 				g.a.Count++

@@ -93,7 +93,22 @@ func (h *Handler) Summary(w http.ResponseWriter, r *http.Request) {
 		httpx.SendServerError(w, r, err, "Alerts could not be loaded", "ALERTS_FAILED")
 		return
 	}
-	httpx.SendJSONResponse(w, http.StatusOK, httpx.APIResponse{Success: true, Message: "ok", Data: out.Summary})
+	// Each alert's key and time too, so the console can tell read from unread
+	// without fetching the whole inbox (read state lives in the browser).
+	items := make([]summaryItem, 0, len(out.Alerts))
+	for _, a := range out.Alerts {
+		items = append(items, summaryItem{Key: a.Key, Source: a.Source, DetectedAt: a.DetectedAt})
+	}
+	httpx.SendJSONResponse(w, http.StatusOK, httpx.APIResponse{Success: true, Message: "ok", Data: struct {
+		InboxSummary
+		Items []summaryItem `json:"items"`
+	}{out.Summary, items}})
+}
+
+type summaryItem struct {
+	Key        string    `json:"key"`
+	Source     string    `json:"source"`
+	DetectedAt time.Time `json:"detected_at"`
 }
 
 // Identity: GET /alerts/identities/{id} - why one identity's score dropped.
