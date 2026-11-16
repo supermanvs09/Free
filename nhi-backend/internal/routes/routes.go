@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"nhi-backend-api/internal/correlation"
 	"nhi-backend-api/internal/modules/alerts"
+	"nhi-backend-api/internal/modules/identityanomalies"
 	"nhi-backend-api/internal/platform/datasource"
 
 	"github.com/gorilla/mux"
@@ -56,7 +57,9 @@ type HandlerContainer struct {
 	// CorrelationHandler serves blast radius (the correlation engine).
 	CorrelationHandler *correlation.Handler
 	// AlertsHandler serves the Alerts page (score drops, exposed credentials).
-	AlertsHandler                 *alerts.Handler
+	AlertsHandler *alerts.Handler
+	// IdentityAnomalies lists one genome identity's anomalies (its page's tab).
+	IdentityAnomalies             *identityanomalies.Handler
 	NewAPIPermissionSourceHandler *permissionsource.PermissionSourceHandler
 	AWSIntegrationHandler         *awsintegration.AWSIntegrationHandler
 	// GitHub and Bitbucket for the whole company (credential exposure).
@@ -228,6 +231,9 @@ func registerProtected(router *mux.Router, h HandlerContainer, versioned bool) {
 	}
 	if h.AlertsHandler != nil {
 		h.AlertsHandler.Register(router)
+	}
+	if h.IdentityAnomalies != nil {
+		h.IdentityAnomalies.Register(router)
 	}
 	if h.NewAPIPermissionSourceHandler != nil {
 		router.HandleFunc("/permission-source", h.NewAPIPermissionSourceHandler.Get).Methods(http.MethodGet)

@@ -200,8 +200,14 @@ func scanAccount(row rowScanner) (*AWSAccountRecord, error) {
 	rec.Regions = withoutGlobal(regions)
 	// The table stores a connected account as 'active'; the API keeps its
 	// own word for it (rows written before the change still say 'connected').
-	if rec.Status == dbStatusActive {
+	switch strings.ToLower(strings.TrimSpace(rec.Status)) {
+	case dbStatusActive:
 		rec.Status = AWSStatusConnected
+	case "inactive", "disabled", "disconnected", "deactivated":
+		// Switched off directly in the table: whatever is_connected still
+		// says, it is not connected - not listed as connected, not synced.
+		rec.Status = AWSStatusDisconnected
+		rec.IsConnected = false
 	}
 	var err error
 	if rec.Checks, err = decodeChecks(checks); err != nil {

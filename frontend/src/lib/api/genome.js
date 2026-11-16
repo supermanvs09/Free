@@ -376,6 +376,31 @@ export async function fetchAllAnomalies({ state, sourceType, search } = {}, sign
   return { items, complete: false };
 }
 
+/**
+ * One identity's anomalies, newest first, resolved on the server exactly as
+ * its summary and timeline resolve it (GET /api/v1/identity-anomalies), in
+ * pages of 200 up to 2,000. `total` is the identity's real count in that
+ * state, whatever was loaded.
+ */
+export async function fetchIdentityAnomalies({ sourceType, identityName, state } = {}, signal) {
+  const items = [];
+  let cursor;
+  let total = null;
+  for (let page = 0; page < 10; page += 1) {
+    const { data, meta } = unwrapGenome(
+      await client.get('/api/v1/identity-anomalies', {
+        params: params({ source_type: sourceType, identity_name: identityName, state, limit: 200, cursor }),
+        signal,
+      }),
+    );
+    items.push(...list(data?.items));
+    total ??= Number.isFinite(Number(data?.total)) ? Number(data.total) : null;
+    cursor = meta?.next_cursor || null;
+    if (!cursor) return { items, total: total ?? items.length, complete: true };
+  }
+  return { items, total: total ?? items.length, complete: false };
+}
+
 export async function fetchAnomaly(id, signal) {
   return dataOf(await client.get(`${BASE}/anomalies/${encodeURIComponent(id)}`, { signal }));
 }

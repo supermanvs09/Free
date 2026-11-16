@@ -119,18 +119,22 @@ func (h *Handler) inbox(ctx context.Context, ds *scope.DataScope, userID, tenant
 	out.Summary.Available[SourcePosture] = true
 	for _, d := range drops {
 		before, now := d.ScoreBefore, d.ScoreNow
+		/* The title is why, in a few words - the biggest reason ("Administrator
+		   access on NHI role"); the points go in the summary. */
 		title := fmt.Sprintf("Score dropped %d points", -d.Delta)
-		summary := "Nothing new went wrong. Problems it already had now cost more points."
-		if len(d.Reasons) > 0 {
-			// The posture service's own reasons: "Administrator access on NHI role (-25)".
-			summary = d.Reasons[0]
+		summary := fmt.Sprintf("Score %d → %d. Nothing new went wrong; problems it already had now cost more points.", d.ScoreBefore, d.ScoreNow)
+		switch {
+		case len(d.Reasons) > 0:
+			title, _ = splitReason(d.Reasons[0])
+			summary = fmt.Sprintf("Score %d → %d", d.ScoreBefore, d.ScoreNow)
 			if len(d.Reasons) > 1 {
-				summary = fmt.Sprintf("%s, and %d more", d.Reasons[0], len(d.Reasons)-1)
+				summary += fmt.Sprintf(" · and %d more %s", len(d.Reasons)-1, plural(len(d.Reasons)-1, "reason", "reasons"))
 			}
-		} else if d.TopReason != "" {
-			summary = "New problem: " + d.TopReason
+		case d.TopReason != "":
+			title = d.TopReason
+			summary = fmt.Sprintf("Score %d → %d", d.ScoreBefore, d.ScoreNow)
 			if d.NewFailing > 1 {
-				summary = fmt.Sprintf("%d new problems, the biggest: %s", d.NewFailing, d.TopReason)
+				summary += fmt.Sprintf(" · and %d more new %s", d.NewFailing-1, plural(d.NewFailing-1, "problem", "problems"))
 			}
 		}
 		out.Alerts = append(out.Alerts, Alert{

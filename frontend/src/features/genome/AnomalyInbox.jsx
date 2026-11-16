@@ -36,21 +36,23 @@ function priorityOf(group) {
   reasons.push(`${formatNumber(group.items.length)} ${group.items.length === 1 ? 'event' : 'events'}`);
   if (recent) reasons.push('active in the last 24 hours');
   const tone = score >= 8 ? 'critical' : score >= 6 ? 'high' : score >= 4 ? 'medium' : 'low';
-  return { score, reasons, tone };
+  const worstKey = Object.keys(SEV_WEIGHT).find((k) => SEV_WEIGHT[k] === worst) ?? null;
+  return { score, reasons, tone, worst: worstKey };
 }
 
-function PriorityRing({ score, tone, size = 40 }) {
-  const r = (size - 5) / 2;
-  const c = 2 * Math.PI * r;
+/* The identity's worst departure, as the genome API rates it (event
+   severity). No score of our own: the ranking below uses severity, breadth,
+   volume and recency, but the number shown is the service's. */
+function PriorityRing({ worst, size = 40 }) {
+  const meta = worst ? severityMeta(worst) : null;
   return (
-    <span className="relative grid shrink-0 place-items-center" style={{ width: size, height: size }} aria-label={`Priority ${score} of 10`}>
-      <svg width={size} height={size} className={cn('-rotate-90', TONE_RING[tone])}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--color-track)" strokeWidth="3" />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeDasharray={`${(score / 10) * c} ${c}`} />
-      </svg>
-      <span data-numeric="" className={cn('absolute font-display font-bold text-ink', size >= 48 ? 'text-[15px]' : 'text-[12px]')}>
-        {score >= 10 ? '10' : score.toFixed(1)}
-      </span>
+    <span
+      className={cn('grid shrink-0 place-items-center rounded-full border-2 font-display font-bold', size >= 48 ? 'text-[12px]' : 'text-[10.5px]', meta ? TONE_RING[meta.tone] : 'text-ink-3')}
+      style={{ width: size, height: size, borderColor: 'currentColor' }}
+      aria-label={meta ? `Worst departure: ${meta.label}` : 'Not rated'}
+      title={meta ? `Worst departure: ${meta.label}` : 'Not rated by the service'}
+    >
+      {meta ? meta.label.slice(0, 4) : '-'}
     </span>
   );
 }
@@ -93,7 +95,7 @@ function Investigation({ group, priority, onOpen, canAct, onClose, onBack }) {
           </button>
         )}
         <div className="flex items-start gap-4">
-          <PriorityRing score={priority.score} tone={priority.tone} size={52} />
+          <PriorityRing worst={priority.worst} size={52} />
           <div className="min-w-0 flex-1">
             <h3 className="truncate text-[17px] font-semibold text-ink" title={group.identity?.identity_name}>
               {name}
@@ -199,7 +201,7 @@ function Investigation({ group, priority, onOpen, canAct, onClose, onBack }) {
  * Anomalies as an investigation inbox: identities ranked by priority on the
  * left (j / k to move), the selected one's story on the right.
  */
-export function AnomalyInbox({ items, onOpen, canAct, onChanged, emptyState, onSeverity, activeSeverities }) {
+export function AnomalyInbox({ items, onOpen, canAct, onChanged, emptyState, onSeverity, activeSeverities, realTotal }) {
   const groups = useMemo(() => groupAnomalies(items), [items]);
   const ranked = useMemo(
     () =>
@@ -234,7 +236,7 @@ export function AnomalyInbox({ items, onOpen, canAct, onChanged, emptyState, onS
 
   return (
     <>
-      <AnomalyOverview items={items} onSeverity={onSeverity} activeSeverities={activeSeverities} />
+      <AnomalyOverview items={items} onSeverity={onSeverity} activeSeverities={activeSeverities} realTotal={realTotal} />
       <div className="flex h-[min(78vh,880px)] min-h-[560px]">
         <div
           ref={listRef}
@@ -268,7 +270,7 @@ export function AnomalyInbox({ items, onOpen, canAct, onChanged, emptyState, onS
                 )}
               >
                 {selected && <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[3px] bg-brand" />}
-                <PriorityRing score={priority.score} tone={priority.tone} />
+                <PriorityRing worst={priority.worst} />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-baseline justify-between gap-2">
                     <span className="truncate text-[13.5px] font-semibold text-ink">{group.identity?.display_name || group.identity?.identity_name}</span>

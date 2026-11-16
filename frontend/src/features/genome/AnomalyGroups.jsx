@@ -120,7 +120,7 @@ function rangeText(pattern) {
  * whether it is rising, and where it concentrates. One number, one sentence,
  * one line - colour only where severity is the point.
  */
-export function AnomalyOverview({ items, onSeverity, activeSeverities = [] }) {
+export function AnomalyOverview({ items, onSeverity, activeSeverities = [], realTotal }) {
   const stats = useMemo(() => {
     const now = Date.now();
     const sev = {};
@@ -136,7 +136,10 @@ export function AnomalyOverview({ items, onSeverity, activeSeverities = [] }) {
     return { sev, fresh, prior };
   }, [items]);
 
-  const total = items.length;
+  /* The real count (from the genome list's per-identity open counts) when
+     only the newest part was loaded; the breakdown below covers what loaded. */
+  const total = Number.isFinite(realTotal) && realTotal > items.length ? realTotal : items.length;
+  const partial = total > items.length;
   const severe = (stats.sev.CRITICAL ?? 0) + (stats.sev.HIGH ?? 0);
   const trend =
     stats.fresh === stats.prior
@@ -167,6 +170,11 @@ export function AnomalyOverview({ items, onSeverity, activeSeverities = [] }) {
               'Nothing critical or high. '
             )}
             <span data-numeric="">{formatNumber(stats.fresh)}</span> new in the last 24 hours, {trend}.
+            {partial && (
+              <span className="mt-1 block text-[12px] text-ink-3">
+                The counts and the list below cover the newest <span data-numeric="">{formatNumber(items.length)}</span>.
+              </span>
+            )}
           </p>
 
           <div className="mt-auto max-w-[560px] pt-5">

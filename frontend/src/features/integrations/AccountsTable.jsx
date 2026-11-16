@@ -307,9 +307,11 @@ function AccountRow({ account, names, counts, inventoryKnown, canManage, onChang
               {account.accountId}
             </button>
             <p className="truncate text-[11.5px] text-ink-3" title={account.connectedAt ? formatDateTime(account.connectedAt) : undefined}>
-              {account.connectedAt
-                ? `Connected ${formatRelative(account.connectedAt)}`
-                : 'Not connected yet'}
+              {account.status === 'disconnected'
+                ? 'Disconnected - not read or synced'
+                : account.connectedAt
+                  ? `Connected ${formatRelative(account.connectedAt)}`
+                  : 'Not connected yet'}
             </p>
           </div>
         </div>
@@ -327,7 +329,9 @@ function AccountRow({ account, names, counts, inventoryKnown, canManage, onChang
             {meta.label}
           </span>
           <span className="mt-0.5 block truncate text-[11.5px] text-ink-3" title={failing ? `${failing.label}: ${failing.message}` : undefined}>
-            {account.status === 'pending_approval'
+            {account.status === 'disconnected'
+              ? 'Re-check the connection to turn it back on'
+              : account.status === 'pending_approval'
               ? 'Waiting for approval'
               : account.status === 'rejected'
                 ? account.approval.note || 'Fix and re-check to ask again'

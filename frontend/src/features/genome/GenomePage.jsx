@@ -136,7 +136,7 @@ export default function GenomePage() {
 
       {tab === 'overview' && <OverviewTab summary={summary} fleet={fleet} window={window} openTab={openTab} />}
       {tab === 'identities' && <IdentitiesTab fleet={fleet} searchParams={searchParams} setParams={setParams} />}
-      {tab === 'anomalies' && <AnomaliesTab searchParams={searchParams} setParams={setParams} />}
+      {tab === 'anomalies' && <AnomaliesTab searchParams={searchParams} setParams={setParams} openTotal={openTotal} />}
     </div>
   );
 }
@@ -791,7 +791,7 @@ const VIEWS = [
   { value: 'list', label: 'Every anomaly' },
 ];
 
-function AnomaliesTab({ searchParams, setParams }) {
+function AnomaliesTab({ searchParams, setParams, openTotal }) {
   const listRef = useRef(null);
   const { railOpen, toggleRail } = useFacetRail('genome-anomalies');
   const state = searchParams.get('state') === 'all' ? 'all' : 'open';
@@ -982,8 +982,8 @@ function AnomaliesTab({ searchParams, setParams }) {
           />
           <ResultCount
             shown={formatNumber(filtered.length)}
-            total={formatNumber(all.length)}
-            unit={query.data && !query.data.complete ? 'anomalies (newest 1,000)' : state === 'open' ? 'open anomalies' : 'anomalies'}
+            total={formatNumber(query.data && !query.data.complete && state === 'open' && openTotal > all.length ? openTotal : all.length)}
+            unit={query.data && !query.data.complete ? `${state === 'open' ? 'open anomalies' : 'anomalies'} (newest ${formatNumber(all.length)} loaded)` : state === 'open' ? 'open anomalies' : 'anomalies'}
             filtered={applied > 0 || Boolean(search)}
             loading={query.isLoading && !query.data}
           />
@@ -1036,6 +1036,7 @@ function AnomaliesTab({ searchParams, setParams }) {
                 emptyState={emptyState}
                 onSeverity={(list) => setParams({ sev: list.join(','), page: '' })}
                 activeSeverities={severities}
+                realTotal={state === 'open' && !applied && !search && query.data && !query.data.complete ? openTotal : undefined}
               />
             );
           }

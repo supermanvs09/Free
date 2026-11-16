@@ -28,9 +28,12 @@ const TRUST_MARKS = [
  * palette with `data-theme="light"`.
  */
 export default function LoginPage() {
-  const { signIn, isAuthenticated, expired, endReason, clearExpired } = useAuth();
+  const { signIn, isAuthenticated, expired, endReason: sessionEndReason, clearExpired } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  /* After sign-out the page reloads to /login?ended=<reason>, so the reason
+     comes from the address when the session no longer holds it. */
+  const endReason = sessionEndReason || new URLSearchParams(location.search).get('ended') || null;
   /* Where to go after signing in: the screen a deep link asked for, if any,
      otherwise the dashboard. After signing out (or switching user, or timing
      out) there is no `from`, so the next sign-in starts on the dashboard. */

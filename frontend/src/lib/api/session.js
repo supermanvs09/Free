@@ -72,6 +72,34 @@ try {
 
 const SIGNED_OUT_KEY = 'dna.signedOut';
 
+/* Kept across sign-out: how this browser shows the console (theme, sidebar,
+   table density) and each user's own alert read state, which is keyed by
+   tenant and user and holds no data another user could read. */
+const KEEP_ON_SIGN_OUT = [/^dna\.theme$/, /^dna\.sidebar\.collapsed$/, /density$/, /^dna\.alerts\.read\./];
+
+/**
+ * Everything this browser kept for the signed-in user, removed: this tab's
+ * session storage and every console key in local storage except the display
+ * preferences above. In-memory caches go with the page reload that follows
+ * sign-out (see AuthContext.logout).
+ */
+export function clearUserData() {
+  try {
+    window.sessionStorage.clear();
+  } catch {
+    /* storage blocked: nothing kept */
+  }
+  try {
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i += 1) keys.push(localStorage.key(i));
+    for (const key of keys) {
+      if (key && !KEEP_ON_SIGN_OUT.some((re) => re.test(key))) localStorage.removeItem(key);
+    }
+  } catch {
+    /* storage blocked: nothing kept */
+  }
+}
+
 export function clearSession({ broadcast = true } = {}) {
   try {
     for (const key of [TOKEN_KEY, USER_KEY]) tabStore()?.removeItem(key);

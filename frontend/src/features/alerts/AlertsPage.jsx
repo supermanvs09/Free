@@ -450,6 +450,12 @@ export default function AlertsPage() {
     listRef.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
   }, [current?.key]);
 
+  /* The alert in the preview is open, whether it was clicked, reached with
+     j / k or shown first: it is read, and the badge goes down by one. */
+  useEffect(() => {
+    if (current) markRead(current);
+  }, [current, markRead]);
+
   const countBy = (field, value) => all.filter((a) => a[field] === value).length;
   const toggle = (list, set, v) => set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   const filtered = q || sources.length || sevs.length || onlyNew;

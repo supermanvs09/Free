@@ -106,7 +106,9 @@ function OverviewTab({ account, setup, names, counts, canManage, onEditRegions }
             ? `Waiting for approval${account.approval.requestedAt ? ` (asked ${formatRelative(account.approval.requestedAt)})` : ''}. Nothing is read from the account until then; once it is approved the role, read access and events checks run by themselves, and the account is read from its first event on.`
             : account.status === 'rejected'
               ? `This connection was not approved${account.approval.note ? `: “${account.approval.note}”` : '.'} Fix the setup, then re-check to ask again.`
-              : account.status === 'connected'
+              : account.status === 'disconnected'
+                ? 'This account is disconnected: it is not read or synced. Re-check the connection to turn it back on.'
+                : account.status === 'connected'
             ? 'We read this account through a read-only IAM role, and receive its CloudTrail events through an EventBridge rule. Nothing is written to the account.'
             : 'This account is not fully connected. The Connection checks tab says what failed and how to fix it.'}
         </p>

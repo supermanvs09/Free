@@ -29,6 +29,10 @@ const (
 	AWSStatusPending      = "pending"       // saved, has never passed every check
 	AWSStatusActionNeeded = "action_needed" // passed before, the latest check failed
 	AWSStatusConnected    = "connected"     // the latest check passed every step
+	// AWSStatusDisconnected: switched off in the database (account_status
+	// inactive / disabled / disconnected). Not synced; a re-check that passes
+	// turns it back on.
+	AWSStatusDisconnected = "disconnected"
 	// AWSStatusPendingApproval: every check passed on a first connection; a
 	// platform admin approves it before the account is connected.
 	AWSStatusPendingApproval = "pending_approval"

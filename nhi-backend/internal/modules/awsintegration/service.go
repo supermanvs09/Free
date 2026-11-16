@@ -1026,7 +1026,7 @@ func isApproved(rec *AWSAccountRecord) bool {
 // awaitingEvents: approved, readable, not connected yet, and its events
 // check has been waiting for the approval.
 func awaitingEvents(rec AWSAccountRecord) bool {
-	if rec.Approval.Status != ApprovalApproved || rec.IsConnected {
+	if rec.Approval.Status != ApprovalApproved || rec.IsConnected || rec.Status == AWSStatusDisconnected {
 		return false
 	}
 	var read, events bool
@@ -1200,7 +1200,7 @@ func (s *AWSIntegrationService) startEvents(ctx context.Context, caller AWSCalle
 // awaitingChecks: an admin approved the account and none of its checks has run
 // yet (the role check still says it waits for the approval).
 func awaitingChecks(rec AWSAccountRecord) bool {
-	if rec.Approval.Status != ApprovalApproved || rec.IsConnected {
+	if rec.Approval.Status != ApprovalApproved || rec.IsConnected || rec.Status == AWSStatusDisconnected {
 		return false
 	}
 	for _, c := range rec.Checks {

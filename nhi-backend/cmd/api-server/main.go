@@ -37,6 +37,7 @@ import (
 	"nhi-backend-api/internal/modules/genome/summarycommon"
 	"nhi-backend-api/internal/modules/genome/workloadtypes"
 	"nhi-backend-api/internal/modules/identities"
+	"nhi-backend-api/internal/modules/identityanomalies"
 	"nhi-backend-api/internal/modules/identityevents"
 	"nhi-backend-api/internal/modules/ispmworker"
 	"nhi-backend-api/internal/modules/permissionsource"
@@ -399,6 +400,7 @@ func main() {
 		CorrelationHandler:             correlationHandler,
 		AlertsHandler: alerts.NewHandler(resolver, ceFindingsRepo,
 			anomalylist.NewService(genomefullcommon.NewMonitoredIdentityLookup(resolver), anomalylist.NewRepository(), genomeAlertEvents)),
+		IdentityAnomalies:             identityanomalies.NewHandler(genomeIdentities, monitoringEvents, genomeAlertEvents),
 		AWSIntegrationHandler:         awsIntegrationHandler,
 		CodeSources:                   codesources.NewHandler(db),
 		NewAPIPermissionSourceHandler: permissionSourceHandler,

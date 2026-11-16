@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
-import { fetchAllAnomalies } from '../../lib/api/genome';
+import { fetchIdentityAnomalies } from '../../lib/api/genome';
+import { formatNumber } from '../../lib/format';
 import { useAccess } from '../../app/useAccess';
 import { useQuery } from '../../lib/hooks';
 import { Panel } from '../../ui/Panel';
@@ -20,28 +21,38 @@ const STATES = [
  * patterns (same departure, numbers aside) so hundreds of near-identical
  * anomalies read as one line each. The evidence and verdict open in the drawer.
  *
- * The list API filters by text, not by key, so the identity's own display
- * name is searched and the rows are kept to this identity's keys.
+ * The rows come from the identity's own list on the server, resolved like its
+ * summary and timeline (baseline key, event keys and the event identity names
+ * recorded under them), so the count here and on the tab agree.
  */
-export function IdentityAnomalies({ sourceType, keys, displayName }) {
+export function IdentityAnomalies({ sourceType, identityName }) {
   const [state, setState] = useState('open');
   const [selected, setSelected] = useState(null);
   const [pattern, setPattern] = useState(null);
   const { can } = useAccess();
-  const keySet = useMemo(() => new Set(keys.filter(Boolean)), [keys]);
   const query = useQuery(
-    (signal) => fetchAllAnomalies({ state: state === 'all' ? '' : 'open', sourceType, search: displayName || keys[0] }, signal),
-    [state, sourceType, displayName, [...keySet].join('|')],
+    (signal) => fetchIdentityAnomalies({ state: state === 'all' ? '' : 'open', sourceType, identityName }, signal),
+    [state, sourceType, identityName],
   );
-  const items = (query.data?.items ?? []).filter(
-    (item) => keySet.has(item.identity?.identity_name) || (displayName && item.identity?.display_name === displayName),
-  );
+  const items = useMemo(() => query.data?.items ?? [], [query.data]);
+  const total = query.data?.total ?? 0;
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-[12.5px] text-ink-2">
-          Repeats of the same departure are folded into one line. Open one to compare normal with what happened, and give a verdict.
+          {query.data ? (
+            <>
+              <span className="font-semibold text-ink" data-numeric="">
+                {formatNumber(total)}
+              </span>{' '}
+              {state === 'open' ? 'open' : ''} {total === 1 ? 'anomaly' : 'anomalies'}
+              {items.length < total ? `, the newest ${formatNumber(items.length)} shown` : ''}. Repeats of the same departure are folded into one line; open
+              one to compare normal with what happened and give a verdict.
+            </>
+          ) : (
+            'Repeats of the same departure are folded into one line. Open one to compare normal with what happened, and give a verdict.'
+          )}
         </p>
         <SegmentedControl label="Which anomalies" options={STATES} value={state} onChange={setState} />
       </div>

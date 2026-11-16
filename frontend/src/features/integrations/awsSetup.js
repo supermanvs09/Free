@@ -233,6 +233,8 @@ export const ACCOUNT_STATUS = {
   rejected: { label: 'Not approved', tone: 'critical' },
   action_needed: { label: 'Needs attention', tone: 'medium' },
   connected: { label: 'Connected', tone: 'low' },
+  /* Switched off in the workspace's records: not read, not synced. */
+  disconnected: { label: 'Disconnected', tone: 'critical' },
 };
 
 /** The events check of a run, and whether it is still watching for events. */

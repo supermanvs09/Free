@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { fetchMe, login as loginRequest, logout as logoutRequest, profileFrom } from '../lib/api/auth';
 import { onSessionExpired, renewSession } from '../lib/api/client';
 import { clearFacetRailState } from '../ui/FacetRail';
-import { clearLastActivity, clearSession, readStoredUser, readToken, subscribeSignOut, writeLastActivity, writeSession, writeStoredUser } from '../lib/api/session';
+import { clearLastActivity, clearSession, clearUserData, readStoredUser, readToken, subscribeSignOut, writeLastActivity, writeSession, writeStoredUser } from '../lib/api/session';
 
 const AuthContext = createContext(null);
 
@@ -47,7 +47,13 @@ export function AuthProvider({ children }) {
     clearFacetRailState();
     setEndReason(reason);
     endSession();
-    await told;
+    /* Nothing of this user is left for the next one: storage is cleared and
+       the page reloads to sign-in, which drops every in-memory cache (lists,
+       lookups, the alert summary). The server is told first; a slow answer
+       does not hold the reload past 2 seconds. */
+    await Promise.race([told.catch(() => {}), new Promise((resolve) => setTimeout(resolve, 2000))]);
+    clearUserData();
+    window.location.replace(`/login?ended=${encodeURIComponent(reason)}`);
   }, [endSession]);
 
   /* Back after signing out must not show the console again. A page the
