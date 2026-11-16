@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { LiveAlerts } from '../features/live/LiveAlerts';
 import { LiveActivity } from '../features/live/Presence';
+import { ScenarioDirector } from '../features/scenarios/ScenarioDirector';
 import { ContextBar } from './ContextBar';
 import { CommandPalette } from './CommandPalette';
 import { ScreenErrorBoundary } from './ScreenErrorBoundary';
@@ -102,6 +103,7 @@ export function AppShell() {
 
         <LiveAlerts />
         <LiveActivity />
+        <ScenarioDirector />
         <TopBar onOpenNav={() => setMobileOpen(true)} onOpenCommand={() => setCommandOpen(true)} />
 
         <Sidebar

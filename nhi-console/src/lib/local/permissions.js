@@ -1,9 +1,10 @@
 /* What each identity's credentials allow, and which of those it used: read
    from the entitlement model (entitlements.js), with last use from activity. */
 import { credentialsOf, eventsOf } from './world';
-import { permissionRows } from './entitlements';
+import { onOverlayChange, permissionRows } from './entitlements';
 
 const cache = new Map();
+onOverlayChange(() => cache.clear());
 export function permissionsOf(identity) {
   if (cache.has(identity.id)) return cache.get(identity.id);
   const creds = credentialsOf(identity);

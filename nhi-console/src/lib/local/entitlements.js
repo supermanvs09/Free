@@ -18,6 +18,8 @@
  * built the estate), so the two modules can import each other.
  */
 
+import { credentialDeleted, identityDeleted, keyDeactivated, linkBroken, responseRev, rightSized, scenario } from './response';
+
 const P = '482915736104'; // prod-core
 const D = '739204185562'; // data-platform
 const S = '215660394871'; // staging
@@ -25,6 +27,7 @@ const AZP = 'a3f1c2d4-5b6e-4f70-8a91-b2c3d4e5f607'; // Payments-Prod
 const AZD = '7e2d9c18-4a3b-42f1-9d6e-0c5b8a7f3e21'; // Analytics-Dev
 const JK = 'ci.deepalgorithms.ai';
 const VT = 'vault.deepalgorithms.ai';
+const SH = '605218934417'; // shared-services
 const R = 'ap-south-1';
 
 /* ── Resources ─────────────────────────────────────────────────────────────
@@ -98,6 +101,11 @@ const AWS_RESOURCES = [
   ['s3', S, 'dpa-staging-artifacts', 'Internal'],
   ['sqs', S, 'staging-events', 'Internal'],
   ['sns', S, 'sms-outbound', 'PII'],
+  // shared-services
+  ['s3', SH, 'dpa-org-cloudtrail', 'Logs'],
+  ['s3', SH, 'dpa-backup-vault', 'Financial'],
+  ['kms', SH, 'org-backup-cmk', 'Secrets'],
+  ['ssm', SH, 'org/github-app-private-key', 'Secrets'],
 ];
 
 const AZ = (sub, rg, path) => `/subscriptions/${sub}/resourceGroups/${rg}/providers/${path}`;
@@ -225,9 +233,8 @@ const GRANTS = {
     ['kms:Encrypt', 'kms:kyc-cmk', 'u'],
     ['s3:GetObject', 's3:dpa-kyc-documents', ''],
   ],
-  'payments-gateway-01': [
-    ADMIN(['ddb:payments-ledger', 'sec:prod/payments/npci-api-key', 'ssm:prod/payments/config', 'kms:payments-cmk']),
-  ],
+  /* The web tier's instance role: AdministratorAccess, used for one secret. */
+  'payments-gateway-01': [ADMIN(['sec:prod/payments/npci-api-key'])],
   'bastion-prod': [
     ['ssm:StartSession', 'svc:ec2', 'u', ['ec2:payments-gateway-01']],
     ['ec2:DescribeInstances', 'svc:ec2', 'u', ['ec2:payments-gateway-01']],
@@ -371,6 +378,30 @@ const GRANTS = {
     ['s3:PutObject', `s3:dpa-staging-artifacts@${S}`, 'u'],
   ],
   [`OrganizationAccountAccessRole@${S}`]: [ADMIN([`s3:dpa-staging-artifacts@${S}`])],
+  [`OrganizationAccountAccessRole@${SH}`]: [ADMIN([`s3:dpa-org-cloudtrail@${SH}`])],
+  /* Scenario: a CI user whose key ends up in a repository. */
+  'svc-deploy-bot': [
+    ['sts:AssumeRole', 'svc:iam', 'u', []],
+    ADMIN(['ecs:payments-api', 'cfn:payments-prod', 'ecr:payments-api']),
+  ],
+  /* Scenario: a harmless-looking role that can chain its way to admin. */
+  'reporting-readonly': [
+    ['s3:GetObject', 's3:dpa-invoices', 'u'],
+    ['dynamodb:GetItem,dynamodb:Query', 'ddb:orders', 'u'],
+    ['sts:AssumeRole', 'svc:iam', '', []],
+  ],
+  'ops-support-role': [
+    ['logs:FilterLogEvents', 'logs:/aws/lambda/payments', 'u'],
+    ['ssm:GetParameter', 'ssm:prod/payments/config', 'u'],
+    ['sts:AssumeRole', 'svc:iam', '', []],
+  ],
+  'break-glass-admin': [ADMIN([])],
+  /* Scenario: the role a deleted Lambda leaves behind. */
+  'invoice-legacy-export-role': [
+    ['s3:GetObject,s3:PutObject', 's3:dpa-invoices', ''],
+    ['s3:PutObject', 's3:dpa-finance-exports', ''],
+    ['dynamodb:Scan,dynamodb:GetItem', 'ddb:orders', ''],
+  ],
   /* Azure Payments-Prod */
   'mi-payments-aks': [
     ['Microsoft.KeyVault/vaults/secrets/getSecret/action', 'kv:upi-signing-key', 'u'],
@@ -474,6 +505,11 @@ const LINKS = [
   ['assume', 'terraform-runner', `OrganizationAccountAccessRole@${D}`, 'Organization role in data-platform trusts prod-core'],
   ['assume', 'terraform-runner', `OrganizationAccountAccessRole@${S}`, 'Organization role in staging trusts prod-core'],
   ['assume', 'raju-ops-automation', 'temp-debug-role', 'Trust policy of temp-debug-role allows the prod-core account'],
+  ['assume', 'svc-deploy-bot', `OrganizationAccountAccessRole@${D}`, 'Organization role in data-platform trusts prod-core'],
+  ['assume', 'svc-deploy-bot', `OrganizationAccountAccessRole@${S}`, 'Organization role in staging trusts prod-core'],
+  ['assume', 'svc-deploy-bot', `OrganizationAccountAccessRole@${SH}`, 'Organization role in shared-services trusts prod-core'],
+  ['assume', 'reporting-readonly', 'ops-support-role', 'Trust policy of ops-support-role names reporting-readonly (added for incident INC-2231, never removed)'],
+  ['assume', 'ops-support-role', 'break-glass-admin', 'Trust policy of break-glass-admin names ops-support-role'],
   ['signs_in_as', 'upi-payment-processor', 'approle/payments-api', 'Vault AppRole login with a secret_id from Secrets Manager'],
   ['signs_in_as', 'settlement-batch-worker', 'approle/settlement-worker', 'Vault AppRole login'],
   ['signs_in_as', 'fraud-scoring-api', 'k8s/fraud-scoring', 'Vault Kubernetes auth with its service account token'],
@@ -501,7 +537,6 @@ export const ANOMALY_SPECS = [
   { who: 'approle/jenkins-ci', dimension: 'resource', severity: 'high', value: 'secret/data/payments/*', baseline: 'secret/data/ci/* only', action: 'read', target: 'vault:secret/data/payments', hoursAgo: 9, description: 'Read secret/data/payments/npci and secret/data/payments/hsm, outside every path in its 14-day baseline.' },
   { who: 'terraform-runner', dimension: 'api_call', severity: 'high', value: 'iam:PutRolePolicy', baseline: 'Not seen in 14 days of baseline', action: 'iam:PutRolePolicy', target: `arn:aws:iam::${P}:role/terraform-runner`, hoursAgo: 14, description: 'Added an inline policy to itself that allows iam:PassRole on every role.' },
   { who: 'payments-gateway-01', dimension: 'volume', severity: 'high', value: '9x the usual hourly calls', baseline: 'About 40 calls an hour', action: 'secretsmanager:GetSecretValue', target: 'sec:prod/payments/npci-api-key', hoursAgo: 26, description: 'Read the NPCI API key 9 times more often than usual in one hour.' },
-  { who: 'support-copilot-agent', dimension: 'resource', severity: 'high', value: 'dpa-kyc-documents', baseline: 'orders and merchant-profiles tables only', action: 's3:GetObject', target: 's3:dpa-kyc-documents', hoursAgo: 31, description: 'The support agent read KYC documents for the first time. Its role allows it, but it had never done so.' },
   { who: 'sp-pos-terminal-sync', dimension: 'api_call', severity: 'high', value: 'roleAssignments/write', baseline: 'Not seen in 14 days of baseline', action: 'Microsoft.Authorization/roleAssignments/write', target: 'sub:Payments-Prod', hoursAgo: 40, description: 'Created a role assignment on the Payments-Prod subscription.' },
   { who: 'raju-ops-automation', dimension: 'time_of_day', severity: 'medium', value: '02:00 UTC', baseline: '04:00-14:00 UTC', action: 'iam:CreateAccessKey', target: `arn:aws:iam::${P}:user/svc-tally-sync`, hoursAgo: 52, description: 'Created an access key for svc-tally-sync at 02:00 UTC, outside its working hours.' },
   { who: 'mi-payments-aks', dimension: 'user_agent', severity: 'medium', value: 'curl/8.5.0', baseline: 'azsdk-python-identity only', action: 'Microsoft.KeyVault/vaults/secrets/getSecret/action', target: 'kv:upi-signing-key', hoursAgo: 61, description: 'Read the UPI signing key with curl instead of the SDK it always uses.' },
@@ -509,6 +544,17 @@ export const ANOMALY_SPECS = [
   { who: 'kinesis-txn-consumer', dimension: 'volume', severity: 'low', value: '4x the usual hourly calls', baseline: 'About 120 calls an hour', action: 'kinesis:GetRecords', target: `kinesis:txn-stream@${D}`, hoursAgo: 24 * 23, description: 'Read the transaction stream 4 times more often than usual during a backfill.', resolved: true },
   { who: 'notification-dispatcher', dimension: 'time_of_day', severity: 'low', value: '23:00 UTC', baseline: '01:00-17:00 UTC', action: 'sns:Publish', target: 'sns:payment-alerts', hoursAgo: 24 * 26, description: 'Published alerts late at night during a festival sale.', resolved: true },
 ];
+
+/* Departures raised by a live scenario: present from the moment it ran. */
+function scenarioAnomalies() {
+  const run = scenario('agent');
+  if (!run) return [];
+  const hoursAgo = Math.max(0.02, (Date.now() - run.at) / 3600000);
+  return [
+    { who: 'support-copilot-agent', dimension: 'resource', severity: 'critical', value: 'dpa-kyc-documents', baseline: 'orders and merchant-profiles tables only', action: 's3:GetObject', target: 's3:dpa-kyc-documents', hoursAgo, burst: 48, count: 1240, description: 'The support agent read 1,240 KYC documents in 4 minutes. Its role allows it, but in 14 days of baseline it never touched this bucket.', untrusted: false, live: true },
+  ];
+}
+export const activeAnomalySpecs = () => [...ANOMALY_SPECS, ...scenarioAnomalies()];
 
 /* ── Building it against the estate ────────────────────────────────────── */
 let model = null;
@@ -604,13 +650,13 @@ export function enrich(world) {
     const a = kind === 'stores' ? credByName.get(from) : byName.get(from) ?? world.identities.find((i) => i.__role === from);
     const b = byName.get(to);
     if (!a || !b) continue;
-    links.push({ kind, from: a, fromKind: kind === 'stores' ? 'credential' : 'identity', to: b, why });
+    links.push({ id: `${kind}:${from}->${to}`, kind, from: a, fromKind: kind === 'stores' ? 'credential' : 'identity', to: b, why });
   }
   /* A Jenkins job using a stored credential signs in as what it holds. */
   for (const l of links.filter((x) => x.kind === 'stores')) {
     for (const jobId of l.from.bound_identities ?? []) {
       const job = world.identities.find((i) => i.id === jobId);
-      if (job) links.push({ kind: 'signs_in_as', from: job, fromKind: 'identity', to: l.to, why: `Uses Jenkins credential ${l.from.name}`, via: l.from });
+      if (job) links.push({ id: `${l.id}|${job.name}`, kind: 'signs_in_as', from: job, fromKind: 'identity', to: l.to, why: `Uses Jenkins credential ${l.from.name}`, via: l.from });
     }
   }
 
@@ -647,8 +693,47 @@ export function enrich(world) {
 /* ── Reading the model ─────────────────────────────────────────────────── */
 export function grantsOf(identity) {
   if (!model) return [];
-  return model.grants.get(principalKey(identity)) ?? [];
+  return grantsForPrincipal(principalKey(identity));
 }
+
+/** A principal's grants after what people did: right-sized, or none once deleted. */
+let previewKey = null;
+export function grantsForPrincipal(key) {
+  const base = model?.grants.get(key) ?? [];
+  if (!rightSized(key) && previewKey !== key) return base;
+  return rightSize(base);
+}
+/** Computes something as if a principal were already right-sized. */
+export function withRightSizePreview(key, fn) {
+  previewKey = key;
+  try {
+    return fn();
+  } finally {
+    previewKey = null;
+  }
+}
+
+/* What it actually uses, as named grants: the least-privilege policy. */
+export function rightSize(grants) {
+  const out = [];
+  for (const g of grants) {
+    if (!g.used) continue;
+    if (!g.wildcard) {
+      out.push({ ...g, id: `${g.id}~ls` });
+      continue;
+    }
+    for (const res of g.seen_on) {
+      const actions = g.resource_spec === '*' ? [TYPICAL_ACTION[res.service] ?? `${res.service}:Get*`] : g.actions.filter((a) => a !== 'sts:AssumeRole');
+      if (!actions.length) continue;
+      out.push({ ...g, id: `${g.id}~${res.key}`, actions, resource_spec: res.key, wildcard: false, targets: [res], seen_on: [res], level: accessLevel(actions), policy_source: 'least-privilege', policy_type: 'inline' });
+    }
+  }
+  return out;
+}
+
+/** The grants a principal had before anyone changed it. */
+export const originalGrants = (key) => model?.grants.get(key) ?? [];
+export const principalOf = (identity) => principalKey(identity);
 
 export function resolveResource(key, _identity) {
   return model?.resolve(key) ?? null;
@@ -656,7 +741,7 @@ export function resolveResource(key, _identity) {
 
 /** Permission rows in the shape the permissions tab and posture read. */
 const ADMIN_SERVICES = {
-  aws: ['iam', 'sts', 's3', 'dynamodb', 'kms', 'secretsmanager', 'ssm', 'ec2', 'lambda', 'ecs', 'rds', 'sqs', 'sns', 'cloudformation', 'logs', 'organizations'],
+  aws: ['iam', 'sts', 's3', 'dynamodb', 'kms', 'secretsmanager', 'ssm', 'ec2', 'lambda', 'ecs', 'ecr', 'rds', 'sqs', 'sns', 'cloudformation', 'logs', 'organizations', 'cloudtrail', 'route53', 'elasticloadbalancing', 'autoscaling', 'eks', 'glue', 'athena', 'backup'],
   azure: ['Microsoft.Authorization', 'Microsoft.KeyVault', 'Microsoft.Storage', 'Microsoft.Compute', 'Microsoft.Sql', 'Microsoft.ContainerService', 'Microsoft.Network'],
 };
 
@@ -681,13 +766,46 @@ export function permissionRows(identity) {
 }
 
 /** Edges out of this identity to identities it can become. */
+const live = (l) => !linkBroken(l.id.split('|')[0]) && !l.from.__deleted && !l.to.__deleted && !(l.via && (keyDeactivated(l.via.id) || l.via.__deleted)) && !(l.fromKind === 'credential' && (keyDeactivated(l.from.id) || l.from.__deleted));
 export function linksFrom(identity) {
   if (!model) return [];
-  return model.links.filter((l) => l.fromKind === 'identity' && l.from.id === identity.id);
+  return model.links.filter((l) => l.fromKind === 'identity' && l.from.id === identity.id && live(l));
 }
 export function linksTo(identity) {
   if (!model) return [];
-  return model.links.filter((l) => l.to.id === identity.id);
+  return model.links.filter((l) => l.to.id === identity.id && live(l));
+}
+export const linkById = (id) => model?.links.find((l) => l.id === id) ?? null;
+
+/**
+ * Privilege escalation: role chains from an identity without administrator
+ * access to one with it. Each path is the identities in order.
+ */
+export function escalationPaths(identity) {
+  if (!model || identity.is_admin) return [];
+  const out = [];
+  const walk = (node, path, links) => {
+    if (path.length > 5) return;
+    for (const l of linksFrom(node).filter((x) => x.kind === 'assume')) {
+      if (path.some((p) => p.id === l.to.id)) continue;
+      const next = [...path, l.to];
+      const via = [...links, l];
+      if (l.to.is_admin) out.push({ identities: next, links: via });
+      else walk(l.to, next, via);
+    }
+  };
+  walk(identity, [identity], []);
+  return out;
+}
+/** Paths that pass through this identity (it is a step, not the start). */
+export function escalationThrough(identity) {
+  if (!model) return [];
+  const out = [];
+  for (const i of overlayWorld?.identities ?? []) {
+    if (i.id === identity.id || i.__deleted) continue;
+    for (const p of escalationPaths(i)) if (p.identities.slice(1).some((x) => x.id === identity.id)) out.push(p);
+  }
+  return out;
 }
 export function storedTarget(credential) {
   if (!model) return null;
@@ -697,6 +815,73 @@ export function storedTarget(credential) {
   return ext ? { resource: catalog().get(ext) } : null;
 }
 export const sharedRoleOf = (identity) => identity.__role ?? null;
-export const anomalySpecsFor = (identity) => ANOMALY_SPECS.filter((a) => a.who === identity.name && (identity.name !== 'OrganizationAccountAccessRole'));
+export const anomalySpecsFor = (identity) => activeAnomalySpecs().filter((a) => a.who === identity.name && identity.name !== 'OrganizationAccountAccessRole');
 export const dataScore = (data) => DATA_SCORE[data] ?? 4;
+
+/* ── Applying what people did to the estate ────────────────────────────── */
+const TYPICAL_ACTION = {
+  dynamodb: 'dynamodb:Query', s3: 's3:GetObject', sqs: 'sqs:SendMessage', sns: 'sns:Publish', kms: 'kms:Decrypt',
+  secretsmanager: 'secretsmanager:GetSecretValue', ssm: 'ssm:GetParameter', ecs: 'ecs:UpdateService', cloudformation: 'cloudformation:UpdateStack',
+  lambda: 'lambda:UpdateFunctionCode', ec2: 'ec2:DescribeInstances', glue: 'glue:GetTable', rds: 'rds:DescribeDBClusters', kinesis: 'kinesis:GetRecords',
+  ecr: 'ecr:PutImage',
+};
+export { TYPICAL_ACTION };
+
+let overlayWorld = null;
+let appliedRev = -1;
+const overlayListeners = new Set();
+/** Derived caches (activity, permissions, posture, anomalies) clear on a change. */
+export function onOverlayChange(fn) {
+  overlayListeners.add(fn);
+  return () => overlayListeners.delete(fn);
+}
+
+function severityOf(i) {
+  return i.is_admin && (i.is_publicly_accessible || !i.owner) ? 'CRITICAL' : i.is_admin || i.is_shadow ? 'HIGH' : i.idle_days > 90 ? 'MEDIUM' : null;
+}
+function signalOf(i) {
+  return !i.owner ? 'Orphaned' : i.is_admin ? 'Admin access' : i.idle_days > 90 ? 'Unused 90+ days' : i.is_publicly_accessible ? 'Publicly reachable' : null;
+}
+
+/** Called on every read of the estate: re-applies the overlay when it moved. */
+export function syncOverlay(world) {
+  overlayWorld = world;
+  if (!model) return;
+  let rev;
+  try {
+    rev = responseRev();
+  } catch {
+    return;
+  }
+  if (rev === appliedRev) return;
+  appliedRev = rev;
+  for (const i of world.identities) {
+    i.__base ??= { is_admin: i.is_admin, status: i.status };
+    i.__deleted = Boolean(identityDeleted(i.id));
+    const key = principalKey(i);
+    const sized = rightSized(key);
+    i.is_admin = sized ? false : i.__base.is_admin;
+    i.right_sized_at = sized?.at ? new Date(sized.at).toISOString() : null;
+  }
+  for (const c of world.credentials) {
+    c.__base ??= { status: c.status, bound: [...(c.bound_identities ?? [])], is_orphaned: c.is_orphaned };
+    c.__deleted = Boolean(credentialDeleted(c.id));
+    const off = keyDeactivated(c.id);
+    c.status = off ? 'inactive' : c.__base.status;
+    c.deactivated_at = off ? new Date(off.at).toISOString() : null;
+    c.deactivated_by = off ? off.by_name ?? off.by ?? null : null;
+    c.bound_identities = c.__base.bound.filter((id) => !identityDeleted(id));
+    c.bound_identities_count = c.bound_identities.length;
+    c.is_orphaned = c.__base.is_orphaned || (c.__base.bound.length > 0 && c.bound_identities.length === 0);
+    const gone = c.__base.bound.find((id) => identityDeleted(id));
+    c.orphaned_by = gone ? { identity_id: gone, name: world.identities.find((x) => x.id === gone)?.name, at: new Date(identityDeleted(gone).at).toISOString(), by: identityDeleted(gone).by } : null;
+  }
+  for (const i of world.identities) {
+    const rows = permissionRows(i);
+    if (rows.length) i.permission_utilization_pct = Math.round((rows.filter((r) => r.used).length / rows.length) * 100);
+    i.severity = severityOf(i);
+    i.signal = signalOf(i);
+  }
+  for (const fn of overlayListeners) fn();
+}
 export { catalog as resourceCatalog };

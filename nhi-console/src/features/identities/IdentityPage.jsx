@@ -2,6 +2,7 @@ import { Component, useEffect, useMemo } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Dna, Fingerprint, GitCompareArrows, Radar, ShieldCheck, Waypoints } from 'lucide-react';
 import { IdentityBlastRadius } from '../blast/IdentityBlastRadius';
+import { ResponseInsights } from '../response/ResponseInsights';
 import { accessGraphRoute, genomeRouteFor } from '../../lib/identityLinks';
 import { BehaviourBaseline } from './BehaviourBaseline';
 import { EntityChangesTab } from '../changes/EntityChangesTab';
@@ -160,6 +161,8 @@ export default function IdentityPage() {
         }
         tabs={<Tabs size="sm" tabs={tabs} value={tab} onChange={setTab} />}
       />
+
+      <ResponseInsights identity={identity} />
 
       {tab === 'overview' && <BehaviourBaseline identity={identity} />}
 

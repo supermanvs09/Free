@@ -10,6 +10,7 @@
  */
 import { apps, isOn } from './apps';
 import { slice, save, onStateChange, isShared, isSyncLeader, onLeaderChange, getSyncStatus } from './state';
+import { response } from './response';
 import { estate, scopeById } from './seed';
 import { sendEmail, createJiraIssue } from '../notify';
 import { postureId } from './postureEngine';
@@ -25,6 +26,7 @@ const cursor = () => slice('liveCursor', () => ({ next: 0, last: 0 }));
 /* Alerts this console has handed to Gmail and Jira (or decided not to). */
 const handled = new Set();
 let seenTop = null;
+const ownEmitted = new Set();
 
 export function onLiveEvent(fn) {
   listeners.add(fn);
@@ -56,12 +58,15 @@ export function emitEvent(partial) {
     facts: partial.facts ?? {},
     detected_at: iso(Date.now()),
     identity: identity ? { id: identity.id, name: identity.name, provider: identity.provider, arn: identity.arn, account_id: identity.account_id, account_name: scopeById(identity.account_id)?.name, region: identity.region, identity_type: identity.identity_type } : null,
-    link: linkFor(partial.kind, identity),
+    link: partial.link ?? linkFor(partial.kind, identity),
+    scenario: partial.scenario ?? null,
+    resolution: null,
   };
   if (liveEvents().some((e) => e.id === event.id)) return event;
   liveEvents().unshift(event);
   if (liveEvents().length > 60) liveEvents().length = 60;
   seenTop = event.id;
+  ownEmitted.add(event.id);
   save();
   for (const fn of listeners) fn(event);
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('alerts:refresh'));
@@ -193,7 +198,17 @@ function specAt(n) {
   return { ...base, id: `evt_live_${n}`, dedupe_key: `live-${n % UPCOMING.length}`, ...(round > 0 ? { summary: `${base.summary} Seen again ${round === 1 ? 'since the last time' : `${round + 1} times now`}.` } : {}) };
 }
 
+let paused = false;
+/** Holds scheduled detections back (while a live scenario is presented). */
+export function setWatcherPaused(value) {
+  paused = Boolean(value);
+}
+
+/* A live scenario being presented, in anyone's console, holds detections back. */
+const presenting = () => (response().presenting?.until ?? 0) > Date.now();
+
 function tick() {
+  if (paused || presenting()) return;
   const c = cursor();
   const n = c.next;
   c.next += 1;
@@ -249,18 +264,16 @@ export function startWatching() {
   onLeaderChange(decide);
   decide();
   /* New alerts raised elsewhere: show them here, and the watcher sends them. */
-  seenTop = liveEvents()[0]?.id ?? null;
+  /* What is new is what this console has not seen and was raised just now:
+     a list that shrank (a reset scenario) brings nothing back. */
+  const seen = new Set(liveEvents().map((e) => e.id));
   onStateChange(() => {
     const list = liveEvents();
     const top = list[0];
     if (!top || top.id === seenTop) return;
-    const fresh = [];
-    for (const e of list) {
-      if (e.id === seenTop) break;
-      fresh.push(e);
-      if (fresh.length >= 10) break;
-    }
     seenTop = top.id;
+    const fresh = list.filter((e) => !seen.has(e.id) && !ownEmitted.has(e.id) && Date.parse(e.detected_at) > Date.now() - 2 * 60 * 1000).slice(0, 5);
+    for (const e of list) seen.add(e.id);
     for (const e of fresh.reverse()) {
       for (const fn of listeners) fn(e);
       if (leader) dispatch(e);

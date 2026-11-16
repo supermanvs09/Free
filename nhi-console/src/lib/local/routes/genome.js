@@ -1,7 +1,7 @@
 /* NHI Genome: behaviour baselines, departures (anomalies) and their evidence. */
 import { genome as env, cursorPage, failNested, rng, hashString, iso, DAY, HOUR, MIN, NOW, list } from '../util';
 import { identities, identityById, identityByArn, eventsOf, visible, credentialsOf } from '../world';
-import { ANOMALY_SPECS } from '../entitlements';
+import { activeAnomalySpecs, onOverlayChange } from '../entitlements';
 import { estate, person } from '../seed';
 import { slice, save } from '../state';
 import { audit } from '../users';
@@ -36,12 +36,15 @@ function baselineOf(i) {
 const feedback = () => slice('anomalyFeedback', () => ({}));
 
 let cache = null;
+onOverlayChange(() => {
+  cache = null;
+});
 export function anomalies() {
   if (cache) return cache.filter((a) => visible(identityById(a.identity_id)));
   const out = [];
   /* Departures from baseline, from the entitlement model's list, each with
      the recorded events behind it (world.js eventsOf). */
-  ANOMALY_SPECS.forEach((spec, k) => {
+  activeAnomalySpecs().forEach((spec, k) => {
     const i = estate().identities.find((x) => x.name === spec.who);
     if (!i || !sourceTypeOf(i)) return;
     const r = rng(hashString(`an:${i.id}:${k}`));
@@ -61,17 +64,20 @@ export function anomalies() {
       account_id: i.account_id,
       region: i.region,
       provider: i.provider,
+      /* The shape the anomaly list and inbox group by. */
+      identity: { source_type: sourceTypeOf(i), identity_name: canonicalGenomeName(i.identity_type, i.arn), display_name: i.name, principal_arn: i.arn, account_id: i.account_id, region: i.region, provider: i.provider, inventory_id: i.id },
       dimension: spec.dimension,
       title: `${DIM_LABEL[spec.dimension]}: ${spec.value}`,
       description: spec.description,
-      what_changed: { dimension: spec.dimension, value: spec.value, baseline: spec.baseline },
+      what_changed: `${DIM_LABEL[spec.dimension]}: ${spec.value} (normal: ${spec.baseline})`,
+      change: { dimension: spec.dimension, value: spec.value, baseline: spec.baseline },
       severity: sev,
       risk_score: { critical: r.int(88, 97), high: r.int(70, 84), medium: r.int(45, 64), low: r.int(18, 36) }[sev],
       status: resolved ? 'resolved' : 'open',
       state: resolved ? 'resolved' : 'open',
       detected_at: iso(Math.min(detected, NOW - MIN)),
       occurred_at: sample.event_time,
-      anomalous_event_count: flagged.length || 1,
+      anomalous_event_count: spec.count ?? (flagged.length || 1),
       model_confidence_percent: { critical: r.int(92, 98), high: r.int(84, 93), medium: r.int(72, 85), low: r.int(64, 76) }[sev],
       provenance_confidence: sev === 'critical' || sev === 'high' ? 'high' : 'medium',
       reasons: [DIM_LABEL[spec.dimension], spec.untrusted ? 'Untrusted network' : 'Outside the learned range'],
@@ -255,7 +261,9 @@ export default function register(r) {
     const b = baselineOf(i);
     const items = [
       ...anomalies().map(withFeedback).filter((a) => a.identity_id === i.id).map((a) => ({ type: 'anomaly', id: a.id, title: a.title, description: a.description, severity: a.severity, status: a.status, occurred_at: a.detected_at, dimension: a.dimension })),
-      ...(b.active_since ? [{ type: 'baseline', id: `bl_${i.id}`, title: `Baseline v${b.version} activated`, description: `${b.required_days} days of behaviour learned.`, occurred_at: b.active_since, version: b.version }] : []),
+      ...(b.active_since
+        ? [{ type: 'baseline_established', id: `bl_${i.id}`, title: `Baseline v${b.version} activated`, description: `${b.required_days} days of behaviour learned.`, occurred_at: b.active_since, version: b.version }]
+        : [{ type: 'learning_started', id: `ls_${i.id}`, title: 'Learning started', description: `${b.built_days} of ${b.required_days} days learned so far.`, occurred_at: i.first_seen_at }]),
       { type: 'first_seen', id: `fs_${i.id}`, title: 'First seen', description: 'Monitoring started.', occurred_at: i.first_seen_at },
     ].sort((a, b2) => Date.parse(b2.occurred_at) - Date.parse(a.occurred_at));
     const p = cursorPage(items, query, 25);

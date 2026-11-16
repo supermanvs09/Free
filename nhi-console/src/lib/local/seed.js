@@ -6,7 +6,7 @@
  * same on every load and its times stay current.
  */
 import { DAY, HOUR, MIN, NOW, ago, iso, rng } from './util';
-import { enrich } from './entitlements';
+import { enrich, syncOverlay } from './entitlements';
 
 export const ORG = { name: 'Deep Algorithms', domain: 'deepalgorithms.ai', tenantId: 'tnt_7f3a91c2' };
 
@@ -41,6 +41,7 @@ export const SCOPES = [
   { provider: 'aws', id: '482915736104', name: 'prod-core', regions: ['ap-south-1', 'us-east-1'], env: 'production' },
   { provider: 'aws', id: '739204185562', name: 'data-platform', regions: ['ap-south-1', 'eu-west-1'], env: 'production' },
   { provider: 'aws', id: '215660394871', name: 'staging', regions: ['ap-south-1'], env: 'staging' },
+  { provider: 'aws', id: '605218934417', name: 'shared-services', regions: ['ap-south-1'], env: 'production' },
   { provider: 'azure', id: 'a3f1c2d4-5b6e-4f70-8a91-b2c3d4e5f607', name: 'Payments-Prod', regions: ['centralindia', 'southindia'], env: 'production', tenant: '9c4e1b72-0d3a-4f6b-a8e2-51c7d93f0b14' },
   { provider: 'azure', id: '7e2d9c18-4a3b-42f1-9d6e-0c5b8a7f3e21', name: 'Analytics-Dev', regions: ['centralindia'], env: 'development', tenant: '9c4e1b72-0d3a-4f6b-a8e2-51c7d93f0b14' },
   { provider: 'jenkins', id: 'ci.deepalgorithms.ai', name: 'Jenkins CI', regions: ['on-prem'], env: 'production' },
@@ -57,6 +58,7 @@ const AZP = 'a3f1c2d4-5b6e-4f70-8a91-b2c3d4e5f607';
 const AZD = '7e2d9c18-4a3b-42f1-9d6e-0c5b8a7f3e21';
 const JK = 'ci.deepalgorithms.ai';
 const VT = 'vault.deepalgorithms.ai';
+const SH = '605218934417';
 
 const IDENTITY_SPECS = [
   // AWS prod-core
@@ -141,6 +143,13 @@ const IDENTITY_SPECS = [
   I('OrganizationAccountAccessRole', 'iam_role', 'NHI_CICD', D, 'charan', { admin: true, external: P }),
   I('OrganizationAccountAccessRole', 'iam_role', 'NHI_CICD', S, 'charan', { admin: true, external: P }),
   I('sp-terraform-prod', 'service_principal', 'NHI_CICD', AZP, 'charan', { azSecret: 164, admin: true }),
+  /* Scenario identities (appended, so every id above stays as it is). */
+  I('svc-deploy-bot', 'iam_user_service_account', 'NHI_CICD', P, 'raju', { keys: 1, oldKey: 58, admin: true, hot: true }),
+  I('OrganizationAccountAccessRole', 'iam_role', 'NHI_CICD', SH, 'charan', { admin: true, external: P }),
+  I('reporting-readonly', 'iam_role', 'NHI_SERVICE', P, 'meghana', {}),
+  I('ops-support-role', 'iam_role', 'NHI_SERVICE', P, 'venkat', { stale: 41 }),
+  I('break-glass-admin', 'iam_role', 'HUMAN', P, 'pranav', { admin: true, stale: 63 }),
+  I('invoice-legacy-export', 'lambda_function', 'NHI_SERVICE', P, 'sashi', { cred: 'shared:invoice-legacy-export-role', stale: 97 }),
 ];
 
 export const IDENTITY_TYPE_PROVIDER = {
@@ -486,6 +495,8 @@ function build() {
 let world = null;
 export function estate() {
   world ??= build();
+  /* What people did (keys deactivated, roles right-sized, ...) on top. */
+  syncOverlay(world);
   return world;
 }
 

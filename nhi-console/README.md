@@ -103,6 +103,28 @@ departed from baseline. Permissions, Activity, utilisation, Posture, NHI Genome,
 the access graph, blast radius and who-can-assume (`src/lib/local/reach.js`)
 are all derived from it, so they always agree.
 
+## Response actions and live scenarios
+
+Every identity page leads with what can be done about it now, and the action
+changes the shared model, so blast radius, the access graph, posture and alerts
+recompute for everyone at once:
+
+| Finding | Action | Effect |
+|---|---|---|
+| An access key found in code | **Deactivate key** | Blast radius of the key goes to 0; the alert shows "Key deactivated" |
+| Admin access it barely uses (e.g. "uses 4%") | **Generate least-privilege policy** → **Apply** | Policy built from 90 days of activity; before/after blast radius shown, then applied |
+| A role chain to administrator access | **Remove trust** on the first link | The escalation path closes; the posture check passes |
+| A role left behind by a deleted function | **Delete role** (credential drawer) | The orphaned role is gone |
+| A behaviour anomaly (NHI Genome) | **Restrict to its baseline** | Access it never used is removed |
+
+**Live scenarios** (⌘/Ctrl + Shift + L, or type "live" in ⌘K; admins and
+analysts) replay five stories on a fixed timeline against the real console,
+with large captions for recording: leaked IAM key, EC2 role stolen via IMDS,
+AssumeRole escalation chain, orphaned role after a Lambda is deleted, runaway
+Bedrock agent. Each run starts from a reset; **Pause**, **Next step** and
+**Stop** sit in a small pill while it plays, and background detections wait
+until it finishes. Open the console with `?present=1` to show the panel.
+
 ## Integrations
 
 **Settings → Integrations** lists eight applications, each with an on/off switch:

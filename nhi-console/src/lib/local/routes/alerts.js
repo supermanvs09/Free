@@ -49,8 +49,10 @@ function postureAlerts() {
 }
 
 function genomeAlerts() {
+  /* An anomaly raised live is already on the list as it happened. */
+  const live = new Set(liveEvents().filter((e) => e.kind === 'anomaly' && e.scenario).map((e) => e.identity?.id));
   return anomalies()
-    .filter((a) => a.status === 'open' && ['critical', 'high'].includes(a.severity))
+    .filter((a) => a.status === 'open' && ['critical', 'high'].includes(a.severity) && !live.has(a.identity_id))
     .map((a) => ({
       key: `genome:${a.id}`,
       source: 'genome',
@@ -74,7 +76,8 @@ function genomeAlerts() {
 
 function exposureAlerts() {
   return liveFindings()
-    .filter((f) => f.list === 'live' && ['CRITICAL', 'HIGH'].includes(f.risk_tier) && f.analyst_decision !== 'false_positive')
+    /* A live leak is already on the list as it happened (liveAlerts). */
+    .filter((f) => f.list === 'live' && !f.scenario && ['CRITICAL', 'HIGH'].includes(f.risk_tier) && f.analyst_decision !== 'false_positive')
     .map((f) => ({
       key: `exposure:${f.finding_id}`,
       source: 'exposure',
@@ -107,11 +110,11 @@ function liveAlerts() {
       summary: e.summary,
       severity: lower(e.severity),
       detected_at: e.detected_at,
-      subject: e.identity?.name ?? '',
+      subject: e.identity?.name ?? e.facts?.subject ?? '',
       subject_type: e.kind === 'exposure' ? `${e.facts?.platform === 'github' ? 'GitHub' : 'Bitbucket'} repository` : e.identity?.identity_type,
       identity_name: e.identity?.name,
       discovery_id: e.identity?.id,
-      provider: e.identity?.provider,
+      provider: e.identity?.provider ?? e.facts?.provider,
       account_id: e.identity?.account_id,
       account_name: e.identity?.account_name,
       region: e.identity?.region,
@@ -123,6 +126,7 @@ function liveAlerts() {
       link: e.link,
       count: 1,
       live: true,
+      resolution: e.resolution ?? null,
     }));
 }
 

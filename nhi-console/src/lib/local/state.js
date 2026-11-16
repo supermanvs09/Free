@@ -202,6 +202,9 @@ function bumpLive() {
     window.dispatchEvent(new CustomEvent('alerts:refresh'));
   }, 120);
 }
+/** Every screen reloads in place, as for a change from someone else. */
+export const refreshEverywhere = () => bumpLive();
+
 /** Increments whenever the shared workspace changed under this console. */
 export const getLiveEpoch = () => liveEpoch;
 export function subscribeLiveEpoch(fn) {

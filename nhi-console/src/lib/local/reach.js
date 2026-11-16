@@ -40,16 +40,18 @@ function resourceVisible(res) {
 /* ── What an identity was seen doing, by resource ──────────────────────── */
 const observedCache = new Map();
 function observed(identity) {
-  if (observedCache.has(identity.id)) return observedCache.get(identity.id);
+  const events = eventsOf(identity);
+  const held = observedCache.get(identity.id);
+  if (held && held.events === events) return held.map;
   const map = new Map();
-  for (const e of eventsOf(identity)) {
+  for (const e of events) {
     if (e.error_code || !e.resource_arn) continue;
     const arn = e.resource_arn.startsWith('arn:aws:s3:::') ? e.resource_arn.split('/')[0] : e.resource_arn;
     const hit = map.get(arn);
     if (hit) hit.count += 1;
     else map.set(arn, { count: 1, last: e.event_time, action: e.action });
   }
-  observedCache.set(identity.id, map);
+  observedCache.set(identity.id, { events, map });
   return map;
 }
 
@@ -303,10 +305,29 @@ function score(res, level, hops, seen) {
   return Math.round(Math.max(0.5, Math.min(10, base)) * 10) / 10;
 }
 
+/* A deactivated key, or an IAM user with no active key left, reaches nothing. */
+function containment(arn, subject) {
+  const cred = credentialByArn(arn);
+  if (cred?.credential_type === 'access_key' && cred.status !== 'active') return { reason: cred.deactivated_at ? 'Key deactivated' : 'Key inactive', at: cred.deactivated_at, by: cred.deactivated_by };
+  const user = !cred && subject.start?.identity_type?.startsWith('iam_user') ? subject.start : null;
+  if (user) {
+    const keys = credentialsOf(user).filter((c) => c.credential_type === 'access_key');
+    if (keys.length && keys.every((k) => k.status !== 'active')) {
+      const last = keys.filter((k) => k.deactivated_at).sort((a, b) => Date.parse(b.deactivated_at) - Date.parse(a.deactivated_at))[0];
+      return { reason: 'Every access key deactivated', at: last?.deactivated_at ?? null, by: last?.deactivated_by ?? null };
+    }
+  }
+  return null;
+}
+
 export function blastRadius(arn) {
   const subject = subjectOf(arn);
   if (!subject) return null;
   if (subject.start && !visible(subject.start)) return null;
+  const contained = containment(arn, subject);
+  if (contained) {
+    return { source_arn: arn, source_name: subject.name, subject: { arn, name: subject.name, type: subject.type, provider: subject.provider }, risk_level: 'NONE', blast_radius_score: 0, secrets_access: false, converging_paths: false, reachable_resources: [], reachable_identities: [], reach_by_service: [], paths: [], summary: { resources: 0, sensitive: 0, write: 0, admin: false, accounts: 0 }, resources: [], contained, computed_at: new Date().toISOString() };
+  }
   const resources = new Map();
   const counts = new Map();
   const roles = [];

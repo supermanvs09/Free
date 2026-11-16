@@ -3,6 +3,7 @@ import { ProviderIcon, providerOf } from '../../ui/ProviderIcon';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Braces, Eye, Fingerprint, GitCompareArrows, History, KeyRound, Link2, Radar, ShieldCheck, UsersRound } from 'lucide-react';
 import { BlastRadiusView } from '../blast/BlastRadiusView';
+import { OrphanPanel } from '../response/OrphanPanel';
 import { fetchCredential } from '../../lib/api/inventory';
 import { EntityChangesTab } from '../changes/EntityChangesTab';
 import { useQuery } from '../../lib/hooks';
@@ -113,6 +114,7 @@ export function CredentialDrawer({ credentialId, row, onClose, initialTab }) {
         <Tabs tabs={tabs} value={tab} onChange={setTab} size="sm" />
       </div>
       <div className="px-4 py-4 sm:px-5">
+        {credentialId && credential?.credential_type === 'iam_role' && flag('is_orphaned') && <OrphanPanel credentialId={credentialId} onDeleted={onClose} />}
         {tab === 'overview' && <OverviewTab credentialId={credentialId} query={overviewQuery} />}
         {tab === 'trust' && <TrustTab credentialId={credentialId} />}
         {tab === 'rotation' && <RotationTab credentialId={credentialId} longLived={meta.longLived} />}

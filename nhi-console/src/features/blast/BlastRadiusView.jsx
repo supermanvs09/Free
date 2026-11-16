@@ -306,6 +306,15 @@ export function BlastRadiusView({ arn, compact = false }) {
     </Button>
   );
 
+  if (result.contained) {
+    return (
+      <ClearState
+        title={`Contained · ${result.contained.reason}`}
+        description={`${name} can no longer be used, so an attacker holding it reaches nothing.${result.contained.at ? ` ${result.contained.reason} ${formatRelative(result.contained.at)}${result.contained.by ? ` by ${result.contained.by}` : ''}.` : ''}`}
+        action={recompute}
+      />
+    );
+  }
   if (total === 0) {
     return (
       <ClearState

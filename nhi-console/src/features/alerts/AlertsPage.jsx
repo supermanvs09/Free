@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, Dna, FileWarning, Fingerprint, GitCommitVertical, Radius, ShieldAlert } from 'lucide-react';
+import { ArrowUpRight, CheckCircle2, Dna, FileWarning, Fingerprint, GitCommitVertical, Radius, ShieldAlert } from 'lucide-react';
 import { fetchAlerts, fetchIdentityAlert } from '../../lib/api/alerts';
 import { fetchBlastRadius } from '../../lib/api/blastRadius';
 import { useQuery } from '../../lib/hooks/useQuery';
@@ -66,10 +66,15 @@ function Row({ a, selected, onSelect, isNew }) {
             {formatRelative(a.detected_at)}
           </span>
         </span>
-        <span className="mt-0.5 block truncate text-[12.5px] text-ink-2">{a.title}</span>
+        <span className={cn('mt-0.5 block truncate text-[12.5px]', a.resolution ? 'text-ink-3' : 'text-ink-2')}>{a.title}</span>
         <span className="mt-1.5 flex items-center gap-2 text-[11.5px] text-ink-3">
           <src.icon className="size-3.5" />
           <span className="truncate">{src.label}</span>
+          {a.resolution && (
+            <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-low-soft px-2 py-0.5 text-[10.5px] font-semibold text-low">
+              <CheckCircle2 aria-hidden="true" className="size-3" /> {a.resolution.label}
+            </span>
+          )}
         </span>
       </span>
     </div>
@@ -210,7 +215,7 @@ function GenomeWhy({ a }) {
 function ExposureWhy({ a, pageOn }) {
   const f = a.facts ?? {};
   const rows = [
-    ['Repository', a.subject],
+    ['Repository', a.facts?.repository ?? a.subject],
     ['File', f.file ? `${f.file}${f.line && f.line !== '0' ? `:${f.line}` : ''}` : ''],
     ['Branch', f.branch],
     ['Commit', f.commit ? f.commit.slice(0, 10) : ''],
@@ -271,6 +276,15 @@ function Preview({ a, exposurePage }) {
           </span>
         </div>
         <h2 className="mt-3 text-[18px] leading-snug font-semibold text-ink">{a.title}</h2>
+        {a.resolution && (
+          <p className="animate-pop mt-3 flex items-start gap-2 rounded-[var(--radius-control)] border border-low/30 bg-low-soft px-3 py-2 text-[12.5px] text-ink-2">
+            <CheckCircle2 aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-low" />
+            <span>
+              <b className="text-low">{a.resolution.label}</b> {formatRelative(a.resolution.at)}
+              {a.resolution.by ? ` by ${a.resolution.by}` : ''}.
+            </span>
+          </p>
+        )}
         <p className="mt-1 text-[13px] text-ink-2">
           <span className="font-medium text-ink">{a.subject}</span>
           {a.subject_type ? ` · ${a.source === 'exposure' ? a.subject_type : identityTypeLabel(a.subject_type)}` : ''}

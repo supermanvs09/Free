@@ -5,6 +5,7 @@
 import { estate, REPOSITORIES, GITHUB_ORG, BITBUCKET_URL, person } from './seed';
 import { isOn } from './apps';
 import { slice } from './state';
+import { keyDeactivated, scenario } from './response';
 import { DAY, HOUR, MIN, NOW, iso, rng } from './util';
 
 const DETECTORS = {
@@ -170,10 +171,80 @@ export function platformOn(platform) {
   return platform === 'codecommit' ? isOn('aws') : isOn(platform);
 }
 
+/* The leak a live scenario introduces: a deploy key pushed to payments-api. */
+function scenarioFindings() {
+  const run = scenario('leak');
+  if (!run) return [];
+  const bot = estate().identities.find((i) => i.name === 'svc-deploy-bot');
+  const key = bot && estate().credentials.find((c) => c.bound_identities?.includes(bot.id) && c.credential_type === 'access_key');
+  if (!key) return [];
+  const off = keyDeactivated(key.id);
+  const commit = 'e3b9c41d7a2f08b65c1d94e7a03f2b8c6d5e1a97';
+  const at = new Date(run.at).toISOString();
+  return [
+    {
+      finding_id: `github/${GITHUB_ORG}/payments-api/${commit.slice(0, 12)}/deploy/.env.production:12`,
+      client_id: GITHUB_ORG,
+      platform: 'github',
+      repository: `${GITHUB_ORG}/payments-api`,
+      branch: 'main',
+      file_path: 'deploy/.env.production',
+      line_number: 12,
+      line_preview: `AWS_ACCESS_KEY_ID=${key.access_key_id.slice(0, 4)}************${key.access_key_id.slice(-4)}`,
+      detector: 'AWS',
+      detectors: ['AWS'],
+      redacted: `${key.access_key_id.slice(0, 4)}************${key.access_key_id.slice(-4)}`,
+      value_fingerprint: '9f2c4e81b7a0d3c6',
+      commit_id: commit,
+      commit_message: 'ci: add deploy creds for hotfix pipeline',
+      author: `${person('raju').name} <${person('raju').email}>`,
+      committer: person('raju').name,
+      commit_authored_at: at,
+      created_at: at,
+      risk_tier: 'CRITICAL',
+      severity: 'CRITICAL',
+      recommended_action: 'TRIGGER_REMEDIATION',
+      category: 'cloud_credential',
+      confidence: 'high',
+      verification_status: off ? 'INACTIVE' : 'ACTIVE',
+      remediation_status: off ? 'REMEDIATED' : 'OPEN',
+      remediated_at: off ? new Date(off.at).toISOString() : null,
+      remediated_by: off?.by ?? null,
+      ml_decision: 'TRUE_POSITIVE',
+      ml_score: 0.99,
+      ml_model_version: 'secretnet-2026.10',
+      analyst_decision: null,
+      analyst_decided_by: null,
+      analyst_decided_at: null,
+      repo_visibility: 'private',
+      repo_stars: 12,
+      repo_forks: 3,
+      repo_pushed_at: at,
+      files_changed: 2,
+      additions: 14,
+      deletions: 1,
+      github_uri: `https://github.com/${GITHUB_ORG}/payments-api/blob/${commit}/deploy/.env.production#L12`,
+      bitbucket_uri: null,
+      codecommit_uri: null,
+      noise_flags: '',
+      reason: '',
+      count: 1,
+      list: 'live',
+      identity_id: bot.id,
+      identity_name: bot.name,
+      identity_provider: 'aws',
+      credential_id: key.id,
+      credential_name: key.name,
+      credential_type: 'access_key',
+      scenario: 'leak',
+    },
+  ];
+}
+
 export function liveFindings() {
   const d = decisions();
   const accepted = new Set(allowlist().map((e) => [e.client_id, e.file_path, e.detector, e.redacted].join('|')));
-  return allFindings()
+  return [...scenarioFindings(), ...allFindings()]
     .filter((f) => platformOn(f.platform))
     .filter((f) => !accepted.has([f.client_id, f.file_path, f.detector, f.redacted].join('|')))
     .map((f) => (d[f.finding_id] ? { ...f, ...d[f.finding_id] } : f));
@@ -182,7 +253,7 @@ export function liveFindings() {
 export function exposedIdentityIds() {
   return new Set(
     liveFindings()
-      .filter((f) => f.list === 'live' && f.identity_id && f.analyst_decision !== 'false_positive')
+      .filter((f) => f.list === 'live' && f.identity_id && f.analyst_decision !== 'false_positive' && !(f.credential_id && keyDeactivated(f.credential_id)))
       .map((f) => f.identity_id),
   );
 }

@@ -236,6 +236,54 @@
   animation: dna-slide-left 0.34s var(--ease-out-quint) both;
 }
 
+/* Response and live scenarios: a chain lighting up hop by hop, a pulse on
+   what just changed, a highlight the presenter points at. */
+@keyframes dna-hop-in {
+  from {
+    opacity: 0;
+    transform: translate3d(-12px, 0, 0) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes dna-edge-flow {
+  to {
+    background-position: 28px 0;
+  }
+}
+@keyframes dna-attention {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--t-brand) 0%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in oklab, var(--t-brand) 22%, transparent);
+  }
+}
+@keyframes dna-live-ping {
+  75%,
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+@utility animate-hop {
+  animation: dna-hop-in 0.5s var(--ease-out-quint) both;
+}
+@utility animate-attention {
+  animation: dna-attention 1.6s ease-in-out 3;
+}
+@utility edge-flow {
+  background-image: repeating-linear-gradient(90deg, currentColor 0 10px, transparent 10px 14px);
+  background-size: 28px 100%;
+  animation: dna-edge-flow 0.9s linear infinite;
+}
+@utility live-ping {
+  animation: dna-live-ping 1.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
 /* Sign-in entrance. The page assembles in sequence instead of appearing all
    at once: the statement in order, then the card.
    Smoothness here comes from three things, not from a longer duration: a

@@ -17,6 +17,7 @@ import alerts from './routes/alerts';
 import admin from './routes/admin';
 import integrations from './routes/integrations';
 import correlations from './routes/correlations';
+import responseRoutes from './routes/response';
 
 const routes = [];
 const add = (method, pattern, handler, { open = false } = {}) => {
@@ -30,7 +31,7 @@ const r = {
   patch: (p, h, o) => add('patch', p, h, o),
   delete: (p, h, o) => add('delete', p, h, o),
 };
-[auth, inventory, dashboard, scans, posture, genomeRoutes, exposure, remediation, alerts, admin, integrations, correlations].forEach((register) => register(r));
+[auth, inventory, dashboard, scans, posture, genomeRoutes, exposure, remediation, alerts, admin, integrations, correlations, responseRoutes].forEach((register) => register(r));
 
 function match(route, segments) {
   const params = {};

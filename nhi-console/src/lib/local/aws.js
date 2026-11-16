@@ -112,12 +112,21 @@ function seedAccounts() {
       connected_at: ago(21 * 24 * HOUR),
       sync: { status: 'succeeded', requested_at: ago(3 * HOUR), requested_by: 'scheduler', started_at: ago(3 * HOUR), last_synced_at: ago(2 * HOUR + 48 * MIN), last_error: '' },
     }),
+    account('605218934417', ['ap-south-1'], { connected_at: ago(9 * 24 * HOUR) }),
   ];
 }
 
 /* ── Store ─────────────────────────────────────────────────────────────── */
 
-const store = () => slice('awsAccounts', () => ({ accounts: seedAccounts() }));
+function store() {
+  const s = slice('awsAccounts', () => ({ accounts: seedAccounts() }));
+  /* Accounts connected in a later build appear in workspaces saved before it. */
+  if (!s.accounts.some((x) => x.account_id === '605218934417')) {
+    const added = seedAccounts().find((a) => a.account_id === '605218934417');
+    if (added) s.accounts.push(added);
+  }
+  return s;
+}
 const commit = () => save();
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const clone = (value) => JSON.parse(JSON.stringify(value));

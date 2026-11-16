@@ -8,7 +8,7 @@ import { enabledProviders } from './apps';
 import { estate, SCOPES, scopeById } from './seed';
 import { slice } from './state';
 import { DAY, HOUR, MIN, NOW, hashString, iso, rng } from './util';
-import { anomalySpecsFor, grantsOf, resolveResource } from './entitlements';
+import { anomalySpecsFor, grantsOf, onOverlayChange, resolveResource } from './entitlements';
 
 export function scopeSettings() {
   return slice('scope', () => ({ accounts: [], regions: [] }));
@@ -20,6 +20,7 @@ export function visibleScopes() {
 }
 
 function inScope(row) {
+  if (row.__deleted) return false;
   const on = new Set(enabledProviders());
   if (!on.has(row.provider)) return false;
   const { accounts, regions } = scopeSettings();
@@ -30,10 +31,11 @@ function inScope(row) {
 
 export const identities = () => estate().identities.filter(inScope);
 export const credentials = () => estate().credentials.filter(inScope);
-export const identityById = (id) => estate().identities.find((r) => r.id === id) ?? null;
-export const credentialById = (id) => estate().credentials.find((r) => r.id === id) ?? null;
-export const identityByArn = (arn) => estate().identities.find((r) => r.arn === arn) ?? null;
-export const credentialByArn = (arn) => estate().credentials.find((r) => r.arn === arn) ?? null;
+/* Deleted rows are gone for lookups too: their pages answer "not found". */
+export const identityById = (id) => estate().identities.find((r) => r.id === id && !r.__deleted) ?? null;
+export const credentialById = (id) => estate().credentials.find((r) => r.id === id && !r.__deleted) ?? null;
+export const identityByArn = (arn) => estate().identities.find((r) => r.arn === arn && !r.__deleted) ?? null;
+export const credentialByArn = (arn) => estate().credentials.find((r) => r.arn === arn && !r.__deleted) ?? null;
 export const visible = (row) => Boolean(row) && inScope(row);
 
 export function credentialsOf(identity) {
@@ -109,6 +111,18 @@ const AGENTS = {
 };
 
 const eventCache = new Map();
+const eventSig = new Map();
+/* Activity only changes when an identity's departures do (a live scenario). */
+const sigOf = (identity) => anomalySpecsFor(identity).map((a) => `${a.dimension}:${a.live ? 'live' : a.hoursAgo}`).join('|');
+onOverlayChange(() => {
+  for (const [id, sig] of eventSig) {
+    const identity = estate().identities.find((x) => x.id === id);
+    if (!identity || sigOf(identity) !== sig) {
+      eventCache.delete(id);
+      eventSig.delete(id);
+    }
+  }
+});
 /** The identity's last 90 days of calls, newest first. Deterministic per identity. */
 export function eventsOf(identity) {
   if (eventCache.has(identity.id)) return eventCache.get(identity.id);
@@ -136,9 +150,9 @@ export function eventsOf(identity) {
   for (const a of anomalySpecsFor(identity)) {
     const res = a.target ? resolveResource(a.target, identity) ?? { arn: a.target, name: a.target.split(/[/:]/).pop(), service: a.action.split(':')[0], type: 'AWS::IAM::Role' } : null;
     const at = NOW - a.hoursAgo * HOUR;
-    const count = a.dimension === 'volume' ? 36 : Math.max(1, a.errors || 2);
+    const count = a.burst ?? (a.dimension === 'volume' ? 36 : Math.max(1, a.errors || 2));
     for (let k = 0; k < count; k += 1) {
-      const t = a.dimension === 'time_of_day' ? Date.UTC(new Date(at).getUTCFullYear(), new Date(at).getUTCMonth(), new Date(at).getUTCDate(), Number(a.value.slice(0, 2)), k) : at - k * 90 * 1000;
+      const t = a.dimension === 'time_of_day' ? Date.UTC(new Date(at).getUTCFullYear(), new Date(at).getUTCMonth(), new Date(at).getUTCDate(), Number(a.value.slice(0, 2)), k) : at - k * (a.burst ? 5 : 90) * 1000;
       events.push({
         ...makeEvent(identity, { t, action: a.action, res, readOnly: READ.test(a.action), cred: pickCred(identity, creds, a.action, r), ip: a.ip ?? r.pick(ips), errored: k < (a.errors ?? 0), r }),
         ...(a.dimension === 'user_agent' ? { user_agent: a.value } : {}),
@@ -149,6 +163,7 @@ export function eventsOf(identity) {
   }
   events.sort((a, b) => Date.parse(b.event_time) - Date.parse(a.event_time));
   eventCache.set(identity.id, events);
+  eventSig.set(identity.id, sigOf(identity));
   return events;
 }
 
