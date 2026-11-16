@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, MemoryRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext';
 import { homeFor } from '../lib/roles';
 import { ThemeProvider } from './ThemeContext';
@@ -43,11 +43,18 @@ function Screen({ children }) {
   return <Suspense fallback={<RouteFallback />}>{children}</Suspense>;
 }
 
+/* Packaged as a single page (npm run build:artifact) the address bar is not
+   the console's to change, so screens are kept in memory instead. */
+const MEMORY = import.meta.env.VITE_ROUTER === 'memory';
+function Router({ children }) {
+  return MEMORY ? <MemoryRouter initialEntries={['/']}>{children}</MemoryRouter> : <BrowserRouter>{children}</BrowserRouter>;
+}
+
 export default function App() {
   return (
     <ThemeProvider>
       <ToastProvider>
-        <BrowserRouter>
+        <Router>
           <AuthProvider>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
@@ -124,7 +131,7 @@ export default function App() {
               </Route>
             </Routes>
           </AuthProvider>
-        </BrowserRouter>
+        </Router>
       </ToastProvider>
     </ThemeProvider>
   );

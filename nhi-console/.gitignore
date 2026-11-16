@@ -49,3 +49,4 @@ Thumbs.db
 
 # The shared workspace saved by the console server (server/sync-hub.mjs)
 data/
+dist-artifact

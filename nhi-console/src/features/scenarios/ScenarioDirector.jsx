@@ -98,7 +98,7 @@ export function ScenarioDirector() {
   const allowed = can('scan.run') || can('integrations.manage');
   const [open, setOpen] = useState(() => {
     try {
-      return sessionStorage.getItem(SESSION_KEY) === '1' || new URLSearchParams(window.location.search).has('present');
+      return import.meta.env.VITE_PRESENT === 'on' || sessionStorage.getItem(SESSION_KEY) === '1' || new URLSearchParams(window.location.search).has('present');
     } catch {
       return false;
     }

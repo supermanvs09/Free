@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "relay": "node --env-file-if-exists=.env server/notify-relay.mjs",
     "lint": "oxlint src",
-    "start": "node --env-file-if-exists=.env server/notify-relay.mjs --serve"
+    "start": "node --env-file-if-exists=.env server/notify-relay.mjs --serve",
+    "build:artifact": "vite build -c vite.artifact.config.js && node scripts/pack-artifact.mjs"
   },
   "dependencies": {
     "@xyflow/react": "^12.11.6",
