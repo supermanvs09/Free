@@ -11,6 +11,7 @@ import { useQuery } from '../../lib/hooks';
 import { formatDateTime, formatRelative } from '../../lib/format';
 import { PageHeader } from '../../shell/PageHeader';
 import { SyncNowButton } from '../sync/SyncButton';
+import { useSync } from '../sync/SyncContext';
 import { getEpoch, subscribeEpoch } from '../../lib/sync/engine';
 import { Button, IconButton } from '../../ui/Button';
 import { Panel } from '../../ui/Panel';
@@ -105,7 +106,9 @@ export default function IntegrationsPage() {
 
   /* While a sync is queued or running, an events check watches, or a
      connection waits for approval, keep the page current on its own. */
-  const syncing = (data?.accounts ?? []).some((account) => account.sync.status === 'queued' || account.sync.status === 'running');
+  const { run } = useSync();
+  const consoleSync = Boolean(run) && run.stage !== 'done' && run.stage !== 'failed';
+  const syncing = consoleSync || (data?.accounts ?? []).some((account) => account.sync.status === 'queued' || account.sync.status === 'running');
   const watching = manage && (data?.accounts ?? []).some((account) => isWatching(account.checks) || isChecking(account));
   const awaiting = manage && (data?.accounts ?? []).some((account) => account.status === 'pending_approval');
   const refresh = workspace.refresh;

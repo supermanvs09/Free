@@ -291,6 +291,48 @@ func applyLastScans(ctx context.Context, db *sql.DB, schema string, accounts []A
 			}
 		}
 	}
+	applyRunningScans(ctx, db, schema, accounts, time.Now())
+}
+
+// runningScanMaxAge: a scanner row still RUNNING after this long is a scan
+// that died without closing its row, not one in progress.
+const runningScanMaxAge = 6 * time.Hour
+
+// applyRunningScans marks the accounts the scanner is reading right now as
+// running: those whose newest nhi_scans_aws row is RUNNING. The scanner writes
+// one row per account per scan, so this names exactly the accounts in a sync,
+// whoever started it. Best effort, like applyLastScans.
+func applyRunningScans(ctx context.Context, db *sql.DB, schema string, accounts []AWSAccountRecord, now time.Time) {
+	rows, err := db.QueryContext(ctx, `SELECT DISTINCT ON (account_id) account_id::text, COALESCE(status,''), COALESCE(scan_id,'')
+		FROM `+database.Table(schema, "nhi_scans_aws")+` WHERE account_id IS NOT NULL ORDER BY account_id, id DESC`)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	running := map[string]bool{}
+	for rows.Next() {
+		var id, status, scanID string
+		if rows.Scan(&id, &status, &scanID) == nil && strings.EqualFold(status, "RUNNING") && scanFresh(scanID, now) {
+			running[id] = true
+		}
+	}
+	for i := range accounts {
+		if running[accounts[i].AccountID] && accounts[i].SyncStatus != AWSSyncQueued {
+			accounts[i].SyncStatus = AWSSyncRunning
+		}
+	}
+}
+
+// scanFresh reports whether a scan started recently enough to still be
+// running. The scanner names scans scan-YYYYMMDD-HHMMSS (UTC); an ID in any
+// other form is taken as fresh.
+// ponytail: start time read from the ID; use a scan_start column if the scanner adds one.
+func scanFresh(scanID string, now time.Time) bool {
+	started, err := time.Parse("20060102-150405", strings.TrimPrefix(scanID, "scan-"))
+	if err != nil {
+		return true
+	}
+	return now.Sub(started) < runningScanMaxAge
 }
 
 // GetAccount returns one of the tenant's accounts, or nil.

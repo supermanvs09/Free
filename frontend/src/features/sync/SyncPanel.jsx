@@ -162,7 +162,7 @@ export function SyncPanel({ open, onClose }) {
     } else if (run?.resumable) {
       engine.resume();
     } else {
-      const accounts = run?.accountIds;
+      const accounts = run?.requestedIds ?? run?.accountIds;
       engine.dismiss();
       await engine.start(accounts);
     }

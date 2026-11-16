@@ -127,9 +127,14 @@ export async function start(accountIds) {
       });
       break;
     case 'running':
-      // Somebody (or an earlier click) already started this workspace's scan: follow it.
+      /* Somebody (or an earlier click) already started this workspace's scan:
+         follow it. Which accounts it reads is not known here, so the run
+         names none (the accounts table reads them from the backend); the
+         accounts asked for are kept for Try again. */
       patchRun({
         stage: 'discovery',
+        accountIds: [],
+        requestedIds: accounts,
         startedAt: result.startedAt ? Date.parse(result.startedAt) || Date.now() : Date.now(),
         discovery: { ...state.run.discovery, scanId: result.scanId, state: 'running', attached: true, elapsed: result.elapsed },
       });

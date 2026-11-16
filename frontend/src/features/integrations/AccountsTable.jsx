@@ -270,11 +270,12 @@ export function AccountsTable({ accounts, catalogue, inventory, canManage, onCha
 function AccountRow({ account, names, counts, inventoryKnown, canManage, onChanged, onOpen, onEdit, onRemove, onExposure }) {
   const { busy, sync: syncThis, cancel, recheck } = useAccountActions(account, { onChanged, onEditRegions: onEdit });
   const { run } = useSync();
-  /* Syncing only while a running sync covers this account: a sync started for
-     one account used to mark every connected account as syncing. A run that
-     does not name its accounts (an older one) still covers them all. */
-  const inRun = !run?.accountIds?.length || run.accountIds.map(String).includes(account.accountId);
-  const syncing = account.status === 'connected' && Boolean(run) && inRun && run.stage !== 'done' && run.stage !== 'failed';
+  /* Syncing: the backend sees the scanner reading this account right now
+     (whoever started it), or this console's own sync names it. A sync for one
+     account no longer marks every connected account as syncing. */
+  const runActive = Boolean(run) && run.stage !== 'done' && run.stage !== 'failed';
+  const inRun = runActive && (run.accountIds ?? []).map(String).includes(account.accountId);
+  const syncing = account.status === 'connected' && (account.sync.status === 'running' || inRun);
   const queued = account.sync.status === 'queued';
   const accountRunning = account.sync.status === 'running' || syncing;
   const blocked = syncBlockedReason(account);
