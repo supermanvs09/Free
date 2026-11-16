@@ -1,6 +1,7 @@
 #!/bin/sh
-# Starts the notification relay (alert email through Amazon SES, Jira issues)
-# next to nginx, bound to loopback. It inherits the container's environment,
+# Starts the console server next to nginx, bound to loopback: the live shared
+# workspace (saved under DATA_DIR), alert email (Gmail/SMTP or Amazon SES) and
+# Jira issues. It inherits the container's environment,
 # so on ECS / EKS / EC2 it signs with the task, pod or instance role.
 # Kept running: if it exits it is started again after two seconds.
 set -eu
@@ -16,4 +17,5 @@ export PORT="${NOTIFY_RELAY_PORT:-8787}" HOST=127.0.0.1
     sleep 2
   done
 ) &
-echo "notify-relay: starting on 127.0.0.1:${PORT} (MAIL_FROM=${MAIL_FROM:-unset}, region=${SES_REGION:-${AWS_REGION:-ap-south-1}})"
+mkdir -p "${DATA_DIR:-/var/lib/nhi}" 2>/dev/null || true
+echo "notify-relay: starting on 127.0.0.1:${PORT} (workspace in ${DATA_DIR:-/var/lib/nhi}; mail: ${GMAIL_USER:-${SMTP_HOST:-${MAIL_FROM:-set up in Integrations > Gmail}}})"
