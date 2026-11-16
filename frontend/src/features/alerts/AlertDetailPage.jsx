@@ -263,10 +263,15 @@ export default function AlertDetailPage() {
     /* A finding belongs to a cause when it names the same rule - exact, not inferred. */
     const findingOf = (c) => a.new_findings.find((f) => (c.finding_id && f.finding_id === c.finding_id) || (f.rule_id && f.rule_id === c.rule_id));
     const linked = new Set(causes.map(findingOf).filter(Boolean).map((f) => f.finding_id));
+    /* Nothing new failed: the score fell because problems it already had now
+       count for more. Those problems are then the answer, biggest first. */
+    const existing = [...a.still_failing_checks].sort((x, y) => (Number(y.points) || 0) - (Number(x.points) || 0));
     return {
       dropped,
       total,
       causes,
+      rescored: dropped && causes.length === 0,
+      existing,
       rest: Math.max(0, total - explained),
       findingOf,
       orphans: a.new_findings.filter((f) => !linked.has(f.finding_id)),
@@ -303,10 +308,14 @@ export default function AlertDetailPage() {
 
   const fellBand = a.band_before && a.band_before.toLowerCase() !== String(a.band_now).toLowerCase();
   const postureLink = `/posture/${encodeURIComponent(a.identity_id)}`;
-  const sentence = view.dropped
-    ? a.why_this_score ||
-      `${a.identity_name} lost ${formatNumber(view.total)} points: ${view.causes.length === 1 ? 'one check' : `${view.causes.length} checks`} started failing${a.inventory_changes.length ? ' after a change in AWS' : ''}.`
-    : 'The score did not drop at the latest sync.';
+  /* Our own sentence, in plain words: the scanner's why_this_score names
+     rules and point arithmetic, which is not what a reader needs first. */
+  const problems = (n) => `${formatNumber(n)} ${n === 1 ? 'problem' : 'problems'}`;
+  const sentence = !view.dropped
+    ? 'The score did not drop at the latest sync.'
+    : view.causes.length > 0
+      ? `The score fell from ${a.score_before} to ${a.score_now} because ${problems(view.causes.length)} appeared at the latest sync${a.inventory_changes.length ? ', after a change in AWS' : ''}. The biggest: ${view.causes[0].title}.`
+      : `The score fell from ${a.score_before} to ${a.score_now}, but nothing new went wrong. ${view.existing.length ? `The ${problems(view.existing.length)} this identity already had now count for more` : 'Problems it already had now count for more'}${a.score_now === 0 ? ', and together they cost more than the whole score, so it is at 0' : ''}.`;
 
   return (
     <div className="flex flex-col gap-8">
@@ -374,11 +383,17 @@ export default function AlertDetailPage() {
         <section aria-label="Causes" className="min-w-0">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="text-[19px] font-semibold tracking-[-0.015em] text-ink">{view.dropped ? `What cost the ${formatNumber(view.total)} points` : 'What is failing'}</h2>
-              <p className="mt-1 text-[13px] text-ink-3">Checks that started failing at this sync, biggest first. Each one carries its fix.</p>
+              <h2 className="text-[19px] font-semibold tracking-[-0.015em] text-ink">
+                {view.rescored ? 'Why the score fell' : view.dropped ? `What cost the ${formatNumber(view.total)} points` : 'What is failing'}
+              </h2>
+              <p className="mt-1 text-[13px] text-ink-3">
+                {view.rescored
+                  ? 'Nothing started failing at this sync. These problems were already there and now cost more points. Fixing them raises the score, biggest first.'
+                  : 'Problems that appeared at this sync, biggest first. Each one says how to fix it.'}
+              </p>
             </div>
           </div>
-          {view.dropped && (
+          {view.dropped && !view.rescored && (
             <div className="mt-5">
               <ShareBar causes={view.causes} rest={view.rest} total={view.total} />
             </div>
@@ -389,12 +404,20 @@ export default function AlertDetailPage() {
                 <Cause key={c.rule_id} c={c} n={i} total={view.total} finding={view.findingOf(c)} postureLink={postureLink} />
               ))}
             </ol>
+          ) : view.rescored && view.existing.length > 0 ? (
+            <ol className="mt-4">
+              {view.existing.map((c, i) => (
+                <Cause key={c.rule_id} c={c} n={i} total={0} finding={null} postureLink={postureLink} />
+              ))}
+            </ol>
           ) : (
-            <p className="mt-5 rounded-[12px] bg-surface-2/70 px-4 py-5 text-[13px] text-ink-2">No check started failing at this sync. The score moved because existing checks were re-weighted.</p>
+            <p className="mt-5 rounded-[12px] bg-surface-2/70 px-4 py-5 text-[13px] text-ink-2">
+              {view.dropped ? 'Nothing started failing at this sync; problems it already had now cost more points.' : 'Nothing is failing for this identity.'}
+            </p>
           )}
-          {view.rest > 0 && (
+          {view.rest > 0 && !view.rescored && (
             <p className="mt-2 border-t border-line pt-4 text-[12.5px] text-ink-3">
-              The other <span className="font-semibold text-ink-2">{formatNumber(view.rest)} points</span> came from checks that were already failing and were re-scored.
+              The other <span className="font-semibold text-ink-2">{formatNumber(view.rest)} points</span> came from problems that were already there and now cost more.
             </p>
           )}
 
@@ -415,7 +438,7 @@ export default function AlertDetailPage() {
             </section>
           )}
 
-          {a.still_failing_checks.length > 0 && (
+          {a.still_failing_checks.length > 0 && !view.rescored && (
             <section className="mt-8 border-t border-line pt-2">
               <button type="button" onClick={() => setShowOld((v) => !v)} aria-expanded={showOld} className="flex w-full items-center justify-between gap-3 rounded-[10px] py-3 text-left transition-colors hover:text-ink">
                 <span>
@@ -454,7 +477,7 @@ export default function AlertDetailPage() {
             </h2>
             <p className="mt-1 text-[12px] text-ink-3">Since the previous sync, on this identity and the credentials it uses.</p>
             {a.inventory_changes.length === 0 ? (
-              <p className="mt-4 text-[12.5px] text-ink-3">No configuration change was recorded. The drop comes from checks re-evaluated against existing settings or activity.</p>
+              <p className="mt-4 text-[12.5px] text-ink-3">Nothing about this identity or its credentials changed in AWS since the previous sync.</p>
             ) : (
               <ol className="mt-5">
                 {a.inventory_changes.map((c, i) => (

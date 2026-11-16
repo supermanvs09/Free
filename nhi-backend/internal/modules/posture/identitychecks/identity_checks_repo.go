@@ -40,6 +40,8 @@ func (r *IdentityChecksRepository) Get(ctx context.Context, s *scope.DataScope, 
 		where += " AND upper(c.status) IN ('FAIL', 'FAILED')"
 	case ChecksPassed:
 		where += " AND upper(c.status) IN ('PASS', 'PASSED')"
+	case ChecksCovered:
+		where += " AND upper(c.status) = 'COVERED'"
 	}
 	// Pillar codes are compared normalized (lower case, any run of other
 	// characters as one '_'), so "Least Privilege", "least_privilege" and
@@ -56,7 +58,7 @@ func (r *IdentityChecksRepository) Get(ctx context.Context, s *scope.DataScope, 
 		LEFT JOIN %s w ON w.rule_id = c.rule_id
 		LEFT JOIN %s f ON f.tenant_id = c.tenant_id AND f.finding_id = c.finding_id
 		WHERE %s
-		ORDER BY (upper(c.status) IN ('FAIL', 'FAILED')) DESC, COALESCE(c.points_lost, 0) DESC,
+		ORDER BY CASE WHEN upper(c.status) IN ('FAIL', 'FAILED') THEN 0 WHEN upper(c.status) = 'COVERED' THEN 1 ELSE 2 END, COALESCE(c.points_lost, 0) DESC,
 			CASE lower(COALESCE(c.severity, ''))
 				WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END,
 			c.rule_id`, s.Table(common.TIdentityChecks), s.Table(common.TRuleWeights), s.Table(common.TFindings), where)

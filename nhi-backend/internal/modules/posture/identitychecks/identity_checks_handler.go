@@ -35,10 +35,10 @@ func (h *IdentityChecksHandler) Get(w http.ResponseWriter, r *http.Request) {
 	f := IdentityChecksFilter{Status: ChecksAll}
 	if raw := strings.ToLower(strings.TrimSpace(q.Get("status"))); raw != "" {
 		switch raw {
-		case ChecksFailed, ChecksPassed, ChecksAll:
+		case ChecksFailed, ChecksPassed, ChecksCovered, ChecksAll:
 			f.Status = raw
 		default:
-			common.Invalid(w, "status", "status must be failed, passed or all")
+			common.Invalid(w, "status", "status must be failed, passed, covered or all")
 			return
 		}
 	}

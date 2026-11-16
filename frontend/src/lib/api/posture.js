@@ -217,7 +217,7 @@ export async function fetchIdentityPosture(id, { window } = {}, signal) {
   return { posture: data, meta };
 }
 
-/** status: failed | passed | all; pillar: a pillar code. */
+/** status: failed | passed | covered | all; pillar: a pillar code. */
 export async function fetchIdentityChecks(id, { status, pillar } = {}, signal) {
   const { data, meta } = await get(`${idPath(id)}/checks`, { status, pillar }, signal);
   return { checks: list(data), meta };

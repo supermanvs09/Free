@@ -117,11 +117,12 @@ func (h *Handler) inbox(ctx context.Context, ds *scope.DataScope, userID, tenant
 	for _, d := range drops {
 		before, now := d.ScoreBefore, d.ScoreNow
 		title := fmt.Sprintf("Score dropped %d points", -d.Delta)
-		summary := d.TopReason
-		if summary == "" {
-			summary = "Score recalculated lower at the latest sync."
-		} else if d.NewFailing > 1 {
-			summary = fmt.Sprintf("%s, and %d more", d.TopReason, d.NewFailing-1)
+		summary := "Nothing new went wrong. Problems it already had now cost more points."
+		if d.TopReason != "" {
+			summary = "New problem: " + d.TopReason
+			if d.NewFailing > 1 {
+				summary = fmt.Sprintf("%d new problems, the biggest: %s", d.NewFailing, d.TopReason)
+			}
 		}
 		out.Alerts = append(out.Alerts, Alert{
 			Key: SourcePosture + ":" + d.IdentityID, Source: SourcePosture, Severity: dropSeverity(d), Title: title, Summary: summary,

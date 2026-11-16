@@ -4,12 +4,17 @@ import (
 	"time"
 )
 
-// GET /identities/{id}/checks?status=failed|passed|all&pillar=
+// GET /identities/{id}/checks?status=failed|passed|covered|all&pillar=
+//
+// A check's status is PASS, FAIL or COVERED; COVERED rows carry what covers
+// them in detail.
 
 // Values of ?status= on the checks tab.
 const (
 	ChecksFailed = "failed"
 	ChecksPassed = "passed"
+	// ChecksCovered: rows the engine marks COVERED.
+	ChecksCovered = "covered"
 	ChecksAll    = "all"
 )
 

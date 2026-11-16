@@ -621,6 +621,16 @@ function PeerBar({ peer, score, band }) {
 
 /* ── Checks ─────────────────────────────────────────────────────────────── */
 
+/* A check is FAIL, PASS or COVERED. Covered says nothing on its own: the
+   detail column says what covers it, so it is shown as given. */
+const CHECK_RESULTS = {
+  FAIL: { label: 'Fail', tone: 'critical', empty: '-' },
+  FAILED: { label: 'Fail', tone: 'critical', empty: '-' },
+  COVERED: { label: 'Covered', tone: 'info', empty: '-' },
+};
+const PASSED = { label: 'Pass', tone: 'low', empty: 'Passing.' };
+const checkResult = (check) => CHECK_RESULTS[String(check.status).toUpperCase()] ?? PASSED;
+
 function ChecksView({ ctx }) {
   const [status, setStatus] = useState('all');
   const [pillar, setPillar] = useState('');
@@ -665,12 +675,12 @@ function ChecksView({ ctx }) {
       header: 'Result',
       width: '13%',
       cell: (check) => {
-        const fail = String(check.status).toUpperCase() === 'FAIL';
+        const result = checkResult(check);
         const finding = ctx.findingFor(check);
         return (
           <span className="flex flex-wrap items-center gap-1">
-            <Tag tone={fail ? 'critical' : 'low'} size="sm">
-              {fail ? 'Fail' : 'Pass'}
+            <Tag tone={result.tone} size="sm">
+              {result.label}
             </Tag>
             {finding?.status && finding.status !== 'OPEN' && <FindingStatusTag status={finding.status} />}
           </span>
@@ -684,7 +694,7 @@ function ChecksView({ ctx }) {
       priority: 'wide',
       cell: (check) => (
         <span className="block text-[12px] leading-snug text-ink-2">
-          {check.detail || (String(check.status).toUpperCase() === 'FAIL' ? '-' : 'Passing.')}
+          {check.detail || checkResult(check).empty}
           {check.failing_since && <span className="block text-[11px] text-ink-3">Since {formatDate(check.failing_since)}</span>}
         </span>
       ),
@@ -717,6 +727,7 @@ function ChecksView({ ctx }) {
               { value: 'all', label: 'All' },
               { value: 'failed', label: 'Failed' },
               { value: 'passed', label: 'Passed' },
+              { value: 'covered', label: 'Covered' },
             ]}
             value={status}
             onChange={setStatus}
