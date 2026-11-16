@@ -1,6 +1,7 @@
 /* NHI Genome: behaviour baselines, departures (anomalies) and their evidence. */
 import { genome as env, cursorPage, failNested, rng, hashString, iso, DAY, HOUR, MIN, NOW, list } from '../util';
 import { identities, identityById, identityByArn, eventsOf, visible, credentialsOf } from '../world';
+import { ANOMALY_SPECS } from '../entitlements';
 import { estate, person } from '../seed';
 import { slice, save } from '../state';
 import { audit } from '../users';
@@ -38,46 +39,46 @@ let cache = null;
 export function anomalies() {
   if (cache) return cache.filter((a) => visible(identityById(a.identity_id)));
   const out = [];
-  for (const i of estate().identities) {
-    if (i.idle_days >= 60 || !sourceTypeOf(i)) continue;
-    const r = rng(hashString(`an:${i.id}`));
+  /* Departures from baseline, from the entitlement model's list, each with
+     the recorded events behind it (world.js eventsOf). */
+  ANOMALY_SPECS.forEach((spec, k) => {
+    const i = estate().identities.find((x) => x.name === spec.who);
+    if (!i || !sourceTypeOf(i)) return;
+    const r = rng(hashString(`an:${i.id}:${k}`));
     const ev = eventsOf(i);
-    const n = i.hot && i.is_admin ? 3 : i.hot ? r.int(1, 2) : r.chance(0.25) ? 1 : 0;
-    for (let k = 0; k < n; k += 1) {
-      const dim = k === 0 && i.is_admin && i.hot ? 'source_ip' : r.pick(DIMENSIONS);
-      const sample = ev.find((e) => (dim === 'source_ip' ? e.source_ip.startsWith('185.') : true)) ?? ev[0];
-      if (!sample) continue;
-      const detected = Date.parse(sample.event_time) + r.int(2, 12) * MIN;
-      const sev = dim === 'source_ip' ? 'critical' : r.weighted([['high', 3], ['medium', 4], ['low', 2]]);
-      const value = { api_call: sample.action, resource: sample.resource_arn ?? sample.resource_name, source_ip: dim === 'source_ip' ? '185.220.101.47' : sample.source_ip, time_of_day: `${String(new Date(sample.event_time).getUTCHours()).padStart(2, '0')}:00 UTC`, volume: `${r.int(4, 11)}x the usual hourly calls`, region: 'eu-central-1', user_agent: 'python-requests/2.32.3' }[dim];
-      out.push({
-        id: `anm_${i.id.slice(4, 10)}${k}${r.hex(6)}`,
-        identity_id: i.id,
-        source_type: sourceTypeOf(i),
-        identity_name: canonicalGenomeName(i.identity_type, i.arn),
-        display_name: i.name,
-        account_id: i.account_id,
-        region: i.region,
-        provider: i.provider,
-        dimension: dim,
-        title: `${DIM_LABEL[dim]}: ${value}`,
-        description: dim === 'source_ip' ? 'Calls from an IP never seen for this identity, a known Tor exit node, with AccessDenied errors.' : `Departed from its baseline on ${DIM_LABEL[dim].toLowerCase()}.`,
-        what_changed: { dimension: dim, value, baseline: dim === 'source_ip' ? sample.source_ip : 'Not seen in 14 days of baseline' },
-        severity: sev,
-        risk_score: { critical: r.int(86, 97), high: r.int(68, 84), medium: r.int(42, 64), low: r.int(18, 39) }[sev],
-        status: detected < NOW - 20 * DAY ? 'resolved' : 'open',
-        state: detected < NOW - 20 * DAY ? 'resolved' : 'open',
-        detected_at: iso(Math.min(detected, NOW - MIN)),
-        occurred_at: sample.event_time,
-        anomalous_event_count: r.int(1, 40),
-        model_confidence_percent: r.int(71, 98),
-        provenance_confidence: r.pick(['high', 'medium']),
-        reasons: [DIM_LABEL[dim], dim === 'source_ip' ? 'Known anonymising network' : 'Outside the learned range'],
-        event_id: sample.event_id,
-        sample_event: { event_id: sample.event_id, event_time: sample.event_time, event_name: sample.event_name, event_source: sample.event_source, source_ip: dim === 'source_ip' ? '185.220.101.47' : sample.source_ip, user_agent: sample.user_agent, resource_arn: sample.resource_arn },
-      });
-    }
-  }
+    const flagged = ev.filter((e) => e.anomaly === spec.dimension);
+    const sample = flagged[flagged.length - 1] ?? ev[0];
+    if (!sample) return;
+    const detected = Date.parse(sample.event_time) + r.int(2, 9) * MIN;
+    const sev = spec.severity;
+    const resolved = Boolean(spec.resolved);
+    out.push({
+      id: `anm_${i.id.slice(4, 10)}${k}${r.hex(6)}`,
+      identity_id: i.id,
+      source_type: sourceTypeOf(i),
+      identity_name: canonicalGenomeName(i.identity_type, i.arn),
+      display_name: i.name,
+      account_id: i.account_id,
+      region: i.region,
+      provider: i.provider,
+      dimension: spec.dimension,
+      title: `${DIM_LABEL[spec.dimension]}: ${spec.value}`,
+      description: spec.description,
+      what_changed: { dimension: spec.dimension, value: spec.value, baseline: spec.baseline },
+      severity: sev,
+      risk_score: { critical: r.int(88, 97), high: r.int(70, 84), medium: r.int(45, 64), low: r.int(18, 36) }[sev],
+      status: resolved ? 'resolved' : 'open',
+      state: resolved ? 'resolved' : 'open',
+      detected_at: iso(Math.min(detected, NOW - MIN)),
+      occurred_at: sample.event_time,
+      anomalous_event_count: flagged.length || 1,
+      model_confidence_percent: { critical: r.int(92, 98), high: r.int(84, 93), medium: r.int(72, 85), low: r.int(64, 76) }[sev],
+      provenance_confidence: sev === 'critical' || sev === 'high' ? 'high' : 'medium',
+      reasons: [DIM_LABEL[spec.dimension], spec.untrusted ? 'Untrusted network' : 'Outside the learned range'],
+      event_id: sample.event_id,
+      sample_event: { event_id: sample.event_id, event_time: sample.event_time, event_name: sample.event_name, event_source: sample.event_source, source_ip: sample.source_ip, user_agent: sample.user_agent, resource_arn: sample.resource_arn },
+    });
+  });
   cache = out.sort((a, b) => Date.parse(b.detected_at) - Date.parse(a.detected_at));
   return cache.filter((a) => visible(identityById(a.identity_id)));
 }

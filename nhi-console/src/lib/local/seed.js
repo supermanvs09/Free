@@ -6,6 +6,7 @@
  * same on every load and its times stay current.
  */
 import { DAY, HOUR, MIN, NOW, ago, iso, rng } from './util';
+import { enrich } from './entitlements';
 
 export const ORG = { name: 'Deep Algorithms', domain: 'deepalgorithms.ai', tenantId: 'tnt_7f3a91c2' };
 
@@ -136,6 +137,10 @@ const IDENTITY_SPECS = [
   I('k8s/fraud-scoring', 'vault_k8s_role', 'NHI_SERVICE', VT, 'kiran', { vault: 'k8s' }),
   I('token/legacy-batch', 'vault_token', 'NHI_SERVICE', VT, null, { vault: 'token', shadow: true, stale: 122 }),
   I('aws-secrets-engine/db-readonly', 'vault_dynamic_role', 'NHI_SERVICE', VT, 'sashi', { vault: 'lease' }),
+  /* Appended so every identity above keeps its id. */
+  I('OrganizationAccountAccessRole', 'iam_role', 'NHI_CICD', D, 'charan', { admin: true, external: P }),
+  I('OrganizationAccountAccessRole', 'iam_role', 'NHI_CICD', S, 'charan', { admin: true, external: P }),
+  I('sp-terraform-prod', 'service_principal', 'NHI_CICD', AZP, 'charan', { azSecret: 164, admin: true }),
 ];
 
 export const IDENTITY_TYPE_PROVIDER = {
@@ -227,7 +232,10 @@ function build() {
     const env = spec.name.includes('staging') || scope.env === 'staging' ? 'staging' : scope.env;
     const used = spec.admin ? r.int(3, 14) : r.int(18, 92);
     const arn = identityArn(spec, scope, region, r);
-    const creator = owner ? (provider === 'aws' && spec.cls !== 'HUMAN' ? r.pick(AWS_CREATORS) : owner.email) : null;
+    /* Automation is created by the delivery roles; those, and the organisation
+       roles, were created by a person. (The pick keeps the sequence stable.) */
+    const picked = provider === 'aws' && spec.cls !== 'HUMAN' ? r.pick(AWS_CREATORS) : null;
+    const creator = owner ? (picked && !AWS_CREATORS.includes(spec.name) && spec.name !== 'OrganizationAccountAccessRole' ? picked : owner.email) : null;
     const identity = {
       id,
       name: spec.name,
@@ -469,7 +477,10 @@ function build() {
     row.recent_change = { change_type: i < 2 ? 'CREATED' : 'MODIFIED', detected_at: ago(r.int(20, 170) * MIN), summary: i < 2 ? 'New since the previous scan' : 'Rotated (1 field changed)' };
   });
 
-  return { identities, credentials };
+  const out = { identities, credentials };
+  /* Grants, links and utilisation from the entitlement model. */
+  enrich(out);
+  return out;
 }
 
 let world = null;

@@ -8,6 +8,7 @@ import { enabledProviders } from './apps';
 import { estate, SCOPES, scopeById } from './seed';
 import { slice } from './state';
 import { DAY, HOUR, MIN, NOW, hashString, iso, rng } from './util';
+import { anomalySpecsFor, grantsOf, resolveResource } from './entitlements';
 
 export function scopeSettings() {
   return slice('scope', () => ({ accounts: [], regions: [] }));
@@ -42,75 +43,52 @@ export function identitiesOf(credential) {
   return (credential.bound_identities ?? []).map(identityById).filter(Boolean);
 }
 
-/* ── What each kind of identity does: the actions its activity is made of ── */
-const AWS_ACTIONS = {
-  payments: [
-    ['dynamodb.amazonaws.com', 'GetItem', 'AWS::DynamoDB::Table', 'payments-ledger', true],
-    ['dynamodb.amazonaws.com', 'PutItem', 'AWS::DynamoDB::Table', 'payments-ledger', false],
-    ['sqs.amazonaws.com', 'SendMessage', 'AWS::SQS::Queue', 'settlement-events', false],
-    ['secretsmanager.amazonaws.com', 'GetSecretValue', 'AWS::SecretsManager::Secret', 'prod/payments/npci-api-key', true],
-    ['kms.amazonaws.com', 'Decrypt', 'AWS::KMS::Key', 'alias/payments-cmk', true],
-    ['s3.amazonaws.com', 'PutObject', 'AWS::S3::Object', 'dpa-payments-receipts', false],
-    ['logs.amazonaws.com', 'PutLogEvents', 'AWS::Logs::LogGroup', '/aws/lambda/payments', false],
-  ],
-  data: [
-    ['s3.amazonaws.com', 'GetObject', 'AWS::S3::Object', 'dpa-data-lake-raw', true],
-    ['s3.amazonaws.com', 'PutObject', 'AWS::S3::Object', 'dpa-data-lake-curated', false],
-    ['glue.amazonaws.com', 'GetTable', 'AWS::Glue::Table', 'analytics.transactions', true],
-    ['athena.amazonaws.com', 'StartQueryExecution', 'AWS::Athena::WorkGroup', 'reporting', false],
-    ['redshift-data.amazonaws.com', 'ExecuteStatement', 'AWS::Redshift::Cluster', 'dpa-warehouse', false],
-    ['kinesis.amazonaws.com', 'GetRecords', 'AWS::Kinesis::Stream', 'txn-stream', true],
-    ['kms.amazonaws.com', 'Decrypt', 'AWS::KMS::Key', 'alias/data-lake-cmk', true],
-  ],
-  cicd: [
-    ['sts.amazonaws.com', 'AssumeRole', 'AWS::IAM::Role', 'deploy-target', true],
-    ['ecr.amazonaws.com', 'PutImage', 'AWS::ECR::Repository', 'payments-api', false],
-    ['ecs.amazonaws.com', 'UpdateService', 'AWS::ECS::Service', 'payments-api', false],
-    ['lambda.amazonaws.com', 'UpdateFunctionCode', 'AWS::Lambda::Function', 'upi-payment-processor', false],
-    ['iam.amazonaws.com', 'PassRole', 'AWS::IAM::Role', 'payments-lambda-exec', false],
-    ['cloudformation.amazonaws.com', 'UpdateStack', 'AWS::CloudFormation::Stack', 'payments-prod', false],
-    ['s3.amazonaws.com', 'GetObject', 'AWS::S3::Object', 'dpa-terraform-state', true],
-  ],
-  ops: [
-    ['ec2.amazonaws.com', 'DescribeInstances', 'AWS::EC2::Instance', '*', true],
-    ['iam.amazonaws.com', 'ListUsers', 'AWS::IAM::User', '*', true],
-    ['iam.amazonaws.com', 'CreateAccessKey', 'AWS::IAM::User', 'svc-tally-sync', false],
-    ['s3.amazonaws.com', 'ListBuckets', 'AWS::S3::Bucket', '*', true],
-    ['ssm.amazonaws.com', 'StartSession', 'AWS::EC2::Instance', 'payments-gateway-01', false],
-    ['rds.amazonaws.com', 'DescribeDBInstances', 'AWS::RDS::DBInstance', '*', true],
-  ],
-};
-const AZURE_ACTIONS = [
-  ['Microsoft.KeyVault', 'vaults/secrets/getSecret/action', 'Microsoft.KeyVault/vaults/secrets', 'kv-payments-prod/upi-signing-key', true],
-  ['Microsoft.Storage', 'storageAccounts/blobServices/containers/blobs/read', 'Microsoft.Storage/blobs', 'stpaymentsprod/receipts', true],
-  ['Microsoft.Storage', 'storageAccounts/blobServices/containers/blobs/write', 'Microsoft.Storage/blobs', 'stpaymentsprod/settlements', false],
-  ['Microsoft.Sql', 'servers/databases/read', 'Microsoft.Sql/servers/databases', 'sql-payments/merchants', true],
-  ['Microsoft.ContainerService', 'managedClusters/listClusterUserCredential/action', 'Microsoft.ContainerService/managedClusters', 'aks-payments', false],
-  ['Microsoft.ServiceBus', 'namespaces/queues/messages/send/action', 'Microsoft.ServiceBus/queues', 'sb-payments/refunds', false],
-];
-const JENKINS_ACTIONS = [
-  ['jenkins', 'job.build', 'Jenkins::Job', 'self', false],
-  ['jenkins', 'credentials.use', 'Jenkins::Credential', 'bound', true],
-  ['jenkins', 'scm.checkout', 'Git::Repository', 'deepalgo-labs/payments-api', true],
-  ['jenkins', 'artifact.archive', 'Jenkins::Artifact', 'build-output', false],
-  ['jenkins', 'agent.connect', 'Jenkins::Agent', 'agent-linux-01', true],
-];
-const VAULT_ACTIONS = [
-  ['vault', 'auth/approle/login', 'Vault::Auth', 'approle', false],
-  ['vault', 'secret/data/payments/read', 'Vault::KV', 'secret/data/payments/npci', true],
-  ['vault', 'database/creds/readonly', 'Vault::Lease', 'database/creds/readonly', false],
-  ['vault', 'sys/leases/renew', 'Vault::Lease', 'database/creds/readonly', false],
-  ['vault', 'transit/encrypt/payments', 'Vault::Transit', 'transit/keys/payments', false],
-];
+/* ── Activity: what each identity actually did ─────────────────────────────
+   Built from the grants it uses (lib/local/entitlements.js), against the real
+   resources those grants name, plus the departures NHI Genome flags. */
 
-function actionsFor(identity) {
-  if (identity.provider === 'azure') return AZURE_ACTIONS;
-  if (identity.provider === 'jenkins') return JENKINS_ACTIONS;
-  if (identity.provider === 'vault') return VAULT_ACTIONS;
-  if (identity.functional_class === 'NHI_CICD') return AWS_ACTIONS.cicd;
-  if (['HUMAN', 'DUAL_IDENTITY'].includes(identity.functional_class) || identity.identity_type === 'ec2_instance') return AWS_ACTIONS.ops;
-  if (identity.account_id === '739204185562') return AWS_ACTIONS.data;
-  return AWS_ACTIONS.payments;
+/* The call an administrator-level grant is used for, per service. */
+const TYPICAL = {
+  dynamodb: ['dynamodb:Query', true], s3: ['s3:GetObject', true], sqs: ['sqs:SendMessage', false], sns: ['sns:Publish', false],
+  kms: ['kms:Decrypt', true], secretsmanager: ['secretsmanager:GetSecretValue', true], ssm: ['ssm:GetParameter', true],
+  ecs: ['ecs:UpdateService', false], cloudformation: ['cloudformation:UpdateStack', false], lambda: ['lambda:UpdateFunctionCode', false],
+  ec2: ['ec2:DescribeInstances', true], glue: ['glue:GetTable', true], rds: ['rds:DescribeDBClusters', true], kinesis: ['kinesis:GetRecords', true],
+};
+const READ = /^(read|scm\.checkout|agent\.connect)$|:(Get|List|Describe|Query|Scan|Receive|Filter|Decrypt|InvokeModel|StartQuery)|\/read$|getSecret|listClusterUserCredential|GetRecord/;
+
+function activityTargets(identity) {
+  const out = [];
+  for (const g of grantsOf(identity)) {
+    if (!g.used) continue;
+    const on = g.seen_on.length ? g.seen_on : g.wildcard ? [null] : g.targets;
+    for (const res of on) {
+      const actions = g.actions.map((a) => {
+        if (a !== '*') return a.replace(/\*$/, a.startsWith('ec2:') ? 'Instances' : a.startsWith('iam:') ? 'Role' : 'Item');
+        return TYPICAL[res?.service]?.[0] ?? 'sts:GetCallerIdentity';
+      });
+      for (const action of actions) out.push({ action, res, readOnly: READ.test(action) });
+    }
+  }
+  return out;
+}
+
+function eventSource(identity, action) {
+  if (identity.provider === 'aws') return `${action.split(':')[0].replace(/^rds-db$/, 'rds')}.amazonaws.com`;
+  if (identity.provider === 'azure') return action.split('/')[0];
+  return identity.provider;
+}
+
+function resourceArnFor(res, r) {
+  if (!res) return null;
+  if (res.service === 's3' && res.arn.startsWith('arn:aws:s3:::')) return `${res.arn}/${r.pick(['2026/11', 'daily', 'exports', 'inbound'])}/${r.hex(8)}.json`;
+  return res.arn;
+}
+
+function pickCred(identity, creds, action, r) {
+  if (!creds.length) return null;
+  if (identity.provider === 'aws') return creds.find((c) => c.credential_type === 'iam_role') ?? creds.find((c) => c.credential_type === 'access_key' && c.status === 'active') ?? creds[0];
+  if (identity.provider === 'jenkins' && action === 'Credentials/UseItem') return r.pick(creds);
+  return creds.find((c) => !['secret'].includes(c.credential_type)) ?? creds[0];
 }
 
 function ipsFor(identity, r) {
@@ -119,6 +97,7 @@ function ipsFor(identity, r) {
   if (['HUMAN', 'DUAL_IDENTITY'].includes(identity.functional_class)) return ['106.51.73.220', '49.37.142.8'];
   if (identity.provider === 'azure') return ['20.193.142.9', '4.213.31.44'];
   if (identity.provider === 'vault') return ['10.40.12.31', '10.40.12.32'];
+  if (identity.external_account) return ['3.120.181.40', '52.28.62.9'];
   return [`10.${r.int(10, 60)}.${r.int(1, 250)}.${r.int(2, 250)}`, `10.${r.int(10, 60)}.${r.int(1, 250)}.${r.int(2, 250)}`];
 }
 
@@ -134,51 +113,52 @@ const eventCache = new Map();
 export function eventsOf(identity) {
   if (eventCache.has(identity.id)) return eventCache.get(identity.id);
   const r = rng(hashString(identity.id));
-  const actions = actionsFor(identity);
+  const targets = activityTargets(identity);
   const ips = ipsFor(identity, r);
   const creds = credentialsOf(identity);
   const last = Date.parse(identity.last_activity_at);
   const perDay = identity.hot ? r.int(22, 40) : identity.idle_days > 60 ? 0 : r.int(3, 12);
   const events = [];
-  const span = identity.idle_days > 60 ? 0 : 90;
+  const span = identity.idle_days > 60 || !targets.length ? 0 : 90;
   for (let d = 0; d < span; d += 1) {
     const dayStart = last - d * DAY;
     const n = Math.max(0, perDay + r.int(-3, 4) - (d > 45 ? 2 : 0));
     for (let k = 0; k < n; k += 1) {
-      const hourBias = identity.functional_class === 'NHI_CICD' ? r.pick([3, 4, 10, 11, 14, 15, 16]) : r.int(0, 23);
+      const hourBias = identity.functional_class === 'NHI_CICD' ? r.pick([4, 5, 10, 11, 14, 15, 16]) : r.int(1, 17);
       const t = dayStart - r.int(0, 59) * MIN - ((24 + new Date(dayStart).getUTCHours() - hourBias) % 24) * HOUR;
       if (t > NOW) continue;
-      const [source, name, rtype, rname, readOnly] = r.pick(actions);
-      const cred = creds.length ? r.pick(creds) : null;
-      const errored = r.chance(identity.functional_class === 'DUAL_IDENTITY' ? 0.09 : 0.03);
-      events.push(makeEvent(identity, { t, source, name, rtype, rname, readOnly, cred, ip: r.pick(ips), errored, r }));
+      const { action, res, readOnly } = r.pick(targets);
+      const errored = r.chance(identity.functional_class === 'DUAL_IDENTITY' ? 0.05 : 0.015);
+      events.push(makeEvent(identity, { t, action, res, readOnly, cred: pickCred(identity, creds, action, r), ip: r.pick(ips), errored, r }));
     }
   }
-  /* A few notable departures: the genome anomalies are built from these. */
-  if (identity.hot || identity.is_admin) {
-    const t = last - r.int(1, 30) * HOUR;
-    events.push(makeEvent(identity, { t, source: identity.provider === 'aws' ? 'sts.amazonaws.com' : identity.provider, name: identity.provider === 'aws' ? 'AssumeRole' : 'credentials.use', rtype: 'AWS::IAM::Role', rname: 'OrganizationAccountAccessRole', readOnly: false, cred: creds[0], ip: '185.220.101.47', errored: true, r, cross: '739204185562' }));
+  /* What NHI Genome flags: the departures, as they were recorded. */
+  for (const a of anomalySpecsFor(identity)) {
+    const res = a.target ? resolveResource(a.target, identity) ?? { arn: a.target, name: a.target.split(/[/:]/).pop(), service: a.action.split(':')[0], type: 'AWS::IAM::Role' } : null;
+    const at = NOW - a.hoursAgo * HOUR;
+    const count = a.dimension === 'volume' ? 36 : Math.max(1, a.errors || 2);
+    for (let k = 0; k < count; k += 1) {
+      const t = a.dimension === 'time_of_day' ? Date.UTC(new Date(at).getUTCFullYear(), new Date(at).getUTCMonth(), new Date(at).getUTCDate(), Number(a.value.slice(0, 2)), k) : at - k * 90 * 1000;
+      events.push({
+        ...makeEvent(identity, { t, action: a.action, res, readOnly: READ.test(a.action), cred: pickCred(identity, creds, a.action, r), ip: a.ip ?? r.pick(ips), errored: k < (a.errors ?? 0), r }),
+        ...(a.dimension === 'user_agent' ? { user_agent: a.value } : {}),
+        ...(a.dimension === 'region' ? { aws_region: a.value, region: a.value } : {}),
+        anomaly: a.dimension,
+      });
+    }
   }
   events.sort((a, b) => Date.parse(b.event_time) - Date.parse(a.event_time));
   eventCache.set(identity.id, events);
   return events;
 }
 
-function makeEvent(identity, { t, source, name, rtype, rname, readOnly, cred, ip, errored, r, cross = null }) {
+function makeEvent(identity, { t, action, res, readOnly, cred, ip, errored, r }) {
   const scope = scopeById(identity.account_id);
-  const resourceArn =
-    identity.provider === 'aws'
-      ? rname === '*'
-        ? null
-        : rtype === 'AWS::S3::Object'
-          ? `arn:aws:s3:::${rname}/${r.pick(['2026/11', 'daily', 'exports'])}/${r.hex(8)}.json`
-          : rtype === 'AWS::IAM::Role'
-            ? `arn:aws:iam::${cross ?? identity.account_id}:role/${rname}`
-            : `arn:aws:${source.split('.')[0]}:${identity.region}:${identity.account_id}:${rtype.split('::')[2].toLowerCase()}/${rname}`
-      : identity.provider === 'azure'
-        ? `/subscriptions/${identity.account_id}/resourceGroups/rg-payments-prod/providers/${rtype}/${rname}`
-        : `${identity.provider}://${identity.account_id}/${rname === 'self' ? identity.name : rname}`;
-  const action = identity.provider === 'aws' ? `${source.split('.')[0]}:${name}` : name;
+  const resourceArn = resourceArnFor(res, r);
+  const source = eventSource(identity, action);
+  const name = identity.provider === 'aws' ? action.split(':')[1] : identity.provider === 'azure' ? action.split('/').slice(1).join('/') : action;
+  const targetAccount = res?.provider === 'aws' ? res.account_id : null;
+  const cross = Boolean(targetAccount && targetAccount !== identity.account_id) || /:iam::(\d{12}):/.exec(resourceArn ?? '')?.[1] !== undefined && /:iam::(\d{12}):/.exec(resourceArn)[1] !== identity.account_id;
   return {
     event_id: `${r.hex(8)}-${r.hex(4)}-${r.hex(4)}-${r.hex(4)}-${r.hex(12)}`,
     event_time: iso(t),
@@ -205,11 +185,11 @@ function makeEvent(identity, { t, source, name, rtype, rname, readOnly, cred, ip
     credential_type: cred?.credential_type ?? null,
     binding_type: cred?.credential_type === 'iam_role' ? 'assumed_role' : cred ? 'direct' : null,
     resource_arn: resourceArn,
-    resource_type: rtype,
-    resource_name: rname === '*' ? null : rname,
+    resource_type: res?.type ?? null,
+    resource_name: res?.name ?? null,
     target: resourceArn,
-    is_cross_account: Boolean(cross),
-    target_account_id: cross ?? scope?.id ?? null,
+    is_cross_account: cross,
+    target_account_id: targetAccount ?? scope?.id ?? null,
     recipient_account_id: identity.account_id,
   };
 }

@@ -1,3 +1,4 @@
+import { trustEdgeCounts } from '../reach';
 import { ok, DAY, NOW, MIN, dateOnly, iso, rng } from '../util';
 import { identities, credentials, filteredEvents } from '../world';
 import { scans, changesOf, visibleChanges } from '../changes';
@@ -9,6 +10,7 @@ function counts(rows, key) {
 }
 
 export function overview() {
+  const trust = trustEdgeCounts();
   const ids = identities();
   const creds = credentials();
   const stale = ids.filter((i) => i.idle_days >= 90);
@@ -51,8 +53,8 @@ export function overview() {
       accounts_scanned: new Set(ids.map((i) => i.account_id)).size,
       permission_utilization_pct: Math.round(ids.reduce((s, i) => s + i.permission_utilization_pct, 0) / Math.max(1, ids.length)),
       active_credentials: creds.filter((c) => c.status === 'active').length,
-      trust_edges: creds.filter((c) => c.credential_type === 'iam_role' || c.has_external_trust).length + 6,
-      cross_account_trust_edges: creds.filter((c) => c.has_external_trust).length,
+      trust_edges: Object.values(trust).reduce((a, b) => a + b, 0),
+      cross_account_trust_edges: trust.cross_account,
     },
     charts: {
       identities_by_type: counts(ids, 'identity_type').map(([type, count]) => ({ type, count })),
@@ -72,9 +74,11 @@ export function overview() {
         .sort((a, b) => a.days_until_expiry - b.days_until_expiry)
         .map((c) => ({ credential_name: c.name, expires_at: c.expires_at, days_remaining: c.days_until_expiry, credential_id: c.id, provider: c.provider })),
       trust_edges_by_type: [
-        { edge_type: 'service', count: creds.filter((c) => c.credential_type === 'iam_role' && !c.has_external_trust).length },
-        { edge_type: 'cross_account', count: creds.filter((c) => c.has_external_trust && String(c.external_principal).startsWith('arn:')).length },
-        { edge_type: 'oidc', count: creds.filter((c) => c.has_external_trust && !String(c.external_principal).startsWith('arn:')).length },
+        { edge_type: 'service', count: trust.service },
+        { edge_type: 'cross_account', count: trust.cross_account },
+        { edge_type: 'oidc', count: trust.oidc },
+        { edge_type: 'role_chaining', count: trust.chaining },
+        { edge_type: 'signs_in_as', count: trust.signs_in_as },
       ],
       event_volume: [...volume.entries()].sort().map(([date, count]) => ({ date, count })),
       credential_utilization: utilBuckets.map(([bucket, f]) => ({ bucket, count: creds.filter(f).length })),

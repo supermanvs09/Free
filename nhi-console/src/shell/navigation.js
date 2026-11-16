@@ -33,16 +33,15 @@ export const NAV_GROUPS = [
     label: 'Overview',
     items: [
       { to: '/overview', label: 'Dashboard', icon: Gauge, end: true },
+      { to: '/identities', label: 'Discovery', icon: Fingerprint, match: ['/identities', '/credentials', '/discovery'] },
+      /* What each identity could do, next to what exists. */
+      { to: '/access-graph', label: 'Access graph', icon: Waypoints },
+      { to: '/posture', label: 'Posture', icon: ShieldCheck },
       /* `badge`: the number of new alerts, shown on the item and on the collapsed rail. */
       { to: '/alerts', label: 'Alerts', icon: BellRing, badge: 'alerts' },
-      { to: '/posture', label: 'Posture', icon: ShieldCheck },
       { to: '/remediation', label: 'Remediation', icon: Wrench },
-      { to: '/identities', label: 'Discovery', icon: Fingerprint, match: ['/identities', '/credentials', '/discovery'] },
       /* Shown once a code source is switched on (`feature: 'exposure'`). */
       { to: '/exposure', label: 'Credential exposure', icon: FileWarning, permission: 'exposure.view', feature: 'exposure' },
-      /* Separate from the genome on purpose: the genome is what an identity
-         has done, the graph what it could do. */
-      { to: '/access-graph', label: 'Access graph', icon: Waypoints },
       { to: '/genome', label: 'NHI Genome', icon: Dna },
       { to: '/activity', label: 'Activity', icon: Activity },
     ],

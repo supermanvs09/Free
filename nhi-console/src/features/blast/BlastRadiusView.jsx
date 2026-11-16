@@ -31,11 +31,34 @@ const SERVICE_LABEL = {
   logs: 'CloudWatch Logs',
   kinesis: 'Kinesis',
   glue: 'Glue',
+  keyvault: 'Key Vault',
+  storage: 'Azure Storage',
+  sql: 'Azure SQL',
+  aks: 'AKS',
+  servicebus: 'Service Bus',
+  acr: 'Container Registry',
+  authorization: 'Azure RBAC',
+  entra: 'Entra ID',
+  databricks: 'Databricks',
+  synapse: 'Synapse',
+  vault: 'Vault',
+  jenkins: 'Jenkins',
+  github: 'GitHub',
+  snowflake: 'Snowflake',
+  googleplay: 'Google Play',
+  dockerhub: 'Docker Hub',
+  browserstack: 'BrowserStack',
+  cloudformation: 'CloudFormation',
+  redshift: 'Redshift',
+  athena: 'Athena',
+  sagemaker: 'SageMaker',
+  bedrock: 'Bedrock',
+  cloudwatch: 'CloudWatch',
 };
 const serviceLabel = (s) => SERVICE_LABEL[s] ?? (s ? s.toUpperCase() : 'Other');
 
 /* Services whose reach is the dangerous part: credentials and key material. */
-const SENSITIVE = new Set(['secretsmanager', 'kms', 'ssm', 'iam', 'sts']);
+const SENSITIVE = new Set(['secretsmanager', 'kms', 'ssm', 'iam', 'sts', 'keyvault']);
 const isSensitive = (r) => SENSITIVE.has(r.service) || r.type === 'secret' || r.type === 'key';
 
 const LIMITATION = {
@@ -54,14 +77,15 @@ const RISK = {
   NONE: { label: 'None', tone: 'neutral', stroke: 'var(--color-ink-3)' },
 };
 
-const accountOf = (arn) => String(arn ?? '').split(':')[4] || '';
+const accountOf = (arn) => /^arn:aws[^:]*:[^:]*:[^:]*:(\d{12}):/.exec(String(arn ?? ''))?.[1] ?? '';
 const lastSegment = (arn) => {
   const text = String(arn ?? '');
+  if (!text.startsWith('arn:') && text !== '*' && !text.startsWith('*:')) return text.replace(/^[a-z]+:\/\/[^/]+\//, '').split('/').filter(Boolean).slice(-2).join('/') || text;
   if (text.startsWith('*:')) return `All ${serviceLabel(text.slice(2))} resources`;
   if (text === '*') return 'Every resource';
   if (/^arn:[^:]+:s3:::[^/]+\/\*$/.test(text)) return `Every object in ${text.split(':::')[1].slice(0, -2)}`;
   const tail = text.split(':').slice(5).join(':');
-  return tail.split('/').filter(Boolean).pop() || tail || text;
+  return tail.split('/').filter(Boolean).pop()?.replace(/^(function|cluster|secret|stateMachine|parameter):/, '') || tail || text;
 };
 
 /* ── Score gauge ────────────────────────────────────────────────────────── */

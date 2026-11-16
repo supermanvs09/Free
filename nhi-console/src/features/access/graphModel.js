@@ -150,6 +150,22 @@ export const EDGE_KINDS = {
     description: 'The credential this identity runs as (instance profile, execution role, task role).',
   },
   uses: { label: 'Uses', inbound: 'Used by', group: 'uses', tone: 'info', weight: 3, description: 'Uses this credential.' },
+  signs_in_as: {
+    label: 'Signs in as',
+    inbound: 'Signed in to by',
+    group: 'uses',
+    tone: 'high',
+    weight: 5,
+    description: 'Authenticates as this identity: a Vault AppRole or Kubernetes login, an Entra workload identity, or a CI credential that holds its key.',
+  },
+  can_access: {
+    label: 'Allowed to use',
+    inbound: 'Can be used by',
+    group: 'trust',
+    tone: 'neutral',
+    weight: 2,
+    description: 'A policy allows this, but the activity log has not shown it being used.',
+  },
   attached_to: { label: 'Attached to', inbound: 'Has attached', group: 'uses', tone: 'neutral', weight: 3, description: 'Attached to this principal.' },
   manages: { label: 'Manages', inbound: 'Managed by', group: 'uses', tone: 'neutral', weight: 3, description: 'Manages this resource.' },
   contains: { label: 'Contains', inbound: 'Inside', group: 'uses', tone: 'neutral', weight: 2, description: 'Contains this resource.' },
@@ -218,7 +234,7 @@ function displayName(kind, name, arn) {
 /** A short type label for the node's second line, from MAIN's subtype. */
 export function subtypeLabel(kind, subtype) {
   if (!subtype) return '';
-  if (kind === 'resource' && subtype.startsWith('AWS::')) {
+  if (kind === 'resource' && /^[A-Za-z]+::/.test(subtype)) {
     return subtype.split('::').slice(1).join(' ');
   }
   if (kind === 'other') return subtype.replace(':', ' ');

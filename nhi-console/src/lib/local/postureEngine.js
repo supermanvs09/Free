@@ -8,6 +8,9 @@ import { estate, scopeById, person } from './seed';
 import { slice } from './state';
 import { DAY, HOUR, NOW, hashString, iso, rng } from './util';
 import { exposedIdentityIds } from './exposureData';
+import { ANOMALY_SPECS } from './entitlements';
+
+const untrustedCall = (i) => ANOMALY_SPECS.find((a) => a.who === i.name && a.untrusted && !a.resolved) ?? null;
 
 export const WEIGHTS = { CRITICAL: 25, HIGH: 15, MEDIUM: 8, LOW: 3 };
 export const PILLAR_NAMES = {
@@ -103,8 +106,8 @@ export const RULES = [
   },
   {
     rule_id: 'NHI-EX-002', pillar: 'exposure', severity: 'HIGH', title: 'Credential used from an unexpected network',
-    applies: () => true, fails: (i) => i.hot && i.is_admin,
-    detail: () => 'A call came from 185.220.101.47 (a Tor exit) in the last 30 days.', why: 'Its credentials are being used somewhere they should not be.',
+    applies: () => true, fails: (i) => Boolean(untrustedCall(i)),
+    detail: (i) => `Its credentials were used from ${untrustedCall(i).ip} (${untrustedCall(i).ip.startsWith('185.220') ? 'a Tor exit node' : 'a hosting provider it has never used'}) in the last 30 days.`, why: 'Its credentials are being used somewhere they should not be.',
     fix: 'Rotate its credentials and add a source network condition.', compliance: ['NIST-SI-4', 'SOC2-CC7.2'], auto: null,
   },
   {

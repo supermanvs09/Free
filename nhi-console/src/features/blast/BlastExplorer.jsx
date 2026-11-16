@@ -10,18 +10,20 @@ import { cn } from '../../ui/cn';
 const SERVICE = {
   s3: 'S3', secretsmanager: 'Secrets Manager', kms: 'KMS', iam: 'IAM roles', sts: 'STS', dynamodb: 'DynamoDB', sqs: 'SQS',
   sns: 'SNS', lambda: 'Lambda', ec2: 'EC2', rds: 'RDS', ssm: 'Parameter Store', ecr: 'ECR', logs: 'CloudWatch Logs',
+  keyvault: 'Key Vault', storage: 'Azure Storage', sql: 'Azure SQL', aks: 'AKS', servicebus: 'Service Bus', acr: 'Container Registry', authorization: 'Azure RBAC', entra: 'Entra ID', databricks: 'Databricks', synapse: 'Synapse', vault: 'Vault', jenkins: 'Jenkins', github: 'GitHub', snowflake: 'Snowflake', googleplay: 'Google Play', dockerhub: 'Docker Hub', browserstack: 'BrowserStack', cloudformation: 'CloudFormation', redshift: 'Redshift', athena: 'Athena', sagemaker: 'SageMaker', bedrock: 'Bedrock', cloudwatch: 'CloudWatch',
 };
 const serviceLabel = (s) => SERVICE[s] ?? (s ? s.toUpperCase() : 'Other');
-const SENSITIVE = new Set(['secretsmanager', 'kms', 'ssm', 'iam', 'sts']);
+const SENSITIVE = new Set(['secretsmanager', 'kms', 'ssm', 'iam', 'sts', 'keyvault']);
 const isSensitive = (r) => SENSITIVE.has(r.service) || r.type === 'secret' || r.type === 'key';
-const accountOf = (arn) => String(arn ?? '').split(':')[4] || '';
+const accountOf = (arn) => /^arn:aws[^:]*:[^:]*:[^:]*:(\d{12}):/.exec(String(arn ?? ''))?.[1] ?? '';
 export const shortName = (arn) => {
   const text = String(arn ?? '');
+  if (!text.startsWith('arn:') && text !== '*' && !text.startsWith('*:')) return text.replace(/^[a-z]+:\/\/[^/]+\//, '').split('/').filter(Boolean).slice(-2).join('/') || text;
   if (text.startsWith('*:')) return `All ${serviceLabel(text.slice(2))}`;
   if (text === '*') return 'Every resource';
   if (/^arn:[^:]+:s3:::[^/]+\/\*$/.test(text)) return `Objects in ${text.split(':::')[1].slice(0, -2)}`;
   const tail = text.split(':').slice(5).join(':');
-  return tail.split('/').filter(Boolean).pop() || tail || text;
+  return tail.split('/').filter(Boolean).pop()?.replace(/^(function|cluster|secret|stateMachine|parameter):/, '') || tail || text;
 };
 
 /* ── Nodes ──────────────────────────────────────────────────────────────── */

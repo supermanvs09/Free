@@ -22,10 +22,10 @@ import { buildNeighbourhood, createStore, describeNode, edgesOf, mergeRelationsh
  * can say how much is behind it before anybody clicks.
  */
 
-const CONCURRENCY = 4;
+const CONCURRENCY = 8;
 const STALE_MS = 5 * 60 * 1000;
 /* Default-focus measurement cap: see `pickDefaultFocus`. */
-const MEASURE_LIMIT = 24;
+const MEASURE_LIMIT = 16;
 
 let shared = null;
 

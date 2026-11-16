@@ -92,6 +92,17 @@ stopped) to start over.
 | `ALLOWED_ORIGINS` | any | Comma list of origins allowed to post changes |
 | `SYNC_RATE_LIMIT_PER_MIN` | `1200` | Changes per client IP per minute |
 
+## One data model behind every screen
+
+`src/lib/local/entitlements.js` is the single source of truth for what each
+identity can do: the resources in every account, subscription, controller and
+cluster (with the data they hold), each principal's policy statements and which
+it actually uses, how identities become other identities (role chaining, Vault
+and Entra sign-ins, CI servers holding someone's key), and the behaviour that
+departed from baseline. Permissions, Activity, utilisation, Posture, NHI Genome,
+the access graph, blast radius and who-can-assume (`src/lib/local/reach.js`)
+are all derived from it, so they always agree.
+
 ## Integrations
 
 **Settings → Integrations** lists eight applications, each with an on/off switch:

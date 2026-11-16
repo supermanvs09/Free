@@ -5,6 +5,7 @@ import { scopeById, person } from '../seed';
 import { save } from '../state';
 import { permissionsOf } from '../permissions';
 import { changesForEntity } from '../changes';
+import { credentialGraph, identityGraph, whoCanAssume } from '../reach';
 
 const SEARCH = ['name', 'arn', 'owner', 'owner_name', 'account_id', 'identity_type', 'credential_type', 'account_name'];
 
@@ -100,10 +101,31 @@ function attachedPolicies(cred) {
   return [...m.values()];
 }
 
+/* The trust policy document, statement per kind of principal. */
+function trustStatements(row) {
+  const ps = whoCanAssume(row.arn).principals;
+  const out = [];
+  const services = ps.filter((p) => p.kind === 'service').map((p) => p.value);
+  if (services.length) out.push({ Effect: 'Allow', Principal: { Service: services.length === 1 ? services[0] : services }, Action: 'sts:AssumeRole' });
+  const aws = ps.filter((p) => ['account', 'role', 'user'].includes(p.kind)).map((p) => p.value);
+  if (aws.length) out.push({ Effect: 'Allow', Principal: { AWS: aws.length === 1 ? aws[0] : aws }, Action: 'sts:AssumeRole' });
+  for (const p of ps.filter((x) => x.kind === 'federated')) {
+    out.push({ Effect: 'Allow', Principal: { Federated: `arn:aws:iam::${row.account_id}:oidc-provider/${p.value}` }, Action: 'sts:AssumeRoleWithWebIdentity', Condition: { StringLike: { [`${p.value}:sub`]: 'repo:deepalgo-labs/*' } } });
+  }
+  return out.length ? out : [{ Effect: 'Allow', Principal: { AWS: `arn:aws:iam::${row.account_id}:root` }, Action: 'sts:AssumeRole' }];
+}
+
+/* Who the trust policy lets in: the same answer blast radius gives (reach.js). */
 function trustPrincipals(cred) {
-  const out = identitiesOf(cred).map((i) => ({ key: i.arn, principal: i.provider === 'aws' ? `${i.identity_type.split('_')[0]}.amazonaws.com` : i.arn, type: i.provider === 'aws' ? 'Service' : 'Workload', is_external: false, condition: null, credential: cred.name }));
-  if (cred.external_principal) out.push({ key: cred.external_principal, principal: cred.external_principal, type: cred.external_principal.startsWith('arn:') ? 'AWS' : 'Federated', is_external: true, condition: cred.external_principal.startsWith('arn:') ? 'sts:ExternalId is not required' : 'sub = repo:deepalgo-labs/* (any branch)', credential: cred.name });
-  return out;
+  const ext = String(cred.external_principal ?? '');
+  return whoCanAssume(cred.arn).principals.map((p) => ({
+    key: `${p.kind}:${p.value}`,
+    principal: p.value,
+    type: p.kind === 'service' ? 'Service' : p.kind === 'federated' ? 'Federated' : 'AWS',
+    is_external: !p.same_account && p.kind !== 'service',
+    condition: p.value === ext ? (ext.startsWith('arn:') ? 'sts:ExternalId is not required' : ext.startsWith('repo:') ? `sub = ${ext}` : 'sub = repo:deepalgo-labs/* (any branch)') : null,
+    credential: cred.name,
+  }));
 }
 
 function privilegeLevel(cred) {
@@ -261,44 +283,8 @@ function permissionsTab(identity) {
   };
 }
 
-function relationshipsTab(identity) {
-  const nodes = [];
-  const edges = [];
-  const node = (arn, type, label, extra = {}) => {
-    if (!nodes.some((n) => n.id === arn)) nodes.push({ id: arn, arn, type, node_type: type, label, name: label, subtype: extra.identity_type ?? extra.credential_type ?? extra.resource_type ?? (type === 'external' ? 'external_account' : null), ...extra });
-  };
-  node(identity.arn, 'identity', identity.name, { provider: identity.provider, identity_type: identity.identity_type, is_focus: true });
-  for (const c of credentialsOf(identity)) {
-    node(c.arn, 'credential', c.name, { provider: c.provider, credential_type: c.credential_type });
-    edges.push({ id: `${identity.arn}->${c.arn}`, source: identity.arn, target: c.arn, edge_type: c.credential_type === 'iam_role' ? 'assumes' : 'uses', type: c.credential_type === 'iam_role' ? 'assumes' : 'uses', label: c.credential_type === 'iam_role' ? 'assumes' : 'uses', last_observed_at: c.last_used_at, call_count: null });
-    for (const other of identitiesOf(c).filter((i) => i.id !== identity.id && visible(i))) {
-      node(other.arn, 'identity', other.name, { provider: other.provider, identity_type: other.identity_type });
-      edges.push({ id: `${other.arn}->${c.arn}`, source: other.arn, target: c.arn, edge_type: 'assumes', type: 'assumes', label: 'also assumes' });
-    }
-    if (c.has_external_trust && c.external_principal) {
-      node(c.external_principal, 'external', c.external_principal.startsWith('arn:') ? `Account ${c.external_principal.split(':')[4]}` : c.external_principal, { external: true });
-      edges.push({ id: `${c.external_principal}->${c.arn}`, source: c.external_principal, target: c.arn, edge_type: 'trusts', type: 'trusts', label: 'can assume' });
-    }
-  }
-  const resources = new Map();
-  for (const e of eventsOf(identity).slice(0, 400)) {
-    if (!e.resource_arn || resources.size >= 6) continue;
-    const key = e.resource_arn.replace(/\/[0-9a-f]{8}\.json$/, '');
-    if (!resources.has(key)) resources.set(key, e);
-  }
-  const from = credentialsOf(identity)[0]?.arn ?? identity.arn;
-  for (const [arn, e] of resources) {
-    node(arn, 'resource', e.resource_name ?? arn.split(/[/:]/).pop(), { resource_type: e.resource_type });
-    edges.push({ id: `${from}->${arn}`, source: from, target: arn, edge_type: 'accesses', type: 'accesses', label: e.event_name, is_write: !e.is_read_only, last_observed_at: e.event_time, call_count: eventsOf(identity).filter((x) => x.resource_arn && x.resource_arn.startsWith(arn.replace(/\/\*$/, ''))).length });
-  }
-  const relationship_table = edges.map((e) => {
-    const inbound = e.target === identity.arn || (e.edge_type === 'trusts') || (e.label === 'also assumes');
-    const otherArn = e.source === identity.arn || e.source === from ? e.target : e.source;
-    const other = nodes.find((n) => n.id === otherArn);
-    return { direction: inbound ? 'inbound' : 'outbound', relationship: e.edge_type, target_arn: otherArn, target_name: other?.label ?? otherArn, detail: e.edge_type === 'accesses' ? `${e.label}${e.call_count ? ` · ${e.call_count} calls` : ''}` : e.label };
-  });
-  return { graph: { nodes, edges }, nodes, edges, relationship_table, depth: 1, truncated: false, activity_data_available: true };
-}
+/* The access graph's neighbourhood: from the entitlement model (reach.js). */
+const relationshipsTab = (identity) => identityGraph(identity);
 
 function activityTab(identity, q) {
   const rows = filteredEvents(identity, q);
@@ -352,9 +338,7 @@ function rawDoc(row) {
           MaxSessionDuration: 3600,
           AssumeRolePolicyDocument: {
             Version: '2012-10-17',
-            Statement: [
-              { Effect: 'Allow', Principal: row.external_principal?.startsWith('arn:') ? { AWS: row.external_principal } : row.external_principal ? { Federated: `arn:aws:iam::${row.account_id}:oidc-provider/${row.external_principal}` } : { Service: 'lambda.amazonaws.com' }, Action: row.external_principal && !row.external_principal.startsWith('arn:') ? 'sts:AssumeRoleWithWebIdentity' : 'sts:AssumeRole' },
-            ],
+            Statement: trustStatements(row),
           },
           PermissionsBoundary: row.permission_boundary_arn ? { PermissionsBoundaryArn: row.permission_boundary_arn } : undefined,
           RoleLastUsed: { LastUsedDate: row.last_used_at, Region: row.region },
@@ -386,7 +370,7 @@ function credentialOverview(cred) {
 
 function trustTab(cred) {
   const principals = [];
-  for (const i of identitiesOf(cred)) principals.push({ principal: i.arn, principal_arn: i.arn, principal_type: i.provider === 'aws' ? 'Service' : i.identity_type, name: i.name, kind: 'internal', is_external: false });
+  for (const p of trustPrincipals(cred).filter((x) => x.principal !== cred.external_principal)) principals.push({ principal: p.principal, principal_arn: p.principal, principal_type: p.type, name: p.principal.split('/').pop(), kind: p.is_external ? 'external' : 'internal', is_external: p.is_external });
   if (cred.external_principal) principals.push({ principal: cred.external_principal, principal_arn: cred.external_principal, principal_type: cred.external_principal.startsWith('arn:') ? 'AWS' : 'Federated', name: cred.external_principal, kind: 'external', is_external: true, conditions: cred.external_principal.startsWith('arn:') ? { 'sts:ExternalId': 'present' } : { 'token.actions.githubusercontent.com:sub': 'repo:deepalgo-labs/*' } });
   return {
     trust_policy: { document: rawDoc(cred).raw?.Role?.AssumeRolePolicyDocument ?? null, principals: trustPrincipals(cred), warnings: cred.has_external_trust ? [String(cred.external_principal).startsWith('arn:') ? 'Another account can assume this role without an ExternalId.' : 'The federated subject is not pinned to a branch or environment.'] : [] },
@@ -529,9 +513,7 @@ export default function register(r) {
         return ok(activityTab(owner, { ...query, credential: cred.id }));
       }
       case 'relationships': {
-        const owner = identitiesOf(cred)[0];
-        const g = owner ? relationshipsTab(owner) : { graph: { nodes: [{ id: cred.arn, arn: cred.arn, type: 'credential', label: cred.name, is_focus: true }], edges: [] } };
-        return ok(g);
+        return ok(credentialGraph(cred));
       }
       case 'changes':
         return ok(changesForEntity('credential', cred));

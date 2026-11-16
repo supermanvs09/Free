@@ -7,7 +7,7 @@ import { EmptyState, ErrorState } from '../../ui/States';
 import { cn } from '../../ui/cn';
 import { BlastRadiusView } from './BlastRadiusView';
 
-const TYPE_LABEL = { iam_role: 'role', iam_user: 'user', access_key: 'access key' };
+const TYPE_LABEL = { iam_role: 'role', iam_user: 'user', access_key: 'access key', stored: 'held in Jenkins' };
 
 /**
  * An identity's blast radius is that of what it signs in with: its role
