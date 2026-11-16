@@ -210,7 +210,7 @@ async function pollDiscovery(run) {
     await beginPosture();
   } else if (result.state === 'failed') {
     patchRun({ discovery: { ...state.run.discovery, state: 'failed' } });
-    fail('discovery', result.message || 'The scan could not read your AWS accounts. Check the account connections, then try again.');
+    fail('discovery', customerMessage(result.message) || 'The scan could not read your AWS accounts. Check the account connections, then try again.');
   } else {
     patchRun({ discovery: { ...state.run.discovery, status: result.status } });
     schedule(DISCOVERY_POLL_MS);
@@ -370,4 +370,16 @@ export function stop() {
   owner = '';
   state = { run: null, cooldownUntil: 0, lastScanAt: null, notice: null };
   listeners.forEach((listener) => listener());
+}
+
+/* The scanner's failure text can be a raw database or storage error (SQL
+   states, table operations). That says nothing a customer can act on and
+   shows how the service is built, so it is replaced by what happened in
+   plain words; any other message is shown as given. */
+const INTERNAL = /SQLSTATE|\bERROR:|\bpq:|\bsql:|upsert|persist scan results|panic|stack trace|goroutine/i;
+function customerMessage(message) {
+  const text = String(message ?? '').trim();
+  if (!text || !INTERNAL.test(text)) return text;
+  const account = /\b(\d{12})\b/.exec(text)?.[1];
+  return `${account ? `The scan read AWS account ${account}` : 'The scan read your AWS accounts'} but could not save the results, so nothing from ${account ? 'that account' : 'it'} changed. Your other data is as it was. Try again later; if it happens again, contact support.`;
 }
