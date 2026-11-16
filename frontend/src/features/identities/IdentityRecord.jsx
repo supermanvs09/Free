@@ -30,7 +30,7 @@ import {
   shareText,
   ownerName,
 } from './meta';
-import { SignalBreakdown } from './status';
+import { SecurityGlance } from '../posture/SecurityGlance';
 import { AccountHealth, HowItWasFound, hasAccountSummary } from './DiscoveryVisuals';
 
 export const RECORD_TABS = [
@@ -130,7 +130,6 @@ function OverviewPanel({ identityId, query, active, compact }) {
   const used = credentials.reduce((sum, entry) => sum + (Number(entry.used_actions_count) || 0), 0);
   const kinds = [...new Set(credentials.map((entry) => credentialTypeMeta(entry.credential_type).label))];
   const takers = whoCanTakeItOn(relationshipsQuery.data, identity.arn);
-  const raised = (data.risk_signals ?? []).filter((signal) => signal.status).length;
   const classLabel = functionalClassMeta(identity.functional_class).label;
   const discovery = data.discovery ?? {};
 
@@ -239,24 +238,14 @@ function OverviewPanel({ identityId, query, active, compact }) {
         </dl>
       </section>
 
+      {/* Security at a glance: the same posture score and checks as the
+          Posture tab and the same blast radius as its tab, so the overview
+          never says "OK" where they say otherwise. */}
       <div>
-        <SectionLabel>At a glance{raised > 0 ? ` · ${raised} to look at` : ' · all fine'}</SectionLabel>
-        <div className="mt-1">
-          <SignalBreakdown signals={data.risk_signals} />
+        <SectionLabel>Security at a glance</SectionLabel>
+        <div className="mt-2">
+          <SecurityGlance identityId={identityId} arn={identity.arn} compact={compact} />
         </div>
-        <p className="mt-2 text-[11.5px] leading-relaxed text-ink-3">
-          Simple facts the discovery scan noted about this identity and its credentials. These are not its security checks or score.
-          {identityId && (
-            <>
-              {' '}
-              Those are on the{' '}
-              <Link to={identityRoute(identityId, 'posture')} className="font-medium text-brand hover:underline">
-                Posture tab
-              </Link>
-              , with how to fix each one.
-            </>
-          )}
-        </p>
       </div>
 
       <div>

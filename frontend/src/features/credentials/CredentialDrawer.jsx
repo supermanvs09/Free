@@ -19,7 +19,7 @@ import { ClearState, EmptyState, InlineError } from '../../ui/States';
 import { JsonBlock, RawJson } from '../../ui/RawJson';
 import { cn } from '../../ui/cn';
 import { AttributeList, TagList } from '../identities/IdentityRecord';
-import { SignalBreakdown } from '../identities/status';
+import { SecurityGlance } from '../posture/SecurityGlance';
 import {
   EDGE_LABELS,
   bindingLabel,
@@ -156,7 +156,6 @@ function OverviewBody({ data, privilege, record, recordLoading }) {
   const credential = data.credential ?? {};
   const meta = credentialTypeMeta(credential.credential_type);
   const bound = data.bound_identities ?? [];
-  const raised = (data.risk_signals ?? []).filter((signal) => signal.status).length;
 
   return (
     <div className="flex flex-col gap-5">
@@ -253,10 +252,22 @@ function OverviewBody({ data, privilege, record, recordLoading }) {
         )}
       </div>
 
+      {/* Security at a glance, from posture and blast radius (as their
+          tabs show them). A credential is scored as itself when posture has
+          it (a role), else with the identity it belongs to. */}
       <div>
-        <SectionLabel>At a glance{raised > 0 ? ` · ${raised} to look at` : ' · all fine'}</SectionLabel>
-        <div className="mt-1">
-          <SignalBreakdown signals={data.risk_signals} />
+        <SectionLabel>Security at a glance</SectionLabel>
+        <div className="mt-2">
+          <SecurityGlance
+            arn={credential.arn}
+            candidates={[credential.arn, ...bound.map((identity) => identity.arn)]}
+            missing={
+              bound.length
+                ? 'Neither this credential nor the identities that use it have a posture score yet.'
+                : 'Posture scores identities, and no identity uses this credential, so it has no score of its own.'
+            }
+            compact
+          />
         </div>
       </div>
 

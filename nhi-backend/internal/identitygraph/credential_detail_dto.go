@@ -64,6 +64,7 @@ type OverviewCredential struct {
 type BoundIdentity struct {
 	IdentityID     string     `json:"identity_id"`
 	Name           string     `json:"name"`
+	ARN            string     `json:"arn"`
 	IdentityType   string     `json:"identity_type"`
 	AccountID      string     `json:"account_id"`
 	Status         string     `json:"status"`

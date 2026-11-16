@@ -330,6 +330,7 @@ func (r *CredentialDetailRepository) loadBoundIdentities(ctx context.Context, te
 		if err := rows.Scan(&bi.IdentityID, &bi.Name, &bi.IdentityType, &bi.AccountID, &bi.Status, &arn, &bi.BindingType); err != nil {
 			return nil, fmt.Errorf("scan bound identity: %w", err)
 		}
+		bi.ARN = arn
 		out = append(out, bi)
 		arns = append(arns, arn)
 	}
