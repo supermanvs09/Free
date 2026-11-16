@@ -180,6 +180,9 @@ func usageFor(grantedService, grantedAction string, used []eventstore.UsedPermis
 			continue
 		}
 		matched = true
+		if u.LastUsedAt.IsZero() { // used, but no dated call was read
+			continue
+		}
 		if last == nil || u.LastUsedAt.After(*last) {
 			t := u.LastUsedAt
 			last = &t

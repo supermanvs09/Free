@@ -107,6 +107,15 @@ client.interceptors.response.use(
       clearSession();
       unauthorizedHandler?.();
     }
+    /* Too many requests on a read: the limit refills in about a second, so
+       wait the time the server names (at most 4 s) and ask once more instead
+       of showing an error for a spike. */
+    if (status === 429 && config && !config._rateRetried && String(config.method || 'get').toLowerCase() === 'get' && !AUTH_PATHS.test(config.url || '')) {
+      config._rateRetried = true;
+      const wait = Math.min(4, Math.max(1, Number(error.response.headers?.['retry-after']) || 1));
+      await new Promise((resolve) => setTimeout(resolve, wait * 1000));
+      return client.request(config);
+    }
     return Promise.reject(describe(error));
   },
 );

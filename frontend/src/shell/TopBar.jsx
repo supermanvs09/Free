@@ -168,13 +168,21 @@ export function TopBar({ onOpenNav, onOpenCommand, minimal = false }) {
                 <span className="block truncate text-[13.5px] font-semibold text-ink">
                   {user?.name || 'Signed in'}
                 </span>
-                {user?.username && (
-                  <span className="mt-0.5 block truncate font-mono text-[12px] text-ink-3">{user.username}</span>
+                {/* The login id, e.g. admin@bimasugam: the part after @ is the workspace. */}
+                {(user?.email || user?.username) && (
+                  <span className="mt-0.5 block truncate font-mono text-[12px] text-ink-3" title={user.email || user.username}>
+                    {user.email || user.username}
+                  </span>
                 )}
                 <span className="mt-1.5 flex flex-wrap gap-1.5">
                   {user?.role && (
                     <span className="rounded-full border border-brand/25 bg-info-soft px-1.5 py-0.5 text-[10.5px] font-semibold text-brand">
                       {roleMeta(user.role).label}
+                    </span>
+                  )}
+                  {(user?.email || user?.username)?.includes('@') && (
+                    <span className="rounded-full border border-line-strong bg-surface-3 px-1.5 py-0.5 text-[10.5px] font-medium text-ink-2" title="Your workspace">
+                      {(user.email || user.username).split('@').pop()}
                     </span>
                   )}
                   {user?.team && (

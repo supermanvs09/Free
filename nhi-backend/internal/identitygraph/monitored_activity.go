@@ -243,3 +243,120 @@ func (a *ActivityService) monitoredCredentialActivity(ctx context.Context, resol
 	resp.ActivityDataAvailable = true
 	return resp, true
 }
+
+// MonitoredUsageSource is an ActivitySource that can also say what the
+// behaviour pipeline saw one identity do. CloudTrail is matched on credential
+// ARNs, but the pipeline attributes an EC2 instance's or a task's calls to
+// the workload itself (its workload key), so a role that the pipeline watches
+// can read "never used" by ARN while Genome shows thousands of calls.
+type MonitoredUsageSource interface {
+	// MonitoredUsed lists the successful actions the pipeline attributes to
+	// the discovery identity since the given time; nil when it does not watch
+	// it or its store is unavailable.
+	MonitoredUsed(ctx context.Context, identityID string, since time.Time) []eventstore.UsedPermission
+}
+
+var _ MonitoredUsageSource = (*RequestActivity)(nil)
+
+// monitoredUsageEventLimit bounds the newest calls read to date each action.
+const monitoredUsageEventLimit = 5000
+
+// MonitoredUsed implements MonitoredUsageSource from the Genome event store:
+// every distinct successful (service, action) with its count (from the
+// aggregation, so it is exact) and last use (from the newest calls).
+func (r *RequestActivity) MonitoredUsed(ctx context.Context, identityID string, since time.Time) []eventstore.UsedPermission {
+	m := r.svc.monitored
+	if m == nil || !m.Enabled() || identityID == "" || r.resolved == nil || r.resolved.DB == nil {
+		return nil
+	}
+	accounts := r.monitoredAccounts(ctx)
+	if len(accounts) == 0 {
+		return nil
+	}
+	ids, err := loadMonitoredIdentities(ctx, r.resolved, identityID, "")
+	if err != nil {
+		r.fail("monitored identity", err)
+		return nil
+	}
+	end := time.Now().UTC()
+	if since.IsZero() || since.After(end) {
+		since = end.AddDate(0, 0, -90)
+	}
+	byAction := map[string]*eventstore.UsedPermission{}
+	var order []string
+	for _, id := range ids {
+		key, ok := m.KeyFor(id)
+		if !ok {
+			continue
+		}
+		rows, err := m.Analytics(ctx, accounts, key, since.UTC(), end)
+		if err != nil {
+			r.fail("monitored usage", err)
+			return nil
+		}
+		for _, row := range rows {
+			if row.ErrorCode != "" || row.EventName == "" { // a refused call is not use
+				continue
+			}
+			svc := eventstore.ServiceName(row.EventSource)
+			k := strings.ToLower(svc + ":" + row.EventName)
+			u, ok := byAction[k]
+			if !ok {
+				u = &eventstore.UsedPermission{Service: svc, EventSource: row.EventSource, Action: row.EventName}
+				byAction[k] = u
+				order = append(order, k)
+			}
+			u.UsageCount += row.Count
+			if row.SourceIP != "" && !containsString(u.SourceIPs, row.SourceIP) {
+				u.SourceIPs = append(u.SourceIPs, row.SourceIP)
+			}
+			if row.Region != "" && !containsString(u.Regions, row.Region) {
+				u.Regions = append(u.Regions, row.Region)
+			}
+		}
+		// When each action was last seen, from the newest calls.
+		if events, err := m.Events(ctx, accounts, key, since.UTC(), end, monitoredUsageEventLimit); err == nil {
+			for _, ev := range events {
+				if ev.ErrorCode != "" {
+					continue
+				}
+				k := strings.ToLower(eventstore.ServiceName(ev.EventSource) + ":" + ev.EventName)
+				if u, ok := byAction[k]; ok && ev.EventTime.After(u.LastUsedAt) {
+					u.LastUsedAt = ev.EventTime
+					if u.FirstUsedAt.IsZero() || ev.EventTime.Before(u.FirstUsedAt) {
+						u.FirstUsedAt = ev.EventTime
+					}
+				}
+			}
+		}
+	}
+	out := make([]eventstore.UsedPermission, 0, len(order))
+	for _, k := range order {
+		out = append(out, *byAction[k])
+	}
+	return out
+}
+
+// usedActionsOf is the distinct (service, action) pairs of used permissions.
+func usedActionsOf(used []eventstore.UsedPermission) []eventstore.UsedAction {
+	out := make([]eventstore.UsedAction, 0, len(used))
+	for _, u := range used {
+		out = append(out, eventstore.UsedAction{Service: u.Service, Action: u.Action})
+	}
+	return out
+}
+
+// monitoredAccounts is the tenant's accounts. Unlike TenantAccounts it does
+// not need the CloudTrail store: the Genome store is read on its own.
+func (r *RequestActivity) monitoredAccounts(ctx context.Context) []string {
+	if v, ok := r.svc.accounts.get(r.tenantID); ok {
+		return v
+	}
+	accounts, err := r.svc.lookup.TenantAccountIDs(ctx, r.resolved.DB, r.resolved.QSchema(), r.tenantID)
+	if err != nil {
+		r.fail("tenant accounts", err)
+		return nil
+	}
+	r.svc.accounts.set(r.tenantID, accounts)
+	return accounts
+}

@@ -157,12 +157,14 @@ func SetupRoutes(h HandlerContainer) *mux.Router {
 
 	v1 := r.PathPrefix("/api/v1").Subrouter()
 	v1.Use(h.AuthMiddleware.Authenticate)
+	v1.Use(middleware.UserRateLimit)
 	// One gate decides every route from the capability table in
 	// internal/platform/authz, so a new endpoint is covered by its default
 	// (read for a GET, write for anything else) rather than by being forgotten.
 	v1.Use(h.AuthMiddleware.Authorize)
 	protected := r.PathPrefix("/api").Subrouter()
 	protected.Use(h.AuthMiddleware.Authenticate)
+	protected.Use(middleware.UserRateLimit)
 	protected.Use(h.AuthMiddleware.Authorize)
 	registerProtected(v1, h, true)
 	registerProtected(protected, h, false)

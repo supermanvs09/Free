@@ -27,3 +27,23 @@ func TestRateLimit(t *testing.T) {
 		t.Fatal("another address was limited")
 	}
 }
+
+// Many users behind one address (a CDN, an office) must not starve each
+// other: with a bearer token the address limit is only a high backstop.
+func TestRateLimitSharedAddressSignedIn(t *testing.T) {
+	h := RateLimit(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {}))
+	limited := 0
+	for i := 0; i < 600; i++ { // 600 requests from many users through one edge address
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/x", nil)
+		req.RemoteAddr = "203.0.113.50:1234"
+		req.Header.Set("Authorization", "Bearer user-token")
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if rec.Code == http.StatusTooManyRequests {
+			limited++
+		}
+	}
+	if limited != 0 {
+		t.Fatalf("%d signed-in requests were refused on a shared address", limited)
+	}
+}

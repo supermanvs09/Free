@@ -121,7 +121,7 @@ function SyncChooser({ base, cooling, cooldownUntil, now, start, openPanel }) {
         onClose={() => setOpen(false)}
         role="dialog"
         aria-label="Choose what to sync"
-        className="w-80 rounded-[var(--radius-panel)] border border-line bg-surface p-1.5 shadow-[var(--t-shadow-lg)]"
+        className="flex max-h-[min(34rem,calc(100dvh-5rem))] w-80 flex-col rounded-[var(--radius-panel)] border border-line bg-surface p-1.5 shadow-[var(--t-shadow-lg)]"
       >
         <p className="px-2.5 pt-1.5 pb-1 text-[11px] font-semibold tracking-[0.06em] text-ink-3 uppercase">What to sync</p>
         <ChooserItem
@@ -137,6 +137,9 @@ function SyncChooser({ base, cooling, cooldownUntil, now, start, openPanel }) {
         />
         <div className="my-1 border-t border-line" />
         <p className="px-2.5 pt-1 pb-1 text-[11px] font-semibold tracking-[0.06em] text-ink-3 uppercase">One account</p>
+        {/* 15 or 20 accounts do not fit the screen: the list scrolls (wheel,
+            touch, keys) inside the panel, the "All accounts" row stays put. */}
+        <div className="nav-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {accounts.map((account) => (
           <ChooserItem
             key={account.accountId}
@@ -152,6 +155,7 @@ function SyncChooser({ base, cooling, cooldownUntil, now, start, openPanel }) {
             onSelect={() => syncOne(account)}
           />
         ))}
+        </div>
       </FloatingPanel>
     </>
   );

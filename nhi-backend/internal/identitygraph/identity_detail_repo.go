@@ -451,15 +451,30 @@ func (r *IdentityDetailRepository) loadBoundCredentialsOverview(ctx context.Cont
 		return nil, nil, err
 	}
 
-	// used_actions_count: distinct allowed actions CloudTrail saw this credential use.
-	if src.Available() && len(out) > 0 {
+	// used_actions_count: distinct allowed actions CloudTrail saw this
+	// credential use, plus those the behaviour pipeline saw the identity use.
+	var monitoredUsed []eventstore.UsedPermission
+	if mu, ok := src.(MonitoredUsageSource); ok && len(out) > 0 {
+		monitoredUsed = mu.MonitoredUsed(ctx, ci.ID, UsageSince(time.Now()))
+	}
+	if (src.Available() || len(monitoredUsed) > 0) && len(out) > 0 {
 		var flat []string
 		for _, ks := range keys {
 			flat = append(flat, ks...)
 		}
 		sets := src.UsedActionSets(ctx, flat, UsageSince(time.Now()))
+		if len(monitoredUsed) > 0 {
+			if sets == nil {
+				sets = map[string][]eventstore.UsedAction{}
+			}
+			sets["monitored"] = usedActionsOf(monitoredUsed)
+		}
 		for i := range out {
-			used := UsedGrantedCount(sets, keys[i], allowedByIdx[i])
+			withMonitored := keys[i]
+			if len(monitoredUsed) > 0 { // a copy: keys[i] is returned to the caller as is
+				withMonitored = append(append([]string(nil), keys[i]...), "monitored")
+			}
+			used := UsedGrantedCount(sets, withMonitored, allowedByIdx[i])
 			out[i].UsedActionsCount = used
 			out[i].UtilizationPct = RoundPctInt(used, grantedByIdx[i])
 		}
@@ -579,8 +594,15 @@ func (r *IdentityDetailRepository) GetPermissions(ctx context.Context, resolved 
 	// permission counts as used when a successful event is covered by it
 	// (wildcards such as s3:Get* included).
 	usedByCred := make(map[string][]eventstore.UsedPermission, len(credIDs))
+	// Plus what the behaviour pipeline saw this identity do: for a workload it
+	// watches (an EC2 instance, a task) its calls are attributed to the
+	// workload, not to the role ARN CloudTrail is matched on.
+	var monitoredUsed []eventstore.UsedPermission
+	if mu, ok := src.(MonitoredUsageSource); ok {
+		monitoredUsed = mu.MonitoredUsed(ctx, id, UsageSince(time.Now()))
+	}
 	for _, credID := range credIDs {
-		usedByCred[credID] = src.UsedPermissions(ctx, keysByCred[credID], UsageSince(time.Now()))
+		usedByCred[credID] = append(src.UsedPermissions(ctx, keysByCred[credID], UsageSince(time.Now())), monitoredUsed...)
 	}
 
 	type policyAgg struct {
@@ -685,7 +707,15 @@ func (r *IdentityDetailRepository) GetPermissions(ctx context.Context, resolved 
 		granted = int(grantedActions)
 		// Only calls an allowed entry covers: the same rule as each row's
 		// Used / Never used, so the two always agree.
-		usedCount = UsedGrantedCount(src.UsedActionSets(ctx, keys, UsageSince(time.Now())), keys, allowed)
+		sets := src.UsedActionSets(ctx, keys, UsageSince(time.Now()))
+		if len(monitoredUsed) > 0 {
+			if sets == nil {
+				sets = map[string][]eventstore.UsedAction{}
+			}
+			sets["monitored:"+id] = usedActionsOf(monitoredUsed)
+			keys = append(keys, "monitored:"+id)
+		}
+		usedCount = UsedGrantedCount(sets, keys, allowed)
 		if usedCount > granted {
 			usedCount = granted
 		}
