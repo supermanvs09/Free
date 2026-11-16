@@ -8,9 +8,11 @@
 //     Endpoint 9), which tests the token and URL, stores them encrypted with a
 //     key only the scanner holds, and sets bitbucket_active. Status is read
 //     from the database.
-//   - GitHub: the company installs the GitHub App; Verify asks the scanner
-//     for its installations and switches github_active on when the company's
-//     organisation is among them.
+//   - GitHub: the company installs the GitHub App; Verify lists the App's
+//     installations - from GitHub directly with the App's own credentials
+//     (NHI_GITHUB_APP_ID / _PRIVATE_KEY, githubapp.go), else through the
+//     scanner - and switches github_active on when the company's organisation
+//     is among them.
 //
 // Settings: NHI_GITHUB_SCANNING_ENABLED / NHI_BITBUCKET_SCANNING_ENABLED
 // (true|false, default false) show or hide each source on the page, refuse its
@@ -60,6 +62,7 @@ type Handler struct {
 	scannerURL string
 	adminKey   string
 	installURL string
+	github     *githubApp // the App's own credentials (githubapp.go); nil when not set
 	http       *http.Client
 	columns    sync.Once
 	columnsErr error
@@ -70,7 +73,15 @@ func NewHandler(db *database.PostgresDB) *Handler {
 	if db != nil && strings.TrimSpace(db.GlobalSchema()) != "" {
 		global = db.GlobalSchema()
 	}
+	app, err := loadGitHubApp()
+	if err != nil {
+		// Logged, not fatal: the rest of the API runs; Verify says it is unavailable.
+		slog.Error("code sources: GitHub App credentials unusable", "err", err)
+	} else if app != nil {
+		slog.Info("code sources: GitHub App verification through GitHub directly", "app_id", app.appID, "api", app.api)
+	}
 	return &Handler{
+		github:     app,
 		db:         db,
 		global:     global,
 		scannerURL: strings.TrimRight(strings.TrimSpace(os.Getenv("NHI_SECRET_SCANNER_URL")), "/"),
@@ -168,8 +179,9 @@ func (h *Handler) status(ctx context.Context, c caller) (*Status, error) {
 	}
 	st := &Status{}
 	st.GitHub.InstallURL = h.installURL
-	st.GitHub.VerifyAvailable = h.scannerURL != "" && h.adminKey != ""
-	st.Bitbucket.SaveAvailable = st.GitHub.VerifyAvailable
+	scanner := h.scannerURL != "" && h.adminKey != ""
+	st.GitHub.VerifyAvailable = h.github != nil || scanner
+	st.Bitbucket.SaveAvailable = scanner
 	var ghVerified, bbVerified, bbEvent sql.NullTime
 	var ghActive, bbActive bool
 	err := h.db.DB.QueryRowContext(ctx, `SELECT github_active = 1, COALESCE(github_org, ''), github_last_verified_at,
@@ -274,18 +286,32 @@ func (h *Handler) VerifyGitHub(w http.ResponseWriter, r *http.Request) {
 		send(w, http.StatusBadRequest, false, "Enter the GitHub organisation (or user) name the App is installed on, for example acme-corp.", "INVALID_ORG", nil)
 		return
 	}
-	if h.scannerURL == "" || h.adminKey == "" {
-		send(w, http.StatusServiceUnavailable, false, "The GitHub check is not available yet. Contact support.", "SCANNER_NOT_CONFIGURED", nil)
-		return
-	}
-	status, raw, err := h.scanner(r.Context(), http.MethodGet, "/api/admin/github/installations", nil)
-	if err != nil || status >= 300 {
-		slog.Warn("code sources: listing GitHub installations failed", "tenant_id", c.tenantID, "status", status, "err", err)
-		send(w, http.StatusBadGateway, false, "We could not check GitHub just now. Try again in a minute.", "SCANNER_UNREACHABLE", nil)
+	/* The App's own credentials ask GitHub directly; without them the
+	   secret scanner is asked (its admin API), as before. */
+	var installed bool
+	switch {
+	case h.github != nil:
+		ok, err := h.github.installedOn(r.Context(), h.http, org)
+		if err != nil {
+			slog.Warn("code sources: listing GitHub installations failed", "tenant_id", c.tenantID, "err", err)
+			send(w, http.StatusBadGateway, false, "We could not check GitHub just now. Try again in a minute.", "GITHUB_UNREACHABLE", nil)
+			return
+		}
+		installed = ok
+	case h.scannerURL != "" && h.adminKey != "":
+		status, raw, err := h.scanner(r.Context(), http.MethodGet, "/api/admin/github/installations", nil)
+		if err != nil || status >= 300 {
+			slog.Warn("code sources: listing GitHub installations failed", "tenant_id", c.tenantID, "status", status, "err", err)
+			send(w, http.StatusBadGateway, false, "We could not check GitHub just now. Try again in a minute.", "SCANNER_UNREACHABLE", nil)
+			return
+		}
+		installed = installedOn(raw, org)
+	default:
+		send(w, http.StatusServiceUnavailable, false, "The GitHub check is not available yet. Contact support.", "GITHUB_NOT_CONFIGURED", nil)
 		return
 	}
 	checks := []check{{Key: "installed", Label: "The GitHub App is installed on " + org}}
-	if !installedOn(raw, org) {
+	if !installed {
 		checks[0].State, checks[0].Message = "fail", "No installation of the App was found on "+org+". Install it (step 1), choose the repositories, then check again."
 		send(w, http.StatusUnprocessableEntity, false, checks[0].Message, "GITHUB_NOT_INSTALLED", map[string]any{"checks": checks})
 		return
