@@ -41,34 +41,25 @@ const TAB_KEYS = ['overview', 'identities', 'anomalies'];
 const DAY_MS = 86400000;
 
 /**
- * Where an identity's baseline stands, from the genome list's baseline
- * status: active is established; anything else with activity (or a
- * baselines row) is learning; neither is not started.
- * An identity that has never made a call is not learning anything, whatever
- * its baseline row says: it reads "No activity" (and sorts with the
- * not-started ones). lastSeen is undefined when activity could not be read,
- * which never counts as "no activity".
+ * Where an identity's baseline stands. Established comes from its own field,
+ * the baseline status (active). Learning needs calls to learn from: only an
+ * identity with a last call (last_seen) is learning; with no last call it
+ * reads "No activity", whatever its baselines row says.
  */
 export function learningState(baseline, lastSeen) {
-  const status = baseline?.status;
-  if (status === 'active') return { key: 'established', label: 'Established', tone: 'low' };
-  const neverActive = lastSeen !== undefined && !lastSeen;
-  if (neverActive) return { key: 'none', label: 'No activity', tone: 'neutral' };
-  /* Calls are coming in (or a baselines row exists) but nothing is
-     established: it is learning. No day counts - the pipeline's numbers do
-     not add up reliably, and "learning" is what matters. */
-  if (status || lastSeen) return { key: 'learning', label: 'Learning', tone: 'medium' };
-  return { key: 'none', label: 'Not started', tone: 'neutral' };
+  if (baseline?.status === 'active') return { key: 'established', label: 'Established', tone: 'low' };
+  if (lastSeen) return { key: 'learning', label: 'Learning', tone: 'medium' };
+  return { key: 'none', label: 'No activity', tone: 'neutral' };
 }
 
 /** A row's last call, or undefined when the events store could not be read. */
-const seenOrUnknown = (row) => (row.activityKnown ? row.lastSeen : undefined);
+const seenOrUnknown = (row) => row.lastSeen;
 
 const BASELINE_FILTERS = [
   { value: '', label: 'Every baseline state' },
   { value: 'established', label: 'Established' },
   { value: 'learning', label: 'Learning' },
-  { value: 'none', label: 'Not started or no activity' },
+  { value: 'none', label: 'No activity' },
 ];
 
 const SORTS = [

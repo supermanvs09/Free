@@ -6,7 +6,7 @@ import (
 )
 
 func TestIdentityEquals(t *testing.T) {
-	if got := IdentityEquals("LAMBDA"); got != `identity_name = {identity_name:String}` {
+	if got := IdentityEquals("LAMBDA"); got != `(identity_name = {identity_name:String} OR workload_key = {identity_name:String})` {
 		t.Fatalf("non-ECS must compare the plain column, got %q", got)
 	}
 	for _, st := range []string{"ECS", "ecs", " ECS "} {

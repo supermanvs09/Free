@@ -15,8 +15,10 @@ import (
 //   - headline_metrics  open alerts (PostgreSQL); calls in the requested
 //     window and last seen (ClickHouse log_events)
 //
-// Monitoring facts are looked up by the identity key first and the shared
-// workload key second (the contract's fallback). Nothing is invented: a
+// The path is a baselines key (as the identity list links it) or a
+// discovery key. Monitoring facts are looked up by the baseline key —
+// log_events by workload_key, alerts by the workload's event identity names —
+// or, for a discovery key, by the identity key then the shared workload key. Nothing is invented: a
 // section whose store cannot be read is omitted (logged server-side), and the
 // ClickHouse metrics are omitted until the pipeline's log_events is reachable.
 type IdentitySummaryService struct {
@@ -42,8 +44,9 @@ func (s *IdentitySummaryService) GetIdentity(ctx context.Context, userID, tenant
 	if err != nil {
 		return nil, err
 	}
-	id, sc := res.Identity, res.Scope
-	keys := id.AllKeys() // identity key, then the workload key when it differs
+	id, sc, accounts := res.Identity, res.Scope, res.Accounts()
+	keys := res.BaselineKeys() // the baseline key (or identity key, then workload key)
+	eventName := res.EventName(ctx, s.events)
 	out := &IdentitySummaryResponse{
 		Identity: IdentityRecord{
 			SourceType: id.Key.SourceType,
@@ -81,10 +84,10 @@ func (s *IdentitySummaryService) GetIdentity(ctx context.Context, userID, tenant
 	}
 
 	// ---- PostgreSQL monitoring tables -------------------------------------
-	if b, err := s.repo.BaselineSummary(ctx, sc, keys); summarycommon.ReadOK(ctx, "identity baseline summary", err) && b != nil {
+	if b, err := s.repo.BaselineSummary(ctx, sc, accounts, keys); summarycommon.ReadOK(ctx, "identity baseline summary", err) && b != nil {
 		out.BaselineSummary = &IdentityBaselineSummary{Status: b.Status, BuiltDays: b.BuiltDays, RequiredDays: b.RequiredDays}
 	}
-	if n, err := s.repo.OpenAlertCount(ctx, sc, keys); summarycommon.ReadOK(ctx, "identity open alerts", err) {
+	if n, err := s.repo.OpenAlertCount(ctx, sc, accounts, res.AlertKeys(ctx, s.events)); summarycommon.ReadOK(ctx, "identity open alerts", err) {
 		out.HeadlineMetrics.OpenAnomalies = summarycommon.IntPtr(n)
 	}
 
@@ -92,9 +95,9 @@ func (s *IdentitySummaryService) GetIdentity(ctx context.Context, userID, tenant
 	if s.events != nil {
 		if calls, err := s.events.TotalCalls(
 			ctx,
-			res.Scope.AccountIDs,
+			accounts,
 			id.Key.SourceType,
-			id.EventName(),
+			eventName,
 			p.Window.From,
 			p.Window.To,
 		); summarycommon.EventsReadOK(
@@ -108,9 +111,9 @@ func (s *IdentitySummaryService) GetIdentity(ctx context.Context, userID, tenant
 
 		if lastSeen, err := s.events.LastSeen(
 			ctx,
-			res.Scope.AccountIDs,
+			accounts,
 			id.Key.SourceType,
-			id.EventName(),
+			eventName,
 		); summarycommon.EventsReadOK(
 			ctx,
 			"identity last seen",

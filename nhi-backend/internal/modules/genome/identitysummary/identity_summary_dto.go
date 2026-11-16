@@ -18,7 +18,6 @@ type IdentitySummaryResponse struct {
 	BaselineSummary *IdentityBaselineSummary `json:"baseline_summary,omitempty"`
 	HeadlineMetrics IdentityHeadlineMetrics  `json:"headline_metrics"`
 }
-
 // IdentityRecord describes the selected monitored principal and its parent
 // discovery inventory resource.
 //
@@ -33,7 +32,10 @@ type IdentityRecord struct {
 	// IdentityName identifies the selected monitored principal and is used
 	// when calling the Baseline, Activity, Genome, and Timeline APIs.
 	//
-	// For expanded ECS identities, this is the task-role or execution-role ARN.
+	// It is the requested key: the baseline key (baselines.identity_name =
+	// log_events.workload_key) when the identity list linked it, else the
+	// discovery key (for expanded ECS identities the task-role or
+	// execution-role ARN).
 	IdentityName string `json:"identity_name"`
 
 	DisplayName string `json:"display_name"`

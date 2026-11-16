@@ -30,7 +30,7 @@ const SOURCE_TYPES = {
   CLOUDFORMATION: 'CloudFormation',
   MWAA: 'Airflow (MWAA)',
   STEP_FUNCTIONS: 'Step Functions',
-  EVENTBRIDGE: 'EventBridge Scheduler',
+  EVENTBRIDGE: 'EventBridge',
   SYNTHETICS: 'Synthetics canary',
   IOT: 'IoT',
   TRANSFER: 'Transfer Family',

@@ -3,12 +3,14 @@ package summarycommon
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/lib/pq"
 
 	"nhi-backend-api/internal/modules/genome/workloadtypes"
+	chclient "nhi-backend-api/internal/platform/clickhouse"
 	"nhi-backend-api/internal/platform/scope"
 )
 
@@ -22,10 +24,11 @@ import (
 //
 // Every entry point takes the resolved *scope.DataScope: the pool and the
 // schema-qualified table names come from it (resolved.Table), never from
-// configuration or constants. Monitoring tables are keyed by the normalized
-// (source_type, identity_name) pair, which the service computes from the
-// discovery row — so the readers take a list of MonitoringKey values
-// instead of joining the raw discovery columns in SQL. Nothing is written.
+// configuration or constants. The genome identities are the baselines rows
+// (Baselines); the other monitoring tables are read for a list of
+// MonitoringKey values — baselines / baseline_versions by the baseline key,
+// alerts / identity_risk_scores by the event identity names of the workload —
+// always restricted to the caller's accounts. Nothing is written.
 type DashboardSummaryRepository struct{}
 
 // NewDashboardSummaryRepository creates the repository.
@@ -228,100 +231,183 @@ func (r *DashboardSummaryRepository) IdentityCredentials(
 // baselines / baseline_versions
 // ---------------------------------------------------------------------------
 
-// BaselineStateRow is the baseline state of one key.
-type BaselineStateRow struct {
+// BaselineIdentity is one baselines row: one identity NHI Genome watches.
+// Key.IdentityName is the pipeline's baseline key, which is the workload_key
+// of the identity's log_events rows (see chclient.IdentityEquals).
+type BaselineIdentity struct {
+	AccountID     string
 	Key           MonitoringKey
 	Status        string // active | inactive
+	BuiltDays     int
+	RequiredDays  int
 	DaysRemaining int
+	FirstSeenDate *time.Time // DATE column, midnight UTC
 	ActiveSince   *time.Time
+	UpdatedAt     *time.Time
 }
 
-// ScopedBaselineStates returns every baseline row in the selected tenant
-// account and source-type scope. Dashboard population is derived from these
-// rows; discovery identities are used only for optional display enrichment.
-func (r *DashboardSummaryRepository) ScopedBaselineStates(
-	ctx context.Context,
-	resolved *scope.DataScope,
-	sourceType string,
-	accountID string,
-) ([]BaselineStateRow, error) {
-	out := []BaselineStateRow{}
-	accountIDs := resolved.AccountIDs
-	if strings.TrimSpace(accountID) != "" {
-		accountIDs = []string{strings.TrimSpace(accountID)}
-	}
-	if len(accountIDs) == 0 {
-		return out, nil
-	}
-	query := `SELECT b.source_type, b.identity_name, b.status,
-	                 b.days_remaining, b.active_since
-	          FROM ` + resolved.Table("baselines") + ` b
-	          WHERE b.account_id = ANY($1::text[])`
-	args := []any{pq.Array(accountIDs)}
-	if strings.TrimSpace(sourceType) != "" {
-		query += ` AND b.source_type = $2`
-		args = append(args, strings.ToUpper(strings.TrimSpace(sourceType)))
-	}
-	rows, err := resolved.DB.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, WrapMonitoringErr("scoped baselines", err)
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var row BaselineStateRow
-		var active sql.NullTime
-		if err := rows.Scan(
-			&row.Key.SourceType,
-			&row.Key.IdentityName,
-			&row.Status,
-			&row.DaysRemaining,
-			&active,
-		); err != nil {
-			return nil, WrapMonitoringErr("scoped baselines", err)
-		}
-		row.Key.SourceType = strings.ToUpper(strings.TrimSpace(row.Key.SourceType))
-		row.Key.IdentityName = strings.TrimSpace(row.Key.IdentityName)
-		row.Status = strings.ToLower(strings.TrimSpace(row.Status))
-		if active.Valid {
-			value := active.Time.UTC()
-			row.ActiveSince = &value
-		}
-		out = append(out, row)
-	}
-	return out, WrapMonitoringErr("scoped baselines", rows.Err())
+// BaselineFilter narrows Baselines. Empty fields do not filter; a nil
+// Families means every family.
+type BaselineFilter struct {
+	SourceType   string
+	IdentityName string
+	Families     []string
 }
 
-// BaselineStates loads the baseline state for every key that has one.
-func (r *DashboardSummaryRepository) BaselineStates(ctx context.Context, resolved *scope.DataScope, keys []MonitoringKey) (map[MonitoringKey]BaselineStateRow, error) {
-	out := map[MonitoringKey]BaselineStateRow{}
-	if len(keys) == 0 {
+// Baselines returns the baselines rows of the caller's accounts, most
+// recently updated first.
+func (r *DashboardSummaryRepository) Baselines(ctx context.Context, resolved *scope.DataScope, f BaselineFilter) ([]BaselineIdentity, error) {
+	out := []BaselineIdentity{}
+	if len(resolved.AccountIDs) == 0 {
 		return out, nil
 	}
-	types, names := KeyArrays(keys)
-	q := `SELECT b.source_type, b.identity_name, b.status, b.days_remaining, b.active_since
-	      FROM ` + resolved.Table("baselines") + ` b` + KeyJoin("b")
-	rows, err := resolved.DB.QueryContext(ctx, q, types, names)
+	q := `SELECT b.account_id, b.source_type, b.identity_name, b.status, b.built_days, b.required_days,
+	             b.days_remaining, b.first_seen_date, b.active_since, b.updated_at
+	      FROM ` + resolved.Table("baselines") + ` b
+	      WHERE b.account_id = ANY($1::text[])`
+	args := []any{pq.Array(resolved.AccountIDs)}
+	if f.SourceType != "" {
+		args = append(args, f.SourceType)
+		q += fmt.Sprintf(` AND b.source_type = $%d`, len(args))
+	}
+	if f.IdentityName != "" {
+		args = append(args, f.IdentityName)
+		q += fmt.Sprintf(` AND b.identity_name = $%d`, len(args))
+	}
+	if f.Families != nil {
+		args = append(args, pq.Array(f.Families))
+		q += fmt.Sprintf(` AND b.source_type = ANY($%d::text[])`, len(args))
+	}
+	q += ` ORDER BY b.updated_at DESC NULLS LAST, b.account_id, b.source_type, b.identity_name`
+	rows, err := resolved.DB.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, WrapMonitoringErr("baselines", err)
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var row BaselineStateRow
-		var active sql.NullTime
-		if err := rows.Scan(&row.Key.SourceType, &row.Key.IdentityName, &row.Status, &row.DaysRemaining, &active); err != nil {
+		var (
+			row                        BaselineIdentity
+			firstSeen, active, updated sql.NullTime
+		)
+		if err := rows.Scan(&row.AccountID, &row.Key.SourceType, &row.Key.IdentityName, &row.Status,
+			&row.BuiltDays, &row.RequiredDays, &row.DaysRemaining, &firstSeen, &active, &updated); err != nil {
 			return nil, WrapMonitoringErr("baselines", err)
 		}
-		if active.Valid {
-			t := active.Time.UTC()
-			row.ActiveSince = &t
+		if firstSeen.Valid {
+			d := firstSeen.Time
+			t := time.Date(d.Year(), d.Month(), d.Day(), 0, 0, 0, 0, time.UTC)
+			row.FirstSeenDate = &t
 		}
-		out[row.Key] = row
+		row.ActiveSince, row.UpdatedAt = utcTime(active), utcTime(updated)
+		out = append(out, row)
 	}
 	return out, WrapMonitoringErr("baselines", rows.Err())
 }
 
+func utcTime(v sql.NullTime) *time.Time {
+	if !v.Valid {
+		return nil
+	}
+	t := v.Time.UTC()
+	return &t
+}
+
+// BaselineEventKeys are the names a baseline's log_events rows can carry
+// (as workload_key or identity_name), the baseline key first: the key
+// itself, the resource ARN a serverless key names (workloadtypes.ServerlessARN,
+// in partition) and extra names (the ARNs of the identity's discovery
+// resources), unique.
+func BaselineEventKeys(key MonitoringKey, partition string, extra ...string) []MonitoringKey {
+	out := []MonitoringKey{key}
+	seen := map[MonitoringKey]struct{}{key: {}}
+	add := func(name string) {
+		k := MonitoringKey{SourceType: key.SourceType, IdentityName: name}
+		if _, dup := seen[k]; dup || name == "" {
+			return
+		}
+		seen[k] = struct{}{}
+		out = append(out, k)
+	}
+	if arn, ok := workloadtypes.ServerlessARN(key.SourceType, key.IdentityName, partition); ok {
+		add(arn)
+	}
+	for _, name := range extra {
+		add(name)
+	}
+	return out
+}
+
+// MergedFacts combines the log_events facts of a baseline's event keys
+// (BaselineEventKeys): the labels of the first key that has events, the
+// latest last_seen and every event identity name. ok is false when no key
+// has events.
+func MergedFacts(eventKeys []MonitoringKey, facts map[MonitoringKey]chclient.WorkloadFacts) (chclient.WorkloadFacts, bool) {
+	var (
+		out   chclient.WorkloadFacts
+		found bool
+	)
+	seen := map[string]struct{}{}
+	for _, k := range eventKeys {
+		f, ok := facts[k]
+		if !ok {
+			continue
+		}
+		if !found {
+			out = f
+			out.IdentityNames = nil
+			found = true
+		} else if f.LastSeen != nil && (out.LastSeen == nil || f.LastSeen.After(*out.LastSeen)) {
+			out.LastSeen = f.LastSeen
+		}
+		for _, name := range f.IdentityNames {
+			if _, dup := seen[name]; !dup {
+				seen[name] = struct{}{}
+				out.IdentityNames = append(out.IdentityNames, name)
+			}
+		}
+	}
+	return out, found
+}
+
+// BaselineAlertKeys are the keys the alerts and identity_risk_scores rows of
+// a baseline are stored under: its event keys (BaselineEventKeys, baseline
+// key first), the event identity names log_events recorded under them
+// (facts, when it could be read) and, for ECS, the event name derived from
+// the baseline key (the fallback while log_events cannot be read).
+func BaselineAlertKeys(eventKeys []MonitoringKey, facts map[MonitoringKey]chclient.WorkloadFacts) []MonitoringKey {
+	if len(eventKeys) == 0 {
+		return nil
+	}
+	sourceType := eventKeys[0].SourceType
+	out := make([]MonitoringKey, 0, len(eventKeys))
+	seen := map[MonitoringKey]struct{}{}
+	add := func(name string) {
+		k := MonitoringKey{SourceType: sourceType, IdentityName: name}
+		if _, dup := seen[k]; dup || name == "" {
+			return
+		}
+		seen[k] = struct{}{}
+		out = append(out, k)
+	}
+	for _, k := range eventKeys {
+		add(k.IdentityName)
+	}
+	if merged, ok := MergedFacts(eventKeys, facts); ok {
+		for _, name := range merged.IdentityNames {
+			add(name)
+		}
+	}
+	if sourceType == "ECS" {
+		if name, ok := workloadtypes.ECSAlertName(eventKeys[0].IdentityName); ok {
+			add(name)
+		}
+	}
+	return out
+}
+
 // BaselineEventRow is one row of the recently-baselined feed.
 type BaselineEventRow struct {
+	AccountID  string
 	Key        MonitoringKey
 	Event      string // baseline_established | baseline_version_published
 	OccurredAt time.Time
@@ -330,19 +416,19 @@ type BaselineEventRow struct {
 
 // RecentlyBaselined merges baselines.active_since and
 // baseline_versions.published_at, newest first.
-func (r *DashboardSummaryRepository) RecentlyBaselined(ctx context.Context, resolved *scope.DataScope, keys []MonitoringKey, limit int) ([]BaselineEventRow, error) {
-	if len(keys) == 0 {
+func (r *DashboardSummaryRepository) RecentlyBaselined(ctx context.Context, resolved *scope.DataScope, accounts []string, keys []MonitoringKey, limit int) ([]BaselineEventRow, error) {
+	if len(keys) == 0 || len(accounts) == 0 {
 		return nil, nil
 	}
 	types, names := KeyArrays(keys)
 	q := `SELECT * FROM (
-	        SELECT b.source_type, b.identity_name, 'baseline_established' AS event, b.active_since AS occurred_at, NULL::bigint AS version
-	        FROM ` + resolved.Table("baselines") + ` b` + KeyJoin("b") + ` WHERE b.active_since IS NOT NULL
+	        SELECT b.account_id, b.source_type, b.identity_name, 'baseline_established' AS event, b.active_since AS occurred_at, NULL::bigint AS version
+	        FROM ` + resolved.Table("baselines") + ` b` + KeyJoin("b") + ` WHERE b.active_since IS NOT NULL AND b.account_id = ANY($4::text[])
 	        UNION ALL
-	        SELECT v.source_type, v.identity_name, 'baseline_version_published', v.published_at, v.version
-	        FROM ` + resolved.Table("baseline_versions") + ` v` + KeyJoin("v") + `
+	        SELECT v.account_id, v.source_type, v.identity_name, 'baseline_version_published', v.published_at, v.version
+	        FROM ` + resolved.Table("baseline_versions") + ` v` + KeyJoin("v") + ` WHERE v.account_id = ANY($4::text[])
 	      ) e ORDER BY occurred_at DESC LIMIT $3`
-	rows, err := resolved.DB.QueryContext(ctx, q, types, names, limit)
+	rows, err := resolved.DB.QueryContext(ctx, q, types, names, limit, pq.Array(accounts))
 	if err != nil {
 		return nil, WrapMonitoringErr("recently baselined", err)
 	}
@@ -351,7 +437,7 @@ func (r *DashboardSummaryRepository) RecentlyBaselined(ctx context.Context, reso
 	for rows.Next() {
 		var row BaselineEventRow
 		var v sql.NullInt64
-		if err := rows.Scan(&row.Key.SourceType, &row.Key.IdentityName, &row.Event, &row.OccurredAt, &v); err != nil {
+		if err := rows.Scan(&row.AccountID, &row.Key.SourceType, &row.Key.IdentityName, &row.Event, &row.OccurredAt, &v); err != nil {
 			return nil, WrapMonitoringErr("recently baselined", err)
 		}
 		row.OccurredAt = row.OccurredAt.UTC()
@@ -383,9 +469,9 @@ type IdentityRiskRow struct {
 
 // LatestRiskScores returns the newest completed risk snapshot per key
 // (contract §4.1 "Most anomalous identities").
-func (r *DashboardSummaryRepository) LatestRiskScores(ctx context.Context, resolved *scope.DataScope, keys []MonitoringKey) (map[MonitoringKey]IdentityRiskRow, error) {
+func (r *DashboardSummaryRepository) LatestRiskScores(ctx context.Context, resolved *scope.DataScope, accounts []string, keys []MonitoringKey) (map[MonitoringKey]IdentityRiskRow, error) {
 	out := map[MonitoringKey]IdentityRiskRow{}
-	if len(keys) == 0 {
+	if len(keys) == 0 || len(accounts) == 0 {
 		return out, nil
 	}
 	types, names := KeyArrays(keys)
@@ -393,9 +479,9 @@ func (r *DashboardSummaryRepository) LatestRiskScores(ctx context.Context, resol
 	             s.source_type, s.identity_name, s.risk_score, s.severity, s.score_status,
 	             s.event_count, s.anomalous_event_count, s.window_start, s.window_end, s.computed_at
 	      FROM ` + resolved.Table("identity_risk_scores") + ` s` + KeyJoin("s") + `
-	      WHERE s.window_end <= now()
+	      WHERE s.window_end <= now() AND s.account_id = ANY($3::text[])
 	      ORDER BY s.source_type, s.identity_name, s.window_end DESC, s.computed_at DESC`
-	rows, err := resolved.DB.QueryContext(ctx, q, types, names)
+	rows, err := resolved.DB.QueryContext(ctx, q, types, names, pq.Array(accounts))
 	if err != nil {
 		return nil, WrapMonitoringErr("identity risk scores", err)
 	}
@@ -422,45 +508,18 @@ func (r *DashboardSummaryRepository) LatestRiskScores(ctx context.Context, resol
 
 // CountOpenAlerts is cards.open_anomalies (§10.1): COUNT(*) from alerts
 // where status = 'open' and created_at is in [from, to), for the keys.
-func (r *DashboardSummaryRepository) CountOpenAlerts(ctx context.Context, resolved *scope.DataScope, keys []MonitoringKey, from, to time.Time) (int, error) {
-	if len(keys) == 0 {
+func (r *DashboardSummaryRepository) CountOpenAlerts(ctx context.Context, resolved *scope.DataScope, accounts []string, keys []MonitoringKey, from, to time.Time) (int, error) {
+	if len(keys) == 0 || len(accounts) == 0 {
 		return 0, nil
 	}
 	types, names := KeyArrays(keys)
 	q := `SELECT COUNT(*) FROM ` + resolved.Table("alerts") + ` a` + KeyJoin("a") + `
-	      WHERE lower(a.status) = 'open' AND a.created_at >= $3 AND a.created_at < $4`
+	      WHERE a.status = 'open' AND a.created_at >= $3 AND a.created_at < $4 AND a.account_id = ANY($5::text[])`
 	var n int
-	if err := resolved.DB.QueryRowContext(ctx, q, types, names, from, to).Scan(&n); err != nil {
+	if err := resolved.DB.QueryRowContext(ctx, q, types, names, from, to, pq.Array(accounts)).Scan(&n); err != nil {
 		return 0, WrapMonitoringErr("count open alerts", err)
 	}
 	return n, nil
-}
-
-// OpenAlertEventIDs is the event_id of every open alert, with the same rule
-// the Anomalies page lists them by (any age, enabled workload families), so
-// the critical card and that page count the same alerts.
-func (r *DashboardSummaryRepository) OpenAlertEventIDs(ctx context.Context, resolved *scope.DataScope) ([]string, error) {
-	q := `SELECT DISTINCT a.event_id FROM ` + resolved.Table("alerts") + ` a
-	      WHERE lower(a.status) = 'open' AND COALESCE(a.event_id, '') <> ''`
-	args := []any{}
-	if families, all := workloadtypes.Enabled(); !all {
-		q += ` AND a.source_type = ANY($1::text[])`
-		args = append(args, pq.Array(families))
-	}
-	rows, err := resolved.DB.QueryContext(ctx, q, args...)
-	if err != nil {
-		return nil, WrapMonitoringErr("open alert events", err)
-	}
-	defer rows.Close()
-	var out []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, WrapMonitoringErr("open alert events", err)
-		}
-		out = append(out, id)
-	}
-	return out, WrapMonitoringErr("open alert events", rows.Err())
 }
 
 // DimensionCountRow is one GROUP BY dimension row.
@@ -471,15 +530,15 @@ type DimensionCountRow struct {
 
 // OpenAlertsByDimension counts open alerts per stored alerts.dimension in
 // [from, to) — the contract's departures query, restricted to the keys.
-func (r *DashboardSummaryRepository) OpenAlertsByDimension(ctx context.Context, resolved *scope.DataScope, keys []MonitoringKey, from, to time.Time) ([]DimensionCountRow, error) {
-	if len(keys) == 0 {
+func (r *DashboardSummaryRepository) OpenAlertsByDimension(ctx context.Context, resolved *scope.DataScope, accounts []string, keys []MonitoringKey, from, to time.Time) ([]DimensionCountRow, error) {
+	if len(keys) == 0 || len(accounts) == 0 {
 		return nil, nil
 	}
 	types, names := KeyArrays(keys)
 	q := `SELECT a.dimension, COUNT(*) FROM ` + resolved.Table("alerts") + ` a` + KeyJoin("a") + `
-	      WHERE a.status = 'open' AND a.created_at >= $3 AND a.created_at < $4
+	      WHERE a.status = 'open' AND a.created_at >= $3 AND a.created_at < $4 AND a.account_id = ANY($5::text[])
 	      GROUP BY a.dimension ORDER BY COUNT(*) DESC, a.dimension`
-	rows, err := resolved.DB.QueryContext(ctx, q, types, names, from, to)
+	rows, err := resolved.DB.QueryContext(ctx, q, types, names, from, to, pq.Array(accounts))
 	if err != nil {
 		return nil, WrapMonitoringErr("open alerts by dimension", err)
 	}
@@ -502,16 +561,16 @@ type DayCountRow struct {
 }
 
 // AlertsByDay counts alerts (all statuses) created per UTC day in [from, to).
-func (r *DashboardSummaryRepository) AlertsByDay(ctx context.Context, resolved *scope.DataScope, keys []MonitoringKey, from, to time.Time) ([]DayCountRow, error) {
-	if len(keys) == 0 {
+func (r *DashboardSummaryRepository) AlertsByDay(ctx context.Context, resolved *scope.DataScope, accounts []string, keys []MonitoringKey, from, to time.Time) ([]DayCountRow, error) {
+	if len(keys) == 0 || len(accounts) == 0 {
 		return nil, nil
 	}
 	types, names := KeyArrays(keys)
 	q := `SELECT date_trunc('day', a.created_at AT TIME ZONE 'UTC') AS day, COUNT(*)
 	      FROM ` + resolved.Table("alerts") + ` a` + KeyJoin("a") + `
-	      WHERE a.created_at >= $3 AND a.created_at < $4
+	      WHERE a.created_at >= $3 AND a.created_at < $4 AND a.account_id = ANY($5::text[])
 	      GROUP BY 1 ORDER BY 1`
-	rows, err := resolved.DB.QueryContext(ctx, q, types, names, from, to)
+	rows, err := resolved.DB.QueryContext(ctx, q, types, names, from, to, pq.Array(accounts))
 	if err != nil {
 		return nil, WrapMonitoringErr("alerts by day", err)
 	}

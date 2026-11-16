@@ -265,10 +265,10 @@ func main() {
 	genomeIdentities := summarycommon.NewMonitoredIdentityLookup(summarycommon.NewDashboardSummaryRepository(), resolver)
 	genomeAlertEvents := genomefullcommon.NewMonitoringEvents(monitoringClient, monitoringCfg.Database, monitoringCfg.Table)
 	genomeHandlers := &routes.GenomeHandlers{
-		DashboardSummary: dashboardsummary.NewDashboardSummaryHandler(dashboardsummary.NewDashboardSummaryService(summarycommon.NewDashboardSummaryRepository(), resolver).WithEvents(genomeAlertEvents)),
+		DashboardSummary: dashboardsummary.NewDashboardSummaryHandler(dashboardsummary.NewDashboardSummaryService(summarycommon.NewDashboardSummaryRepository(), resolver, monitoringEvents)),
 		IdentityActivity: identityactivity.NewIdentityActivityHandler(identityactivity.NewIdentityActivityService(genomeIdentities, monitoringEvents)),
 		IdentityGenome:   identitygenome.NewIdentityGenomeHandler(identitygenome.NewIdentityGenomeService(genomeIdentities, monitoringEvents)),
-		IdentityTimeline: identitytimeline.NewIdentityTimelineHandler(identitytimeline.NewIdentityTimelineService(genomeIdentities, identitytimeline.NewIdentityTimelineRepository())),
+		IdentityTimeline: identitytimeline.NewIdentityTimelineHandler(identitytimeline.NewIdentityTimelineService(genomeIdentities, identitytimeline.NewIdentityTimelineRepository(), monitoringEvents)),
 		IdentitySummary:  identitysummary.NewIdentitySummaryHandler(identitysummary.NewIdentitySummaryService(genomeIdentities, identitysummary.NewIdentitySummaryRepository(), monitoringEvents)),
 		Full:             routes.NewGenomeFull(resolver, genomeAlertEvents),
 	}

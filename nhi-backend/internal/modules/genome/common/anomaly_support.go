@@ -161,10 +161,6 @@ type AnomalyIdentityRef struct {
 	SourceType   string `json:"source_type"`
 	IdentityName string `json:"identity_name"`
 	DisplayName  string `json:"display_name"`
-	// Monitored is false when the key is not a discovered identity in the
-	// caller's scope: the identity pages answer 404 for it, so clients link
-	// to its anomalies instead.
-	Monitored bool `json:"monitored"`
 }
 
 // AnomalyIdentityRefFor is the identity block of an alert: the key stored
@@ -174,14 +170,7 @@ type AnomalyIdentityRef struct {
 // and finally to the identity_name itself.
 func AnomalyIdentityRefFor(a AlertRow, set *IdentityIndex) AnomalyIdentityRef {
 	ref := AnomalyIdentityRef{SourceType: a.Key.SourceType, IdentityName: a.Key.IdentityName}
-	i, ok := set.IndexOf(a.Key)
-	ref.Monitored = ok
-	/* A pipeline-only key (registry alias): report the identity's own key,
-	   so the alert groups and links with the rest of that identity. */
-	if ok && set.IsAlias(a.Key) {
-		ref.SourceType, ref.IdentityName = set.IDs[i].Key.SourceType, set.IDs[i].Key.IdentityName
-	}
-	if ok && set.IDs[i].DisplayName != "" {
+	if i, ok := set.IndexOf(a.Key); ok && set.IDs[i].DisplayName != "" {
 		ref.DisplayName = set.IDs[i].DisplayName
 		return ref
 	}

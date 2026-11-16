@@ -24,15 +24,15 @@ type SkippedAlert struct {
 
 // Item is one anomaly remediation recommendation.
 type Item struct {
-	AlertID        int64       `json:"alert_id"`
-	Dimension      string      `json:"dimension"`
-	Title          string      `json:"title"`
-	Reason         string      `json:"reason"`
-	Confidence     float64     `json:"confidence"`
-	EvidenceSource string      `json:"evidence_source"`
+	AlertID       int64       `json:"alert_id"`
+	Dimension     string      `json:"dimension"`
+	Title         string      `json:"title"`
+	Reason        string      `json:"reason"`
+	Confidence    float64     `json:"confidence"`
+	EvidenceSource string     `json:"evidence_source"`
 	BaselineWindow *TimeWindow `json:"baseline_window,omitempty"`
-	Enforcement    Enforcement `json:"enforcement"`
-	Remediation    Remediation `json:"remediation"`
+	Enforcement   Enforcement `json:"enforcement"`
+	Remediation   Remediation `json:"remediation"`
 }
 
 // Enforcement describes the effectiveness and operational scope of a
@@ -121,20 +121,20 @@ type AlertRow struct {
 // EventEvidence combines PostgreSQL alert metadata with matching ClickHouse
 // request evidence.
 type EventEvidence struct {
-	EventID           string
-	IAMAction         string
-	EventSource       string
-	EventName         string
-	AWSRegion         string
-	SourceIP          string
-	UserAgent         string
-	PrincipalARN      string
-	RoleARN           string
-	SourceARN         string
-	SourceAccount     string
+	EventID          string
+	IAMAction        string
+	EventSource      string
+	EventName        string
+	AWSRegion        string
+	SourceIP         string
+	UserAgent        string
+	PrincipalARN     string
+	RoleARN          string
+	SourceARN        string
+	SourceAccount    string
 	RequestParameters json.RawMessage
-	ResourceARNs      []string
-	EventTime         time.Time
+	ResourceARNs     []string
+	EventTime        time.Time
 }
 
 type PolicyCategory string

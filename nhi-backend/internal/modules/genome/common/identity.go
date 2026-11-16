@@ -5,16 +5,14 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"net/url"
-	"nhi-backend-api/internal/modules/genome/registry"
-	"slices"
 	"strings"
 	"time"
 
 	"github.com/lib/pq"
 
 	"nhi-backend-api/internal/modules/genome/workloadtypes"
+	chclient "nhi-backend-api/internal/platform/clickhouse"
 	"nhi-backend-api/internal/platform/scope"
 )
 
@@ -66,10 +64,6 @@ type MonitoredIdentity struct {
 	RoleKind         string
 	TaskRoleARN      string
 	ExecutionRoleARN string
-
-	// Aliases are other keys the behaviour pipeline monitors this identity
-	// under (its discovery id, nhi_genome_identities keys).
-	Aliases []MonitoringKey
 }
 
 // Ref renders the identity as its dashboard reference.
@@ -123,13 +117,6 @@ func (i MonitoredIdentity) AllKeys() []MonitoringKey {
 
 	if wk, ok := i.WorkloadMonitoringKey(); ok {
 		keys = append(keys, wk)
-	}
-
-	// Aliases last: callers treat keys[0] as the identity's own key.
-	for _, k := range i.Aliases {
-		if !slices.Contains(keys, k) {
-			keys = append(keys, k)
-		}
 	}
 
 	return keys
@@ -1412,7 +1399,6 @@ func (l *MonitoredIdentityLookup) FleetWithDiscovery(
 		}
 	}
 
-	attachRegistryAliases(ctx, resolvedScope, fleet)
 	return resolvedScope, fleet, rows, nil
 }
 func uniqueDiscoveryIdentityIDs(
@@ -1502,12 +1488,11 @@ type IdentityIndex struct {
 	IDs        []MonitoredIdentity
 	byKey      map[MonitoringKey]int
 	byWorkload map[MonitoringKey]int // first identity sharing the workload key
-	byAlias    map[MonitoringKey]int // pipeline-only keys (see registry)
 }
 
 // NewIdentityIndex builds the index over ids.
 func NewIdentityIndex(ids []MonitoredIdentity) *IdentityIndex {
-	set := &IdentityIndex{IDs: ids, byKey: map[MonitoringKey]int{}, byWorkload: map[MonitoringKey]int{}, byAlias: map[MonitoringKey]int{}}
+	set := &IdentityIndex{IDs: ids, byKey: map[MonitoringKey]int{}, byWorkload: map[MonitoringKey]int{}}
 	for i, id := range ids {
 		if _, dup := set.byKey[id.Key]; !dup {
 			set.byKey[id.Key] = i
@@ -1515,11 +1500,6 @@ func NewIdentityIndex(ids []MonitoredIdentity) *IdentityIndex {
 		if wk, ok := id.WorkloadMonitoringKey(); ok {
 			if _, dup := set.byWorkload[wk]; !dup {
 				set.byWorkload[wk] = i
-			}
-		}
-		for _, k := range id.Aliases {
-			if _, dup := set.byAlias[k]; !dup {
-				set.byAlias[k] = i
 			}
 		}
 	}
@@ -1550,19 +1530,7 @@ func (s *IdentityIndex) IndexOf(k MonitoringKey) (int, bool) {
 	if i, ok := s.byWorkload[k]; ok {
 		return i, true
 	}
-	if i, ok := s.byAlias[k]; ok {
-		return i, true
-	}
 	return 0, false
-}
-
-// IsAlias reports whether k reaches an identity only through an alias, a
-// key the pipeline uses that is not the identity's own or workload key.
-func (s *IdentityIndex) IsAlias(k MonitoringKey) bool {
-	_, own := s.byKey[k]
-	_, wk := s.byWorkload[k]
-	_, alias := s.byAlias[k]
-	return alias && !own && !wk
 }
 
 // CompareDesc orders two optional values descending with nulls last; cmp
@@ -1623,33 +1591,169 @@ var FingerprintDimensions = []string{
 	"state_machine_name", "execution_status", // Step Functions
 }
 
-// attachRegistryAliases adds the keys the behaviour pipeline monitors each
-// identity under, when they are not keys this backend derives: the
-// identity's discovery id, and every nhi_genome_identities row matched to it
-// (see package registry). A registry that cannot be read only costs the
-// aliases.
-func attachRegistryAliases(ctx context.Context, s *scope.DataScope, fleet []MonitoredIdentity) {
-	cands := make([]registry.Candidate, len(fleet))
-	for i, id := range fleet {
-		keys := []string{id.Key.IdentityName}
-		if id.WorkloadKey != "" {
-			keys = append(keys, id.WorkloadKey)
-		}
-		cands[i] = registry.Candidate{SourceType: id.Key.SourceType, Keys: keys, DiscoveryID: id.DiscoveryIdentityID,
-			ResourceARN: id.ResourceARN, RoleARN: id.RoleARN, InstanceID: id.InstanceID}
-		if d := strings.TrimSpace(id.DiscoveryIdentityID); d != "" && d != id.Key.IdentityName {
-			fleet[i].Aliases = append(fleet[i].Aliases, MonitoringKey{SourceType: id.Key.SourceType, IdentityName: d})
-		}
+// ---------------------------------------------------------------------------
+// Baselines: the identities NHI Genome watches
+// ---------------------------------------------------------------------------
+
+// BaselineRow is one row of the pipeline's baselines table: one identity NHI
+// Genome watches. Key.IdentityName is the baseline key, which is the
+// workload_key of the identity's log_events rows (chclient.IdentityEquals).
+type BaselineRow struct {
+	AccountID     string
+	Key           MonitoringKey // (source_type, identity_name) as the pipeline stores it
+	Status        string
+	BuiltDays     int
+	RequiredDays  int
+	DaysRemaining int
+	FirstSeenDate *time.Time // DATE column
+	ActiveSince   *time.Time
+	UpdatedAt     *time.Time
+}
+
+// Baselines returns every baselines row of the caller's accounts, restricted
+// to families when it is non-nil. Rows without an account (legacy rows the
+// pipeline could not attribute) are never returned.
+func Baselines(ctx context.Context, resolved *scope.DataScope, families []string) ([]BaselineRow, error) {
+	out := []BaselineRow{}
+	if len(resolved.AccountIDs) == 0 {
+		return out, nil
 	}
-	rows, err := registry.Load(ctx, s)
+	q := `SELECT b.account_id, b.source_type, b.identity_name, b.status, b.built_days, b.required_days,
+	             b.days_remaining, b.first_seen_date, b.active_since, b.updated_at
+	      FROM ` + resolved.Table("baselines") + ` AS b
+	      WHERE b.account_id = ANY($1::text[])`
+	args := []any{pq.Array(resolved.AccountIDs)}
+	if families != nil {
+		q += ` AND b.source_type = ANY($2::text[])`
+		args = append(args, pq.Array(families))
+	}
+	rows, err := resolved.DB.QueryContext(ctx, q, args...)
 	if err != nil {
-		slog.Default().Info("genome: identity registry unavailable", "err", err)
-		return
+		return nil, WrapMonitoringErr(ctx, "baselines", err)
 	}
-	for _, a := range registry.Match(rows, cands) {
-		k := MonitoringKey{SourceType: a.SourceType, IdentityName: a.IdentityName}
-		if !slices.Contains(fleet[a.Index].Aliases, k) {
-			fleet[a.Index].Aliases = append(fleet[a.Index].Aliases, k)
+	defer rows.Close()
+	for rows.Next() {
+		var (
+			row                        BaselineRow
+			firstSeen, active, updated sql.NullTime
+		)
+		if err := rows.Scan(&row.AccountID, &row.Key.SourceType, &row.Key.IdentityName, &row.Status,
+			&row.BuiltDays, &row.RequiredDays, &row.DaysRemaining, &firstSeen, &active, &updated); err != nil {
+			return nil, WrapMonitoringErr(ctx, "baselines", err)
+		}
+		row.FirstSeenDate, row.ActiveSince, row.UpdatedAt = utcNullTime(firstSeen), utcNullTime(active), utcNullTime(updated)
+		out = append(out, row)
+	}
+	return out, WrapMonitoringErr(ctx, "baselines", rows.Err())
+}
+
+func utcNullTime(v sql.NullTime) *time.Time {
+	if !v.Valid {
+		return nil
+	}
+	t := v.Time.UTC()
+	return &t
+}
+
+// BaselineEventKeys are the names a baseline's log_events rows can carry
+// (as workload_key or identity_name), the baseline key first: the key
+// itself, the resource ARN a serverless key names (workloadtypes.ServerlessARN,
+// in partition) and extra names (the ARNs of the identity's discovery
+// resources), unique.
+func BaselineEventKeys(key MonitoringKey, partition string, extra ...string) []MonitoringKey {
+	out := []MonitoringKey{key}
+	seen := map[MonitoringKey]struct{}{key: {}}
+	add := func(name string) {
+		k := MonitoringKey{SourceType: key.SourceType, IdentityName: name}
+		if _, dup := seen[k]; dup || name == "" {
+			return
+		}
+		seen[k] = struct{}{}
+		out = append(out, k)
+	}
+	if arn, ok := workloadtypes.ServerlessARN(key.SourceType, key.IdentityName, partition); ok {
+		add(arn)
+	}
+	for _, name := range extra {
+		add(name)
+	}
+	return out
+}
+
+// MergedFacts combines the log_events facts of a baseline's event keys
+// (BaselineEventKeys): the labels of the first key that has events, the
+// latest last_seen and every event identity name. ok is false when no key
+// has events.
+func MergedFacts(eventKeys []MonitoringKey, facts map[MonitoringKey]chclient.WorkloadFacts) (chclient.WorkloadFacts, bool) {
+	var (
+		out   chclient.WorkloadFacts
+		found bool
+	)
+	seen := map[string]struct{}{}
+	for _, k := range eventKeys {
+		f, ok := facts[k]
+		if !ok {
+			continue
+		}
+		if !found {
+			out = f
+			out.IdentityNames = nil
+			found = true
+		} else if f.LastSeen != nil && (out.LastSeen == nil || f.LastSeen.After(*out.LastSeen)) {
+			out.LastSeen = f.LastSeen
+		}
+		for _, name := range f.IdentityNames {
+			if _, dup := seen[name]; !dup {
+				seen[name] = struct{}{}
+				out.IdentityNames = append(out.IdentityNames, name)
+			}
 		}
 	}
+	return out, found
+}
+
+// BaselineAlertKeys are the keys the alerts and identity_risk_scores rows of
+// a baseline are stored under: its event keys (BaselineEventKeys, baseline
+// key first), the event identity names log_events recorded under them
+// (facts, when it could be read) and, for ECS, the event name derived from
+// the baseline key (the fallback while log_events cannot be read).
+func BaselineAlertKeys(eventKeys []MonitoringKey, facts map[MonitoringKey]chclient.WorkloadFacts) []MonitoringKey {
+	if len(eventKeys) == 0 {
+		return nil
+	}
+	sourceType := eventKeys[0].SourceType
+	out := make([]MonitoringKey, 0, len(eventKeys))
+	seen := map[MonitoringKey]struct{}{}
+	add := func(name string) {
+		k := MonitoringKey{SourceType: sourceType, IdentityName: name}
+		if _, dup := seen[k]; dup || name == "" {
+			return
+		}
+		seen[k] = struct{}{}
+		out = append(out, k)
+	}
+	for _, k := range eventKeys {
+		add(k.IdentityName)
+	}
+	if merged, ok := MergedFacts(eventKeys, facts); ok {
+		for _, name := range merged.IdentityNames {
+			add(name)
+		}
+	}
+	if sourceType == "ECS" {
+		if name, ok := workloadtypes.ECSAlertName(eventKeys[0].IdentityName); ok {
+			add(name)
+		}
+	}
+	return out
+}
+
+// Scope resolves the caller's tenant scope (a *StoreUnavailableError when it
+// cannot be resolved).
+func (l *MonitoredIdentityLookup) Scope(ctx context.Context, userID, tenantID, dbName string) (*scope.DataScope, error) {
+	resolved, err := l.resolver.Resolve(ctx, userID, tenantID, dbName)
+	if err != nil {
+		return nil, &StoreUnavailableError{Op: "resolve tenant scope", Err: err}
+	}
+	return resolved, nil
 }

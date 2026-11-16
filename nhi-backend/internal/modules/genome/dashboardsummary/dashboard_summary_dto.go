@@ -53,8 +53,9 @@ type DashboardDayCount struct {
 }
 
 // DashboardAnomalousIdentity is one most_anomalous_identities row: the
-// latest identity_risk_scores columns of the §4.1 query joined to
-// identities for display_name, account_id, region and workload metadata.
+// highest latest identity_risk_scores snapshot among the event identity
+// names of one baselines row; identity_name / workload_key are the baseline
+// key, display_name and service_name come from log_events.
 type DashboardAnomalousIdentity struct {
 	summarycommon.DashboardIdentityRef
 	AccountID           string    `json:"account_id"`
@@ -72,8 +73,8 @@ type DashboardAnomalousIdentity struct {
 }
 
 // DashboardRecentlyBaselined is one recently_baselined row:
-// baselines.active_since or baseline_versions.published_at joined to
-// identities (§10.1).
+// baselines.active_since or baseline_versions.published_at of one baselines
+// row, addressed by its baseline key (§10.1).
 type DashboardRecentlyBaselined struct {
 	summarycommon.DashboardIdentityRef
 	AccountID  string    `json:"account_id"`

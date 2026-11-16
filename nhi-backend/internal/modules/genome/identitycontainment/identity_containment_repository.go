@@ -1,6 +1,9 @@
 package identitycontainment
 
+
+
 import (
+
 	"context"
 
 	"database/sql"
@@ -11,18 +14,27 @@ import (
 
 	"strings"
 
+
+
 	"nhi-backend-api/internal/modules/genome/common"
 
 	"nhi-backend-api/internal/platform/scope"
+
 )
 
+
+
 type Repository struct{}
+
+
 
 func NewRepository() *Repository {
 
 	return &Repository{}
 
 }
+
+
 
 func (r *Repository) EstablishedBaseline(
 
@@ -42,7 +54,11 @@ func (r *Repository) EstablishedBaseline(
 
 	}
 
+
+
 	sourceTypes, identityNames := common.KeyArrays(keys)
+
+
 
 	query := `
 
@@ -72,9 +88,13 @@ func (r *Repository) EstablishedBaseline(
 
 		LIMIT 1`
 
+
+
 	var row BaselineRow
 
 	var profileJSON []byte
+
+
 
 	err := resolved.DB.QueryRowContext(
 
@@ -87,6 +107,7 @@ func (r *Repository) EstablishedBaseline(
 		identityNames,
 
 		accountID,
+
 	).Scan(
 
 		&row.SourceType,
@@ -100,13 +121,18 @@ func (r *Repository) EstablishedBaseline(
 		&profileJSON,
 
 		&row.UpdatedAt,
+
 	)
+
+
 
 	if errors.Is(err, sql.ErrNoRows) {
 
 		return nil, nil
 
 	}
+
+
 
 	if err != nil {
 
@@ -117,15 +143,22 @@ func (r *Repository) EstablishedBaseline(
 			"identity containment baseline",
 
 			err,
+
 		)
 
 	}
 
+
+
 	row.ProfileJSON = copyRawJSON(profileJSON)
+
+
 
 	return &row, nil
 
 }
+
+
 
 func (r *Repository) OpenAlerts(
 
@@ -145,7 +178,11 @@ func (r *Repository) OpenAlerts(
 
 	}
 
+
+
 	sourceTypes, identityNames := common.KeyArrays(keys)
+
+
 
 	query := `
 
@@ -197,6 +234,8 @@ func (r *Repository) OpenAlerts(
 
 			a.id DESC`
 
+
+
 	rows, err := resolved.DB.QueryContext(
 
 		ctx,
@@ -208,6 +247,7 @@ func (r *Repository) OpenAlerts(
 		identityNames,
 
 		accountID,
+
 	)
 
 	if err != nil {
@@ -219,13 +259,18 @@ func (r *Repository) OpenAlerts(
 			"identity containment alerts",
 
 			err,
+
 		)
 
 	}
 
 	defer rows.Close()
 
+
+
 	alerts := make([]AlertRow, 0)
+
+
 
 	for rows.Next() {
 
@@ -238,6 +283,8 @@ func (r *Repository) OpenAlerts(
 		var observedValue []byte
 
 		var identityMetadata []byte
+
+
 
 		if err := rows.Scan(
 
@@ -270,6 +317,7 @@ func (r *Repository) OpenAlerts(
 			&row.Status,
 
 			&row.CreatedAt,
+
 		); err != nil {
 
 			return nil, common.WrapMonitoringErr(
@@ -279,9 +327,12 @@ func (r *Repository) OpenAlerts(
 				"identity containment alerts scan",
 
 				err,
+
 			)
 
 		}
+
+
 
 		if eventID.Valid {
 
@@ -289,15 +340,21 @@ func (r *Repository) OpenAlerts(
 
 		}
 
+
+
 		row.BaselineValue = copyRawJSON(baselineValue)
 
 		row.ObservedValue = copyRawJSON(observedValue)
 
 		row.IdentityMetadata = copyRawJSON(identityMetadata)
 
+
+
 		alerts = append(alerts, row)
 
 	}
+
+
 
 	if err := rows.Err(); err != nil {
 
@@ -308,13 +365,18 @@ func (r *Repository) OpenAlerts(
 			"identity containment alerts rows",
 
 			err,
+
 		)
 
 	}
 
+
+
 	return alerts, nil
 
 }
+
+
 
 func copyRawJSON(value []byte) json.RawMessage {
 
@@ -324,9 +386,13 @@ func copyRawJSON(value []byte) json.RawMessage {
 
 	}
 
+
+
 	result := make([]byte, len(value))
 
 	copy(result, value)
+
+
 
 	return json.RawMessage(result)
 

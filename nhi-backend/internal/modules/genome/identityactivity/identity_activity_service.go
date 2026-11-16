@@ -18,8 +18,9 @@ import (
 //   - recent_calls  newest events of the window, keyset-paged (ClickHouse log_events, FINAL)
 //   - total_calls   uniqExact(event_id) over the window        (ClickHouse log_events)
 //
-// The identity itself is resolved from the tenant's discovery table first
-// (unknown → ErrIdentityNotFound). Nothing is invented: while the monitoring
+// The identity is resolved first (summarycommon.MonitoredIdentityLookup:
+// a baselines key, else a discovery key; unknown → ErrIdentityNotFound). A
+// baseline key selects its events by log_events.workload_key. Nothing is invented: while the monitoring
 // ClickHouse is not configured or cannot be read the lists are empty and
 // total_calls is null (logged server-side).
 type IdentityActivityService struct {
@@ -58,6 +59,7 @@ func (s *IdentityActivityService) GetActivity(ctx context.Context, userID, tenan
 		return nil, nil, err
 	}
 	key := res.Identity.Key
+	eventName := res.EventName(ctx, s.events)
 
 	out := &IdentityActivityResponse{
 		Volume:      []IdentityVolumePoint{},
@@ -68,14 +70,14 @@ func (s *IdentityActivityService) GetActivity(ctx context.Context, userID, tenan
 	if p.Bucket == ActivityBucketHour {
 		bucket = summarycommon.VolumeBucketHour
 	}
-	if points, err := s.events.Volume(ctx, res.Scope.AccountIDs, key.SourceType, res.Identity.EventName(), p.Window.From, p.Window.To, bucket); summarycommon.EventsReadOK(ctx, "identity activity volume", err) {
+	if points, err := s.events.Volume(ctx, res.Accounts(), key.SourceType, eventName, p.Window.From, p.Window.To, bucket); summarycommon.EventsReadOK(ctx, "identity activity volume", err) {
 		for _, pt := range points {
 			out.Volume = append(out.Volume, IdentityVolumePoint{Bucket: formatVolumeBucket(pt.Bucket, bucket), Calls: pt.Calls})
 		}
 	}
 
 	var next *string
-	if rows, err := s.events.RecentCalls(ctx, res.Scope.AccountIDs, key.SourceType, res.Identity.EventName(), p.Window.From, p.Window.To, before, p.RecentLimit+1); summarycommon.EventsReadOK(ctx, "identity recent calls", err) {
+	if rows, err := s.events.RecentCalls(ctx, res.Accounts(), key.SourceType, eventName, p.Window.From, p.Window.To, before, p.RecentLimit+1); summarycommon.EventsReadOK(ctx, "identity recent calls", err) {
 		if len(rows) > p.RecentLimit { // one extra row was requested to detect a next page
 			rows = rows[:p.RecentLimit]
 			last := rows[len(rows)-1]
@@ -95,7 +97,7 @@ func (s *IdentityActivityService) GetActivity(ctx context.Context, userID, tenan
 		}
 	}
 
-	if total, err := s.events.TotalCalls(ctx, res.Scope.AccountIDs, key.SourceType, res.Identity.EventName(), p.Window.From, p.Window.To); summarycommon.EventsReadOK(ctx, "identity total calls", err) {
+	if total, err := s.events.TotalCalls(ctx, res.Accounts(), key.SourceType, eventName, p.Window.From, p.Window.To); summarycommon.EventsReadOK(ctx, "identity total calls", err) {
 		out.TotalCalls = &total
 	}
 	return out, next, nil

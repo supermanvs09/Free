@@ -12,6 +12,7 @@ import (
 
 	"nhi-backend-api/internal/modules/genome/common"
 	"nhi-backend-api/internal/modules/genome/workloadtypes"
+	chclient "nhi-backend-api/internal/platform/clickhouse"
 	"nhi-backend-api/internal/platform/database"
 	"nhi-backend-api/internal/platform/scope"
 )
@@ -19,10 +20,16 @@ import (
 // Service implements GET /api/v1/genome/identities.
 //
 // The list shows only identities the behaviour pipeline has a baselines row
-// for (learning or active), in the caller's accounts. Each row is mapped to
-// the discovery identities it belongs to — the identities row plus the
-// credentials row (IAM role) the baseline is for, joined through
-// identity_credentials — see "Baseline -> discovery identity mapping" below.
+// for (learning or active), in the caller's accounts. Each row is keyed by
+// its baseline key (baselines.identity_name = log_events.workload_key):
+//
+//   - last_seen comes from log_events by workload_key;
+//   - alerts and risk scores are stored under the event identity names, so
+//     they are read by the identity names log_events recorded under the key;
+//   - every link addresses the genome endpoints by the baseline key.
+//
+// Each row is also mapped to the discovery identity (inventory resource) it
+// belongs to — see "Baseline -> discovery identity mapping" below.
 type Service struct {
 	lookup *common.MonitoredIdentityLookup
 	repo   *Repository
@@ -102,36 +109,36 @@ func (s *Service) List(
 
 	entries := make([]listEntry, 0, len(baselineRows))
 	for _, row := range baselineRows {
-		if isGhostECSBaseline(row) {
+		if workloadtypes.IsGhostECSBaseline(row.Key.SourceType, row.Key.IdentityName, row.BuiltDays) {
 			continue
 		}
 		entry := newListEntry(mapper, row)
 		if _, mapped := entry.primary(); !mapped && entry.region != "" && !regions[entry.region] {
 			continue // an unmapped baseline outside the caller's selected regions
 		}
-		if !matchesFilters(entry, params) {
-			continue
-		}
 		entries = append(entries, entry)
 	}
 
-	var (
-		risk     map[common.MonitoringKey]common.IdentityRiskSnapshotRow
-		lastSeen map[common.MonitoringKey]time.Time
-	)
-
-	switch params.Sort {
-	case SortRiskDesc:
-		risk = s.riskFor(ctx, resolvedScope, entries)
-	case SortLastSeenDesc:
-		lastSeen = s.lastSeenFor(ctx, entries)
-	}
-
-	for index := range entries {
-		if row, ok := bestRisk(risk, entries[index]); ok {
-			entries[index].score = row.RiskScore
+	// One log_events read for every baseline: the event identity names
+	// (alert / risk keys), last_seen and the display labels.
+	facts := s.workloadFacts(ctx, resolvedScope, entries)
+	filtered := entries[:0]
+	for _, entry := range entries {
+		entry.attachFacts(facts)
+		if matchesFilters(entry, params) {
+			filtered = append(filtered, entry)
 		}
-		entries[index].lastSeen = latestSeen(lastSeen, entries[index])
+	}
+	entries = filtered
+
+	var risk map[common.MonitoringKey]common.IdentityRiskSnapshotRow
+	if params.Sort == SortRiskDesc {
+		risk = s.riskFor(ctx, resolvedScope, entries)
+		for index := range entries {
+			if row, ok := bestRisk(risk, entries[index]); ok {
+				entries[index].score = row.RiskScore
+			}
+		}
 	}
 
 	sort.SliceStable(entries, func(left, right int) bool {
@@ -154,16 +161,11 @@ func (s *Service) List(
 	if risk == nil {
 		risk = s.riskFor(ctx, resolvedScope, entries)
 	}
-	if lastSeen == nil {
-		lastSeen = s.lastSeenFor(ctx, entries)
-	}
-
-	s.attachCredentials(ctx, resolvedScope, entries)
 
 	openAlerts, alertsErr := s.repo.OpenAlertCounts(ctx, resolvedScope, listKeys(entries))
 	alertsOK := common.ReadOK("identity list open alerts", alertsErr)
 
-	response := &Response{ActivityKnown: lastSeen != nil, Items: make([]Item, 0, len(entries))}
+	response := &Response{Items: make([]Item, 0, len(entries))}
 	for _, entry := range entries {
 		item := buildItem(entry)
 
@@ -171,10 +173,8 @@ func (s *Service) List(
 			item.Risk = RiskSnapshot{
 				Score:    row.RiskScore,
 				Severity: common.OptionalString(row.Severity),
-				Status:   common.OptionalString(row.ScoreStatus),
 			}
 		}
-		item.LastSeen = latestSeen(lastSeen, entry)
 
 		if alertsOK {
 			openCount := 0
@@ -194,17 +194,32 @@ func (s *Service) List(
 	return response, nextCursor, nil
 }
 
+// workloadFacts reads the log_events facts of every entry's baseline key in
+// one query; nil when log_events cannot be read.
+func (s *Service) workloadFacts(ctx context.Context, resolvedScope *scope.DataScope, entries []listEntry) map[common.MonitoringKey]chclient.WorkloadFacts {
+	keys := make([]common.MonitoringKey, 0, len(entries))
+	for _, entry := range entries {
+		keys = append(keys, entry.eventKeys...)
+	}
+	if len(keys) == 0 {
+		return nil
+	}
+	facts, err := s.events.WorkloadFacts(ctx, resolvedScope.AccountIDs, keys)
+	if !common.EventsReadOK("identity list workload facts", err) {
+		return nil
+	}
+	return facts
+}
+
 // ---------------------------------------------------------------------------
 // Entries
 // ---------------------------------------------------------------------------
 
 // mappedIdentity is one discovery identity of an entry.
 type mappedIdentity struct {
-	raw         rawIdentity
-	fleet       *common.MonitoredIdentity // nil: no fleet principal for this role
-	role        string                    // role ARN the baseline is for ("" unknown)
-	roleFromKey bool                      // role is named by the baseline key itself (ECS)
-	credential  *Credential               // filled for the page by attachCredentials
+	raw   rawIdentity
+	fleet *common.MonitoredIdentity // nil: no fleet principal for this role
+	role  string                    // role ARN the baseline is for ("" unknown)
 }
 
 type listEntry struct {
@@ -213,9 +228,12 @@ type listEntry struct {
 	matchedBy   string
 	keyRole     string                 // role the baseline key names (ECS)
 	context     string                 // role context of the key (task, execution, ...)
-	extraKeys   []common.MonitoringKey // pipeline event-identity names (alerts / risk)
+	keyService  string                 // service the baseline key names (ECS)
+	eventKeys   []common.MonitoringKey // names its log_events rows carry, baseline key first
+	alertKeys   []common.MonitoringKey // keys alerts / risk scores are stored under
 	sortID      string
 	displayName string
+	serviceName string
 	region      string
 	score       *int
 	lastSeen    *time.Time
@@ -230,11 +248,13 @@ func newListEntry(mapper *identityMapper, row BaselineRow) listEntry {
 		context:   res.Context,
 		sortID:    row.AccountID + ":" + row.Key.SourceType + ":" + row.Key.IdentityName,
 	}
+	if parsed, ok := workloadtypes.ParseECSKey(row.Key.IdentityName); ok && row.Key.SourceType == "ECS" {
+		entry.keyService = strings.TrimPrefix(parsed.Service, "standalone:")
+	}
 	for _, match := range res.Matches {
 		mapped := mappedIdentity{
-			raw:         mapper.raw[match.raw],
-			role:        mapper.RoleFor(match, row.Key.SourceType, row.Key.IdentityName, res.Role),
-			roleFromKey: res.Role != "",
+			raw:  mapper.raw[match.raw],
+			role: mapper.RoleFor(match, row.Key.SourceType, row.Key.IdentityName, res.Role),
 		}
 		if match.fleet >= 0 {
 			id := mapper.fleet[match.fleet]
@@ -250,30 +270,58 @@ func newListEntry(mapper *identityMapper, row BaselineRow) listEntry {
 		return left.ARN < right.ARN
 	})
 
-	if alertKey, ok := ecsEventIdentityKey(row.Key); ok {
-		entry.extraKeys = append(entry.extraKeys, alertKey)
+	entry.displayName = workloadtypes.KeyDisplayName(row.Key.IdentityName)
+	entry.region = workloadtypes.KeyRegion(row.Key.IdentityName)
+	if primary, ok := entry.primary(); ok {
+		switch {
+		case primary.fleet != nil:
+			entry.displayName = common.FirstNonEmpty(primary.fleet.DisplayName, entry.displayName)
+			entry.serviceName = primary.fleet.ServiceName
+		case row.Key.SourceType != "ECS":
+			// One baseline per resource: the resource names it. (An ECS task
+			// has one baseline per role, so its key names it instead.)
+			entry.displayName = common.FirstNonEmpty(primary.raw.row.Name, entry.displayName)
+		}
+		entry.region = common.FirstNonEmpty(primary.raw.row.Region, entry.region)
 	}
-	// Alerts and risk of non-ECS identities are stored under the
-	// identity's canonical ARN, which the fleet may not have (dedupe).
-	if row.Key.SourceType != "ECS" {
-		for _, match := range entry.matches {
+
+	// The names the baseline's events can carry: the key (workload_key), the
+	// ARN a serverless key names and, outside ECS, the canonical ARNs of the
+	// mapped resources (alerts and risk of those are stored under them too).
+	partition := ""
+	var resourceARNs []string
+	for _, match := range entry.matches {
+		partition = common.FirstNonEmpty(partition, workloadtypes.ARNPartition(match.raw.row.ARN))
+		if row.Key.SourceType != "ECS" {
 			if arn := intelCanonicalARN(row.Key.SourceType, match.raw.row.ARN); strings.HasPrefix(arn, "arn:") {
-				entry.extraKeys = append(entry.extraKeys, common.MonitoringKey{SourceType: row.Key.SourceType, IdentityName: arn})
+				resourceARNs = append(resourceARNs, arn)
 			}
 		}
 	}
-
-	entry.displayName = row.Key.IdentityName
-	entry.region = keyRegion(row.Key.IdentityName)
-	if primary, ok := entry.primary(); ok {
-		display := primary.raw.row.Name
-		if primary.fleet != nil {
-			display = common.FirstNonEmpty(primary.fleet.DisplayName, display)
-		}
-		entry.displayName = common.FirstNonEmpty(display, primary.raw.row.ARN, row.Key.IdentityName)
-		entry.region = common.FirstNonEmpty(primary.raw.row.Region, entry.region)
-	}
+	entry.eventKeys = common.BaselineEventKeys(row.Key, partition, resourceARNs...)
 	return entry
+}
+
+// attachFacts completes the entry from the log_events facts of its baseline
+// key: the alert / risk keys, last_seen and the pipeline's display labels.
+func (e *listEntry) attachFacts(facts map[common.MonitoringKey]chclient.WorkloadFacts) {
+	e.alertKeys = common.BaselineAlertKeys(e.eventKeys, facts)
+	f, ok := common.MergedFacts(e.eventKeys, facts)
+	if !ok {
+		return
+	}
+	if f.LastSeen != nil {
+		t := f.LastSeen.UTC()
+		e.lastSeen = &t
+	}
+	e.displayName = common.FirstNonEmpty(f.DisplayName, e.displayName)
+	e.serviceName = common.FirstNonEmpty(e.serviceName, f.ServiceName)
+	if e.keyRole == "" && strings.HasPrefix(f.RoleARN, "arn:") && e.row.Key.SourceType == "ECS" {
+		e.keyRole = f.RoleARN
+	}
+	if e.context == "" {
+		e.context = f.RoleKind
+	}
 }
 
 func (e listEntry) primary() (mappedIdentity, bool) {
@@ -283,37 +331,12 @@ func (e listEntry) primary() (mappedIdentity, bool) {
 	return e.matches[0], true
 }
 
-// fleetIdentities are the matched principals the backend fleet has.
-func (e listEntry) fleetIdentities() []common.MonitoredIdentity {
-	var out []common.MonitoredIdentity
-	for _, m := range e.matches {
-		if m.fleet != nil {
-			out = append(out, *m.fleet)
-		}
-	}
-	return out
-}
-
-// keys is the baseline key, the pipeline's event-identity names and every
-// mapped principal's keys, unique.
+// keys are the keys the entry's alerts and risk scores are stored under.
 func (e listEntry) keys() []common.MonitoringKey {
-	out := []common.MonitoringKey{e.row.Key}
-	seen := map[common.MonitoringKey]struct{}{e.row.Key: {}}
-	add := func(key common.MonitoringKey) {
-		if _, duplicate := seen[key]; !duplicate {
-			seen[key] = struct{}{}
-			out = append(out, key)
-		}
+	if len(e.alertKeys) == 0 {
+		return []common.MonitoringKey{e.row.Key}
 	}
-	for _, key := range e.extraKeys {
-		add(key)
-	}
-	for _, identity := range e.fleetIdentities() {
-		for _, key := range identity.AllKeys() {
-			add(key)
-		}
-	}
-	return out
+	return e.alertKeys
 }
 
 func matchesFilters(entry listEntry, params Params) bool {
@@ -350,7 +373,7 @@ func matchesFilters(entry listEntry, params Params) bool {
 		return true
 	}
 	needle := strings.ToLower(params.Search)
-	values := []string{row.Key.IdentityName, entry.displayName}
+	values := []string{row.Key.IdentityName, entry.displayName, entry.serviceName, entry.keyRole}
 	for _, m := range entry.matches {
 		values = append(values, m.raw.row.ID, m.raw.row.ARN, m.raw.row.Name, m.role)
 		if m.fleet != nil {
@@ -363,191 +386,6 @@ func matchesFilters(entry listEntry, params Params) bool {
 		}
 	}
 	return false
-}
-
-// ---------------------------------------------------------------------------
-// Credentials (identity_credentials -> credentials)
-// ---------------------------------------------------------------------------
-
-// attachCredentials resolves, for the page's entries only, the credential
-// each mapped identity's baseline is for. Failures leave credentials with
-// only what type_attributes and the baseline key say.
-func (s *Service) attachCredentials(ctx context.Context, resolvedScope *scope.DataScope, entries []listEntry) {
-	var ids, arns []string
-	seenID, seenARN := map[string]bool{}, map[string]bool{}
-	for _, entry := range entries {
-		for i, m := range entry.matches {
-			if i == MaxDiscoveryPerItem {
-				break
-			}
-			if id := strings.TrimSpace(m.raw.row.ID); id != "" && !seenID[id] {
-				seenID[id] = true
-				ids = append(ids, id)
-			}
-			if arn := m.raw.row.ARN; arn != "" && !seenARN[arn] {
-				seenARN[arn] = true
-				arns = append(arns, arn)
-			}
-		}
-	}
-	if len(ids) == 0 {
-		return
-	}
-
-	bindings, err := s.repo.CredentialBindings(ctx, resolvedScope, ids, arns)
-	if !common.ReadOK("identity list credential bindings", err) {
-		bindings = nil
-	}
-	byIdentityID, byIdentityARN := map[string][]CredentialBinding{}, map[string][]CredentialBinding{}
-	for _, b := range bindings {
-		if b.IdentityID != "" {
-			byIdentityID[b.IdentityID] = append(byIdentityID[b.IdentityID], b)
-		}
-		if b.IdentityARN != "" {
-			byIdentityARN[b.IdentityARN] = append(byIdentityARN[b.IdentityARN], b)
-		}
-	}
-
-	var credentialARNs, credentialIDs []string
-	seenCredential := map[string]bool{}
-	addCredential := func(list *[]string, v string) {
-		if v != "" && !seenCredential[v] {
-			seenCredential[v] = true
-			*list = append(*list, v)
-		}
-	}
-	for _, entry := range entries {
-		for _, m := range entry.matches {
-			addCredential(&credentialARNs, m.role)
-		}
-	}
-	for _, b := range bindings {
-		addCredential(&credentialARNs, b.CredentialARN)
-		if b.CredentialARN == "" {
-			addCredential(&credentialIDs, b.CredentialID)
-		}
-	}
-	credentials, err := s.repo.Credentials(ctx, resolvedScope, credentialARNs, credentialIDs)
-	if !common.ReadOK("identity list credentials", err) {
-		credentials = map[string]CredentialRow{}
-	}
-
-	for e := range entries {
-		for i := range entries[e].matches {
-			if i == MaxDiscoveryPerItem {
-				break
-			}
-			m := &entries[e].matches[i]
-			candidates := byIdentityID[strings.TrimSpace(m.raw.row.ID)]
-			if len(candidates) == 0 {
-				candidates = byIdentityARN[m.raw.row.ARN]
-			}
-			m.credential = chooseCredential(*m, entries[e].context, candidates, credentials)
-		}
-	}
-}
-
-// chooseCredential picks the credential the baseline is for, from the
-// identity's identity_credentials bindings:
-//
-//  1. the key names the role (ECS event keys): the binding of that role,
-//     preferring the binding_type of the key's role context;
-//  2. the key carries a role context (":task", ":execution", ":job", ...):
-//     the binding whose binding_type is that context's
-//     (bindingTypesForContext), e.g. execution -> execution_role;
-//  3. a role inferred from type_attributes: the binding of that role;
-//  4. otherwise the identity's primary binding.
-//
-// With no matching binding row, a known role is still reported, with its
-// binding taken from type_attributes.credentials or the key's context.
-func chooseCredential(m mappedIdentity, context string, bindings []CredentialBinding, credentials map[string]CredentialRow) *Credential {
-	credentialARN := func(b CredentialBinding) string {
-		if b.CredentialARN != "" {
-			return b.CredentialARN
-		}
-		return credentials[b.CredentialID].ARN
-	}
-	types := bindingTypesForContext(context)
-	rank := func(b CredentialBinding) int {
-		for i, t := range types {
-			if b.BindingType == t {
-				return i
-			}
-		}
-		return len(types)
-	}
-	// best is the lowest-rank binding accepted by keep; ties keep the
-	// repository order (primary first, then most recently updated).
-	best := func(keep func(CredentialBinding) bool) *CredentialBinding {
-		var chosen *CredentialBinding
-		for i := range bindings {
-			if !keep(bindings[i]) {
-				continue
-			}
-			if chosen == nil || rank(bindings[i]) < rank(*chosen) {
-				chosen = &bindings[i]
-			}
-		}
-		return chosen
-	}
-	ofRole := func(b CredentialBinding) bool { return m.role != "" && credentialARN(b) == m.role }
-	ofContext := func(b CredentialBinding) bool { return rank(b) < len(types) }
-
-	var chosen *CredentialBinding
-	switch {
-	case m.roleFromKey:
-		chosen = best(ofRole)
-	case len(types) > 0:
-		if chosen = best(ofContext); chosen == nil {
-			chosen = best(ofRole)
-		}
-	case m.role != "":
-		chosen = best(ofRole)
-	case len(bindings) > 0:
-		chosen = &bindings[0]
-	}
-
-	out := &Credential{}
-	switch {
-	case chosen != nil:
-		out.ARN = credentialARN(*chosen)
-		out.BindingType = common.OptionalString(chosen.BindingType)
-		out.BindingSource = common.OptionalString(chosen.BindingSource)
-		primary := chosen.IsPrimary
-		out.IsPrimary = &primary
-	case m.role != "":
-		out.ARN = m.role
-		source := "type_attributes"
-		bindingType := ""
-		for _, c := range attributeCredentials(m.raw.attrs) {
-			if c.ARN == m.role {
-				bindingType = normalizeBinding(c.Binding)
-				break
-			}
-		}
-		if bindingType == "" && len(types) > 0 {
-			bindingType, source = types[0], "baseline_key"
-		}
-		out.BindingType = common.OptionalString(bindingType)
-		out.BindingSource = &source
-	default:
-		return nil
-	}
-	if out.ARN == "" {
-		return nil
-	}
-	if c, ok := credentials[out.ARN]; ok {
-		out.CredentialID = common.OptionalString(c.ID)
-		out.Name = common.OptionalString(c.Name)
-		out.CredentialType = common.OptionalString(c.CredentialType)
-		out.Status = common.OptionalString(c.Status)
-		out.PrivilegeLevel = common.OptionalString(c.PrivilegeLevel)
-		out.LastUsedAt = c.LastUsedAt
-	}
-	if out.Name == nil {
-		out.Name = common.OptionalString(lastARNPart(out.ARN))
-	}
-	return out
 }
 
 // normalizeBinding maps the scanner's type_attributes binding names onto
@@ -573,34 +411,36 @@ func normalizeBinding(binding string) string {
 // buildItem renders the baselines row and its discovery mapping.
 func buildItem(entry listEntry) Item {
 	row := entry.row
+	links := common.IdentityLinksFor(row.Key.SourceType, row.Key.IdentityName)
 	item := Item{
 		ID:           entry.sortID,
 		SourceType:   row.Key.SourceType,
 		IdentityName: row.Key.IdentityName,
 		DisplayName:  entry.displayName,
-		WorkloadKey:  row.Key.IdentityName,
 		AccountID:    row.AccountID,
 		Region:       common.OptionalString(entry.region),
+		RoleARN:      common.OptionalString(entry.keyRole),
+		RoleKind:     common.OptionalString(entry.context),
+		ServiceName:  common.OptionalString(common.FirstNonEmpty(entry.serviceName, entry.keyService)),
 		Baseline: BaselineSummary{
 			Status:        common.OptionalString(row.Status),
 			BuiltDays:     common.IntPtr(row.BuiltDays),
 			RequiredDays:  common.IntPtr(row.RequiredDays),
 			DaysRemaining: common.IntPtr(row.DaysRemaining),
 			ActiveSince:   row.ActiveSince,
-			UpdatedAt:     row.UpdatedAt,
 		},
+		LastSeen: entry.lastSeen,
 		Mapping: Mapping{
 			Status:         MappingUnmapped,
 			DiscoveryCount: len(entry.matches),
 		},
-		DiscoveryIdentities: make([]DiscoveryIdentity, 0, min(len(entry.matches), MaxDiscoveryPerItem)),
-		// The baseline panel looks the requested key up first, so it gets
-		// the baselines row's own key.
-		Links: Links{Baseline: common.IdentityLinksFor(row.Key.SourceType, row.Key.IdentityName).Baseline},
-	}
-	if row.FirstSeenDate != nil {
-		day := row.FirstSeenDate.Format(time.DateOnly)
-		item.Baseline.FirstSeenDate = &day
+		Links: Links{
+			Summary:  strings.TrimSuffix(links.Activity, "/activity"),
+			Baseline: links.Baseline,
+			Activity: links.Activity,
+			Genome:   links.Genome,
+			Timeline: links.Timeline,
+		},
 	}
 
 	primary, ok := entry.primary()
@@ -609,52 +449,19 @@ func buildItem(entry listEntry) Item {
 	}
 	item.Mapping.Status = MappingMapped
 	item.Mapping.MatchedBy = common.OptionalString(entry.matchedBy)
-	item.NHIIdentityType = nhiIdentityType(primary)
-	item.Status = common.OptionalString(primary.raw.row.Status)
-	item.InventoryID = common.OptionalString(primary.raw.row.ID)
-	item.ResourceARN = common.OptionalString(primary.raw.row.ARN)
-	item.Credential = primary.credential
-	item.RoleARN = common.OptionalString(primary.role)
-	if primary.credential != nil {
-		item.RoleARN = common.OptionalString(primary.credential.ARN)
+	item.NHIIdentityType = common.OptionalString(nhiIdentityType(primary))
+	if item.RoleARN == nil {
+		item.RoleARN = common.OptionalString(primary.role)
 	}
-	if primary.fleet != nil {
-		f := primary.fleet
-		item.ServiceName = common.OptionalString(f.ServiceName)
-		item.PrincipalARN = common.OptionalString(f.PrincipalARN)
-		item.RoleKind = common.OptionalString(common.FirstNonEmpty(f.RoleKind, entry.context))
-		item.RoleType = common.OptionalString(f.RoleType)
-		item.ClusterARN = common.OptionalString(f.ClusterARN)
-		// Activity, genome and timeline resolve the identity through the
-		// discovery fleet, so they use the fleet key.
-		links := common.IdentityLinksFor(f.Key.SourceType, f.Key.IdentityName)
-		item.Links.Activity, item.Links.Genome, item.Links.Timeline = &links.Activity, &links.Genome, &links.Timeline
+	if item.RoleKind == nil && primary.fleet != nil {
+		item.RoleKind = common.OptionalString(primary.fleet.RoleKind)
 	}
-
-	if item.RoleKind == nil {
-		item.RoleKind = common.OptionalString(entry.context)
-	}
-
-	for i, m := range entry.matches {
-		if i == MaxDiscoveryPerItem {
-			break
-		}
-		identity := DiscoveryIdentity{
-			InventoryID:     m.raw.row.ID,
-			ARN:             m.raw.row.ARN,
-			Name:            common.OptionalString(m.raw.row.Name),
-			IdentityType:    m.raw.row.IdentityType,
-			NHIIdentityType: common.OptionalString(nhiIdentityType(m)),
-			AccountID:       m.raw.row.AccountID,
-			Region:          common.OptionalString(m.raw.row.Region),
-			Status:          common.OptionalString(m.raw.row.Status),
-			LastSeenAt:      m.raw.row.LastSeenAt,
-			Credential:      m.credential,
-		}
-		if m.fleet != nil {
-			identity.GenomeKey = &GenomeKey{SourceType: m.fleet.Key.SourceType, IdentityName: m.fleet.Key.IdentityName}
-		}
-		item.DiscoveryIdentities = append(item.DiscoveryIdentities, identity)
+	item.Parent = &Parent{
+		InventoryID:  primary.raw.row.ID,
+		ARN:          primary.raw.row.ARN,
+		Name:         common.OptionalString(primary.raw.row.Name),
+		IdentityType: primary.raw.row.IdentityType,
+		Status:       common.OptionalString(primary.raw.row.Status),
 	}
 	return item
 }
@@ -668,7 +475,7 @@ func nhiIdentityType(m mappedIdentity) string {
 }
 
 // ---------------------------------------------------------------------------
-// Risk, last seen, keys
+// Risk, keys
 // ---------------------------------------------------------------------------
 
 func (s *Service) riskFor(
@@ -681,40 +488,6 @@ func (s *Service) riskFor(
 		return map[common.MonitoringKey]common.IdentityRiskSnapshotRow{}
 	}
 	return risk
-}
-
-func (s *Service) lastSeenFor(
-	ctx context.Context,
-	entries []listEntry,
-) map[common.MonitoringKey]time.Time {
-	// nil (not empty) when the events store cannot be read: last_seen is then
-	// unknown, which the console must not read as "no activity".
-	if s.events == nil {
-		return nil
-	}
-	seen := map[common.MonitoringKey]struct{}{}
-	keys := make([]common.MonitoringKey, 0, len(entries))
-	for _, entry := range entries {
-		for _, identity := range entry.fleetIdentities() {
-			key := identity.EventKey()
-			if _, duplicate := seen[key]; duplicate {
-				continue
-			}
-			seen[key] = struct{}{}
-			keys = append(keys, key)
-		}
-	}
-	if len(keys) == 0 {
-		return map[common.MonitoringKey]time.Time{}
-	}
-	lastSeen, err := s.events.LastSeenByIdentity(ctx, keys)
-	if !common.EventsReadOK("identity list last seen", err) {
-		return nil
-	}
-	if lastSeen == nil {
-		lastSeen = map[common.MonitoringKey]time.Time{}
-	}
-	return lastSeen
 }
 
 // bestRisk is the highest-scoring latest snapshot among the entry's keys:
@@ -750,20 +523,6 @@ func betterRisk(a, b common.IdentityRiskSnapshotRow) bool {
 		return *a.RiskScore > *b.RiskScore
 	}
 	return a.WindowEnd.After(b.WindowEnd)
-}
-
-// latestSeen is the most recent last_seen among the entry's principals.
-func latestSeen(lastSeen map[common.MonitoringKey]time.Time, entry listEntry) *time.Time {
-	var latest *time.Time
-	for _, identity := range entry.fleetIdentities() {
-		if seenAt, ok := lastSeen[identity.EventKey()]; ok {
-			if latest == nil || seenAt.After(*latest) {
-				t := seenAt.UTC()
-				latest = &t
-			}
-		}
-	}
-	return latest
 }
 
 // listKeys is every monitoring key the entries' risk and alert rows may be
@@ -1267,57 +1026,6 @@ var intelRoleContexts = []string{
 }
 
 // ---------------------------------------------------------------------------
-// ECS event keys
-// ---------------------------------------------------------------------------
-
-type ecsEventKey struct {
-	Account, Region, Cluster, Service, RoleARN, Context string
-}
-
-// parseECSEventKey splits
-// ecs:<account>:<region>:<cluster>:<service>:<role-arn>[:<context>], where
-// cluster may itself be an ARN and service may be "standalone:<family>".
-func parseECSEventKey(key string) (ecsEventKey, bool) {
-	rest, ok := strings.CutPrefix(key, "ecs:")
-	if !ok {
-		return ecsEventKey{}, false
-	}
-	parts := strings.SplitN(rest, ":", 3)
-	if len(parts) < 3 || parts[0] == "" {
-		return ecsEventKey{}, false
-	}
-	out := ecsEventKey{Account: parts[0], Region: parts[1]}
-	remainder := parts[2]
-	roleAt := strings.LastIndex(remainder, ":arn:")
-	if roleAt < 0 {
-		return ecsEventKey{}, false
-	}
-	tail := remainder[roleAt+1:]
-	out.RoleARN = tail
-	if i := strings.LastIndexByte(tail, ':'); i >= 0 && strings.Contains(tail[:i], ":role/") {
-		out.RoleARN, out.Context = tail[:i], tail[i+1:]
-	}
-	if !strings.Contains(out.RoleARN, ":role/") {
-		return ecsEventKey{}, false
-	}
-	head := remainder[:roleAt]
-	if strings.HasPrefix(head, "arn:") {
-		segments := strings.SplitN(head, ":", 7)
-		if len(segments) < 7 {
-			return ecsEventKey{}, false
-		}
-		out.Cluster, out.Service = strings.Join(segments[:6], ":"), segments[6]
-	} else {
-		cluster, service, found := strings.Cut(head, ":")
-		if !found {
-			return ecsEventKey{}, false
-		}
-		out.Cluster, out.Service = cluster, service
-	}
-	return out, true
-}
-
-// ---------------------------------------------------------------------------
 // Resolver
 // ---------------------------------------------------------------------------
 
@@ -1422,9 +1130,9 @@ type resolution struct {
 func (m *identityMapper) Resolve(sourceType, identityName, accountID string) resolution {
 	key := common.MonitoringKey{SourceType: sourceType, IdentityName: identityName}
 	out := resolution{}
-	parsedECS, isECS := ecsEventKey{}, false
+	parsedECS, isECS := workloadtypes.ECSKey{}, false
 	if sourceType == "ECS" {
-		parsedECS, isECS = parseECSEventKey(identityName)
+		parsedECS, isECS = workloadtypes.ParseECSKey(identityName)
 		if isECS {
 			out.Role, out.Context = parsedECS.RoleARN, parsedECS.Context
 		}
@@ -1542,7 +1250,7 @@ func (m *identityMapper) preferredFleet(r int, role, context string) int {
 // matchECS finds the ECS tasks (raw indexes) in the key's account and
 // region that use the key's role, narrowed by the role's binding (task vs
 // execution), then by cluster and then by service when that leaves any.
-func (m *identityMapper) matchECS(key ecsEventKey) []int {
+func (m *identityMapper) matchECS(key workloadtypes.ECSKey) []int {
 	var candidates []int
 	for _, r := range m.ecsTasks[ecsScopeKey(key.Account, key.Region)] {
 		if m.rawRoles(r)[key.RoleARN] {
@@ -1777,51 +1485,4 @@ func dedupe(values []int) []int {
 	}
 	sort.Ints(out)
 	return out
-}
-
-// keyRegion is the region embedded in a pipeline key or ARN ("" if none).
-func keyRegion(identityName string) string {
-	parts := strings.SplitN(identityName, ":", 5)
-	if strings.HasPrefix(identityName, "arn:") {
-		if len(parts) >= 4 {
-			return parts[3]
-		}
-		return ""
-	}
-	if len(parts) >= 3 {
-		return parts[2]
-	}
-	return ""
-}
-
-// ecsEventIdentityKey is the name the pipeline stores the alerts and
-// identity_risk_scores of an ECS baseline under (ecs_metadata.py
-// ecs_identity_keys): "<service|standalone:family>_<role-name>_<context>".
-// Only event-form keys (with a role context) have one.
-func ecsEventIdentityKey(key common.MonitoringKey) (common.MonitoringKey, bool) {
-	if key.SourceType != "ECS" {
-		return common.MonitoringKey{}, false
-	}
-	parsed, ok := parseECSEventKey(key.IdentityName)
-	if !ok || parsed.Context == "" || parsed.Service == "" {
-		return common.MonitoringKey{}, false
-	}
-	return common.MonitoringKey{
-		SourceType:   "ECS",
-		IdentityName: parsed.Service + "_" + lastARNPart(parsed.RoleARN) + "_" + parsed.Context,
-	}, true
-}
-
-// isGhostECSBaseline reports a baselines row the pipeline writes for every
-// discovered ECS task under its discovery-form key
-// (ecs:<account>:<region>:<cluster>:<service>:<role-arn|no-role>, no role
-// context). ECS training always lands on the event-form key that ends in
-// ":task" or ":execution", so such a row never learns anything; it is hidden
-// unless it somehow has built days.
-func isGhostECSBaseline(row BaselineRow) bool {
-	if row.Key.SourceType != "ECS" || row.BuiltDays > 0 || !strings.HasPrefix(row.Key.IdentityName, "ecs:") {
-		return false
-	}
-	last := row.Key.IdentityName[strings.LastIndexByte(row.Key.IdentityName, ':')+1:]
-	return last == "no-role" || strings.HasPrefix(last, "role/")
 }

@@ -10,8 +10,8 @@ import (
 	"nhi-backend-api/internal/modules/genome/common"
 )
 
-// Handler serves GET /api/v1/genome/identities (identity list and fleet
-// table). It only reads the JWT claims, validates the request and shapes
+// Handler serves GET /api/v1/genome/identities: the baselined identities
+// (one item per pipeline baselines row) mapped to their discovery identities. It only reads the JWT claims, validates the request and shapes
 // the response; the data work is in Service.
 type Handler struct {
 	service *Service
@@ -26,7 +26,7 @@ func NewHandler(service *Service) *Handler {
 // Query parameters.
 var allowed = map[string]struct{}{
 	"source_type": {}, "search": {}, "account_id": {}, "region": {}, "status": {},
-	"sort": {}, "limit": {}, "cursor": {},
+	"baseline_status": {}, "mapping": {}, "sort": {}, "limit": {}, "cursor": {},
 }
 
 // Get handles GET /api/v1/genome/identities.
@@ -60,6 +60,12 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 			fmt.Sprintf("sort must be one of %s, %s, %s", SortRiskDesc, SortLastSeenDesc, SortNameAsc), rid)
 		return
 	}
+	mapping := strings.ToLower(strings.TrimSpace(q.Get("mapping")))
+	if mapping != "" && mapping != MappingMapped && mapping != MappingUnmapped {
+		common.WriteError(w, http.StatusBadRequest, common.CodeValidation,
+			fmt.Sprintf("mapping must be one of %s, %s", MappingMapped, MappingUnmapped), rid)
+		return
+	}
 	limit, err := common.ParseIdentityLimit(q, "limit")
 	if err != nil {
 		common.WriteError(w, http.StatusBadRequest, common.CodeValidation, err.Error(), rid)
@@ -67,14 +73,16 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data, next, err := h.service.List(ctx, claims.UserID, claims.TenantID, claims.DBName, Params{
-		SourceType: strings.ToUpper(strings.TrimSpace(q.Get("source_type"))),
-		Search:     strings.TrimSpace(q.Get("search")),
-		AccountID:  strings.TrimSpace(q.Get("account_id")),
-		Region:     strings.TrimSpace(q.Get("region")),
-		Status:     strings.TrimSpace(q.Get("status")),
-		Sort:       sortBy,
-		Limit:      limit,
-		Cursor:     strings.TrimSpace(q.Get("cursor")),
+		SourceType:     strings.ToUpper(strings.TrimSpace(q.Get("source_type"))),
+		Search:         strings.TrimSpace(q.Get("search")),
+		AccountID:      strings.TrimSpace(q.Get("account_id")),
+		Region:         strings.TrimSpace(q.Get("region")),
+		Status:         strings.TrimSpace(q.Get("status")),
+		BaselineStatus: strings.ToLower(strings.TrimSpace(q.Get("baseline_status"))),
+		Mapping:        mapping,
+		Sort:           sortBy,
+		Limit:          limit,
+		Cursor:         strings.TrimSpace(q.Get("cursor")),
 	})
 	if errors.Is(err, common.ErrInvalidCursor) {
 		common.WriteError(w, http.StatusBadRequest, common.CodeValidation, "cursor is invalid", rid)

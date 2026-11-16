@@ -24,18 +24,23 @@ import (
 //   - learning_started            baselines.first_seen_date
 //   - baseline_established        baselines.active_since
 //
-// The identity is resolved from the tenant's discovery table first (unknown
-// → ErrIdentityNotFound). Nothing is invented: a source table that cannot
+// The identity is resolved first (a baselines key, else a discovery key;
+// unknown → ErrIdentityNotFound). baselines and baseline_versions are read
+// by the baseline key; alerts by the event identity names log_events
+// recorded under that key (log_events.workload_key → identity_name), since
+// the pipeline stores alerts under the event identity name. Nothing is invented: a source table that cannot
 // be read contributes no items (logged server-side); the milestones exist
 // only when the baselines row carries the timestamp.
 type IdentityTimelineService struct {
 	lookup *summarycommon.MonitoredIdentityLookup
 	repo   *IdentityTimelineRepository
+	events *summarycommon.MonitoringEvents // nil when no monitoring ClickHouse is configured
 }
 
-// NewIdentityTimelineService wires the service.
-func NewIdentityTimelineService(lookup *summarycommon.MonitoredIdentityLookup, repo *IdentityTimelineRepository) *IdentityTimelineService {
-	return &IdentityTimelineService{lookup: lookup, repo: repo}
+// NewIdentityTimelineService wires the service. events may be nil: the
+// alert keys are then derived from the baseline key alone.
+func NewIdentityTimelineService(lookup *summarycommon.MonitoredIdentityLookup, repo *IdentityTimelineRepository, events *summarycommon.MonitoringEvents) *IdentityTimelineService {
+	return &IdentityTimelineService{lookup: lookup, repo: repo, events: events}
 }
 
 // IdentityTimelineParams are the parsed §5.6 query parameters.
@@ -64,29 +69,15 @@ func (s *IdentityTimelineService) GetTimeline(ctx context.Context, userID, tenan
 	if err != nil {
 		return nil, nil, err
 	}
-	id, sc := res.Identity, res.Scope
-	keys := id.AllKeys() // identity key, then the shared workload key
+	sc, accounts := res.Scope, res.Accounts()
+	keys := res.BaselineKeys() // the baseline key (or identity key, then workload key)
 
 	var entries []timelineEntry
-	if dimensions, err :=
-		s.repo.AlertDimensions(
-			ctx,
-			sc,
-			keys,
-		); summarycommon.ReadOK(
-		ctx,
-		"identity timeline alert dimensions",
-		err,
-	) {
-		entries = append(
-			entries,
-			anomalyDimensionEntries(
-				dimensions,
-			)...,
-		)
+	if dimensions, err := s.repo.AlertDimensions(ctx, sc, accounts, res.AlertKeys(ctx, s.events)); summarycommon.ReadOK(ctx, "identity timeline alert dimensions", err) {
+		entries = append(entries, anomalyDimensionEntries(dimensions)...)
 	}
-	versionsKey := id.Key
-	if row, err := s.repo.BaselineMilestones(ctx, sc, keys); summarycommon.ReadOK(ctx, "identity timeline baseline", err) && row != nil {
+	versionsKey := keys[0]
+	if row, err := s.repo.BaselineMilestones(ctx, sc, accounts, keys); summarycommon.ReadOK(ctx, "identity timeline baseline", err) && row != nil {
 		versionsKey = row.Key
 		if row.FirstSeenDate != nil {
 			entries = append(entries, milestone(TimelineTypeLearningStarted, *row.FirstSeenDate))
@@ -95,7 +86,7 @@ func (s *IdentityTimelineService) GetTimeline(ctx context.Context, userID, tenan
 			entries = append(entries, milestone(TimelineTypeBaselineEstablished, *row.ActiveSince))
 		}
 	}
-	if versions, err := s.repo.PublishedVersions(ctx, sc, versionsKey); summarycommon.ReadOK(ctx, "identity timeline versions", err) {
+	if versions, err := s.repo.PublishedVersions(ctx, sc, accounts, versionsKey); summarycommon.ReadOK(ctx, "identity timeline versions", err) {
 		for _, v := range versions {
 			desc := "Version " + strconv.FormatInt(v.Version, 10)
 			entries = append(entries, timelineEntry{

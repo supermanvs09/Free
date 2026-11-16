@@ -164,23 +164,11 @@ func (s *Service) Get(
 			continue
 
 		case generationErr != nil:
-			// One alert whose stored values cannot be read (an empty or
-			// unexpected baseline_value/observed_value) must not fail the
-			// whole page: it is reported as skipped, like any alert without
-			// enough evidence for a policy.
-			log.Printf(
-				"identity containment skipped alert_id=%d event_id=%s dimension=%s reason=unreadable_alert_data err=%v",
+			return nil, fmt.Errorf(
+				"generate containment remediation for alert %d: %w",
 				alert.ID,
-				alert.EventID,
-				alert.Dimension,
 				generationErr,
 			)
-			skipped = append(skipped, SkippedAlert{
-				AlertID:   alert.ID,
-				Dimension: normalizeDimension(alert.Dimension),
-				Reason:    "insufficient_remediation_evidence",
-			})
-			continue
 		}
 
 		items = append(items, item)

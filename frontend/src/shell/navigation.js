@@ -16,11 +16,10 @@ import {
 
 /**
  * Information architecture: two short lists, no folders. Overview is every
- * screen that reads the estate, in the order an operator works through it:
- * how exposed (Dashboard, Posture, Remediation), what exists (Discovery: its
- * identities and credentials as tabs), what leaked (Credential exposure, with
- * the findings marked safe inside it), what it could do (Access graph), what
- * it did (NHI Genome, Activity). Settings is the one place that changes how
+ * screen that reads the estate: Dashboard, what exists (Discovery: its
+ * identities and credentials as tabs), what it could do (Access graph), how
+ * exposed (Posture, Alerts, Remediation), what it did (NHI Genome, Activity),
+ * then Credential exposure when a code source is on. Settings is the one place that changes how
  * the estate is collected. Users & roles and the audit log live in the
  * profile menu, not here.
  *
@@ -33,18 +32,18 @@ export const NAV_GROUPS = [
     label: 'Overview',
     items: [
       { to: '/overview', label: 'Dashboard', icon: Gauge, end: true },
-      /* `badge`: the number of new alerts, shown on the item and on the collapsed rail. */
-      { to: '/alerts', label: 'Alerts', icon: BellRing, badge: 'alerts' },
-      { to: '/posture', label: 'Posture', icon: ShieldCheck },
-      { to: '/remediation', label: 'Remediation', icon: Wrench },
       { to: '/identities', label: 'Discovery', icon: Fingerprint, match: ['/identities', '/credentials', '/discovery'] },
-      /* Shown once a code source is switched on (`feature: 'exposure'`). */
-      { to: '/exposure', label: 'Credential exposure', icon: FileWarning, permission: 'exposure.view', feature: 'exposure' },
       /* Separate from the genome on purpose: the genome is what an identity
          has done, the graph what it could do. */
       { to: '/access-graph', label: 'Access graph', icon: Waypoints },
+      { to: '/posture', label: 'Posture', icon: ShieldCheck },
+      /* `badge`: the number of new alerts, shown on the item and on the collapsed rail. */
+      { to: '/alerts', label: 'Alerts', icon: BellRing, badge: 'alerts' },
+      { to: '/remediation', label: 'Remediation', icon: Wrench },
       { to: '/genome', label: 'NHI Genome', icon: Dna },
       { to: '/activity', label: 'Activity', icon: Activity },
+      /* Shown once a code source is switched on (`feature: 'exposure'`). */
+      { to: '/exposure', label: 'Credential exposure', icon: FileWarning, permission: 'exposure.view', feature: 'exposure' },
     ],
   },
   {

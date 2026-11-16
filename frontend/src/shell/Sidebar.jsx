@@ -61,11 +61,13 @@ function RailLink({ item, badge = 0 }) {
       aria-label={badge > 0 ? `${item.label}, ${badge} new` : item.label}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'group relative grid size-9 place-items-center rounded-full transition-colors duration-150',
+        /* A zoomed-in or short window has less height than the rail needs:
+           the links shrink first, so every item stays on screen. */
+        'group relative grid size-9 shrink-0 place-items-center rounded-full transition-colors duration-150 [@media(max-height:720px)]:size-8 [@media(max-height:540px)]:size-7',
         active ? 'bg-brand text-white shadow-[var(--t-shadow-sm)]' : 'text-ink-2 hover:bg-surface-3 hover:text-ink',
       )}
     >
-      <item.icon aria-hidden="true" className="size-[17px]" strokeWidth={1.9} />
+      <item.icon aria-hidden="true" className="size-[17px] [@media(max-height:720px)]:size-4 [@media(max-height:540px)]:size-[15px]" strokeWidth={1.9} />
       {badge > 0 && (
         <span
           aria-hidden="true"
@@ -121,27 +123,27 @@ export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile
         <aside
           ref={asideRef}
           aria-label="Primary navigation"
-          className="fixed top-16 bottom-0 left-3 z-30 hidden w-[48px] flex-col items-center justify-center gap-2.5 py-4 lg:flex"
+          className="fixed top-16 bottom-0 left-3 z-30 hidden w-[48px] flex-col items-center justify-[safe_center] gap-2.5 py-4 lg:flex [@media(max-height:720px)]:gap-1.5 [@media(max-height:720px)]:py-2 [@media(max-height:540px)]:w-[44px] [@media(max-height:460px)]:overflow-y-auto"
         >
           <button
             type="button"
             onClick={onToggleCollapse}
             aria-label="Expand navigation"
             title="Expand navigation"
-            className="grid size-10 shrink-0 place-items-center rounded-full bg-brand text-white shadow-[var(--t-shadow-md)] transition-transform hover:scale-[1.04] focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+            className="grid size-10 shrink-0 place-items-center rounded-full [@media(max-height:720px)]:size-9 [@media(max-height:540px)]:size-8 bg-brand text-white shadow-[var(--t-shadow-md)] transition-transform hover:scale-[1.04] focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
           >
             <PanelLeftOpen aria-hidden="true" className="size-[17px]" />
           </button>
           <nav
             aria-label="Primary"
-            className="flex flex-col items-center gap-1 rounded-full border border-line bg-surface p-1.5 shadow-[var(--t-shadow-md)]"
+            className="flex shrink-0 flex-col items-center gap-1 rounded-full border border-line bg-surface p-1.5 shadow-[var(--t-shadow-md)] [@media(max-height:720px)]:gap-0.5 [@media(max-height:720px)]:p-1"
           >
             {main.flatMap((group) => group.items).map((item) => (
               <RailLink key={item.to} item={item} badge={badgeFor(item)} />
             ))}
           </nav>
           {settings && (
-            <div className="flex flex-col items-center gap-1 rounded-full border border-line bg-surface p-1.5 shadow-[var(--t-shadow-md)]">
+            <div className="flex shrink-0 flex-col items-center gap-1 rounded-full border border-line bg-surface p-1.5 shadow-[var(--t-shadow-md)] [@media(max-height:720px)]:gap-0.5 [@media(max-height:720px)]:p-1">
               {settings.items.map((item) => (
                 <RailLink key={item.to} item={item} badge={badgeFor(item)} />
               ))}

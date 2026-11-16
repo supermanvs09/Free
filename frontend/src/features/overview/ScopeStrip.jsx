@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Database, SlidersHorizontal } from 'lucide-react';
 import { useWorkspace } from '../../app/WorkspaceContext';
 import { INTEGRATIONS_PREVIEW } from '../../lib/api/integrationsPreview';
@@ -23,11 +23,28 @@ import { cn } from '../../ui/cn';
  * narrowed scope is never mistaken for the whole estate.
  */
 export function ScopeStrip({ scope, lastScanAt, onScopeSaved }) {
-  const { integration } = useWorkspace();
+  const { integration, refresh } = useWorkspace();
+  const refreshRef = useRef(refresh);
+  useEffect(() => {
+    refreshRef.current = refresh;
+  }, [refresh]);
   const [editing, setEditing] = useState(false);
+  /* "Synced 5 min ago" has to keep counting while the page stays open. */
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30_000);
+    /* The accounts' sync times are read once at sign-in; re-read them so a
+       sync that finished while the dashboard was open shows up. */
+    const reread = setInterval(() => refreshRef.current?.(), 60_000);
+    return () => {
+      clearInterval(timer);
+      clearInterval(reread);
+    };
+  }, []);
 
-  /* The most recent completed sync across connected accounts. The discovery
-     API serves the latest scan; this is when that scan landed. */
+  /* The most recent completed sync of any connected account, or the latest
+     scan if that is newer: one account synced 5 minutes ago reads
+     "Synced 5 min ago", whatever the other accounts did. */
   const sync = useMemo(() => {
     /* A preview build's accounts are samples; real figures never mix with them. */
     const accounts = INTEGRATIONS_PREVIEW ? [] : integration?.accounts ?? [];
@@ -40,9 +57,9 @@ export function ScopeStrip({ scope, lastScanAt, onScopeSaved }) {
       if (account.sync?.status === 'running') running += 1;
       if (account.sync?.status === 'queued') queued += 1;
     }
-    const newest = lastScanAt || last;
-    return { last: newest, ageDays: newest ? (Date.now() - new Date(newest).getTime()) / 86_400_000 : null, running, queued, known: accounts.length > 0 };
-  }, [integration, lastScanAt]);
+    const newest = [last, lastScanAt].filter(Boolean).sort((a, b) => new Date(b) - new Date(a))[0] ?? null;
+    return { last: newest, ageDays: newest ? (now - new Date(newest).getTime()) / 86_400_000 : null, running, queued, known: accounts.length > 0 };
+  }, [integration, lastScanAt, now]);
 
   if (scope.isLoading && !scope.data) {
     return (

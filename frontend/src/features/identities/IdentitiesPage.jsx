@@ -16,7 +16,6 @@ import { Panel } from '../../ui/Panel';
 import { SearchInput, Select } from '../../ui/Field';
 import { AppliedFilters, FacetRail, useFacetRail } from '../../ui/FacetRail';
 import { RecordBar, ResultCount, ShowFiltersButton, WorkArea } from '../../ui/WorkArea';
-import { Tabs } from '../../ui/Tabs';
 import { OverflowMenu, RefreshButton, TableSettings, TableToolbar } from '../../ui/TableTools';
 import { DataGrid } from '../../ui/DataGrid';
 import { Pagination } from '../../ui/Pagination';
@@ -42,17 +41,10 @@ import { FILTER_PARAMS, SIGNALS, SORTABLE, SORT_FIELDS, describeFilters, readFil
  * Identity explorer - the workbench every inventory signal leads into.
  *
  * Filter, sort and page live in the URL, so a dashboard drill-through, a
- * bookmark and a shared link all resolve to the same list. View tabs are
- * single-parameter presets that *replace* the current filters; the facet rail
- * refines additively. Both only ever emit parameters `GET /api/v1/identities`
- * accepts, and paging, sorting and search all run on the server.
+ * bookmark and a shared link all resolve to the same list. The facet rail
+ * filters; it only ever emits parameters `GET /api/v1/identities` accepts,
+ * and paging, sorting and search all run on the server.
  */
-const VIEW_PRESETS = [
-  { key: 'all', label: 'All identities', params: {}, countKey: 'all' },
-  { key: 'public', label: 'Publicly accessible', params: { is_publicly_accessible: 'true' }, countKey: 'public' },
-  { key: 'stale', label: 'Unused 90+ days', params: { min_idle_days: '90' }, countKey: 'stale' },
-];
-
 const DENSITY_KEY = 'dna.grid.density';
 
 export default function IdentitiesPage() {
@@ -237,29 +229,6 @@ export default function IdentitiesPage() {
     update((next) => FILTER_PARAMS.forEach((param) => next.delete(param)));
     setSearchDraft('');
   }, [update]);
-
-  const applyPreset = useCallback(
-    (key) => {
-      const preset = VIEW_PRESETS.find((entry) => entry.key === key);
-      if (!preset) return;
-      update((next) => {
-        FILTER_PARAMS.forEach((param) => next.delete(param));
-        Object.entries(preset.params).forEach(([param, value]) => next.set(param, value));
-      });
-      setSearchDraft('');
-    },
-    [update],
-  );
-
-  /* A preset is active only when the URL holds exactly its parameters. */
-  const activePreset = useMemo(() => {
-    const applied = FILTER_PARAMS.filter((param) => searchParams.get(param));
-    const match = VIEW_PRESETS.find((preset) => {
-      const keys = Object.keys(preset.params);
-      return keys.length === applied.length && keys.every((key) => searchParams.get(key) === preset.params[key]);
-    });
-    return match?.key ?? null;
-  }, [searchParams]);
 
   const writeSort = useCallback(
     (column, direction) => {
@@ -511,33 +480,7 @@ export default function IdentitiesPage() {
         title="Discovery"
         lede="Workloads, services and automations that act in your AWS accounts. Select one to see what it can do, who can use it and what it did."
         sections={<DiscoveryTabs />}
-        /* The views are lenses on the same identities, not a breakdown of the
-           total: an identity unused for 90 days is also idle for 30, and a
-           public one can be idle too. Said once, where the numbers are, so
-           nobody tries to add them up. */
-        meta={
-          counts ? (
-            <p className="text-[11.5px] text-ink-3">
-              {formatNumber(counts.all)} identities in your scope. The views below overlap - one identity can be in several - so
-              their counts do not add up to the total.
-            </p>
-          ) : null
-        }
-        tabs={
-          <Tabs
-            size="sm"
-            value={activePreset ?? 'custom'}
-            onChange={applyPreset}
-            tabs={[
-              ...VIEW_PRESETS.map((preset) => ({
-                value: preset.key,
-                label: preset.label,
-                count: counts ? counts[preset.countKey] : undefined,
-              })),
-              ...(activePreset === null ? [{ value: 'custom', label: 'Custom filter' }] : []),
-            ]}
-          />
-        }
+        meta={counts ? <p className="text-[11.5px] text-ink-3">{formatNumber(counts.all)} identities in your scope.</p> : null}
       />
 
       <LatestChangesNotice entityType="identity" noun={{ one: 'identity', many: 'identities' }} />

@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/lib/pq"
+
 	"nhi-backend-api/internal/modules/genome/summarycommon"
 	"nhi-backend-api/internal/platform/scope"
 )
@@ -40,17 +42,18 @@ type BaselineSummaryRow struct {
 
 // BaselineSummary returns the baselines row of the first key, in the order
 // given, that has one; nil, nil when none has.
-func (r *IdentitySummaryRepository) BaselineSummary(ctx context.Context, resolved *scope.DataScope, keys []summarycommon.MonitoringKey) (*BaselineSummaryRow, error) {
-	if len(keys) == 0 {
+func (r *IdentitySummaryRepository) BaselineSummary(ctx context.Context, resolved *scope.DataScope, accounts []string, keys []summarycommon.MonitoringKey) (*BaselineSummaryRow, error) {
+	if len(keys) == 0 || len(accounts) == 0 {
 		return nil, nil
 	}
 	types, names := summarycommon.KeyArrays(keys)
 	q := `SELECT b.source_type, b.identity_name, b.status, b.built_days, b.required_days
 	      FROM ` + resolved.Table("baselines") + ` b` + fmt.Sprintf(summarycommon.KeyPreferenceJoinSQL, "b") + `
+	      WHERE b.account_id = ANY($3::text[])
 	      ORDER BY k.preference
 	      LIMIT 1`
 	var row BaselineSummaryRow
-	err := resolved.DB.QueryRowContext(ctx, q, types, names).Scan(&row.Key.SourceType, &row.Key.IdentityName, &row.Status, &row.BuiltDays, &row.RequiredDays)
+	err := resolved.DB.QueryRowContext(ctx, q, types, names, pq.Array(accounts)).Scan(&row.Key.SourceType, &row.Key.IdentityName, &row.Status, &row.BuiltDays, &row.RequiredDays)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -63,15 +66,15 @@ func (r *IdentitySummaryRepository) BaselineSummary(ctx context.Context, resolve
 // OpenAlertCount is §10.2 open_anomaly_count / §5.2 headline_metrics
 // .open_anomalies: COUNT(*) from alerts where the identity matches (any of
 // the keys) and status = 'open' — no time window.
-func (r *IdentitySummaryRepository) OpenAlertCount(ctx context.Context, resolved *scope.DataScope, keys []summarycommon.MonitoringKey) (int, error) {
-	if len(keys) == 0 {
+func (r *IdentitySummaryRepository) OpenAlertCount(ctx context.Context, resolved *scope.DataScope, accounts []string, keys []summarycommon.MonitoringKey) (int, error) {
+	if len(keys) == 0 || len(accounts) == 0 {
 		return 0, nil
 	}
 	types, names := summarycommon.KeyArrays(keys)
 	q := `SELECT COUNT(*) FROM ` + resolved.Table("alerts") + ` a` + summarycommon.KeyJoin("a") + `
-	      WHERE lower(a.status) = 'open'`
+	      WHERE a.status = 'open' AND a.account_id = ANY($3::text[])`
 	var n int
-	if err := resolved.DB.QueryRowContext(ctx, q, types, names).Scan(&n); err != nil {
+	if err := resolved.DB.QueryRowContext(ctx, q, types, names, pq.Array(accounts)).Scan(&n); err != nil {
 		return 0, summarycommon.WrapMonitoringErr("open alert count", err)
 	}
 	return n, nil

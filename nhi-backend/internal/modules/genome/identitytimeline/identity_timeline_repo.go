@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/lib/pq"
+
 	"nhi-backend-api/internal/modules/genome/summarycommon"
 	"nhi-backend-api/internal/platform/scope"
 )
@@ -33,16 +35,18 @@ type TimelineDimensionRow struct {
 	LatestReason     string
 }
 
-// Alerts returns every alert stored under the keys (identity key and shared
-// workload key), newest first (alerts_identity_created_idx order).
+// AlertDimensions groups the alerts stored under the keys (the baseline key
+// and the event identity names of its workload), in the given accounts, per
+// dimension, most recent dimension first.
 func (r *IdentityTimelineRepository) AlertDimensions(
 	ctx context.Context,
 	resolved *scope.DataScope,
+	accounts []string,
 	keys []summarycommon.MonitoringKey,
 ) ([]TimelineDimensionRow, error) {
 	output := []TimelineDimensionRow{}
 
-	if len(keys) == 0 {
+	if len(keys) == 0 || len(accounts) == 0 {
 		return output, nil
 	}
 
@@ -77,6 +81,7 @@ func (r *IdentityTimelineRepository) AlertDimensions(
 			     alert.source_type
 			 AND requested.identity_name =
 			     alert.identity_name
+			WHERE alert.account_id = ANY($3::text[])
 		),
 		dimension_totals AS (
 			SELECT
@@ -122,6 +127,7 @@ func (r *IdentityTimelineRepository) AlertDimensions(
 		query,
 		sourceTypes,
 		identityNames,
+		pq.Array(accounts),
 	)
 	if err != nil {
 		return nil, summarycommon.WrapMonitoringErr(
@@ -175,13 +181,14 @@ type BaselineMilestoneRow struct {
 
 // BaselineMilestones returns the baselines row of the identity, preferring
 // the identity key over the shared workload key; nil when there is none.
-func (r *IdentityTimelineRepository) BaselineMilestones(ctx context.Context, resolved *scope.DataScope, keys []summarycommon.MonitoringKey) (*BaselineMilestoneRow, error) {
-	if len(keys) == 0 {
+func (r *IdentityTimelineRepository) BaselineMilestones(ctx context.Context, resolved *scope.DataScope, accounts []string, keys []summarycommon.MonitoringKey) (*BaselineMilestoneRow, error) {
+	if len(keys) == 0 || len(accounts) == 0 {
 		return nil, nil
 	}
 	types, names := summarycommon.KeyArrays(keys)
 	q := `SELECT b.source_type, b.identity_name, b.first_seen_date, b.active_since
 	      FROM ` + resolved.Table("baselines") + ` b` + fmt.Sprintf(summarycommon.KeyPreferenceJoinSQL, "b") + `
+	      WHERE b.account_id = ANY($3::text[])
 	      ORDER BY k.preference
 	      LIMIT 1`
 	var (
@@ -189,7 +196,7 @@ func (r *IdentityTimelineRepository) BaselineMilestones(ctx context.Context, res
 		firstSeen sql.NullTime
 		active    sql.NullTime
 	)
-	err := resolved.DB.QueryRowContext(ctx, q, types, names).Scan(&row.Key.SourceType, &row.Key.IdentityName, &firstSeen, &active)
+	err := resolved.DB.QueryRowContext(ctx, q, types, names, pq.Array(accounts)).Scan(&row.Key.SourceType, &row.Key.IdentityName, &firstSeen, &active)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -217,17 +224,20 @@ type PublishedVersionRow struct {
 
 // PublishedVersions returns the version history stored under key, newest
 // first (baseline_versions_identity_published_idx order).
-func (r *IdentityTimelineRepository) PublishedVersions(ctx context.Context, resolved *scope.DataScope, key summarycommon.MonitoringKey) ([]PublishedVersionRow, error) {
+func (r *IdentityTimelineRepository) PublishedVersions(ctx context.Context, resolved *scope.DataScope, accounts []string, key summarycommon.MonitoringKey) ([]PublishedVersionRow, error) {
+	out := []PublishedVersionRow{}
+	if len(accounts) == 0 {
+		return out, nil
+	}
 	q := `SELECT v.source_type, v.identity_name, v.version, v.published_at
 	      FROM ` + resolved.Table("baseline_versions") + ` v
-	      WHERE v.source_type = $1 AND v.identity_name = $2
+	      WHERE v.source_type = $1 AND v.identity_name = $2 AND v.account_id = ANY($3::text[])
 	      ORDER BY v.published_at DESC, v.version DESC`
-	rows, err := resolved.DB.QueryContext(ctx, q, key.SourceType, key.IdentityName)
+	rows, err := resolved.DB.QueryContext(ctx, q, key.SourceType, key.IdentityName, pq.Array(accounts))
 	if err != nil {
 		return nil, summarycommon.WrapMonitoringErr("published baseline versions", err)
 	}
 	defer rows.Close()
-	out := []PublishedVersionRow{}
 	for rows.Next() {
 		var v PublishedVersionRow
 		if err := rows.Scan(&v.Key.SourceType, &v.Key.IdentityName, &v.Version, &v.PublishedAt); err != nil {

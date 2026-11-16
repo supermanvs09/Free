@@ -6,6 +6,7 @@ import {
   fetchGenomeIdentity,
   fetchGenomeProfile,
   fetchGenomeTimeline,
+  genomeLinks,
   resolveDiscoveryIdentity,
   WINDOW_MS,
 } from '../../lib/api/genome';
@@ -50,7 +51,6 @@ const WINDOWS = [
 const WINDOW_WORDS = { '24h': '24 hours', '7d': '7 days', '14d': '14 days', '30d': '30 days' };
 const DEFAULT_WINDOW = '14d';
 
-const TAB_KEYS = ['genome', 'anomalies', 'activity', 'baseline', 'timeline'];
 const TIMELINE_PAGE = 50;
 const RECENT_PAGE = 25;
 
@@ -72,11 +72,11 @@ function readId(raw) {
  * older pages are appended on request. The baseline state in the header, the
  * open-departure banner and the Timeline tab all read the same list.
  */
-function useTimeline(sourceType, identityName) {
+function useTimeline(sourceType, identityName, enabled = true) {
   const key = `${sourceType}:${identityName}`;
   const first = useQuery(
-    (signal) => fetchGenomeTimeline(sourceType, identityName, { limit: TIMELINE_PAGE }, signal),
-    [key],
+    (signal) => (enabled ? fetchGenomeTimeline(sourceType, identityName, { limit: TIMELINE_PAGE }, signal) : Promise.resolve({ items: [], nextCursor: null })),
+    [key, enabled],
   );
   const [more, setMore] = useState({ key, pages: [], loading: false, error: null });
   const own = more.key === key ? more : { key, pages: [], loading: false, error: null };
@@ -158,15 +158,12 @@ export default function GenomeDetailPage() {
 function baselineState(baseline, items, lastSeen) {
   const established = items.find((item) => item.type === 'baseline_established');
   const learning = items.find((item) => item.type === 'learning_started');
-  const active = baseline ? String(baseline.status).toLowerCase() === 'active' : Boolean(established);
-  if (active) return { key: 'active', label: 'Baseline established', tone: 'low', at: established?.occurred_at ?? null };
-  /* Never made a call: nothing is being learned, whatever the baselines row says. */
-  if (lastSeen !== undefined && !lastSeen) {
-    return { key: 'none', label: 'No activity yet', tone: 'neutral', at: null };
+  /* Established is the baseline status; learning needs a last call. */
+  if (String(baseline?.status ?? '').toLowerCase() === 'active') {
+    return { key: 'active', label: 'Baseline established', tone: 'low', at: established?.occurred_at ?? null };
   }
-  /* Calls are coming in, so its normal behaviour is being learned. */
-  if (baseline || learning || lastSeen) return { key: 'learning', label: 'Learning', tone: 'medium', at: learning?.occurred_at ?? null };
-  return { key: 'none', label: 'No baseline yet', tone: 'neutral', at: null };
+  if (lastSeen) return { key: 'learning', label: 'Learning', tone: 'medium', at: learning?.occurred_at ?? null };
+  return { key: 'none', label: 'No activity yet', tone: 'neutral', at: null };
 }
 
 /** A readable name from an ARN when the inventory has no row for it. */
@@ -175,9 +172,23 @@ function arnName(arn) {
   return tail.split('/').pop() || arn;
 }
 
+/* The tabs follow the identity's links from the genome list: a tab is shown
+   only when the list gave its link. Anomalies is not a link of its own (it
+   reads the anomalies list by this identity's keys) and is always shown. */
+const LINK_TABS = [
+  { value: 'genome', label: 'Genome', link: 'genome' },
+  { value: 'anomalies', label: 'Anomalies' },
+  { value: 'activity', label: 'Activity', link: 'activity' },
+  { value: 'baseline', label: 'Baseline', link: 'baseline' },
+  { value: 'timeline', label: 'Timeline', link: 'timeline' },
+];
+
 function GenomeIdentity({ sourceType, identityName }) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = TAB_KEYS.includes(searchParams.get('tab')) ? searchParams.get('tab') : 'genome';
+  const links = useMemo(() => genomeLinks(sourceType, identityName), [sourceType, identityName]);
+  const shownTabs = LINK_TABS.filter((entry) => !entry.link || links[entry.link]);
+  const firstTab = shownTabs[0].value;
+  const tab = shownTabs.some((entry) => entry.value === searchParams.get('tab')) ? searchParams.get('tab') : firstTab;
   const window = WINDOWS.some((entry) => entry.value === searchParams.get('window'))
     ? searchParams.get('window')
     : DEFAULT_WINDOW;
@@ -191,9 +202,9 @@ function GenomeIdentity({ sourceType, identityName }) {
     },
     [searchParams, setSearchParams],
   );
-  const setTab = (value) => setParam('tab', value === 'genome' ? '' : value);
+  const setTab = (value) => setParam('tab', value === firstTab ? '' : value);
 
-  const timeline = useTimeline(sourceType, identityName);
+  const timeline = useTimeline(sourceType, identityName, Boolean(links.timeline));
   /* The header: identity, baseline and headline metrics. A failure only costs
      the header; the tabs still load. */
   const summary = useQuery(
@@ -236,17 +247,11 @@ function GenomeIdentity({ sourceType, identityName }) {
 
   const record = discovery.data;
   const identity = summary.data?.identity;
-  const state = baselineState(summary.data?.baseline ?? null, timeline.items, summary.data?.activityKnown ? (summary.data.lastSeen ?? null) : undefined);
+  const state = baselineState(summary.data?.baseline ?? null, timeline.items, summary.data?.lastSeen ?? null);
   const discoveryId = inventoryId ?? record?.id ?? null;
   const title = identity?.display_name || record?.name || arnName(identityName);
 
-  const tabs = [
-    { value: 'genome', label: 'Genome' },
-    { value: 'anomalies', label: 'Anomalies', count: openCount || undefined },
-    { value: 'activity', label: 'Activity' },
-    { value: 'baseline', label: 'Baseline' },
-    { value: 'timeline', label: 'Timeline' },
-  ];
+  const tabs = shownTabs.map(({ value, label }) => ({ value, label, count: value === 'anomalies' ? openCount || undefined : undefined }));
 
   return (
     <div className="flex flex-col gap-6">

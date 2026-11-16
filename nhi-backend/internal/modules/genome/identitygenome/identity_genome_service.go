@@ -52,6 +52,7 @@ func (s *IdentityGenomeService) GetGenome(ctx context.Context, userID, tenantID,
 		return nil, err
 	}
 	key := res.Identity.Key
+	eventName := res.EventName(ctx, s.events)
 	from, to := p.Window.From, p.Window.To
 
 	out := &IdentityGenomeResponse{
@@ -62,27 +63,27 @@ func (s *IdentityGenomeService) GetGenome(ctx context.Context, userID, tenantID,
 	}
 
 	// Denominator of every share: all calls of the identity in the window.
-	total, err := s.events.TotalCalls(ctx, res.Scope.AccountIDs, key.SourceType, res.Identity.EventName(), from, to)
+	total, err := s.events.TotalCalls(ctx, res.Accounts(), key.SourceType, eventName, from, to)
 	if !summarycommon.EventsReadOK(ctx, "identity genome total calls", err) {
 		return out, nil
 	}
 
-	if points, err := s.events.Fingerprint(ctx, res.Scope.AccountIDs, key.SourceType, res.Identity.EventName(), from, to, genomeFingerprintDimensions, p.Limit); summarycommon.EventsReadOK(ctx, "identity fingerprint", err) {
+	if points, err := s.events.Fingerprint(ctx, res.Accounts(), key.SourceType, eventName, from, to, genomeFingerprintDimensions, p.Limit); summarycommon.EventsReadOK(ctx, "identity fingerprint", err) {
 		for _, pt := range points {
 			out.Fingerprint = append(out.Fingerprint, IdentityFingerprintPoint{Dimension: pt.Dimension, Value: pt.Value, SharePercent: sharePercent(pt.Calls, total)})
 		}
 	}
-	if actions, err := s.events.TypicalActions(ctx, res.Scope.AccountIDs, key.SourceType, res.Identity.EventName(), from, to, p.Limit); summarycommon.EventsReadOK(ctx, "identity typical actions", err) {
+	if actions, err := s.events.TypicalActions(ctx, res.Accounts(), key.SourceType, eventName, from, to, p.Limit); summarycommon.EventsReadOK(ctx, "identity typical actions", err) {
 		for _, a := range actions {
 			out.TypicalActions = append(out.TypicalActions, IdentityTypicalAction{APIOperation: summarycommon.ApiOperation(a.EventSource, a.EventName), Calls: a.Calls, SharePercent: sharePercent(a.Calls, total)})
 		}
 	}
-	if resources, err := s.events.TypicalResources(ctx, res.Scope.AccountIDs, key.SourceType, res.Identity.EventName(), from, to, p.Limit); summarycommon.EventsReadOK(ctx, "identity typical resources", err) {
+	if resources, err := s.events.TypicalResources(ctx, res.Accounts(), key.SourceType, eventName, from, to, p.Limit); summarycommon.EventsReadOK(ctx, "identity typical resources", err) {
 		for _, r := range resources {
 			out.TypicalResources = append(out.TypicalResources, IdentityTypicalResource{Resource: r.ResourceARN, ResourceType: summarycommon.OptionalString(r.ResourceType), Calls: r.Calls})
 		}
 	}
-	if cells, err := s.events.ActivitySchedule(ctx, res.Scope.AccountIDs, key.SourceType, res.Identity.EventName(), from, to); summarycommon.EventsReadOK(ctx, "identity activity schedule", err) {
+	if cells, err := s.events.ActivitySchedule(ctx, res.Accounts(), key.SourceType, eventName, from, to); summarycommon.EventsReadOK(ctx, "identity activity schedule", err) {
 		for _, c := range cells {
 			out.ActivitySchedule = append(out.ActivitySchedule, IdentityScheduleCell{DayOfWeek: int(c.DayOfWeek), Hour: int(c.Hour), Calls: c.Calls})
 		}

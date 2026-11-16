@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"nhi-backend-api/internal/platform/datasource"
 	"strings"
 	"time"
 
@@ -37,14 +36,12 @@ type MonitoringEvents struct {
 // tbl is the table for this request's tenant: `<tenant>_clickhouse`.`table`
 // when the monitoring ClickHouse is configured per tenant, else the fixed one.
 func (e *MonitoringEvents) tbl(ctx context.Context) string {
-	t := e.table
 	if e.client != nil {
 		if db := e.client.Database(ctx); db != "" {
-			t = "`" + db + "`.`" + e.name + "`"
+			return "`" + db + "`.`" + e.name + "`"
 		}
 	}
-	datasource.From(ctx).ClickHouse(t)
-	return t
+	return e.table
 }
 
 // MonitoringEventsTable is the default Genome event table name. It can be
@@ -194,7 +191,7 @@ type AlertEventRow struct {
 	EventName            string
 	RequestID            string
 	RequestParameters    string
-	ResourceARNs         string // joined string as stored; the service splits it
+	ResourceARNs         string
 	RoleARN              string
 	ProvenanceConfidence uint8
 	EventRiskScore       *uint8
@@ -235,9 +232,9 @@ func (e *MonitoringEvents) EventsByID(
 			event_source,
 			event_name,
 			request_id,
-			toString(request_parameters) AS request_parameters,
+			request_parameters,
 			resource_arns,
-			toString(role_arn) AS role_arn,
+			role_arn,
 			provenance_confidence,
 			event_risk_score,
 			event_risk_severity,
@@ -900,4 +897,44 @@ func (e *MonitoringEvents) MeanProvenanceConfidence(ctx context.Context, keys []
 	}
 	mean := weighted / float64(count)
 	return &mean, nil
+}
+
+// ---------------------------------------------------------------------------
+// Baseline keys: workload facts
+// ---------------------------------------------------------------------------
+
+// WorkloadFacts reads, for every baseline key at once, the log_events facts
+// of the workload (chclient.ReadWorkloadFacts) in the given accounts: the
+// event identity names its alerts and risk scores are stored under, its last
+// resolved event and the labels of its newest event. Keys without events are
+// absent from the map.
+func (e *MonitoringEvents) WorkloadFacts(ctx context.Context, accounts []string, keys []MonitoringKey) (map[MonitoringKey]chclient.WorkloadFacts, error) {
+	if !e.Enabled() {
+		return nil, ErrMonitoringEventsNotConfigured
+	}
+	out := map[MonitoringKey]chclient.WorkloadFacts{}
+	want := make(map[MonitoringKey]struct{}, len(keys))
+	names := make([]string, 0, len(keys))
+	seenName := make(map[string]struct{}, len(keys))
+	for _, k := range keys {
+		want[k] = struct{}{}
+		if _, dup := seenName[k.IdentityName]; !dup && k.IdentityName != "" {
+			seenName[k.IdentityName] = struct{}{}
+			names = append(names, k.IdentityName)
+		}
+	}
+	table := e.tbl(ctx)
+	ctx, cancel := e.queryContext(ctx)
+	defer cancel()
+	facts, err := chclient.ReadWorkloadFacts(ctx, e.conn, table, accounts, names)
+	if err != nil {
+		return nil, wrapEventsErr(ctx, "Genome ClickHouse events workload facts", err)
+	}
+	for _, f := range facts {
+		k := MonitoringKey{SourceType: f.SourceType, IdentityName: f.Key}
+		if _, ok := want[k]; ok {
+			out[k] = f
+		}
+	}
+	return out, nil
 }

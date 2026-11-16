@@ -50,6 +50,32 @@ function identityPath(sourceType, identityName, suffix = '') {
   return `${BASE}/identities/${encodeURIComponent(sourceType)}/${encodeURIComponent(identityName)}${suffix}`;
 }
 
+/* The identity list's links per identity (summary, baseline, activity,
+   genome, timeline). The identity page calls these and shows a tab only for
+   the links the list gave. An identity opened without passing through the
+   list (a shared link, an alert) gets the same paths built from its key. */
+const LINK_KINDS = ['summary', 'baseline', 'activity', 'genome', 'timeline'];
+const knownLinks = new Map();
+
+function rememberLinks(sourceType, identityName, links) {
+  knownLinks.set(`${sourceType}:${identityName}`, links);
+}
+
+/** The identity's genome links, from the list when it gave them. */
+export function genomeLinks(sourceType, identityName) {
+  const given = knownLinks.get(`${sourceType}:${identityName}`);
+  if (given) return Object.fromEntries(LINK_KINDS.filter((kind) => given[kind]).map((kind) => [kind, given[kind]]));
+  return Object.fromEntries(LINK_KINDS.map((kind) => [kind, identityPath(sourceType, identityName, kind === 'summary' ? '' : `/${kind}`)]));
+}
+
+/* A link as the list sends it is a raw path; characters that would end the
+   path (?, #) or are not valid in a URL are escaped, the rest kept. */
+function linkUrl(sourceType, identityName, kind) {
+  const link = genomeLinks(sourceType, identityName)[kind] ?? identityPath(sourceType, identityName, kind === 'summary' ? '' : `/${kind}`);
+  if (/%[0-9A-Fa-f]{2}/.test(link)) return link;
+  return encodeURI(link).replace(/[?#]/g, encodeURIComponent);
+}
+
 function unexpected() {
   return new ApiError({ message: 'The behaviour service answered with an unexpected response.' });
 }
@@ -103,8 +129,6 @@ export async function fetchGenomeFleet({ sort = 'risk_desc' } = {}, signal) {
       await client.get(`${BASE}/identities`, { params: params({ sort, limit: GENOME_LIST_PAGE, cursor }), signal }),
     );
     if (!data || !Array.isArray(data.items)) throw unexpected();
-    /* activity_known: the events store answered, so a null last_seen means
-       "never called". Absent (an older service) or false: unknown. */
     for (const row of data.items) items.push({ ...fleetRow(row), activityKnown: data.activity_known === true });
     cursor = meta?.next_cursor || null;
     if (!cursor) return { items, complete: true };
@@ -115,17 +139,20 @@ export async function fetchGenomeFleet({ sort = 'risk_desc' } = {}, signal) {
 function fleetRow(row) {
   const baseline = row.baseline ?? {};
   const risk = row.risk ?? {};
-  /* The list is one row per baseline; its source_type / identity_name are the
-     baseline's own key. The identity's pages are addressed by its mapped
-     discovery identity's genome_key. A service that sends no links is the
-     older list, keyed by the identity itself. An unmapped baseline (links but
-     no genome_key) has no page to open: open stays null. */
+  const parent = row.parent ?? null;
+  /* The list is one row per baseline, keyed by the baseline key, and its
+     links (summary, baseline, activity, genome, timeline) address every
+     genome page by that key: the row opens on its own key and the page calls
+     those links. An older list without links named a discovery genome_key. */
   const genomeKey = row.discovery_identities?.[0]?.genome_key ?? null;
-  const open = genomeKey
-    ? { sourceType: genomeKey.source_type, identityName: genomeKey.identity_name }
-    : row.links
-      ? null
-      : { sourceType: row.source_type, identityName: row.identity_name };
+  const open = row.links?.summary
+    ? { sourceType: row.source_type, identityName: row.identity_name }
+    : genomeKey
+      ? { sourceType: genomeKey.source_type, identityName: genomeKey.identity_name }
+      : row.links
+        ? null
+        : { sourceType: row.source_type, identityName: row.identity_name };
+  if (open && row.links) rememberLinks(open.sourceType, open.identityName, row.links);
   return {
     id: row.id || `${row.source_type}:${row.identity_name}`,
     sourceType: open?.sourceType ?? row.source_type,
@@ -138,16 +165,18 @@ function fleetRow(row) {
     /* ECS tasks are expanded into their task role and execution role, each
        its own monitored principal sharing the task's inventory record. */
     roleKind: row.role_kind ?? null,
-    principalArn: row.principal_arn ?? null,
-    inventoryId: row.inventory_id ?? row.discovery_identities?.[0]?.inventory_id ?? null,
-    resourceArn: row.resource_arn ?? null,
-    status: row.status ?? null,
+    principalArn: row.principal_arn ?? row.role_arn ?? null,
+    inventoryId: row.inventory_id ?? parent?.inventory_id ?? row.discovery_identities?.[0]?.inventory_id ?? null,
+    resourceArn: row.resource_arn ?? parent?.arn ?? null,
+    status: row.status ?? parent?.status ?? null,
+    links: row.links ?? null,
     accountId: row.account_id ?? null,
     region: row.region ?? null,
     baseline: {
       status: baseline.status ? String(baseline.status).toLowerCase() : null,
       builtDays: baseline.built_days ?? null,
       requiredDays: baseline.required_days ?? null,
+      activeSince: baseline.active_since ?? null,
     },
     risk: { score: risk.score ?? null, severity: risk.severity ?? null },
     lastSeen: row.last_seen ?? null,
@@ -163,7 +192,7 @@ function fleetRow(row) {
  */
 export async function fetchGenomeIdentity(sourceType, identityName, { window } = {}, signal) {
   const { data } = unwrapGenome(
-    await client.get(identityPath(sourceType, identityName), { params: params(windowRange(window)), signal }),
+    await client.get(linkUrl(sourceType, identityName, 'summary'), { params: params(windowRange(window)), signal }),
   );
   if (!data || typeof data !== 'object' || !data.identity) throw unexpected();
   const metrics = data.headline_metrics ?? {};
@@ -189,7 +218,7 @@ export async function fetchGenomeActivity(
      asks for its own ranges (1h ... 90d, chosen dates). */
   const range = from && to ? { from, to } : windowRange(window);
   const { data, meta } = unwrapGenome(
-    await client.get(identityPath(sourceType, identityName, '/activity'), {
+    await client.get(linkUrl(sourceType, identityName, 'activity'), {
       params: params({ ...range, bucket, recent_limit: recentLimit, recent_cursor: recentCursor }),
       signal,
     }),
@@ -207,7 +236,7 @@ export async function fetchGenomeActivity(
 /** The behavioural profile: fingerprint, typical actions/resources, schedule. */
 export async function fetchGenomeProfile(sourceType, identityName, { window, limit } = {}, signal) {
   const { data } = unwrapGenome(
-    await client.get(identityPath(sourceType, identityName, '/genome'), {
+    await client.get(linkUrl(sourceType, identityName, 'genome'), {
       params: params({ ...windowRange(window), limit }),
       signal,
     }),
@@ -224,7 +253,7 @@ export async function fetchGenomeProfile(sourceType, identityName, { window, lim
 /** One page of the identity's history, newest first. */
 export async function fetchGenomeTimeline(sourceType, identityName, { limit, cursor } = {}, signal) {
   const { data, meta } = unwrapGenome(
-    await client.get(identityPath(sourceType, identityName, '/timeline'), {
+    await client.get(linkUrl(sourceType, identityName, 'timeline'), {
       params: params({ limit, cursor }),
       signal,
     }),
@@ -302,7 +331,7 @@ const dataOf = (response) => unwrapGenome(response).data ?? {};
    and timeline requests, which 404 too. */
 export async function fetchGenomeBaseline(sourceType, identityName, signal) {
   try {
-    return dataOf(await client.get(identityPath(sourceType, identityName, '/baseline'), { signal }));
+    return dataOf(await client.get(linkUrl(sourceType, identityName, 'baseline'), { signal }));
   } catch (error) {
     if (error?.status === 404) return { status: null, versions: [], dimensions: [] };
     throw error;

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"nhi-backend-api/internal/platform/datasource"
 	"time"
 
 	ch "github.com/ClickHouse/clickhouse-go/v2"
@@ -61,12 +60,10 @@ func (e *MonitoringEvents) Enabled() bool { return e != nil && e.client.Up() }
 // tbl is the table for this request's tenant: `<tenant>_clickhouse`.`log_events`
 // in per-tenant mode, else the configured one.
 func (e *MonitoringEvents) tbl(ctx context.Context) string {
-	t := e.table
 	if e.client != nil && e.client.PerTenant() {
-		t = e.client.TableFor(ctx)
+		return e.client.TableFor(ctx)
 	}
-	datasource.From(ctx).ClickHouse(t)
-	return t
+	return e.table
 }
 
 // Table is the schema-qualified table the readers query (for logs/tests).
@@ -150,4 +147,39 @@ func (e *MonitoringEvents) LastSeen(ctx context.Context, accounts []string, sour
 	}
 	t := last.UTC()
 	return &t, nil
+}
+
+// WorkloadFacts reads, for every baseline key at once, the log_events facts
+// of the workload (chclient.ReadWorkloadFacts): the event identity names its
+// alerts and risk scores are stored under, its last resolved event and the
+// labels of its newest event. Keys without events are absent from the map.
+func (e *MonitoringEvents) WorkloadFacts(ctx context.Context, accounts []string, keys []MonitoringKey) (map[MonitoringKey]chclient.WorkloadFacts, error) {
+	if !e.Enabled() {
+		return nil, ErrMonitoringEventsNotConfigured
+	}
+	out := map[MonitoringKey]chclient.WorkloadFacts{}
+	want := make(map[MonitoringKey]struct{}, len(keys))
+	names := make([]string, 0, len(keys))
+	seenName := make(map[string]struct{}, len(keys))
+	for _, k := range keys {
+		want[k] = struct{}{}
+		if _, dup := seenName[k.IdentityName]; !dup && k.IdentityName != "" {
+			seenName[k.IdentityName] = struct{}{}
+			names = append(names, k.IdentityName)
+		}
+	}
+	table := e.tbl(ctx)
+	ctx, cancel := e.queryContext(ctx)
+	defer cancel()
+	facts, err := chclient.ReadWorkloadFacts(ctx, e.conn, table, accounts, names)
+	if err != nil {
+		return nil, fmt.Errorf("log_events workload facts: %w", err)
+	}
+	for _, f := range facts {
+		k := MonitoringKey{SourceType: f.SourceType, IdentityName: f.Key}
+		if _, ok := want[k]; ok {
+			out[k] = f
+		}
+	}
+	return out, nil
 }
