@@ -1,12 +1,8 @@
-package correlation
+package engine
 
 import (
 	"math"
-	"net/http"
-	"net/http/httptest"
 	"testing"
-
-	"github.com/gorilla/mux"
 )
 
 func TestGlobMatch(t *testing.T) {
@@ -204,51 +200,5 @@ func TestConvergingAndIdentities(t *testing.T) {
 	DeriveSummary(r, false)
 	if r.ConvergingPaths {
 		t.Error("converging detection should be off when RULE-010 is inactive")
-	}
-}
-
-func TestValidARN(t *testing.T) {
-	good := []string{arnUser, arnBkt, arnSec, "arn:aws-cn:iam::1:role/x"}
-	bad := []string{"", "role/x", "arn:aws:iam::1:role/x y", "arn:aws:iam::1:role/x\n", "'; drop table x;--"}
-	for _, s := range good {
-		if !validARN(s) {
-			t.Errorf("%q should be valid", s)
-		}
-	}
-	for _, s := range bad {
-		if validARN(s) {
-			t.Errorf("%q should be invalid", s)
-		}
-	}
-}
-
-// testRouter mounts the handler with a fixed scope, as the API router does.
-func testRouter(repo Repo) *mux.Router {
-	r := mux.NewRouter()
-	h := &Handler{engine: NewEngine(repo), scope: func(*http.Request) (*Scope, int, error) { return &Scope{}, 0, nil }}
-	h.Register(r.PathPrefix("/api/v1").Subrouter())
-	return r
-}
-
-// No API key: a request without a signed-in user is refused, and ARNs with
-// '/' still route.
-func TestRoutesNeedASignedInUser(t *testing.T) {
-	r := mux.NewRouter()
-	NewHandler(NewEngine(fixture()), nil, nil).Register(r.PathPrefix("/api/v1").Subrouter())
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, httptest.NewRequest("GET", "/api/v1/correlations/blast-radius/"+arnDev, nil))
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("no user → %d", w.Code)
-	}
-	do := func(path string) int {
-		w := httptest.NewRecorder()
-		testRouter(fixture()).ServeHTTP(w, httptest.NewRequest("GET", path, nil))
-		return w.Code
-	}
-	if c := do("/api/v1/correlations/blast-radius/not-an-arn"); c != http.StatusBadRequest {
-		t.Errorf("bad ARN → %d", c)
-	}
-	if c := do("/api/v1/correlations/blast-radius/" + arnDev); c != http.StatusOK {
-		t.Errorf("ARNs with '/' must route, got %d", c)
 	}
 }

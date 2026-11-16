@@ -1,4 +1,4 @@
-package correlation
+package engine
 
 import (
 	"context"
@@ -16,6 +16,7 @@ type RuleBook struct {
 	phaseEnabled map[int]bool
 	pathTypes    map[string]PathType
 	multiPath    bool
+	fam          map[string]bool // composition family id -> is_active; nil when the table has no family rows
 }
 
 // PhaseEnabled reports whether any active correlation rule belongs to phase.
@@ -74,8 +75,8 @@ func (rb *RuleBook) MultiPathEnabled() bool {
 	return rb.multiPath
 }
 
-// ruleCache holds one RuleBook per tenant schema: the rule tables live in
-// each tenant's schema, so one tenant's catalogue must never answer another's.
+// ruleCache holds one RuleBook per tenant schema: every tenant has its own rule
+// and family switches, so a book loaded for one must never serve another.
 type ruleCache struct {
 	mu    sync.Mutex
 	books map[string]ruleEntry
@@ -88,11 +89,14 @@ type ruleEntry struct {
 
 const ruleCacheTTL = 5 * time.Minute
 
-// ruleBook returns the cached RuleBook, reloading it from PG when stale.
+// ruleBook returns the tenant's cached RuleBook, reloading it from PG when stale.
+// The lock is not held across the loads, so a slow tenant does not block others;
+// two concurrent misses may both load, which is harmless.
 func (e *Engine) ruleBook(ctx context.Context, ds *Scope) *RuleBook {
 	e.rules.mu.Lock()
-	defer e.rules.mu.Unlock()
-	if ent, ok := e.rules.books[ds.Schema]; ok && time.Now().Before(ent.expires) {
+	ent, ok := e.rules.books[ds.Schema]
+	e.rules.mu.Unlock()
+	if ok && time.Now().Before(ent.expires) {
 		return ent.book
 	}
 
@@ -119,9 +123,14 @@ func (e *Engine) ruleBook(ctx context.Context, ds *Scope) *RuleBook {
 			}
 		}
 	}
+	if states, err := e.repo.LoadFamilyStates(ctx, ds); err == nil && len(states) > 0 {
+		rb.fam = states
+	}
+	e.rules.mu.Lock()
 	if e.rules.books == nil {
 		e.rules.books = map[string]ruleEntry{}
 	}
 	e.rules.books[ds.Schema] = ruleEntry{book: rb, expires: time.Now().Add(ruleCacheTTL)}
+	e.rules.mu.Unlock()
 	return rb
 }

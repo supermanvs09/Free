@@ -1,7 +1,8 @@
-package correlation
+package engine
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"sort"
@@ -19,13 +20,13 @@ type Engine struct {
 
 	graphMu sync.Mutex
 	graphs  map[string]*graphEntry
+	gdata   map[string]*graphDataEntry
 
 	readOnly bool // compute and return only; write nothing anywhere
 }
 
 // SetReadOnly makes the engine compute without writing: no derived-edge rebuild,
-// no result cache, no Neo4j graph. Use it to check results on a database you
-// must not change.
+// no result cache. Use it to check results on a database you must not change.
 func (e *Engine) SetReadOnly(v bool) { e.readOnly = v }
 
 type graphEntry struct {
@@ -39,7 +40,7 @@ const graphCacheTTL = 5 * time.Minute
 // minutes because building it reads every role's trust policy. With refresh the
 // cache is bypassed.
 func (e *Engine) assumeGraph(ctx context.Context, ds *Scope, refresh bool) *AssumeGraph {
-	key := ds.Schema + "|" + strings.Join(ds.AccountIDs, ",") + "|" + strings.Join(ds.Regions, ",")
+	key := ds.Schema + "|" + strings.Join(ds.AccountIDs, ",")
 	e.graphMu.Lock()
 	defer e.graphMu.Unlock()
 	if !refresh {
@@ -93,6 +94,13 @@ func (e *Engine) ReverseAccess(ctx context.Context, ds *Scope, resourceARN strin
 
 	rb := e.ruleBook(ctx, ds)
 	paths := make([]BlastRadiusPath, 0, len(rows))
+	if rb.FamilyEnabled("FAM-14") {
+		// Principals the resource's own policy allows (graph data, when collected).
+		for _, p := range e.graphData(ctx, ds, false).resourcePolicyReverse(resourceARN) {
+			p.Limitations = rb.Limitations(PathDirectAccess, p.Limitations...)
+			paths = append(paths, p)
+		}
+	}
 	for _, row := range rows {
 		name := row.SourceName
 		if name == "" {
@@ -116,7 +124,7 @@ func (e *Engine) ReverseAccess(ctx context.Context, ds *Scope, resourceARN strin
 				summariseActions(row.Actions), shortARN(resourceARN)),
 			Hops: []PathHop{{
 				FromARN: row.SourceARN, ToARN: resourceARN, EdgeType: EdgeCanAccess,
-				Evidence: evidence, Table: "ispm_access_edges",
+				Evidence: evidence, Table: accessEdgesTable,
 			}},
 			EvidenceRank:         rank,
 			Confidence:           confidenceFromRank(rank),
@@ -149,7 +157,7 @@ func (e *Engine) LoadPathTypes(ctx context.Context, ds *Scope) ([]PathType, erro
 // computed by older traversal logic and are treated as a miss. Move it forward
 // whenever a change alters what a computation returns; otherwise an upgrade
 // keeps serving the previous version's answers for up to 24 hours.
-var cacheNotBefore = time.Date(2026, 11, 13, 16, 30, 0, 0, time.UTC)
+var cacheNotBefore = time.Date(2026, 11, 4, 18, 0, 0, 0, time.UTC)
 
 // ComputeBlastRadius returns the cached blast radius if fresh, else computes it.
 func (e *Engine) ComputeBlastRadius(ctx context.Context, ds *Scope, credentialARN string) (*BlastRadiusResult, error) {
@@ -167,6 +175,7 @@ func (e *Engine) ComputeBlastRadiusOpts(ctx context.Context, ds *Scope, credenti
 			!cached.ComputedAt.Before(cacheNotBefore) {
 			DeriveSummary(cached, rb.MultiPathEnabled())
 			e.attachContext(ctx, ds, cached, nil)
+			cached.GraphDataCoverage = e.graphData(ctx, ds, false).coverage(arnAccount(cached.SourceARN))
 			cached.FromCache = true
 			return cached, nil
 		}
@@ -174,6 +183,11 @@ func (e *Engine) ComputeBlastRadiusOpts(ctx context.Context, ds *Scope, credenti
 
 	cred, err := e.repo.LoadCredentialByARN(ctx, ds, credentialARN)
 	if err != nil {
+		// Not a credential: a workload (Lambda, EC2, ECS ...) runs as a role and
+		// inherits its reach (FAM-04).
+		if errors.Is(err, ErrCredentialNotFound) && rb.FamilyEnabled("FAM-04") {
+			return e.computeWorkload(ctx, ds, rb, credentialARN, refresh)
+		}
 		return nil, fmt.Errorf("load credential: %w", err)
 	}
 
@@ -185,8 +199,13 @@ func (e *Engine) ComputeBlastRadiusOpts(ctx context.Context, ds *Scope, credenti
 		Paths:      make([]BlastRadiusPath, 0),
 	}
 
-	// ispm_access_edges belongs to the ISPM worker in this backend: the engine
-	// only reads it, and takes per-action grants from effective_permissions.
+	// correlation_access_edges is derived (no collector writes it): refresh it
+	// from effective_permissions before Phase 1 reads it.
+	if pgRepo, ok := e.repo.(*PGRepo); ok && !e.readOnly {
+		if _, err := pgRepo.ComputeISPMEdges(ctx, ds); err != nil {
+			log.Printf("WARNING: %s pre-processor: %v", accessEdgesTable, err)
+		}
+	}
 
 	// One ClickHouse query serves phases 3, 4 and evidence validation.
 	observed, err := e.repo.LoadObservedActivity(ctx, ds, cred.ARN, 500)
@@ -195,8 +214,8 @@ func (e *Engine) ComputeBlastRadiusOpts(ctx context.Context, ds *Scope, credenti
 	}
 	observed = dropFailedCalls(observed)
 
-	t := &traversal{e: e, ds: ds, cred: cred, rb: rb, result: result, observed: observed,
-		graph: e.assumeGraph(ctx, ds, refresh)}
+	t := &traversal{e: e, ctx: ctx, ds: ds, cred: cred, rb: rb, result: result, observed: observed,
+		graph: e.assumeGraph(ctx, ds, refresh), gd: e.graphData(ctx, ds, refresh)}
 	if rb.PhaseEnabled(1) {
 		t.phase1DirectAccess(ctx)
 	}
@@ -209,19 +228,22 @@ func (e *Engine) ComputeBlastRadiusOpts(ctx context.Context, ds *Scope, credenti
 	if rb.PhaseEnabled(4) {
 		t.phase4ComputeMediated(ctx)
 	}
-	t.validateEvidence()
+	if rb.FamilyEnabled("FAM-13") {
+		t.validateEvidence()
+	}
 
 	result.Paths = e.dedupPaths(result.Paths)
 	sortPaths(result.Paths)
 	DeriveSummary(result, rb.MultiPathEnabled())
 	e.attachContext(ctx, ds, result, observed)
+	result.GraphDataCoverage = t.gd.coverage(cred.AccountID)
 
 	if e.readOnly {
 		return result, nil
 	}
 
-	// Persistence is best-effort: the result is already computed, so a cache or
-	// graph failure is logged rather than failing the request.
+	// Persistence is best-effort: the result is already computed, so a cache
+	// failure is logged rather than failing the request.
 	if brID, err := e.repo.SaveBlastRadius(ctx, ds, result); err != nil {
 		log.Printf("WARNING: save blast radius for %s: %v", cred.ARN, err)
 	} else if err := e.repo.SaveBlastRadiusPaths(ctx, ds, brID, result.Paths); err != nil {
@@ -234,13 +256,28 @@ func (e *Engine) ComputeBlastRadiusOpts(ctx context.Context, ds *Scope, credenti
 // traversal holds the state of one blast-radius computation.
 type traversal struct {
 	e        *Engine
+	ctx      context.Context
 	ds       *Scope
 	cred     *Credential
 	rb       *RuleBook
 	result   *BlastRadiusResult
 	observed []ObservedEvent
 	graph    *AssumeGraph
+	gd       *GraphData // resource policies, keys, links, SCPs, usage (may be empty)
+
+	grantCache map[string][]ResourceGrant
 }
+
+// grantSource says where a grant came from, for the hop that reaches the resource.
+type grantSource struct {
+	table, basis, evidence string
+	rank                   int
+}
+
+var (
+	identityGrant       = grantSource{table: "effective_permissions", evidence: EvidenceEffective, rank: EvidenceRankEffective}
+	resourcePolicyGrant = grantSource{table: "nhi_resource_policies", basis: "resource_policy", evidence: EvidenceConfigured, rank: EvidenceRankConfigured}
+)
 
 // add appends a path unless its type is disabled or the path cap is reached,
 // merging the path type's limitations from the rule tables.
@@ -268,21 +305,34 @@ func (t *traversal) boundaryLimitations(base ...string) []string {
 // taken to reach the principal that holds the grant; rank is the weakest
 // evidence along them.
 func (t *traversal) grantPaths(holderName string, hops []PathHop, rank, phase int, g ResourceGrant, extraLimits []string) {
+	t.grantPathsFrom(identityGrant, holderName, hops, rank, phase, g, extraLimits)
+}
+
+// grantPathsFrom is grantPaths for a grant from a given source (an identity
+// policy, or a resource policy that names the holder).
+func (t *traversal) grantPathsFrom(src grantSource, holderName string, hops []PathHop, rank, phase int, g ResourceGrant, extraLimits []string) {
+	holder := lastTo(hops, t.cred.ARN)
+	check := t.checkGrant(holder, g)
+	if check.drop {
+		return // an unconditional Deny in a resource policy or SCP wins
+	}
 	hop := PathHop{
-		FromARN:  lastTo(hops, t.cred.ARN),
+		FromARN:  holder,
 		ToARN:    g.ResourceARN,
 		EdgeType: EdgeCanAccess,
-		Evidence: EvidenceEffective,
-		Table:    "effective_permissions",
+		Evidence: src.evidence,
+		Table:    src.table,
+		Basis:    src.basis,
 	}
 	allHops := append(append([]PathHop{}, hops...), hop)
-	if EvidenceRankEffective < rank {
-		rank = EvidenceRankEffective
+	if src.rank < rank {
+		rank = src.rank
 	}
 
 	limits := t.boundaryLimitations(extraLimits...)
 	limits = append(limits, "does_not_prove_access_happened")
 	limits = append(limits, g.Flags...)
+	limits = append(limits, check.flags...)
 	if isAllResourcesTarget(g.ResourceARN) {
 		limits = append(limits, "wildcard_resource_grant")
 	}
@@ -300,6 +350,9 @@ func (t *traversal) grantPaths(holderName string, hops []PathHop, rank, phase in
 		targetType = "all_" + serviceOfTarget(g.ResourceARN) + "_resources"
 	}
 	significance := g.Significance()
+	if check.downgrade {
+		significance = downgradeSignificance(significance)
+	}
 
 	var desc string
 	if len(hops) == 0 {
@@ -321,7 +374,7 @@ func (t *traversal) grantPaths(holderName string, hops []PathHop, rank, phase in
 	})
 
 	// Privilege-escalation primitives held by this principal (PATH-005).
-	if ea := g.EscalationActions(); len(ea) > 0 {
+	if ea := g.EscalationActions(); len(ea) > 0 && (len(hops) == 0 || t.rb.FamilyEnabled("FAM-03")) {
 		t.add(BlastRadiusPath{
 			TargetARN:            g.ResourceARN,
 			TargetType:           targetType,
@@ -333,6 +386,38 @@ func (t *traversal) grantPaths(holderName string, hops []PathHop, rank, phase in
 			Limitations:          limits,
 			Phase:                2,
 		})
+	}
+
+	// Writing to something that starts a Lambda function (FAM-08).
+	t.triggerPaths(holderName, allHops, rank, g, limits)
+}
+
+// resourcePolicyPaths adds what resource policies grant the holder by name (or
+// to everyone). A resource its identity policies already reach only gets the
+// flag also_granted_by_resource_policy on that path.
+func (t *traversal) resourcePolicyPaths(holderName string, hops []PathHop, rank, phase int, covered map[string]bool, extraLimits []string) {
+	if !t.rb.FamilyEnabled("FAM-14") {
+		return
+	}
+	holder := lastTo(hops, t.cred.ARN)
+	for _, g := range t.gd.resourcePolicyGrants(holder) {
+		if covered[g.ResourceARN] {
+			t.markAlsoGranted(holder, g.ResourceARN)
+			continue
+		}
+		t.grantPathsFrom(resourcePolicyGrant, holderName, hops, rank, phase, g, extraLimits)
+	}
+}
+
+func (t *traversal) markAlsoGranted(holder, res string) {
+	for i := range t.result.Paths {
+		p := &t.result.Paths[i]
+		if p.TargetARN != res || len(p.Hops) == 0 {
+			continue
+		}
+		if last := p.Hops[len(p.Hops)-1]; last.EdgeType == EdgeCanAccess && last.FromARN == holder {
+			p.Limitations = appendUnique(p.Limitations, "also_granted_by_resource_policy")
+		}
 	}
 }
 
@@ -371,6 +456,7 @@ func (t *traversal) phase1DirectAccess(ctx context.Context) {
 		covered[g.ResourceARN] = true
 		t.grantPaths(t.cred.Name, nil, EvidenceRankEffective, 1, g, nil)
 	}
+	t.resourcePolicyPaths(t.cred.Name, nil, EvidenceRankEffective, 1, covered, nil)
 
 	// 1b: derived ISPM edges for resources not already covered.
 	ispmEdges, err := t.e.repo.LoadISPMEdges(ctx, t.ds, t.cred.ARN)
@@ -394,7 +480,7 @@ func (t *traversal) phase1DirectAccess(ctx context.Context) {
 			PathDescription: fmt.Sprintf("%s can access %s", t.cred.Name, nameFromARN(edge.Target)),
 			Hops: []PathHop{{
 				FromARN: t.cred.ARN, ToARN: edge.Target, EdgeType: EdgeCanAccess,
-				Evidence: EvidenceConfigured, Table: "ispm_access_edges",
+				Evidence: EvidenceConfigured, Table: accessEdgesTable,
 			}},
 			EvidenceRank:         EvidenceRankConfigured,
 			SecuritySignificance: "conditional",
@@ -451,6 +537,18 @@ func (t *traversal) hopCandidates(ctx context.Context, from string) []hopCandida
 	var out []hopCandidate
 	seen := map[string]bool{}
 	for _, e := range t.graph.From[from] {
+		// FAM-13 off: CloudTrail neither upgrades a hop nor adds one the policies
+		// do not explain.
+		if !t.rb.FamilyEnabled("FAM-13") {
+			if e.PolicyEvidence == "" {
+				continue
+			}
+			e.Evidence, e.ObservedCount, e.LastObservedAt = e.PolicyEvidence, 0, nil
+		}
+		// FAM-12 off: trust conditions are not shown.
+		if !t.rb.FamilyEnabled("FAM-12") {
+			e.Conditions, e.Flags = nil, nil
+		}
 		table := "credentials.trust_policy"
 		switch {
 		case e.Basis == BasisObserved:
@@ -492,6 +590,9 @@ func (t *traversal) hopCandidates(ctx context.Context, from string) []hopCandida
 // reached by its shortest chain, and records the full hop list of every chain.
 func (t *traversal) phase2RoleChains(ctx context.Context) {
 	maxDepth := t.rb.MaxHops(PathRoleChain, t.e.cfg.MaxHopsPhase2)
+	if !t.rb.FamilyEnabled("FAM-01") {
+		maxDepth = 1 // chains are a family; without it a role is followed one hop only
+	}
 	visited := map[string]bool{t.cred.ARN: true}
 	queue := []chainState{{arn: t.cred.ARN, rank: EvidenceRankObserved, allObserved: true}}
 
@@ -555,8 +656,13 @@ func (t *traversal) phase2RoleChains(ctx context.Context) {
 				Phase:                2,
 			})
 
-			for _, g := range grants {
-				t.grantPaths(targetName, hops, rank, 2, g, extra)
+			if t.rb.FamilyEnabled("FAM-02") { // what an assumed role can reach
+				covered := map[string]bool{}
+				for _, g := range grants {
+					covered[g.ResourceARN] = true
+					t.grantPaths(targetName, hops, rank, 2, g, extra)
+				}
+				t.resourcePolicyPaths(targetName, hops, rank, 2, covered, extra)
 			}
 
 			queue = append(queue, chainState{arn: cand.to, hops: hops, rank: rank, flags: extra, allObserved: allObserved})
@@ -895,22 +1001,6 @@ func confidenceFromRank(rank int) string {
 func resourceType(arn string) string {
 	// arn:aws:service:region:account:resource-type/resource-name
 	parts := strings.Split(arn, ":")
-	if len(parts) >= 6 && parts[2] == "s3" {
-		// arn:aws:s3:::bucket[/key]: S3 ARNs carry no resource-type segment.
-		if strings.Contains(parts[5], "/") {
-			return "object"
-		}
-		return "bucket"
-	}
-	// Services whose ARN ends in the bare name carry no type segment.
-	if len(parts) == 6 && !strings.Contains(parts[5], "/") {
-		switch parts[2] {
-		case "sqs":
-			return "queue"
-		case "sns":
-			return "topic"
-		}
-	}
 	if len(parts) >= 6 {
 		resourcePart := parts[5]
 		if idx := strings.Index(resourcePart, "/"); idx > 0 {

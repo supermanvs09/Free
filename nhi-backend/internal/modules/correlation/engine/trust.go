@@ -1,4 +1,4 @@
-package correlation
+package engine
 
 import (
 	"encoding/json"
@@ -328,12 +328,15 @@ type RoleNode struct {
 
 // AssumeEdge says role From can become role To.
 type AssumeEdge struct {
-	From       string
-	To         string
-	Basis      string
-	Evidence   string // configured (the trust policy alone) or effective (trust policy and identity permission)
-	Conditions []string
-	Flags      []string // limitation tokens
+	From     string
+	To       string
+	Basis    string
+	Evidence string // configured (the trust policy alone), effective (trust policy and identity permission) or observed
+	// PolicyEvidence is the evidence from the policies alone, before any CloudTrail
+	// observation raised Evidence; empty for a hop only CloudTrail shows.
+	PolicyEvidence string
+	Conditions     []string
+	Flags          []string // limitation tokens
 
 	// Set when CloudTrail shows this assumption actually happened.
 	ObservedCount  uint64
@@ -495,13 +498,13 @@ func BuildAssumeGraph(rows []RoleTrustRow, perms map[string][]ResourcePermission
 					k := key{c.ARN, t.ARN}
 					if cur := merged[k]; cur != nil {
 						if rank(basis) > rank(cur.Basis) {
-							cur.Basis, cur.Evidence = basis, evidence
+							cur.Basis, cur.Evidence, cur.PolicyEvidence = basis, evidence, evidence
 						}
 						cur.Conditions = unionStrings(cur.Conditions, conds)
 						cur.Flags = unionStrings(cur.Flags, edgeFlags)
 						continue
 					}
-					merged[k] = &AssumeEdge{From: c.ARN, To: t.ARN, Basis: basis, Evidence: evidence,
+					merged[k] = &AssumeEdge{From: c.ARN, To: t.ARN, Basis: basis, Evidence: evidence, PolicyEvidence: evidence,
 						Conditions: append([]string{}, conds...), Flags: unionStrings(nil, edgeFlags)}
 				}
 			}

@@ -1,4 +1,4 @@
-package correlation
+package engine
 
 import (
 	"math"
@@ -62,7 +62,11 @@ func sigWeight(s string) float64 {
 // isIdentityPath reports whether a path ends on an assumed identity rather than
 // on a resource.
 func isIdentityPath(p BlastRadiusPath) bool {
-	return len(p.Hops) > 0 && p.Hops[len(p.Hops)-1].EdgeType == EdgeCanAssume
+	if len(p.Hops) == 0 {
+		return false
+	}
+	last := p.Hops[len(p.Hops)-1].EdgeType
+	return last == EdgeCanAssume || last == EdgeHasRole // becoming a role, or running as one
 }
 
 // pathScore is 0..1: significance x resource sensitivity x evidence strength x hop decay.

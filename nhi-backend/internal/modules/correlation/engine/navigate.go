@@ -1,16 +1,18 @@
-package correlation
+package engine
 
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
 )
 
-// graphBase is the path prefix of the navigation endpoint; every peer carries an
-// Expand link built from it so a client can keep walking without knowing routes.
-const graphBase = "/api/v1/correlations/graph/"
+// graphBase is the navigation endpoint, up to its arn parameter; every peer
+// carries an Expand link built from it so a client can keep walking without
+// knowing routes.
+const graphBase = "/api/v1/correlation/graph?arn="
 
 // NavNode is one node in the navigation view.
 type NavNode struct {
@@ -60,6 +62,7 @@ type NavAccess struct {
 
 // NavOutward is everything the focus node can reach in one step.
 type NavOutward struct {
+	RunsAs     []NavEdge `json:"runs_as,omitempty"` // for a workload: the roles it runs as
 	Assumes    []NavEdge `json:"assumes"`
 	Access     NavAccess `json:"access"`
 	Escalation []NavEdge `json:"escalation"`
@@ -114,7 +117,9 @@ func serviceKeyOf(target string) string {
 	return "other"
 }
 
-func expandLink(arn string) string { return graphBase + arn }
+// expandLink escapes the ARN: IAM names may hold '+', which a query string
+// would otherwise read back as a space.
+func expandLink(arn string) string { return graphBase + url.QueryEscape(arn) }
 
 // Navigate returns one step of the graph around a node. Large fan-outs (a broad
 // role can reach hundreds of services) come back as groups, and one group's
@@ -139,6 +144,11 @@ func (e *Engine) Navigate(ctx context.Context, ds *Scope, arn string, opts NavOp
 	cred, credErr := e.repo.LoadCredentialByARN(ctx, ds, arn)
 	role := graph.Roles[arn]
 	if credErr != nil && role == nil && len(graph.From[arn]) == 0 {
+		// Not a credential: it may be a workload, which only has the roles it runs as.
+		if w, err := e.repo.LoadWorkload(ctx, ds, arn); err == nil && w != nil &&
+			e.ruleBook(ctx, ds).FamilyEnabled("FAM-04") {
+			return e.navigateWorkload(ctx, ds, w, opts, graph)
+		}
 		return nil, ErrCredentialNotFound
 	}
 
@@ -294,7 +304,7 @@ func buildNavAccess(arn string, grants []ResourceGrant, opts NavOptions) (NavAcc
 			sample = sample[:5]
 		}
 		groups = append(groups, ServiceGroup{Service: svc, Resources: a.resources, Wildcard: a.wildcard,
-			Significance: a.sig, Actions: sample, Expand: expandLink(arn) + "?service=" + svc})
+			Significance: a.sig, Actions: sample, Expand: expandLink(arn) + "&service=" + url.QueryEscape(svc)})
 	}
 	sort.Slice(groups, func(i, j int) bool {
 		if significanceRank(groups[i].Significance) != significanceRank(groups[j].Significance) {

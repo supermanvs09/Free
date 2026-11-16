@@ -1,16 +1,11 @@
-package correlation
+package engine
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
-	"strings"
+	"net/url"
 	"testing"
-
-	"github.com/gorilla/mux"
 )
 
 const arnSecretNav = "arn:aws:secretsmanager:us-east-1:111111111111:secret:prod-db"
@@ -70,7 +65,7 @@ func TestNavigateOutwardIsOneStepWithProof(t *testing.T) {
 	if e.Basis != BasisNamesRole || len(e.Conditions) == 0 || !containsString(e.Limitations, "trust_requires_external_id") {
 		t.Errorf("the hop must carry its basis and conditions: %+v", e)
 	}
-	if e.Expand != graphBase+arnDev {
+	if e.Expand != expandLink(arnDev) {
 		t.Errorf("every peer carries a link to continue from: %q", e.Expand)
 	}
 	if e.Peer.PrivilegeLevel == nil || *e.Peer.PrivilegeLevel != 5 {
@@ -83,7 +78,7 @@ func TestNavigateOutwardIsOneStepWithProof(t *testing.T) {
 	if len(v.Outward.Access.Groups) != 1 || v.Outward.Access.Groups[0].Service != "s3" || v.Outward.Access.Groups[0].Resources != 1 {
 		t.Errorf("only the allowed bucket is reachable (credit-cards is denied): %+v", v.Outward.Access.Groups)
 	}
-	if v.Outward.Access.Groups[0].Expand != graphBase+arnUser+"?service=s3" {
+	if v.Outward.Access.Groups[0].Expand != expandLink(arnUser)+"&service=s3" {
 		t.Errorf("a group links to its own listing: %q", v.Outward.Access.Groups[0].Expand)
 	}
 	if len(v.Outward.Access.Items) != 0 {
@@ -103,7 +98,11 @@ func TestNavigateEscalationAndFollowingTheLinks(t *testing.T) {
 	}
 	// Following the expand link from alice's peer reaches the next step.
 	alice := navigate(t, repo, arnUser, NavOptions{Direction: "out"})
-	next := navigate(t, repo, strings.TrimPrefix(alice.Outward.Assumes[0].Expand, graphBase), NavOptions{Direction: "out"})
+	link, err := url.Parse(alice.Outward.Assumes[0].Expand)
+	if err != nil {
+		t.Fatalf("the expand link must be a URL: %v", err)
+	}
+	next := navigate(t, repo, link.Query().Get("arn"), NavOptions{Direction: "out"})
 	if next.Node.Name != "DevRole" || len(next.Outward.Assumes) != 1 || next.Outward.Assumes[0].Peer.ARN != arnOps {
 		t.Errorf("walking alice > DevRole > OpsRole one step at a time: %+v", next.Outward.Assumes)
 	}
@@ -210,53 +209,5 @@ func TestPathsBetween(t *testing.T) {
 	}
 	if _, err := e.PathsBetween(testCtx(), &Scope{}, "arn:aws:iam::111111111111:role/Nope", arnAdmin); !errors.Is(err, ErrCredentialNotFound) {
 		t.Errorf("unknown source: %v", err)
-	}
-}
-
-func TestGraphAndPathEndpoints(t *testing.T) {
-	r := mux.NewRouter()
-	h := &Handler{engine: NewEngine(navRepo()), scope: func(*http.Request) (*Scope, int, error) { return &Scope{}, 0, nil }}
-	h.Register(r.PathPrefix("/api/v1").Subrouter())
-	get := func(path string) (int, string) {
-		w := httptest.NewRecorder()
-		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
-		return w.Code, w.Body.String()
-	}
-	g := "/api/v1/correlations/graph/"
-	for _, c := range []struct {
-		url  string
-		want int
-	}{
-		{g + "not-an-arn", http.StatusBadRequest},
-		{g + arnUser + "?direction=sideways", http.StatusBadRequest},
-		{g + arnUser + "?limit=0", http.StatusBadRequest},
-		{g + arnUser + "?limit=500", http.StatusBadRequest},
-		{g + arnUser + "?offset=-1", http.StatusBadRequest},
-		{g + "arn:aws:iam::111111111111:role/Nope", http.StatusNotFound},
-		{g + arnUser, http.StatusOK},
-		{g + arnUser + "?direction=out&service=s3&limit=10", http.StatusOK},
-		{"/api/v1/correlations/path?from=" + arnUser, http.StatusBadRequest},
-		{"/api/v1/correlations/path?from=" + arnUser + "&to=junk", http.StatusBadRequest},
-		{"/api/v1/correlations/path?from=arn:aws:iam::111111111111:role/Nope&to=" + arnAdmin, http.StatusNotFound},
-		{"/api/v1/correlations/path?from=" + arnUser + "&to=" + arnAdmin, http.StatusOK},
-	} {
-		if code, body := get(c.url); code != c.want {
-			t.Errorf("%s → %d, want %d (%s)", c.url, code, c.want, body)
-		}
-	}
-	code, body := get(g + arnUser + "?direction=out")
-	var env struct{ Data NavView }
-	v := &env.Data
-	if code != http.StatusOK || json.Unmarshal([]byte(body), &env) != nil || v.Outward == nil || len(v.Outward.Assumes) != 1 {
-		t.Errorf("graph body: %d %s", code, body)
-	}
-	_, pbody := get("/api/v1/correlations/path?from=" + arnUser + "&to=" + arnAdmin)
-	var pr struct {
-		Data struct {
-			Total int `json:"total"`
-		} `json:"data"`
-	}
-	if json.Unmarshal([]byte(pbody), &pr) != nil || pr.Data.Total == 0 {
-		t.Errorf("path body: %s", pbody)
 	}
 }

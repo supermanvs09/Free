@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"nhi-backend-api/internal/correlation"
 	"nhi-backend-api/internal/modules/alerts"
 	"nhi-backend-api/internal/modules/genome/anomalylist"
 	"os"
@@ -39,6 +38,7 @@ import (
 	"nhi-backend-api/internal/modules/identities"
 	"nhi-backend-api/internal/modules/identityanomalies"
 	"nhi-backend-api/internal/modules/identityevents"
+	"nhi-backend-api/internal/modules/identitysubjects"
 	"nhi-backend-api/internal/modules/ispmworker"
 	"nhi-backend-api/internal/modules/permissionsource"
 	"nhi-backend-api/internal/modules/posture"
@@ -201,14 +201,19 @@ func main() {
 	userRepo := auth.NewUserRepository(db)
 	resolver := scope.NewResolver(db)
 
-	// Blast radius: the correlation engine runs in this process over the
-	// tenant's own tables; CloudTrail evidence is optional.
-	var correlationCH correlation.CHQuerier = correlation.NullCHClient{}
-	if chClient != nil {
-		correlationCH = correlation.NewCHAdapter(chClient.Conn(), chClient.TableFor, chClient.Timeout())
+	// Correlation: blast radius, access graph, paths, rule catalogue and the
+	// run queue (NHI_CORRELATION_ENABLED, default on). Its poller starts with
+	// the server; CloudTrail evidence is optional.
+	corrCfg, err := config.Correlation()
+	if err != nil {
+		fatal("load correlation configuration", err)
 	}
-	correlationRepo := correlation.NewPGRepo(correlationCH)
-	correlationHandler := correlation.NewHandler(correlation.NewEngine(correlationRepo), correlationRepo, resolver)
+	var corrApp *correlationApp
+	if corrCfg.Enabled {
+		corrApp = newCorrelation(db, chClient, corrCfg)
+	} else {
+		slog.Info("correlation disabled (NHI_CORRELATION_ENABLED=false)")
+	}
 
 	authService := auth.NewAuthService(userRepo, cfg.JWT)
 	// Passwords arrive encrypted (see fieldcrypt); the key comes from the JWT secret.
@@ -397,9 +402,10 @@ func main() {
 		NewAPIIdentityEventsHandler:    identityEventsHandler,
 		NewAPICredentialsHandler:       credentialsHandler,
 		NewAPICredentialDetailHandler:  credentialDetailHandler,
-		CorrelationHandler:             correlationHandler,
+		CorrelationHandler:             corrApp.handlers(),
 		AlertsHandler: alerts.NewHandler(resolver, ceFindingsRepo,
 			anomalylist.NewService(genomefullcommon.NewMonitoredIdentityLookup(resolver), anomalylist.NewRepository(), genomeAlertEvents)),
+		IdentitySubjects:              identitysubjects.NewHandler(resolver),
 		IdentityAnomalies:             identityanomalies.NewHandler(genomeIdentities, monitoringEvents, genomeAlertEvents),
 		AWSIntegrationHandler:         awsIntegrationHandler,
 		CodeSources:                   codesources.NewHandler(db),
@@ -453,6 +459,7 @@ func main() {
 	sigCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	serveErr := make(chan error, 1)
+	corrApp.start(sigCtx) // the run-queue poller stops with the server
 	go func() { serveErr <- server.ListenAndServe() }()
 	slog.Info("API server listening", "addr", server.Addr, "log_level", cfg.Logging.Level, "log_format", cfg.Logging.Format)
 

@@ -1,4 +1,4 @@
-package correlation
+package engine
 
 import (
 	"context"
@@ -30,8 +30,28 @@ type fakeRepo struct {
 	assumeObs   []AssumeObservation
 	idCreds     map[string][]IdentityCredential
 	cached      *BlastRadiusResult
+	families    map[string]bool
+	workloads   map[string]*Workload
+	bound       map[string][]IdentityCredential
+	graph       *GraphData
 }
 
+func (f *fakeRepo) LoadGraphData(context.Context, *Scope) (*GraphData, error) {
+	if f.graph == nil {
+		return &GraphData{}, nil
+	}
+	return f.graph, nil
+}
+
+func (f *fakeRepo) LoadFamilyStates(context.Context, *Scope) (map[string]bool, error) {
+	return f.families, nil
+}
+func (f *fakeRepo) LoadWorkload(_ context.Context, _ *Scope, arn string) (*Workload, error) {
+	return f.workloads[arn], nil
+}
+func (f *fakeRepo) LoadBoundRoles(_ context.Context, _ *Scope, arn string) ([]IdentityCredential, error) {
+	return f.bound[arn], nil
+}
 func (f *fakeRepo) LoadAssumeObservations(context.Context, *Scope) ([]AssumeObservation, error) {
 	return f.assumeObs, nil
 }
@@ -458,7 +478,7 @@ func TestSummaryDropsPathsAndTrimsResources(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		r.ReachableResources = append(r.ReachableResources, ReachableResource{ARN: fmt.Sprintf("arn:aws:s3:::b%d", i)})
 	}
-	s := summarizeResult(r)
+	s := SummarizeResult(r)
 	if !s.Summary || len(s.Paths) != 0 || len(s.ReachableResources) != summaryResources || s.ReachableResourcesTotal != 100 {
 		t.Errorf("summary: %+v", s)
 	}

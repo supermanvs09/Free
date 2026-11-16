@@ -1,4 +1,4 @@
-// Package correlation implements the NHI Blast Radius engine: a 4-phase BFS
+// Package engine implements the NHI Blast Radius engine: a 4-phase BFS
 // graph traversal that computes how far a non-human identity can reach in
 // AWS, using pre-collected data from PostgreSQL and ClickHouse.
 //
@@ -9,12 +9,12 @@
 //
 // Results are stored in nhi_blast_radius (summary) and
 // nhi_blast_radius_paths (per-path detail).
-package correlation
+package engine
 
 import (
 	"context"
 	"database/sql"
-	"fmt"
+	"strings"
 	"time"
 )
 
@@ -27,8 +27,26 @@ type Scope struct {
 	Regions    []string
 }
 
+// QuoteIdent quotes a SQL identifier. Schema names come from the caller's JWT
+// (already validated by the auth middleware); quoting is the second line of defence.
+func QuoteIdent(s string) string {
+	return `"` + strings.ReplaceAll(s, `"`, `""`) + `"`
+}
+
+// QualifiedTable is the quoted schema.table form of a table name.
+func QualifiedTable(schema, table string) string {
+	return QuoteIdent(schema) + "." + QuoteIdent(table)
+}
+
 func (s *Scope) Table(table string) string {
-	return fmt.Sprintf(`%s.%s`, s.Schema, table)
+	return QualifiedTable(s.Schema, table)
+}
+
+// GraphSchemas are where the additive fetcher's nhi_* tables may live, in the
+// order they are tried: the tenant schema itself (current layout), then the
+// older separate schema next to it (bimasugam -> bimasugam_nhigraph).
+func (s *Scope) GraphSchemas() []string {
+	return []string{s.Schema, s.Schema + "_nhigraph"}
 }
 
 // BuildScope creates a correlation Scope from a pgxpool, schema, and filters.
@@ -85,6 +103,7 @@ const (
 	EdgeCanAccess    = "CAN_ACCESS"    // NHI can access a resource
 	EdgeAccessed     = "ACCESSED"      // NHI actually accessed a resource
 	EdgeCrossAccount = "CROSS_ACCOUNT" // NHI reaches another account
+	EdgeTriggers     = "TRIGGERS"      // a resource starts a function (S3 event, queue, topic)
 )
 
 // ── Traversal config ─────────────────────────────────────────────────────────
@@ -185,6 +204,11 @@ type BlastRadiusResult struct {
 	// list is cut to the strongest entries (see ReachableResourcesTotal).
 	Summary                 bool `json:"summary,omitempty"`
 	ReachableResourcesTotal int  `json:"reachable_resources_total,omitempty"`
+
+	// GraphDataCoverage lists what the additive fetcher could not collect for the
+	// source's account (a source and region that failed or was not permitted),
+	// so a missing edge is not mistaken for "no access". Empty means complete.
+	GraphDataCoverage []string `json:"graph_data_coverage,omitempty"`
 }
 
 // ── Correlation rule types ───────────────────────────────────────────────────
@@ -311,6 +335,29 @@ type Repo interface {
 
 	// Successful AssumeRole calls seen in CloudTrail, one row per caller and role
 	LoadAssumeObservations(ctx context.Context, scope *Scope) ([]AssumeObservation, error)
+
+	// is_active of every composition family row (FAM-xx), including inactive ones
+	LoadFamilyStates(ctx context.Context, scope *Scope) (map[string]bool, error)
+
+	// A workload (Lambda function, EC2 instance, ECS task ...) from the identities
+	// table, or nil when the ARN is not a known workload
+	LoadWorkload(ctx context.Context, scope *Scope, arn string) (*Workload, error)
+
+	// The roles a workload runs as (identity_credentials), primary first
+	LoadBoundRoles(ctx context.Context, scope *Scope, identityARN string) ([]IdentityCredential, error)
+
+	// LoadGraphData reads the additive fetcher's nhi_* tables (Scope.GraphSchemas).
+	// Missing tables are not an error: it returns GraphData with Available false.
+	LoadGraphData(ctx context.Context, scope *Scope) (*GraphData, error)
+}
+
+// Workload is a non-human workload identity: a Lambda function, EC2 instance,
+// ECS task and so on. It has no permissions of its own; it runs as a role.
+type Workload struct {
+	ARN       string
+	Name      string
+	Type      string // identities.identity_type, for example lambda_function
+	AccountID string
 }
 
 // ReverseAccessRow is one credential that can reach a resource.

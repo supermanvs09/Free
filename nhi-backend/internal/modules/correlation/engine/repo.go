@@ -1,4 +1,4 @@
-package correlation
+package engine
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -50,6 +49,10 @@ func isMissingTable(err error) bool {
 	return strings.Contains(msg, "42P01") || strings.Contains(msg, "undefined table") ||
 		(strings.Contains(msg, `relation "`) && strings.Contains(msg, "does not exist"))
 }
+
+// IsMissingTable is the exported form of isMissingTable, for callers that map
+// "tenant not provisioned" to a response.
+func IsMissingTable(err error) bool { return isMissingTable(err) }
 
 // ── Credential loading ────────────────────────────────────────────────────────
 
@@ -165,7 +168,7 @@ func (r *PGRepo) LoadEffectivePermissions(ctx context.Context, ds *Scope, creden
 	query := fmt.Sprintf(`
 		SELECT ep.permissions, ep.granted_count, c.attached_policies, c.inline_policies
 		FROM %s ep
-		JOIN %s c ON ep.credential_id::text = c.id::text
+		JOIN %s c ON ep.credential_id = c.id
 		WHERE c.arn = $1
 		  AND (cardinality($2::text[]) = 0 OR c.account_id = ANY($2::text[]))
 		  AND (cardinality($3::text[]) = 0 OR c.region = ANY($3::text[]))
@@ -236,7 +239,7 @@ func (r *PGRepo) LoadISPMEdges(ctx context.Context, ds *Scope, sourceARN string)
 	query := fmt.Sprintf(`
 		SELECT source_arn, target_arn, edge_type
 		FROM %s
-		WHERE source_arn = $1`, ds.Table("ispm_access_edges"))
+		WHERE source_arn = $1`, ds.Table(accessEdgesTable))
 
 	rows, err := ds.DB.QueryContext(ctx, query, sourceARN)
 	if err != nil {
@@ -258,26 +261,24 @@ func (r *PGRepo) LoadISPMEdges(ctx context.Context, ds *Scope, sourceARN string)
 	return out, rows.Err()
 }
 
-// LoadReverseAccess answers "who can reach this resource". In this backend
-// ispm_access_edges belongs to the ISPM worker (with its own columns), so the
-// grants are derived here, read-only, from effective_permissions with the same
-// resolution the engine uses: policy documents first, Deny wins, a Resource "*"
-// grant counts as "*:<service>" (or "*" for action "*").
+// LoadReverseAccess answers "who can reach this resource" with one indexed query
+// over the derived correlation_access_edges table (target '*' = wildcard grant).
 func (r *PGRepo) LoadReverseAccess(ctx context.Context, ds *Scope, resourceARN string) ([]ReverseAccessRow, error) {
 	if ds == nil || ds.DB == nil {
 		return nil, errors.New("nil scope")
 	}
 	query := fmt.Sprintf(`
-		SELECT c.arn, COALESCE(c.name, ''), ep.permissions, c.attached_policies, c.inline_policies
-		FROM %s ep
-		JOIN %s c ON ep.credential_id::text = c.id::text
-		WHERE ep.permissions IS NOT NULL
-		  AND jsonb_typeof(ep.permissions) IN ('object', 'array')
-		  AND c.deleted_at IS NULL
-		  AND (cardinality($1::text[]) = 0 OR c.account_id = ANY($1::text[]))
-		  AND (cardinality($2::text[]) = 0 OR c.region = ANY($2::text[]))`,
-		ds.Table("effective_permissions"), ds.Table("credentials"))
-	rows, err := ds.DB.QueryContext(ctx, query, pq.Array(ds.AccountIDs), pq.Array(ds.Regions))
+		SELECT e.source_arn, COALESCE(c.name, ''), e.target_arn, e.actions, e.evidence_type
+		FROM %s e
+		LEFT JOIN %s c ON c.arn = e.source_arn AND c.deleted_at IS NULL
+		WHERE (e.target_arn = $1 OR e.target_arn = '*' OR e.target_arn = $3)
+		  AND (cardinality($2::text[]) = 0 OR c.account_id = ANY($2::text[]))
+		ORDER BY e.source_arn
+		LIMIT 5000`, ds.Table(accessEdgesTable), ds.Table("credentials"))
+
+	// A grant on all resources of the resource's service ("*:s3") also reaches it.
+	rows, err := ds.DB.QueryContext(ctx, query, resourceARN, pq.Array(ds.AccountIDs),
+		WildcardTarget(serviceOfTarget(resourceARN)))
 	if err != nil {
 		if isMissingTable(err) {
 			return nil, nil
@@ -286,49 +287,98 @@ func (r *PGRepo) LoadReverseAccess(ctx context.Context, ds *Scope, resourceARN s
 	}
 	defer rows.Close()
 
-	serviceWildcard := WildcardTarget(serviceOfTarget(resourceARN))
 	var out []ReverseAccessRow
 	for rows.Next() {
-		var arn, name string
-		var perms, attached, inline []byte
-		if err := rows.Scan(&arn, &name, &perms, &attached, &inline); err != nil {
+		var row ReverseAccessRow
+		var actions []string
+		if err := rows.Scan(&row.SourceARN, &row.SourceName, &row.TargetARN, pq.Array(&actions), &row.EvidenceType); err != nil {
 			return nil, fmt.Errorf("scan reverse access: %w", err)
 		}
-		byTarget := map[string][]string{}
-		for _, p := range ApplyDenies(ResolvePermissions(perms, attached, inline)) {
-			target := p.ResourceARN
-			if target == "" {
-				continue
-			}
-			if isWildcardResource(target) {
-				target = WildcardTarget(serviceOfAction(p.Action))
-			}
-			if target == resourceARN || target == "*" || target == serviceWildcard {
-				byTarget[target] = append(byTarget[target], p.Action)
-			}
-		}
-		for target, actions := range byTarget {
-			out = append(out, ReverseAccessRow{SourceARN: arn, SourceName: name, TargetARN: target,
-				Actions: dedupeActions(actions), EvidenceType: EvidenceConfigured})
-		}
-		if len(out) >= 5000 {
-			break
-		}
+		row.Actions = actions
+		out = append(out, row)
 	}
 	return out, rows.Err()
 }
 
-// dedupeActions removes duplicate action strings while preserving order.
-func dedupeActions(actions []string) []string {
-	seen := make(map[string]bool, len(actions))
-	out := make([]string, 0, len(actions))
-	for _, a := range actions {
-		if !seen[a] {
-			seen[a] = true
-			out = append(out, a)
-		}
+// LoadFamilyStates returns is_active for every composition family row (FAM-xx),
+// including switched-off ones, so a family can be turned off in the rule table.
+func (r *PGRepo) LoadFamilyStates(ctx context.Context, ds *Scope) (map[string]bool, error) {
+	if ds == nil || ds.DB == nil {
+		return nil, errors.New("nil scope")
 	}
-	return out
+	query := fmt.Sprintf(`SELECT rule_id, is_active FROM %s WHERE rule_id LIKE 'FAM-%%'`,
+		ds.Table("correlation_composition_rules"))
+	rows, err := ds.DB.QueryContext(ctx, query)
+	if err != nil {
+		if isMissingTable(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("load family states: %w", err)
+	}
+	defer rows.Close()
+	out := map[string]bool{}
+	for rows.Next() {
+		var id string
+		var active bool
+		if err := rows.Scan(&id, &active); err != nil {
+			return nil, fmt.Errorf("scan family state: %w", err)
+		}
+		out[id] = active
+	}
+	return out, rows.Err()
+}
+
+// LoadWorkload returns a workload from the identities table, or nil when the ARN
+// is not a known workload.
+func (r *PGRepo) LoadWorkload(ctx context.Context, ds *Scope, arn string) (*Workload, error) {
+	if ds == nil || ds.DB == nil {
+		return nil, errors.New("nil scope")
+	}
+	query := fmt.Sprintf(`
+		SELECT arn, name, identity_type, account_id
+		FROM %s
+		WHERE arn = $1
+		  AND deleted_at IS NULL
+		  AND (cardinality($2::text[]) = 0 OR account_id = ANY($2::text[]))
+		LIMIT 1`, ds.Table("identities"))
+	var w Workload
+	err := ds.DB.QueryRowContext(ctx, query, arn, pq.Array(ds.AccountIDs)).Scan(&w.ARN, &w.Name, &w.Type, &w.AccountID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) || isMissingTable(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("load workload: %w", err)
+	}
+	return &w, nil
+}
+
+// LoadBoundRoles returns the roles a workload runs as, primary binding first.
+func (r *PGRepo) LoadBoundRoles(ctx context.Context, ds *Scope, identityARN string) ([]IdentityCredential, error) {
+	if ds == nil || ds.DB == nil {
+		return nil, errors.New("nil scope")
+	}
+	query := fmt.Sprintf(`
+		SELECT identity_arn, credential_arn, binding_type, binding_source, is_primary
+		FROM %s
+		WHERE identity_arn = $1
+		ORDER BY is_primary DESC, credential_arn`, ds.Table("identity_credentials"))
+	rows, err := ds.DB.QueryContext(ctx, query, identityARN)
+	if err != nil {
+		if isMissingTable(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("load bound roles: %w", err)
+	}
+	defer rows.Close()
+	var out []IdentityCredential
+	for rows.Next() {
+		var ic IdentityCredential
+		if err := rows.Scan(&ic.IdentityARN, &ic.CredentialARN, &ic.BindingType, &ic.BindingSource, &ic.IsPrimary); err != nil {
+			return nil, fmt.Errorf("scan bound role: %w", err)
+		}
+		out = append(out, ic)
+	}
+	return out, rows.Err()
 }
 
 // LoadAssumeObservations returns the successful AssumeRole calls seen in
@@ -350,7 +400,7 @@ func (r *PGRepo) LoadDataFreshness(ctx context.Context, ds *Scope, credentialARN
 	query := fmt.Sprintf(`
 		SELECT c.last_seen_at, ep.updated_at
 		FROM %s c
-		LEFT JOIN %s ep ON ep.credential_id::text = c.id::text
+		LEFT JOIN %s ep ON ep.credential_id = c.id
 		WHERE c.arn = $1 AND c.deleted_at IS NULL
 		ORDER BY c.last_seen_at DESC NULLS LAST
 		LIMIT 1`, ds.Table("credentials"), ds.Table("effective_permissions"))
@@ -412,17 +462,17 @@ func (r *PGRepo) LoadAssumePermissions(ctx context.Context, ds *Scope) (map[stri
 	if ds == nil || ds.DB == nil {
 		return nil, errors.New("nil scope")
 	}
-	// Same resolution as phase 1 (ResolvePermissions): the stored policy
-	// documents first, the collector's flattened elements as the fallback, so a
-	// role whose flattened list is stale still shows the chains its policies
-	// allow.
 	query := fmt.Sprintf(`
-		SELECT c.arn, ep.permissions, c.attached_policies, c.inline_policies
-		FROM %s c
-		LEFT JOIN %s ep ON ep.credential_id::text = c.id::text
+		SELECT c.arn, e.elem
+		FROM %s ep
+		JOIN %s c ON ep.credential_id = c.id
+		CROSS JOIN LATERAL jsonb_array_elements(
+			CASE WHEN jsonb_typeof(ep.permissions) = 'array' THEN ep.permissions
+			     ELSE COALESCE(ep.permissions->'permissions', '[]'::jsonb) END) AS e(elem)
 		WHERE c.deleted_at IS NULL
-		  AND (cardinality($1::text[]) = 0 OR c.account_id = ANY($1::text[]))`,
-		ds.Table("credentials"), ds.Table("effective_permissions"))
+		  AND (cardinality($1::text[]) = 0 OR c.account_id = ANY($1::text[]))
+		  AND (lower(e.elem->>'action') = 'sts:assumerole' OR e.elem->>'action' ~ '[*?]')`,
+		ds.Table("effective_permissions"), ds.Table("credentials"))
 
 	rows, err := ds.DB.QueryContext(ctx, query, pq.Array(ds.AccountIDs))
 	if err != nil {
@@ -436,15 +486,15 @@ func (r *PGRepo) LoadAssumePermissions(ctx context.Context, ds *Scope) (map[stri
 	out := map[string][]ResourcePermission{}
 	for rows.Next() {
 		var arn string
-		var stored, attached, inline []byte
-		if err := rows.Scan(&arn, &stored, &attached, &inline); err != nil {
+		var raw []byte
+		if err := rows.Scan(&arn, &raw); err != nil {
 			return nil, fmt.Errorf("scan assume permission: %w", err)
 		}
-		for _, p := range ResolvePermissions(stored, attached, inline) {
-			if strings.EqualFold(p.Action, "sts:AssumeRole") || strings.ContainsAny(p.Action, "*?") {
-				out[arn] = append(out[arn], p)
-			}
+		var p ResourcePermission
+		if json.Unmarshal(raw, &p) != nil {
+			continue
 		}
+		out[arn] = append(out[arn], p)
 	}
 	return out, rows.Err()
 }
@@ -853,51 +903,5 @@ func (r *PGRepo) LoadPathTypes(ctx context.Context, ds *Scope) ([]PathType, erro
 		pt.IsActive = active
 		out = append(out, pt)
 	}
-	return out, rows.Err()
-}
-
-// SubjectCredential is a credential an identity signs in with, a candidate
-// subject for its blast radius.
-type SubjectCredential struct {
-	ARN            string `json:"arn"`
-	Name           string `json:"name"`
-	CredentialType string `json:"credential_type"`
-	IsPrimary      bool   `json:"is_primary"`
-}
-
-// IdentityCredentials lists the in-scope credentials bound to an identity,
-// roles and the primary binding first: what it can reach is what they grant.
-func (r *PGRepo) IdentityCredentials(ctx context.Context, ds *Scope, identityID string) ([]SubjectCredential, error) {
-	query := fmt.Sprintf(`
-		SELECT DISTINCT ON (c.arn) c.arn, COALESCE(c.name, ''), COALESCE(c.credential_type, ''), COALESCE(ic.is_primary, false)
-		FROM %s ic
-		JOIN %s c ON c.id::text = ic.credential_id::text AND c.deleted_at IS NULL
-		WHERE ic.identity_id::text = $1
-		  AND (cardinality($2::text[]) = 0 OR c.account_id = ANY($2::text[]))
-		  AND (cardinality($3::text[]) = 0 OR c.region = ANY($3::text[]))
-		ORDER BY c.arn, ic.is_primary DESC`, ds.Table("identity_credentials"), ds.Table("credentials"))
-	rows, err := ds.DB.QueryContext(ctx, query, identityID, pq.Array(ds.AccountIDs), pq.Array(ds.Regions))
-	if err != nil {
-		if isMissingTable(err) {
-			return []SubjectCredential{}, nil
-		}
-		return nil, fmt.Errorf("identity credentials: %w", err)
-	}
-	defer rows.Close()
-	out := []SubjectCredential{}
-	for rows.Next() {
-		var c SubjectCredential
-		if err := rows.Scan(&c.ARN, &c.Name, &c.CredentialType, &c.IsPrimary); err != nil {
-			return nil, fmt.Errorf("scan identity credential: %w", err)
-		}
-		out = append(out, c)
-	}
-	sort.SliceStable(out, func(i, j int) bool {
-		ri, rj := out[i].CredentialType == "iam_role", out[j].CredentialType == "iam_role"
-		if ri != rj {
-			return ri
-		}
-		return out[i].IsPrimary && !out[j].IsPrimary
-	})
 	return out, rows.Err()
 }

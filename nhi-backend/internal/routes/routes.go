@@ -3,9 +3,10 @@ package routes
 import (
 	"encoding/json"
 	"net/http"
-	"nhi-backend-api/internal/correlation"
 	"nhi-backend-api/internal/modules/alerts"
+	"nhi-backend-api/internal/modules/correlation"
 	"nhi-backend-api/internal/modules/identityanomalies"
+	"nhi-backend-api/internal/modules/identitysubjects"
 	"nhi-backend-api/internal/platform/datasource"
 
 	"github.com/gorilla/mux"
@@ -59,7 +60,9 @@ type HandlerContainer struct {
 	// AlertsHandler serves the Alerts page (score drops, exposed credentials).
 	AlertsHandler *alerts.Handler
 	// IdentityAnomalies lists one genome identity's anomalies (its page's tab).
-	IdentityAnomalies             *identityanomalies.Handler
+	IdentityAnomalies *identityanomalies.Handler
+	// IdentitySubjects maps a discovery identity to the credentials (roles) its blast radius is traced through.
+	IdentitySubjects              *identitysubjects.Handler
 	NewAPIPermissionSourceHandler *permissionsource.PermissionSourceHandler
 	AWSIntegrationHandler         *awsintegration.AWSIntegrationHandler
 	// GitHub and Bitbucket for the whole company (credential exposure).
@@ -226,8 +229,9 @@ func registerProtected(router *mux.Router, h HandlerContainer, versioned bool) {
 	if h.NewAPICredentialDetailHandler != nil {
 		router.HandleFunc("/credentials/{id}", h.NewAPICredentialDetailHandler.Get).Methods(http.MethodGet)
 	}
-	if h.CorrelationHandler != nil {
-		h.CorrelationHandler.Register(router)
+	registerCorrelation(router, h.CorrelationHandler)
+	if h.IdentitySubjects != nil {
+		h.IdentitySubjects.Register(router)
 	}
 	if h.AlertsHandler != nil {
 		h.AlertsHandler.Register(router)

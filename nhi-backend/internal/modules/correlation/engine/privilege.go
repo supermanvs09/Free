@@ -1,4 +1,4 @@
-package correlation
+package engine
 
 import (
 	"context"
@@ -99,6 +99,14 @@ func sensitiveService(svc string) bool {
 // every hop to a more privileged role, and data freshness. It is used for both
 // fresh and cached results, so the two answer the same way.
 func (e *Engine) attachContext(ctx context.Context, ds *Scope, r *BlastRadiusResult, observed []ObservedEvent) {
+	e.attachContextWith(ctx, ds, r, observed, nil, nil)
+}
+
+// attachContextWith is attachContext for a source whose level and freshness are
+// already known: a workload has no permissions or scan time of its own, so they
+// come from the role it runs as.
+func (e *Engine) attachContextWith(ctx context.Context, ds *Scope, r *BlastRadiusResult, observed []ObservedEvent,
+	sourceLevel *int, sourceFresh *DataFreshness) {
 	level := func(arn string) int {
 		perms, err := e.repo.LoadEffectivePermissions(ctx, ds, arn)
 		if err != nil {
@@ -108,7 +116,11 @@ func (e *Engine) attachContext(ctx context.Context, ds *Scope, r *BlastRadiusRes
 		return PrivilegeLevel(GroupByResource(ApplyDenies(perms)))
 	}
 
-	r.PrivilegeLevel = level(r.SourceARN)
+	if sourceLevel != nil {
+		r.PrivilegeLevel = *sourceLevel
+	} else {
+		r.PrivilegeLevel = level(r.SourceARN)
+	}
 	levels := map[string]int{}
 	for i := range r.ReachableIdentities {
 		id := &r.ReachableIdentities[i]
@@ -127,9 +139,14 @@ func (e *Engine) attachContext(ctx context.Context, ds *Scope, r *BlastRadiusRes
 		}
 	}
 
-	fresh, err := e.repo.LoadDataFreshness(ctx, ds, r.SourceARN)
-	if err != nil {
-		log.Printf("WARNING: data freshness for %s: %v", r.SourceARN, err)
+	var fresh DataFreshness
+	if sourceFresh != nil {
+		fresh = *sourceFresh
+	} else {
+		var err error
+		if fresh, err = e.repo.LoadDataFreshness(ctx, ds, r.SourceARN); err != nil {
+			log.Printf("WARNING: data freshness for %s: %v", r.SourceARN, err)
+		}
 	}
 	if len(observed) > 0 {
 		t := observed[0].EventTime

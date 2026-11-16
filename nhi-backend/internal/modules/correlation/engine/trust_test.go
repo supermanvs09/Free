@@ -1,10 +1,7 @@
-package correlation
+package engine
 
 import (
-	"context"
 	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 )
@@ -391,41 +388,4 @@ func TestCrossAccountChainIsFlaggedAndPathARNsListed(t *testing.T) {
 	if find(res, arnDev, PathRoleChain) != nil && containsString(find(res, arnDev, PathRoleChain).Limitations, "crosses_account_boundary") {
 		t.Error("a same-account hop must not be flagged")
 	}
-}
-
-func TestWhoCanAssumeEndpoint(t *testing.T) {
-	repo := &fakeRepo{
-		roleTrust: []RoleTrustRow{
-			row(acctA, "Caller", trustDoc()),
-			row(acctA, "Target", trustDoc(allowAssume(awsPrincipal(roleARN(acctA, "Caller")), ""))),
-		},
-	}
-	r := testRouter(repo)
-	get := func(path string) (int, string) {
-		w := httptest.NewRecorder()
-		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
-		return w.Code, w.Body.String()
-	}
-	base := "/api/v1/correlations/who-can-assume/"
-	if c, _ := get(base + "not-an-arn"); c != http.StatusBadRequest {
-		t.Errorf("bad ARN → %d", c)
-	}
-	if c, _ := get(base + roleARN(acctA, "Target") + "?depth=9"); c != http.StatusBadRequest {
-		t.Errorf("depth 9 → %d", c)
-	}
-	if c, _ := get(base + roleARN(acctA, "Missing")); c != http.StatusNotFound {
-		t.Errorf("unknown role → %d", c)
-	}
-	code, body := get(base + roleARN(acctA, "Target"))
-	if code != http.StatusOK {
-		t.Fatalf("known role → %d %s", code, body)
-	}
-	var env struct{ Data InboundResult }
-	out := env.Data
-	err := json.Unmarshal([]byte(body), &env)
-	out = env.Data
-	if err != nil || len(out.Callers) != 1 || out.Callers[0].Name != "Caller" {
-		t.Errorf("body = %s (err %v)", body, err)
-	}
-	_ = context.Background
 }
