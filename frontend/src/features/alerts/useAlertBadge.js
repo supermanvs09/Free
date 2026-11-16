@@ -100,7 +100,8 @@ export function useAlertReads() {
   const key = readKey(user);
   useSyncExternalStore(subscribe, () => readsVersion);
   const state = readsFor(key);
-  const isUnread = useCallback((a) => timeOf(a) > state.all && state.keys[a.key] !== timeOf(a), [state]);
+  /* Acknowledged in the posture service: already handled, never unread. */
+  const isUnread = useCallback((a) => !(a.acked || a.facts?.ack_at) && timeOf(a) > state.all && state.keys[a.key] !== timeOf(a), [state]);
   const markRead = useCallback(
     (a) => {
       const cur = readsFor(key);

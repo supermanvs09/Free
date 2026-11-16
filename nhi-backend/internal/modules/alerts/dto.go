@@ -26,6 +26,17 @@ type ScoreDrop struct {
 	NewFailing     int       `json:"new_failing_checks"`
 	FailedCritical int       `json:"failed_critical"`
 	FailedHigh     int       `json:"failed_high"`
+	// From the posture service's drop record (drop_reasons, drop_ack_*);
+	// empty when the drop was inferred from history.
+	Reasons []string   `json:"reasons,omitempty"`
+	AckBy   string     `json:"ack_by,omitempty"`
+	AckAt   *time.Time `json:"ack_at,omitempty"`
+}
+
+// DropReason is one line of drop_reasons: what changed and the points it cost.
+type DropReason struct {
+	Text   string `json:"text"`
+	Points int    `json:"points"`
 }
 
 // Exposure is a credential found in code (credential exposure main list).
@@ -130,6 +141,14 @@ type IdentityAlert struct {
 	Timeline        []ScorePoint      `json:"timeline"`
 	NewFailing      []CheckChange     `json:"new_failing_checks"`
 	StillFailing    []CheckChange     `json:"still_failing_checks"`
+	// Checks the posture service marks COVERED: failing, but already counted
+	// under another check (detail says which).
+	CoveredChecks []CheckChange `json:"covered_checks"`
+	// The posture service's own drop record, when it keeps one.
+	DropAlert   bool         `json:"drop_alert"`
+	DropReasons []DropReason `json:"drop_reasons"`
+	AckBy       string       `json:"ack_by,omitempty"`
+	AckAt       *time.Time   `json:"ack_at,omitempty"`
 	NewFindings     []FindingChange   `json:"new_findings"`
 	Changes         []InventoryChange `json:"inventory_changes"`
 }

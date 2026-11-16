@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, CheckCheck, Dna, FileWarning, Fingerprint, GitCommitVertical, Radius, ShieldAlert } from 'lucide-react';
+import { ArrowUpRight, CheckCheck, Dna, FileWarning, Fingerprint, GitCommitVertical, Radius, ShieldAlert, ShieldX } from 'lucide-react';
 import { fetchAlerts, fetchIdentityAlert } from '../../lib/api/alerts';
 import { fetchBlastRadius } from '../../lib/api/blastRadius';
 import { useQuery } from '../../lib/hooks/useQuery';
@@ -25,7 +25,13 @@ const SOURCES = {
     label: 'Score drops',
     icon: ShieldAlert,
     what: 'Score drop',
-    hint: 'Identities whose posture score fell at the latest sync. Identities that were already low stay on the Posture page; they only appear here when they get worse.',
+    hint: 'Identities the posture service flagged because their score dropped at a sync.',
+  },
+  posture_critical: {
+    label: 'Critical posture',
+    icon: ShieldX,
+    what: 'Critical posture',
+    hint: 'Every identity whose posture is in the critical band - the same list as the Critical filter on the Posture page. Each stays here until its score leaves the band.',
   },
   genome: { label: 'NHI Genome', icon: Dna, what: 'Behaviour anomaly', hint: 'Identities doing something their learned behaviour never showed.' },
   exposure: { label: 'Credential exposure', icon: FileWarning, what: 'Exposed credential', hint: 'Credentials found in code.' },
@@ -54,7 +60,7 @@ const linkOf = (a) =>
       ? `${genomeRoute(a.facts.source_type, a.facts.identity_name)}?tab=anomalies`
       : `/genome?tab=anomalies&q=${encodeURIComponent(a.facts.identity_name)}`
     : a.link;
-const postureId = (a) => (a.source === 'posture' ? a.key.slice('posture:'.length) : null);
+const postureId = (a) => (a.source === 'posture' || a.source === 'posture_critical' ? a.key.slice(a.key.indexOf(':') + 1) : null);
 
 /* ── One row ────────────────────────────────────────────────────────────── */
 
@@ -75,6 +81,7 @@ function Row({ a, selected, onSelect, isNew, unread }) {
           {unread && <span aria-label="Unread" className="size-1.5 shrink-0 rounded-full bg-brand" />}
           <span className={cn('truncate text-[13.5px]', unread ? 'font-semibold text-ink' : 'font-medium text-ink-2')}>{a.subject}</span>
           {isNew && <span className="shrink-0 rounded-full bg-brand px-1.5 text-[10px] font-semibold tracking-wide text-white uppercase">New</span>}
+          {a.facts?.ack_at && <span className="shrink-0 rounded-full bg-low-soft px-1.5 text-[10px] font-semibold text-low">Acknowledged</span>}
           <span className="ml-auto shrink-0 text-[11px] text-ink-3" title={formatDateTime(a.detected_at)}>
             {formatRelative(a.detected_at)}
           </span>
@@ -118,7 +125,23 @@ function PostureWhy({ a }) {
           <p className="mt-3 text-[12.5px] text-ink-3">{q.isError ? a.summary : 'Loading why…'}</p>
         ) : (
           <>
-            {d.new_failing_checks.length > 0 && (
+            {/* The posture service's own reasons for the drop, when it gives them. */}
+            {d.drop_reasons?.length > 0 && (
+              <ul className="mt-3 flex flex-col divide-y divide-line">
+                {d.drop_reasons.slice(0, 5).map((r) => (
+                  <li key={r.text} className="flex items-start gap-3 py-2">
+                    <span className="mt-[6px] size-1.5 shrink-0 rounded-full bg-critical" />
+                    <span className="min-w-0 flex-1 text-[13px] font-medium text-ink">{r.text}</span>
+                    {r.points > 0 && (
+                      <span data-numeric="" className="shrink-0 text-[13px] font-semibold text-critical">
+                        −{formatNumber(r.points)}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {!d.drop_reasons?.length && d.new_failing_checks.length > 0 && (
               <ul className="mt-3 flex flex-col divide-y divide-line">
                 {d.new_failing_checks.slice(0, 4).map((c) => (
                   <li key={c.rule_id} className="flex items-start gap-3 py-2">
@@ -182,6 +205,70 @@ function PostureWhy({ a }) {
               Identity
             </Button>
           </>
+        )}
+      </Actions>
+    </>
+  );
+}
+
+/** Critical posture: the score, the problems that hold it there, and where to fix them. */
+function CriticalWhy({ a }) {
+  const id = postureId(a);
+  const q = useQuery((signal) => fetchIdentityAlert(id, signal), [id]);
+  const d = q.data;
+  const failing = d ? [...d.new_failing_checks, ...d.still_failing_checks].sort((x, y) => (Number(y.points) || 0) - (Number(x.points) || 0)) : [];
+  return (
+    <>
+      <section className="rounded-[14px] border border-line p-4">
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="font-display text-[28px] leading-none font-bold text-critical" data-numeric="">
+            {a.score_now}
+            <span className="ml-1 text-[13px] font-medium text-ink-3">/ 100</span>
+          </span>
+          {d?.checks_evaluated ? (
+            <span className="text-[11.5px] text-ink-3" data-numeric="">
+              {formatNumber(d.checks_failed)} of {formatNumber(d.checks_evaluated)} checks failing
+            </span>
+          ) : null}
+        </div>
+        <p className="mt-2 text-[12.5px] text-ink-2">The score is in the critical band. Fixing the biggest problems first moves it out fastest.</p>
+        {!d ? (
+          <p className="mt-3 text-[12.5px] text-ink-3">{q.isError ? a.summary : 'Loading…'}</p>
+        ) : (
+          <>
+            {failing.length > 0 && (
+              <ul className="mt-3 flex flex-col divide-y divide-line">
+                {failing.slice(0, 5).map((c) => (
+                  <li key={c.rule_id} className="flex items-start gap-3 py-2">
+                    <span className={cn('mt-[6px] size-1.5 shrink-0 rounded-full', SEV[String(c.severity).toLowerCase()]?.dot ?? 'bg-ink-3')} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[13px] font-medium text-ink">{c.title}</span>
+                      {c.detail && <span className="block truncate text-[11.5px] text-ink-3" title={c.detail}>{c.detail}</span>}
+                    </span>
+                    <span data-numeric="" className="shrink-0 text-[13px] font-semibold text-critical">
+                      −{formatNumber(c.points)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {failing.length > 5 && <p className="mt-1 text-[11.5px] text-ink-3">And {formatNumber(failing.length - 5)} more in the posture record.</p>}
+            {d.covered_checks?.length > 0 && (
+              <p className="mt-2 text-[11.5px] text-ink-3">
+                {formatNumber(d.covered_checks.length)} more {d.covered_checks.length === 1 ? 'check is' : 'checks are'} covered by the ones above.
+              </p>
+            )}
+          </>
+        )}
+      </section>
+      <Actions>
+        <Button as={Link} to={a.link} size="sm" variant="primary" iconRight={ArrowUpRight}>
+          Open the posture record
+        </Button>
+        {d?.discovery_id && (
+          <Button as={Link} to={`/identities/${encodeURIComponent(d.discovery_id)}`} size="sm" variant="ghost" icon={Fingerprint}>
+            Identity
+          </Button>
         )}
       </Actions>
     </>
@@ -280,8 +367,13 @@ function Preview({ a, exposurePage }) {
             <src.icon className="size-3.5" /> {src.what}
           </span>
           <span className="text-ink-3" title={formatDateTime(a.detected_at)}>
-            · detected {formatRelative(a.detected_at)}
+            · {a.source === 'posture_critical' ? 'critical since' : 'detected'} {formatRelative(a.detected_at)}
           </span>
+          {a.facts?.ack_at && (
+            <span className="rounded-full bg-low-soft px-2 py-0.5 font-semibold text-low" title={formatDateTime(a.facts.ack_at)}>
+              Acknowledged{a.facts.ack_by ? ` by ${a.facts.ack_by}` : ''}
+            </span>
+          )}
         </div>
         <h2 className="mt-3 text-[18px] leading-snug font-semibold text-ink">{a.title}</h2>
         <p className="mt-1 text-[13px] text-ink-2">
@@ -294,6 +386,7 @@ function Preview({ a, exposurePage }) {
       <div className="px-6 py-5">
         <SectionTitle>{a.source === 'exposure' ? 'Where it was found' : 'Why'}</SectionTitle>
         {a.source === 'posture' && <PostureWhy a={a} />}
+        {a.source === 'posture_critical' && <CriticalWhy a={a} />}
         {a.source === 'genome' && <GenomeWhy a={a} />}
         {a.source === 'exposure' && <ExposureWhy a={a} pageOn={exposurePage} />}
 

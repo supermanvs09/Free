@@ -63,6 +63,9 @@ func accountsClause(s *scope.DataScope, col string, n int) (string, []any) {
 
 // ScoreDrops lists identities whose score is lower now than at the previous sync.
 func (Repo) ScoreDrops(ctx context.Context, s *scope.DataScope) ([]ScoreDrop, error) {
+	if hasDropColumns(ctx, s) {
+		return scoreDropsFromPosture(ctx, s)
+	}
 	acc, accArgs := accountsClause(s, "p.account_id", 2)
 	q := fmt.Sprintf(`SELECT p.identity_id, COALESCE(p.identity_name,''), COALESCE(p.identity_type,''), COALESCE(p.identity_arn,''),
 			COALESCE(p.account_id,''), p.score, COALESCE(p.band,''), COALESCE(p.grade,''), p.computed_at,
@@ -139,7 +142,7 @@ func (Repo) LastSyncs(ctx context.Context, s *scope.DataScope) (latest, previous
 // Identity is the full why-did-it-drop record of one identity.
 func (Repo) Identity(ctx context.Context, s *scope.DataScope, id string) (*IdentityAlert, error) {
 	acc, accArgs := accountsClause(s, "p.account_id", 3)
-	out := &IdentityAlert{Timeline: []ScorePoint{}, NewFailing: []CheckChange{}, StillFailing: []CheckChange{}, NewFindings: []FindingChange{}, Changes: []InventoryChange{}}
+	out := &IdentityAlert{Timeline: []ScorePoint{}, NewFailing: []CheckChange{}, StillFailing: []CheckChange{}, CoveredChecks: []CheckChange{}, DropReasons: []DropReason{}, NewFindings: []FindingChange{}, Changes: []InventoryChange{}}
 	var pillars []byte
 	var prevScore sql.NullInt64
 	var prevBand sql.NullString
@@ -183,6 +186,10 @@ func (Repo) Identity(ctx context.Context, s *scope.DataScope, id string) (*Ident
 		out.BeforeAt = &prevAt.Time
 		since = prevAt.Time
 	}
+	// The posture service's own drop record wins over the history comparison.
+	if err := identityDrop(ctx, s, out); err != nil {
+		return nil, err
+	}
 
 	// Score over time: hourly captures, else daily snapshots.
 	if err := collect(ctx, s, fmt.Sprintf(`SELECT captured_at, score FROM (
@@ -216,22 +223,25 @@ func (Repo) Identity(ctx context.Context, s *scope.DataScope, id string) (*Ident
 	// Failing checks, split into new since the previous sync and older.
 	if err := collect(ctx, s, fmt.Sprintf(`SELECT c.rule_id, COALESCE(NULLIF(w.check_title,''), NULLIF(w.rule_name,''), c.rule_id),
 			COALESCE(w.description,''), COALESCE(c.severity,''), COALESCE(c.points_lost,0), COALESCE(c.detail,''),
-			c.failing_since, COALESCE(c.pillar_code,''), COALESCE(c.category_code,''), c.finding_id::text
+			c.failing_since, COALESCE(c.pillar_code,''), COALESCE(c.category_code,''), c.finding_id::text, upper(c.status)
 		FROM %s c LEFT JOIN %s w ON w.rule_id = c.rule_id
-		WHERE c.tenant_id = $1 AND c.identity_id = $2 AND upper(c.status) = 'FAIL'
+		WHERE c.tenant_id = $1 AND c.identity_id = $2 AND upper(c.status) IN ('FAIL', 'FAILED', 'COVERED')
 		ORDER BY c.points_lost DESC NULLS LAST, c.failing_since DESC NULLS LAST`, s.Table(tChecks), s.Table(tRules)),
 		[]any{s.TenantID, id}, func(r *sql.Rows) error {
 			var c CheckChange
 			var since0 sql.NullTime
 			var fid sql.NullString
-			if err := r.Scan(&c.RuleID, &c.Title, &c.Description, &c.Severity, &c.Points, &c.Detail, &since0, &c.Pillar, &c.Category, &fid); err != nil {
+			var status string
+			if err := r.Scan(&c.RuleID, &c.Title, &c.Description, &c.Severity, &c.Points, &c.Detail, &since0, &c.Pillar, &c.Category, &fid, &status); err != nil {
 				return err
 			}
 			if since0.Valid {
 				c.FailingSince = &since0.Time
 			}
 			c.FindingID = fid.String
-			if !since.IsZero() && since0.Valid && since0.Time.After(since) {
+			if status == "COVERED" {
+				out.CoveredChecks = append(out.CoveredChecks, c)
+			} else if !since.IsZero() && since0.Valid && since0.Time.After(since) {
 				out.NewFailing = append(out.NewFailing, c)
 			} else {
 				out.StillFailing = append(out.StillFailing, c)

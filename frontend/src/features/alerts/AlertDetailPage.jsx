@@ -180,11 +180,13 @@ function Cause({ c, n, total, finding, postureLink }) {
           <div className="min-w-0">
             <h3 className="text-[15.5px] leading-snug font-semibold tracking-[-0.01em] text-balance text-ink">{c.title}</h3>
             <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[12px] text-ink-3">
-              <span className="flex items-center gap-1.5">
-                <span className={cn('size-1.5 rounded-full', TONE_BG[sev.tone] ?? 'bg-ink-3')} />
-                {sev.label}
-              </span>
-              {c.category && <span>· {c.category.replaceAll('_', ' ')}</span>}
+              {c.severity && (
+                <span className="flex items-center gap-1.5">
+                  <span className={cn('size-1.5 rounded-full', TONE_BG[sev.tone] ?? 'bg-ink-3')} />
+                  {sev.label}
+                </span>
+              )}
+              {c.category && <span>{c.severity ? '· ' : ''}{c.category.replaceAll('_', ' ')}</span>}
             </p>
           </div>
           <div className="shrink-0 text-right">
@@ -258,14 +260,20 @@ export default function AlertDetailPage() {
     if (!a) return null;
     const dropped = a.score_before != null && a.score_before > a.score_now;
     const total = dropped ? a.score_before - a.score_now : 0;
-    const causes = [...a.new_failing_checks].sort((x, y) => (Number(y.points) || 0) - (Number(x.points) || 0));
+    /* The posture service's own reasons (drop_reasons) are the causes when it
+       gives them; each is matched to its check by title, when one carries it,
+       for the severity, detail and fix. Otherwise: checks that started failing. */
+    const checks = [...a.new_failing_checks, ...a.still_failing_checks];
+    const byTitle = (text) => checks.find((c) => String(c.title).trim().toLowerCase() === String(text).trim().toLowerCase());
+    const reasons = (a.drop_reasons ?? []).map((r) => ({ ...(byTitle(r.text) ?? {}), rule_id: byTitle(r.text)?.rule_id ?? r.text, title: r.text, points: r.points || byTitle(r.text)?.points || 0 }));
+    const causes = (reasons.length ? reasons : [...a.new_failing_checks]).sort((x, y) => (Number(y.points) || 0) - (Number(x.points) || 0));
     const explained = causes.reduce((n, c) => n + (Number(c.points) || 0), 0);
     /* A finding belongs to a cause when it names the same rule - exact, not inferred. */
     const findingOf = (c) => a.new_findings.find((f) => (c.finding_id && f.finding_id === c.finding_id) || (f.rule_id && f.rule_id === c.rule_id));
     const linked = new Set(causes.map(findingOf).filter(Boolean).map((f) => f.finding_id));
     /* Nothing new failed: the score fell because problems it already had now
        count for more. Those problems are then the answer, biggest first. */
-    const existing = [...a.still_failing_checks].sort((x, y) => (Number(y.points) || 0) - (Number(x.points) || 0));
+    const existing = [...a.still_failing_checks].filter((c) => !reasons.some((r) => r.rule_id === c.rule_id)).sort((x, y) => (Number(y.points) || 0) - (Number(x.points) || 0));
     return {
       dropped,
       total,
@@ -314,7 +322,9 @@ export default function AlertDetailPage() {
   const sentence = !view.dropped
     ? 'The score did not drop at the latest sync.'
     : view.causes.length > 0
-      ? `The score fell from ${a.score_before} to ${a.score_now} because ${problems(view.causes.length)} appeared at the latest sync${a.inventory_changes.length ? ', after a change in AWS' : ''}. The biggest: ${view.causes[0].title}.`
+      ? a.drop_reasons?.length
+        ? `The score fell from ${a.score_before} to ${a.score_now}. ${view.causes.length === 1 ? 'The reason' : `${problems(view.causes.length)}; the biggest`}: ${view.causes[0].title}.`
+        : `The score fell from ${a.score_before} to ${a.score_now} because ${problems(view.causes.length)} appeared at the latest sync${a.inventory_changes.length ? ', after a change in AWS' : ''}. The biggest: ${view.causes[0].title}.`
       : `The score fell from ${a.score_before} to ${a.score_now}, but nothing new went wrong. ${view.existing.length ? `The ${problems(view.existing.length)} this identity already had now count for more` : 'Problems it already had now count for more'}${a.score_now === 0 ? ', and together they cost more than the whole score, so it is at 0' : ''}.`;
 
   return (
@@ -347,6 +357,11 @@ export default function AlertDetailPage() {
               <span className="text-[12px] text-ink-3" title={formatDateTime(a.detected_at)}>
                 at the sync {formatRelative(a.detected_at)}
               </span>
+              {a.ack_at && (
+                <Tag tone="low" size="sm" dot>
+                  Acknowledged{a.ack_by ? ` by ${a.ack_by}` : ''} {formatRelative(a.ack_at)}
+                </Tag>
+              )}
             </div>
             <div className="mt-6">{a.score_before != null ? <ScoreShift before={a.score_before} now={a.score_now} size="lg" /> : <span className="font-display text-[40px] font-bold">{a.score_now}</span>}</div>
             <p className="mt-5 max-w-[46ch] text-[16px] leading-relaxed font-medium tracking-[-0.005em] text-pretty text-ink">{sentence}</p>
@@ -365,9 +380,11 @@ export default function AlertDetailPage() {
                 </dd>
               </div>
               <div>
-                <dt className="text-ink-3">Compared with</dt>
-                <dd className="mt-0.5 text-[13px] font-medium text-ink" title={a.before_at ? formatDateTime(a.before_at) : undefined}>
-                  {a.before_at ? `the sync ${formatRelative(a.before_at)}` : '-'}
+                {/* A drop the posture service flagged is measured by it, not
+                    against our history: say when it flagged it instead. */}
+                <dt className="text-ink-3">{a.drop_alert ? 'Flagged by posture' : 'Compared with'}</dt>
+                <dd className="mt-0.5 text-[13px] font-medium text-ink" title={formatDateTime(a.drop_alert ? a.detected_at : a.before_at)}>
+                  {a.drop_alert ? formatRelative(a.detected_at) : a.before_at ? `the sync ${formatRelative(a.before_at)}` : '-'}
                 </dd>
               </div>
             </dl>
@@ -389,7 +406,9 @@ export default function AlertDetailPage() {
               <p className="mt-1 text-[13px] text-ink-3">
                 {view.rescored
                   ? 'Nothing started failing at this sync. These problems were already there and now cost more points. Fixing them raises the score, biggest first.'
-                  : 'Problems that appeared at this sync, biggest first. Each one says how to fix it.'}
+                  : a.drop_reasons?.length
+                    ? 'What the posture service counted against this drop, biggest first.'
+                    : 'Problems that appeared at this sync, biggest first. Each one says how to fix it.'}
               </p>
             </div>
           </div>
@@ -417,7 +436,7 @@ export default function AlertDetailPage() {
           )}
           {view.rest > 0 && !view.rescored && (
             <p className="mt-2 border-t border-line pt-4 text-[12.5px] text-ink-3">
-              The other <span className="font-semibold text-ink-2">{formatNumber(view.rest)} points</span> came from problems that were already there and now cost more.
+              The other <span className="font-semibold text-ink-2">{formatNumber(view.rest)} {view.rest === 1 ? 'point' : 'points'}</span> came from problems that were already there and now cost more.
             </p>
           )}
 
@@ -432,6 +451,21 @@ export default function AlertDetailPage() {
                     <Button as={Link} to={`/remediation/findings/${f.finding_id}`} size="sm" variant="secondary" icon={Wrench}>
                       Fix it
                     </Button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {a.covered_checks?.length > 0 && (
+            <section className="mt-8 border-t border-line pt-4">
+              <h3 className="text-[13.5px] font-semibold text-ink">Covered by another check</h3>
+              <p className="mt-1 text-[12px] text-ink-3">Failing, but already counted under the check named in each line.</p>
+              <ul className="mt-2 divide-y divide-line">
+                {a.covered_checks.map((c) => (
+                  <li key={c.rule_id} className="py-3">
+                    <span className="block text-[13px] text-ink">{c.title}</span>
+                    {c.detail && <span className="block text-[12px] text-ink-3">{c.detail}</span>}
                   </li>
                 ))}
               </ul>

@@ -19,6 +19,9 @@ const (
 	SourcePosture  = "posture"
 	SourceGenome   = "genome"
 	SourceExposure = "exposure"
+	// SourceCritical: identities whose posture is in the critical band - the
+	// Posture page's Critical list, as standing alerts.
+	SourceCritical = "posture_critical"
 )
 
 // Alert is one item of the unified inbox, whatever raised it.
@@ -118,7 +121,13 @@ func (h *Handler) inbox(ctx context.Context, ds *scope.DataScope, userID, tenant
 		before, now := d.ScoreBefore, d.ScoreNow
 		title := fmt.Sprintf("Score dropped %d points", -d.Delta)
 		summary := "Nothing new went wrong. Problems it already had now cost more points."
-		if d.TopReason != "" {
+		if len(d.Reasons) > 0 {
+			// The posture service's own reasons: "Administrator access on NHI role (-25)".
+			summary = d.Reasons[0]
+			if len(d.Reasons) > 1 {
+				summary = fmt.Sprintf("%s, and %d more", d.Reasons[0], len(d.Reasons)-1)
+			}
+		} else if d.TopReason != "" {
 			summary = "New problem: " + d.TopReason
 			if d.NewFailing > 1 {
 				summary = fmt.Sprintf("%d new problems, the biggest: %s", d.NewFailing, d.TopReason)
@@ -128,7 +137,28 @@ func (h *Handler) inbox(ctx context.Context, ds *scope.DataScope, userID, tenant
 			Key: SourcePosture + ":" + d.IdentityID, Source: SourcePosture, Severity: dropSeverity(d), Title: title, Summary: summary,
 			Subject: d.IdentityName, SubjectType: d.IdentityType, AccountID: d.AccountID, DetectedAt: d.DetectedAt, Count: d.NewFailing,
 			Link: "/alerts/identities/" + url.PathEscape(d.IdentityID), ScoreBefore: &before, ScoreNow: &now,
-			Facts: map[string]string{"band_before": d.BandBefore, "band_now": d.BandNow, "top_points": fmt.Sprint(d.TopPoints)},
+			Facts: dropFacts(d),
+		})
+	}
+
+	// Critical posture: every identity in the critical band, while it stays
+	// there. Since is when it entered the band, so it is not new every sync.
+	critical, err := h.repo.CriticalPosture(ctx, ds)
+	if err != nil {
+		return nil, err
+	}
+	out.Summary.Available[SourceCritical] = true
+	for _, c := range critical {
+		score := c.Score
+		summary := fmt.Sprintf("%s failing.", plural(c.ChecksFailed, "1 check", fmt.Sprintf("%d checks", c.ChecksFailed)))
+		if c.TopCheck != "" {
+			summary = fmt.Sprintf("Biggest problem: %s (−%d). %s", c.TopCheck, c.TopPoints, summary)
+		}
+		out.Alerts = append(out.Alerts, Alert{
+			Key: SourceCritical + ":" + c.IdentityID, Source: SourceCritical, Severity: "critical",
+			Title: fmt.Sprintf("Critical posture: score %d", c.Score), Summary: summary,
+			Subject: c.IdentityName, SubjectType: c.IdentityType, AccountID: c.AccountID, DetectedAt: c.Since, Count: c.ChecksFailed,
+			Link: "/posture/" + url.PathEscape(c.IdentityID), ScoreNow: &score,
 		})
 	}
 	latest, previous, err := h.repo.LastSyncs(ctx, ds)
@@ -260,4 +290,15 @@ func humanize(s string) string {
 		return "Secret"
 	}
 	return strings.ToUpper(t[:1]) + t[1:]
+}
+
+// dropFacts are the preview facts of a score drop, with the acknowledgement
+// when the posture service records one.
+func dropFacts(d ScoreDrop) map[string]string {
+	f := map[string]string{"band_before": d.BandBefore, "band_now": d.BandNow, "top_points": fmt.Sprint(d.TopPoints)}
+	if d.AckAt != nil {
+		f["ack_at"] = d.AckAt.UTC().Format(time.RFC3339)
+		f["ack_by"] = d.AckBy
+	}
+	return f
 }

@@ -102,7 +102,7 @@ func (h *Handler) Summary(w http.ResponseWriter, r *http.Request) {
 	// without fetching the whole inbox (read state lives in the browser).
 	items := make([]summaryItem, 0, len(out.Alerts))
 	for _, a := range out.Alerts {
-		items = append(items, summaryItem{Key: a.Key, Source: a.Source, DetectedAt: a.DetectedAt})
+		items = append(items, summaryItem{Key: a.Key, Source: a.Source, DetectedAt: a.DetectedAt, Acked: a.Facts["ack_at"] != ""})
 	}
 	httpx.SendJSONResponse(w, http.StatusOK, httpx.APIResponse{Success: true, Message: "ok", Data: struct {
 		InboxSummary
@@ -114,6 +114,8 @@ type summaryItem struct {
 	Key        string    `json:"key"`
 	Source     string    `json:"source"`
 	DetectedAt time.Time `json:"detected_at"`
+	// Acked: the posture service records the alert as acknowledged.
+	Acked bool `json:"acked,omitempty"`
 }
 
 // Identity: GET /alerts/identities/{id} - why one identity's score dropped.
