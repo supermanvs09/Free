@@ -27,7 +27,7 @@ func TestSplitReason(t *testing.T) {
 func TestParseReasons(t *testing.T) {
 	want := []string{"A (-25)", "B (-5)"}
 	for _, raw := range []string{
-		`["A (-25)", "B (-5)"]`,     // jsonb or text[] through to_jsonb
+		`["A (-25)", "B (-5)"]`,      // jsonb or text[] through to_jsonb
 		`"[\"A (-25)\",\"B (-5)\"]"`, // a text column holding JSON
 	} {
 		if got := parseReasons(sql.NullString{String: raw, Valid: true}); !reflect.DeepEqual(got, want) {
