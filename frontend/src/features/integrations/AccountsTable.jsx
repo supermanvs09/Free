@@ -270,8 +270,11 @@ export function AccountsTable({ accounts, catalogue, inventory, canManage, onCha
 function AccountRow({ account, names, counts, inventoryKnown, canManage, onChanged, onOpen, onEdit, onRemove, onExposure }) {
   const { busy, sync: syncThis, cancel, recheck } = useAccountActions(account, { onChanged, onEditRegions: onEdit });
   const { run } = useSync();
-  // A workspace sync covers every connected account, so while one runs each of them reads as syncing.
-  const syncing = account.status === 'connected' && Boolean(run) && run.stage !== 'done' && run.stage !== 'failed';
+  /* Syncing only while a running sync covers this account: a sync started for
+     one account used to mark every connected account as syncing. A run that
+     does not name its accounts (an older one) still covers them all. */
+  const inRun = !run?.accountIds?.length || run.accountIds.map(String).includes(account.accountId);
+  const syncing = account.status === 'connected' && Boolean(run) && inRun && run.stage !== 'done' && run.stage !== 'failed';
   const queued = account.sync.status === 'queued';
   const accountRunning = account.sync.status === 'running' || syncing;
   const blocked = syncBlockedReason(account);
