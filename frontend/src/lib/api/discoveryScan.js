@@ -78,13 +78,20 @@ const FAILED = new Set(['FAILED', 'FAILURE', 'ERROR', 'CANCELLED', 'CANCELED', '
 
 /**
  * Where a scan is. Resolves to
- *   { state: 'running' | 'completed' | 'failed', status, identities, credentials, changes, scanEnd, message }
+ *   { state: 'running' | 'completed' | 'failed' | 'missing', status, identities, credentials, changes, scanEnd, message }
+ * 'missing': the scanner has no such scan (cancelled, restarted, or expired) -
+ * it will never finish, so the caller stops following it.
  * or throws when the scanner cannot be reached (the caller retries).
  */
 export async function fetchDiscoveryScanStatus(scanId) {
   const response = await http.get('/api/v1/scan/status', { params: { scan_id: scanId } });
   if (unreachable(response)) throw new Error('The scan service could not be reached.');
   const body = object(response.data);
+  /* { success: false, message: "scan not found" } has no status at all; read
+     as "running" it kept the console waiting for hours. */
+  if (response.status === 404 || (body.success === false && /not\s*found/i.test(String(body.message ?? '')))) {
+    return { state: 'missing', status: 'NOT_FOUND', identities: null, credentials: null, changes: null, scanEnd: null, message: '' };
+  }
   const d = Object.keys(object(body.data)).length > 0 ? object(body.data) : body;
   const status = String(d.status || '').toUpperCase();
   const num = (value) => (value === null || value === undefined || !Number.isFinite(Number(value)) ? null : Number(value));

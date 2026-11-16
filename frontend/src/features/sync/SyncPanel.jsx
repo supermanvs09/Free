@@ -179,6 +179,11 @@ export function SyncPanel({ open, onClose }) {
       footer={
         <>
           {running && <p className="mr-auto text-[12px] text-ink-3">You can close this. The sync keeps running.</p>}
+          {running && (
+            <Button variant="ghost" onClick={() => engine.stopFollowing()} title="Stop waiting for this sync and free the Sync button">
+              Stop waiting
+            </Button>
+          )}
           <Button variant="secondary" onClick={onClose}>
             Close
           </Button>

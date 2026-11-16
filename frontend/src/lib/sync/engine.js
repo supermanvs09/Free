@@ -208,6 +208,9 @@ async function pollDiscovery(run) {
       discovery: { ...state.run.discovery, state: 'completed', identities: result.identities, credentials: result.credentials, changes: result.changes, scanEnd: result.scanEnd, finishedAt: Date.now() },
     });
     await beginPosture();
+  } else if (result.state === 'missing') {
+    patchRun({ discovery: { ...state.run.discovery, state: 'failed' } });
+    fail('discovery', 'This sync is no longer running: it was cancelled, or the scan service restarted. Nothing is waiting on it - start a new sync when you are ready.');
   } else if (result.state === 'failed') {
     patchRun({ discovery: { ...state.run.discovery, state: 'failed' } });
     fail('discovery', customerMessage(result.message) || 'The scan could not read your AWS accounts. Check the account connections, then try again.');
@@ -319,6 +322,18 @@ export function resume() {
   } else if (isActive(run)) {
     schedule(0);
   }
+}
+
+/**
+ * Stop following a running sync. The console stops waiting and frees the Sync
+ * button; a scan the scanner is still doing finishes on its own and its
+ * results appear at the next refresh.
+ */
+export function stopFollowing() {
+  const run = state.run;
+  if (!isActive(run)) return;
+  clearTimeout(timer);
+  fail(run.stage === 'posture' ? 'posture' : 'discovery', 'You stopped following this sync. If the scan service is still working on it, its results appear when it finishes.', { resumable: run.stage === 'discovery' && Boolean(run.discovery.scanId) });
 }
 
 /** Clear a finished or failed run from view. */
