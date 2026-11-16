@@ -149,15 +149,18 @@ func (h *Handler) inbox(ctx context.Context, ds *scope.DataScope, userID, tenant
 			worst int
 		}
 		byID := map[string]*agg{}
-		cursor := ""
+		/* One read of up to genomeLimit open anomalies. The list service
+		   rebuilds the monitored fleet and queries the event store once per
+		   call, so ten pages of 100 cost ten fleet builds; one page of 1000
+		   costs one. */
 		ok := true
-		for page := 0; page < 10; page++ {
-			res, next, err := h.genome.List(ctx, userID, tenantID, dbName, anomalylist.Params{State: "open", Limit: 100, Cursor: cursor})
-			if err != nil {
-				slog.Default().Info("alerts: genome anomalies unavailable", "err", err)
-				ok = false
-				break
-			}
+		res, _, err := h.genome.List(ctx, userID, tenantID, dbName, anomalylist.Params{State: "open", Limit: genomeLimit})
+		if err != nil {
+			slog.Default().Info("alerts: genome anomalies unavailable", "err", err)
+			ok = false
+			res = &anomalylist.Response{}
+		}
+		{
 			for _, it := range res.Items {
 				id := it.Identity.SourceType + "|" + it.Identity.IdentityName
 				g := byID[id]
@@ -185,10 +188,6 @@ func (h *Handler) inbox(ctx context.Context, ds *scope.DataScope, userID, tenant
 					g.a.Facts["worst_dimension"] = it.Dimension
 				}
 			}
-			if next == nil || *next == "" {
-				break
-			}
-			cursor = *next
 		}
 		out.Summary.Available[SourceGenome] = ok
 		for _, g := range byID {

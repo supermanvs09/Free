@@ -22,6 +22,7 @@ type Handler struct {
 	exposure *credentialexposure.FindingsRepository
 	genome   GenomeLister
 	resolver *scope.Resolver
+	cache    inboxCache
 }
 
 func NewHandler(resolver *scope.Resolver, exposure *credentialexposure.FindingsRepository, genome GenomeLister) *Handler {
@@ -36,6 +37,10 @@ func (h *Handler) Register(r *mux.Router) {
 }
 
 const exposureLimit = 200
+
+// genomeLimit caps the open anomalies the inbox reads (it used to be ten
+// pages of 100).
+const genomeLimit = 1000
 
 var identityIDRe = regexp.MustCompile(`^[A-Za-z0-9:/_.@+=,-]{1,512}$`)
 
@@ -73,7 +78,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c := middleware.GetClaims(r)
-	out, err := h.inbox(r.Context(), ds, c.UserID, c.TenantID, c.DBName, authz.Can(authz.NormalizeRole(c.Role), authz.CapExposure))
+	out, err := h.cachedInbox(r.Context(), ds, c.UserID, c.TenantID, c.DBName, authz.Can(authz.NormalizeRole(c.Role), authz.CapExposure))
 	if err != nil {
 		httpx.SendServerError(w, r, err, "Alerts could not be loaded", "ALERTS_FAILED")
 		return
@@ -88,7 +93,7 @@ func (h *Handler) Summary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c := middleware.GetClaims(r)
-	out, err := h.inbox(r.Context(), ds, c.UserID, c.TenantID, c.DBName, authz.Can(authz.NormalizeRole(c.Role), authz.CapExposure))
+	out, err := h.cachedInbox(r.Context(), ds, c.UserID, c.TenantID, c.DBName, authz.Can(authz.NormalizeRole(c.Role), authz.CapExposure))
 	if err != nil {
 		httpx.SendServerError(w, r, err, "Alerts could not be loaded", "ALERTS_FAILED")
 		return
