@@ -1,0 +1,42 @@
+{
+  "baseUrl": "http://localhost:3000",
+  "outDir": "out",
+  "viewport": { "width": 1600, "height": 900 },
+  "fps": 30,
+  "login": [
+    { "goto": "/login" },
+    { "fill": ["#login-username", "$APP_USER"] },
+    { "fill": ["#login-password", "$APP_PASSWORD"] },
+    { "click": "button[type=submit]" },
+    { "waitForUrl": "/overview" }
+  ],
+  "recordings": [
+    {
+      "name": "leak",
+      "file": "1-leaked-iam-key.mp4",
+      "steps": [
+        { "goto": "/overview" },
+        { "wait": 2500 },
+        { "press": "Control+Shift+L" },
+        { "waitFor": "aside[aria-label=\"Live scenarios\"]" },
+        { "mark": true },
+        { "click": "button[aria-label^=\"Play\"] >> nth=0" },
+        { "wait": 34500 }
+      ]
+    },
+    {
+      "name": "sharedkey",
+      "file": "6-known-credential-unknown-consumer.mp4",
+      "steps": [
+        { "goto": "/overview" },
+        { "wait": 2500 },
+        { "press": "Control+Shift+L" },
+        { "waitFor": "aside[aria-label=\"Live scenarios\"]" },
+        { "mark": true },
+        { "click": "button[aria-label^=\"Play\"] >> nth=5" },
+        { "wait": 38500 }
+      ]
+    }
+  ],
+  "combined": "all-recordings.mp4"
+}
