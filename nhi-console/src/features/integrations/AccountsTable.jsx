@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -73,15 +73,16 @@ export function useAccountActions(account, { onChanged, onEditRegions } = {}) {
   /* This account only: the same sync as the top bar's (read, score, refresh
      every page), with account_ids = [this account]. Its progress is in the
      sync panel. */
-  const { start: startSync, run, cooldownUntil } = useSync();
+  const { start: startSync, run, cooldownOf, isSyncing } = useSync();
   const sync = async () => {
-    if (run && run.stage !== 'done' && run.stage !== 'failed') {
-      notify({ variant: 'info', title: 'A sync is already running', description: 'Wait for it to finish, then sync this account.' });
+    if (isSyncing(account.accountId)) return;
+    const until = cooldownOf(account.accountId);
+    if (until) {
+      notify({ variant: 'info', title: `${account.accountId} was just synced`, description: `Each account can sync once every 10 minutes. This one can sync again in ${Math.ceil((until - Date.now()) / 60000)} min; other accounts are not affected.` });
       return;
     }
-    if (cooldownUntil > Date.now()) {
-      notify({ variant: 'info', title: 'Sync again in a few minutes', description: `A sync can run every 10 minutes. The next one can start in ${Math.ceil((cooldownUntil - Date.now()) / 60000)} min.` });
-      return;
+    if (run && run.stage !== 'done' && run.stage !== 'failed') {
+      notify({ variant: 'info', title: `${account.accountId} is next`, description: `It starts as soon as the sync of ${(run.accountIds ?? []).join(', ')} finishes.` });
     }
     setBusy('sync');
     try {
@@ -269,9 +270,14 @@ export function AccountsTable({ accounts, catalogue, inventory, canManage, onCha
 
 function AccountRow({ account, names, counts, inventoryKnown, canManage, onChanged, onOpen, onEdit, onRemove, onExposure }) {
   const { busy, sync: syncThis, cancel, recheck } = useAccountActions(account, { onChanged, onEditRegions: onEdit });
-  const { run } = useSync();
-  // A workspace sync covers every connected account, so while one runs each of them reads as syncing.
-  const syncing = account.status === 'connected' && Boolean(run) && run.stage !== 'done' && run.stage !== 'failed';
+  const { isSyncing, isQueued, cooldownOf } = useSync();
+  /* Only the accounts in the running sync read as syncing; the rest are free. */
+  const syncing = account.status === 'connected' && isSyncing(account.accountId);
+  const waiting = !syncing && isQueued(account.accountId);
+  const restUntil = cooldownOf(account.accountId);
+  const now = useMinuteClock(Boolean(restUntil));
+  const resting = !syncing && restUntil > now;
+  const restMin = Math.max(1, Math.ceil((restUntil - now) / 60000));
   const queued = account.sync.status === 'queued';
   const accountRunning = account.sync.status === 'running' || syncing;
   const blocked = syncBlockedReason(account);
@@ -376,7 +382,7 @@ function AccountRow({ account, names, counts, inventoryKnown, canManage, onChang
             {sync.label}
           </span>
           <span className="block truncate text-[11.5px] text-ink-3" title={account.sync.lastError || syncDetail(account, { withActor: true })}>
-            {syncing ? 'Part of the sync in progress' : syncDetail(account)}
+            {syncing ? 'Syncing this account now' : waiting ? 'Next: starts when the current sync ends' : syncDetail(account)}
           </span>
         </div>
 
@@ -402,17 +408,27 @@ function AccountRow({ account, names, counts, inventoryKnown, canManage, onChang
                 Cancel sync
               </Button>
             ) : (
-              <span title={accountRunning ? 'Syncing now. It finishes on its own.' : blocked || 'Read this account again now'}>
+              <span
+                title={
+                  accountRunning
+                    ? 'Syncing now. It finishes on its own.'
+                    : resting
+                      ? `Synced just now. Each account can sync once every 10 minutes; this one can again in ${restMin} min.`
+                      : waiting
+                        ? 'Starts as soon as the current sync ends.'
+                        : blocked || 'Read this account again now'
+                }
+              >
                 <Button
                   variant="secondary"
                   size="sm"
                   icon={RefreshCw}
-                  loading={busy === 'sync'}
-                  disabled={Boolean(busy) || accountRunning || Boolean(blocked)}
+                  loading={busy === 'sync' || accountRunning}
+                  disabled={Boolean(busy) || accountRunning || resting || waiting || Boolean(blocked)}
                   onClick={syncThis}
                   aria-label={`Sync account ${account.accountId} now`}
                 >
-                  {accountRunning ? 'Syncing…' : 'Sync now'}
+                  {accountRunning ? 'Syncing…' : resting ? `Next sync in ${restMin} min` : waiting ? 'Up next' : 'Sync now'}
                 </Button>
               </span>
             )
@@ -633,4 +649,16 @@ function RemoveAccountBody({ account, lastConnected, onClose, onRemoved }) {
       </div>
     </div>
   );
+}
+
+/* Re-renders once a minute while a countdown is on screen. */
+function useMinuteClock(on) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!on) return undefined;
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 20000);
+    return () => clearInterval(id);
+  }, [on]);
+  return now;
 }

@@ -1,3 +1,4 @@
+import { markAccountsSynced } from '../aws';
 import { ok, fail, bare, iso, MIN } from '../util';
 import { scans, changesOf, visibleChanges, recordScan } from '../changes';
 import { identities, credentials } from '../world';
@@ -39,11 +40,14 @@ export default function register(r) {
   /* "Sync now": a discovery scan that runs for a little while and completes. */
   r.post('/scan-api/api/v1/scan/start', ({ body, user }) => {
     const st = slice('runningScanState', () => ({}));
-    if (st.scan && Date.now() - st.scan.started < 45000) {
+    /* Busy only for the same accounts: another account's scan does not block this one. */
+    const asked = body?.account_ids ?? [];
+    const overlaps = st.scan && (!asked.length || !st.scan.accounts.length || asked.some((id) => st.scan.accounts.includes(id)));
+    if (st.scan && overlaps && Date.now() - st.scan.started < 45000) {
       return bare({ success: false, scan_id: st.scan.id, started_at: iso(st.scan.started), elapsed: `${Math.round((Date.now() - st.scan.started) / 1000)}s`, message: 'A scan is already running.' }, 409);
     }
     const id = `scan_${new Date().toISOString().slice(0, 16).replace(/[-T:]/g, '')}`;
-    st.scan = { id, started: Date.now(), accounts: body?.account_ids ?? [] };
+    st.scan = { id, started: Date.now(), accounts: body?.account_ids ?? [], by: user?.email };
     save();
     audit(user, 'scan.run', 'Started a discovery scan');
     return bare({ success: true, data: { scan_id: id, schema: 'tnt_7f3a91c2', accounts: st.scan.accounts.length ? st.scan.accounts : [...new Set(identities().map((i) => i.account_id))], status: 'STARTED' } });
@@ -58,6 +62,7 @@ export default function register(r) {
     if (!scan.recorded) {
       scan.recorded = true;
       recordScan({ scan_id: scan.id, status: 'COMPLETED', account_id: null, started_at: iso(scan.started), completed_at: iso(scan.started + 14000) });
+      markAccountsSynced(scan.accounts, iso(scan.started + 14000), scan.by);
     }
     return bare({ success: true, data: { status: 'COMPLETED', total_identities: identities().length, total_credentials: credentials().length, total_changes: changesOf(scan.id, 1).length, scan_end: iso(scan.started + 14000) } });
   });

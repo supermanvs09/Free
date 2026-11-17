@@ -1,3 +1,4 @@
+import { useSync } from '../sync/SyncContext';
 import { customerAwsError } from '../../lib/awsErrors';
 import { useMemo, useState } from 'react';
 import { CheckCircle2, Globe2, KeyRound, RefreshCw, ShieldCheck, Trash2, XCircle } from 'lucide-react';
@@ -32,7 +33,11 @@ export function AccountDrawer({ account, setup, catalogue, counts, canManage, on
   const [tab, setTab] = useState('overview');
   const { busy, sync, cancel, recheck } = useAccountActions(account, { onChanged, onEditRegions });
   const queued = account.sync.status === 'queued';
-  const runningNow = account.sync.status === 'running';
+  const { isSyncing, isQueued, cooldownOf } = useSync();
+  const runningNow = account.sync.status === 'running' || isSyncing(account.accountId);
+  const upNext = !runningNow && isQueued(account.accountId);
+  const restUntil = cooldownOf(account.accountId);
+  const restMin = restUntil ? Math.max(1, Math.ceil((restUntil - Date.now()) / 60000)) : 0;
   const names = useMemo(() => new Map(catalogue.map((region) => [region.code, region.name])), [catalogue]);
   const meta = ACCOUNT_STATUS[account.status] ?? ACCOUNT_STATUS.action_needed;
   const blocked = syncBlockedReason(account);
@@ -70,8 +75,8 @@ export function AccountDrawer({ account, setup, catalogue, counts, canManage, on
                   Cancel queued sync
                 </Button>
               ) : (
-                <Button variant="primary" icon={RefreshCw} loading={busy === 'sync'} disabled={Boolean(blocked) || Boolean(busy) || runningNow} onClick={sync}>
-                  {runningNow ? 'Syncing…' : 'Sync this account'}
+                <Button variant="primary" icon={RefreshCw} loading={busy === 'sync'} disabled={Boolean(blocked) || Boolean(busy) || runningNow || upNext || restMin > 0} onClick={sync}>
+                  {runningNow ? 'Syncing…' : upNext ? 'Up next' : restMin ? `Next sync in ${restMin} min` : 'Sync this account'}
                 </Button>
               )}
             </span>
@@ -241,7 +246,7 @@ function SyncTab({ account, blocked }) {
       </div>
       <p className="text-[12.5px] leading-relaxed text-ink-2">
         Sync this account re-reads its allowed regions and global IAM. It is queued for the discovery worker and can be cancelled until it
-        starts. To read every account and score them together, use Sync now in the top bar and choose All accounts.
+        starts. Only this account is read, and only this account rests for 10 minutes afterwards; the others can be synced meanwhile. To read every account together, use Sync all accounts on the Integrations page.
       </p>
       {blocked && <p className="text-[12px] text-ink-3">Sync is not available: {blocked.toLowerCase()}.</p>}
       <DetailList>

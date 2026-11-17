@@ -131,6 +131,16 @@ function store() {
   return s;
 }
 const commit = () => save();
+
+/** A finished sync stamps the accounts it read (and only those). */
+export function markAccountsSynced(accountIds, at, by) {
+  const ids = new Set(accountIds?.length ? accountIds : store().accounts.map((a) => a.account_id));
+  for (const a of store().accounts) {
+    if (!ids.has(a.account_id) || a.status !== 'connected') continue;
+    a.sync = { ...a.sync, status: 'succeeded', last_synced_at: at, last_error: '', requested_by: by ?? a.sync.requested_by };
+  }
+  commit();
+}
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const clone = (value) => JSON.parse(JSON.stringify(value));
 

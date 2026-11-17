@@ -73,9 +73,15 @@ export function SyncProvider({ children }) {
     [connected],
   );
 
+  /* "All accounts" rests only when every connected account does. */
+  const allUntil = connected.length && connected.every((id) => (snapshot.cooldowns?.[id] ?? 0) > Date.now()) ? Math.min(...connected.map((id) => snapshot.cooldowns[id])) : 0;
   const value = useMemo(
     () => ({
       ...snapshot,
+      cooldownUntil: allUntil,
+      cooldownOf: (id) => ((snapshot.cooldowns?.[id] ?? 0) > Date.now() ? snapshot.cooldowns[id] : 0),
+      isSyncing: (id) => Boolean(snapshot.run && snapshot.run.stage !== 'done' && snapshot.run.stage !== 'failed' && snapshot.run.accountIds?.includes(id)),
+      isQueued: (id) => (snapshot.queue ?? []).includes(id),
       canScan: can('scan.run'),
       active: engine.isRunActive(),
       start,
@@ -83,7 +89,7 @@ export function SyncProvider({ children }) {
       closePanel: () => setPanelOpen(false),
       panelOpen,
     }),
-    [snapshot, can, start, panelOpen],
+    [snapshot, can, start, panelOpen, allUntil],
   );
 
   return (
