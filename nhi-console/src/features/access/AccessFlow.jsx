@@ -48,6 +48,9 @@ const edgeTypes = { labeled: LabeledEdge };
 /* Below this the 12px node labels stop being readable, so the fit stops
    shrinking and starts cropping instead. */
 const MIN_FIT_ZOOM = 0.7;
+/* The access chain is worth a slightly smaller first view than an arbitrary
+   neighbourhood: four columns that read as one sentence beat two that do not. */
+const CHAIN_FIT_ZOOM = 0.62;
 /* The Fit button's floor, and the canvas's. Low enough that five hops fit a
    phone; the reader zooms back in on the part they want. */
 const FIT_ALL_MIN_ZOOM = 0.15;
@@ -105,7 +108,8 @@ function FlowInner({
 }) {
   const shellRef = useRef(null);
   const rowsRef = useRef(new Map());
-  const { fitView, setViewport } = useReactFlow();
+  const { fitView, setViewport, getViewport, setCenter } = useReactFlow();
+
   const [fullscreen, setFullscreen] = useState(false);
   const [nativeFullscreen, setNativeFullscreen] = useState(false);
   const [hoverId, setHoverId] = useState('');
@@ -147,6 +151,25 @@ function FlowInner({
     return { nodes, edges };
   }, [hoverId, data]);
 
+  /* A box selected from outside the canvas (the access-path summary, the
+     back-trace, "Show it on the graph") is brought into view if it is off
+     screen, at the current zoom. */
+  useEffect(() => {
+    if (!selectedId) return undefined;
+    const t = setTimeout(() => {
+      const node = layout.nodes.find((n) => n.id === selectedId);
+      const frame = shellRef.current?.querySelector('.access-canvas');
+      if (!node || !frame) return;
+      const { x, y, zoom } = getViewport();
+      const left = node.position.x * zoom + x;
+      const top = node.position.y * zoom + y;
+      const w = HOP_METRICS.NODE_WIDTH * zoom;
+      const inside = left >= 0 && top >= 0 && left + w <= frame.clientWidth && top + HOP_METRICS.NODE_HEIGHT * zoom <= frame.clientHeight;
+      if (!inside) setCenter(node.position.x + HOP_METRICS.NODE_WIDTH / 2, node.position.y + HOP_METRICS.NODE_HEIGHT / 2, { zoom, duration: 450 });
+    }, 450);
+    return () => clearTimeout(t);
+  }, [selectedId, layout.nodes, getViewport, setCenter]);
+
   const flowNodes = useMemo(
     () =>
       layout.nodes.map((node) => ({
@@ -167,6 +190,21 @@ function FlowInner({
   );
 
   const flowEdges = useMemo(() => {
+    const kindOf = new Map((data?.nodes ?? []).map((node) => [node.id, node]));
+    const shortLabel = (edge, meta) => {
+      if (edge.kind === 'has_policy') return kindOf.get(edge.to)?.direct ? 'attached directly' : 'attached to role';
+      if (edge.kind === 'can_access' || edge.kind === 'accesses') {
+        const word = edge.level === 'admin' ? 'full admin' : edge.level === 'write' ? 'can write' : edge.level === 'read' ? 'can read' : 'allows';
+        return edge.kind === 'accesses' && edge.callCount ? `${word} · used ${edge.callCount}×` : word;
+      }
+      if (edge.kind === 'bound_to') return 'runs as';
+      if (edge.crossAccount) return meta.short ?? 'can assume';
+      return meta.short;
+    };
+    const fullLabel = (edge, meta) => {
+      const base = edge.detail ?? meta.label;
+      return edge.crossAccount && !/account/i.test(base) ? `${base} · another account` : base;
+    };
     const byId = new Map((data?.nodes ?? []).map((node) => [node.id, node]));
     return (data?.edges ?? []).map((edge) => {
       const meta = edgeKindMeta(edge.kind);
@@ -190,7 +228,10 @@ function FlowInner({
         target: reversed ? edge.from : edge.to,
         type: 'labeled',
         animated: false,
-        label: active ? (edge.crossAccount ? `${meta.label} · another account` : meta.label) : undefined,
+        /* Every arrow says what it is, in two or three words, so the chain
+           reads without hovering: runs as -> attached to the role -> can
+           write. Hovering either end gives the full sentence. */
+        label: active ? fullLabel(edge, meta) : shortLabel(edge, meta),
         ariaLabel: `${meta.label}${edge.callCount ? `, ${edge.callCount} calls` : ''}`,
         labelShowBg: true,
         labelBgPadding: [4, 2],
@@ -264,6 +305,17 @@ function FlowInner({
         return;
       }
 
+      /* It does not, on the first look: frame the access chain - the starting
+         point, what it runs as, its policies and what they reach - which is
+         the question this screen answers. What can act as it stays one pan to
+         the left. */
+      const chain = layout.nodes.filter((node) => (node.data?.depth ?? 0) >= 0);
+      const chainCols = new Set(chain.map((node) => node.position.x)).size;
+      if (!anchor && chainCols > 2 && chainCols * HOP_METRICS.COLUMN_WIDTH * CHAIN_FIT_ZOOM <= available - 2 * EDGE_PAD) {
+        fitView({ padding: 0.08, duration, minZoom: CHAIN_FIT_ZOOM, maxZoom: 1, nodes: chain.map((node) => ({ id: node.id })) });
+        return;
+      }
+
       /* It does not, and this refit follows an expansion: frame the node that
          was opened together with everything joined to it, which is exactly
          the hop that just appeared. */
@@ -322,7 +374,7 @@ function FlowInner({
           duration,
           minZoom: MIN_FIT_ZOOM,
           maxZoom: 1.15,
-          nodes: layout.nodes.filter((node) => node.data.depth <= 1).map((node) => ({ id: node.id })),
+          nodes: layout.nodes.filter((node) => Math.abs(node.data.depth ?? 0) <= 1).map((node) => ({ id: node.id })),
         });
         return;
       }
@@ -448,7 +500,7 @@ function FlowInner({
     if (next) setMoved((current) => ({ ...current, ...next }));
   }, []);
 
-  const labels = hopLabels(layout.columnCount);
+  const labels = hopLabels(layout);
 
   return (
     <div
@@ -486,7 +538,7 @@ function FlowInner({
             by cutting "2 hops" to "2 HOF". */}
         <div className="access-hop-strip flex min-w-0 flex-1 items-center gap-4 overflow-x-auto">
           {labels.map((label, index) => (
-            <span key={label} className="access-hop-label shrink-0">
+            <span key={`${index}-${label}`} className="access-hop-label shrink-0">
               {index === 0 ? label : `→ ${label}`}
             </span>
           ))}

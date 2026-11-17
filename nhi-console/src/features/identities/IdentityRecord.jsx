@@ -743,6 +743,9 @@ function relationshipModel(data, arn) {
   const edges = graph.edges ?? [];
   const subjects = new Set([current]);
   for (const edge of edges) if (edge.source === current && edge.edge_type === 'bound_to') subjects.add(edge.target);
+  /* Its policies are part of it too: what a policy reaches, the identity reaches.
+     The policies themselves are listed on the Permissions tab. */
+  for (const edge of edges) if (subjects.has(edge.source) && edge.edge_type === 'has_policy') subjects.add(edge.target);
   const nameOf = (value) => nodes.get(value)?.name || String(value).split(/[/:]/).pop() || value;
   const row = (edge, other, subject, direction) => {
     const node = nodes.get(other);
@@ -762,6 +765,7 @@ function relationshipModel(data, arn) {
   const out = { runsAs: [], sharedWith: [], canUse: [], outside: [], switchTo: [], used: [], createdBy: [], other: [] };
   for (const edge of edges) {
     const type = edge.edge_type;
+    if (type === 'has_policy') continue;
     const inbound = subjects.has(edge.target) && !subjects.has(edge.source);
     const outbound = subjects.has(edge.source) && !subjects.has(edge.target);
     if (edge.source === current && type === 'bound_to') out.runsAs.push(row(edge, edge.target, null, 'out'));

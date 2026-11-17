@@ -21,7 +21,7 @@ import { can } from '../roles';
 import { save } from '../state';
 import { credentialById, credentialsOf, identityById, identitiesOf, eventsOf, visible } from '../world';
 import { escalationPaths, escalationThrough, grantsForPrincipal, linkById, originalGrants, principalOf, rightSize, withRightSizePreview } from '../entitlements';
-import { blastRadius } from '../reach';
+import { accessPath, blastRadius } from '../reach';
 import { liveFindings } from '../exposureData';
 import { anomalies } from './genome';
 import { deliveries, emitEvent, liveEvents } from '../notifyBus';
@@ -209,6 +209,43 @@ function scenarioState() {
   };
 }
 
+/**
+ * The figures a replay narrates, read from the live model rather than written
+ * into the script: how far the key reaches, how little of its access the
+ * server uses, the chain, how long the role sat unused. Read before a story
+ * plays, so the captions say what the screens are about to show.
+ */
+function scenarioFacts() {
+  const byName = (n) => estate().identities.find((i) => i.name === n && !i.__deleted);
+  const n = (v) => (Number.isFinite(v) ? v : null);
+  const out = {};
+  const bot = byName('svc-deploy-bot');
+  const key = bot && estate().credentials.find((c) => c.bound_identities?.includes(bot.id) || c.__base?.bound?.includes(bot.id));
+  if (key) {
+    const b = blastSummary(key.arn);
+    out.leak = { score: n(b.score), resources: n(b.resources), accounts: n(b.accounts), sensitive: n(b.sensitive), roles: n(b.roles), repo: 'deepalgo-labs/payments-api' };
+  }
+  const gw = byName('payments-gateway-01');
+  if (gw) {
+    const o = insights(gw).overprivilege;
+    const b = blastSummary(subjectArn(gw));
+    out.ec2 = { utilization_pct: n(o?.utilization_pct), used: n(o?.services_used), granted: n(o?.services_granted), resources: n(b.resources), sensitive: n(b.sensitive), reduction_pct: ec2Reduction(gw) };
+  }
+  const ro = byName('reporting-readonly');
+  if (ro) {
+    const p = escalationPaths(ro)[0];
+    out.chain = { hops: p ? p.identities.length - 1 : null, path: p ? p.identities.map((i) => i.name) : [], target: p?.identities.at(-1)?.name ?? null, resources: n(blastSummary(subjectArn(ro)).resources) };
+  }
+  const role = estate().credentials.find((c) => c.name === 'invoice-legacy-export-role');
+  if (role) {
+    const grants = grantsForPrincipal(role.name);
+    out.orphan = { role: role.name, function: 'invoice-legacy-export', stores: grants.flatMap((g) => g.targets).length, sensitive: grants.flatMap((g) => g.targets).filter((t) => ['Secrets', 'PCI', 'PII'].includes(t.data)).length, unused_days: role.last_used_at ? Math.max(0, Math.round((Date.now() - Date.parse(role.last_used_at)) / 86400000)) : null };
+  }
+  const agent = byName('support-copilot-agent');
+  if (agent) out.agent = { name: agent.name, resources: n(blastSummary(subjectArn(agent)).resources) };
+  return out;
+}
+
 function runScenario(key, user) {
   const st = scenarioState()[key];
   mutate((r) => {
@@ -362,6 +399,11 @@ export default function register(r) {
     return ok(insights(i));
   });
 
+  r.get('/api/v1/response/identities/:id/access-path', ({ params }) => {
+    const i = identityById(params.id);
+    if (!i || !visible(i)) return fail(404, 'Identity not found', 'NOT_FOUND');
+    return ok({ ...accessPath(i), total: blastSummary(subjectArn(i)), contained: blastRadius(subjectArn(i))?.contained ?? null });
+  });
   r.get('/api/v1/response/identities/:id/least-privilege', ({ params }) => {
     const i = identityById(params.id);
     if (!i || !visible(i)) return fail(404, 'Not in scope.', 'NOT_FOUND');
@@ -438,7 +480,10 @@ export default function register(r) {
     return ok({ deleted: c.id });
   });
 
-  r.get('/api/v1/scenarios', () => ok({ scenarios: Object.entries(SCENARIOS).map(([key, s]) => ({ key, ...s, ...scenarioState()[key] })) }));
+  r.get('/api/v1/scenarios', () => {
+    const facts = scenarioFacts();
+    return ok({ scenarios: Object.entries(SCENARIOS).map(([key, s]) => ({ key, ...s, ...scenarioState()[key], facts: facts[key] ?? {} })) });
+  });
 
   r.post('/api/v1/scenarios/:key/run', ({ params, user }) => {
     if (!SCENARIOS[params.key]) return fail(404, 'Unknown scenario.', 'NOT_FOUND');

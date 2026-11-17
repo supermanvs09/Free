@@ -91,6 +91,7 @@ export function toneFor(node) {
 export const KIND_LABEL = {
   identity: 'Identity',
   credential: 'Credential',
+  policy: 'Policy',
   resource: 'Resource',
   account: 'Account',
   federated: 'Company sign-in',
@@ -106,7 +107,7 @@ export const KIND_LABEL = {
  * inferred from a legend is a colour that gets ignored.
  */
 export function riskReason(node) {
-  if (node.isAdmin) return 'Full administrator access';
+  if (node.isAdmin) return node.kind === 'policy' ? 'Grants administrator access' : 'Full administrator access';
   if (node.publicPolicy) return 'Publicly accessible';
   if (node.kind === 'credential' && node.stale) return `Unused for ${node.lastUsedDays} days`;
   return null;

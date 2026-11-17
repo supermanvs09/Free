@@ -57,9 +57,9 @@ const SERVICE_LABEL = {
 };
 const serviceLabel = (s) => SERVICE_LABEL[s] ?? (s ? s.toUpperCase() : 'Other');
 
-/* Services whose reach is the dangerous part: credentials and key material. */
-const SENSITIVE = new Set(['secretsmanager', 'kms', 'ssm', 'iam', 'sts', 'keyvault']);
-const isSensitive = (r) => SENSITIVE.has(r.service) || r.type === 'secret' || r.type === 'key';
+/* Sensitive means what it means on every other screen: secrets, card data
+   (PCI) and personal data (PII), by the resource's data classification. */
+const isSensitive = (r) => ['Secrets', 'PCI', 'PII'].includes(r.data_class);
 
 const LIMITATION = {
   crosses_account_boundary: 'Crosses into another AWS account.',
@@ -255,7 +255,7 @@ function WhoCanBecome({ arn }) {
 
 const FILTERS = [
   { value: 'all', label: 'All' },
-  { value: 'sensitive', label: 'Secrets & keys' },
+  { value: 'sensitive', label: 'Sensitive data' },
   { value: 'cross', label: 'Other accounts' },
 ];
 
@@ -329,7 +329,7 @@ export function BlastRadiusView({ arn, compact = false }) {
     filter === 'sensitive' ? isSensitive(r) : filter === 'cross' ? accountOf(r.arn) && accountOf(r.arn) !== accountOf(result.source_arn) : true,
   );
   const sentence = [
-    derived.sensitive.length ? `${formatNumber(derived.sensitive.length)} of them secrets, keys or roles` : null,
+    derived.sensitive.length ? `${formatNumber(derived.sensitive.length)} of them secrets, card or personal data` : null,
     derived.accounts.size ? `across ${formatNumber(derived.accounts.size + 1)} AWS accounts` : null,
     derived.viaRoles ? `${formatNumber(derived.viaRoles)} only by becoming another role` : null,
   ].filter(Boolean);
@@ -380,7 +380,7 @@ export function BlastRadiusView({ arn, compact = false }) {
         <dl className="grid grid-cols-2 divide-line border-t border-line @2xl:grid-cols-4 @2xl:divide-x">
           {[
             ['Reachable', total, 'resources'],
-            ['Sensitive', derived.sensitive.length, 'secrets, keys, roles'],
+            ['Sensitive', derived.sensitive.length, 'secrets, PCI, PII'],
             ['Roles it can become', (result.reachable_identities ?? []).length, 'by assuming them'],
             ['Other accounts', derived.accounts.size, derived.accounts.size ? [...derived.accounts].slice(0, 2).join(', ') : 'stays in its own'],
           ].map(([label, value, hint]) => (

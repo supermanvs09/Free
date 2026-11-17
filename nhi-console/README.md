@@ -111,6 +111,19 @@ departed from baseline. Permissions, Activity, utilisation, Posture, NHI Genome,
 the access graph, blast radius and who-can-assume (`src/lib/local/reach.js`)
 are all derived from it, so they always agree.
 
+## Reading the access graph
+
+The graph reads left to right, in the order access actually flows:
+
+**what can act as it / created it → the identity → what it runs as (role or key) → the policies attached there → what those policies reach**
+
+- Every policy is its own box, marked **attached to the role** or **attached directly**, with how many resources it reaches. Wildcards are one box ("Every resource in prod-core · 42 resources").
+- Every arrow says what it is: *runs as*, *signs in with*, *attached to role*, *attached directly*, *can read / can write / full admin* (with *used N×* when CloudTrail saw it), *can assume*.
+- Above the graph, the **access path** strip says the same in one line and answers "can this identity get administrator access?": directly (which policy, on what), through a role chain (the exact hops and the trust policy behind each, with **Show it on the graph**), or not at all.
+- Select any box and **How it gets here** traces it back to the starting point, one arrow at a time.
+
+The strip, the graph, blast radius, permissions and posture read one model, so their numbers agree; "sensitive" means secrets, PCI or PII on every screen.
+
 ## Response actions and live scenarios
 
 Every identity page leads with what can be done about it now, and the action
@@ -149,7 +162,7 @@ The five alerts:
 | 4 | Orphaned role after its Lambda was deleted | `invoice-legacy-export`'s role, credential drawer | Delete role |
 | 5 | Runaway Bedrock agent | `support-copilot-agent`, NHI Genome anomalies | Restrict to its baseline |
 
-**Replay** tab: plays one story with captions; the camera zooms to the card
+**Replay** tab: plays one story with captions (chapter, headline and a line of live figures from the workspace); the camera zooms to the card
 each beat is about and a pointer clicks the real buttons. Space pauses,
 → skips a beat, Esc stops, C hides captions.
 

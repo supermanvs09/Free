@@ -23,7 +23,7 @@
 const ROW_PITCH = 76;
 const NODE_HEIGHT = 56;
 const MORE_HEIGHT = 32;
-const COLUMN_WIDTH = 424; // 180px between columns: room for an edge label on the run into its target
+const COLUMN_WIDTH = 392; // 148px between columns: room for a two-word edge label on the run into its target
 const NODE_WIDTH = 244;
 
 export const HOP_METRICS = { ROW_PITCH, NODE_HEIGHT, MORE_HEIGHT, COLUMN_WIDTH, NODE_WIDTH };
@@ -39,11 +39,14 @@ export function layoutHops({ nodes = [], edges = [], groups = [] }, previousRows
     return { nodes: [], rows: new Map(), width: 0, height: 0, columnCount: 0 };
   }
 
-  const maxDepth = Math.max(
-    ...nodes.map((node) => node.depth ?? 0),
-    ...groups.map((group) => group.depth ?? 0),
-  );
-  const columnCount = maxDepth + 1;
+  /* Depth is signed: what can act as the focus sits left of it (negative),
+     what it runs as and reaches sits right (positive). Columns are numbered
+     from the leftmost. */
+  const depths = [...nodes.map((node) => node.depth ?? 0), ...groups.map((group) => group.depth ?? 0)];
+  const maxDepth = Math.max(...depths);
+  const minDepth = Math.min(0, ...depths);
+  const col = (depth) => (depth ?? 0) - minDepth;
+  const columnCount = maxDepth - minDepth + 1;
 
   /* Which node each deeper node was opened from, so a child sits beside its
      parent instead of wherever the sort happened to put it. */
@@ -53,20 +56,23 @@ export function layoutHops({ nodes = [], edges = [], groups = [] }, previousRows
     const from = byId.get(edge.from);
     const to = byId.get(edge.to);
     if (!from || !to) continue;
-    const shallower = (from.depth ?? 0) <= (to.depth ?? 0) ? from : to;
+    const shallower = Math.abs(from.depth ?? 0) <= Math.abs(to.depth ?? 0) ? from : to;
     const deeper = shallower === from ? to : from;
-    if ((deeper.depth ?? 0) === (shallower.depth ?? 0) + 1 && !parentOf.has(deeper.id)) {
+    if (Math.abs(deeper.depth ?? 0) === Math.abs(shallower.depth ?? 0) + 1 && !parentOf.has(deeper.id)) {
       parentOf.set(deeper.id, shallower.id);
     }
   }
 
   /* Column contents, ordered parent-first then by interest. */
   const columns = Array.from({ length: columnCount }, () => []);
-  for (const node of nodes) columns[node.depth ?? 0].push(node);
+  for (const node of nodes) columns[col(node.depth)].push(node);
 
   const rowOf = new Map();
-  columns.forEach((column, depth) => {
-    if (depth > 0) {
+  /* Nearest columns first, so a parent has its row before its children sort by it. */
+  const order = columns.map((_, index) => index).sort((a, b) => Math.abs(a + minDepth) - Math.abs(b + minDepth));
+  order.forEach((depth) => {
+    const column = columns[depth];
+    if (depth !== col(0)) {
       column.sort((a, b) => {
         const parentRowA = rowOf.get(parentOf.get(a.id)) ?? 0;
         const parentRowB = rowOf.get(parentOf.get(b.id)) ?? 0;
@@ -81,7 +87,7 @@ export function layoutHops({ nodes = [], edges = [], groups = [] }, previousRows
     const pending = [];
     for (const node of column) {
       const held = previousRows.get(node.id);
-      if (held && held.depth === depth && !claimed.has(held.row) && held.row < column.length) {
+      if (held && held.depth === depth + minDepth && !claimed.has(held.row) && held.row < column.length) {
         rowOf.set(node.id, held.row);
         claimed.add(held.row);
       } else {
@@ -100,7 +106,7 @@ export function layoutHops({ nodes = [], edges = [], groups = [] }, previousRows
   /* Folds take the rows after their column's nodes, ordered by their parent. */
   const foldsByDepth = new Map();
   for (const group of groups) {
-    const depth = group.depth ?? 1;
+    const depth = col(group.depth ?? 1);
     if (!foldsByDepth.has(depth)) foldsByDepth.set(depth, []);
     foldsByDepth.get(depth).push(group);
   }
@@ -133,7 +139,7 @@ export function layoutHops({ nodes = [], edges = [], groups = [] }, previousRows
     const offset = (tallest - (heights.get(depth) ?? 0)) / 2;
     const position = { x: depth * COLUMN_WIDTH, y: Math.round(y + Math.max(0, offset)) };
 
-    rows.set(item.id, { depth, row });
+    rows.set(item.id, { depth: depth + minDepth, row });
     placed.push({
       id: item.id,
       type,
@@ -168,12 +174,46 @@ export function layoutHops({ nodes = [], edges = [], groups = [] }, previousRows
     width: columnCount * COLUMN_WIDTH,
     height: tallest,
     columnCount,
+    minDepth,
+    columnKinds: columns.map((column) => column.map((node) => node.kind)),
+    columnVia: columns.map((column) => column.map((node) => node.via)),
   };
 }
 
-/** Column headings: hop distance from the focus, which is what a column means. */
-export function hopLabels(columnCount) {
-  return Array.from({ length: Math.max(0, columnCount) }, (_, index) =>
-    index === 0 ? 'Starting point' : index === 1 ? '1 step away' : `${index} steps away`,
-  );
+/**
+ * Column headings, named by what a column holds, so the picture reads as a
+ * sentence: who can act as it -> the identity -> runs as -> policies -> can
+ * reach. A column that holds a mix says so.
+ */
+const VIA_HEADING = {
+  bound_to: 'Runs as',
+  uses: 'Signs in with',
+  has_policy: 'Policies',
+  can_access: 'Can reach',
+  accesses: 'Can reach',
+  assume_role: 'Can become',
+  cross_account: 'Can become',
+  signs_in_as: 'Can become',
+  service_trust: 'Trusted by',
+  federated_oidc: 'Trusted by',
+  federated_saml: 'Trusted by',
+  trusts: 'Trusted by',
+  created_by: 'Created it',
+};
+
+export function hopLabels(layout) {
+  const { columnCount = 0, minDepth = 0, columnVia = [] } = layout ?? {};
+  return Array.from({ length: Math.max(0, columnCount) }, (_, index) => {
+    const depth = index + minDepth;
+    if (depth === 0) return 'Starting point';
+    const via = [...new Set((columnVia[index] ?? []).map((kind) => VIA_HEADING[kind] ?? null).filter(Boolean))];
+    if (depth < 0) {
+      const named = via.map((v) => (v === 'Can become' ? 'Can act as it' : v === 'Runs as' ? 'Shares its role' : v));
+      return named.length ? named.join(' · ') : 'Linked to it';
+    }
+    /* The access chain first, then what else sits in the column. */
+    const order = ['Runs as', 'Signs in with', 'Policies', 'Can reach', 'Can become', 'Trusted by', 'Created it'];
+    via.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    return via.length ? via.slice(0, 3).join(' · ') : `${depth} steps along`;
+  });
 }

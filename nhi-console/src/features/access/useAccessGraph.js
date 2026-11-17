@@ -187,7 +187,7 @@ async function pickDefaultFocus(state, index) {
   return state.defaultFocus;
 }
 
-export function useAccessGraph({ focusId, expanded, revealed }) {
+export function useAccessGraph({ focusId, expanded, collapsed = [], revealed }) {
   const { user } = useAuth();
   const owner = `${user?.tenantId ?? ''}|${user?.email ?? ''}`;
   const state = sharedFor(owner);
@@ -231,8 +231,8 @@ export function useAccessGraph({ focusId, expanded, revealed }) {
 
   const graph = useMemo(() => {
     if (!focusArn || focusStatus !== 'done') return null;
-    return buildNeighbourhood({ store: state.store, focusArn, expanded, revealed, describe });
-  }, [state, focusArn, focusStatus, expanded, revealed, describe]);
+    return buildNeighbourhood({ store: state.store, focusArn, expanded, collapsed, revealed, describe });
+  }, [state, focusArn, focusStatus, expanded, collapsed, revealed, describe]);
 
   /* Read every visible node's own neighbourhood, and its privilege. */
   useEffect(() => {

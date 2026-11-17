@@ -1,3 +1,5 @@
+import { AccessPathSummary } from './AccessPathSummary';
+import { traceTo } from './graphModel';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, Info, Network, RotateCw } from 'lucide-react';
@@ -46,6 +48,10 @@ export default function AccessGraphPage() {
   const openParam = searchParams.get('open') || '';
   const moreParam = searchParams.get('more') || '';
   const expanded = useMemo(() => openParam.split(',').filter(Boolean), [openParam]);
+  /* Boxes that open by themselves (the role it runs as, its policies) and the
+     reader has closed. */
+  const shutParam = searchParams.get('shut') || '';
+  const collapsed = useMemo(() => shutParam.split(',').filter(Boolean), [shutParam]);
   /* `more` is `<arn>~<count>` pairs. ARNs are full of colons, so the count
      takes the last separator. */
   const revealed = useMemo(() => {
@@ -75,7 +81,7 @@ export default function AccessGraphPage() {
     [setSearchParams],
   );
 
-  const access = useAccessGraph({ focusId, expanded, revealed });
+  const access = useAccessGraph({ focusId, expanded, collapsed, revealed });
   const { graph, focusRecord, statusOf, isSettled } = access;
 
   /* The chosen default focus goes into the URL, so the link in the address
@@ -127,11 +133,12 @@ export default function AccessGraphPage() {
 
   const onToggleExpand = useCallback(
     (node) => {
-      const isOpen = expanded.includes(node.id);
+      const isOpen = expanded.includes(node.id) || node.expanded;
       const next = isOpen ? expanded.filter((id) => id !== node.id) : [...expanded, node.id];
-      setParams({ open: next.join(',') });
+      const shut = isOpen ? [...new Set([...collapsed, node.id])] : collapsed.filter((id) => id !== node.id);
+      setParams({ open: next.join(','), shut: shut.join(',') });
     },
-    [expanded, setParams],
+    [expanded, collapsed, setParams],
   );
 
   const onReveal = useCallback(
@@ -157,9 +164,11 @@ export default function AccessGraphPage() {
       error={access.errorOf((selected ?? focusNode)?.id)}
       onRetry={access.retryNode}
       onExpand={onToggleExpand}
+      trail={selected ? traceTo(data, selected.id) : null}
+      onSelectNode={(id) => setSelectedId(id === data?.focus?.id ? '' : id)}
       onFocus={(id) => {
         setSelectedId('');
-        setParams({ focus: id, open: '', more: '' });
+        setParams({ focus: id, open: '', more: '', shut: '' });
       }}
       expandedIds={expanded}
     />
@@ -182,7 +191,7 @@ export default function AccessGraphPage() {
               value={focusRecord?.row?.id ?? focusId}
               onChange={(id) => {
                 setSelectedId('');
-                setParams({ focus: id, open: '', more: '' });
+                setParams({ focus: id, open: '', more: '', shut: '' });
               }}
             />
             <IconButton
@@ -205,6 +214,26 @@ export default function AccessGraphPage() {
             Try again
           </Button>
         </div>
+      )}
+
+      {!access.error && focusRecord?.kind === 'identity' && focusRecord?.row?.id && (
+        <AccessPathSummary
+          identityId={focusRecord.row.id}
+          present={(arn) => Boolean(data?.nodes.some((node) => node.id === arn))}
+          onSelect={(arn) => setSelectedId(arn === data?.focus?.id ? '' : arn)}
+          onFocus={(id) => {
+            setSelectedId('');
+            setParams({ focus: id, open: '', more: '', shut: '' });
+          }}
+          onShowPath={(path) => {
+            /* Open every role on the way, so the chain is drawn end to end,
+               and select where it ends. */
+            const ids = path.steps.slice(1, -1).map((s) => s.arn);
+            const next = [...new Set([...expanded, ...ids])];
+            setParams({ open: next.join(','), shut: collapsed.filter((id) => !ids.includes(id)).join(',') });
+            setSelectedId(path.steps.at(-1).arn);
+          }}
+        />
       )}
 
       {access.error ? (

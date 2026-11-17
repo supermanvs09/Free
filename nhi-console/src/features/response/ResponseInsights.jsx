@@ -231,7 +231,7 @@ function ExposureCard({ data, identity, act, onActed, reload }) {
             <>
               <div className="mt-4 grid grid-cols-3 gap-3 rounded-[10px] border border-line px-4 py-3">
                 <Stat value={before.score?.toFixed?.(1) ?? before.score} label="Blast radius of 10" tone="critical" />
-                <Stat value={formatNumber(before.sensitive)} label="Secrets, keys, PII" tone="critical" />
+                <Stat value={formatNumber(before.sensitive)} label="Secrets, PCI, PII" tone="critical" />
                 <Stat value={formatNumber(before.roles)} label="Roles it can become" />
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -321,7 +321,7 @@ function OverprivilegeCard({ data, identity, act, onActed, reload }) {
               <div className="grid grid-cols-3 gap-3 rounded-[10px] border border-line px-4 py-3">
                 <Stat value={data.blast.score.toFixed(1)} label="Blast radius of 10" tone="critical" />
                 <Stat value={formatNumber(data.blast.resources)} label="Resources it reaches" tone="critical" />
-                <Stat value={formatNumber(data.blast.sensitive)} label="Secrets, keys, PII" />
+                <Stat value={formatNumber(data.blast.sensitive)} label="Secrets, PCI, PII" />
               </div>
               <p className="mt-3 text-[12.5px] text-ink-2">One app flaw exposes the whole account. Replace AdministratorAccess with a policy built from what it actually called.</p>
               <div className="mt-3 flex flex-wrap gap-2">

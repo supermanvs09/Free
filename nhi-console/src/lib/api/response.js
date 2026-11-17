@@ -20,6 +20,7 @@ const act = async (promise) => {
 };
 
 export const fetchInsights = async (id, signal) => unwrapMain(await client.get(`/api/v1/response/identities/${enc(id)}`, { signal }));
+export const fetchAccessPath = async (id, signal) => unwrapMain(await client.get(`/api/v1/response/identities/${enc(id)}/access-path`, { signal }));
 export const fetchLeastPrivilege = async (id, signal) => unwrapMain(await client.get(`/api/v1/response/identities/${enc(id)}/least-privilege`, { signal }));
 export const rightSize = (id) => act(client.post(`/api/v1/response/identities/${enc(id)}/right-size`, {}));
 export const deactivateKey = (credentialId) => act(client.post(`/api/v1/response/keys/${enc(credentialId)}/deactivate`, {}));

@@ -7,9 +7,9 @@
 import { enabledProviders } from './apps';
 import { estate } from './seed';
 import { credentialsOf, eventsOf, identitiesOf, identityByArn, credentialByArn, visible, scopeSettings } from './world';
-import { dataScore, grantsOf, linksFrom, linksTo, resolveResource, sharedRoleOf, storedTarget } from './entitlements';
+import { dataScore, escalationPaths, grantsOf, linksFrom, linksTo, resolveResource, sharedRoleOf, storedTarget } from './entitlements';
 
-const ACCOUNT_NAME = { '482915736104': 'prod-core', '739204185562': 'data-platform', '215660394871': 'staging' };
+const ACCOUNT_NAME = { '482915736104': 'prod-core', '739204185562': 'data-platform', '215660394871': 'staging', '605218934417': 'shared-services' };
 const SERVICE_PRINCIPAL = {
   lambda_function: 'lambda.amazonaws.com',
   ecs_task: 'ecs-tasks.amazonaws.com',
@@ -91,31 +91,147 @@ function builder(focusArn) {
   return { nodes, edges, node, edge, identityNode, credNode, resourceNode };
 }
 
-/** Grants of an identity drawn from `from`: named resources, wildcards as one node. */
+/* What a policy type is called on an arrow, read from where it hangs. */
+const POLICY_KIND = {
+  aws_managed: 'AWS managed policy',
+  inline: 'Inline policy',
+  role_assignment: 'Role assignment',
+  matrix: 'Matrix authorization',
+  acl: 'Access policy',
+};
+
+/** Resources a set of grants covers, named grants and wildcards expanded. */
+function coverage(grants) {
+  const seen = new Map();
+  for (const g of grants) for (const res of g.targets) if (resourceVisible(res)) seen.set(res.arn, res);
+  return [...seen.values()];
+}
+
+/**
+ * The policies an identity's access comes from, one per policy name, each with
+ * what it hangs on (the role it runs as, or the identity itself) and what it
+ * reaches. The graph and the access-path summary both read this, so they agree.
+ */
+export function policiesOf(identity) {
+  const carrier = carrierOf(identity);
+  const via = carrier === identity.arn ? null : credentialByArn(carrier);
+  const byName = new Map();
+  for (const g of grantsOf(identity)) {
+    const name = g.policy_source;
+    if (!byName.has(name)) byName.set(name, { name, type: g.policy_type, grants: [] });
+    byName.get(name).grants.push(g);
+  }
+  return [...byName.values()].map((p) => {
+    const reach = coverage(p.grants);
+    const admin = p.grants.some((g) => g.resource_spec === '*' || g.level === 'admin');
+    return {
+      ...p,
+      arn: `${carrier}#policy/${p.name}`,
+      kind_label: POLICY_KIND[p.type] ?? 'Policy',
+      attached_to: via ? { name: via.name, arn: via.arn, kind: via.credential_type } : { name: identity.name, arn: identity.arn, kind: identity.identity_type },
+      direct: !via,
+      admin,
+      wildcard: p.grants.some((g) => g.wildcard),
+      resource_count: reach.length,
+      reach_label: reach.length ? `${reach.length} resource${reach.length === 1 ? '' : 's'}` : p.grants.some((g) => g.resource_spec === 'svc:iam') ? 'every IAM role' : 'nothing in scope',
+      sensitive_count: reach.filter((r) => ['Secrets', 'PCI', 'PII'].includes(r.data)).length,
+      used: p.grants.some((g) => g.used),
+      actions: [...new Set(p.grants.flatMap((g) => g.actions))],
+    };
+  });
+}
+
+/* One definition of sensitive everywhere: secrets, card data, personal data. */
+export const isSensitiveData = (dataClass) => ['Secrets', 'PCI', 'PII'].includes(dataClass);
+const SENSITIVE = (r) => isSensitiveData(r.data);
+
+/**
+ * The access chain of one identity, in the order it flows, for the summary
+ * above the graph: what it runs as, the policies attached there (or directly
+ * to it), how much those policies reach, which roles it can become, and
+ * whether any of that ends in administrator access. Read from the same model
+ * as the graph, blast radius and posture, so the numbers agree.
+ */
+export function accessPath(identity) {
+  const carrier = carrierOf(identity);
+  const role = carrier === identity.arn ? null : credentialByArn(carrier);
+  const keys = credentialsOf(identity).filter((c) => c.arn !== identity.arn && c.credential_type !== 'iam_role' && c.status !== 'inactive');
+  const policies = policiesOf(identity);
+  const direct = coverage(grantsOf(identity));
+  const become = linksFrom(identity)
+    .filter((l) => l.kind === 'assume' && visible(l.to))
+    .map((l) => ({ id: l.to.id, name: l.to.name, arn: l.to.arn, account: ACCOUNT_NAME[l.to.account_id] ?? l.to.account_id, other_account: l.to.account_id !== identity.account_id, is_admin: Boolean(l.to.is_admin), why: l.why }));
+  const adminPolicy = policies.find((p) => p.admin);
+  const paths = escalationPaths(identity).map((p) => ({
+    steps: p.identities.map((i) => ({ id: i.id, name: i.name, arn: i.arn, account: ACCOUNT_NAME[i.account_id] ?? i.account_id, is_admin: Boolean(i.is_admin) })),
+    links: p.links.map((l) => l.why),
+  }));
+  const adminTargets = become.filter((b) => b.is_admin);
+  return {
+    identity: { id: identity.id, name: identity.name, arn: identity.arn, type: identity.identity_type, provider: identity.provider, account: ACCOUNT_NAME[identity.account_id] ?? identity.account_id },
+    runs_as: role ? [{ name: role.name, arn: role.arn, kind: 'role' }] : [],
+    signs_in_with: keys.map((k) => ({ name: k.name, arn: k.arn, kind: k.credential_type })),
+    policies: policies.map(({ grants: _grants, ...p }) => p),
+    direct: { resources: direct.length, sensitive: direct.filter(SENSITIVE).length, accounts: new Set(direct.map((r) => r.account_id).filter(Boolean)).size },
+    can_become: become,
+    admin: adminPolicy
+      ? { verdict: 'direct', policy: adminPolicy.name, attached_to: adminPolicy.attached_to.name, direct: adminPolicy.direct, also_via: adminTargets }
+      : paths.length
+        ? { verdict: 'path', paths }
+        : adminTargets.length
+          ? { verdict: 'path', paths: adminTargets.map((t) => ({ steps: [{ id: identity.id, name: identity.name, arn: identity.arn, is_admin: false }, { id: t.id, name: t.name, arn: t.arn, account: t.account, is_admin: true }], links: [t.why] })) }
+          : { verdict: 'none' },
+  };
+}
+
+function drawPolicyNode(b, identity, p, from) {
+  b.node(p.arn, 'policy', p.name, {
+    subtype: p.type,
+    provider: identity.provider,
+    account_id: identity.account_id,
+    admin: p.admin,
+    resource_count: p.resource_count,
+    sensitive_count: p.sensitive_count,
+    direct: p.direct,
+    attached_to: p.attached_to.name,
+  });
+  b.edge(from, p.arn, 'has_policy', { label: p.direct ? `${p.kind_label}, attached directly` : `${p.kind_label}, attached to the role` });
+}
+
+const levelWord = (g) => (g.resource_spec === '*' ? 'admin: every action' : g.level === 'admin' ? 'can change access' : g.level === 'write' ? 'can write' : 'can read');
+
+/**
+ * Grants of an identity, drawn in the order access actually flows: what it
+ * runs as -> the policy attached there -> what that policy reaches. Wildcards
+ * are one node ("Every S3 bucket in prod-core").
+ */
 function drawGrants(b, identity, from) {
   const seen = observed(identity);
-  for (const g of grantsOf(identity)) {
-    if (g.resource_spec === '*' || g.wildcard) {
-      const account = identity.account_id;
-      const svc = g.resource_spec.slice(4);
-      const where = ACCOUNT_NAME[account] ?? account;
-      const label = g.resource_spec === '*' ? `Every resource in ${where}` : svc === 'iam' ? `Every IAM role in ${where}` : `Every ${{ dynamodb: 'DynamoDB table', s3: 'S3 bucket', sns: 'SNS topic', ec2: 'EC2 instance', cloudformation: 'CloudFormation stack', 'vault-kv': 'Vault KV path' }[svc] ?? `${svc} resource`} in ${where}`;
-      const arn = identity.provider === 'aws' ? `arn:aws:${g.resource_spec === '*' ? '*' : g.resource_spec.slice(4)}:*:${account}:*` : `${identity.arn.split('/')[0]}//${account}/*${g.resource_spec.slice(4)}`;
-      b.node(arn, 'resource', label, { subtype: g.resource_spec === '*' ? 'AdministratorAccess' : `${g.resource_spec.slice(4)}:*`, provider: identity.provider, wildcard: true, account_id: account });
-      b.edge(from, arn, 'can_access', { label: g.actions.join(', ') });
-      for (const res of g.seen_on) {
+  for (const p of policiesOf(identity)) {
+    drawPolicyNode(b, identity, p, from);
+    for (const g of p.grants) {
+      if (g.resource_spec === '*' || g.wildcard) {
+        const account = identity.account_id;
+        const svc = g.resource_spec.slice(4);
+        const where = ACCOUNT_NAME[account] ?? account;
+        const label = g.resource_spec === '*' ? `Every resource in ${where}` : svc === 'iam' ? `Every IAM role in ${where}` : `Every ${{ dynamodb: 'DynamoDB table', s3: 'S3 bucket', sns: 'SNS topic', ec2: 'EC2 instance', cloudformation: 'CloudFormation stack', 'vault-kv': 'Vault KV path' }[svc] ?? `${svc} resource`} in ${where}`;
+        const arn = identity.provider === 'aws' ? `arn:aws:${g.resource_spec === '*' ? '*' : g.resource_spec.slice(4)}:*:${account}:*` : `${identity.arn.split('/')[0]}//${account}/*${g.resource_spec.slice(4)}`;
+        b.node(arn, 'resource', label, { subtype: g.resource_spec === '*' ? 'AdministratorAccess' : `${g.resource_spec.slice(4)}:*`, provider: identity.provider, wildcard: true, account_id: account, resource_count: coverage([g]).length || null });
+        b.edge(p.arn, arn, 'can_access', { label: `${levelWord(g)} (${g.actions.slice(0, 2).join(', ')}${g.actions.length > 2 ? '…' : ''})`, level: g.resource_spec === '*' ? 'admin' : g.level });
+        for (const res of g.seen_on) {
+          if (!resourceVisible(res)) continue;
+          const hit = seen.get(res.arn);
+          b.resourceNode(res);
+          b.edge(p.arn, res.arn, hit ? 'accesses' : 'can_access', { label: hit?.action ?? g.actions[0], count: hit?.count ?? null, last: hit?.last ?? null, level: g.level });
+        }
+        continue;
+      }
+      for (const res of g.targets) {
         if (!resourceVisible(res)) continue;
         const hit = seen.get(res.arn);
         b.resourceNode(res);
-        b.edge(from, res.arn, hit ? 'accesses' : 'can_access', { label: hit?.action ?? g.actions[0], count: hit?.count ?? null, last: hit?.last ?? null });
+        b.edge(p.arn, res.arn, hit ? 'accesses' : 'can_access', { label: hit ? hit.action : g.actions.join(', '), count: hit?.count ?? null, last: hit?.last ?? null, is_write: g.level !== 'read', level: g.level });
       }
-      continue;
-    }
-    for (const res of g.targets) {
-      if (!resourceVisible(res)) continue;
-      const hit = seen.get(res.arn);
-      b.resourceNode(res);
-      b.edge(from, res.arn, hit ? 'accesses' : 'can_access', { label: hit ? hit.action : g.actions.join(', '), count: hit?.count ?? null, last: hit?.last ?? null, is_write: g.level !== 'read' });
     }
   }
 }
@@ -203,11 +319,9 @@ export function identityGraph(identity) {
       b.edge(c.arn, stored.resource.arn, 'signs_in_as', { label: 'opens' });
     }
   }
-  const service = identity.provider === 'aws' ? SERVICE_PRINCIPAL[identity.identity_type] : null;
-  if (service && carrier !== identity.arn) {
-    b.node(service, 'service', service, { subtype: 'aws_service' });
-    b.edge(service, carrier, 'service_trust', { label: 'trust policy' });
-  }
+  /* The AWS service that may use its role (ec2.amazonaws.com) is drawn on the
+     role's own graph, where it is news; here the instance -> role arrow
+     already says it. */
   drawGrants(b, identity, carrier);
   drawLinks(b, identity);
   const creator = identity.created_by && estate().identities.find((i) => i.name === identity.created_by && i.account_id === identity.account_id);
@@ -261,17 +375,23 @@ export function credentialGraph(credential) {
     }
   }
   if (credential.credential_type === 'secret') {
-    const seen = new Map();
+    /* Who can read it, each through the policy that allows it: reader -> the
+       role it runs as -> the policy -> this secret, the same arrows the
+       reader's own graph draws. */
     for (const { identity, grant } of readersOf(credential)) {
       const from = carrierOf(identity);
+      b.identityNode(identity);
       if (from !== identity.arn) {
-        b.identityNode(identity);
-        b.node(from, 'credential', from.split('/').pop(), { subtype: 'iam_role', provider: 'aws' });
+        const role = credentialByArn(from);
+        if (role) b.credNode(role);
+        else b.node(from, 'credential', from.split('/').pop(), { subtype: 'iam_role', provider: 'aws' });
         b.edge(identity.arn, from, 'bound_to', { label: 'runs as' });
-      } else b.identityNode(identity);
+      }
+      const policy = policiesOf(identity).find((p) => p.name === grant.policy_source);
+      if (!policy) continue;
+      drawPolicyNode(b, identity, policy, from);
       const hit = observed(identity).get(credential.arn);
-      if (!seen.has(from)) b.edge(from, credential.arn, hit ? 'accesses' : 'can_access', { label: hit ? hit.action : grant.actions.join(', '), count: hit?.count ?? null, last: hit?.last ?? null });
-      seen.set(from, true);
+      b.edge(policy.arn, credential.arn, hit ? 'accesses' : 'can_access', { label: hit ? hit.action : `${levelWord(grant)} (${grant.actions.slice(0, 2).join(', ')})`, count: hit?.count ?? null, last: hit?.last ?? null, level: grant.resource_spec === '*' ? 'admin' : grant.level });
     }
   }
   const stored = storedTarget(credential);
@@ -414,8 +534,8 @@ export function blastRadius(arn) {
     reachable_identities: roles,
     reach_by_service: Object.entries(byService).map(([service, resources]) => ({ service, resources })).sort((a, b) => b.resources - a.resources),
     paths,
-    summary: { resources: list.length, sensitive: list.filter((r) => ['Secrets', 'PCI', 'PII'].includes(r.data_class)).length, write: list.filter((r) => r.access_level !== 'read').length, admin: list.some((r) => r.access_level === 'admin'), accounts: 1 + crossAccounts.size },
-    resources: list.map((r) => ({ ...r, resource_arn: r.arn, resource_type: r.type, sensitive: ['Secrets', 'PCI', 'PII'].includes(r.data_class) })),
+    summary: { resources: list.length, sensitive: list.filter((r) => isSensitiveData(r.data_class)).length, write: list.filter((r) => r.access_level !== 'read').length, admin: list.some((r) => r.access_level === 'admin'), accounts: 1 + crossAccounts.size },
+    resources: list.map((r) => ({ ...r, resource_arn: r.arn, resource_type: r.type, sensitive: isSensitiveData(r.data_class) })),
     computed_at: new Date().toISOString(),
   };
 }

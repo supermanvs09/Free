@@ -22,82 +22,112 @@ import { clearStage, click, focus, hidePointer, release } from './stage';
  */
 export const LIVE_REPLAY = import.meta.env.VITE_LIVE_REPLAY === 'on';
 
+/* A number from the live model, or a fallback when it is not there. */
+const num = (v, fallback) => (Number.isFinite(v) ? v : fallback);
+const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/*
+ * Each beat: `kicker` names the chapter (Exposure, Detect, Map, Contain,
+ * Outcome), `caption` is the headline, `sub` is the line that proves it with
+ * the figures the screen is showing. Figures come from the live model
+ * (`s.<key>.facts`), so the narration never disagrees with the console.
+ */
 const SCRIPTS = {
   leak: {
     title: 'Leaked IAM key',
-    narration: 'A developer commits an access key to a repo. Within minutes, it’s found.',
+    narration: 'A live AWS key lands in a commit. It is found, traced and switched off in under 30 seconds.',
     then: 'Open svc-deploy-bot, then Deactivate key.',
-    length: 30,
-    steps: (s) => [
-      { at: 0, caption: 'A developer commits an AWS key', go: '/overview', peek: { kind: 'commit', key: s.leak.access_key_id } },
-      { at: 5, caption: 'adapID detects it instantly', run: 'leak', go: '/alerts', focus: '[data-scene="alert-selected"]', max: 1.5 },
-      { at: 10, caption: 'Mapped to an admin identity — 4 accounts exposed', go: `/identities/${s.leak.identity_id}?tab=blast`, focus: '[data-scene="exposure-card"]', max: 1.25 },
-      { at: 14, focus: '[data-scene="mapped"]', max: 1.6 },
-      { at: 18, caption: 'Rotated before attackers reach it', focus: '[data-scene="exposure-card"]', max: 1.25, click: '[data-scene="deactivate"]' },
-      { at: 24, caption: 'Secret found, identity mapped, risk removed — in seconds.', close: true, release: true },
-    ],
+    length: 31,
+    steps: (s) => {
+      const f = s.leak.facts ?? {};
+      return [
+        { at: 0, kicker: 'Exposure', caption: 'A live AWS access key just landed in a Git commit', sub: `${f.repo ?? 'deepalgo-labs/payments-api'} · deploy/.env.production · pushed to main`, go: '/overview', peek: { kind: 'commit', key: s.leak.access_key_id } },
+        { at: 5, kicker: 'Detect', caption: 'adapID caught it in seconds, not at the next audit', sub: 'Secret scanning matched the key and raised a critical alert to the on-call team.', run: 'leak', go: '/alerts', focus: '[data-scene="alert-selected"]', max: 1.5 },
+        { at: 10, kicker: 'Map', caption: `One leaked key. ${plural(num(f.accounts, 4), 'AWS account')}. Full administrator.`, sub: `${num(f.resources, 66)} resources within reach, ${num(f.sensitive, 14)} of them holding secrets, card or personal data.`, go: `/identities/${s.leak.identity_id}?tab=blast`, focus: '[data-scene="exposure-card"]', max: 1.25 },
+        { at: 14.5, kicker: 'Map', caption: 'Key → svc-deploy-bot → AdministratorAccess', sub: 'Traced from the credential to the identity behind it, and every account it can step into.', focus: '[data-scene="mapped"]', max: 1.6 },
+        { at: 19, kicker: 'Contain', caption: 'Switched off at the source, with one click', sub: 'No ticket queue, no console hunting: the key stops working everywhere, immediately.', focus: '[data-scene="exposure-card"]', max: 1.25, click: '[data-scene="deactivate"]' },
+        { at: 25, kicker: 'Outcome', caption: 'From exposed to contained in under 30 seconds', sub: `Blast radius ${num(f.score, 10).toFixed(1)} → 0. Everyone watching the console saw it happen live.`, close: true, release: true },
+      ];
+    },
   },
   ec2: {
     title: 'EC2 role stolen via IMDS',
-    narration: 'A web app has a vulnerability. Its EC2 role has admin.',
+    narration: 'An internet-facing server holds full admin. One app bug would hand it to an attacker; least privilege takes that away.',
     then: 'Open payments-gateway-01, Generate least-privilege policy, Apply.',
-    length: 32,
-    steps: (s) => [
-      { at: 0, caption: 'This server’s role has full admin', go: `/identities/${s.ec2.identity_id}`, focus: '[data-scene="overpriv-card"]', max: 1.2 },
-      { at: 6, caption: 'adapID: over-privileged — uses 4% of its access', run: 'ec2', focus: '[data-scene="usage"]', max: 1.7 },
-      { at: 12, caption: 'One app flaw = whole account exposed', go: `/identities/${s.ec2.identity_id}?tab=blast`, focus: '[data-scene="blast-verdict"]', max: 1.35 },
-      { at: 18, caption: `adapID right-sizes it — blast radius drops ${s.ec2.reduction_pct ?? 90}%`, release: true, click: '[data-scene="generate-lp"]' },
-      { at: 21, click: '[data-scene="apply-lp"]' },
-      { at: 25, click: '[data-scene="lp-done"]' },
-      { at: 26.5, focus: '[data-scene="overpriv-card"]', max: 1.2 },
-      { at: 28, caption: 'The role could do anything. Now it can only do its job.', close: true },
-    ],
+    length: 33,
+    steps: (s) => {
+      const f = s.ec2.facts ?? {};
+      const pct = num(f.utilization_pct, 4);
+      return [
+        { at: 0, kicker: 'Exposure', caption: 'A public web server running with full admin rights', sub: 'payments-gateway-01 · internet-facing · AdministratorAccess on its instance role', go: `/identities/${s.ec2.identity_id}`, focus: '[data-scene="overpriv-card"]', max: 1.2 },
+        { at: 6, kicker: 'Detect', caption: `It uses ${pct}% of the access it holds`, sub: `${num(f.used, 1)} of ${num(f.granted, 25)} AWS services in 90 days of CloudTrail. The rest is pure attack surface.`, run: 'ec2', focus: '[data-scene="usage"]', max: 1.7 },
+        { at: 12, kicker: 'Impact', caption: 'One SSRF bug away from the entire account', sub: `IMDSv1 hands the role's keys to anyone who can make the app fetch a URL: ${num(f.resources, 42)} resources, ${num(f.sensitive, 16)} sensitive.`, go: `/identities/${s.ec2.identity_id}?tab=blast`, focus: '[data-scene="blast-verdict"]', max: 1.35 },
+        { at: 18, kicker: 'Fix', caption: 'A least-privilege policy, written from real usage', sub: 'Generated from what it actually called, so nothing the app needs is taken away.', release: true, click: '[data-scene="generate-lp"]' },
+        { at: 21, click: '[data-scene="apply-lp"]' },
+        { at: 25, click: '[data-scene="lp-done"]' },
+        { at: 26.5, focus: '[data-scene="overpriv-card"]', max: 1.2 },
+        { at: 28, kicker: 'Outcome', caption: `Blast radius down ${num(f.reduction_pct, s.ec2.reduction_pct ?? 90)}%, and the app never noticed`, sub: 'Same workload, same uptime. Only the excess access is gone.', close: true },
+      ];
+    },
   },
   chain: {
     title: 'Privilege escalation via AssumeRole chain',
-    narration: 'A low-privilege role shouldn’t reach admin. This one can.',
+    narration: 'A read-only role can climb to administrator through two forgotten trust policies. One fix closes the whole path.',
     then: 'Open reporting-readonly, then Remove trust.',
-    length: 31,
-    steps: (s) => [
-      { at: 0, caption: 'A harmless-looking role', go: `/identities/${s.chain.identity_id}?tab=permissions&act=quiet` },
-      { at: 6, caption: 'But it can assume its way to admin', go: `/identities/${s.chain.identity_id}?tab=permissions&act=chain`, focus: '[data-scene="chain"]', max: 1.35 },
-      { at: 14, caption: 'adapID maps the full chain', run: 'chain', focus: '[data-scene="chain-card"]', max: 1.2 },
-      { at: 20, caption: 'One fix closes the path', focus: '[data-scene="fix"]', max: 1.45 },
-      { at: 23, click: '[data-scene="remove-trust"]' },
-      { at: 25, focus: '[data-scene="chain-card"]', max: 1.2 },
-      { at: 27, caption: 'Attackers find these chains. So does adapID — first.', close: true },
-    ],
+    length: 32,
+    steps: (s) => {
+      const f = s.chain.facts ?? {};
+      const hops = num(f.hops, 2);
+      const path = f.path?.length ? f.path.join(' → ') : 'reporting-readonly → ops-support-role → break-glass-admin';
+      return [
+        { at: 0, kicker: 'Exposure', caption: 'A read-only reporting role. It looks harmless.', sub: 'Its own policy can read two resources. Nothing a reviewer would flag.', go: `/identities/${s.chain.identity_id}?tab=permissions&act=quiet` },
+        { at: 6, kicker: 'Hidden risk', caption: `${hops} trust hops turn it into an administrator`, sub: path, go: `/identities/${s.chain.identity_id}?tab=permissions&act=chain`, focus: '[data-scene="chain"]', max: 1.35 },
+        { at: 14, kicker: 'Detect', caption: 'Mapped end to end: every hop, every trust policy', sub: 'The first door was left open by an incident fix (INC-2231) that was never rolled back.', run: 'chain', focus: '[data-scene="chain-card"]', max: 1.2 },
+        { at: 20, kicker: 'Fix', caption: 'Close the first door and the whole chain collapses', sub: 'One stale trust relationship removed. Nothing else changes.', focus: '[data-scene="fix"]', max: 1.45 },
+        { at: 23, click: '[data-scene="remove-trust"]' },
+        { at: 25, focus: '[data-scene="chain-card"]', max: 1.2 },
+        { at: 27, kicker: 'Outcome', caption: 'Attackers hunt for these chains. Now there is nothing to find.', sub: 'Path to admin closed, posture check green, for every viewer at once.', close: true },
+      ];
+    },
   },
   orphan: {
     title: 'Orphaned role after a Lambda is deleted',
-    narration: 'The function is gone. Its access isn’t.',
+    narration: 'The function is gone; its role still holds the keys to production data. Found, owned and deleted.',
     then: 'Open the alert, then Delete role in the drawer.',
-    length: 25,
-    steps: (s) => [
-      { at: 0, caption: 'Function deleted — role left behind', run: 'orphan', go: '/alerts', focus: '[data-scene="alert-selected"]', max: 1.5 },
-      { at: 5, release: true, go: `/credentials?credential=${s.orphan.credential_id}` },
-      { at: 6.5, caption: 'Still has access to your data stores', focus: '[data-scene="orphan-access"]', max: 1.6 },
-      { at: 13, caption: 'adapID flags it the day it’s orphaned', focus: '[data-scene="orphan-owner"]', max: 1.6 },
-      { at: 17, release: true, click: '[data-scene="delete-role"]' },
-      { at: 20, caption: 'Forgotten identities are open doors. adapID closes them.', close: true },
-    ],
+    length: 26,
+    steps: (s) => {
+      const f = s.orphan.facts ?? {};
+      const stores = num(f.stores, 3);
+      return [
+        { at: 0, kicker: 'Exposure', caption: 'The Lambda was deleted. Its role was not.', sub: `${f.role ?? 'invoice-legacy-export-role'}: still live, still trusted, used by nothing.`, run: 'orphan', go: '/alerts', focus: '[data-scene="alert-selected"]', max: 1.5 },
+        { at: 5, release: true, go: `/credentials?credential=${s.orphan.credential_id}` },
+        { at: 6.5, kicker: 'Exposure', caption: `Still holding the keys to ${plural(stores, 'data store')}`, sub: `${f.sensitive ? `${plural(f.sensitive, 'store')} with card or personal data. ` : ''}${f.unused_days != null ? `Not used in ${f.unused_days} days.` : 'Nothing has used it since.'}`, focus: '[data-scene="orphan-access"]', max: 1.6 },
+        { at: 13, kicker: 'Detect', caption: 'Flagged the day it was orphaned, with an owner attached', sub: 'The team that created it is notified automatically, so the cleanup has a name on it.', focus: '[data-scene="orphan-owner"]', max: 1.6 },
+        { at: 17, release: true, click: '[data-scene="delete-role"]' },
+        { at: 20, kicker: 'Outcome', caption: 'Ghost access, gone for good', sub: 'Forgotten identities are where breaches hide. This one is closed.', close: true },
+      ];
+    },
   },
   agent: {
     title: 'Runaway Bedrock AI agent',
-    narration: 'An AI agent with a broad role starts acting on its own.',
+    narration: 'An AI agent steps outside its learned behaviour. Caught in real time and held to its baseline.',
     then: 'Open support-copilot-agent, then Restrict to its baseline.',
-    length: 32,
-    steps: (s) => [
-      { at: 0, caption: 'An AI agent — with broad access', go: `/identities/${s.agent.identity_id}?tab=permissions` },
-      { at: 6, caption: 'adapID learns its normal behavior', go: s.agent.genome ? `${s.agent.genome}?tab=genome` : `/identities/${s.agent.identity_id}`, focus: '[data-scene="genome-normal"]', max: 1.15 },
-      { at: 12, caption: 'Then it does something it never has', run: 'agent', release: true, go: s.agent.genome ? `${s.agent.genome}?tab=anomalies` : `/identities/${s.agent.identity_id}` },
-      { at: 14, focus: '[data-scene="genome-anomalies"]', max: 1.5 },
-      { at: 20, caption: 'Flagged in real time — before data leaves', go: `/identities/${s.agent.identity_id}`, focus: '[data-scene="anomaly-card"]', max: 1.25 },
-      { at: 24, click: '[data-scene="contain"]' },
-      { at: 27, caption: 'Every agent watched. Every departure caught.', close: true },
-    ],
+    length: 33,
+    steps: (s) => {
+      const f = s.agent.facts ?? {};
+      return [
+        { at: 0, kicker: 'Exposure', caption: 'An AI agent with production access', sub: `${f.name ?? 'support-copilot-agent'} answers customers, with live access to ${plural(num(f.resources, 5), 'production resource')}.`, go: `/identities/${s.agent.identity_id}?tab=permissions` },
+        { at: 6, kicker: 'Baseline', caption: 'adapID learns exactly how it normally behaves', sub: 'Every API, every resource, every hour: its behavioural fingerprint.', go: s.agent.genome ? `${s.agent.genome}?tab=genome` : `/identities/${s.agent.identity_id}`, focus: '[data-scene="genome-normal"]', max: 1.15 },
+        { at: 12, kicker: 'Detect', caption: 'Then it does something it has never done', sub: 'New actions against new data, far outside its learned baseline.', run: 'agent', release: true, go: s.agent.genome ? `${s.agent.genome}?tab=anomalies` : `/identities/${s.agent.identity_id}` },
+        { at: 14, focus: '[data-scene="genome-anomalies"]', max: 1.5 },
+        { at: 20, kicker: 'Contain', caption: 'Flagged in real time, before any data leaves', sub: 'One click restricts it to its own baseline. The agent keeps serving customers.', go: `/identities/${s.agent.identity_id}`, focus: '[data-scene="anomaly-card"]', max: 1.25 },
+        { at: 24, click: '[data-scene="contain"]' },
+        { at: 27, kicker: 'Outcome', caption: 'Every AI agent watched. Every departure caught.', sub: 'Autonomy for the agent, guardrails for you.', close: true },
+      ];
+    },
   },
 };
+const KICKER_DOT = { Exposure: 'bg-red-400', 'Hidden risk': 'bg-red-400', Impact: 'bg-red-400', Detect: 'bg-amber-300', Map: 'bg-amber-300', Baseline: 'bg-sky-400', Fix: 'bg-emerald-400', Contain: 'bg-emerald-400' };
 const ORDER = ['leak', 'ec2', 'chain', 'orphan', 'agent'];
 const LIVE_LINK = {
   leak: (s) => `/identities/${s.leak.identity_id}`,
@@ -297,15 +327,24 @@ function Director() {
     <>
       {play && captions && caption && (
         <div className="pointer-events-none fixed inset-x-0 bottom-7 z-[320] flex justify-center px-4" aria-live="polite">
-          <p
+          <div
             key={caption.caption}
             className={cn(
-              'animate-rise max-w-3xl rounded-[18px] px-7 py-4 text-center text-[21px] leading-snug font-semibold tracking-[-0.01em] text-white shadow-[0_24px_60px_-24px_rgba(0,0,0,.6)] sm:text-[26px]',
-              caption.close ? 'bg-[linear-gradient(120deg,var(--t-brand),color-mix(in_oklab,var(--t-brand)_55%,#7c3aed))]' : 'bg-[#0b1220]/88 backdrop-blur-md',
+              'animate-rise max-w-[min(860px,92vw)] rounded-[20px] px-7 py-4 text-center text-white shadow-[0_28px_70px_-24px_rgba(0,0,0,.65)] ring-1 ring-white/10',
+              caption.close ? 'bg-[linear-gradient(120deg,var(--t-brand),color-mix(in_oklab,var(--t-brand)_55%,#7c3aed))]' : 'bg-[#0b1220]/90 backdrop-blur-md',
             )}
           >
-            {caption.caption}
-          </p>
+            {caption.kicker && (
+              <p className="mb-1 flex items-center justify-center gap-2 text-[11px] font-semibold tracking-[0.22em] text-white/70 uppercase">
+                <span className={cn('size-1.5 rounded-full', caption.close ? 'bg-white' : KICKER_DOT[caption.kicker] ?? 'bg-sky-400')} />
+                {caption.kicker}
+                <span className="text-white/40">·</span>
+                <span className="text-white/50">{SCRIPTS[play.key]?.title}</span>
+              </p>
+            )}
+            <p className="text-[21px] leading-snug font-semibold tracking-[-0.01em] sm:text-[27px]">{caption.caption}</p>
+            {caption.sub && <p className="mt-1.5 text-[13.5px] leading-snug text-white/75 sm:text-[15px]">{caption.sub}</p>}
+          </div>
         </div>
       )}
       {play && play.pausedAt && (

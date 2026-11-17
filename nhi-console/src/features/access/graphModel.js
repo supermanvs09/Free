@@ -30,6 +30,11 @@ export const NODE_KINDS = {
     plural: 'Identities',
     description: 'A workload, service or automation that acts in your AWS accounts: a function, a task, an instance, a pipeline, an IAM user.',
   },
+  policy: {
+    label: 'Policy',
+    plural: 'Policies',
+    description: 'A permissions policy: attached to the role an identity runs as, or directly to the identity. Everything it allows is what the identity can reach.',
+  },
   credential: {
     label: 'Credential',
     plural: 'Credentials',
@@ -95,6 +100,7 @@ export const EDGE_KINDS = {
   },
   assume_role: {
     label: 'Can switch to (assume)',
+    short: 'can assume',
     inbound: 'Can be assumed by',
     group: 'trust',
     tone: 'high',
@@ -141,15 +147,27 @@ export const EDGE_KINDS = {
     weight: 4,
     description: 'An AWS service, such as EC2, may use the role on its own behalf.',
   },
+  has_policy: {
+    label: 'Policy attached',
+    short: 'policy attached',
+    inbound: 'Attached to',
+    group: 'uses',
+    tone: 'info',
+    weight: 4,
+    flow: true,
+    description: 'A permissions policy attached to this role or identity. What the policy allows, the identity can do.',
+  },
   bound_to: {
     label: 'Uses',
+    short: 'runs as',
+    flow: true,
     inbound: 'Used by',
     group: 'uses',
     tone: 'info',
     weight: 4,
     description: 'The credential this identity runs as (instance profile, execution role, task role).',
   },
-  uses: { label: 'Uses', inbound: 'Used by', group: 'uses', tone: 'info', weight: 3, description: 'Uses this credential.' },
+  uses: { label: 'Uses', short: 'signs in with', flow: true, inbound: 'Used by', group: 'uses', tone: 'info', weight: 3, description: 'Uses this credential.' },
   signs_in_as: {
     label: 'Signs in as',
     inbound: 'Signed in to by',
@@ -160,6 +178,7 @@ export const EDGE_KINDS = {
   },
   can_access: {
     label: 'Allowed to use',
+    short: 'allows',
     inbound: 'Can be used by',
     group: 'trust',
     tone: 'neutral',
@@ -171,6 +190,7 @@ export const EDGE_KINDS = {
   contains: { label: 'Contains', inbound: 'Inside', group: 'uses', tone: 'neutral', weight: 2, description: 'Contains this resource.' },
   accesses: {
     label: 'Called',
+    short: 'used',
     inbound: 'Called by',
     group: 'observed',
     tone: 'info',
@@ -212,7 +232,7 @@ export function accountOf(arn) {
 }
 
 function kindFromApi(type, arn) {
-  if (type === 'identity' || type === 'credential' || type === 'resource' || type === 'service') return type;
+  if (type === 'identity' || type === 'credential' || type === 'resource' || type === 'service' || type === 'policy') return type;
   const value = String(arn ?? '');
   if (/^arn:aws[\w-]*:iam::\d{12}:root$/.test(value)) return 'account';
   if (/:(oidc-provider|saml-provider)\//.test(value)) return 'federated';
@@ -257,7 +277,7 @@ export function createStore() {
   return { nodes: new Map(), edges: new Map(), loaded: new Set() };
 }
 
-const SPECIFICITY = { identity: 3, credential: 3, resource: 2, account: 1, federated: 1, service: 1, other: 0 };
+const SPECIFICITY = { identity: 3, credential: 3, policy: 3, resource: 2, account: 1, federated: 1, service: 1, other: 0 };
 
 export function mergeRelationships(store, ownerArn, response) {
   const graph = response?.graph ?? {};
@@ -272,8 +292,14 @@ export function mergeRelationships(store, ownerArn, response) {
       kind,
       apiType: node.type,
       subtype: node.subtype || '',
-      name: displayName(kind, node.name, node.arn),
+      name: kind === 'policy' || node.wildcard ? node.name : displayName(kind, node.name, node.arn),
       accountId: accountOf(node.arn),
+      admin: Boolean(node.admin),
+      resourceCount: node.resource_count ?? null,
+      sensitiveCount: node.sensitive_count ?? null,
+      direct: node.direct ?? null,
+      attachedTo: node.attached_to ?? null,
+      wildcard: Boolean(node.wildcard),
     });
   }
   for (const edge of graph.edges ?? []) {
@@ -286,6 +312,8 @@ export function mergeRelationships(store, ownerArn, response) {
       type: edge.edge_type,
       lastObservedAt: edge.last_observed_at ?? held?.lastObservedAt ?? null,
       callCount: edge.call_count ?? held?.callCount ?? null,
+      detail: edge.label && edge.label !== edge.edge_type ? edge.label : held?.detail ?? null,
+      level: edge.level ?? held?.level ?? null,
     });
   }
   if (ownerArn) store.loaded.add(ownerArn);
@@ -314,11 +342,17 @@ export function pairEdges(store) {
         lastObservedAt: null,
         configured: false,
         observed: false,
+        detail: null,
+        level: null,
       };
       pairs.set(id, pair);
     }
     pair.kinds.push(edge.type);
-    if (meta.weight > edgeKindMeta(pair.kind).weight) pair.kind = edge.type;
+    if (meta.weight > edgeKindMeta(pair.kind).weight) {
+      pair.kind = edge.type;
+      pair.detail = edge.detail ?? pair.detail;
+    } else if (!pair.detail) pair.detail = edge.detail;
+    if (edge.level === 'admin' || (edge.level && !pair.level)) pair.level = edge.level;
     if (meta.observed) pair.observed = true;
     else pair.configured = true;
     if (edge.callCount) pair.callCount = (pair.callCount ?? 0) + edge.callCount;
@@ -337,6 +371,14 @@ export function pairEdges(store) {
   }
   return [...pairs.values()];
 }
+
+const POLICY_TYPE_LABEL = {
+  aws_managed: 'AWS managed policy',
+  inline: 'Inline policy',
+  role_assignment: 'Role assignment',
+  matrix: 'Matrix authorization',
+  acl: 'Access policy',
+};
 
 /* ── Risk and interest ───────────────────────────────────────────────────── */
 
@@ -359,9 +401,18 @@ export function describeNode(base, facts) {
   const profile = facts?.profile ?? null;
   const policies = profile?.attachedPolicies ?? [];
   const idle = credential?.idle_days;
+  const count = (n) => `${n} resource${n === 1 ? '' : 's'}`;
+  const typeLabel =
+    base.kind === 'policy'
+      ? `${POLICY_TYPE_LABEL[base.subtype] ?? 'Policy'}${base.resourceCount != null ? ` · ${count(base.resourceCount)}` : ''}`
+      : base.wildcard
+        ? base.resourceCount
+          ? `Wildcard · ${count(base.resourceCount)}`
+          : 'Wildcard'
+        : `${subtypeLabel(base.kind, base.subtype)}${credential?.status && !['active', 'Active'].includes(credential.status) && base.kind === 'credential' ? ' · deactivated' : ''}`;
   return {
     ...base,
-    typeLabel: subtypeLabel(base.kind, base.subtype),
+    typeLabel,
     accountName: base.accountId || identity?.account_id || credential?.account_id || '',
     region: identity?.region ?? credential?.region ?? '',
     identityId: identity?.id ?? null,
@@ -371,7 +422,7 @@ export function describeNode(base, facts) {
     owner: identity?.owner ?? null,
     environment: identity?.environment ?? null,
     privilegeLevel: profile?.privilegeLevel ?? null,
-    isAdmin: profile?.privilegeLevel === 4 || policies.includes('AdministratorAccess'),
+    isAdmin: base.kind === 'policy' ? base.admin : profile?.privilegeLevel === 4 || policies.includes('AdministratorAccess'),
     publicPolicy: Boolean(identity?.is_publicly_accessible),
     stale: typeof idle === 'number' && idle > STALE_DAYS,
     lastUsedDays: typeof idle === 'number' ? idle : null,
@@ -395,7 +446,13 @@ export function interestOf(node) {
 
 function edgeInterest(pair) {
   if (!pair) return 0;
+  /* The access chain first: what it runs as and the policies attached there
+     are the spine of the picture, so they never fold behind a count. */
+  if (pair.kind === 'has_policy') return 60;
+  if (pair.kind === 'bound_to' || pair.kind === 'uses') return 40;
   let score = pair.crossAccount ? 16 : 0;
+  /* What it can become is the next most important thing after its own access. */
+  if (pair.kind === 'assume_role' || pair.kind === 'cross_account') score += 10;
   score += Math.min(4, edgeKindMeta(pair.kind).weight);
   if (pair.callCount) score += Math.min(6, Math.log2(pair.callCount + 1));
   return score;
@@ -425,7 +482,7 @@ function summariseHidden(nodes) {
  * revealed, and folds the rest. `describe(arn)` returns a drawn node for an
  * ARN (see `describeNode`).
  */
-export function buildNeighbourhood({ store, focusArn, expanded = [], revealed = {}, describe }) {
+export function buildNeighbourhood({ store, focusArn, expanded = [], collapsed = [], revealed = {}, describe }) {
   if (!focusArn || !store.nodes.has(focusArn)) return null;
   const pairs = pairEdges(store);
   const out = new Map();
@@ -444,6 +501,9 @@ export function buildNeighbourhood({ store, focusArn, expanded = [], revealed = 
   };
 
   const openSet = new Set([focusArn, ...expanded]);
+  const autoOpen = new Set();
+  const via = new Map();
+  const closed = new Set(collapsed);
   const depth = new Map([[focusArn, 0]]);
   const visible = new Map([[focusArn, describe(focusArn)]]);
   const shown = new Map();
@@ -455,8 +515,8 @@ export function buildNeighbourhood({ store, focusArn, expanded = [], revealed = 
     const current = queue.shift();
     if (walked.has(current)) continue;
     walked.add(current);
-    if (!openSet.has(current)) continue;
     const currentDepth = depth.get(current) ?? 0;
+    if (!openSet.has(current) && !(autoOpen.has(current) && !closed.has(current))) continue;
 
     const byNeighbour = new Map();
     for (const entry of neighboursOf(current)) {
@@ -475,12 +535,24 @@ export function buildNeighbourhood({ store, focusArn, expanded = [], revealed = 
       })
       .sort((a, b) => b.rank - a.rank || String(a.node.name).localeCompare(String(b.node.name)));
 
-    const budget = VISIBLE_PER_GROUP + (revealed[current] ?? 0);
+    /* The access chain (runs as, signs in with, its policies) is always drawn
+       in full; the budget is for everything else around a box. */
+    const flowCount = ranked.filter((entry) => entry.pair.from === current && edgeKindMeta(entry.pair.kind).flow).length;
+    const budget = VISIBLE_PER_GROUP + flowCount + (revealed[current] ?? 0);
     for (const { pair, node } of ranked.slice(0, budget)) {
       visible.set(node.id, node);
-      depth.set(node.id, currentDepth + 1);
+      /* Access reads left to right: what can act as the focus sits to its
+         left, what the focus runs as, its policies and what they reach to its
+         right. Once on a side, a path keeps going that way. */
+      const outward = pair.from === current;
+      const step = currentDepth > 0 ? 1 : currentDepth < 0 ? -1 : outward ? 1 : -1;
+      depth.set(node.id, currentDepth + step);
+      via.set(node.id, pair.kind);
       shown.set(pair.id, pair);
       queue.push(node.id);
+      /* The chain from the focus to its policies opens by itself, so the
+         first screen already answers "through what, and to what". */
+      if (pair.from === current && edgeKindMeta(pair.kind).flow && currentDepth >= 0 && currentDepth < 3) autoOpen.add(node.id);
     }
     const hidden = ranked.slice(budget);
     if (hidden.length > 0) {
@@ -490,7 +562,7 @@ export function buildNeighbourhood({ store, focusArn, expanded = [], revealed = 
         parentId: current,
         parentName: visible.get(current)?.name,
         hiddenCount: hidden.length,
-        depth: currentDepth + 1,
+        depth: currentDepth + (currentDepth < 0 ? -1 : currentDepth > 0 ? 1 : ranked.slice(budget).some((e) => e.pair.from === current) ? 1 : -1),
         summary: summariseHidden(hidden.map((entry) => entry.node)),
       });
     }
@@ -508,8 +580,9 @@ export function buildNeighbourhood({ store, focusArn, expanded = [], revealed = 
     return {
       ...node,
       depth: depth.get(node.id) ?? 0,
+      via: via.get(node.id) ?? null,
       isFocus: node.id === focusArn,
-      expanded: openSet.has(node.id),
+      expanded: openSet.has(node.id) || (autoOpen.has(node.id) && !closed.has(node.id)),
       loaded: store.loaded.has(node.id),
       neighbourCount: neighbourIds.size,
       unseenCount: unseen,
@@ -534,4 +607,61 @@ export function edgesOf(store, arn) {
       const otherArn = pair.from === arn ? pair.to : pair.from;
       return { ...pair, direction: pair.from === arn ? 'out' : 'in', otherArn, other: store.nodes.get(otherArn) };
     });
+}
+
+/* ── Reading a path back ─────────────────────────────────────────────────── */
+
+/** What an arrow means, as a phrase that reads between its two ends. */
+export function edgePhrase(edge, to) {
+  if (!edge) return '';
+  if (edge.kind === 'has_policy') return to?.direct ? 'policy attached directly to it' : 'policy attached to the role';
+  if (edge.kind === 'bound_to') return 'runs as';
+  if (edge.kind === 'uses') return 'signs in with';
+  if (edge.kind === 'can_access' || edge.kind === 'accesses') {
+    const what = edge.level === 'admin' ? 'grants full administrator access to' : edge.level === 'write' ? 'grants write access to' : edge.level === 'read' ? 'grants read access to' : 'allows access to';
+    return edge.kind === 'accesses' && edge.callCount ? `${what} (used ${edge.callCount} times)` : what;
+  }
+  if (edge.kind === 'assume_role' || edge.kind === 'cross_account') return edge.crossAccount ? 'can assume, in another account,' : 'can assume';
+  if (edge.kind === 'created_by') return 'created';
+  if (edge.kind === 'service_trust') return 'is trusted to use';
+  if (edge.kind === 'signs_in_as') return 'signs in as';
+  return edgeKindMeta(edge.kind).label.toLowerCase();
+}
+
+/**
+ * How the focus is connected to one node on screen: the shortest chain of
+ * drawn arrows between them, each step with the arrow's meaning and its real
+ * direction, so "this came from the role" can be read rather than inferred.
+ */
+export function traceTo(graph, targetId) {
+  const focusId = graph?.focus?.id;
+  if (!graph || !focusId || !targetId || targetId === focusId) return null;
+  const nodes = new Map(graph.nodes.map((node) => [node.id, node]));
+  const adjacent = new Map();
+  for (const edge of graph.edges) {
+    if (!adjacent.has(edge.from)) adjacent.set(edge.from, []);
+    if (!adjacent.has(edge.to)) adjacent.set(edge.to, []);
+    adjacent.get(edge.from).push({ edge, next: edge.to });
+    adjacent.get(edge.to).push({ edge, next: edge.from });
+  }
+  /* Prefer the access chain (outward arrows) when two routes are equally short. */
+  for (const list of adjacent.values()) list.sort((a, b) => Number(b.edge.from !== b.next) - Number(a.edge.from !== a.next));
+  const back = new Map([[focusId, null]]);
+  const queue = [focusId];
+  while (queue.length) {
+    const at = queue.shift();
+    if (at === targetId) break;
+    for (const { edge, next } of adjacent.get(at) ?? []) {
+      if (back.has(next)) continue;
+      back.set(next, { from: at, edge });
+      queue.push(next);
+    }
+  }
+  if (!back.has(targetId)) return null;
+  const steps = [];
+  for (let at = targetId; back.get(at); at = back.get(at).from) {
+    const { from, edge } = back.get(at);
+    steps.unshift({ from: nodes.get(from), to: nodes.get(at), edge, forward: edge.from === from });
+  }
+  return steps;
 }

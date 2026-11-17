@@ -1,3 +1,4 @@
+import { AccessTrail } from './AccessTrail';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight, Crosshair, ExternalLink, Fingerprint, Radius } from 'lucide-react';
@@ -89,7 +90,7 @@ async function loadDetail(node, signal) {
   return { kind: 'none' };
 }
 
-export function IdentityPanel({ node, isFocusNode, store, status, error, onRetry, onExpand, onFocus, expandedIds }) {
+export function IdentityPanel({ node, isFocusNode, store, status, error, onRetry, onExpand, onFocus, expandedIds, trail, onSelectNode }) {
   const [tab, setTab] = useState('summary');
 
   const detail = useQuery((signal) => loadDetail(node, signal), [node?.id, node?.identityId, node?.credentialId], {
@@ -144,7 +145,7 @@ export function IdentityPanel({ node, isFocusNode, store, status, error, onRetry
   }
 
   const risk = riskReason(node);
-  const isOpen = expandedIds.includes(node.id);
+  const isOpen = expandedIds.includes(node.id) || Boolean(node.expanded);
   const privilege = PRIVILEGE_LEVELS[node.privilegeLevel];
   const discoveryId = node.identityId ?? node.credentialId;
 
@@ -199,9 +200,9 @@ export function IdentityPanel({ node, isFocusNode, store, status, error, onRetry
               {node.environment}
             </Tag>
           )}
-          {typeof node.depth === 'number' && node.depth > 0 && (
+          {typeof node.depth === 'number' && node.depth !== 0 && (
             <Tag tone="info" size="sm">
-              {node.depth} step{node.depth === 1 ? '' : 's'} away
+              {node.depth < 0 ? 'Points at the starting point' : `${node.depth} step${node.depth === 1 ? '' : 's'} along its access`}
             </Tag>
           )}
         </div>
@@ -216,6 +217,7 @@ export function IdentityPanel({ node, isFocusNode, store, status, error, onRetry
           <InlineError error={error} onRetry={() => onRetry(node.id)} label="Its relationships could not be loaded" />
         )}
 
+        {!isFocusNode && trail?.length > 0 && <AccessTrail steps={trail} onSelect={onSelectNode} />}
         {activeTab === 'summary' && (
           <SummaryPane
             node={node}
