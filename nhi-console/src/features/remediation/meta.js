@@ -41,7 +41,7 @@ export const MODE_LABEL = { GUIDED: 'Guided', ONE_CLICK: 'One-click' };
    the plan, and nothing is changed in AWS from here. One-click (plans the
    backend applies, their approvals and the per-account setup) stays in the
    API; set this to true to bring its screens back. */
-export const ONE_CLICK_ENABLED = false;
+export const ONE_CLICK_ENABLED = true;
 
 export const EXEC_STATUS = {
   QUEUED: { label: 'Queued', tone: 'info' },
@@ -177,4 +177,11 @@ export const AUDIT_EVENT = {
   RESOLVED: 'Finding resolved by a scan',
   PLAN_SUPERSEDED: 'Replaced by a newer plan',
   EMAIL_SENT: 'E-mail sent',
+  APPROVAL_COMPLETE: 'Approvals complete',
+  APPROVAL_PARTIAL: 'Approval recorded',
+  EXTERNAL_ID_GENERATED: 'External ID generated',
+  EXTERNAL_CONFIRMED: 'Vendor confirmed the External ID',
+  DRY_RUN: 'Dry run by auto-remediation',
+  SKIPPED: 'Skipped by auto-remediation',
+  EXPIRED: 'Approval window passed',
 };

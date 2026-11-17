@@ -140,9 +140,10 @@ export async function fetchPlan(planId, signal) {
 }
 
 /** { plans, total, page, pageSize }. An older backend answers without pagination. */
-export async function fetchPlans({ status, mode, accountId, findingId, targetArn } = {}, { page = 1, pageSize = 25 } = {}, signal) {
+export async function fetchPlans({ status, mode, accountId, findingId, targetArn, source } = {}, { page = 1, pageSize = 25 } = {}, signal) {
   const params = { limit: pageSize, offset: (page - 1) * pageSize };
   if (status) params.status = status;
+  if (source) params.source = source;
   if (mode) params.mode = mode;
   if (accountId) params.account_id = accountId;
   if (findingId) params.finding_id = findingId;

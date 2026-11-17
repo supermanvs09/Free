@@ -17,6 +17,7 @@ import { SegmentedControl } from '../../ui/Tabs';
 import { useToast } from '../../ui/Toast';
 import { cn } from '../../ui/cn';
 import { AUDIT_EVENT, fixName, targetLabel } from './meta';
+import { OneClickPlan } from './OneClickPlan';
 import { CodeBlock, FactRow, PlanStatusTag, RiskTag, StepList } from './parts';
 
 const OPEN = ['DRAFT', 'READY', 'WAITING_EXTERNAL'];
@@ -216,6 +217,7 @@ export default function PlanPage() {
   }
 
   const finding = fixQuery.data;
+  if (plan.mode === 'ONE_CLICK') return <OneClickPlan data={query.data} finding={finding} onChanged={() => setRevision((n) => n + 1)} />;
   const name = finding?.fix?.title || fixName(plan.actionType);
   const open = OPEN.includes(plan.status);
   const canWrite = can('remediation.plan');

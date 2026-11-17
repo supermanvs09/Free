@@ -1,5 +1,5 @@
 /* Remediation: findings to fix, fix steps per provider, plans and executions. */
-import { remed, failNested, iso, DAY, MIN, NOW, rng, hashString } from '../util';
+import { remed, failNested, iso, HOUR, MIN, NOW, rng, hashString } from '../util';
 import { fleet, effectiveChecks, rule, postureRow, scoreOf, findingStates } from '../postureEngine';
 import { credentialsOf, identityById } from '../world';
 import { scopeById } from '../seed';
@@ -8,6 +8,40 @@ import { audit } from '../users';
 import { applyPlan, revertPlan } from '../planEffects';
 
 const B = '/api/v1/remediation';
+
+/*
+ * One-click fixes: what the platform does through NHIPlatformRemediator for
+ * each check, how risky and reversible it is, and the AWS calls it makes.
+ */
+const ACTION = {
+  'NHI-LP-001': { type: 'trim_unused_permissions', title: 'Remove unused permissions', group: 'Least privilege', risk: 'MEDIUM', reversible: true, calls: [['iam:GetRolePolicy', 'Read the current policy'], ['iam:PutRolePolicy', 'Write the policy scoped to 90 days of use']] },
+  'NHI-LP-002': { type: 'replace_admin_policy', title: 'Replace AdministratorAccess with a scoped policy', group: 'Least privilege', risk: 'HIGH', reversible: true, calls: [['iam:PutRolePolicy', 'Attach the scoped policy'], ['iam:DetachRolePolicy', 'Detach AdministratorAccess']] },
+  'NHI-CH-001': { type: 'rotate_access_key', title: 'Rotate the access key', group: 'Keys', risk: 'MEDIUM', reversible: false, calls: [['iam:CreateAccessKey', 'Create the new key'], ['secretsmanager:PutSecretValue', 'Store it in ispm/rotated-keys'], ['iam:UpdateAccessKey', 'Deactivate the old key']] },
+  'NHI-CH-002': { type: 'deactivate_access_key', title: 'Deactivate the unused access key', group: 'Keys', risk: 'LOW', reversible: true, calls: [['iam:GetAccessKeyLastUsed', 'Confirm the key is unused'], ['iam:UpdateAccessKey', 'Set it Inactive']] },
+  'NHI-CH-004': { type: 'enable_secret_rotation', title: 'Turn on secret rotation', group: 'Secrets', risk: 'LOW', reversible: true, calls: [['secretsmanager:DescribeSecret', 'Read rotation settings'], ['secretsmanager:RotateSecret', 'Rotate every 30 days']] },
+  'NHI-TA-001': { type: 'add_external_id_condition', title: 'Require an External ID on the vendor trust', group: 'Trust', risk: 'MEDIUM', reversible: true, external: true, calls: [['iam:GetRole', 'Read the trust policy'], ['iam:UpdateAssumeRolePolicy', 'Add the sts:ExternalId condition']] },
+  'NHI-TA-002': { type: 'pin_oidc_subject', title: 'Pin the OIDC subject to one branch', group: 'Trust', risk: 'MEDIUM', reversible: true, calls: [['iam:GetRole', 'Read the trust policy'], ['iam:UpdateAssumeRolePolicy', 'Pin the subject to refs/heads/main']] },
+  'NHI-ES-001': { type: 'remove_escalation_actions', title: 'Remove permission-management actions', group: 'Escalation', risk: 'HIGH', reversible: true, calls: [['iam:GetRolePolicy', 'Read the current policy'], ['iam:PutRolePolicy', 'Write it without iam:Put*, iam:Attach*, iam:PassRole']] },
+  'NHI-ES-002': { type: 'remove_trust_link', title: 'Remove the trust that opens the chain', group: 'Escalation', risk: 'HIGH', reversible: true, calls: [['iam:GetRole', 'Read the trust policy of the next role in the chain'], ['iam:UpdateAssumeRolePolicy', 'Remove this identity from that trust policy']] },
+  'NHI-LC-001': { type: 'tag_owner', title: 'Tag an owner', group: 'Lifecycle', risk: 'LOW', reversible: true, calls: [['iam:TagRole', 'Add owner and team tags']] },
+  'NHI-LC-002': { type: 'disable_identity', title: 'Disable the identity (deny-all)', group: 'Lifecycle', risk: 'MEDIUM', reversible: true, calls: [['iam:PutRolePolicy', 'Attach the deny-all policy']] },
+};
+const ALL_ACTIONS = Object.values(ACTION).map((a) => a.type);
+const actionOf = (ruleId) => ACTION[ruleId] ?? null;
+
+/** Whether One-click can fix this finding, and if not, why. */
+function oneClickFor(f, i) {
+  const act = actionOf(f.rule_id);
+  if (i.provider !== 'aws') return { available: false, reason: `One-click runs in AWS accounts; ${{ azure: 'Azure', jenkins: 'Jenkins', vault: 'Vault' }[i.provider] ?? 'this'} fixes are applied by hand.` };
+  if (!act) return { available: false, reason: 'This check has no automatic fix.' };
+  const a = remAccount(f.account_id);
+  if (!a?.remediation_enabled) return { available: false, reason: `One-click is turned off for account ${f.account_id}.`, settings: true };
+  if (!a.allowed_action_types?.includes(act.type)) return { available: false, reason: `The account does not allow action type ${act.type}.`, settings: true };
+  return { available: true, reason: '' };
+}
+const needsApproval = (risk, severity) => !(risk === 'LOW' && severity !== 'CRITICAL');
+const OPEN = ['DRAFT', 'READY', 'WAITING_EXTERNAL', 'PENDING_APPROVAL', 'APPROVED', 'SCHEDULED', 'EXECUTING'];
+const reqId = () => `${Math.random().toString(16).slice(2, 10)}-${Math.random().toString(16).slice(2, 6)}-${Math.random().toString(16).slice(2, 6)}-${Math.random().toString(16).slice(2, 14)}`;
 
 function stepsFor(rl, identity) {
   const cred = credentialsOf(identity)[0];
@@ -123,8 +157,8 @@ function backlog() {
         score_gain: c.points,
         created_at: c.failing_since,
         resolved_at: resolved ? plan?.updated_at ?? c.state?.updated_at ?? null : null,
-        plan: plan ? { plan_id: plan.plan_id, status: plan.status, mode: plan.mode, updated_at: plan.updated_at } : null,
-        stage: !plan ? 'todo' : ['EXECUTED', 'MANUALLY_DONE'].includes(plan.status) ? 'waiting_scan' : resolved ? 'done' : 'in_progress',
+        plan: plan ? { plan_id: plan.plan_id, status: plan.status, mode: plan.mode, updated_at: plan.updated_at, policy_id: plan.policy_id ?? null, by_engine: Boolean(plan.policy_id), created_by: plan.created_by } : null,
+        stage: !plan || ENDED.includes(plan.status) ? 'todo' : ['EXECUTED', 'MANUALLY_DONE'].includes(plan.status) ? 'waiting_scan' : resolved ? 'done' : 'in_progress',
         jira: jiraFor(c, i, resolved),
       });
     }
@@ -132,6 +166,9 @@ function backlog() {
   const w = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
   return out.sort((a, b) => w[b.severity] - w[a.severity] || b.score_gain - a.score_gain);
 }
+
+/* A plan that stopped without fixing anything: the finding is back to be fixed. */
+const ENDED = ['ROLLED_BACK', 'REJECTED', 'CANCELLED', 'EXPIRED', 'SUPERSEDED', 'SKIPPED', 'DRY_RUN', 'FAILED'];
 
 export const plansStore = () => slice('plans', () => []);
 const execs = () => slice('executions', () => []);
@@ -171,37 +208,57 @@ function changeFor(rl, i) {
 function makePlan(f, mode, user, actionType) {
   const rl = rule(f.rule_id);
   const i = identityById(f.identity_id);
+  const act = actionOf(f.rule_id);
+  const acct = remAccount(f.account_id);
   const now = iso(Date.now());
   const score = scoreOf(i);
+  const oneClick = mode === 'ONE_CLICK';
+  const risk = oneClick && act ? act.risk : f.severity === 'CRITICAL' ? 'HIGH' : 'MEDIUM';
+  const change = changeFor(rl, i);
+  const shared = credentialsOf(i).some((c) => (c.bound_identities?.length ?? 0) > 1);
+  const prechecks = [
+    { name: 'Activity reviewed', result: 'PASS', detail: '90 days of calls checked against the change: nothing it uses is removed.' },
+    { name: 'No other identity depends on it', result: shared ? 'WARN' : 'PASS', detail: shared ? 'The credential is shared with other identities; they keep their own access.' : 'Not shared.' },
+    ...(oneClick ? [{ name: 'Live state matches the scan', result: 'PASS', detail: 'Read through NHIPlatformRemediator just now: no drift since the last sync.' }] : []),
+  ].map((c) => ({ ...c, key: c.name, label: c.name, status: c.result }));
+  const external = oneClick && act?.external;
+  const vendor = String(i.external_account ?? '');
   return {
     plan_id: `pln_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
     finding_ids: [f.finding_id],
     rule_ids: [f.rule_id],
-    action_type: actionType || rl.auto || 'manual_change',
+    action_type: actionType || (oneClick ? act?.type : null) || rl.auto || 'manual_change',
+    title: oneClick && act ? act.title : rl.fix,
     account_id: f.account_id,
     region: f.region,
     target_arn: i.arn,
+    target_name: i.name,
     target_type: i.identity_type,
+    finding_title: f.title,
+    finding_severity: f.severity,
     mode,
-    status: mode === 'ONE_CLICK' ? 'PENDING_APPROVAL' : 'READY',
+    status: external ? 'WAITING_EXTERNAL' : prechecks.some((c) => c.result === 'BLOCK') ? 'DRAFT' : 'READY',
     status_reason: '',
-    risk_level: f.severity === 'CRITICAL' ? 'HIGH' : 'MEDIUM',
-    required_approvals: mode === 'ONE_CLICK' ? 2 : 0,
-    params: {},
-    ...changeFor(rl, i),
-    steps: stepsFor(rl, i),
-    prechecks: [
-      { key: 'activity', label: 'Recent activity reviewed', status: 'PASS', detail: '90 days of calls checked against the new policy.' },
-      { key: 'dependents', label: 'No other identity depends on this change', status: credentialsOf(i).some((c) => (c.bound_identities?.length ?? 0) > 1) ? 'WARN' : 'PASS', detail: credentialsOf(i).some((c) => (c.bound_identities?.length ?? 0) > 1) ? 'The credential is shared with other identities.' : 'Not shared.' },
-    ],
+    risk_level: risk,
+    reversible: oneClick ? Boolean(act?.reversible) : false,
+    approval_required: oneClick ? needsApproval(risk, f.severity) : false,
+    required_approvals: oneClick ? (needsApproval(risk, f.severity) ? acct?.approval_policy?.[risk] ?? 1 : 0) : 0,
+    params: external ? { external_id: `ext-${hashString(f.finding_id).toString(16)}${Math.random().toString(16).slice(2, 10)}`, external_id_status: 'PENDING_VENDOR', vendor_account: vendor || 'the vendor account' } : {},
+    ...change,
+    diff: change.diff.map((d) => ({ path: d.path, change: 'changed', before: d.before, after: d.after })),
+    steps: oneClick && act ? act.calls.map(([api, title]) => ({ title, api })) : stepsFor(rl, i),
+    prechecks,
+    usage_basis: oneClick && ['NHI-LP-001', 'NHI-LP-002', 'NHI-ES-001'].includes(f.rule_id) ? 'Permissions used in the last 90 days (CloudTrail)' : null,
     score_current: score,
     score_gain: rl ? { CRITICAL: 25, HIGH: 15, MEDIUM: 8, LOW: 3 }[rl.severity] : 0,
     score_projected: Math.min(100, score + ({ CRITICAL: 25, HIGH: 15, MEDIUM: 8, LOW: 3 }[rl.severity] ?? 0)),
-    valid_until: iso(Date.now() + 7 * DAY),
+    valid_until: iso(Date.now() + 72 * 60 * MIN),
     created_by: user.email,
+    created_by_name: user.full_name ?? null,
     created_at: now,
     updated_at: now,
     policy_id: null,
+    jira: f.jira ?? null,
   };
 }
 
@@ -216,13 +273,95 @@ function setStatus(plan, status, user, event, detail) {
   logPlan(plan, user, event, detail);
   save();
   /* The fix itself, not just its paperwork: access changes everywhere. */
-  if (['EXECUTED', 'MANUALLY_DONE'].includes(status) && !['EXECUTED', 'MANUALLY_DONE'].includes(was)) applyPlan(plan, user);
+  if (['EXECUTED', 'VERIFIED', 'MANUALLY_DONE'].includes(status) && !['EXECUTED', 'VERIFIED', 'MANUALLY_DONE'].includes(was)) applyPlan(plan, user);
   if (status === 'ROLLED_BACK') revertPlan(plan);
   return plan;
 }
 
+/*
+ * One-click and auto-remediation, per AWS account: the role the platform
+ * assumes (NHIPlatformRemediator), its External ID, which fixes may run,
+ * approvals, and the three policy documents the client puts in place.
+ */
+const NAMES = { '482915736104': 'prod-core', '739204185562': 'data-platform', '215660394871': 'staging', '605218934417': 'shared-services' };
+const accounts = () => {
+  const list = slice('remediationAccounts', () => []);
+  for (const [k, id] of Object.keys(NAMES).entries()) {
+    let a = list.find((x) => x.account_id === id);
+    if (!a) {
+      a = { account_id: id };
+      list.push(a);
+    }
+    /* Older saves used another role name and no auto-remediation fields. */
+    if (a.v !== 3) {
+      const on = k !== 2;
+      Object.assign(a, {
+        v: 3,
+        account_name: NAMES[id],
+        remediation_enabled: on,
+        remediation_role_arn: on ? `arn:aws:iam::${id}:role/NHIPlatformRemediator` : '',
+        remediation_external_id: on ? `ispm-${hashString(`ext:${id}`).toString(16)}-${hashString(`x:${id}`).toString(16).slice(0, 6)}` : '',
+        has_external_id: on,
+        auto_remediation_enabled: id === '482915736104' || id === '739204185562',
+        allowed_action_types: !on ? [] : id === '482915736104' ? ALL_ACTIONS : ['deactivate_access_key', 'rotate_access_key', 'trim_unused_permissions', 'enable_secret_rotation', 'tag_owner'],
+        enabled_regions: on ? ['ap-south-1', 'us-east-1'] : [],
+        approval_policy: { LOW: 1, MEDIUM: 1, HIGH: 1, CRITICAL: 2 },
+        grace_days: { delete_key: 30 },
+        access_status: on ? 'OK' : 'NOT_CONFIGURED',
+        access_detail: on ? 'Role assumed with the External ID; all remediation permissions present; guardrail deny in place.' : 'One-click is off for this account.',
+        access_checked_at: iso(NOW - (k + 1) * 47 * MIN),
+      });
+    }
+  }
+  return list;
+};
+
+/*
+ * Auto-remediation: plans the rule engine drafted after the last scans from
+ * its policies (created_by "auto:<policy>"). One waits for approval, one ran
+ * in dry-run mode, one was skipped by a pre-check. Plus one One-click plan a
+ * colleague made, waiting for someone else's approval. Made once, from real
+ * findings, so they agree with Posture and the identities.
+ */
+function ensureAutoPlans() {
+  const flag = slice('autoPlansSeeded', () => ({ v: 0 }));
+  if (flag.v === 3) return;
+  flag.v = 3;
+  /* Never on an identity a live scenario is about: its story must start clean. */
+  const STORY = new Set(['payments-gateway-01', 'svc-deploy-bot', 'reporting-readonly', 'ops-support-role', 'break-glass-admin', 'support-copilot-agent', 'invoice-legacy-export', 'svc-billing', 'svc-billing-api', 'batch-reconciler']);
+  const find = (ruleId, name) => backlog().find((f) => f.rule_id === ruleId && f.status === 'OPEN' && (!name || f.identity_name === name) && f.provider === 'aws' && !STORY.has(f.identity_name));
+  const engine = (policy, f, status, reason, agoMin) => {
+    if (!f || plansStore().some((p) => p.finding_ids.includes(f.finding_id))) return;
+    const p = makePlan(f, 'ONE_CLICK', { email: `auto:${policy}`, full_name: `Auto-remediation · ${policy}` }, null);
+    const at = iso(Date.now() - agoMin * MIN);
+    Object.assign(p, { policy_id: `pol_${policy}`, status, status_reason: reason, created_at: at, updated_at: at, approval_required: status === 'PENDING_APPROVAL', required_approvals: status === 'PENDING_APPROVAL' ? 1 : 0 });
+    plansStore().push(p);
+    planAudit().push({ audit_id: `pa_${p.plan_id}`, plan_id: p.plan_id, event: 'PLAN_CREATED', actor: `auto:${policy}`, at, detail: `Created by the rule engine after the scan (policy ${policy})` });
+    if (status === 'PENDING_APPROVAL') planAudit().push({ audit_id: `pa_${p.plan_id}s`, plan_id: p.plan_id, event: 'SUBMITTED', actor: `auto:${policy}`, at, detail: 'Waiting for 1 approval' });
+    if (status === 'DRY_RUN') planAudit().push({ audit_id: `pa_${p.plan_id}d`, plan_id: p.plan_id, event: 'DRY_RUN', actor: `auto:${policy}`, at, detail: reason });
+    if (status === 'SKIPPED') planAudit().push({ audit_id: `pa_${p.plan_id}k`, plan_id: p.plan_id, event: 'SKIPPED', actor: `auto:${policy}`, at, detail: reason });
+  };
+  engine('deactivate-unused-keys', find('NHI-CH-002', 'svc-tally-sync') ?? find('NHI-CH-002'), 'PENDING_APPROVAL', '', 38);
+  engine('rotate-old-keys', find('NHI-CH-001', 'svc-airflow-scheduler') ?? find('NHI-CH-001'), 'DRY_RUN', 'Policy in dry-run: the key would be rotated and the new one stored in ispm/rotated-keys. Nothing was changed.', 52);
+  engine('tag-missing-owners', find('NHI-LC-001'), 'SKIPPED', 'Pre-check: no owner could be inferred from CloudTrail or tags. Tag it by hand.', 52);
+  /* A colleague's One-click plan, waiting for someone else's approval. */
+  const f = find('NHI-LP-001');
+  if (f && !plansStore().some((p) => p.finding_ids.includes(f.finding_id))) {
+    const p = makePlan(f, 'ONE_CLICK', { email: 'charan@deepalgorithms.ai', full_name: 'Charan Teja' }, null);
+    const at = iso(Date.now() - 2 * HOUR);
+    Object.assign(p, { status: 'PENDING_APPROVAL', created_at: at, updated_at: at });
+    plansStore().push(p);
+    planAudit().push({ audit_id: `pa_${p.plan_id}`, plan_id: p.plan_id, event: 'PLAN_CREATED', actor: 'charan@deepalgorithms.ai', at, detail: 'One-click plan' });
+    planAudit().push({ audit_id: `pa_${p.plan_id}s`, plan_id: p.plan_id, event: 'SUBMITTED', actor: 'charan@deepalgorithms.ai', at, detail: `Waiting for ${p.required_approvals} approval` });
+  }
+  save();
+}
+
+export const remAccount = (id) => accounts().find((a) => a.account_id === id) ?? null;
+
 export default function register(r) {
   r.get(`${B}/findings`, ({ query }) => {
+    ensureAutoPlans();
     let rows = backlog();
     const all = rows;
     if (query.status && query.status !== 'ALL') rows = rows.filter((f) => f.status === query.status);
@@ -247,23 +386,36 @@ export default function register(r) {
   });
 
   r.get(`${B}/findings/:id/fix`, ({ params }) => {
+    ensureAutoPlans();
     const f = findingById(params.id);
     if (!f) return failNested(404, 'That finding no longer exists.', 'NOT_FOUND');
     const rl = rule(f.rule_id);
     const i = identityById(f.identity_id);
+    const act = actionOf(f.rule_id);
     const steps = stepsFor(rl, i);
     const where = { aws: 'AWS', azure: 'Azure', jenkins: 'Jenkins', vault: 'Vault' }[i.provider];
     const summaryText = `${rl.title} - ${i.name} (${where})\n${steps.map((st, k) => `${k + 1}. ${st.title}${st.cli ? `\n   ${st.cli}` : ''}`).join('\n')}`;
+    const oc = oneClickFor(f, i);
+    const pending = plansStore().find((p) => p.finding_ids.includes(f.finding_id) && p.mode === 'ONE_CLICK' && OPEN.includes(p.status));
+    const risk = act?.risk ?? (f.severity === 'CRITICAL' ? 'HIGH' : 'MEDIUM');
     return remed({
       ...f,
       resource: i.arn,
       description: f.detail,
       why_it_matters: rl.why,
       how_to_fix: rl.fix,
-      fix: { action_type: rl.auto ?? 'manual_fix', title: rl.fix, description: rl.why, risk_level: f.severity === 'CRITICAL' ? 'HIGH' : 'MEDIUM', reversible: !['NHI-CH-001'].includes(rl.rule_id), manual: !rl.auto, steps },
+      fix: { action_type: act?.type ?? rl.auto ?? 'manual_fix', title: act?.title ?? rl.fix, description: rl.why, risk_level: risk, reversible: act ? act.reversible : false, one_click_supported: Boolean(act), manual: !act && !rl.auto, steps },
+      other_fixes: [],
       modes: {
         guided: { available: true, flow: `Make a plan, apply the steps in ${where}, then mark it done. The next scan confirms the fix.`, reason: '' },
-        one_click: { available: Boolean(rl.auto) && i.provider === 'aws', reason: i.provider !== 'aws' ? `One-click runs in AWS accounts only; ${where} fixes are applied by hand.` : rl.auto ? '' : 'This check has no automatic fix.' },
+        one_click: {
+          available: oc.available && !pending,
+          reason: pending ? '' : oc.reason,
+          settings: Boolean(oc.settings),
+          approval_required: needsApproval(risk, f.severity),
+          flow: 'After approval, the platform assumes NHIPlatformRemediator in this account, makes the change, verifies it, and can roll it back.',
+          pending_plan: pending ? { plan_id: pending.plan_id, status: pending.status, created_by: pending.created_by, by_engine: Boolean(pending.policy_id) } : null,
+        },
       },
       summary_text: summaryText,
       plans: plansStore().filter((p) => p.finding_ids.includes(f.finding_id)),
@@ -275,20 +427,28 @@ export default function register(r) {
   r.post(`${B}/plans`, ({ body, user }) => {
     const f = findingById(body.finding_ids?.[0]);
     if (!f) return failNested(404, 'That finding no longer exists.', 'NOT_FOUND');
-    const waiting = plansStore().find((p) => p.finding_ids.includes(f.finding_id) && ['READY', 'PENDING_APPROVAL', 'APPROVED', 'DRAFT'].includes(p.status));
-    if (waiting) return remed(waiting, { existing_plan: true, message: 'A plan for this finding is already waiting.' });
-    const plan = makePlan(f, body.mode || 'GUIDED', user, body.action_type);
+    const i = identityById(f.identity_id);
+    const oc = oneClickFor(f, i);
+    const mode = body.mode || (oc.available ? 'ONE_CLICK' : 'GUIDED');
+    if (mode === 'ONE_CLICK' && !oc.available) return failNested(409, `One-click is not possible: ${oc.reason}`, 'ONE_CLICK_UNAVAILABLE');
+    const waiting = plansStore().find((p) => p.finding_ids.includes(f.finding_id) && OPEN.includes(p.status));
+    if (waiting) return remed(waiting, { existing_plan: true, message: waiting.policy_id ? `Auto-remediation already created a plan (${waiting.created_by}); it is ${waiting.status.toLowerCase().replace(/_/g, ' ')}.` : 'A plan for this finding is already open.' });
+    const plan = makePlan(f, mode, user, body.action_type);
     plansStore().unshift(plan);
-    logPlan(plan, user, 'CREATED', `${plan.mode === 'ONE_CLICK' ? 'One-click' : 'Guided'} plan`);
+    logPlan(plan, user, 'PLAN_CREATED', `${plan.mode === 'ONE_CLICK' ? 'One-click' : 'Guided'} plan`);
+    if (plan.status === 'WAITING_EXTERNAL') logPlan(plan, user, 'EXTERNAL_ID_GENERATED', 'Give the External ID to the vendor, then confirm.');
     save();
-    audit(user, 'remediation.plan.create', `Created a plan for "${f.title}" on ${f.identity_name}`);
+    audit(user, 'remediation.plan.create', `Created a ${plan.mode === 'ONE_CLICK' ? 'One-click' : 'guided'} plan for "${f.title}" on ${f.identity_name}`);
     return { status: 201, body: { data: plan, existing_plan: false, message: 'Plan created.' } };
   });
 
   r.get(`${B}/plans`, ({ query }) => {
+    ensureAutoPlans();
     let rows = plansStore();
     if (query.status) rows = rows.filter((p) => String(query.status).split(',').includes(p.status));
     if (query.mode) rows = rows.filter((p) => p.mode === query.mode);
+    if (query.source === 'auto') rows = rows.filter((p) => p.policy_id);
+    if (query.source === 'manual') rows = rows.filter((p) => !p.policy_id);
     if (query.account_id) rows = rows.filter((p) => p.account_id === query.account_id);
     if (query.finding_id) rows = rows.filter((p) => p.finding_ids.includes(query.finding_id));
     if (query.target_arn) rows = rows.filter((p) => p.target_arn === query.target_arn);
@@ -301,17 +461,60 @@ export default function register(r) {
   r.get(`${B}/plans/:id`, ({ params }) => {
     const p = plan(params.id);
     if (!p) return failNested(404, 'That plan no longer exists.', 'NOT_FOUND');
-    const approvals = planAudit().filter((a) => a.plan_id === p.plan_id && a.event === 'APPROVED').map((a) => ({ actor: a.actor, at: a.at, decision: 'APPROVE', comment: a.detail }));
-    return remed({ plan: p, approvals, executions: execs().filter((e) => e.plan_id === p.plan_id), approvals_counted: approvals.length });
+    const approvals = planAudit()
+      .filter((a) => a.plan_id === p.plan_id && ['APPROVED', 'REJECTED'].includes(a.event))
+      .map((a) => ({ actor: a.actor, at: a.at, decision: a.event === 'APPROVED' ? 'APPROVE' : 'REJECT', comment: a.detail }));
+    return remed({ plan: p, approvals, executions: execs().filter((e) => e.plan_id === p.plan_id), approvals_counted: approvals.filter((a) => a.decision === 'APPROVE').length });
   });
+
+  /* A run: the remediation role makes each AWS call in turn (see executions below). */
+  const run = (p, user, kind, rollbackOf = null) => {
+    const a = remAccount(p.account_id);
+    const act = actionOf(p.rule_ids[0]);
+    const calls = act ? (kind === 'ROLLBACK' ? [...act.calls].reverse().map(([api, t]) => [api, `Undo: ${t.toLowerCase()}`]) : act.calls) : p.steps.map((s) => [s.api ?? 'aws', s.title]);
+    const ex = {
+      execution_id: `exe_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`,
+      plan_id: p.plan_id,
+      kind,
+      status: 'RUNNING',
+      scheduled_for: iso(Date.now()),
+      started_at: iso(Date.now()),
+      completed_at: null,
+      started: Date.now(),
+      assumed_role_arn: a?.remediation_role_arn || `arn:aws:iam::${p.account_id}:role/NHIPlatformRemediator`,
+      session_name: `ispm-${p.plan_id.slice(4, 14)}`,
+      rollback_of: rollbackOf,
+      started_by: user?.email ?? p.created_by,
+      steps: calls.map(([api, step], k) => ({ index: k, step, title: step, api, request_id: reqId(), status: 'PENDING', at: null, error: '' })),
+      verify_result: null,
+      error_code: '',
+      error_message: '',
+    };
+    execs().unshift(ex);
+    setStatus(p, 'EXECUTING', user, 'EXECUTION_STARTED', `${kind === 'ROLLBACK' ? 'Rollback' : 'Run'} started as ${ex.assumed_role_arn.split('/').pop()} (session ${ex.session_name})`);
+    return ex;
+  };
+  /* Approved: the run starts by itself; nobody has to click Execute. */
+  const approved = (p, user) => {
+    setStatus(p, 'APPROVED', user, 'APPROVAL_COMPLETE', p.required_approvals ? `${p.required_approvals} of ${p.required_approvals} approvals` : 'No approval needed (safe fix)');
+    return run(p, user, 'EXECUTE');
+  };
 
   const verbs = {
     approve: (p, u, b) => {
-      const n = planAudit().filter((a) => a.plan_id === p.plan_id && a.event === 'APPROVED').length + 1;
+      if (p.status !== 'PENDING_APPROVAL') return failNested(409, `The plan is ${p.status.toLowerCase().replace(/_/g, ' ')}, it must be waiting for approval.`, 'PLAN_STATE');
+      if (String(p.created_by).toLowerCase() === String(u.email).toLowerCase()) return failNested(403, 'The requester cannot approve or reject their own plan.', 'SELF_APPROVAL');
       logPlan(p, u, 'APPROVED', b.comment ?? '');
-      return setStatus(p, n >= p.required_approvals ? 'APPROVED' : 'PENDING_APPROVAL', u, 'STATUS', `${n} of ${p.required_approvals} approvals`);
+      const n = planAudit().filter((a) => a.plan_id === p.plan_id && a.event === 'APPROVED').length;
+      if (n >= (p.required_approvals || 1)) approved(p, u);
+      else setStatus(p, 'PENDING_APPROVAL', u, 'APPROVAL_PARTIAL', `${n} of ${p.required_approvals} approvals`);
+      return p;
     },
-    reject: (p, u, b) => setStatus(p, 'REJECTED', u, 'REJECTED', b.comment ?? ''),
+    reject: (p, u, b) => {
+      if (String(p.created_by).toLowerCase() === String(u.email).toLowerCase()) return failNested(403, 'The requester cannot approve or reject their own plan.', 'SELF_APPROVAL');
+      p.status_reason = b.comment ?? '';
+      return setStatus(p, 'REJECTED', u, 'REJECTED', b.comment ?? '');
+    },
     cancel: (p, u, b) => setStatus(p, 'CANCELLED', u, 'CANCELLED', b.reason ?? ''),
     'mark-done': (p, u, b) => {
       setStatus(p, 'MANUALLY_DONE', u, 'MARKED_DONE', b.note ?? '');
@@ -319,110 +522,97 @@ export default function register(r) {
       save();
       return p;
     },
-    submit: (p, u) => setStatus(p, 'PENDING_APPROVAL', u, 'SUBMITTED'),
-    'confirm-external': (p, u) => setStatus(p, 'EXECUTED', u, 'CONFIRMED_EXTERNAL'),
+    submit: (p, u) => {
+      if (p.mode !== 'ONE_CLICK' || p.status !== 'READY') return failNested(409, `The plan is ${p.status.toLowerCase().replace(/_/g, ' ')}; only a ready One-click plan can be submitted.`, 'PLAN_STATE');
+      if (!p.approval_required) {
+        logPlan(p, u, 'SUBMITTED', 'Safe fix below Critical: no approval needed');
+        approved(p, u);
+        return p;
+      }
+      return setStatus(p, 'PENDING_APPROVAL', u, 'SUBMITTED', `Waiting for ${p.required_approvals} approval${p.required_approvals === 1 ? '' : 's'}`);
+    },
+    'confirm-external': (p, u) => {
+      if (p.status !== 'WAITING_EXTERNAL') return failNested(409, 'The plan is not waiting for the vendor.', 'PLAN_STATE');
+      p.params = { ...p.params, external_id_status: 'CONFIRMED' };
+      return setStatus(p, 'READY', u, 'EXTERNAL_CONFIRMED', 'The vendor has configured the External ID');
+    },
   };
   for (const [verb, fn] of Object.entries(verbs)) {
     r.post(`${B}/plans/:id/${verb}`, ({ params, body, user }) => {
       const p = plan(params.id);
       if (!p) return failNested(404, 'That plan no longer exists.', 'NOT_FOUND');
       const out = fn(p, user, body ?? {});
-      audit(user, `remediation.plan.${verb}`, `${verb[0].toUpperCase()}${verb.slice(1).replace('-', ' ')} plan ${p.plan_id}`);
+      if (out?.status && out?.body) return out;
+      audit(user, `remediation.plan.${verb}`, `${verb[0].toUpperCase()}${verb.slice(1).replace('-', ' ')} plan ${p.plan_id} (${p.title ?? p.action_type} on ${p.target_name ?? p.target_arn})`);
       return remed(out);
     });
   }
 
-  const run = (p, user, kind) => {
-    const ex = { execution_id: `exe_${Date.now().toString(36)}`, plan_id: p.plan_id, kind, status: 'RUNNING', started_at: iso(Date.now()), finished_at: null, started: Date.now(), steps: p.steps.map((s, k) => ({ index: k, title: s.title, status: 'PENDING' })), error_code: '', error_message: '' };
-    execs().unshift(ex);
-    setStatus(p, kind === 'ROLLBACK' ? 'EXECUTING' : 'EXECUTING', user, kind === 'ROLLBACK' ? 'ROLLBACK_STARTED' : 'EXECUTION_STARTED');
-    return ex;
-  };
   r.post(`${B}/plans/:id/execute`, ({ params, user }) => {
     const p = plan(params.id);
     if (!p) return failNested(404, 'That plan no longer exists.', 'NOT_FOUND');
-    if (p.status !== 'APPROVED' && p.status !== 'READY') return failNested(409, 'The plan must be approved before it runs.', 'PLAN_NOT_APPROVED');
+    if (p.policy_id) return failNested(409, 'The rule engine runs auto-remediation plans once they are approved.', 'ENGINE_PLAN');
+    if (p.status !== 'APPROVED') return failNested(409, `The plan is ${p.status.toLowerCase().replace(/_/g, ' ')}, it must be APPROVED.`, 'PLAN_NOT_APPROVED');
     const ex = run(p, user, 'EXECUTE');
     return { status: 202, body: { data: ex, status_url: `${B}/executions/${ex.execution_id}` } };
   });
   r.post(`${B}/plans/:id/rollback`, ({ params, user }) => {
     const p = plan(params.id);
     if (!p) return failNested(404, 'That plan no longer exists.', 'NOT_FOUND');
-    const ex = run(p, user, 'ROLLBACK');
+    if (p.mode !== 'ONE_CLICK') return failNested(409, 'Only One-click and auto-remediation plans can be rolled back from here.', 'NOT_ONE_CLICK');
+    if (!['EXECUTED', 'VERIFIED', 'RESOLVED'].includes(p.status)) return failNested(409, `The plan is ${p.status.toLowerCase().replace(/_/g, ' ')}, nothing to roll back.`, 'PLAN_STATE');
+    if (!p.reversible) return failNested(409, `${p.action_type} cannot be rolled back.`, 'NOT_REVERSIBLE');
+    const running = execs().find((e) => e.plan_id === p.plan_id && e.status === 'RUNNING');
+    if (running) return failNested(409, `Execution ${running.execution_id} is still RUNNING.`, 'RUNNING');
+    const last = execs().find((e) => e.plan_id === p.plan_id && e.kind === 'EXECUTE' && e.status === 'SUCCEEDED');
+    if (!last) return failNested(409, `Plan ${p.plan_id} has no succeeded execution to roll back.`, 'NO_EXECUTION');
+    const ex = run(p, user, 'ROLLBACK', last.execution_id);
+    audit(user, 'remediation.plan.rollback', `Rolled back plan ${p.plan_id} (${p.title} on ${p.target_name})`);
     return { status: 202, body: { data: ex, status_url: `${B}/executions/${ex.execution_id}` } };
   });
+  /* Runs move on as they are read: one AWS call every 2.5 s, then verify. */
   r.get(`${B}/executions/:id`, ({ params }) => {
     const ex = execs().find((e) => e.execution_id === params.id);
     if (!ex) return failNested(404, 'No such execution.', 'NOT_FOUND');
-    const elapsed = Date.now() - ex.started;
-    const done = Math.min(ex.steps.length, Math.floor(elapsed / 2500));
-    ex.steps = ex.steps.map((s, k) => ({ ...s, status: k < done ? 'SUCCEEDED' : k === done ? 'RUNNING' : 'PENDING' }));
-    if (done >= ex.steps.length && ex.status === 'RUNNING') {
-      ex.status = 'SUCCEEDED';
-      ex.finished_at = iso(Date.now());
-      const p = plan(ex.plan_id);
-      if (p) {
-        setStatus(p, ex.kind === 'ROLLBACK' ? 'ROLLED_BACK' : 'EXECUTED', null, ex.kind === 'ROLLBACK' ? 'ROLLED_BACK' : 'EXECUTED');
-        if (ex.kind !== 'ROLLBACK') for (const id of p.finding_ids) findingStates()[id] = { ...(findingStates()[id] ?? {}), status: 'RESOLVED', updated_at: iso(Date.now()) };
+    if (ex.status === 'RUNNING') {
+      const done = Math.min(ex.steps.length, Math.floor((Date.now() - ex.started) / 2500));
+      ex.steps = ex.steps.map((s, k) => (k < done ? { ...s, status: ex.kind === 'ROLLBACK' ? 'UNDONE' : 'OK', at: s.at ?? iso(ex.started + (k + 1) * 2500) } : { ...s, status: k === done ? 'RUNNING' : 'PENDING' }));
+      if (done >= ex.steps.length) {
+        ex.status = 'SUCCEEDED';
+        ex.completed_at = iso(Date.now());
+        ex.verify_result = { verified: true, detail: ex.kind === 'ROLLBACK' ? 'Read back: the previous state is in place.' : 'Read back through the role: the change is in place.' };
+        const p = plan(ex.plan_id);
+        if (p) {
+          const role = { email: 'NHIPlatformRemediator' };
+          for (const s of ex.steps) logPlan(p, role, 'AWS_CALL', `${s.api} ${s.status} (request ${s.request_id})`);
+          if (ex.kind === 'ROLLBACK') {
+            setStatus(p, 'ROLLED_BACK', role, 'ROLLED_BACK', 'The previous state was restored.');
+            /* Undone: the finding is open again, everywhere, straight away. */
+            for (const id of p.finding_ids) findingStates()[id] = { ...(findingStates()[id] ?? {}), status: 'OPEN', updated_at: iso(Date.now()) };
+          } else {
+            setStatus(p, 'VERIFIED', role, 'VERIFIED', 'Change verified in AWS; the next scan closes the finding.');
+            for (const id of p.finding_ids) findingStates()[id] = { ...(findingStates()[id] ?? {}), status: 'RESOLVED', updated_at: iso(Date.now()) };
+          }
+        }
+        save();
       }
-      save();
     }
     return remed(ex);
   });
-  r.get(`${B}/audit`, ({ query }) => remed(planAudit().filter((a) => !query.plan_id || a.plan_id === query.plan_id)));
+  r.get(`${B}/audit`, ({ query }) => {
+    ensureAutoPlans();
+    const rows = planAudit()
+      .filter((a) => !query.plan_id || a.plan_id === query.plan_id)
+      .sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+    return remed(rows.slice(0, Number(query.limit) || 200).map((a) => ({ ...a, details: a.detail, plan: plan(a.plan_id) ? { title: plan(a.plan_id).title, target_name: plan(a.plan_id).target_name, mode: plan(a.plan_id).mode, policy_id: plan(a.plan_id).policy_id } : null })));
+  });
 
   r.get(`${B}/actions`, () =>
-    remed([
-      { action_type: 'trim_unused_permissions', label: 'Remove unused permissions', reversible: true, risk_level: 'MEDIUM' },
-      { action_type: 'replace_admin_policy', label: 'Replace administrator policy', reversible: true, risk_level: 'HIGH' },
-      { action_type: 'rotate_access_key', label: 'Rotate access key', reversible: false, risk_level: 'MEDIUM' },
-      { action_type: 'deactivate_access_key', label: 'Deactivate access key', reversible: true, risk_level: 'LOW' },
-      { action_type: 'enable_secret_rotation', label: 'Turn on secret rotation', reversible: true, risk_level: 'LOW' },
-      { action_type: 'add_external_id_condition', label: 'Require an ExternalId', reversible: true, risk_level: 'MEDIUM' },
-      { action_type: 'pin_oidc_subject', label: 'Pin the OIDC subject', reversible: true, risk_level: 'MEDIUM' },
-      { action_type: 'remove_escalation_actions', label: 'Remove escalation actions', reversible: true, risk_level: 'HIGH' },
-      { action_type: 'tag_owner', label: 'Tag an owner', reversible: true, risk_level: 'LOW' },
-      { action_type: 'disable_identity', label: 'Disable the identity', reversible: true, risk_level: 'MEDIUM' },
-    ]),
+    remed(
+      Object.values(ACTION).map((a) => ({ action_type: a.type, title: a.title, label: a.title, remediation_group: a.group, risk_level: a.risk, reversible: a.reversible, one_click_supported: true })),
+    ),
   );
 
-  /*
-   * One-click and auto-remediation, per AWS account: the role the platform
-   * assumes (NHIPlatformRemediator), its External ID, which fixes may run,
-   * approvals, and the three policy documents the client puts in place.
-   */
-  const NAMES = { '482915736104': 'prod-core', '739204185562': 'data-platform', '215660394871': 'staging', '605218934417': 'shared-services' };
-  const accounts = () => {
-    const list = slice('remediationAccounts', () => []);
-    for (const [k, id] of Object.keys(NAMES).entries()) {
-      let a = list.find((x) => x.account_id === id);
-      if (!a) {
-        a = { account_id: id };
-        list.push(a);
-      }
-      /* Older saves used another role name and no auto-remediation fields. */
-      if (!a.v2) {
-        const on = k !== 2;
-        Object.assign(a, {
-          v2: true,
-          account_name: NAMES[id],
-          remediation_enabled: on,
-          remediation_role_arn: on ? `arn:aws:iam::${id}:role/NHIPlatformRemediator` : '',
-          remediation_external_id: on ? `ispm-${hashString(`ext:${id}`).toString(16)}-${hashString(`x:${id}`).toString(16).slice(0, 6)}` : '',
-          has_external_id: on,
-          auto_remediation_enabled: id === '482915736104' || id === '739204185562',
-          allowed_action_types: on ? ['deactivate_access_key', 'rotate_access_key', 'trim_unused_permissions', 'add_external_id_condition', 'pin_oidc_subject', 'enable_secret_rotation', 'remove_escalation_actions', 'tag_owner'] : [],
-          enabled_regions: on ? ['ap-south-1', 'us-east-1'] : [],
-          approval_policy: { LOW: 1, MEDIUM: 1, HIGH: 1, CRITICAL: 2 },
-          grace_days: { delete_key: 30 },
-          access_status: on ? 'OK' : 'NOT_CONFIGURED',
-          access_detail: on ? 'Role assumed with the External ID; all remediation permissions present; guardrail deny in place.' : 'One-click is off for this account.',
-          access_checked_at: iso(NOW - (k + 1) * 47 * MIN),
-        });
-      }
-    }
-    return list;
-  };
   const checksOf = (a) => {
     const on = Boolean(a.remediation_role_arn);
     const st = (ok) => (on ? (ok ? 'pass' : 'warn') : 'idle');
