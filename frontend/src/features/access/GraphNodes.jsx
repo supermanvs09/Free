@@ -77,7 +77,7 @@ export const AccessNode = memo(function AccessNode({ data, selected }) {
         {/* Two lines, because an IAM name is often a path or an OIDC issuer
             and one line turns `token.actions.githubusercontent.com` into
             `token.actions.githubuse...`, which names nothing. */}
-        <span className="block text-[12px] leading-[1.25] font-semibold text-ink line-clamp-2 break-words">
+        <span className="text-[12px] leading-[1.25] font-semibold text-ink line-clamp-2 [overflow-wrap:anywhere]">
           {data.name}
         </span>
         <span className="mt-0.5 flex items-center gap-1 text-[10px] leading-none text-ink-3">
