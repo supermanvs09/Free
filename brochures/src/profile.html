@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1240">
+<title>Deep Algorithms Profile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../src/base.css">
+<style>
+  /* ---------- HERO ---------- */
+  .hero{height:396px}
+  .hero .photo{width:860px;background-image:url(../assets/photos/hero-enterprise.jpg);background-position:50% 40%}
+  .hero-inner{position:relative;z-index:2;padding:46px 64px 0;height:100%}
+  .topbar{display:flex;align-items:center;justify-content:space-between}
+  .brand img{height:64px;display:block}
+  h1{margin-top:40px;font-size:49px;line-height:1.12;font-weight:800;letter-spacing:-.02em;max-width:690px}
+  h1 em{font-style:normal;color:#7cc7ff}
+  .tagline{margin-top:18px;font-size:20px;line-height:1.5;color:#d2ddf5;white-space:nowrap;font-weight:500}
+
+  /* glass "live identity risk" panel */
+  .risk{position:absolute;z-index:2;right:64px;top:128px;width:330px;padding:20px 20px 16px;border-radius:18px;
+    background:linear-gradient(160deg,rgba(255,255,255,.16),rgba(255,255,255,.05));border:1px solid rgba(166,217,255,.35);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 24px 60px -20px rgba(0,0,0,.6)}
+  .risk-h{display:flex;align-items:center;gap:12px}
+  .risk-h .fp{width:44px;height:44px;border-radius:12px;background:rgba(79,179,255,.18);border:1px solid rgba(166,217,255,.4);padding:8px;color:#bfe3ff}
+  .risk-h b{display:block;font-size:15px;font-weight:700}
+  .risk-h span{display:flex;align-items:center;gap:6px;font-size:12px;color:#b9c9ec;margin-top:2px}
+  .risk-h span i{width:7px;height:7px;border-radius:50%;background:#4ade80;box-shadow:0 0 0 3px rgba(74,222,128,.2)}
+  .row{margin-top:12px;padding-top:12px;border-top:1px solid rgba(166,217,255,.18);display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center}
+  .row .k{font-size:13.5px;font-weight:600;color:#e6eeff}
+  .row .v{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px}
+  .row .bar{grid-column:1/-1;height:5px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden}
+  .row .bar i{display:block;height:100%;border-radius:3px}
+  .lo{background:rgba(74,222,128,.16);color:#86efac} .md{background:rgba(250,204,21,.16);color:#fde68a}
+
+  /* ---------- ABOUT ---------- */
+  .about{display:grid;grid-template-columns:1fr 356px;gap:32px;padding-top:28px;padding-bottom:24px}
+  .about p{margin-top:12px;font-size:16.5px;line-height:1.62;color:var(--ink-2)}
+  .about p b{color:var(--navy);font-weight:700}
+  .facts{border-left:1px solid var(--line);padding-left:28px;display:flex;flex-direction:column;justify-content:center;gap:10px}
+  .fact{display:flex;gap:16px;align-items:center}
+  .fact .ib{width:52px;height:52px;padding:12px}
+  .fact h3{font-size:17.5px;font-weight:700;color:var(--navy)}
+  .fact span{display:block;font-size:14px;color:var(--ink-3);margin-top:2px}
+  .tri{display:inline-flex;flex-direction:column;margin-left:8px;vertical-align:-1px;border-radius:2px;overflow:hidden;border:1px solid #d5ddeb}
+  .tri i{width:19px;height:4px;display:block}
+
+  /* ---------- PLATFORMS ---------- */
+  .platforms{padding-top:24px;padding-bottom:26px}
+  .pgrid{margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  .pcard{position:relative;border-radius:18px;padding:22px 28px;color:#fff;overflow:hidden;
+    background:linear-gradient(135deg,var(--navy-l) 0%,var(--navy) 50%,var(--navy-d) 100%);box-shadow:0 14px 30px -16px rgba(14,26,92,.6)}
+  .pcard::after{content:"";position:absolute;right:-60px;bottom:-90px;width:340px;height:240px;border-radius:50%;
+    background:radial-gradient(closest-side,rgba(79,179,255,.32),transparent);filter:blur(6px)}
+  .pcard .waves{position:absolute;right:0;bottom:0;width:300px;height:120px;opacity:.5}
+  .phead{display:flex;align-items:center;gap:16px;height:62px}
+  .phead .mark{height:58px;width:auto}
+  .pname{font-size:25px;font-weight:800;letter-spacing:-.01em;line-height:1.1}
+  .pname small{display:block;font-size:14.5px;font-weight:500;color:#b8c8f0;margin-top:6px;letter-spacing:0}
+  .zen .star{height:60px}
+  .zen .word{height:21px;margin-top:2px;display:block}
+  .pcard p{position:relative;z-index:1;margin-top:14px;font-size:16.5px;line-height:1.6;color:#dbe4fa}
+  .tags{position:relative;z-index:1;margin-top:13px;display:flex;gap:8px;flex-wrap:wrap}
+  .tags span{font-size:12.5px;font-weight:600;padding:6px 11px;border-radius:999px;background:rgba(79,179,255,.14);border:1px solid rgba(166,217,255,.28);color:#dcefff}
+
+  /* ---------- CAPABILITIES / INDUSTRIES / WHY ---------- */
+  .mid{display:grid;grid-template-columns:470px 1fr;padding-top:24px;padding-bottom:24px}
+  .caps{padding-right:36px;border-right:1px solid var(--line)}
+  .cap{display:flex;align-items:center;gap:16px;padding:6px 0;border-bottom:1px solid var(--line)}
+  .cap:last-child{border-bottom:0}
+  .cap .ib{width:50px;height:50px;padding:12px}
+  .cap h3{font-size:17.5px;font-weight:700;line-height:1.3;color:var(--navy)}
+  .cap span{display:block;font-size:14px;color:var(--ink-3);font-weight:500;margin-top:2px}
+  .right{padding-left:36px}
+  .ind{margin-top:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .tile{position:relative;height:86px;border-radius:14px;overflow:hidden;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;text-align:center}
+  .tile .bg{position:absolute;inset:0;background-size:cover;background-position:center;filter:grayscale(.4)}
+  .tile::before{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(14,26,92,.55),rgba(10,19,71,.92))}
+  .tile>*:not(.bg){position:relative;z-index:2}
+  .tile .ti{width:30px;height:30px;color:#bfe3ff}
+  .tile b{font-size:15.5px;font-weight:700;line-height:1.25}
+  .why{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .wcard{display:flex;gap:12px;padding:10px 15px;border-radius:14px;background:var(--paper-2);border:1px solid var(--line)}
+  .wcard .ib{width:44px;height:44px;padding:9px}
+  .wcard h3{font-size:16px;font-weight:700;color:var(--navy)}
+  .wcard span{display:block;font-size:14px;line-height:1.45;color:var(--ink-3);margin-top:3px}
+
+  /* ---------- TRUSTED / FUNDED ---------- */
+  .proof{display:grid;grid-template-columns:1fr 330px;gap:28px;padding-top:20px;padding-bottom:20px}
+  .logos{margin-top:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .lg{height:60px;border-radius:12px;border:1px solid var(--line);background:#fff;display:flex;align-items:center;justify-content:center;padding:14px 18px}
+  .lg img{max-width:100%;max-height:100%;object-fit:contain}
+  .fund{margin-top:16px;height:140px;border-radius:14px;padding:22px 24px;display:flex;flex-direction:column;justify-content:space-between;
+    background:linear-gradient(160deg,#f2f5ff,#e6ecfb);border:1px solid #d6def3}
+  .fund img{width:100%;max-height:62px;object-fit:contain;object-position:left center}
+  .fund p{font-size:14px;line-height:1.45;color:var(--ink-3)}
+  .fund p b{color:var(--navy);font-weight:700}
+
+  .foot{height:150px}
+  .foot-in{grid-template-columns:1fr 450px}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ============ HERO ============ -->
+  <header class="hero">
+    <div class="photo"></div>
+    <div class="shade"></div>
+    <div class="grid"></div>
+    <div class="hero-inner">
+      <div class="topbar">
+        <img class="brand" src="../assets/brand/deep-algorithms-lockup-inverse.png" alt="Deep Algorithms" style="height:64px">
+        <div class="pill">ENTERPRISE PROFILE</div>
+      </div>
+      <h1>Pioneering Agentic and Data Security through <em>Behavioural Intelligence.</em></h1>
+      <p class="tagline">AI-powered identity security for the human, non-human and agentic AI era.</p>
+    </div>
+    <div class="risk">
+      <div class="risk-h"><div class="fp">{{icon:fingerprint}}</div><div><b>Continuous identity risk</b><span><i></i>Live · every session scored</span></div></div>
+      <div class="row"><div class="k">Employee · J. Rao</div><div class="v lo">Low 0.12</div><div class="bar"><i style="width:12%;background:#4ade80"></i></div></div>
+      <div class="row"><div class="k">AI agent · payments-bot</div><div class="v md">Medium 0.41</div><div class="bar"><i style="width:41%;background:#facc15"></i></div></div>
+      <div class="row"><div class="k">Service account · svc-etl</div><div class="v lo">Low 0.07</div><div class="bar"><i style="width:7%;background:#4ade80"></i></div></div>
+    </div>
+    <div class="edge"></div>
+  </header>
+
+  <!-- ============ ABOUT ============ -->
+  <section class="sec about">
+    <div>
+      <h2 class="h2">About the Company</h2>
+      <p><b>Deep Algorithms Solutions</b> is an enterprise-focused, AI-native cybersecurity company building next-generation security platforms to protect digital identities, AI agents, applications and sensitive data. Leveraging advanced artificial intelligence, behavioural intelligence and real-time risk analytics, we empower organisations to anticipate threats, strengthen cyber resilience and secure their evolving digital ecosystems.</p>
+    </div>
+    <div class="facts">
+      <div class="fact"><div class="ib">{{icon:rocket-launch}}</div><div><h3>AI &amp; Cybersecurity Startup</h3><span>Focused on Identity Security</span></div></div>
+      <div class="fact"><div class="ib">{{icon:seal-check}}</div><div><h3>Patented Technology</h3><span>In Behavioural Biometric Authentication</span></div></div>
+      <div class="fact"><div class="ib">{{icon:map-pin}}</div><div><h3>Made in India <em class="tri"><i style="background:#ff9933"></i><i style="background:#fff"></i><i style="background:#138808"></i></em></h3><span>Aligned with Government &amp; MeitY initiatives</span></div></div>
+    </div>
+  </section>
+
+  <div class="rule"></div>
+
+  <!-- ============ PLATFORMS ============ -->
+  <section class="sec platforms">
+    <h2 class="h2">Our Platforms</h2>
+    <div class="pgrid">
+      <article class="pcard">
+        {{waves}}
+        <div class="phead">
+          <img class="mark" src="../assets/brand/adapid-mark.png" alt="">
+          <div class="pname">adapID AI · CIRM Platform<small>Continuous Identity Risk Management</small></div>
+        </div>
+        <p>Behavioural biometric–powered, Zero Trust platform for continuous authentication and identity threat detection across human and non-human identities.</p>
+      </article>
+      <article class="pcard">
+        {{waves}}
+        <div class="phead zen">
+          <img class="star" src="../assets/brand/zenstra-star.png" alt="">
+          <div><img class="word" src="../assets/brand/zenstra-wordmark.png" alt="Zenstra AI"><div class="pname"><small>Agentic AI Security Platform</small></div></div>
+        </div>
+        <p>Discovers, governs and secures every AI agent: agent identity and access, runtime enforcement of every tool call, MCP security and a tamper-evident decision record.</p>
+      </article>
+    </div>
+  </section>
+
+  <div class="rule"></div>
+
+  <!-- ============ CAPABILITIES / INDUSTRIES / WHY ============ -->
+  <section class="sec mid">
+    <div class="caps">
+      <h2 class="h2">Core Capabilities</h2>
+      <div style="margin-top:10px">
+        <div class="cap"><div class="ib">{{icon:shield-check}}</div><div><h3>AI Security &amp; Governance</h3><span>Shadow AI, Data Protection</span></div></div>
+        <div class="cap"><div class="ib">{{icon:robot}}</div><div><h3>Human, Non-Human &amp; Agentic Identity Security</h3></div></div>
+        <div class="cap"><div class="ib">{{icon:fingerprint}}</div><div><h3>Behavioural Biometrics &amp; Continuous Authentication</h3></div></div>
+        <div class="cap"><div class="ib">{{icon:stack}}</div><div><h3>Application Runtime Protection</h3><span>RASP</span></div></div>
+        <div class="cap"><div class="ib">{{icon:pulse}}</div><div><h3>Identity Threat Detection &amp; Response</h3><span>ITDR</span></div></div>
+      </div>
+    </div>
+    <div class="right">
+      <h2 class="h2">Industries We Serve</h2>
+      <div class="ind">
+        <div class="tile"><div class="bg" style="background-image:url(../assets/photos/bfsi.jpg)"></div><div class="ti">{{icon:bank}}</div><b>Banking &amp; BFSI</b></div>
+        <div class="tile"><div class="bg" style="background-image:url(../assets/photos/government.jpg)"></div><div class="ti">{{icon:buildings}}</div><b>Government &amp;<br>Public Sector</b></div>
+        <div class="tile"><div class="bg" style="background:radial-gradient(circle at 70% 30%,#2a5bea,#0E1A5C 70%)"></div>{{radar}}<div class="ti">{{icon:shield-star}}</div><b>Defence</b></div>
+      </div>
+      <h2 class="h2" style="margin-top:18px">Why Choose Deep Algorithms Solutions?</h2>
+      <div class="why">
+        <div class="wcard"><div class="ib">{{icon:lightbulb}}</div><div><h3>Indigenous Innovation</h3><span>Made-in-India technology and intellectual property.</span></div></div>
+        <div class="wcard"><div class="ib">{{icon:brain}}</div><div><h3>AI-Driven Security</h3><span>Adaptive, contextual and continuous protection.</span></div></div>
+        <div class="wcard"><div class="ib">{{icon:buildings}}</div><div><h3>Enterprise Ready</h3><span>Scalable, secure and integration-friendly.</span></div></div>
+        <div class="wcard"><div class="ib">{{icon:intersect}}</div><div><h3>Unified Approach</h3><span>Correlated security across identities, applications and AI.</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="rule"></div>
+
+  <!-- ============ TRUSTED BY / FUNDED BY ============ -->
+  <section class="sec proof">
+    <div>
+      <h2 class="h2">Trusted By</h2>
+      <div class="logos">
+        <div class="lg"><img src="../assets/logos/canara-bank.png" alt="Canara Bank" style="max-height:42px"></div>
+        <div class="lg"><img src="../assets/logos/karnataka-bank.png" alt="Karnataka Bank"></div>
+        <div class="lg"><img src="../assets/logos/dcb-bank.png" alt="DCB Bank" style="max-height:36px"></div>
+        <div class="lg"><img src="../assets/logos/csb-bank.png" alt="CSB Bank" style="max-height:46px"></div>
+        <div class="lg"><img src="../assets/logos/mirae-asset.png" alt="Mirae Asset" style="max-height:36px"></div>
+        <div class="lg"><img src="../assets/logos/ncrtc.png" alt="NCRTC" style="max-height:42px"></div>
+      </div>
+    </div>
+    <div>
+      <h2 class="h2">Funded By</h2>
+      <div class="fund">
+        <img src="../assets/logos/unicorn-india-ventures.png" alt="Unicorn India Ventures">
+        <p><b>₹16 Cr pre-Series A</b> led by Unicorn India Ventures.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="foot">
+    {{footwaves}}
+    <div class="foot-in">
+      <p class="tag">{{tagline}}</p>
+      <div class="contacts">
+        <div class="ct">{{cicon:globe}}deepalgorithms.io</div>
+        <div class="ct">{{cicon:envelope}}info@deepalgorithms.in</div>
+        <div class="ct">{{cicon:map-pin}}Hyderabad, India</div>
+        <div class="ct">{{cicon:linkedin-logo}}deepalgorithms.in</div>
+      </div>
+    </div>
+  </footer>
+</div>
+</body>
+</html>
