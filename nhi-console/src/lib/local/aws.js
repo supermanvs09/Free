@@ -1,7 +1,10 @@
 import { ApiError } from '../api/http';
 import { readStoredUser } from '../api/session';
 import { AWS_REGION_CATALOGUE } from '../api/awsRegions';
+import { PEOPLE } from './seed';
 import { slice, save } from './state';
+
+const PRANAV = PEOPLE.find((p) => p.key === 'pranav').email;
 
 /*
  * Connected AWS accounts: GET/POST/PUT/DELETE /api/v1/integrations/aws/*.
@@ -95,7 +98,7 @@ function seedAccounts() {
     last_verified_at: ago(5 * HOUR),
     last_verified_by: owner,
     connected_at: ago(64 * 24 * HOUR),
-    approval: { status: 'approved', requested_at: ago(65 * 24 * HOUR), requested_by: owner, decided_at: ago(64 * 24 * HOUR), decided_by: 'pranav@deepalgorithms.ai', note: '' },
+    approval: { status: 'approved', requested_at: ago(65 * 24 * HOUR), requested_by: owner, decided_at: ago(64 * 24 * HOUR), decided_by: PRANAV, note: '' },
     exposure: { github: platformOff(), codecommit: platformOff(), updated_by: '' },
     sync: { status: 'succeeded', requested_at: ago(55 * MIN), requested_by: 'scheduler', started_at: ago(54 * MIN), last_synced_at: ago(41 * MIN), last_error: '' },
     ...extra,
@@ -179,7 +182,7 @@ function scheduleApproval(accountId) {
     const account = store().accounts.find((entry) => entry.account_id === accountId);
     if (!account || account.status !== 'pending_approval') return;
     account.status = 'pending';
-    account.approval = { ...account.approval, status: 'approved', decided_at: new Date().toISOString(), decided_by: 'pranav@deepalgorithms.ai' };
+    account.approval = { ...account.approval, status: 'approved', decided_at: new Date().toISOString(), decided_by: PRANAV };
     account.checks = account.checks.map((check, index) => (index === 0 ? { ...check, state: 'running', message: 'Signing in to your account with your role.' } : check));
     commit();
     setTimeout(() => {
@@ -187,7 +190,7 @@ function scheduleApproval(accountId) {
       if (!again || again.status !== 'pending') return;
       const at = new Date().toISOString();
       Object.assign(again, { status: 'connected', is_connected: true, checks: awsChecks(), connected_at: at, last_verified_at: at });
-      again.sync = { ...again.sync, status: 'queued', requested_at: at, requested_by: 'pranav@deepalgorithms.ai', last_error: '' };
+      again.sync = { ...again.sync, status: 'queued', requested_at: at, requested_by: PRANAV, last_error: '' };
       commit();
       scheduleSync(accountId);
     }, 3000);

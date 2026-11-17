@@ -5,6 +5,7 @@ import { credentialsOf, identityById } from '../world';
 import { scopeById } from '../seed';
 import { slice, save } from '../state';
 import { audit } from '../users';
+import { applyPlan, revertPlan } from '../planEffects';
 
 const B = '/api/v1/remediation';
 
@@ -165,10 +166,14 @@ function logPlan(plan, user, event, detail = '') {
 }
 
 function setStatus(plan, status, user, event, detail) {
+  const was = plan.status;
   plan.status = status;
   plan.updated_at = iso(Date.now());
   logPlan(plan, user, event, detail);
   save();
+  /* The fix itself, not just its paperwork: access changes everywhere. */
+  if (['EXECUTED', 'MANUALLY_DONE'].includes(status) && !['EXECUTED', 'MANUALLY_DONE'].includes(was)) applyPlan(plan, user);
+  if (status === 'ROLLED_BACK') revertPlan(plan);
   return plan;
 }
 

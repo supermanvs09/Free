@@ -22,10 +22,10 @@ export default function register(r) {
   r.post('/api/v1/users', ({ body, user }) => {
     if (!can(user, 'users')) return fail(403, 'Managing users is for admins.', 'FORBIDDEN');
     const email = String(body.email ?? '').trim().toLowerCase();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail(400, 'Enter a valid email address.', 'VALIDATION_ERROR', 'email');
+    if (!/^[a-z0-9][a-z0-9._-]{1,63}@[a-z0-9.-]+$/.test(email)) return fail(400, 'Use a sign-in name like priya@das.', 'VALIDATION_ERROR', 'email');
     if (findUser(email)) return fail(409, 'Someone with this email already has an account.', 'USER_EXISTS', 'email');
     if (!strong(body.password)) return fail(400, 'Use at least 10 characters with upper and lower case letters and a number.', 'VALIDATION_ERROR', 'password');
-    const u = { id: `usr_${Date.now().toString(36)}`, email, full_name: body.full_name || email.split('@')[0], team: body.team || '', department: body.department || '', role: body.role || 'viewer', status: body.status || 'active', tenant_id: ORG.tenantId, created_at: iso(Date.now()), last_login_at: null, session_epoch: 0, created_by: user.email };
+    const u = { id: `usr_${Date.now().toString(36)}`, email, full_name: body.full_name || email.split('@')[0], team: body.team || '', department: body.department || '', role: body.role || 'viewer', status: body.status || 'active', tenant_id: ORG.tenantId, created_at: iso(Date.now()), last_login_at: null, session_epoch: 0, cred_v: 2, created_by: user.email };
     setPassword(u, body.password);
     u.session_epoch = 0;
     users().push(u);

@@ -18,7 +18,7 @@
  * built the estate), so the two modules can import each other.
  */
 
-import { credentialDeleted, identityDeleted, keyDeactivated, linkBroken, responseRev, rightSized, scenario } from './response';
+import { credentialDeleted, identityDeleted, identityDisabled, keyDeactivated, keyRotated, linkBroken, madePrivate, responseRev, rightSized, rotationEnabled, scenario, trustPinned } from './response';
 
 const P = '482915736104'; // prod-core
 const D = '739204185562'; // data-platform
@@ -692,7 +692,7 @@ export function enrich(world) {
 
 /* ── Reading the model ─────────────────────────────────────────────────── */
 export function grantsOf(identity) {
-  if (!model) return [];
+  if (!model || identity.__disabled) return [];
   return grantsForPrincipal(principalKey(identity));
 }
 
@@ -766,7 +766,7 @@ export function permissionRows(identity) {
 }
 
 /** Edges out of this identity to identities it can become. */
-const live = (l) => !linkBroken(l.id.split('|')[0]) && !l.from.__deleted && !l.to.__deleted && !(l.via && (keyDeactivated(l.via.id) || l.via.__deleted)) && !(l.fromKind === 'credential' && (keyDeactivated(l.from.id) || l.from.__deleted));
+const live = (l) => !linkBroken(l.id.split('|')[0]) && !l.from.__deleted && !l.to.__deleted && !l.from.__disabled && !l.to.__disabled && !(l.via && (keyDeactivated(l.via.id) || l.via.__deleted)) && !(l.fromKind === 'credential' && (keyDeactivated(l.from.id) || l.from.__deleted));
 export function linksFrom(identity) {
   if (!model) return [];
   return model.links.filter((l) => l.fromKind === 'identity' && l.from.id === identity.id && live(l));
@@ -836,6 +836,17 @@ export function onOverlayChange(fn) {
   return () => overlayListeners.delete(fn);
 }
 
+/* A short stable hex string from text (for ids that must not change on reload). */
+function hexOf(text) {
+  let h1 = 0x811c9dc5;
+  let h2 = 0x01000193;
+  for (const ch of String(text)) {
+    h1 = Math.imul(h1 ^ ch.charCodeAt(0), 16777619) >>> 0;
+    h2 = Math.imul(h2 + ch.charCodeAt(0), 2246822519) >>> 0;
+  }
+  return `${h1.toString(36)}${h2.toString(36)}${(h1 ^ h2).toString(36)}`.replace(/[^a-z0-9]/g, '').padEnd(16, '7');
+}
+
 function severityOf(i) {
   return i.is_admin && (i.is_publicly_accessible || !i.owner) ? 'CRITICAL' : i.is_admin || i.is_shadow ? 'HIGH' : i.idle_days > 90 ? 'MEDIUM' : null;
 }
@@ -856,15 +867,57 @@ export function syncOverlay(world) {
   if (rev === appliedRev) return;
   appliedRev = rev;
   for (const i of world.identities) {
-    i.__base ??= { is_admin: i.is_admin, status: i.status };
+    i.__base ??= { is_admin: i.is_admin, status: i.status, public: i.is_publicly_accessible };
     i.__deleted = Boolean(identityDeleted(i.id));
     const key = principalKey(i);
     const sized = rightSized(key);
     i.is_admin = sized ? false : i.__base.is_admin;
     i.right_sized_at = sized?.at ? new Date(sized.at).toISOString() : null;
+    /* Fixes a remediation plan carried out. */
+    const priv = madePrivate(i.id);
+    i.is_publicly_accessible = priv ? false : i.__base.public;
+    const off = identityDisabled(i.id);
+    i.__disabled = Boolean(off);
+    i.status = off ? 'disabled' : i.__base.status;
+    i.disabled_at = off ? new Date(off.at).toISOString() : null;
   }
   for (const c of world.credentials) {
-    c.__base ??= { status: c.status, bound: [...(c.bound_identities ?? [])], is_orphaned: c.is_orphaned };
+    c.__base ??= {
+      status: c.status,
+      bound: [...(c.bound_identities ?? [])],
+      is_orphaned: c.is_orphaned,
+      access_key_id: c.access_key_id,
+      name: c.name,
+      arn: c.arn,
+      created_at: c.created_at,
+      age_days: c.age_days,
+      last_rotated_at: c.last_rotated_at,
+      rotation_overdue: c.rotation_overdue,
+      rotation_enabled: c.rotation_enabled,
+    };
+    /* A rotated key is a new key: new id, new age; the leaked value is dead. */
+    const rot = keyRotated(c.id);
+    const b = c.__base;
+    if (rot && b.access_key_id) {
+      const fresh = `AKIA${hexOf(`${c.id}:${rot.at}`).toUpperCase().slice(0, 16)}`;
+      c.access_key_id = fresh;
+      c.name = b.name.replace(/AKIA\w{0,4}…\w{4}/, `${fresh.slice(0, 4)}…${fresh.slice(-4)}`);
+      c.created_at = new Date(rot.at).toISOString();
+      c.age_days = 0;
+      c.last_rotated_at = c.created_at;
+      c.rotation_overdue = false;
+      c.rotated_by = rot.by_name ?? rot.by ?? null;
+    } else {
+      Object.assign(c, { access_key_id: b.access_key_id, name: b.name, created_at: b.created_at, age_days: b.age_days, last_rotated_at: b.last_rotated_at, rotation_overdue: b.rotation_overdue, rotated_by: null });
+    }
+    const rotOn = rotationEnabled(c.id);
+    c.rotation_enabled = rotOn ? true : b.rotation_enabled;
+    if (rotOn) {
+      c.rotation_overdue = false;
+      c.last_rotated_at = new Date(rotOn.at).toISOString();
+    }
+    const pin = trustPinned(c.id);
+    c.trust_condition = pin ? (String(c.external_principal ?? '').startsWith('arn:') ? 'sts:ExternalId required' : 'subject pinned to repo:deepalgo-labs/payments-api:environment:production') : null;
     c.__deleted = Boolean(credentialDeleted(c.id));
     const off = keyDeactivated(c.id);
     c.status = off ? 'inactive' : c.__base.status;

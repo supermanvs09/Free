@@ -25,7 +25,7 @@ import { blastRadius } from '../reach';
 import { liveFindings } from '../exposureData';
 import { anomalies } from './genome';
 import { emitEvent, liveEvents } from '../notifyBus';
-import { mutate, response, scenario } from '../response';
+import { mutate, response, rightSized, scenario } from '../response';
 import { genomeRouteFor } from '../../identityLinks';
 
 const ACCOUNT_NAME = { '482915736104': 'prod-core', '739204185562': 'data-platform', '215660394871': 'staging', '605218934417': 'shared-services' };
@@ -100,7 +100,7 @@ function insights(identity) {
     if (adminGrant) {
       const used = servicesUsed(identity).filter((s) => s !== 'sts');
       const role = credentialsOf(identity).find((c) => c.credential_type === 'iam_role');
-      const sized = response().rightsized?.[key] ?? null;
+      const sized = rightSized(key);
       out.overprivilege = {
         principal: key,
         role_name: role?.name ?? identity.name,
@@ -138,7 +138,7 @@ function insights(identity) {
   const fresh = anomalies().filter((a) => a.identity_id === identity.id && a.status === 'open' && Date.parse(a.detected_at) > Date.now() - 24 * 3600 * 1000);
   if (fresh.length) {
     const key = principalOf(identity);
-    const sized = response().rightsized?.[key] ?? null;
+    const sized = rightSized(key);
     out.anomaly = { ...fresh[0], contained: sized ? { at: new Date(sized.at).toISOString(), by: sized.by, by_name: sized.by_name } : null, principal: key, blast: blastSummary(subjectArn(identity)) };
   }
   return out;

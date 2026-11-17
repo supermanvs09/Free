@@ -489,7 +489,8 @@ async function health() {
   };
 }
 
-const server = http.createServer(async (req, res) => {
+/** Answers one request; the standalone server and the dev server both use it. */
+export async function handleRequest(req, res) {
   const url = new URL(req.url, 'http://relay');
   const prefixed = url.pathname.startsWith('/notify-api/') || url.pathname === '/notify-api';
   const path = url.pathname.replace(/^\/notify-api/, '');
@@ -546,12 +547,18 @@ const server = http.createServer(async (req, res) => {
     if (res.headersSent) return res.end();
     send(res, status, { ok: false, error: error.code || 'ERROR', message: status >= 500 && !error.status ? 'The relay failed.' : error.message });
   }
-});
+}
+
+const server = http.createServer(handleRequest);
 /* Event streams stay open; the default request timeout would cut them. */
 server.requestTimeout = 0;
 server.headersTimeout = 30000;
 
-if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop())) {
+/* Run directly (npm start, npm run relay, the container): listen. Imported
+   (the Vite dev and preview servers): only answer what they hand over.
+   Compared as resolved paths so Windows' backslashes match too. */
+const runDirectly = Boolean(process.argv[1]) && nodePath.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (runDirectly) {
   server.listen(PORT, HOST, () => log('info', 'console server listening', { host: HOST, port: PORT, static: STATIC_DIR || null, sync: Boolean(hub), data: hub ? DATA_DIR : null, mail: transport()?.kind ?? 'not set up' }));
   for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => server.close(() => process.exit(0)));
 }

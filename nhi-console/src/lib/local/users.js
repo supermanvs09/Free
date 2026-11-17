@@ -4,7 +4,9 @@ import { save, slice, state } from './state';
 import { DAY, HOUR, MIN, NOW, ago, iso, rng } from './util';
 import { hashPassword } from './hash';
 
-export const DEFAULT_PASSWORD = 'Welcome@2026';
+export const DEFAULT_PASSWORD = 'Nhi@admin';
+/* Bumped when the default sign-in details change: saved workspaces move to them once. */
+const CREDENTIALS_VERSION = 2;
 
 export function users() {
   const list = slice('users', () =>
@@ -21,12 +23,25 @@ export function users() {
       last_login_at: p.key === 'meghana' ? ago(64 * DAY) : ago((i * 7 + 3) * HOUR),
       password_hash: hashPassword(`usr_${String(i + 1).padStart(3, '0')}`, DEFAULT_PASSWORD),
       session_epoch: 0,
+      cred_v: CREDENTIALS_VERSION,
       created_by: i < 2 ? 'system' : PEOPLE[0].email,
     })),
   );
   /* Accounts kept by an older build held the password itself. */
   let migrated = false;
   for (const u of list) {
+    if ((u.cred_v ?? 1) < CREDENTIALS_VERSION) {
+      /* The workspace's default sign-in details changed: every seeded account
+         moves to them once (accounts added later keep their own password). */
+      const seeded = PEOPLE.findIndex((_, i) => u.id === `usr_${String(i + 1).padStart(3, '0')}`);
+      if (seeded >= 0) {
+        u.email = PEOPLE[seeded].email;
+        delete u.password;
+        u.password_hash = hashPassword(u.id, DEFAULT_PASSWORD);
+      }
+      u.cred_v = CREDENTIALS_VERSION;
+      migrated = true;
+    }
     if (u.password !== undefined) {
       u.password_hash = hashPassword(u.id, u.password);
       delete u.password;

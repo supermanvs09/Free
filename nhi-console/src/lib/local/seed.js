@@ -11,6 +11,8 @@ import { enrich, syncOverlay } from './entitlements';
 export const ORG = { name: 'Deep Algorithms', domain: 'deepalgorithms.ai', tenantId: 'tnt_7f3a91c2' };
 
 /* ── People ────────────────────────────────────────────────────────────── */
+/* Sign-in names that differ from name@domain. */
+const SIGN_IN = { pranav: 'pranav@das' };
 export const PEOPLE = [
   { key: 'pranav', name: 'Pranav Reddy', team: 'Platform Security', department: 'Security', role: 'admin' },
   { key: 'charan', name: 'Charan Teja', team: 'Cloud Platform', department: 'Engineering', role: 'admin' },
@@ -24,7 +26,7 @@ export const PEOPLE = [
   { key: 'kiran', name: 'Kiran Kumar', team: 'Data Science', department: 'Engineering', role: 'viewer' },
   { key: 'divya', name: 'Divya Sri', team: 'QA Automation', department: 'Engineering', role: 'viewer' },
   { key: 'meghana', name: 'Meghana Rao', team: 'Compliance', department: 'Risk', role: 'viewer' },
-].map((p) => ({ ...p, email: `${p.key}@${ORG.domain}`, first: p.name.split(' ')[0] }));
+].map((p) => ({ ...p, email: SIGN_IN[p.key] ?? `${p.key}@${ORG.domain}`, first: p.name.split(' ')[0] }));
 export const person = (key) => PEOPLE.find((p) => p.key === key) ?? PEOPLE[0];
 
 /* ── Providers and the accounts each holds ─────────────────────────────── */

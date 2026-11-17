@@ -76,13 +76,13 @@ export const RULES = [
   },
   {
     rule_id: 'NHI-TA-001', pillar: 'trust_access', severity: 'HIGH', title: 'Assumable from another account',
-    applies: (i) => creds(i).some((c) => c.has_external_trust), fails: (i) => creds(i).some((c) => c.has_external_trust && String(c.external_principal).startsWith('arn:')),
+    applies: (i) => creds(i).some((c) => c.has_external_trust), fails: (i) => creds(i).some((c) => c.has_external_trust && !c.trust_condition && String(c.external_principal).startsWith('arn:')),
     detail: (i) => `Trusted by ${creds(i).find((c) => c.has_external_trust)?.external_principal}.`, why: 'Anyone with access to the trusted account can become this identity.',
     fix: 'Require an ExternalId and narrow the principal to the vendor’s role.', compliance: ['NIST-AC-3', 'CIS-AWS-1.20'], auto: 'add_external_id_condition',
   },
   {
     rule_id: 'NHI-TA-002', pillar: 'trust_access', severity: 'MEDIUM', title: 'Federated trust not pinned to a branch or environment',
-    applies: (i) => creds(i).some((c) => c.has_external_trust), fails: (i) => creds(i).some((c) => c.has_external_trust && !String(c.external_principal).startsWith('arn:') && !String(c.external_principal).includes('refs/heads/main')),
+    applies: (i) => creds(i).some((c) => c.has_external_trust), fails: (i) => creds(i).some((c) => c.has_external_trust && !c.trust_condition && !String(c.external_principal).startsWith('arn:') && !String(c.external_principal).includes('refs/heads/main')),
     detail: () => 'The OIDC subject condition allows repo:deepalgo-labs/* on any branch.', why: 'Any branch, fork workflow or pull request run in the organisation can deploy as this identity.',
     fix: 'Pin the subject to repo:<org>/<repo>:environment:production.', compliance: ['NIST-AC-3', 'SLSA-L3'], auto: 'pin_oidc_subject',
   },

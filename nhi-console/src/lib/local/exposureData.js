@@ -5,7 +5,7 @@
 import { estate, REPOSITORIES, GITHUB_ORG, BITBUCKET_URL, person } from './seed';
 import { isOn } from './apps';
 import { slice } from './state';
-import { keyDeactivated, scenario } from './response';
+import { keyDeactivated, keyRotated, scenario } from './response';
 import { DAY, HOUR, MIN, NOW, iso, rng } from './util';
 
 const DETECTORS = {
@@ -253,7 +253,7 @@ export function liveFindings() {
 export function exposedIdentityIds() {
   return new Set(
     liveFindings()
-      .filter((f) => f.list === 'live' && f.identity_id && f.analyst_decision !== 'false_positive' && !(f.credential_id && keyDeactivated(f.credential_id)))
+      .filter((f) => f.list === 'live' && f.identity_id && f.analyst_decision !== 'false_positive' && !(f.credential_id && (keyDeactivated(f.credential_id) || keyRotated(f.credential_id))))
       .map((f) => f.identity_id),
   );
 }
