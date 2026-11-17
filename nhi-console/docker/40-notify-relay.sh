@@ -18,4 +18,4 @@ export PORT="${NOTIFY_RELAY_PORT:-8787}" HOST=127.0.0.1
   done
 ) &
 mkdir -p "${DATA_DIR:-/var/lib/nhi}" 2>/dev/null || true
-echo "notify-relay: starting on 127.0.0.1:${PORT} (workspace in ${DATA_DIR:-/var/lib/nhi}; mail: ${GMAIL_USER:-${SMTP_HOST:-${MAIL_FROM:-set up in Integrations > Gmail}}})"
+echo "notify-relay: starting on 127.0.0.1:${PORT} (shared workspace: $([ "${SYNC_ENABLED:-true}" = "false" ] && echo off || echo "on, saved in ${DATA_DIR:-/var/lib/nhi}"))"

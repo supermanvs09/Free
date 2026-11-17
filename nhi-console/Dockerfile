@@ -29,6 +29,9 @@ COPY . .
 #   docker build --build-arg VITE_LIVE_REPLAY=on -t nhi-console .
 ARG VITE_LIVE_REPLAY=off
 ENV VITE_LIVE_REPLAY=$VITE_LIVE_REPLAY
+# off: the console never looks for the shared workspace (pair with SYNC_ENABLED=false).
+ARG VITE_SYNC=on
+ENV VITE_SYNC=$VITE_SYNC
 RUN npm run build && test -f dist/index.html
 
 # ── Stage 2: serve it ────────────────────────────────────────────────────────
@@ -44,6 +47,9 @@ ENV NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx/conf.d \
     DATA_DIR=/var/lib/nhi
 
 RUN rm -f /etc/nginx/conf.d/default.conf
+# Our own main config: no `user` line and the PID file in /tmp, since nginx
+# runs as the unprivileged nginx user.
+COPY nginx/nginx.main.conf /etc/nginx/nginx.conf
 COPY nginx/nginx.conf.template /etc/nginx/templates/nhi-console.conf.template
 COPY nginx/security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY --chmod=0755 docker/18-default-env.envsh /docker-entrypoint.d/18-default-env.envsh
@@ -53,7 +59,8 @@ COPY --from=build /app/dist /usr/share/nginx/html
 
 RUN mkdir -p /var/lib/nhi \
     && chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /var/log/nginx /etc/nginx/conf.d /var/lib/nhi \
-    && touch /var/run/nginx.pid && chown nginx:nginx /var/run/nginx.pid
+    && mkdir -p /var/cache/nginx/client_temp /var/cache/nginx/proxy_temp /var/cache/nginx/fastcgi_temp /var/cache/nginx/uwsgi_temp /var/cache/nginx/scgi_temp \
+    && chown -R nginx:nginx /var/cache/nginx
 
 # The shared workspace (users, audit log, settings, alerts) is saved here.
 # Mount a volume to keep it across container restarts.
