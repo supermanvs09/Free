@@ -10,7 +10,8 @@
 <style>
   /* ---------- HERO ---------- */
   .hero{height:400px;background:radial-gradient(120% 140% at 0% 0%, var(--navy-l) 0%, var(--navy) 42%, var(--navy-dd) 100%)}
-  .hero .ph2{position:absolute;right:0;top:0;bottom:0;width:820px;background:url(../assets/photos/hero-agentic.jpg) 58% 60%/cover no-repeat;
+  .orb-agentic{right:40px;top:12px}
+  .hero .ph2{position:absolute;right:0;top:0;bottom:0;width:820px;background:url(../assets/photos/hero-burst.jpg) 50% 50%/cover no-repeat;opacity:.45;
     -webkit-mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.55) 22%,#000 50%);mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.55) 22%,#000 50%)}
   .hero-inner{position:relative;z-index:2;padding:46px 64px 0}
   .topbar{display:flex;align-items:center;justify-content:space-between}
@@ -92,6 +93,7 @@
   <header class="hero">
     <div class="grid"></div>
     <div class="ph2"></div>
+    {{orbit:agentic}}
     <div class="hero-inner">
       <div class="topbar">
         <img src="../assets/brand/deep-algorithms-lockup-inverse.png" alt="Deep Algorithms" style="height:64px;display:block">

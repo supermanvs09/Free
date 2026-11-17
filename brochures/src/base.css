@@ -41,3 +41,13 @@ body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);-webk
 .contacts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .ct{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid rgba(166,217,255,.22);font-size:14px;font-weight:600;color:#eef3ff}
 .ct .ci{width:21px;height:21px;flex:none;color:var(--cyan)}
+
+/* shield-and-orbit header art */
+.orb{position:absolute;z-index:2}
+.orb .orb-svg{position:absolute;inset:0;width:100%;height:100%}
+.orb .orb-mark{position:absolute;filter:drop-shadow(0 2px 6px rgba(14,26,92,.25))}
+.orb-n{position:absolute;width:56px;height:56px}
+.orb-n .c{display:block;box-sizing:border-box;width:56px;height:56px;flex:none;border-radius:50%;padding:14px;color:#fff;background:rgba(14,26,92,.9);border:1.5px solid rgba(166,217,255,.65);box-shadow:0 8px 20px -8px rgba(0,0,0,.6)}
+.orb-n b{position:absolute;left:66px;top:50%;transform:translateY(-50%);font-size:13.5px;font-weight:700;color:#e3f0ff;white-space:nowrap;letter-spacing:.01em}
+.orb-n.l b{left:auto;right:66px}
+.orb-n .c .ico{width:100%;height:100%;display:block}

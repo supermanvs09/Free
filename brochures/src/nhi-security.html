@@ -9,8 +9,8 @@
 <link rel="stylesheet" href="../src/base.css">
 <style>
   /* ---------- HERO: identity graph ---------- */
-  .hero{height:316px;background:radial-gradient(120% 140% at 0% 0%, var(--navy-l) 0%, var(--navy) 42%, var(--navy-dd) 100%)}
-  .hero .ph{position:absolute;right:0;top:0;bottom:0;width:780px;background:url(../assets/photos/hero-nhi.jpg) 50% 50%/cover no-repeat;opacity:.75;
+  .hero{height:325px;background:radial-gradient(120% 140% at 0% 0%, var(--navy-l) 0%, var(--navy) 42%, var(--navy-dd) 100%)}
+  .hero .ph{position:absolute;right:0;top:0;bottom:0;width:780px;background:url(../assets/photos/hero-nhi.jpg) 50% 50%/cover no-repeat;opacity:.35;
     -webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 40%);mask-image:linear-gradient(90deg,transparent 0%,#000 40%)}
   .hero-inner{position:relative;z-index:3;padding:36px 64px 0;width:600px}
   .logo{display:flex;align-items:center;gap:14px}
@@ -22,6 +22,7 @@
   h1 em{font-style:normal;color:#7cc7ff}
   .tagline{margin-top:16px;font-size:18.5px;line-height:1.5;color:#dbe5fa;font-weight:500}
 
+  .orb-nhi{right:70px;top:-2px}
   .graph{position:absolute;z-index:2;right:40px;top:6px;width:620px;height:310px}
   .graph>svg{position:absolute;inset:0}
   .hub{position:absolute;left:250px;top:95px;width:120px;height:120px;border-radius:50%;display:grid;place-items:center;
@@ -121,23 +122,7 @@
   <header class="hero">
     <div class="ph"></div>
     <div class="grid"></div>
-    <div class="graph">
-      <svg viewBox="0 0 620 310" fill="none">
-        <g stroke="#a6d9ff" stroke-opacity=".55" stroke-width="1.5" stroke-dasharray="4 5">
-          <path d="M310 155 L200 48"/><path d="M310 155 L420 40"/><path d="M310 155 L200 160"/><path d="M310 155 L430 158"/><path d="M310 155 L210 262"/>
-        </g>
-        <path d="M310 155 L410 262" stroke="#f87171" stroke-opacity=".9" stroke-width="2" stroke-dasharray="4 5"/>
-        <circle cx="310" cy="155" r="96" stroke="#4fb3ff" stroke-opacity=".25"/>
-        <circle cx="310" cy="155" r="130" stroke="#a6d9ff" stroke-opacity=".14" stroke-dasharray="2 8"/>
-      </svg>
-      <div class="hub"><div class="disc"><img src="../assets/brand/adapid-mark.png" alt=""></div></div>
-      <div class="nd" style="left:0;top:22px"><div class="i">{{icon:user-gear}}</div><div><b>svc-payments</b><span>Service account</span></div><em class="r lo">LOW</em></div>
-      <div class="nd" style="left:400px;top:14px"><div class="i">{{icon:key}}</div><div><b>ci-deploy-key</b><span>API key</span></div><em class="r lo">LOW</em></div>
-      <div class="nd" style="left:0;top:134px;min-width:200px"><div class="i">{{icon:certificate}}</div><div><b>crm-sync</b><span>OAuth token · SaaS</span></div><em class="r md">MED</em></div>
-      <div class="nd" style="left:420px;top:128px"><div class="i">{{icon:robot}}</div><div><b>ops-copilot</b><span>AI agent</span></div><em class="r md">MED</em></div>
-      <div class="nd" style="left:10px;top:236px"><div class="i">{{icon:hard-drives}}</div><div><b>etl-worker</b><span>Workload identity</span></div><em class="r lo">LOW</em></div>
-      <div class="nd alert" style="left:400px;top:236px"><div class="i" style="background:rgba(248,113,113,.2);color:#fecaca">{{icon:warning-circle}}</div><div><b>s3-backup-role</b><span>Unused for 180 days</span></div><em class="r cr">CRIT</em></div>
-    </div>
+    {{orbit:nhi}}
     <div class="hero-inner">
       <div class="logo"><img src="../assets/brand/adapid-mark.png" alt=""><b>adapID <i>AI</i></b></div>
       <p class="kick">Continuous Identity Risk Management</p>
