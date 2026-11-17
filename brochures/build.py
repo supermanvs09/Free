@@ -194,7 +194,7 @@ def orbit_premium(W=660, H=346):
 <path d="M50 8.5 L12 22.5 V58 C12 70 15 80 21 88 L50 8.5 Z" fill="url(#sh)" opacity=".55"/>
 <path d="M50 8.5 L88 22.5 V58 C88 84 70 100 50 109" stroke="#2a5bea" stroke-opacity=".18" stroke-width="1.2"/>
 </g></svg>"""
-    mw = sw * 0.44; mh = mw * 541 / 512; my = cy - sh * 0.075   # optical centre of the shield face
+    mw = sw * 0.44; mh = mw * 541 / 512; my = cy - sh * 0.045   # optical centre of the shield face
     mark = f'<img class="orb-mark" src="../assets/brand/deep-algorithms-mark.png" alt="" style="left:{cx-mw/2:.1f}px;top:{my-mh/2:.1f}px;width:{mw:.1f}px">'
     pos = {"APIs": "r", "Databases": "r", "Automations": "t", "Cloud Workloads": "t", "Service Accounts": "b", "CI/CD Pipelines": "b"}
     nd = "".join(f'<div class="pn {pos[lab]}" style="left:{x-29}px;top:{y-29}px"><span class="c">{icon(ic)}</span><b>{lab}</b></div>' for lab, ic, x, y in nodes)
