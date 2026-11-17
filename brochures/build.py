@@ -62,6 +62,10 @@ def main():
             pages.append(str(out.resolve()))
     if "--no-render" not in sys.argv:
         subprocess.run(["node", str(ROOT / "render.js"), *pages], check=True)
+        from PIL import Image  # PDF from the 300 dpi PNG: no transparency/blend effects for viewers to misdraw
+        for p in pages:
+            png = pathlib.Path(p).with_suffix(".png")
+            Image.open(png).convert("RGB").save(png.with_suffix(".pdf"), resolution=300.0)
 
 
 if __name__ == "__main__":

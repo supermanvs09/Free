@@ -8,90 +8,114 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../src/base.css">
 <style>
-  /* ---------- HERO ---------- */
-  .hero{height:392px}
-  .hero .photo{width:820px;background-image:url(../assets/photos/hero-datacenter.jpg);background-position:50% 50%}
-  .hero-inner{position:relative;z-index:2;padding:46px 64px 0}
-  .topbar{display:flex;align-items:center;justify-content:space-between;width:1112px}
+  /* ---------- HERO: identity graph ---------- */
+  .hero{height:316px;background:radial-gradient(120% 140% at 0% 0%, var(--navy-l) 0%, var(--navy) 42%, var(--navy-dd) 100%)}
+  .hero .ph{position:absolute;right:0;top:0;bottom:0;width:780px;background:url(../assets/photos/hero-network.jpg) 30% 45%/cover no-repeat;opacity:.55;
+    -webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 40%);mask-image:linear-gradient(90deg,transparent 0%,#000 40%)}
+  .hero-inner{position:relative;z-index:3;padding:36px 64px 0;width:600px}
   .logo{display:flex;align-items:center;gap:14px}
-  .logo img{height:62px}
-  .logo b{font-size:42px;font-weight:800;letter-spacing:-.02em;line-height:1}
+  .logo img{height:54px}
+  .logo b{font-size:37px;font-weight:800;letter-spacing:-.02em;line-height:1}
   .logo b i{font-style:normal;color:#7cc7ff}
-  .kick{margin-top:30px;font-size:21px;font-weight:600;color:#cfe0ff;letter-spacing:-.005em}
-  h1{margin-top:8px;font-size:54px;line-height:1.06;font-weight:800;letter-spacing:-.02em;max-width:640px}
+  .kick{margin-top:24px;font-size:19px;font-weight:600;color:#bcd0f5}
+  h1{margin-top:4px;font-size:58px;line-height:1.04;font-weight:800;letter-spacing:-.025em}
   h1 em{font-style:normal;color:#7cc7ff}
-  .hrule{margin-top:22px;width:96px;height:4px;border-radius:2px;background:linear-gradient(90deg,var(--cyan),var(--blue))}
-  .tagline{margin-top:20px;font-size:20.5px;line-height:1.5;color:#d6e1f8;font-weight:500;font-style:italic;max-width:600px}
+  .tagline{margin-top:16px;font-size:18.5px;line-height:1.5;color:#dbe5fa;font-weight:500}
 
-  /* orbit art: shield-lock with NHI types */
-  .orbit{position:absolute;z-index:2;right:84px;top:24px;width:380px;height:360px;transform:scale(.9);transform-origin:top right}
-  .orbit svg.lines{position:absolute;inset:0}
-  .core{position:absolute;left:115px;top:105px;width:150px;height:150px;border-radius:50%;display:grid;place-items:center;
-    background:radial-gradient(circle,rgba(79,179,255,.38),rgba(14,26,92,.15) 65%,transparent 72%)}
-  .core .sh{width:112px;height:112px;color:#e8f4ff;filter:drop-shadow(0 0 18px rgba(79,179,255,.8))}
-  .node{position:absolute;width:64px;height:64px;border-radius:50%;padding:16px;color:#d9eeff;
-    background:rgba(14,26,92,.72);border:1.5px solid rgba(166,217,255,.55);box-shadow:0 0 22px rgba(79,179,255,.35)}
-  .node small{position:absolute;top:70px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:11.5px;font-weight:700;letter-spacing:.08em;color:#bcd7ff}
+  .graph{position:absolute;z-index:2;right:40px;top:6px;width:620px;height:310px}
+  .graph>svg{position:absolute;inset:0}
+  .hub{position:absolute;left:250px;top:95px;width:120px;height:120px;border-radius:50%;display:grid;place-items:center;
+    background:radial-gradient(circle,rgba(79,179,255,.45),rgba(14,26,92,.2) 62%,transparent 70%)}
+  .hub .disc{width:84px;height:84px;border-radius:50%;background:var(--navy);border:2px solid #a6d9ff;display:grid;place-items:center}
+  .hub img{width:50px}
+  .nd{position:absolute;display:flex;align-items:center;gap:10px;padding:9px 13px 9px 10px;border-radius:12px;min-width:190px;
+    background:rgba(10,19,71,.88);border:1px solid rgba(166,217,255,.4)}
+  .nd .i{width:32px;height:32px;flex:none;border-radius:9px;padding:6px;background:rgba(79,179,255,.18);color:#cfeaff}
+  .nd b{display:block;white-space:nowrap;font-size:13px;font-weight:700;color:#fff;line-height:1.2}
+  .nd span{display:block;white-space:nowrap;font-size:12px;color:#a9bde6;margin-top:1px}
+  .nd .r{margin-left:auto;font-size:11px;font-weight:800;letter-spacing:.06em;padding:3px 7px;border-radius:6px}
+  .lo{background:rgba(74,222,128,.16);color:#86efac}
+  .md{background:rgba(250,204,21,.16);color:#fde68a}
+  .cr{background:rgba(248,113,113,.2);color:#fecaca}
+  .nd.alert{border-color:rgba(248,113,113,.75)}
 
-  /* ---------- INTRO BAND ---------- */
-  .band{display:grid;grid-template-columns:1fr 1fr;background:var(--navy);color:#fff}
-  .band>div{padding:22px 64px 22px}
-  .band>div+div{padding-left:44px;border-left:1px solid rgba(166,217,255,.18);background:linear-gradient(135deg,rgba(79,179,255,.12),transparent 70%)}
-  .band h2{font-size:22px;font-weight:800;line-height:1.25;letter-spacing:-.01em}
-  .band p{margin-top:10px;font-size:16.5px;line-height:1.6;color:#d5def5}
-  .band .stmt{font-size:19px;line-height:1.55;color:#eef3ff;font-weight:500}
-  .band .stmt b{color:#7cc7ff;font-weight:800}
+  /* ---------- INTRO ---------- */
+  .intro{display:grid;grid-template-columns:1fr 420px;gap:36px;padding-top:26px;padding-bottom:24px}
+  .intro p{margin-top:12px;font-size:17px;line-height:1.62;color:var(--ink-2)}
+  .intro p b{color:var(--navy)}
+  .answer{position:relative;overflow:hidden;border-radius:18px;padding:20px 26px;color:#fff;display:flex;flex-direction:column;justify-content:center;
+    background:linear-gradient(140deg,var(--navy-l),var(--navy) 55%,var(--navy-d))}
+  .answer .waves{position:absolute;right:0;bottom:0;width:300px;height:120px;opacity:.5}
+  .answer>*{position:relative}
+  .answer .hd{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;color:#a6d9ff}
+  .answer .hd img{height:28px}
+  .answer p{margin-top:8px;font-size:17px;line-height:1.55;color:#eef3ff;font-weight:500}
 
   /* ---------- STATS ---------- */
-  .stats{padding-top:22px;padding-bottom:20px}
-  .sgrid{margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
-  .stat{display:flex;align-items:center;gap:18px;padding:12px 18px;border-radius:16px;background:var(--paper-2);border:1px solid var(--line)}
-  .ring{width:92px;height:92px;flex:none;position:relative}
+  .stats{background:var(--paper-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:22px 64px 22px}
+  .sgrid{margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr)}
+  .stat{display:flex;align-items:center;gap:18px;padding:0 24px}
+  .stat:first-child{padding-left:0}
+  .stat+.stat{border-left:1px solid #d9dfee}
+  .ring{width:90px;height:90px;flex:none;position:relative}
   .ring svg{width:100%;height:100%;transform:rotate(-90deg)}
   .ring b{position:absolute;inset:0;display:grid;place-items:center;font-size:27px;font-weight:800;color:var(--navy);letter-spacing:-.02em}
-  .stat p{font-size:16px;line-height:1.45;color:var(--ink-2)}
-  .ratio{width:92px;height:92px;flex:none;border-radius:50%;display:grid;place-items:center;text-align:center;
-    background:var(--navy);color:#fff;box-shadow:inset 0 0 0 6px rgba(79,179,255,.35)}
-  .ratio b{font-size:27px;font-weight:800;letter-spacing:-.02em;line-height:1}
+  .ratio{width:90px;height:90px;flex:none;border-radius:50%;display:grid;place-items:center;background:var(--navy);color:#fff;box-shadow:inset 0 0 0 7px #2a5bea}
+  .ratio b{font-size:27px;font-weight:800;letter-spacing:-.02em}
+  .stat p{font-size:16.5px;line-height:1.45;color:var(--ink-2)}
   .stat p strong{color:var(--navy)}
 
   /* ---------- CAPABILITIES ---------- */
-  .caps{padding-top:20px;padding-bottom:20px}
+  .caps{padding-top:22px;padding-bottom:20px}
   .cgrid{margin-top:14px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-  .cc{display:grid;grid-template-columns:44px 1fr;column-gap:12px;align-content:start;padding:14px 15px;border-radius:16px;border:1px solid var(--line);background:#fff;box-shadow:0 6px 18px -14px rgba(14,26,92,.35)}
-  .cc .ib{width:44px;height:44px;padding:10px;grid-row:span 2}
-  .cc h3{font-size:16px;font-weight:700;line-height:1.3;color:var(--navy)}
-  .cc p{margin-top:5px;font-size:14px;line-height:1.5;color:var(--ink-3)}
+  .cc{padding:14px 16px 15px;border-radius:16px;background:#fff;border:1px solid var(--line);border-top:3px solid var(--navy)}
+  .cc .t{display:flex;align-items:center;gap:12px}
+  .cc .ib{width:42px;height:42px;padding:9px}
+  .cc h3{font-size:16.5px;font-weight:700;line-height:1.25;color:var(--navy)}
+  .cc p{margin-top:8px;font-size:14.5px;line-height:1.5;color:var(--ink-3)}
 
   /* ---------- HOW IT WORKS ---------- */
-  .how{padding-top:14px;padding-bottom:14px;display:grid;grid-template-columns:1fr 330px;gap:36px;align-items:center}
-  .steps{margin-top:16px;display:flex;align-items:flex-start;justify-content:space-between}
-  .step{width:132px;text-align:center}
-  .step .c{width:74px;height:74px;margin:0 auto;border-radius:50%;padding:18px;background:var(--navy);color:#cfeaff;box-shadow:0 0 0 7px var(--tile)}
-  .step b{display:block;margin-top:13px;font-size:15px;font-weight:800;letter-spacing:.1em;color:var(--navy)}
-  .arrow{margin-top:25px;width:40px;height:24px;color:var(--blue)}
-  .how-txt{padding-left:30px;border-left:3px solid var(--cyan);font-size:17px;line-height:1.6;color:var(--ink-2)}
+  .how{padding-top:2px;padding-bottom:22px}
+  .flow{position:relative;margin-top:14px;display:grid;grid-template-columns:repeat(4,1fr);gap:22px}
+  .st{position:relative;display:grid;grid-template-columns:66px 1fr;gap:14px;align-items:center}
+  .st .c{position:relative;width:66px;height:66px;border-radius:50%;padding:17px;background:var(--navy);color:#d6ecff;box-shadow:0 0 0 6px #fff}
+  .st .n{position:absolute;right:-6px;top:-4px;width:24px;height:24px;border-radius:50%;background:var(--cyan);color:var(--navy);font-size:12px;font-weight:800;display:grid;place-items:center;border:2px solid #fff}
+  .st b{display:block;font-size:15px;font-weight:800;letter-spacing:.1em;color:var(--navy)}
+  .st p{margin-top:3px;font-size:14.5px;line-height:1.4;color:var(--ink-3)}
 
-  /* ---------- ENTERPRISE ---------- */
-  .ent{display:grid;grid-template-columns:1fr 400px;flex:none}
-  .ent-l{padding:18px 40px 16px 64px}
-  .egrid{margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:0}
-  .ec{padding:0 18px;border-left:1px solid var(--line);text-align:center}
-  .ec:first-child{border-left:0;padding-left:0}
-  .ec .ib{width:48px;height:48px;padding:11px;margin:0 auto}
-  .ec h3{margin-top:10px;font-size:16.5px;font-weight:700;color:var(--navy)}
-  .ec p{margin-top:6px;font-size:13.5px;line-height:1.55;color:var(--ink-3)}
-  .acc{position:relative;overflow:hidden;color:#fff;padding:34px 44px;display:flex;flex-direction:column;justify-content:center;
-    background:linear-gradient(150deg,var(--navy-l),var(--navy) 55%,var(--navy-d))}
-  .acc::before{content:"";position:absolute;inset:0;background:url(../assets/photos/hero-datacenter.jpg) center/cover;opacity:.16;mix-blend-mode:screen}
-  .acc>*{position:relative}
-  .acc h3{font-size:27px;line-height:1.2;font-weight:800;letter-spacing:-.015em}
-  .acc p{margin-top:14px;font-size:17px;font-weight:700;color:#7cc7ff;letter-spacing:.01em}
+  /* ---------- BUILT FOR ENTERPRISE ---------- */
+  .ent{padding-top:22px;padding-bottom:24px;background:var(--paper-2);border-top:1px solid var(--line)}
+  .egrid{margin-top:14px;display:grid;grid-template-columns:250px 1fr 310px;gap:16px}
+  .eb{border-radius:16px;background:#fff;border:1px solid var(--line);padding:15px 16px 16px}
+  .eb h3{display:flex;align-items:center;gap:10px;font-size:16.5px;font-weight:700;color:var(--navy)}
+  .eb h3 .i{width:24px;height:24px;color:var(--blue)}
+  .dep{margin-top:14px;display:flex;flex-direction:column;gap:8px}
+  .dep div{display:flex;align-items:center;gap:10px;padding:7px 12px;border-radius:10px;background:var(--tile);font-size:14.5px;font-weight:600;color:var(--navy)}
+  .dep .i{width:20px;height:20px;color:var(--blue)}
+  .wall{margin-top:14px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .wall div{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;height:58px;border-radius:10px;border:1px solid var(--line);background:#fff;font-size:12.5px;font-weight:700;color:var(--navy);text-align:center}
+  .wall .i{width:24px;height:24px;color:var(--navy)}
+  .seals{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .seal{display:flex;align-items:center;gap:10px}
+  .seal .s{width:50px;height:50px;flex:none;border-radius:50%;display:grid;place-items:center;background:var(--navy);color:#fff;font-size:10.5px;font-weight:800;line-height:1.05;text-align:center;box-shadow:0 0 0 3px #fff,0 0 0 4.5px #b9c6ea}
+  .seal span{font-size:13.5px;font-weight:600;color:var(--ink-2);line-height:1.3}
 
-  .foot{height:128px}
-  .foot-in{grid-template-columns:1fr 450px}
-  .foot .by{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:13px;color:#b8c8f0;font-weight:500}
-  .foot .by img{height:26px}
+  /* ---------- CLOSING ---------- */
+  .close{margin-top:auto;position:relative;flex:none;color:#fff;overflow:hidden;
+    background:radial-gradient(80% 170% at 100% 0%, var(--navy-l) 0%, var(--navy) 50%, var(--navy-d) 100%)}
+  .close .ph{position:absolute;right:0;top:0;bottom:0;width:620px;background:url(../assets/photos/hero-network.jpg) 60% 50%/cover;opacity:.3;
+    -webkit-mask-image:linear-gradient(90deg,transparent,#000 60%);mask-image:linear-gradient(90deg,transparent,#000 60%)}
+  .close-top{position:relative;display:grid;grid-template-columns:1fr 410px;gap:40px;align-items:center;padding:22px 64px 18px}
+  .close h2{font-size:30px;line-height:1.15;font-weight:800;letter-spacing:-.02em}
+  .close h2 em{font-style:normal;color:#7cc7ff}
+  .verbs{margin-top:16px;display:flex;align-items:center;gap:10px}
+  .verbs span{font-size:15px;font-weight:700;letter-spacing:.06em;padding:7px 14px;border-radius:8px;background:rgba(79,179,255,.16);border:1px solid rgba(166,217,255,.38);color:#e3f2ff}
+  .verbs i{width:18px;height:18px;color:#7cc7ff;display:block}
+  .close-bar{position:relative;display:flex;align-items:center;justify-content:space-between;gap:30px;padding:13px 64px;background:rgba(6,12,48,.6);border-top:1px solid rgba(166,217,255,.18)}
+  .close-bar .tl{font-size:21px;font-weight:700;letter-spacing:-.01em;color:#fff}
+  .close-bar .tl em{font-style:normal;color:#7cc7ff}
+  .close-bar .by{display:flex;align-items:center;gap:10px;font-size:13px;color:#b8c8f0;font-weight:500;white-space:nowrap}
+  .close-bar .by img{height:28px}
 </style>
 </head>
 <body>
@@ -99,57 +123,57 @@
 
   <!-- ============ HERO ============ -->
   <header class="hero">
-    <div class="photo"></div>
-    <div class="shade"></div>
+    <div class="ph"></div>
     <div class="grid"></div>
+    <div class="graph">
+      <svg viewBox="0 0 620 310" fill="none">
+        <g stroke="#a6d9ff" stroke-opacity=".55" stroke-width="1.5" stroke-dasharray="4 5">
+          <path d="M310 155 L200 48"/><path d="M310 155 L420 40"/><path d="M310 155 L200 160"/><path d="M310 155 L430 158"/><path d="M310 155 L210 262"/>
+        </g>
+        <path d="M310 155 L410 262" stroke="#f87171" stroke-opacity=".9" stroke-width="2" stroke-dasharray="4 5"/>
+        <circle cx="310" cy="155" r="96" stroke="#4fb3ff" stroke-opacity=".25"/>
+        <circle cx="310" cy="155" r="130" stroke="#a6d9ff" stroke-opacity=".14" stroke-dasharray="2 8"/>
+      </svg>
+      <div class="hub"><div class="disc"><img src="../assets/brand/adapid-mark.png" alt=""></div></div>
+      <div class="nd" style="left:0;top:22px"><div class="i">{{icon:user-gear}}</div><div><b>svc-payments</b><span>Service account</span></div><em class="r lo">LOW</em></div>
+      <div class="nd" style="left:400px;top:14px"><div class="i">{{icon:key}}</div><div><b>ci-deploy-key</b><span>API key</span></div><em class="r lo">LOW</em></div>
+      <div class="nd" style="left:0;top:134px;min-width:200px"><div class="i">{{icon:certificate}}</div><div><b>crm-sync</b><span>OAuth token · SaaS</span></div><em class="r md">MED</em></div>
+      <div class="nd" style="left:420px;top:128px"><div class="i">{{icon:robot}}</div><div><b>ops-copilot</b><span>AI agent</span></div><em class="r md">MED</em></div>
+      <div class="nd" style="left:10px;top:236px"><div class="i">{{icon:hard-drives}}</div><div><b>etl-worker</b><span>Workload identity</span></div><em class="r lo">LOW</em></div>
+      <div class="nd alert" style="left:400px;top:236px"><div class="i" style="background:rgba(248,113,113,.2);color:#fecaca">{{icon:warning-circle}}</div><div><b>s3-backup-role</b><span>Unused for 180 days</span></div><em class="r cr">CRIT</em></div>
+    </div>
     <div class="hero-inner">
-      <div class="topbar">
-        <div class="logo"><img src="../assets/brand/adapid-mark.png" alt=""><b>adapID <i>AI</i></b></div>
-      </div>
+      <div class="logo"><img src="../assets/brand/adapid-mark.png" alt=""><b>adapID <i>AI</i></b></div>
       <p class="kick">Continuous Identity Risk Management</p>
       <h1>NHI <em>Security</em></h1>
-      <div class="hrule"></div>
       <p class="tagline">Know Every Identity. Understand Every Risk.<br>Secure Every Connection.</p>
-    </div>
-    <div class="orbit">
-      <svg class="lines" viewBox="0 0 380 360" fill="none">
-        <circle cx="190" cy="180" r="150" stroke="#a6d9ff" stroke-opacity=".28" stroke-dasharray="3 7"/>
-        <circle cx="190" cy="180" r="104" stroke="#4fb3ff" stroke-opacity=".35"/>
-        <g stroke="#a6d9ff" stroke-opacity=".45">
-          <path d="M190 180 L190 30"/><path d="M190 180 L333 134"/><path d="M190 180 L278 301"/><path d="M190 180 L102 301"/><path d="M190 180 L47 134"/>
-        </g>
-      </svg>
-      <div class="core"><div class="sh">{{icon:shield-check-fill}}</div></div>
-      <div class="node" style="left:158px;top:-2px">{{icon:cloud}}<small>CLOUD</small></div>
-      <div class="node" style="left:301px;top:102px">{{icon:code}}<small>API</small></div>
-      <div class="node" style="left:246px;top:269px">{{icon:cpu}}<small>AI AGENT</small></div>
-      <div class="node" style="left:70px;top:269px">{{icon:robot}}<small>BOT</small></div>
-      <div class="node" style="left:15px;top:102px">{{icon:database}}<small>SERVICE</small></div>
     </div>
     <div class="edge"></div>
   </header>
 
   <!-- ============ INTRO ============ -->
-  <section class="band">
+  <section class="sec intro">
     <div>
-      <h2>Secure the Identities You Can’t Afford to Overlook</h2>
-      <p>Applications, cloud services, APIs and AI agents depend on Non-Human Identities (NHIs). Often hidden, over-privileged and poorly monitored, these identities create security gaps that attackers can exploit.</p>
+      <h2 class="h2" style="font-size:24.5px">Secure the Identities You Can’t Afford to Overlook</h2>
+      <p>Applications, cloud services, APIs and AI agents depend on <b>Non-Human Identities (NHIs)</b>: service accounts, API keys, tokens and workload identities. Often hidden, over-privileged and poorly monitored, these identities create security gaps that attackers can exploit.</p>
     </div>
-    <div style="display:flex;align-items:center">
-      <p class="stmt"><b>adapID AI</b> gives every non-human identity an owner, a behavioural baseline and a live risk score, then acts automatically the moment a service account, API key, token or workload identity steps out of pattern.</p>
+    <div class="answer">
+      {{waves}}
+      <div class="hd"><img src="../assets/brand/adapid-mark.png" alt="">How adapID AI helps</div>
+      <p>adapID AI gives every non-human identity an owner, a behavioural baseline and a live risk score, and acts automatically the moment one steps out of pattern.</p>
     </div>
   </section>
 
   <!-- ============ WHY ============ -->
-  <section class="sec stats">
+  <section class="stats">
     <h2 class="h2">Why NHI Security Matters</h2>
     <div class="sgrid">
       <div class="stat">
-        <div class="ring"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15.5" fill="none" stroke="#e1e5f2" stroke-width="3.4"/><circle cx="18" cy="18" r="15.5" fill="none" stroke="#0E1A5C" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="76.9 97.4"/></svg><b>79%</b></div>
+        <div class="ring"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15.5" fill="none" stroke="#dde3f1" stroke-width="3.4"/><circle cx="18" cy="18" r="15.5" fill="none" stroke="#0E1A5C" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="76.9 97.4"/></svg><b>79%</b></div>
         <p>of organisations have <strong>low or moderate confidence</strong> in preventing NHI attacks.</p>
       </div>
       <div class="stat">
-        <div class="ring"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15.5" fill="none" stroke="#e1e5f2" stroke-width="3.4"/><circle cx="18" cy="18" r="15.5" fill="none" stroke="#2a5bea" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="42.9 97.4"/></svg><b>44%</b></div>
+        <div class="ring"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15.5" fill="none" stroke="#dde3f1" stroke-width="3.4"/><circle cx="18" cy="18" r="15.5" fill="none" stroke="#2a5bea" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="42.9 97.4"/></svg><b>44%</b></div>
         <p>rely on <strong>static API keys</strong> as their primary NHI credentials.</p>
       </div>
       <div class="stat">
@@ -159,65 +183,76 @@
     </div>
   </section>
 
-  <div class="rule"></div>
-
   <!-- ============ CAPABILITIES ============ -->
   <section class="sec caps">
     <h2 class="h2">Core Security Capabilities</h2>
     <div class="cgrid">
-      <div class="cc"><div class="ib">{{icon:magnifying-glass}}</div><h3>NHI Discovery</h3><p>Unified inventory across cloud, SaaS, applications and code.</p></div>
-      <div class="cc"><div class="ib">{{icon:shield-check}}</div><h3>Ownership &amp; Access Governance</h3><p>Assign accountability and enforce least-privilege access.</p></div>
-      <div class="cc"><div class="ib">{{icon:key}}</div><h3>Credential Hygiene</h3><p>Detect exposed secrets, hardcoded credentials and expiring certificates.</p></div>
-      <div class="cc"><div class="ib">{{icon:chart-bar}}</div><h3>NHI Genome Analytics</h3><p>Establish behavioural baselines using identity activity signals.</p></div>
-      <div class="cc"><div class="ib">{{icon:crosshair}}</div><h3>Real-Time Threat Detection</h3><p>Identify abnormal API calls, access patterns and data spikes.</p></div>
-      <div class="cc"><div class="ib">{{icon:warning}}</div><h3>AI-Driven Risk Scoring</h3><p>Prioritise identities by Low, Medium, High and Critical risk.</p></div>
-      <div class="cc"><div class="ib">{{icon:graph}}</div><h3>Identity Graph</h3><p>Visualise identity relationships, attack paths and potential blast radius.</p></div>
-      <div class="cc"><div class="ib">{{icon:gear-six}}</div><h3>Automated Remediation</h3><p>Enable credential revocation, workflow integration and compliance reporting.</p></div>
+      <div class="cc"><div class="t"><div class="ib">{{icon:magnifying-glass}}</div><h3>NHI Discovery</h3></div><p>Unified inventory across cloud, SaaS, applications and code.</p></div>
+      <div class="cc"><div class="t"><div class="ib">{{icon:shield-check}}</div><h3>Ownership &amp; Access Governance</h3></div><p>Assign accountability and enforce least-privilege access.</p></div>
+      <div class="cc"><div class="t"><div class="ib">{{icon:key}}</div><h3>Credential Hygiene</h3></div><p>Detect exposed secrets, hardcoded credentials and expiring certificates.</p></div>
+      <div class="cc"><div class="t"><div class="ib">{{icon:chart-bar}}</div><h3>NHI Genome Analytics</h3></div><p>Establish behavioural baselines using identity activity signals.</p></div>
+      <div class="cc"><div class="t"><div class="ib">{{icon:crosshair}}</div><h3>Real-Time Threat Detection</h3></div><p>Identify abnormal API calls, access patterns and data spikes.</p></div>
+      <div class="cc"><div class="t"><div class="ib">{{icon:warning}}</div><h3>AI-Driven Risk Scoring</h3></div><p>Prioritise identities by Low, Medium, High and Critical risk.</p></div>
+      <div class="cc"><div class="t"><div class="ib">{{icon:graph}}</div><h3>Identity Graph</h3></div><p>Visualise identity relationships, attack paths and potential blast radius.</p></div>
+      <div class="cc"><div class="t"><div class="ib">{{icon:gear-six}}</div><h3>Automated Remediation</h3></div><p>Enable credential revocation, workflow integration and compliance reporting.</p></div>
     </div>
   </section>
-
-  <div class="rule"></div>
 
   <!-- ============ HOW IT WORKS ============ -->
   <section class="sec how">
-    <div>
-      <h2 class="h2">How It Works</h2>
-      <div class="steps">
-        <div class="step"><div class="c">{{icon:cloud-arrow-down}}</div><b>DISCOVER</b></div>
-        <div class="arrow">{{icon:arrow-right}}</div>
-        <div class="step"><div class="c">{{icon:chart-bar}}</div><b>ANALYSE</b></div>
-        <div class="arrow">{{icon:arrow-right}}</div>
-        <div class="step"><div class="c">{{icon:shield-check}}</div><b>DETECT</b></div>
-        <div class="arrow">{{icon:arrow-right}}</div>
-        <div class="step"><div class="c">{{icon:lightning}}</div><b>RESPOND</b></div>
-      </div>
-    </div>
-    <p class="how-txt">Continuously collect identity data, identify NHIs, analyse behaviour and risk, detect threats and trigger automated remediation.</p>
-  </section>
-
-  <!-- ============ ENTERPRISE ============ -->
-  <section class="ent">
-    <div class="ent-l" style="background:var(--paper-2);border-top:1px solid var(--line)">
-      <h2 class="h2">Built for Enterprise Environments</h2>
-      <div class="egrid">
-        <div class="ec"><div class="ib" style="background:#fff">{{icon:cloud}}</div><h3>Deployment</h3><p>Cloud · On-Premises · Hybrid</p></div>
-        <div class="ec"><div class="ib" style="background:#fff">{{icon:puzzle-piece}}</div><h3>Integrations</h3><p>AWS · Azure · GCP · SaaS<br>SIEM/SOAR · Jira · ServiceNow</p></div>
-        <div class="ec"><div class="ib" style="background:#fff">{{icon:seal-check}}</div><h3>Compliance Mapping</h3><p>ISO 27001 · SOC 2<br>NIST SP 800-53 · OWASP NHI Top 10</p></div>
-      </div>
-    </div>
-    <div class="acc">
-      <h3>Make Every Non&#8209;Human Identity Accountable.</h3>
-      <p>Discover. Govern. Detect. Protect.</p>
+    <h2 class="h2">How It Works</h2>
+    <div class="flow">
+      <div class="st"><div class="c">{{icon:cloud-arrow-down}}<span class="n">1</span></div><div><b>DISCOVER</b><p>Collect identity data and find every NHI.</p></div></div>
+      <div class="st"><div class="c">{{icon:chart-bar}}<span class="n">2</span></div><div><b>ANALYSE</b><p>Baseline behaviour and score each identity’s risk.</p></div></div>
+      <div class="st"><div class="c">{{icon:shield-check}}<span class="n">3</span></div><div><b>DETECT</b><p>Spot misuse and anomalies as they happen.</p></div></div>
+      <div class="st"><div class="c">{{icon:lightning}}<span class="n">4</span></div><div><b>RESPOND</b><p>Trigger automated remediation.</p></div></div>
     </div>
   </section>
 
-  <!-- ============ FOOTER ============ -->
-  <footer class="foot">
-    {{footwaves}}
-    <div class="foot-in">
+  <!-- ============ BUILT FOR ENTERPRISE ============ -->
+  <section class="sec ent">
+    <h2 class="h2">Built for Enterprise Environments</h2>
+    <div class="egrid">
+      <div class="eb">
+        <h3><span class="i">{{icon:cloud}}</span>Deployment</h3>
+        <div class="dep">
+          <div><span class="i">{{icon:cloud}}</span>Cloud</div>
+          <div><span class="i">{{icon:hard-drives}}</span>On-Premises</div>
+          <div><span class="i">{{icon:intersect}}</span>Hybrid</div>
+        </div>
+      </div>
+      <div class="eb">
+        <h3><span class="i">{{icon:puzzle-piece}}</span>Integrations</h3>
+        <div class="wall">
+          <div><span class="i">{{icon:brand-amazonaws}}</span>AWS</div>
+          <div><span class="i">{{icon:brand-microsoftazure}}</span>Azure</div>
+          <div><span class="i">{{icon:brand-googlecloud}}</span>Google Cloud</div>
+          <div><span class="i">{{icon:browsers}}</span>SaaS Apps</div>
+          <div><span class="i">{{icon:siren}}</span>SIEM / SOAR</div>
+          <div><span class="i">{{icon:brand-jira}}</span>Jira</div>
+          <div><span class="i">{{icon:ticket}}</span>ServiceNow</div>
+          <div><span class="i">{{icon:code}}</span>APIs &amp; Code</div>
+        </div>
+      </div>
+      <div class="eb">
+        <h3><span class="i">{{icon:seal-check}}</span>Compliance Mapping</h3>
+        <div class="seals">
+          <div class="seal"><div class="s">ISO<br>27001</div><span>Information security</span></div>
+          <div class="seal"><div class="s">SOC<br>2</div><span>Trust services criteria</span></div>
+          <div class="seal"><div class="s">NIST<br>800-53</div><span>Security controls</span></div>
+          <div class="seal"><div class="s">OWASP<br>NHI 10</div><span>NHI Top 10 risks</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CLOSING ============ -->
+  <footer class="close">
+    <div class="ph"></div>
+    <div class="close-top">
       <div>
-        <p class="tag" style="font-size:24px">{{tagline}}</p>
-        <div class="by">A product of <img src="../assets/brand/deep-algorithms-lockup-inverse.png" alt="Deep Algorithms"></div>
+        <h2>Make Every <em>Non&#8209;Human Identity</em> Accountable.</h2>
+        <div class="verbs"><span>DISCOVER</span><i>{{icon:arrow-right}}</i><span>GOVERN</span><i>{{icon:arrow-right}}</i><span>DETECT</span><i>{{icon:arrow-right}}</i><span>PROTECT</span></div>
       </div>
       <div class="contacts">
         <div class="ct">{{cicon:globe}}deepalgorithms.io</div>
@@ -225,6 +260,10 @@
         <div class="ct">{{cicon:map-pin}}Hyderabad, India</div>
         <div class="ct">{{cicon:linkedin-logo}}deepalgorithms.in</div>
       </div>
+    </div>
+    <div class="close-bar">
+      <p class="tl">{{tagline}}</p>
+      <div class="by">A product of <img src="../assets/brand/deep-algorithms-lockup-inverse.png" alt="Deep Algorithms"></div>
     </div>
   </footer>
 </div>

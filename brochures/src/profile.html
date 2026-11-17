@@ -9,30 +9,16 @@
 <link rel="stylesheet" href="../src/base.css">
 <style>
   /* ---------- HERO ---------- */
-  .hero{height:396px}
-  .hero .photo{width:860px;background-image:url(../assets/photos/hero-enterprise.jpg);background-position:50% 40%}
-  .hero-inner{position:relative;z-index:2;padding:46px 64px 0;height:100%}
+  .hero{height:400px;background:radial-gradient(120% 140% at 0% 0%, var(--navy-l) 0%, var(--navy) 42%, var(--navy-dd) 100%)}
+  .hero-art{position:absolute;right:-100px;top:-55px;width:720px;height:500px}
+  .hero-art .ph{position:absolute;inset:0;background:url(../assets/photos/hero-ai.jpg) 62% 55%/cover no-repeat;
+    -webkit-mask-image:radial-gradient(60% 68% at 60% 52%, #000 30%, transparent 78%);mask-image:radial-gradient(60% 68% at 60% 52%, #000 30%, transparent 78%);opacity:.5}
+  .hero-art svg{position:absolute;inset:0}
+  .hero-inner{position:relative;z-index:2;padding:46px 64px 0}
   .topbar{display:flex;align-items:center;justify-content:space-between}
-  .brand img{height:64px;display:block}
-  h1{margin-top:40px;font-size:49px;line-height:1.12;font-weight:800;letter-spacing:-.02em;max-width:690px}
+  h1{margin-top:46px;font-size:48px;line-height:1.12;font-weight:800;letter-spacing:-.02em;max-width:680px}
   h1 em{font-style:normal;color:#7cc7ff}
-  .tagline{margin-top:18px;font-size:20px;line-height:1.5;color:#d2ddf5;white-space:nowrap;font-weight:500}
-
-  /* glass "live identity risk" panel */
-  .risk{position:absolute;z-index:2;right:64px;top:128px;width:330px;padding:20px 20px 16px;border-radius:18px;
-    background:linear-gradient(160deg,rgba(255,255,255,.16),rgba(255,255,255,.05));border:1px solid rgba(166,217,255,.35);
-    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 24px 60px -20px rgba(0,0,0,.6)}
-  .risk-h{display:flex;align-items:center;gap:12px}
-  .risk-h .fp{width:44px;height:44px;border-radius:12px;background:rgba(79,179,255,.18);border:1px solid rgba(166,217,255,.4);padding:8px;color:#bfe3ff}
-  .risk-h b{display:block;font-size:15px;font-weight:700}
-  .risk-h span{display:flex;align-items:center;gap:6px;font-size:12px;color:#b9c9ec;margin-top:2px}
-  .risk-h span i{width:7px;height:7px;border-radius:50%;background:#4ade80;box-shadow:0 0 0 3px rgba(74,222,128,.2)}
-  .row{margin-top:12px;padding-top:12px;border-top:1px solid rgba(166,217,255,.18);display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center}
-  .row .k{font-size:13.5px;font-weight:600;color:#e6eeff}
-  .row .v{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px}
-  .row .bar{grid-column:1/-1;height:5px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden}
-  .row .bar i{display:block;height:100%;border-radius:3px}
-  .lo{background:rgba(74,222,128,.16);color:#86efac} .md{background:rgba(250,204,21,.16);color:#fde68a}
+  .tagline{margin-top:18px;font-size:20px;line-height:1.5;color:#d2ddf5;font-weight:500;white-space:nowrap}
 
   /* ---------- ABOUT ---------- */
   .about{display:grid;grid-template-columns:1fr 356px;gap:32px;padding-top:28px;padding-bottom:24px}
@@ -97,7 +83,7 @@
   .fund p{font-size:14px;line-height:1.45;color:var(--ink-3)}
   .fund p b{color:var(--navy);font-weight:700}
 
-  .foot{height:150px}
+  .foot{height:146px}
   .foot-in{grid-template-columns:1fr 450px}
 </style>
 </head>
@@ -106,22 +92,43 @@
 
   <!-- ============ HERO ============ -->
   <header class="hero">
-    <div class="photo"></div>
-    <div class="shade"></div>
     <div class="grid"></div>
+    <div class="hero-art">
+      <div class="ph"></div>
+      <svg viewBox="0 0 720 500" fill="none">
+        <defs>
+          <radialGradient id="glow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#4fb3ff" stop-opacity=".5"/><stop offset="1" stop-color="#4fb3ff" stop-opacity="0"/></radialGradient>
+          <linearGradient id="scan" x1="0" x2="1"><stop offset="0" stop-color="#a6d9ff" stop-opacity="0"/><stop offset=".5" stop-color="#a6d9ff" stop-opacity=".95"/><stop offset="1" stop-color="#a6d9ff" stop-opacity="0"/></linearGradient>
+          <linearGradient id="ring" x1="0" x2="1"><stop offset="0" stop-color="#2a5bea"/><stop offset="1" stop-color="#a6d9ff"/></linearGradient>
+        </defs>
+        <g transform="translate(430 270)">
+          <circle r="190" fill="url(#glow)"/>
+          <circle r="205" stroke="#2a5bea" stroke-opacity=".3"/>
+          <circle r="172" stroke="url(#ring)" stroke-opacity=".75" stroke-width="1.5" stroke-dasharray="2 9"/>
+          <circle r="150" stroke="#a6d9ff" stroke-opacity=".35"/>
+          <path d="M0,-150 A150,150 0 0 1 130,-75" stroke="#a6d9ff" stroke-width="3" stroke-linecap="round"/>
+          <path d="M-130,75 A150,150 0 0 1 -150,0" stroke="#4fb3ff" stroke-width="3" stroke-linecap="round"/>
+          <circle r="122" stroke="#4fb3ff" stroke-opacity=".2" stroke-width="18"/>
+          <g transform="translate(-80 -80) scale(.625)" color="#d8eeff">{{svg256:fingerprint-thin}}</g>
+          <rect x="-112" y="-1.5" width="224" height="3" rx="1.5" fill="url(#scan)"/>
+          <g fill="#a6d9ff"><circle cx="-205" cy="0" r="4"/><circle cx="0" cy="-205" r="3"/><circle cx="145" cy="145" r="4"/><circle cx="-120" cy="-140" r="3"/></g>
+          <g stroke="#a6d9ff" stroke-opacity=".45"><path d="M-205,0 L-290,-50 L-360,-24"/><path d="M-120,-140 L-180,-196 L-250,-186"/></g>
+          <g fill="#4fb3ff"><circle cx="-290" cy="-50" r="3"/><circle cx="-360" cy="-24" r="2.5"/><circle cx="-180" cy="-196" r="2.5"/></g>
+          <g font-family="Plus Jakarta Sans" font-size="11.5" font-weight="700" letter-spacing="1.4" fill="#d8eeff">
+            <g transform="translate(-300 34)"><rect x="-11" y="-15" width="108" height="23" rx="11.5" fill="#0E1A5C" stroke="#4fb3ff" stroke-opacity=".6"/><text>HUMAN · 0.12</text></g>
+            <g transform="translate(-150 160)"><rect x="-11" y="-15" width="118" height="23" rx="11.5" fill="#0E1A5C" stroke="#4fb3ff" stroke-opacity=".6"/><text>AI AGENT · 0.31</text></g>
+            <g transform="translate(60 112)"><rect x="-11" y="-15" width="94" height="23" rx="11.5" fill="#0E1A5C" stroke="#4fb3ff" stroke-opacity=".6"/><text>NHI · 0.07</text></g>
+          </g>
+        </g>
+      </svg>
+    </div>
     <div class="hero-inner">
       <div class="topbar">
-        <img class="brand" src="../assets/brand/deep-algorithms-lockup-inverse.png" alt="Deep Algorithms" style="height:64px">
+        <img src="../assets/brand/deep-algorithms-lockup-inverse.png" alt="Deep Algorithms" style="height:64px;display:block">
         <div class="pill">ENTERPRISE PROFILE</div>
       </div>
       <h1>Pioneering Agentic and Data Security through <em>Behavioural Intelligence.</em></h1>
       <p class="tagline">AI-powered identity security for the human, non-human and agentic AI era.</p>
-    </div>
-    <div class="risk">
-      <div class="risk-h"><div class="fp">{{icon:fingerprint}}</div><div><b>Continuous identity risk</b><span><i></i>Live · every session scored</span></div></div>
-      <div class="row"><div class="k">Employee · J. Rao</div><div class="v lo">Low 0.12</div><div class="bar"><i style="width:12%;background:#4ade80"></i></div></div>
-      <div class="row"><div class="k">AI agent · payments-bot</div><div class="v md">Medium 0.41</div><div class="bar"><i style="width:41%;background:#facc15"></i></div></div>
-      <div class="row"><div class="k">Service account · svc-etl</div><div class="v lo">Low 0.07</div><div class="bar"><i style="width:7%;background:#4ade80"></i></div></div>
     </div>
     <div class="edge"></div>
   </header>

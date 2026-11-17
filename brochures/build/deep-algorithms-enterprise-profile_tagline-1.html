@@ -9,30 +9,16 @@
 <link rel="stylesheet" href="../src/base.css">
 <style>
   /* ---------- HERO ---------- */
-  .hero{height:396px}
-  .hero .photo{width:860px;background-image:url(../assets/photos/hero-enterprise.jpg);background-position:50% 40%}
-  .hero-inner{position:relative;z-index:2;padding:46px 64px 0;height:100%}
+  .hero{height:400px;background:radial-gradient(120% 140% at 0% 0%, var(--navy-l) 0%, var(--navy) 42%, var(--navy-dd) 100%)}
+  .hero-art{position:absolute;right:-100px;top:-55px;width:720px;height:500px}
+  .hero-art .ph{position:absolute;inset:0;background:url(../assets/photos/hero-ai.jpg) 62% 55%/cover no-repeat;
+    -webkit-mask-image:radial-gradient(60% 68% at 60% 52%, #000 30%, transparent 78%);mask-image:radial-gradient(60% 68% at 60% 52%, #000 30%, transparent 78%);opacity:.5}
+  .hero-art svg{position:absolute;inset:0}
+  .hero-inner{position:relative;z-index:2;padding:46px 64px 0}
   .topbar{display:flex;align-items:center;justify-content:space-between}
-  .brand img{height:64px;display:block}
-  h1{margin-top:40px;font-size:49px;line-height:1.12;font-weight:800;letter-spacing:-.02em;max-width:690px}
+  h1{margin-top:46px;font-size:48px;line-height:1.12;font-weight:800;letter-spacing:-.02em;max-width:680px}
   h1 em{font-style:normal;color:#7cc7ff}
-  .tagline{margin-top:18px;font-size:20px;line-height:1.5;color:#d2ddf5;white-space:nowrap;font-weight:500}
-
-  /* glass "live identity risk" panel */
-  .risk{position:absolute;z-index:2;right:64px;top:128px;width:330px;padding:20px 20px 16px;border-radius:18px;
-    background:linear-gradient(160deg,rgba(255,255,255,.16),rgba(255,255,255,.05));border:1px solid rgba(166,217,255,.35);
-    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 24px 60px -20px rgba(0,0,0,.6)}
-  .risk-h{display:flex;align-items:center;gap:12px}
-  .risk-h .fp{width:44px;height:44px;border-radius:12px;background:rgba(79,179,255,.18);border:1px solid rgba(166,217,255,.4);padding:8px;color:#bfe3ff}
-  .risk-h b{display:block;font-size:15px;font-weight:700}
-  .risk-h span{display:flex;align-items:center;gap:6px;font-size:12px;color:#b9c9ec;margin-top:2px}
-  .risk-h span i{width:7px;height:7px;border-radius:50%;background:#4ade80;box-shadow:0 0 0 3px rgba(74,222,128,.2)}
-  .row{margin-top:12px;padding-top:12px;border-top:1px solid rgba(166,217,255,.18);display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center}
-  .row .k{font-size:13.5px;font-weight:600;color:#e6eeff}
-  .row .v{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px}
-  .row .bar{grid-column:1/-1;height:5px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden}
-  .row .bar i{display:block;height:100%;border-radius:3px}
-  .lo{background:rgba(74,222,128,.16);color:#86efac} .md{background:rgba(250,204,21,.16);color:#fde68a}
+  .tagline{margin-top:18px;font-size:20px;line-height:1.5;color:#d2ddf5;font-weight:500;white-space:nowrap}
 
   /* ---------- ABOUT ---------- */
   .about{display:grid;grid-template-columns:1fr 356px;gap:32px;padding-top:28px;padding-bottom:24px}
@@ -97,7 +83,7 @@
   .fund p{font-size:14px;line-height:1.45;color:var(--ink-3)}
   .fund p b{color:var(--navy);font-weight:700}
 
-  .foot{height:150px}
+  .foot{height:146px}
   .foot-in{grid-template-columns:1fr 450px}
 </style>
 </head>
@@ -106,22 +92,43 @@
 
   <!-- ============ HERO ============ -->
   <header class="hero">
-    <div class="photo"></div>
-    <div class="shade"></div>
     <div class="grid"></div>
+    <div class="hero-art">
+      <div class="ph"></div>
+      <svg viewBox="0 0 720 500" fill="none">
+        <defs>
+          <radialGradient id="glow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#4fb3ff" stop-opacity=".5"/><stop offset="1" stop-color="#4fb3ff" stop-opacity="0"/></radialGradient>
+          <linearGradient id="scan" x1="0" x2="1"><stop offset="0" stop-color="#a6d9ff" stop-opacity="0"/><stop offset=".5" stop-color="#a6d9ff" stop-opacity=".95"/><stop offset="1" stop-color="#a6d9ff" stop-opacity="0"/></linearGradient>
+          <linearGradient id="ring" x1="0" x2="1"><stop offset="0" stop-color="#2a5bea"/><stop offset="1" stop-color="#a6d9ff"/></linearGradient>
+        </defs>
+        <g transform="translate(430 270)">
+          <circle r="190" fill="url(#glow)"/>
+          <circle r="205" stroke="#2a5bea" stroke-opacity=".3"/>
+          <circle r="172" stroke="url(#ring)" stroke-opacity=".75" stroke-width="1.5" stroke-dasharray="2 9"/>
+          <circle r="150" stroke="#a6d9ff" stroke-opacity=".35"/>
+          <path d="M0,-150 A150,150 0 0 1 130,-75" stroke="#a6d9ff" stroke-width="3" stroke-linecap="round"/>
+          <path d="M-130,75 A150,150 0 0 1 -150,0" stroke="#4fb3ff" stroke-width="3" stroke-linecap="round"/>
+          <circle r="122" stroke="#4fb3ff" stroke-opacity=".2" stroke-width="18"/>
+          <g transform="translate(-80 -80) scale(.625)" color="#d8eeff"><svg class="" width="256" height="256" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M68,128A130.71,130.71,0,0,1,54.27,186.7a4,4,0,0,1-3.58,2.22,3.91,3.91,0,0,1-1.78-.42,4,4,0,0,1-1.8-5.36A122.71,122.71,0,0,0,60,128,67.74,67.74,0,0,1,85.5,74.92a4,4,0,0,1,5,6.25A59.74,59.74,0,0,0,68,128Zm60-4a4,4,0,0,0-4,4,188.1,188.1,0,0,1-23.48,91,4,4,0,0,0,7,3.88A196.22,196.22,0,0,0,132,128,4,4,0,0,0,128,124Zm0-32a36,36,0,0,0-36,36,4,4,0,0,0,8,0,28,28,0,0,1,56,0,218,218,0,0,1-20.9,93.7,4,4,0,1,0,7.24,3.41A226,226,0,0,0,164,128,36,36,0,0,0,128,92Zm0-64A100.11,100.11,0,0,0,28,128a91.66,91.66,0,0,1-5.24,30.67,4,4,0,1,0,7.54,2.66A99.66,99.66,0,0,0,36,128a92,92,0,0,1,184,0,286.37,286.37,0,0,1-5.37,55.23,4,4,0,0,0,3.15,4.69,4.13,4.13,0,0,0,.78.08,4,4,0,0,0,3.92-3.23A294.25,294.25,0,0,0,228,128,100.11,100.11,0,0,0,128,28ZM93.6,156.09a4,4,0,0,0-4.71,3.12,155,155,0,0,1-17.66,46.64,4,4,0,0,0,6.93,4,163.13,163.13,0,0,0,18.57-49A4,4,0,0,0,93.6,156.09ZM128,60a68.79,68.79,0,0,0-8.5.53,4,4,0,0,0,1,7.93A62.57,62.57,0,0,1,128,68a60.07,60.07,0,0,1,60,60,256.15,256.15,0,0,1-1.95,31.5,4,4,0,0,0,3.47,4.47l.5,0a4,4,0,0,0,4-3.51A264.37,264.37,0,0,0,196,128,68.08,68.08,0,0,0,128,60Zm56.93,128.12a4,4,0,0,0-4.87,2.88c-1.49,5.78-3.21,11.58-5.1,17.23a4,4,0,1,0,7.58,2.54c2-5.83,3.73-11.81,5.27-17.77A4,4,0,0,0,184.94,188.13Z"/></svg></g>
+          <rect x="-112" y="-1.5" width="224" height="3" rx="1.5" fill="url(#scan)"/>
+          <g fill="#a6d9ff"><circle cx="-205" cy="0" r="4"/><circle cx="0" cy="-205" r="3"/><circle cx="145" cy="145" r="4"/><circle cx="-120" cy="-140" r="3"/></g>
+          <g stroke="#a6d9ff" stroke-opacity=".45"><path d="M-205,0 L-290,-50 L-360,-24"/><path d="M-120,-140 L-180,-196 L-250,-186"/></g>
+          <g fill="#4fb3ff"><circle cx="-290" cy="-50" r="3"/><circle cx="-360" cy="-24" r="2.5"/><circle cx="-180" cy="-196" r="2.5"/></g>
+          <g font-family="Plus Jakarta Sans" font-size="11.5" font-weight="700" letter-spacing="1.4" fill="#d8eeff">
+            <g transform="translate(-300 34)"><rect x="-11" y="-15" width="108" height="23" rx="11.5" fill="#0E1A5C" stroke="#4fb3ff" stroke-opacity=".6"/><text>HUMAN · 0.12</text></g>
+            <g transform="translate(-150 160)"><rect x="-11" y="-15" width="118" height="23" rx="11.5" fill="#0E1A5C" stroke="#4fb3ff" stroke-opacity=".6"/><text>AI AGENT · 0.31</text></g>
+            <g transform="translate(60 112)"><rect x="-11" y="-15" width="94" height="23" rx="11.5" fill="#0E1A5C" stroke="#4fb3ff" stroke-opacity=".6"/><text>NHI · 0.07</text></g>
+          </g>
+        </g>
+      </svg>
+    </div>
     <div class="hero-inner">
       <div class="topbar">
-        <img class="brand" src="../assets/brand/deep-algorithms-lockup-inverse.png" alt="Deep Algorithms" style="height:64px">
+        <img src="../assets/brand/deep-algorithms-lockup-inverse.png" alt="Deep Algorithms" style="height:64px;display:block">
         <div class="pill">ENTERPRISE PROFILE</div>
       </div>
       <h1>Pioneering Agentic and Data Security through <em>Behavioural Intelligence.</em></h1>
       <p class="tagline">AI-powered identity security for the human, non-human and agentic AI era.</p>
-    </div>
-    <div class="risk">
-      <div class="risk-h"><div class="fp"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M70,128a132.68,132.68,0,0,1-14,59.58,6,6,0,0,1-5.38,3.33,6,6,0,0,1-5.36-8.67A120.74,120.74,0,0,0,58,128,69.72,69.72,0,0,1,84.25,73.36a6,6,0,0,1,7.51,9.37A57.73,57.73,0,0,0,70,128Zm58-6a6,6,0,0,0-6,6,186.07,186.07,0,0,1-23.23,90.07,6,6,0,0,0,10.5,5.82A198.14,198.14,0,0,0,134,128,6,6,0,0,0,128,122Zm0-32a38,38,0,0,0-38,38,6,6,0,0,0,12,0,26,26,0,0,1,52,0,216.06,216.06,0,0,1-20.71,92.85A6,6,0,1,0,144.16,226,227.94,227.94,0,0,0,166,128,38,38,0,0,0,128,90Zm0-64A102.11,102.11,0,0,0,26,128a90,90,0,0,1-5.12,30,6,6,0,1,0,11.31,4A101.83,101.83,0,0,0,38,128a90,90,0,0,1,180,0,284.7,284.7,0,0,1-5.33,54.84,6,6,0,0,0,4.72,7.05,6.8,6.8,0,0,0,1.17.11,6,6,0,0,0,5.88-4.84A295.92,295.92,0,0,0,230,128,102.12,102.12,0,0,0,128,26ZM94,154.13a6,6,0,0,0-7.07,4.69,152.82,152.82,0,0,1-17.44,46,6,6,0,0,0,10.4,6,164.77,164.77,0,0,0,18.8-49.65A6,6,0,0,0,94,154.13ZM128,58a70.76,70.76,0,0,0-8.75.54,6,6,0,1,0,1.49,11.91A58,58,0,0,1,186,128a252.27,252.27,0,0,1-1.94,31.26,6,6,0,0,0,5.21,6.69,6.59,6.59,0,0,0,.75,0,6,6,0,0,0,5.95-5.26A266.46,266.46,0,0,0,198,128,70.08,70.08,0,0,0,128,58ZM185.44,186.2a6,6,0,0,0-7.31,4.31c-1.47,5.74-3.18,11.49-5.06,17.09a6,6,0,0,0,11.38,3.82c2-5.88,3.75-11.9,5.3-17.92A6,6,0,0,0,185.44,186.2Z"/></svg></div><div><b>Continuous identity risk</b><span><i></i>Live · every session scored</span></div></div>
-      <div class="row"><div class="k">Employee · J. Rao</div><div class="v lo">Low 0.12</div><div class="bar"><i style="width:12%;background:#4ade80"></i></div></div>
-      <div class="row"><div class="k">AI agent · payments-bot</div><div class="v md">Medium 0.41</div><div class="bar"><i style="width:41%;background:#facc15"></i></div></div>
-      <div class="row"><div class="k">Service account · svc-etl</div><div class="v lo">Low 0.07</div><div class="bar"><i style="width:7%;background:#4ade80"></i></div></div>
     </div>
     <div class="edge"></div>
   </header>

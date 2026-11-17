@@ -8,90 +8,114 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../src/base.css">
 <style>
-  /* ---------- HERO ---------- */
-  .hero{height:392px}
-  .hero .photo{width:820px;background-image:url(../assets/photos/hero-datacenter.jpg);background-position:50% 50%}
-  .hero-inner{position:relative;z-index:2;padding:46px 64px 0}
-  .topbar{display:flex;align-items:center;justify-content:space-between;width:1112px}
+  /* ---------- HERO: identity graph ---------- */
+  .hero{height:316px;background:radial-gradient(120% 140% at 0% 0%, var(--navy-l) 0%, var(--navy) 42%, var(--navy-dd) 100%)}
+  .hero .ph{position:absolute;right:0;top:0;bottom:0;width:780px;background:url(../assets/photos/hero-network.jpg) 30% 45%/cover no-repeat;opacity:.55;
+    -webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 40%);mask-image:linear-gradient(90deg,transparent 0%,#000 40%)}
+  .hero-inner{position:relative;z-index:3;padding:36px 64px 0;width:600px}
   .logo{display:flex;align-items:center;gap:14px}
-  .logo img{height:62px}
-  .logo b{font-size:42px;font-weight:800;letter-spacing:-.02em;line-height:1}
+  .logo img{height:54px}
+  .logo b{font-size:37px;font-weight:800;letter-spacing:-.02em;line-height:1}
   .logo b i{font-style:normal;color:#7cc7ff}
-  .kick{margin-top:30px;font-size:21px;font-weight:600;color:#cfe0ff;letter-spacing:-.005em}
-  h1{margin-top:8px;font-size:54px;line-height:1.06;font-weight:800;letter-spacing:-.02em;max-width:640px}
+  .kick{margin-top:24px;font-size:19px;font-weight:600;color:#bcd0f5}
+  h1{margin-top:4px;font-size:58px;line-height:1.04;font-weight:800;letter-spacing:-.025em}
   h1 em{font-style:normal;color:#7cc7ff}
-  .hrule{margin-top:22px;width:96px;height:4px;border-radius:2px;background:linear-gradient(90deg,var(--cyan),var(--blue))}
-  .tagline{margin-top:20px;font-size:20.5px;line-height:1.5;color:#d6e1f8;font-weight:500;font-style:italic;max-width:600px}
+  .tagline{margin-top:16px;font-size:18.5px;line-height:1.5;color:#dbe5fa;font-weight:500}
 
-  /* orbit art: shield-lock with NHI types */
-  .orbit{position:absolute;z-index:2;right:84px;top:24px;width:380px;height:360px;transform:scale(.9);transform-origin:top right}
-  .orbit svg.lines{position:absolute;inset:0}
-  .core{position:absolute;left:115px;top:105px;width:150px;height:150px;border-radius:50%;display:grid;place-items:center;
-    background:radial-gradient(circle,rgba(79,179,255,.38),rgba(14,26,92,.15) 65%,transparent 72%)}
-  .core .sh{width:112px;height:112px;color:#e8f4ff;filter:drop-shadow(0 0 18px rgba(79,179,255,.8))}
-  .node{position:absolute;width:64px;height:64px;border-radius:50%;padding:16px;color:#d9eeff;
-    background:rgba(14,26,92,.72);border:1.5px solid rgba(166,217,255,.55);box-shadow:0 0 22px rgba(79,179,255,.35)}
-  .node small{position:absolute;top:70px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:11.5px;font-weight:700;letter-spacing:.08em;color:#bcd7ff}
+  .graph{position:absolute;z-index:2;right:40px;top:6px;width:620px;height:310px}
+  .graph>svg{position:absolute;inset:0}
+  .hub{position:absolute;left:250px;top:95px;width:120px;height:120px;border-radius:50%;display:grid;place-items:center;
+    background:radial-gradient(circle,rgba(79,179,255,.45),rgba(14,26,92,.2) 62%,transparent 70%)}
+  .hub .disc{width:84px;height:84px;border-radius:50%;background:var(--navy);border:2px solid #a6d9ff;display:grid;place-items:center}
+  .hub img{width:50px}
+  .nd{position:absolute;display:flex;align-items:center;gap:10px;padding:9px 13px 9px 10px;border-radius:12px;min-width:190px;
+    background:rgba(10,19,71,.88);border:1px solid rgba(166,217,255,.4)}
+  .nd .i{width:32px;height:32px;flex:none;border-radius:9px;padding:6px;background:rgba(79,179,255,.18);color:#cfeaff}
+  .nd b{display:block;white-space:nowrap;font-size:13px;font-weight:700;color:#fff;line-height:1.2}
+  .nd span{display:block;white-space:nowrap;font-size:12px;color:#a9bde6;margin-top:1px}
+  .nd .r{margin-left:auto;font-size:11px;font-weight:800;letter-spacing:.06em;padding:3px 7px;border-radius:6px}
+  .lo{background:rgba(74,222,128,.16);color:#86efac}
+  .md{background:rgba(250,204,21,.16);color:#fde68a}
+  .cr{background:rgba(248,113,113,.2);color:#fecaca}
+  .nd.alert{border-color:rgba(248,113,113,.75)}
 
-  /* ---------- INTRO BAND ---------- */
-  .band{display:grid;grid-template-columns:1fr 1fr;background:var(--navy);color:#fff}
-  .band>div{padding:22px 64px 22px}
-  .band>div+div{padding-left:44px;border-left:1px solid rgba(166,217,255,.18);background:linear-gradient(135deg,rgba(79,179,255,.12),transparent 70%)}
-  .band h2{font-size:22px;font-weight:800;line-height:1.25;letter-spacing:-.01em}
-  .band p{margin-top:10px;font-size:16.5px;line-height:1.6;color:#d5def5}
-  .band .stmt{font-size:19px;line-height:1.55;color:#eef3ff;font-weight:500}
-  .band .stmt b{color:#7cc7ff;font-weight:800}
+  /* ---------- INTRO ---------- */
+  .intro{display:grid;grid-template-columns:1fr 420px;gap:36px;padding-top:26px;padding-bottom:24px}
+  .intro p{margin-top:12px;font-size:17px;line-height:1.62;color:var(--ink-2)}
+  .intro p b{color:var(--navy)}
+  .answer{position:relative;overflow:hidden;border-radius:18px;padding:20px 26px;color:#fff;display:flex;flex-direction:column;justify-content:center;
+    background:linear-gradient(140deg,var(--navy-l),var(--navy) 55%,var(--navy-d))}
+  .answer .waves{position:absolute;right:0;bottom:0;width:300px;height:120px;opacity:.5}
+  .answer>*{position:relative}
+  .answer .hd{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;color:#a6d9ff}
+  .answer .hd img{height:28px}
+  .answer p{margin-top:8px;font-size:17px;line-height:1.55;color:#eef3ff;font-weight:500}
 
   /* ---------- STATS ---------- */
-  .stats{padding-top:22px;padding-bottom:20px}
-  .sgrid{margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
-  .stat{display:flex;align-items:center;gap:18px;padding:12px 18px;border-radius:16px;background:var(--paper-2);border:1px solid var(--line)}
-  .ring{width:92px;height:92px;flex:none;position:relative}
+  .stats{background:var(--paper-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:22px 64px 22px}
+  .sgrid{margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr)}
+  .stat{display:flex;align-items:center;gap:18px;padding:0 24px}
+  .stat:first-child{padding-left:0}
+  .stat+.stat{border-left:1px solid #d9dfee}
+  .ring{width:90px;height:90px;flex:none;position:relative}
   .ring svg{width:100%;height:100%;transform:rotate(-90deg)}
   .ring b{position:absolute;inset:0;display:grid;place-items:center;font-size:27px;font-weight:800;color:var(--navy);letter-spacing:-.02em}
-  .stat p{font-size:16px;line-height:1.45;color:var(--ink-2)}
-  .ratio{width:92px;height:92px;flex:none;border-radius:50%;display:grid;place-items:center;text-align:center;
-    background:var(--navy);color:#fff;box-shadow:inset 0 0 0 6px rgba(79,179,255,.35)}
-  .ratio b{font-size:27px;font-weight:800;letter-spacing:-.02em;line-height:1}
+  .ratio{width:90px;height:90px;flex:none;border-radius:50%;display:grid;place-items:center;background:var(--navy);color:#fff;box-shadow:inset 0 0 0 7px #2a5bea}
+  .ratio b{font-size:27px;font-weight:800;letter-spacing:-.02em}
+  .stat p{font-size:16.5px;line-height:1.45;color:var(--ink-2)}
   .stat p strong{color:var(--navy)}
 
   /* ---------- CAPABILITIES ---------- */
-  .caps{padding-top:20px;padding-bottom:20px}
+  .caps{padding-top:22px;padding-bottom:20px}
   .cgrid{margin-top:14px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-  .cc{display:grid;grid-template-columns:44px 1fr;column-gap:12px;align-content:start;padding:14px 15px;border-radius:16px;border:1px solid var(--line);background:#fff;box-shadow:0 6px 18px -14px rgba(14,26,92,.35)}
-  .cc .ib{width:44px;height:44px;padding:10px;grid-row:span 2}
-  .cc h3{font-size:16px;font-weight:700;line-height:1.3;color:var(--navy)}
-  .cc p{margin-top:5px;font-size:14px;line-height:1.5;color:var(--ink-3)}
+  .cc{padding:14px 16px 15px;border-radius:16px;background:#fff;border:1px solid var(--line);border-top:3px solid var(--navy)}
+  .cc .t{display:flex;align-items:center;gap:12px}
+  .cc .ib{width:42px;height:42px;padding:9px}
+  .cc h3{font-size:16.5px;font-weight:700;line-height:1.25;color:var(--navy)}
+  .cc p{margin-top:8px;font-size:14.5px;line-height:1.5;color:var(--ink-3)}
 
   /* ---------- HOW IT WORKS ---------- */
-  .how{padding-top:14px;padding-bottom:14px;display:grid;grid-template-columns:1fr 330px;gap:36px;align-items:center}
-  .steps{margin-top:16px;display:flex;align-items:flex-start;justify-content:space-between}
-  .step{width:132px;text-align:center}
-  .step .c{width:74px;height:74px;margin:0 auto;border-radius:50%;padding:18px;background:var(--navy);color:#cfeaff;box-shadow:0 0 0 7px var(--tile)}
-  .step b{display:block;margin-top:13px;font-size:15px;font-weight:800;letter-spacing:.1em;color:var(--navy)}
-  .arrow{margin-top:25px;width:40px;height:24px;color:var(--blue)}
-  .how-txt{padding-left:30px;border-left:3px solid var(--cyan);font-size:17px;line-height:1.6;color:var(--ink-2)}
+  .how{padding-top:2px;padding-bottom:22px}
+  .flow{position:relative;margin-top:14px;display:grid;grid-template-columns:repeat(4,1fr);gap:22px}
+  .st{position:relative;display:grid;grid-template-columns:66px 1fr;gap:14px;align-items:center}
+  .st .c{position:relative;width:66px;height:66px;border-radius:50%;padding:17px;background:var(--navy);color:#d6ecff;box-shadow:0 0 0 6px #fff}
+  .st .n{position:absolute;right:-6px;top:-4px;width:24px;height:24px;border-radius:50%;background:var(--cyan);color:var(--navy);font-size:12px;font-weight:800;display:grid;place-items:center;border:2px solid #fff}
+  .st b{display:block;font-size:15px;font-weight:800;letter-spacing:.1em;color:var(--navy)}
+  .st p{margin-top:3px;font-size:14.5px;line-height:1.4;color:var(--ink-3)}
 
-  /* ---------- ENTERPRISE ---------- */
-  .ent{display:grid;grid-template-columns:1fr 400px;flex:none}
-  .ent-l{padding:18px 40px 16px 64px}
-  .egrid{margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:0}
-  .ec{padding:0 18px;border-left:1px solid var(--line);text-align:center}
-  .ec:first-child{border-left:0;padding-left:0}
-  .ec .ib{width:48px;height:48px;padding:11px;margin:0 auto}
-  .ec h3{margin-top:10px;font-size:16.5px;font-weight:700;color:var(--navy)}
-  .ec p{margin-top:6px;font-size:13.5px;line-height:1.55;color:var(--ink-3)}
-  .acc{position:relative;overflow:hidden;color:#fff;padding:34px 44px;display:flex;flex-direction:column;justify-content:center;
-    background:linear-gradient(150deg,var(--navy-l),var(--navy) 55%,var(--navy-d))}
-  .acc::before{content:"";position:absolute;inset:0;background:url(../assets/photos/hero-datacenter.jpg) center/cover;opacity:.16;mix-blend-mode:screen}
-  .acc>*{position:relative}
-  .acc h3{font-size:27px;line-height:1.2;font-weight:800;letter-spacing:-.015em}
-  .acc p{margin-top:14px;font-size:17px;font-weight:700;color:#7cc7ff;letter-spacing:.01em}
+  /* ---------- BUILT FOR ENTERPRISE ---------- */
+  .ent{padding-top:22px;padding-bottom:24px;background:var(--paper-2);border-top:1px solid var(--line)}
+  .egrid{margin-top:14px;display:grid;grid-template-columns:250px 1fr 310px;gap:16px}
+  .eb{border-radius:16px;background:#fff;border:1px solid var(--line);padding:15px 16px 16px}
+  .eb h3{display:flex;align-items:center;gap:10px;font-size:16.5px;font-weight:700;color:var(--navy)}
+  .eb h3 .i{width:24px;height:24px;color:var(--blue)}
+  .dep{margin-top:14px;display:flex;flex-direction:column;gap:8px}
+  .dep div{display:flex;align-items:center;gap:10px;padding:7px 12px;border-radius:10px;background:var(--tile);font-size:14.5px;font-weight:600;color:var(--navy)}
+  .dep .i{width:20px;height:20px;color:var(--blue)}
+  .wall{margin-top:14px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .wall div{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;height:58px;border-radius:10px;border:1px solid var(--line);background:#fff;font-size:12.5px;font-weight:700;color:var(--navy);text-align:center}
+  .wall .i{width:24px;height:24px;color:var(--navy)}
+  .seals{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .seal{display:flex;align-items:center;gap:10px}
+  .seal .s{width:50px;height:50px;flex:none;border-radius:50%;display:grid;place-items:center;background:var(--navy);color:#fff;font-size:10.5px;font-weight:800;line-height:1.05;text-align:center;box-shadow:0 0 0 3px #fff,0 0 0 4.5px #b9c6ea}
+  .seal span{font-size:13.5px;font-weight:600;color:var(--ink-2);line-height:1.3}
 
-  .foot{height:128px}
-  .foot-in{grid-template-columns:1fr 450px}
-  .foot .by{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:13px;color:#b8c8f0;font-weight:500}
-  .foot .by img{height:26px}
+  /* ---------- CLOSING ---------- */
+  .close{margin-top:auto;position:relative;flex:none;color:#fff;overflow:hidden;
+    background:radial-gradient(80% 170% at 100% 0%, var(--navy-l) 0%, var(--navy) 50%, var(--navy-d) 100%)}
+  .close .ph{position:absolute;right:0;top:0;bottom:0;width:620px;background:url(../assets/photos/hero-network.jpg) 60% 50%/cover;opacity:.3;
+    -webkit-mask-image:linear-gradient(90deg,transparent,#000 60%);mask-image:linear-gradient(90deg,transparent,#000 60%)}
+  .close-top{position:relative;display:grid;grid-template-columns:1fr 410px;gap:40px;align-items:center;padding:22px 64px 18px}
+  .close h2{font-size:30px;line-height:1.15;font-weight:800;letter-spacing:-.02em}
+  .close h2 em{font-style:normal;color:#7cc7ff}
+  .verbs{margin-top:16px;display:flex;align-items:center;gap:10px}
+  .verbs span{font-size:15px;font-weight:700;letter-spacing:.06em;padding:7px 14px;border-radius:8px;background:rgba(79,179,255,.16);border:1px solid rgba(166,217,255,.38);color:#e3f2ff}
+  .verbs i{width:18px;height:18px;color:#7cc7ff;display:block}
+  .close-bar{position:relative;display:flex;align-items:center;justify-content:space-between;gap:30px;padding:13px 64px;background:rgba(6,12,48,.6);border-top:1px solid rgba(166,217,255,.18)}
+  .close-bar .tl{font-size:21px;font-weight:700;letter-spacing:-.01em;color:#fff}
+  .close-bar .tl em{font-style:normal;color:#7cc7ff}
+  .close-bar .by{display:flex;align-items:center;gap:10px;font-size:13px;color:#b8c8f0;font-weight:500;white-space:nowrap}
+  .close-bar .by img{height:28px}
 </style>
 </head>
 <body>
@@ -99,57 +123,57 @@
 
   <!-- ============ HERO ============ -->
   <header class="hero">
-    <div class="photo"></div>
-    <div class="shade"></div>
+    <div class="ph"></div>
     <div class="grid"></div>
+    <div class="graph">
+      <svg viewBox="0 0 620 310" fill="none">
+        <g stroke="#a6d9ff" stroke-opacity=".55" stroke-width="1.5" stroke-dasharray="4 5">
+          <path d="M310 155 L200 48"/><path d="M310 155 L420 40"/><path d="M310 155 L200 160"/><path d="M310 155 L430 158"/><path d="M310 155 L210 262"/>
+        </g>
+        <path d="M310 155 L410 262" stroke="#f87171" stroke-opacity=".9" stroke-width="2" stroke-dasharray="4 5"/>
+        <circle cx="310" cy="155" r="96" stroke="#4fb3ff" stroke-opacity=".25"/>
+        <circle cx="310" cy="155" r="130" stroke="#a6d9ff" stroke-opacity=".14" stroke-dasharray="2 8"/>
+      </svg>
+      <div class="hub"><div class="disc"><img src="../assets/brand/adapid-mark.png" alt=""></div></div>
+      <div class="nd" style="left:0;top:22px"><div class="i"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M139,158.25a66,66,0,1,0-62,0c-22,6.23-41.88,19.16-57.61,37.89a6,6,0,0,0,9.18,7.72C49.1,179.44,77.31,166,108,166s58.9,13.44,79.41,37.86a6,6,0,1,0,9.18-7.72C180.86,177.41,161,164.48,139,158.25ZM54,100a54,54,0,1,1,54,54A54.06,54.06,0,0,1,54,100Zm197.25,44.8-5.92-3.41a22,22,0,0,0,0-10.78l5.92-3.41a6,6,0,0,0-6-10.4l-5.93,3.43a22,22,0,0,0-9.32-5.39V108a6,6,0,0,0-12,0v6.84a22,22,0,0,0-9.32,5.39l-5.93-3.43a6,6,0,0,0-6,10.4l5.92,3.41a22,22,0,0,0,0,10.78l-5.92,3.41a6,6,0,0,0,6,10.4l5.93-3.43a22,22,0,0,0,9.32,5.39V164a6,6,0,0,0,12,0v-6.84a22,22,0,0,0,9.32-5.39l5.93,3.43a6,6,0,0,0,6-10.4ZM224,146a10,10,0,1,1,10-10A10,10,0,0,1,224,146Z"/></svg></div><div><b>svc-payments</b><span>Service account</span></div><em class="r lo">LOW</em></div>
+      <div class="nd" style="left:400px;top:14px"><div class="i"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M215.15,40.85A78,78,0,0,0,86.2,121.31l-56.1,56.1a13.94,13.94,0,0,0-4.1,9.9V216a14,14,0,0,0,14,14H72a6,6,0,0,0,6-6V206H96a6,6,0,0,0,6-6V182h18a6,6,0,0,0,4.24-1.76l10.45-10.44A77.59,77.59,0,0,0,160,174h.1A78,78,0,0,0,215.15,40.85ZM226,98.16c-1.12,35.16-30.67,63.8-65.88,63.84a65.93,65.93,0,0,1-24.51-4.67,6,6,0,0,0-6.64,1.26L117.51,170H96a6,6,0,0,0-6,6v18H72a6,6,0,0,0-6,6v18H40a2,2,0,0,1-2-2V187.31a2,2,0,0,1,.58-1.41l58.83-58.83a6,6,0,0,0,1.26-6.64A65.61,65.61,0,0,1,94,95.92C94,60.71,122.68,31.16,157.83,30A66,66,0,0,1,226,98.16ZM190,76a10,10,0,1,1-10-10A10,10,0,0,1,190,76Z"/></svg></div><div><b>ci-deploy-key</b><span>API key</span></div><em class="r lo">LOW</em></div>
+      <div class="nd" style="left:0;top:134px;min-width:200px"><div class="i"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M126,136a6,6,0,0,1-6,6H72a6,6,0,0,1,0-12h48A6,6,0,0,1,126,136Zm-6-38H72a6,6,0,0,0,0,12h48a6,6,0,0,0,0-12Zm110,62.62V224a6,6,0,0,1-9,5.21l-25-14.3-25,14.3a6,6,0,0,1-9-5.21V198H40a14,14,0,0,1-14-14V56A14,14,0,0,1,40,42H216a14,14,0,0,1,14,14V87.38a49.91,49.91,0,0,1,0,73.24ZM196,86a38,38,0,1,0,38,38A38,38,0,0,0,196,86ZM162,186V160.62a50,50,0,0,1,56-81.51V56a2,2,0,0,0-2-2H40a2,2,0,0,0-2,2V184a2,2,0,0,0,2,2Zm56-17.11a49.91,49.91,0,0,1-44,0v44.77l19-10.87a6,6,0,0,1,6,0l19,10.87Z"/></svg></div><div><b>crm-sync</b><span>OAuth token · SaaS</span></div><em class="r md">MED</em></div>
+      <div class="nd" style="left:420px;top:128px"><div class="i"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M200,50H134V16a6,6,0,0,0-12,0V50H56A30,30,0,0,0,26,80V192a30,30,0,0,0,30,30H200a30,30,0,0,0,30-30V80A30,30,0,0,0,200,50Zm18,142a18,18,0,0,1-18,18H56a18,18,0,0,1-18-18V80A18,18,0,0,1,56,62H200a18,18,0,0,1,18,18ZM74,108a10,10,0,1,1,10,10A10,10,0,0,1,74,108Zm88,0a10,10,0,1,1,10,10A10,10,0,0,1,162,108Zm2,30H92a26,26,0,0,0,0,52h72a26,26,0,0,0,0-52Zm-22,12v28H114V150ZM78,164a14,14,0,0,1,14-14h10v28H92A14,14,0,0,1,78,164Zm86,14H154V150h10a14,14,0,0,1,0,28Z"/></svg></div><div><b>ops-copilot</b><span>AI agent</span></div><em class="r md">MED</em></div>
+      <div class="nd" style="left:10px;top:236px"><div class="i"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M208,138H48a14,14,0,0,0-14,14v48a14,14,0,0,0,14,14H208a14,14,0,0,0,14-14V152A14,14,0,0,0,208,138Zm2,62a2,2,0,0,1-2,2H48a2,2,0,0,1-2-2V152a2,2,0,0,1,2-2H208a2,2,0,0,1,2,2ZM208,42H48A14,14,0,0,0,34,56v48a14,14,0,0,0,14,14H208a14,14,0,0,0,14-14V56A14,14,0,0,0,208,42Zm2,62a2,2,0,0,1-2,2H48a2,2,0,0,1-2-2V56a2,2,0,0,1,2-2H208a2,2,0,0,1,2,2ZM190,80a10,10,0,1,1-10-10A10,10,0,0,1,190,80Zm0,96a10,10,0,1,1-10-10A10,10,0,0,1,190,176Z"/></svg></div><div><b>etl-worker</b><span>Workload identity</span></div><em class="r lo">LOW</em></div>
+      <div class="nd alert" style="left:400px;top:236px"><div class="i" style="background:rgba(248,113,113,.2);color:#fecaca"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M128,26A102,102,0,1,0,230,128,102.12,102.12,0,0,0,128,26Zm0,192a90,90,0,1,1,90-90A90.1,90.1,0,0,1,128,218Zm-6-82V80a6,6,0,0,1,12,0v56a6,6,0,0,1-12,0Zm16,36a10,10,0,1,1-10-10A10,10,0,0,1,138,172Z"/></svg></div><div><b>s3-backup-role</b><span>Unused for 180 days</span></div><em class="r cr">CRIT</em></div>
+    </div>
     <div class="hero-inner">
-      <div class="topbar">
-        <div class="logo"><img src="../assets/brand/adapid-mark.png" alt=""><b>adapID <i>AI</i></b></div>
-      </div>
+      <div class="logo"><img src="../assets/brand/adapid-mark.png" alt=""><b>adapID <i>AI</i></b></div>
       <p class="kick">Continuous Identity Risk Management</p>
       <h1>NHI <em>Security</em></h1>
-      <div class="hrule"></div>
       <p class="tagline">Know Every Identity. Understand Every Risk.<br>Secure Every Connection.</p>
-    </div>
-    <div class="orbit">
-      <svg class="lines" viewBox="0 0 380 360" fill="none">
-        <circle cx="190" cy="180" r="150" stroke="#a6d9ff" stroke-opacity=".28" stroke-dasharray="3 7"/>
-        <circle cx="190" cy="180" r="104" stroke="#4fb3ff" stroke-opacity=".35"/>
-        <g stroke="#a6d9ff" stroke-opacity=".45">
-          <path d="M190 180 L190 30"/><path d="M190 180 L333 134"/><path d="M190 180 L278 301"/><path d="M190 180 L102 301"/><path d="M190 180 L47 134"/>
-        </g>
-      </svg>
-      <div class="core"><div class="sh"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M208,40H48A16,16,0,0,0,32,56v56c0,52.72,25.52,84.67,46.93,102.19,23.06,18.86,46,25.26,47,25.53a8,8,0,0,0,4.2,0c1-.27,23.91-6.67,47-25.53C198.48,196.67,224,164.72,224,112V56A16,16,0,0,0,208,40Zm-34.32,69.66-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32Z"/></svg></div></div>
-      <div class="node" style="left:158px;top:-2px"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M160,42A86.11,86.11,0,0,0,82.43,90.88,62,62,0,1,0,72,214h88a86,86,0,0,0,0-172Zm0,160H72a50,50,0,0,1,0-100,50.67,50.67,0,0,1,5.91.35A85.61,85.61,0,0,0,74,128a6,6,0,0,0,12,0,74,74,0,1,1,74,74Z"/></svg><small>CLOUD</small></div>
-      <div class="node" style="left:301px;top:102px"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M67.84,92.61,25.37,128l42.47,35.39a6,6,0,1,1-7.68,9.22l-48-40a6,6,0,0,1,0-9.22l48-40a6,6,0,0,1,7.68,9.22Zm176,30.78-48-40a6,6,0,1,0-7.68,9.22L230.63,128l-42.47,35.39a6,6,0,1,0,7.68,9.22l48-40a6,6,0,0,0,0-9.22Zm-81.79-89A6,6,0,0,0,154.36,38l-64,176A6,6,0,0,0,94,221.64a6.15,6.15,0,0,0,2,.36,6,6,0,0,0,5.64-3.95l64-176A6,6,0,0,0,162.05,34.36Z"/></svg><small>API</small></div>
-      <div class="node" style="left:246px;top:269px"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M152,98H104a6,6,0,0,0-6,6v48a6,6,0,0,0,6,6h48a6,6,0,0,0,6-6V104A6,6,0,0,0,152,98Zm-6,48H110V110h36Zm86,0H214V110h18a6,6,0,0,0,0-12H214V56a14,14,0,0,0-14-14H158V24a6,6,0,0,0-12,0V42H110V24a6,6,0,0,0-12,0V42H56A14,14,0,0,0,42,56V98H24a6,6,0,0,0,0,12H42v36H24a6,6,0,0,0,0,12H42v42a14,14,0,0,0,14,14H98v18a6,6,0,0,0,12,0V214h36v18a6,6,0,0,0,12,0V214h42a14,14,0,0,0,14-14V158h18a6,6,0,0,0,0-12Zm-30,54a2,2,0,0,1-2,2H56a2,2,0,0,1-2-2V56a2,2,0,0,1,2-2H200a2,2,0,0,1,2,2Z"/></svg><small>AI AGENT</small></div>
-      <div class="node" style="left:70px;top:269px"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M200,50H134V16a6,6,0,0,0-12,0V50H56A30,30,0,0,0,26,80V192a30,30,0,0,0,30,30H200a30,30,0,0,0,30-30V80A30,30,0,0,0,200,50Zm18,142a18,18,0,0,1-18,18H56a18,18,0,0,1-18-18V80A18,18,0,0,1,56,62H200a18,18,0,0,1,18,18ZM74,108a10,10,0,1,1,10,10A10,10,0,0,1,74,108Zm88,0a10,10,0,1,1,10,10A10,10,0,0,1,162,108Zm2,30H92a26,26,0,0,0,0,52h72a26,26,0,0,0,0-52Zm-22,12v28H114V150ZM78,164a14,14,0,0,1,14-14h10v28H92A14,14,0,0,1,78,164Zm86,14H154V150h10a14,14,0,0,1,0,28Z"/></svg><small>BOT</small></div>
-      <div class="node" style="left:15px;top:102px"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M128,26C75.29,26,34,49.72,34,80v96c0,30.28,41.29,54,94,54s94-23.72,94-54V80C222,49.72,180.71,26,128,26Zm0,12c44.45,0,82,19.23,82,42s-37.55,42-82,42S46,102.77,46,80,83.55,38,128,38Zm82,138c0,22.77-37.55,42-82,42s-82-19.23-82-42V154.79C62,171.16,92.37,182,128,182s66-10.84,82-27.21Zm0-48c0,22.77-37.55,42-82,42s-82-19.23-82-42V106.79C62,123.16,92.37,134,128,134s66-10.84,82-27.21Z"/></svg><small>SERVICE</small></div>
     </div>
     <div class="edge"></div>
   </header>
 
   <!-- ============ INTRO ============ -->
-  <section class="band">
+  <section class="sec intro">
     <div>
-      <h2>Secure the Identities You Can’t Afford to Overlook</h2>
-      <p>Applications, cloud services, APIs and AI agents depend on Non-Human Identities (NHIs). Often hidden, over-privileged and poorly monitored, these identities create security gaps that attackers can exploit.</p>
+      <h2 class="h2" style="font-size:24.5px">Secure the Identities You Can’t Afford to Overlook</h2>
+      <p>Applications, cloud services, APIs and AI agents depend on <b>Non-Human Identities (NHIs)</b>: service accounts, API keys, tokens and workload identities. Often hidden, over-privileged and poorly monitored, these identities create security gaps that attackers can exploit.</p>
     </div>
-    <div style="display:flex;align-items:center">
-      <p class="stmt"><b>adapID AI</b> gives every non-human identity an owner, a behavioural baseline and a live risk score, then acts automatically the moment a service account, API key, token or workload identity steps out of pattern.</p>
+    <div class="answer">
+      <svg class="waves" viewBox="0 0 300 120" preserveAspectRatio="none" fill="none"><path d="M0,70 C60,40 120,110 180,70 S270,30 300,50" stroke="#4fb3ff" stroke-opacity="0.080" stroke-width="1"/><path d="M0,75 C60,46 120,107 180,72 S270,37 300,55" stroke="#4fb3ff" stroke-opacity="0.115" stroke-width="1"/><path d="M0,80 C60,52 120,104 180,74 S270,44 300,60" stroke="#4fb3ff" stroke-opacity="0.150" stroke-width="1"/><path d="M0,85 C60,58 120,101 180,76 S270,51 300,65" stroke="#4fb3ff" stroke-opacity="0.185" stroke-width="1"/><path d="M0,90 C60,64 120,98 180,78 S270,58 300,70" stroke="#4fb3ff" stroke-opacity="0.220" stroke-width="1"/><path d="M0,95 C60,70 120,95 180,80 S270,65 300,75" stroke="#4fb3ff" stroke-opacity="0.255" stroke-width="1"/><path d="M0,100 C60,76 120,92 180,82 S270,72 300,80" stroke="#4fb3ff" stroke-opacity="0.290" stroke-width="1"/><path d="M0,105 C60,82 120,89 180,84 S270,79 300,85" stroke="#4fb3ff" stroke-opacity="0.325" stroke-width="1"/><path d="M0,110 C60,88 120,86 180,86 S270,86 300,90" stroke="#4fb3ff" stroke-opacity="0.360" stroke-width="1"/><path d="M0,115 C60,94 120,83 180,88 S270,93 300,95" stroke="#4fb3ff" stroke-opacity="0.395" stroke-width="1"/></svg>
+      <div class="hd"><img src="../assets/brand/adapid-mark.png" alt="">How adapID AI helps</div>
+      <p>adapID AI gives every non-human identity an owner, a behavioural baseline and a live risk score, and acts automatically the moment one steps out of pattern.</p>
     </div>
   </section>
 
   <!-- ============ WHY ============ -->
-  <section class="sec stats">
+  <section class="stats">
     <h2 class="h2">Why NHI Security Matters</h2>
     <div class="sgrid">
       <div class="stat">
-        <div class="ring"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15.5" fill="none" stroke="#e1e5f2" stroke-width="3.4"/><circle cx="18" cy="18" r="15.5" fill="none" stroke="#0E1A5C" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="76.9 97.4"/></svg><b>79%</b></div>
+        <div class="ring"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15.5" fill="none" stroke="#dde3f1" stroke-width="3.4"/><circle cx="18" cy="18" r="15.5" fill="none" stroke="#0E1A5C" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="76.9 97.4"/></svg><b>79%</b></div>
         <p>of organisations have <strong>low or moderate confidence</strong> in preventing NHI attacks.</p>
       </div>
       <div class="stat">
-        <div class="ring"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15.5" fill="none" stroke="#e1e5f2" stroke-width="3.4"/><circle cx="18" cy="18" r="15.5" fill="none" stroke="#2a5bea" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="42.9 97.4"/></svg><b>44%</b></div>
+        <div class="ring"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15.5" fill="none" stroke="#dde3f1" stroke-width="3.4"/><circle cx="18" cy="18" r="15.5" fill="none" stroke="#2a5bea" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="42.9 97.4"/></svg><b>44%</b></div>
         <p>rely on <strong>static API keys</strong> as their primary NHI credentials.</p>
       </div>
       <div class="stat">
@@ -159,65 +183,76 @@
     </div>
   </section>
 
-  <div class="rule"></div>
-
   <!-- ============ CAPABILITIES ============ -->
   <section class="sec caps">
     <h2 class="h2">Core Security Capabilities</h2>
     <div class="cgrid">
-      <div class="cc"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M228.24,219.76l-51.38-51.38a86.15,86.15,0,1,0-8.48,8.48l51.38,51.38a6,6,0,0,0,8.48-8.48ZM38,112a74,74,0,1,1,74,74A74.09,74.09,0,0,1,38,112Z"/></svg></div><h3>NHI Discovery</h3><p>Unified inventory across cloud, SaaS, applications and code.</p></div>
-      <div class="cc"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M208,42H48A14,14,0,0,0,34,56v56c0,51.94,25.12,83.4,46.2,100.64,22.73,18.6,45.27,24.89,46.22,25.15a6,6,0,0,0,3.16,0c.95-.26,23.49-6.55,46.22-25.15C196.88,195.4,222,163.94,222,112V56A14,14,0,0,0,208,42Zm2,70c0,37.76-13.94,68.39-41.44,91.06A131.17,131.17,0,0,1,128,225.72a130.94,130.94,0,0,1-40.56-22.66C59.94,180.39,46,149.76,46,112V56a2,2,0,0,1,2-2H208a2,2,0,0,1,2,2ZM172.24,99.76a6,6,0,0,1,0,8.48l-56,56a6,6,0,0,1-8.48,0l-24-24a6,6,0,0,1,8.48-8.48L112,151.51l51.76-51.75A6,6,0,0,1,172.24,99.76Z"/></svg></div><h3>Ownership &amp; Access Governance</h3><p>Assign accountability and enforce least-privilege access.</p></div>
-      <div class="cc"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M215.15,40.85A78,78,0,0,0,86.2,121.31l-56.1,56.1a13.94,13.94,0,0,0-4.1,9.9V216a14,14,0,0,0,14,14H72a6,6,0,0,0,6-6V206H96a6,6,0,0,0,6-6V182h18a6,6,0,0,0,4.24-1.76l10.45-10.44A77.59,77.59,0,0,0,160,174h.1A78,78,0,0,0,215.15,40.85ZM226,98.16c-1.12,35.16-30.67,63.8-65.88,63.84a65.93,65.93,0,0,1-24.51-4.67,6,6,0,0,0-6.64,1.26L117.51,170H96a6,6,0,0,0-6,6v18H72a6,6,0,0,0-6,6v18H40a2,2,0,0,1-2-2V187.31a2,2,0,0,1,.58-1.41l58.83-58.83a6,6,0,0,0,1.26-6.64A65.61,65.61,0,0,1,94,95.92C94,60.71,122.68,31.16,157.83,30A66,66,0,0,1,226,98.16ZM190,76a10,10,0,1,1-10-10A10,10,0,0,1,190,76Z"/></svg></div><h3>Credential Hygiene</h3><p>Detect exposed secrets, hardcoded credentials and expiring certificates.</p></div>
-      <div class="cc"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M224,202H214V40a6,6,0,0,0-6-6H152a6,6,0,0,0-6,6V82H96a6,6,0,0,0-6,6v42H48a6,6,0,0,0-6,6v66H32a6,6,0,0,0,0,12H224a6,6,0,0,0,0-12ZM158,46h44V202H158ZM102,94h44V202H102ZM54,142H90v60H54Z"/></svg></div><h3>NHI Genome Analytics</h3><p>Establish behavioural baselines using identity activity signals.</p></div>
-      <div class="cc"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M232,122H221.8A94.13,94.13,0,0,0,134,34.2V24a6,6,0,0,0-12,0V34.2A94.13,94.13,0,0,0,34.2,122H24a6,6,0,0,0,0,12H34.2A94.13,94.13,0,0,0,122,221.8V232a6,6,0,0,0,12,0V221.8A94.13,94.13,0,0,0,221.8,134H232a6,6,0,0,0,0-12Zm-98,87.76V200a6,6,0,0,0-12,0v9.76A82.09,82.09,0,0,1,46.24,134H56a6,6,0,0,0,0-12H46.24A82.09,82.09,0,0,1,122,46.24V56a6,6,0,0,0,12,0V46.24A82.09,82.09,0,0,1,209.76,122H200a6,6,0,0,0,0,12h9.76A82.09,82.09,0,0,1,134,209.76ZM128,90a38,38,0,1,0,38,38A38,38,0,0,0,128,90Zm0,64a26,26,0,1,1,26-26A26,26,0,0,1,128,154Z"/></svg></div><h3>Real-Time Threat Detection</h3><p>Identify abnormal API calls, access patterns and data spikes.</p></div>
-      <div class="cc"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M235.07,189.09,147.61,37.22h0a22.75,22.75,0,0,0-39.22,0L20.93,189.09a21.53,21.53,0,0,0,0,21.72A22.35,22.35,0,0,0,40.55,222h174.9a22.35,22.35,0,0,0,19.6-11.19A21.53,21.53,0,0,0,235.07,189.09ZM224.66,204.8a10.46,10.46,0,0,1-9.21,5.2H40.55a10.46,10.46,0,0,1-9.21-5.2,9.51,9.51,0,0,1,0-9.72L118.79,43.21a10.75,10.75,0,0,1,18.42,0l87.46,151.87A9.51,9.51,0,0,1,224.66,204.8ZM122,144V104a6,6,0,0,1,12,0v40a6,6,0,0,1-12,0Zm16,36a10,10,0,1,1-10-10A10,10,0,0,1,138,180Z"/></svg></div><h3>AI-Driven Risk Scoring</h3><p>Prioritise identities by Low, Medium, High and Critical risk.</p></div>
-      <div class="cc"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M200,154a29.87,29.87,0,0,0-19.5,7.23L154.88,141.3A29.83,29.83,0,0,0,158,128a30.52,30.52,0,0,0-.22-3.6L174,119a30,30,0,1,0-4-15,30.52,30.52,0,0,0,.22,3.6L154,113a29.91,29.91,0,0,0-32.42-14.31l-8.14-18.3a30,30,0,1,0-11,4.88l8.14,18.3A29.92,29.92,0,0,0,102.06,143L74,168a30.08,30.08,0,1,0,8,9L110,152a29.91,29.91,0,0,0,37.47-1.23l25.62,19.93A30,30,0,1,0,200,154Zm0-68a18,18,0,1,1-18,18A18,18,0,0,1,200,86ZM78,56A18,18,0,1,1,96,74,18,18,0,0,1,78,56ZM56,210a18,18,0,1,1,18-18A18,18,0,0,1,56,210Zm72-64a18,18,0,1,1,18-18A18,18,0,0,1,128,146Zm72,56a18,18,0,1,1,18-18A18,18,0,0,1,200,202Z"/></svg></div><h3>Identity Graph</h3><p>Visualise identity relationships, attack paths and potential blast radius.</p></div>
-      <div class="cc"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M128,82a46,46,0,1,0,46,46A46.06,46.06,0,0,0,128,82Zm0,80a34,34,0,1,1,34-34A34,34,0,0,1,128,162Zm108-54.4a6,6,0,0,0-2.92-4L202.64,86.22l-.42-.71L202.1,51.2A6,6,0,0,0,200,46.64a110.12,110.12,0,0,0-36.07-20.31,6,6,0,0,0-4.84.45L128.46,43.86h-1L96.91,26.76a6,6,0,0,0-4.86-.44A109.92,109.92,0,0,0,56,46.68a6,6,0,0,0-2.12,4.55l-.16,34.34c-.14.23-.28.47-.41.71L22.91,103.57A6,6,0,0,0,20,107.62a104.81,104.81,0,0,0,0,40.78,6,6,0,0,0,2.92,4l30.42,17.33.42.71.12,34.31A6,6,0,0,0,56,209.36a110.12,110.12,0,0,0,36.07,20.31,6,6,0,0,0,4.84-.45l30.61-17.08h1l30.56,17.1A6.09,6.09,0,0,0,162,230a5.83,5.83,0,0,0,1.93-.32,109.92,109.92,0,0,0,36-20.36,6,6,0,0,0,2.12-4.55l.16-34.34c.14-.23.28-.47.41-.71l30.42-17.29a6,6,0,0,0,2.92-4.05A104.81,104.81,0,0,0,236,107.6Zm-11.25,35.79L195.32,160.1a6.07,6.07,0,0,0-2.28,2.3c-.59,1-1.21,2.11-1.86,3.14a6,6,0,0,0-.91,3.16l-.16,33.21a98.15,98.15,0,0,1-27.52,15.53L133,200.88a6,6,0,0,0-2.93-.77h-.14c-1.24,0-2.5,0-3.74,0a6,6,0,0,0-3.07.76L93.45,217.43a98,98,0,0,1-27.56-15.49l-.12-33.17a6,6,0,0,0-.91-3.16c-.64-1-1.27-2.08-1.86-3.14a6,6,0,0,0-2.27-2.3L31.3,143.4a93,93,0,0,1,0-30.79L60.68,95.9A6.07,6.07,0,0,0,63,93.6c.59-1,1.21-2.11,1.86-3.14a6,6,0,0,0,.91-3.16l.16-33.21A98.15,98.15,0,0,1,93.41,38.56L123,55.12a5.81,5.81,0,0,0,3.07.76c1.24,0,2.5,0,3.74,0a6,6,0,0,0,3.07-.76l29.65-16.56a98,98,0,0,1,27.56,15.49l.12,33.17a6,6,0,0,0,.91,3.16c.64,1,1.27,2.08,1.86,3.14a6,6,0,0,0,2.27,2.3L224.7,112.6A93,93,0,0,1,224.73,143.39Z"/></svg></div><h3>Automated Remediation</h3><p>Enable credential revocation, workflow integration and compliance reporting.</p></div>
+      <div class="cc"><div class="t"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M228.24,219.76l-51.38-51.38a86.15,86.15,0,1,0-8.48,8.48l51.38,51.38a6,6,0,0,0,8.48-8.48ZM38,112a74,74,0,1,1,74,74A74.09,74.09,0,0,1,38,112Z"/></svg></div><h3>NHI Discovery</h3></div><p>Unified inventory across cloud, SaaS, applications and code.</p></div>
+      <div class="cc"><div class="t"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M208,42H48A14,14,0,0,0,34,56v56c0,51.94,25.12,83.4,46.2,100.64,22.73,18.6,45.27,24.89,46.22,25.15a6,6,0,0,0,3.16,0c.95-.26,23.49-6.55,46.22-25.15C196.88,195.4,222,163.94,222,112V56A14,14,0,0,0,208,42Zm2,70c0,37.76-13.94,68.39-41.44,91.06A131.17,131.17,0,0,1,128,225.72a130.94,130.94,0,0,1-40.56-22.66C59.94,180.39,46,149.76,46,112V56a2,2,0,0,1,2-2H208a2,2,0,0,1,2,2ZM172.24,99.76a6,6,0,0,1,0,8.48l-56,56a6,6,0,0,1-8.48,0l-24-24a6,6,0,0,1,8.48-8.48L112,151.51l51.76-51.75A6,6,0,0,1,172.24,99.76Z"/></svg></div><h3>Ownership &amp; Access Governance</h3></div><p>Assign accountability and enforce least-privilege access.</p></div>
+      <div class="cc"><div class="t"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M215.15,40.85A78,78,0,0,0,86.2,121.31l-56.1,56.1a13.94,13.94,0,0,0-4.1,9.9V216a14,14,0,0,0,14,14H72a6,6,0,0,0,6-6V206H96a6,6,0,0,0,6-6V182h18a6,6,0,0,0,4.24-1.76l10.45-10.44A77.59,77.59,0,0,0,160,174h.1A78,78,0,0,0,215.15,40.85ZM226,98.16c-1.12,35.16-30.67,63.8-65.88,63.84a65.93,65.93,0,0,1-24.51-4.67,6,6,0,0,0-6.64,1.26L117.51,170H96a6,6,0,0,0-6,6v18H72a6,6,0,0,0-6,6v18H40a2,2,0,0,1-2-2V187.31a2,2,0,0,1,.58-1.41l58.83-58.83a6,6,0,0,0,1.26-6.64A65.61,65.61,0,0,1,94,95.92C94,60.71,122.68,31.16,157.83,30A66,66,0,0,1,226,98.16ZM190,76a10,10,0,1,1-10-10A10,10,0,0,1,190,76Z"/></svg></div><h3>Credential Hygiene</h3></div><p>Detect exposed secrets, hardcoded credentials and expiring certificates.</p></div>
+      <div class="cc"><div class="t"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M224,202H214V40a6,6,0,0,0-6-6H152a6,6,0,0,0-6,6V82H96a6,6,0,0,0-6,6v42H48a6,6,0,0,0-6,6v66H32a6,6,0,0,0,0,12H224a6,6,0,0,0,0-12ZM158,46h44V202H158ZM102,94h44V202H102ZM54,142H90v60H54Z"/></svg></div><h3>NHI Genome Analytics</h3></div><p>Establish behavioural baselines using identity activity signals.</p></div>
+      <div class="cc"><div class="t"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M232,122H221.8A94.13,94.13,0,0,0,134,34.2V24a6,6,0,0,0-12,0V34.2A94.13,94.13,0,0,0,34.2,122H24a6,6,0,0,0,0,12H34.2A94.13,94.13,0,0,0,122,221.8V232a6,6,0,0,0,12,0V221.8A94.13,94.13,0,0,0,221.8,134H232a6,6,0,0,0,0-12Zm-98,87.76V200a6,6,0,0,0-12,0v9.76A82.09,82.09,0,0,1,46.24,134H56a6,6,0,0,0,0-12H46.24A82.09,82.09,0,0,1,122,46.24V56a6,6,0,0,0,12,0V46.24A82.09,82.09,0,0,1,209.76,122H200a6,6,0,0,0,0,12h9.76A82.09,82.09,0,0,1,134,209.76ZM128,90a38,38,0,1,0,38,38A38,38,0,0,0,128,90Zm0,64a26,26,0,1,1,26-26A26,26,0,0,1,128,154Z"/></svg></div><h3>Real-Time Threat Detection</h3></div><p>Identify abnormal API calls, access patterns and data spikes.</p></div>
+      <div class="cc"><div class="t"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M235.07,189.09,147.61,37.22h0a22.75,22.75,0,0,0-39.22,0L20.93,189.09a21.53,21.53,0,0,0,0,21.72A22.35,22.35,0,0,0,40.55,222h174.9a22.35,22.35,0,0,0,19.6-11.19A21.53,21.53,0,0,0,235.07,189.09ZM224.66,204.8a10.46,10.46,0,0,1-9.21,5.2H40.55a10.46,10.46,0,0,1-9.21-5.2,9.51,9.51,0,0,1,0-9.72L118.79,43.21a10.75,10.75,0,0,1,18.42,0l87.46,151.87A9.51,9.51,0,0,1,224.66,204.8ZM122,144V104a6,6,0,0,1,12,0v40a6,6,0,0,1-12,0Zm16,36a10,10,0,1,1-10-10A10,10,0,0,1,138,180Z"/></svg></div><h3>AI-Driven Risk Scoring</h3></div><p>Prioritise identities by Low, Medium, High and Critical risk.</p></div>
+      <div class="cc"><div class="t"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M200,154a29.87,29.87,0,0,0-19.5,7.23L154.88,141.3A29.83,29.83,0,0,0,158,128a30.52,30.52,0,0,0-.22-3.6L174,119a30,30,0,1,0-4-15,30.52,30.52,0,0,0,.22,3.6L154,113a29.91,29.91,0,0,0-32.42-14.31l-8.14-18.3a30,30,0,1,0-11,4.88l8.14,18.3A29.92,29.92,0,0,0,102.06,143L74,168a30.08,30.08,0,1,0,8,9L110,152a29.91,29.91,0,0,0,37.47-1.23l25.62,19.93A30,30,0,1,0,200,154Zm0-68a18,18,0,1,1-18,18A18,18,0,0,1,200,86ZM78,56A18,18,0,1,1,96,74,18,18,0,0,1,78,56ZM56,210a18,18,0,1,1,18-18A18,18,0,0,1,56,210Zm72-64a18,18,0,1,1,18-18A18,18,0,0,1,128,146Zm72,56a18,18,0,1,1,18-18A18,18,0,0,1,200,202Z"/></svg></div><h3>Identity Graph</h3></div><p>Visualise identity relationships, attack paths and potential blast radius.</p></div>
+      <div class="cc"><div class="t"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M128,82a46,46,0,1,0,46,46A46.06,46.06,0,0,0,128,82Zm0,80a34,34,0,1,1,34-34A34,34,0,0,1,128,162Zm108-54.4a6,6,0,0,0-2.92-4L202.64,86.22l-.42-.71L202.1,51.2A6,6,0,0,0,200,46.64a110.12,110.12,0,0,0-36.07-20.31,6,6,0,0,0-4.84.45L128.46,43.86h-1L96.91,26.76a6,6,0,0,0-4.86-.44A109.92,109.92,0,0,0,56,46.68a6,6,0,0,0-2.12,4.55l-.16,34.34c-.14.23-.28.47-.41.71L22.91,103.57A6,6,0,0,0,20,107.62a104.81,104.81,0,0,0,0,40.78,6,6,0,0,0,2.92,4l30.42,17.33.42.71.12,34.31A6,6,0,0,0,56,209.36a110.12,110.12,0,0,0,36.07,20.31,6,6,0,0,0,4.84-.45l30.61-17.08h1l30.56,17.1A6.09,6.09,0,0,0,162,230a5.83,5.83,0,0,0,1.93-.32,109.92,109.92,0,0,0,36-20.36,6,6,0,0,0,2.12-4.55l.16-34.34c.14-.23.28-.47.41-.71l30.42-17.29a6,6,0,0,0,2.92-4.05A104.81,104.81,0,0,0,236,107.6Zm-11.25,35.79L195.32,160.1a6.07,6.07,0,0,0-2.28,2.3c-.59,1-1.21,2.11-1.86,3.14a6,6,0,0,0-.91,3.16l-.16,33.21a98.15,98.15,0,0,1-27.52,15.53L133,200.88a6,6,0,0,0-2.93-.77h-.14c-1.24,0-2.5,0-3.74,0a6,6,0,0,0-3.07.76L93.45,217.43a98,98,0,0,1-27.56-15.49l-.12-33.17a6,6,0,0,0-.91-3.16c-.64-1-1.27-2.08-1.86-3.14a6,6,0,0,0-2.27-2.3L31.3,143.4a93,93,0,0,1,0-30.79L60.68,95.9A6.07,6.07,0,0,0,63,93.6c.59-1,1.21-2.11,1.86-3.14a6,6,0,0,0,.91-3.16l.16-33.21A98.15,98.15,0,0,1,93.41,38.56L123,55.12a5.81,5.81,0,0,0,3.07.76c1.24,0,2.5,0,3.74,0a6,6,0,0,0,3.07-.76l29.65-16.56a98,98,0,0,1,27.56,15.49l.12,33.17a6,6,0,0,0,.91,3.16c.64,1,1.27,2.08,1.86,3.14a6,6,0,0,0,2.27,2.3L224.7,112.6A93,93,0,0,1,224.73,143.39Z"/></svg></div><h3>Automated Remediation</h3></div><p>Enable credential revocation, workflow integration and compliance reporting.</p></div>
     </div>
   </section>
-
-  <div class="rule"></div>
 
   <!-- ============ HOW IT WORKS ============ -->
   <section class="sec how">
-    <div>
-      <h2 class="h2">How It Works</h2>
-      <div class="steps">
-        <div class="step"><div class="c"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M246,128a85.27,85.27,0,0,1-17.2,51.6,6,6,0,1,1-9.6-7.2A74,74,0,1,0,86,128a6,6,0,0,1-12,0,85.54,85.54,0,0,1,3.91-25.64A50.68,50.68,0,0,0,72,102a50,50,0,0,0,0,100H96a6,6,0,0,1,0,12H72A62,62,0,1,1,82.43,90.88,86,86,0,0,1,246,128Zm-66.24,43.76L158,193.51V128a6,6,0,0,0-12,0v65.51l-21.76-21.75a6,6,0,0,0-8.48,8.48l32,32a6,6,0,0,0,8.48,0l32-32a6,6,0,0,0-8.48-8.48Z"/></svg></div><b>DISCOVER</b></div>
-        <div class="arrow"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M220.24,132.24l-72,72a6,6,0,0,1-8.48-8.48L201.51,134H40a6,6,0,0,1,0-12H201.51L139.76,60.24a6,6,0,0,1,8.48-8.48l72,72A6,6,0,0,1,220.24,132.24Z"/></svg></div>
-        <div class="step"><div class="c"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M224,202H214V40a6,6,0,0,0-6-6H152a6,6,0,0,0-6,6V82H96a6,6,0,0,0-6,6v42H48a6,6,0,0,0-6,6v66H32a6,6,0,0,0,0,12H224a6,6,0,0,0,0-12ZM158,46h44V202H158ZM102,94h44V202H102ZM54,142H90v60H54Z"/></svg></div><b>ANALYSE</b></div>
-        <div class="arrow"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M220.24,132.24l-72,72a6,6,0,0,1-8.48-8.48L201.51,134H40a6,6,0,0,1,0-12H201.51L139.76,60.24a6,6,0,0,1,8.48-8.48l72,72A6,6,0,0,1,220.24,132.24Z"/></svg></div>
-        <div class="step"><div class="c"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M208,42H48A14,14,0,0,0,34,56v56c0,51.94,25.12,83.4,46.2,100.64,22.73,18.6,45.27,24.89,46.22,25.15a6,6,0,0,0,3.16,0c.95-.26,23.49-6.55,46.22-25.15C196.88,195.4,222,163.94,222,112V56A14,14,0,0,0,208,42Zm2,70c0,37.76-13.94,68.39-41.44,91.06A131.17,131.17,0,0,1,128,225.72a130.94,130.94,0,0,1-40.56-22.66C59.94,180.39,46,149.76,46,112V56a2,2,0,0,1,2-2H208a2,2,0,0,1,2,2ZM172.24,99.76a6,6,0,0,1,0,8.48l-56,56a6,6,0,0,1-8.48,0l-24-24a6,6,0,0,1,8.48-8.48L112,151.51l51.76-51.75A6,6,0,0,1,172.24,99.76Z"/></svg></div><b>DETECT</b></div>
-        <div class="arrow"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M220.24,132.24l-72,72a6,6,0,0,1-8.48-8.48L201.51,134H40a6,6,0,0,1,0-12H201.51L139.76,60.24a6,6,0,0,1,8.48-8.48l72,72A6,6,0,0,1,220.24,132.24Z"/></svg></div>
-        <div class="step"><div class="c"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M213.84,118.63a6,6,0,0,0-3.73-4.25L150.88,92.17l15-75a6,6,0,0,0-10.27-5.27l-112,120a6,6,0,0,0,2.28,9.71l59.23,22.21-15,75a6,6,0,0,0,3.14,6.52A6.07,6.07,0,0,0,96,246a6,6,0,0,0,4.39-1.91l112-120A6,6,0,0,0,213.84,118.63ZM106,220.46l11.85-59.28a6,6,0,0,0-3.77-6.8l-55.6-20.85,91.46-98L138.12,94.82a6,6,0,0,0,3.77,6.8l55.6,20.85Z"/></svg></div><b>RESPOND</b></div>
-      </div>
-    </div>
-    <p class="how-txt">Continuously collect identity data, identify NHIs, analyse behaviour and risk, detect threats and trigger automated remediation.</p>
-  </section>
-
-  <!-- ============ ENTERPRISE ============ -->
-  <section class="ent">
-    <div class="ent-l" style="background:var(--paper-2);border-top:1px solid var(--line)">
-      <h2 class="h2">Built for Enterprise Environments</h2>
-      <div class="egrid">
-        <div class="ec"><div class="ib" style="background:#fff"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M160,42A86.11,86.11,0,0,0,82.43,90.88,62,62,0,1,0,72,214h88a86,86,0,0,0,0-172Zm0,160H72a50,50,0,0,1,0-100,50.67,50.67,0,0,1,5.91.35A85.61,85.61,0,0,0,74,128a6,6,0,0,0,12,0,74,74,0,1,1,74,74Z"/></svg></div><h3>Deployment</h3><p>Cloud · On-Premises · Hybrid</p></div>
-        <div class="ec"><div class="ib" style="background:#fff"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M219.21,160.24a6,6,0,0,0-5.78-.35,22,22,0,1,1-11.05-41.83,22.15,22.15,0,0,1,11.05,2.06A6,6,0,0,0,222,114.7V72a14,14,0,0,0-14-14H169.48a35,35,0,0,0,.52-6,34.1,34.1,0,0,0-10.73-24.78,33.64,33.64,0,0,0-25.45-9.15A34,34,0,0,0,102.54,58H64A14,14,0,0,0,50,72v34.53a34,34,0,0,0-30.79,10.2,34,34,0,0,0,22.31,57.18,34.34,34.34,0,0,0,8.48-.44V208a14,14,0,0,0,14,14H208a14,14,0,0,0,14-14V165.31A6,6,0,0,0,219.21,160.24ZM210,208a2,2,0,0,1-2,2H64a2,2,0,0,1-2-2V165.31a6,6,0,0,0-6-6,5.92,5.92,0,0,0-2.57.58,22,22,0,0,1-31.38-18.46,22,22,0,0,1,31.38-21.31A6,6,0,0,0,62,114.7V72a2,2,0,0,1,2-2h46.69a6,6,0,0,0,5.42-8.57,22.25,22.25,0,0,1-2-11,22,22,0,1,1,41.83,11A6,6,0,0,0,161.3,70H208a2,2,0,0,1,2,2v34.54a34,34,0,0,0-39.93,31.28,33.71,33.71,0,0,0,9.14,25.45A34.15,34.15,0,0,0,210,173.48Z"/></svg></div><h3>Integrations</h3><p>AWS · Azure · GCP · SaaS<br>SIEM/SOAR · Jira · ServiceNow</p></div>
-        <div class="ec"><div class="ib" style="background:#fff"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M224.42,104.2c-3.9-4.07-7.93-8.27-9.55-12.18-1.5-3.63-1.58-9-1.67-14.68-.14-9.38-.3-20-7.42-27.12S188,42.94,178.66,42.8c-5.68-.09-11-.17-14.68-1.67-3.91-1.62-8.11-5.65-12.18-9.55C145.16,25.22,137.64,18,128,18s-17.16,7.22-23.8,13.58c-4.07,3.9-8.27,7.93-12.18,9.55-3.63,1.5-9,1.58-14.68,1.67-9.38.14-20,.3-27.12,7.42S42.94,68,42.8,77.34c-.09,5.68-.17,11-1.67,14.68-1.62,3.91-5.65,8.11-9.55,12.18C25.22,110.84,18,118.36,18,128s7.22,17.16,13.58,23.8c3.9,4.07,7.93,8.27,9.55,12.18,1.5,3.63,1.58,9,1.67,14.68.14,9.38.3,20,7.42,27.12S68,213.06,77.34,213.2c5.68.09,11,.17,14.68,1.67,3.91,1.62,8.11,5.65,12.18,9.55C110.84,230.78,118.36,238,128,238s17.16-7.22,23.8-13.58c4.07-3.9,8.27-7.93,12.18-9.55,3.63-1.5,9-1.58,14.68-1.67,9.38-.14,20-.3,27.12-7.42s7.28-17.74,7.42-27.12c.09-5.68.17-11,1.67-14.68,1.62-3.91,5.65-8.11,9.55-12.18C230.78,145.16,238,137.64,238,128S230.78,110.84,224.42,104.2Zm-8.66,39.3c-4.67,4.86-9.5,9.9-12,15.9-2.38,5.74-2.48,12.52-2.58,19.08-.11,7.44-.23,15.14-3.9,18.82s-11.38,3.79-18.82,3.9c-6.56.1-13.34.2-19.08,2.58-6,2.48-11,7.31-15.91,12-5.25,5-10.68,10.24-15.49,10.24s-10.24-5.21-15.5-10.24c-4.86-4.67-9.9-9.5-15.9-12-5.74-2.38-12.52-2.48-19.08-2.58-7.44-.11-15.14-.23-18.82-3.9s-3.79-11.38-3.9-18.82c-.1-6.56-.2-13.34-2.58-19.08-2.48-6-7.31-11-12-15.91C35.21,138.24,30,132.81,30,128s5.21-10.24,10.24-15.5c4.67-4.86,9.5-9.9,12-15.9,2.38-5.74,2.48-12.52,2.58-19.08.11-7.44.23-15.14,3.9-18.82s11.38-3.79,18.82-3.9c6.56-.1,13.34-.2,19.08-2.58,6-2.48,11-7.31,15.91-12C117.76,35.21,123.19,30,128,30s10.24,5.21,15.5,10.24c4.86,4.67,9.9,9.5,15.9,12,5.74,2.38,12.52,2.48,19.08,2.58,7.44.11,15.14.23,18.82,3.9s3.79,11.38,3.9,18.82c.1,6.56.2,13.34,2.58,19.08,2.48,6,7.31,11,12,15.91,5,5.25,10.24,10.68,10.24,15.49S220.79,138.24,215.76,143.5ZM172.24,99.76a6,6,0,0,1,0,8.48l-56,56a6,6,0,0,1-8.48,0l-24-24a6,6,0,0,1,8.48-8.48L112,151.51l51.76-51.75A6,6,0,0,1,172.24,99.76Z"/></svg></div><h3>Compliance Mapping</h3><p>ISO 27001 · SOC 2<br>NIST SP 800-53 · OWASP NHI Top 10</p></div>
-      </div>
-    </div>
-    <div class="acc">
-      <h3>Make Every Non&#8209;Human Identity Accountable.</h3>
-      <p>Discover. Govern. Detect. Protect.</p>
+    <h2 class="h2">How It Works</h2>
+    <div class="flow">
+      <div class="st"><div class="c"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M246,128a85.27,85.27,0,0,1-17.2,51.6,6,6,0,1,1-9.6-7.2A74,74,0,1,0,86,128a6,6,0,0,1-12,0,85.54,85.54,0,0,1,3.91-25.64A50.68,50.68,0,0,0,72,102a50,50,0,0,0,0,100H96a6,6,0,0,1,0,12H72A62,62,0,1,1,82.43,90.88,86,86,0,0,1,246,128Zm-66.24,43.76L158,193.51V128a6,6,0,0,0-12,0v65.51l-21.76-21.75a6,6,0,0,0-8.48,8.48l32,32a6,6,0,0,0,8.48,0l32-32a6,6,0,0,0-8.48-8.48Z"/></svg><span class="n">1</span></div><div><b>DISCOVER</b><p>Collect identity data and find every NHI.</p></div></div>
+      <div class="st"><div class="c"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M224,202H214V40a6,6,0,0,0-6-6H152a6,6,0,0,0-6,6V82H96a6,6,0,0,0-6,6v42H48a6,6,0,0,0-6,6v66H32a6,6,0,0,0,0,12H224a6,6,0,0,0,0-12ZM158,46h44V202H158ZM102,94h44V202H102ZM54,142H90v60H54Z"/></svg><span class="n">2</span></div><div><b>ANALYSE</b><p>Baseline behaviour and score each identity’s risk.</p></div></div>
+      <div class="st"><div class="c"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M208,42H48A14,14,0,0,0,34,56v56c0,51.94,25.12,83.4,46.2,100.64,22.73,18.6,45.27,24.89,46.22,25.15a6,6,0,0,0,3.16,0c.95-.26,23.49-6.55,46.22-25.15C196.88,195.4,222,163.94,222,112V56A14,14,0,0,0,208,42Zm2,70c0,37.76-13.94,68.39-41.44,91.06A131.17,131.17,0,0,1,128,225.72a130.94,130.94,0,0,1-40.56-22.66C59.94,180.39,46,149.76,46,112V56a2,2,0,0,1,2-2H208a2,2,0,0,1,2,2ZM172.24,99.76a6,6,0,0,1,0,8.48l-56,56a6,6,0,0,1-8.48,0l-24-24a6,6,0,0,1,8.48-8.48L112,151.51l51.76-51.75A6,6,0,0,1,172.24,99.76Z"/></svg><span class="n">3</span></div><div><b>DETECT</b><p>Spot misuse and anomalies as they happen.</p></div></div>
+      <div class="st"><div class="c"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M213.84,118.63a6,6,0,0,0-3.73-4.25L150.88,92.17l15-75a6,6,0,0,0-10.27-5.27l-112,120a6,6,0,0,0,2.28,9.71l59.23,22.21-15,75a6,6,0,0,0,3.14,6.52A6.07,6.07,0,0,0,96,246a6,6,0,0,0,4.39-1.91l112-120A6,6,0,0,0,213.84,118.63ZM106,220.46l11.85-59.28a6,6,0,0,0-3.77-6.8l-55.6-20.85,91.46-98L138.12,94.82a6,6,0,0,0,3.77,6.8l55.6,20.85Z"/></svg><span class="n">4</span></div><div><b>RESPOND</b><p>Trigger automated remediation.</p></div></div>
     </div>
   </section>
 
-  <!-- ============ FOOTER ============ -->
-  <footer class="foot">
-    <svg class="fw" viewBox="0 0 760 200" preserveAspectRatio="none" fill="none"><path d="M0,160 C150,120 300,200 460,130 S680,60 760,90" stroke="#4fb3ff" stroke-opacity="0.050" stroke-width="1"/><path d="M0,156 C150,113 300,197 460,124 S680,62 760,85" stroke="#4fb3ff" stroke-opacity="0.080" stroke-width="1"/><path d="M0,152 C150,106 300,194 460,118 S680,64 760,80" stroke="#4fb3ff" stroke-opacity="0.110" stroke-width="1"/><path d="M0,148 C150,99 300,191 460,112 S680,66 760,75" stroke="#4fb3ff" stroke-opacity="0.140" stroke-width="1"/><path d="M0,144 C150,92 300,188 460,106 S680,68 760,70" stroke="#4fb3ff" stroke-opacity="0.170" stroke-width="1"/><path d="M0,140 C150,85 300,185 460,100 S680,70 760,65" stroke="#4fb3ff" stroke-opacity="0.200" stroke-width="1"/><path d="M0,136 C150,78 300,182 460,94 S680,72 760,60" stroke="#4fb3ff" stroke-opacity="0.230" stroke-width="1"/><path d="M0,132 C150,71 300,179 460,88 S680,74 760,55" stroke="#4fb3ff" stroke-opacity="0.260" stroke-width="1"/><path d="M0,128 C150,64 300,176 460,82 S680,76 760,50" stroke="#4fb3ff" stroke-opacity="0.290" stroke-width="1"/><path d="M0,124 C150,57 300,173 460,76 S680,78 760,45" stroke="#4fb3ff" stroke-opacity="0.320" stroke-width="1"/><path d="M0,120 C150,50 300,170 460,70 S680,80 760,40" stroke="#4fb3ff" stroke-opacity="0.350" stroke-width="1"/><path d="M0,116 C150,43 300,167 460,64 S680,82 760,35" stroke="#4fb3ff" stroke-opacity="0.380" stroke-width="1"/><path d="M0,112 C150,36 300,164 460,58 S680,84 760,30" stroke="#4fb3ff" stroke-opacity="0.410" stroke-width="1"/><path d="M0,108 C150,29 300,161 460,52 S680,86 760,25" stroke="#4fb3ff" stroke-opacity="0.440" stroke-width="1"/></svg>
-    <div class="foot-in">
+  <!-- ============ BUILT FOR ENTERPRISE ============ -->
+  <section class="sec ent">
+    <h2 class="h2">Built for Enterprise Environments</h2>
+    <div class="egrid">
+      <div class="eb">
+        <h3><span class="i"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M160,42A86.11,86.11,0,0,0,82.43,90.88,62,62,0,1,0,72,214h88a86,86,0,0,0,0-172Zm0,160H72a50,50,0,0,1,0-100,50.67,50.67,0,0,1,5.91.35A85.61,85.61,0,0,0,74,128a6,6,0,0,0,12,0,74,74,0,1,1,74,74Z"/></svg></span>Deployment</h3>
+        <div class="dep">
+          <div><span class="i"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M160,42A86.11,86.11,0,0,0,82.43,90.88,62,62,0,1,0,72,214h88a86,86,0,0,0,0-172Zm0,160H72a50,50,0,0,1,0-100,50.67,50.67,0,0,1,5.91.35A85.61,85.61,0,0,0,74,128a6,6,0,0,0,12,0,74,74,0,1,1,74,74Z"/></svg></span>Cloud</div>
+          <div><span class="i"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M208,138H48a14,14,0,0,0-14,14v48a14,14,0,0,0,14,14H208a14,14,0,0,0,14-14V152A14,14,0,0,0,208,138Zm2,62a2,2,0,0,1-2,2H48a2,2,0,0,1-2-2V152a2,2,0,0,1,2-2H208a2,2,0,0,1,2,2ZM208,42H48A14,14,0,0,0,34,56v48a14,14,0,0,0,14,14H208a14,14,0,0,0,14-14V56A14,14,0,0,0,208,42Zm2,62a2,2,0,0,1-2,2H48a2,2,0,0,1-2-2V56a2,2,0,0,1,2-2H208a2,2,0,0,1,2,2ZM190,80a10,10,0,1,1-10-10A10,10,0,0,1,190,80Zm0,96a10,10,0,1,1-10-10A10,10,0,0,1,190,176Z"/></svg></span>On-Premises</div>
+          <div><span class="i"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M172.91,83.09a78,78,0,1,0-89.82,89.82,78,78,0,1,0,89.82-89.82ZM30,96A66,66,0,0,1,160.49,82H160a78.09,78.09,0,0,0-78,78c0,.17,0,.33,0,.49A66.1,66.1,0,0,1,30,96Zm64,64a65.62,65.62,0,0,1,6-27.49L123.49,156A65.62,65.62,0,0,1,96,162c-.65,0-1.3,0-2-.05C94,161.3,94,160.65,94,160Zm40.23-10.25-28-28a66.47,66.47,0,0,1,15.52-15.52l28,28A66.47,66.47,0,0,1,134.23,149.75ZM162,96a65.62,65.62,0,0,1-6,27.49L132.51,100A65.62,65.62,0,0,1,160,94c.65,0,1.3,0,1.95,0C162,94.7,162,95.35,162,96Zm-2,130a66.1,66.1,0,0,1-64.49-52H96a78.09,78.09,0,0,0,78-78c0-.17,0-.33,0-.49A66,66,0,0,1,160,226Z"/></svg></span>Hybrid</div>
+        </div>
+      </div>
+      <div class="eb">
+        <h3><span class="i"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M219.21,160.24a6,6,0,0,0-5.78-.35,22,22,0,1,1-11.05-41.83,22.15,22.15,0,0,1,11.05,2.06A6,6,0,0,0,222,114.7V72a14,14,0,0,0-14-14H169.48a35,35,0,0,0,.52-6,34.1,34.1,0,0,0-10.73-24.78,33.64,33.64,0,0,0-25.45-9.15A34,34,0,0,0,102.54,58H64A14,14,0,0,0,50,72v34.53a34,34,0,0,0-30.79,10.2,34,34,0,0,0,22.31,57.18,34.34,34.34,0,0,0,8.48-.44V208a14,14,0,0,0,14,14H208a14,14,0,0,0,14-14V165.31A6,6,0,0,0,219.21,160.24ZM210,208a2,2,0,0,1-2,2H64a2,2,0,0,1-2-2V165.31a6,6,0,0,0-6-6,5.92,5.92,0,0,0-2.57.58,22,22,0,0,1-31.38-18.46,22,22,0,0,1,31.38-21.31A6,6,0,0,0,62,114.7V72a2,2,0,0,1,2-2h46.69a6,6,0,0,0,5.42-8.57,22.25,22.25,0,0,1-2-11,22,22,0,1,1,41.83,11A6,6,0,0,0,161.3,70H208a2,2,0,0,1,2,2v34.54a34,34,0,0,0-39.93,31.28,33.71,33.71,0,0,0,9.14,25.45A34.15,34.15,0,0,0,210,173.48Z"/></svg></span>Integrations</h3>
+        <div class="wall">
+          <div><span class="i"><svg class="ico" fill="currentColor" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>Amazon AWS</title><path d="M6.763 10.036c0 .296.032.535.088.71.064.176.144.368.256.576.04.063.056.127.056.183 0 .08-.048.16-.152.24l-.503.335a.383.383 0 0 1-.208.072c-.08 0-.16-.04-.239-.112a2.47 2.47 0 0 1-.287-.375 6.18 6.18 0 0 1-.248-.471c-.622.734-1.405 1.101-2.347 1.101-.67 0-1.205-.191-1.596-.574-.391-.384-.59-.894-.59-1.533 0-.678.239-1.23.726-1.644.487-.415 1.133-.623 1.955-.623.272 0 .551.024.846.064.296.04.6.104.918.176v-.583c0-.607-.127-1.03-.375-1.277-.255-.248-.686-.367-1.3-.367-.28 0-.568.031-.863.103-.295.072-.583.16-.862.272a2.287 2.287 0 0 1-.28.104.488.488 0 0 1-.127.023c-.112 0-.168-.08-.168-.247v-.391c0-.128.016-.224.056-.28a.597.597 0 0 1 .224-.167c.279-.144.614-.264 1.005-.36a4.84 4.84 0 0 1 1.246-.151c.95 0 1.644.216 2.091.647.439.43.662 1.085.662 1.963v2.586zm-3.24 1.214c.263 0 .534-.048.822-.144.287-.096.543-.271.758-.51.128-.152.224-.32.272-.512.047-.191.08-.423.08-.694v-.335a6.66 6.66 0 0 0-.735-.136 6.02 6.02 0 0 0-.75-.048c-.535 0-.926.104-1.19.32-.263.215-.39.518-.39.917 0 .375.095.655.295.846.191.2.47.296.838.296zm6.41.862c-.144 0-.24-.024-.304-.08-.064-.048-.12-.16-.168-.311L7.586 5.55a1.398 1.398 0 0 1-.072-.32c0-.128.064-.2.191-.2h.783c.151 0 .255.025.31.08.065.048.113.16.16.312l1.342 5.284 1.245-5.284c.04-.16.088-.264.151-.312a.549.549 0 0 1 .32-.08h.638c.152 0 .256.025.32.08.063.048.12.16.151.312l1.261 5.348 1.381-5.348c.048-.16.104-.264.16-.312a.52.52 0 0 1 .311-.08h.743c.127 0 .2.065.2.2 0 .04-.009.08-.017.128a1.137 1.137 0 0 1-.056.2l-1.923 6.17c-.048.16-.104.263-.168.311a.51.51 0 0 1-.303.08h-.687c-.151 0-.255-.024-.32-.08-.063-.056-.119-.16-.15-.32l-1.238-5.148-1.23 5.14c-.04.16-.087.264-.15.32-.065.056-.177.08-.32.08zm10.256.215c-.415 0-.83-.048-1.229-.143-.399-.096-.71-.2-.918-.32-.128-.071-.215-.151-.247-.223a.563.563 0 0 1-.048-.224v-.407c0-.167.064-.247.183-.247.048 0 .096.008.144.024.048.016.12.048.2.08.271.12.566.215.878.279.319.064.63.096.95.096.502 0 .894-.088 1.165-.264a.86.86 0 0 0 .415-.758.777.777 0 0 0-.215-.559c-.144-.151-.416-.287-.807-.415l-1.157-.36c-.583-.183-1.014-.454-1.277-.813a1.902 1.902 0 0 1-.4-1.158c0-.335.073-.63.216-.886.144-.255.335-.479.575-.654.24-.184.51-.32.83-.415.32-.096.655-.136 1.006-.136.175 0 .359.008.535.032.183.024.35.056.518.088.16.04.312.08.455.127.144.048.256.096.336.144a.69.69 0 0 1 .24.2.43.43 0 0 1 .071.263v.375c0 .168-.064.256-.184.256a.83.83 0 0 1-.303-.096 3.652 3.652 0 0 0-1.532-.311c-.455 0-.815.071-1.062.223-.248.152-.375.383-.375.71 0 .224.08.416.24.567.159.152.454.304.877.44l1.134.358c.574.184.99.44 1.237.767.247.327.367.702.367 1.117 0 .343-.072.655-.207.926-.144.272-.336.511-.583.703-.248.2-.543.343-.886.447-.36.111-.734.167-1.142.167zM21.698 16.207c-2.626 1.94-6.442 2.969-9.722 2.969-4.598 0-8.74-1.7-11.87-4.526-.247-.223-.024-.527.272-.351 3.384 1.963 7.559 3.153 11.877 3.153 2.914 0 6.114-.607 9.06-1.852.439-.2.814.287.383.607zM22.792 14.961c-.336-.43-2.22-.207-3.074-.103-.255.032-.295-.192-.063-.36 1.5-1.053 3.967-.75 4.254-.399.287.36-.08 2.826-1.485 4.007-.215.184-.423.088-.327-.151.32-.79 1.03-2.57.695-2.994z"/></svg></span>AWS</div>
+          <div><span class="i"><svg class="ico" fill="currentColor" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>Microsoft Azure</title><path d="M22.379 23.343a1.62 1.62 0 0 0 1.536-2.14v.002L17.35 1.76A1.62 1.62 0 0 0 15.816.657H8.184A1.62 1.62 0 0 0 6.65 1.76L.086 21.204a1.62 1.62 0 0 0 1.536 2.139h4.741a1.62 1.62 0 0 0 1.535-1.103l.977-2.892 4.947 3.675c.28.208.618.32.966.32m-3.084-12.531 3.624 10.739a.54.54 0 0 1-.51.713v-.001h-.03a.54.54 0 0 1-.322-.106l-9.287-6.9h4.853m6.313 7.006c.116-.326.13-.694.007-1.058L9.79 1.76a1.722 1.722 0 0 0-.007-.02h6.034a.54.54 0 0 1 .512.366l6.562 19.445a.54.54 0 0 1-.338.684"/></svg></span>Azure</div>
+          <div><span class="i"><svg class="ico" fill="currentColor" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>Google Cloud</title><path d="M12.19 2.38a9.344 9.344 0 0 0-9.234 6.893c.053-.02-.055.013 0 0-3.875 2.551-3.922 8.11-.247 10.941l.006-.007-.007.03a6.717 6.717 0 0 0 4.077 1.356h5.173l.03.03h5.192c6.687.053 9.376-8.605 3.835-12.35a9.365 9.365 0 0 0-2.821-4.552l-.043.043.006-.05A9.344 9.344 0 0 0 12.19 2.38zm-.358 4.146c1.244-.04 2.518.368 3.486 1.15a5.186 5.186 0 0 1 1.862 4.078v.518c3.53-.07 3.53 5.262 0 5.193h-5.193l-.008.009v-.04H6.785a2.59 2.59 0 0 1-1.067-.23h.001a2.597 2.597 0 1 1 3.437-3.437l3.013-3.012A6.747 6.747 0 0 0 8.11 8.24c.018-.01.04-.026.054-.023a5.186 5.186 0 0 1 3.67-1.69z"/></svg></span>Google Cloud</div>
+          <div><span class="i"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M216,42H72A14,14,0,0,0,58,56V74H40A14,14,0,0,0,26,88V200a14,14,0,0,0,14,14H184a14,14,0,0,0,14-14V182h18a14,14,0,0,0,14-14V56A14,14,0,0,0,216,42ZM40,86H184a2,2,0,0,1,2,2v18H38V88A2,2,0,0,1,40,86ZM186,200a2,2,0,0,1-2,2H40a2,2,0,0,1-2-2V118H186Zm32-32a2,2,0,0,1-2,2H198V88a14,14,0,0,0-14-14H70V56a2,2,0,0,1,2-2H216a2,2,0,0,1,2,2Z"/></svg></span>SaaS Apps</div>
+          <div><span class="i"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M122,16V8a6,6,0,0,1,12,0v8a6,6,0,0,1-12,0Zm78,30a6,6,0,0,0,4.24-1.76l8-8a6,6,0,1,0-8.48-8.48l-8,8A6,6,0,0,0,200,46ZM51.76,44.24a6,6,0,0,0,8.48-8.48l-8-8a6,6,0,0,0-8.48,8.48ZM137,74.08a6,6,0,1,0-2,11.84c20,3.34,35,21.44,35,42.08a6,6,0,0,0,12,0C182,101.57,162.65,78.39,137,74.08ZM230,176v24a14,14,0,0,1-14,14H40a14,14,0,0,1-14-14V176a14,14,0,0,1,14-14h2V128a86,86,0,0,1,86-86h.65c47.06.35,85.35,39.38,85.35,87v33h2A14,14,0,0,1,230,176ZM54,162H202V129c0-41-32.94-74.7-73.44-75H128a74,74,0,0,0-74,74Zm164,14a2,2,0,0,0-2-2H40a2,2,0,0,0-2,2v24a2,2,0,0,0,2,2H216a2,2,0,0,0,2-2Z"/></svg></span>SIEM / SOAR</div>
+          <div><span class="i"><svg class="ico" fill="currentColor" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>Jira</title><path d="M11.571 11.513H0a5.218 5.218 0 0 0 5.232 5.215h2.13v2.057A5.215 5.215 0 0 0 12.575 24V12.518a1.005 1.005 0 0 0-1.005-1.005zm5.723-5.756H5.736a5.215 5.215 0 0 0 5.215 5.214h2.129v2.058a5.218 5.218 0 0 0 5.215 5.214V6.758a1.001 1.001 0 0 0-1.001-1.001zM23.013 0H11.455a5.215 5.215 0 0 0 5.215 5.215h2.129v2.057A5.215 5.215 0 0 0 24 12.483V1.005A1.001 1.001 0 0 0 23.013 0Z"/></svg></span>Jira</div>
+          <div><span class="i"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M232,102a6,6,0,0,0,6-6V64a14,14,0,0,0-14-14H32A14,14,0,0,0,18,64V96a6,6,0,0,0,6,6,26,26,0,0,1,0,52,6,6,0,0,0-6,6v32a14,14,0,0,0,14,14H224a14,14,0,0,0,14-14V160a6,6,0,0,0-6-6,26,26,0,0,1,0-52ZM30,192V165.53a38,38,0,0,0,0-75.06V64a2,2,0,0,1,2-2H90V194H32A2,2,0,0,1,30,192Zm196-26.47V192a2,2,0,0,1-2,2H102V62H224a2,2,0,0,1,2,2V90.47a38,38,0,0,0,0,75.06Z"/></svg></span>ServiceNow</div>
+          <div><span class="i"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M67.84,92.61,25.37,128l42.47,35.39a6,6,0,1,1-7.68,9.22l-48-40a6,6,0,0,1,0-9.22l48-40a6,6,0,0,1,7.68,9.22Zm176,30.78-48-40a6,6,0,1,0-7.68,9.22L230.63,128l-42.47,35.39a6,6,0,1,0,7.68,9.22l48-40a6,6,0,0,0,0-9.22Zm-81.79-89A6,6,0,0,0,154.36,38l-64,176A6,6,0,0,0,94,221.64a6.15,6.15,0,0,0,2,.36,6,6,0,0,0,5.64-3.95l64-176A6,6,0,0,0,162.05,34.36Z"/></svg></span>APIs &amp; Code</div>
+        </div>
+      </div>
+      <div class="eb">
+        <h3><span class="i"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M224.42,104.2c-3.9-4.07-7.93-8.27-9.55-12.18-1.5-3.63-1.58-9-1.67-14.68-.14-9.38-.3-20-7.42-27.12S188,42.94,178.66,42.8c-5.68-.09-11-.17-14.68-1.67-3.91-1.62-8.11-5.65-12.18-9.55C145.16,25.22,137.64,18,128,18s-17.16,7.22-23.8,13.58c-4.07,3.9-8.27,7.93-12.18,9.55-3.63,1.5-9,1.58-14.68,1.67-9.38.14-20,.3-27.12,7.42S42.94,68,42.8,77.34c-.09,5.68-.17,11-1.67,14.68-1.62,3.91-5.65,8.11-9.55,12.18C25.22,110.84,18,118.36,18,128s7.22,17.16,13.58,23.8c3.9,4.07,7.93,8.27,9.55,12.18,1.5,3.63,1.58,9,1.67,14.68.14,9.38.3,20,7.42,27.12S68,213.06,77.34,213.2c5.68.09,11,.17,14.68,1.67,3.91,1.62,8.11,5.65,12.18,9.55C110.84,230.78,118.36,238,128,238s17.16-7.22,23.8-13.58c4.07-3.9,8.27-7.93,12.18-9.55,3.63-1.5,9-1.58,14.68-1.67,9.38-.14,20-.3,27.12-7.42s7.28-17.74,7.42-27.12c.09-5.68.17-11,1.67-14.68,1.62-3.91,5.65-8.11,9.55-12.18C230.78,145.16,238,137.64,238,128S230.78,110.84,224.42,104.2Zm-8.66,39.3c-4.67,4.86-9.5,9.9-12,15.9-2.38,5.74-2.48,12.52-2.58,19.08-.11,7.44-.23,15.14-3.9,18.82s-11.38,3.79-18.82,3.9c-6.56.1-13.34.2-19.08,2.58-6,2.48-11,7.31-15.91,12-5.25,5-10.68,10.24-15.49,10.24s-10.24-5.21-15.5-10.24c-4.86-4.67-9.9-9.5-15.9-12-5.74-2.38-12.52-2.48-19.08-2.58-7.44-.11-15.14-.23-18.82-3.9s-3.79-11.38-3.9-18.82c-.1-6.56-.2-13.34-2.58-19.08-2.48-6-7.31-11-12-15.91C35.21,138.24,30,132.81,30,128s5.21-10.24,10.24-15.5c4.67-4.86,9.5-9.9,12-15.9,2.38-5.74,2.48-12.52,2.58-19.08.11-7.44.23-15.14,3.9-18.82s11.38-3.79,18.82-3.9c6.56-.1,13.34-.2,19.08-2.58,6-2.48,11-7.31,15.91-12C117.76,35.21,123.19,30,128,30s10.24,5.21,15.5,10.24c4.86,4.67,9.9,9.5,15.9,12,5.74,2.38,12.52,2.48,19.08,2.58,7.44.11,15.14.23,18.82,3.9s3.79,11.38,3.9,18.82c.1,6.56.2,13.34,2.58,19.08,2.48,6,7.31,11,12,15.91,5,5.25,10.24,10.68,10.24,15.49S220.79,138.24,215.76,143.5ZM172.24,99.76a6,6,0,0,1,0,8.48l-56,56a6,6,0,0,1-8.48,0l-24-24a6,6,0,0,1,8.48-8.48L112,151.51l51.76-51.75A6,6,0,0,1,172.24,99.76Z"/></svg></span>Compliance Mapping</h3>
+        <div class="seals">
+          <div class="seal"><div class="s">ISO<br>27001</div><span>Information security</span></div>
+          <div class="seal"><div class="s">SOC<br>2</div><span>Trust services criteria</span></div>
+          <div class="seal"><div class="s">NIST<br>800-53</div><span>Security controls</span></div>
+          <div class="seal"><div class="s">OWASP<br>NHI 10</div><span>NHI Top 10 risks</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CLOSING ============ -->
+  <footer class="close">
+    <div class="ph"></div>
+    <div class="close-top">
       <div>
-        <p class="tag" style="font-size:24px">Protecting identities, <em>securing intelligence</em>, empowering enterprises.</p>
-        <div class="by">A product of <img src="../assets/brand/deep-algorithms-lockup-inverse.png" alt="Deep Algorithms"></div>
+        <h2>Make Every <em>Non&#8209;Human Identity</em> Accountable.</h2>
+        <div class="verbs"><span>DISCOVER</span><i><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M220.24,132.24l-72,72a6,6,0,0,1-8.48-8.48L201.51,134H40a6,6,0,0,1,0-12H201.51L139.76,60.24a6,6,0,0,1,8.48-8.48l72,72A6,6,0,0,1,220.24,132.24Z"/></svg></i><span>GOVERN</span><i><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M220.24,132.24l-72,72a6,6,0,0,1-8.48-8.48L201.51,134H40a6,6,0,0,1,0-12H201.51L139.76,60.24a6,6,0,0,1,8.48-8.48l72,72A6,6,0,0,1,220.24,132.24Z"/></svg></i><span>DETECT</span><i><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M220.24,132.24l-72,72a6,6,0,0,1-8.48-8.48L201.51,134H40a6,6,0,0,1,0-12H201.51L139.76,60.24a6,6,0,0,1,8.48-8.48l72,72A6,6,0,0,1,220.24,132.24Z"/></svg></i><span>PROTECT</span></div>
       </div>
       <div class="contacts">
         <div class="ct"><svg class="ci" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M128,26A102,102,0,1,0,230,128,102.12,102.12,0,0,0,128,26Zm81.57,64H169.19a132.58,132.58,0,0,0-25.73-50.67A90.29,90.29,0,0,1,209.57,90ZM218,128a89.7,89.7,0,0,1-3.83,26H171.81a155.43,155.43,0,0,0,0-52h42.36A89.7,89.7,0,0,1,218,128Zm-90,87.83a110,110,0,0,1-15.19-19.45A124.24,124.24,0,0,1,99.35,166h57.3a124.24,124.24,0,0,1-13.46,30.38A110,110,0,0,1,128,215.83ZM96.45,154a139.18,139.18,0,0,1,0-52h63.1a139.18,139.18,0,0,1,0,52ZM38,128a89.7,89.7,0,0,1,3.83-26H84.19a155.43,155.43,0,0,0,0,52H41.83A89.7,89.7,0,0,1,38,128Zm90-87.83a110,110,0,0,1,15.19,19.45A124.24,124.24,0,0,1,156.65,90H99.35a124.24,124.24,0,0,1,13.46-30.38A110,110,0,0,1,128,40.17Zm-15.46-.84A132.58,132.58,0,0,0,86.81,90H46.43A90.29,90.29,0,0,1,112.54,39.33ZM46.43,166H86.81a132.58,132.58,0,0,0,25.73,50.67A90.29,90.29,0,0,1,46.43,166Zm97,50.67A132.58,132.58,0,0,0,169.19,166h40.38A90.29,90.29,0,0,1,143.46,216.67Z"/></svg>deepalgorithms.io</div>
@@ -225,6 +260,10 @@
         <div class="ct"><svg class="ci" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M128,66a38,38,0,1,0,38,38A38,38,0,0,0,128,66Zm0,64a26,26,0,1,1,26-26A26,26,0,0,1,128,130Zm0-112a86.1,86.1,0,0,0-86,86c0,30.91,14.34,63.74,41.47,94.94a252.32,252.32,0,0,0,41.09,38,6,6,0,0,0,6.88,0,252.32,252.32,0,0,0,41.09-38c27.13-31.2,41.47-64,41.47-94.94A86.1,86.1,0,0,0,128,18Zm0,206.51C113,212.93,54,163.62,54,104a74,74,0,0,1,148,0C202,163.62,143,212.93,128,224.51Z"/></svg>Hyderabad, India</div>
         <div class="ct"><svg class="ci" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M216,26H40A14,14,0,0,0,26,40V216a14,14,0,0,0,14,14H216a14,14,0,0,0,14-14V40A14,14,0,0,0,216,26Zm2,190a2,2,0,0,1-2,2H40a2,2,0,0,1-2-2V40a2,2,0,0,1,2-2H216a2,2,0,0,1,2,2ZM94,112v64a6,6,0,0,1-12,0V112a6,6,0,0,1,12,0Zm88,28v36a6,6,0,0,1-12,0V140a22,22,0,0,0-44,0v36a6,6,0,0,1-12,0V112a6,6,0,0,1,12,0v2.11A34,34,0,0,1,182,140ZM98,84A10,10,0,1,1,88,74,10,10,0,0,1,98,84Z"/></svg>deepalgorithms.in</div>
       </div>
+    </div>
+    <div class="close-bar">
+      <p class="tl">Protecting identities, <em>securing intelligence</em>, empowering enterprises.</p>
+      <div class="by">A product of <img src="../assets/brand/deep-algorithms-lockup-inverse.png" alt="Deep Algorithms"></div>
     </div>
   </footer>
 </div>
