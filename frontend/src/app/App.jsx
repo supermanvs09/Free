@@ -24,6 +24,7 @@ const ScanChangesPage = lazy(() => import('../features/changes/ScanChangesPage')
 const IdentityPage = lazy(() => import('../features/identities/IdentityPage'));
 const IdentitiesPage = lazy(() => import('../features/identities/IdentitiesPage'));
 const CredentialsPage = lazy(() => import('../features/credentials/CredentialsPage'));
+const PeoplePage = lazy(() => import('../features/people/PeoplePage'));
 const FindingsPage = lazy(() => import('../features/exposure/FindingsPage'));
 const DismissedPage = lazy(() => import('../features/exposure/DismissedPage'));
 const ActivityPage = lazy(() => import('../features/activity/ActivityPage'));
@@ -76,6 +77,7 @@ export default function App() {
                 <Route path="/identities" element={<Screen><IdentitiesPage /></Screen>} />
                 <Route path="/identities/:id" element={<Screen><IdentityPage /></Screen>} />
                 <Route path="/credentials" element={<Screen><CredentialsPage /></Screen>} />
+                <Route path="/people" element={<Screen><PeoplePage /></Screen>} />
                 <Route
                   path="/exposure"
                   element={

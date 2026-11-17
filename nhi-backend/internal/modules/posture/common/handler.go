@@ -317,7 +317,7 @@ func RuleIDOK(w http.ResponseWriter, id string) (string, bool) {
 // identityFilterParams are the filter parameters shared by /identities,
 // /identities/facets and /posture/export.
 var IdentityFilterParams = []string{
-	"window", "band", "severity", "category", "account", "type", "pillar", "failing_check", "changed", "q",
+	"window", "identity_class", "band", "severity", "category", "account", "type", "pillar", "failing_check", "changed", "q",
 }
 
 // parseIdentityFilter validates the shared filter parameters. withSort adds
@@ -326,6 +326,9 @@ func ParseIdentityFilter(w http.ResponseWriter, q url.Values, withSort bool) (Id
 	var f IdentityFilter
 	var ok bool
 	if f.Window, ok = ParseWindowParam(w, q); !ok {
+		return f, false
+	}
+	if f.Classes, ok = CsvEnum(w, q, "identity_class", IdentityClasses); !ok {
 		return f, false
 	}
 	if f.Bands, ok = CsvEnum(w, q, "band", Bands); !ok {

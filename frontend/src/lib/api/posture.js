@@ -86,8 +86,8 @@ const list = (value) => (Array.isArray(value) ? value : []);
 
 /* ── Fleet ──────────────────────────────────────────────────────────────── */
 
-export async function fetchPostureOverview({ window } = {}, signal) {
-  const { data, meta } = await get('/posture/overview', { window }, signal);
+export async function fetchPostureOverview({ window, identityClass } = {}, signal) {
+  const { data, meta } = await get('/posture/overview', { window, identity_class: identityClass || undefined }, signal);
   return { overview: data ?? {}, meta };
 }
 
@@ -116,6 +116,8 @@ function filterQuery(filters = {}) {
   const runes = [...q].length;
   return {
     window: filters.window,
+    /* HI (people) or NHI (workloads); none = both. */
+    identity_class: filters.identity_class,
     band: filters.band,
     severity: filters.severity,
     category: filters.category,

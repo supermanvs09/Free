@@ -144,4 +144,7 @@ type PillarScore struct {
 var (
 	Bands      = []string{"HEALTHY", "FAIR", "POOR", "CRITICAL"}
 	Severities = []string{"Critical", "High", "Medium", "Low"}
+	// IdentityClasses: HI is a human identity, NHI a non-human one. Rows
+	// written before the class existed read as NHI.
+	IdentityClasses = []string{"HI", "NHI"}
 )

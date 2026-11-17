@@ -48,7 +48,9 @@ type cacheRow struct {
 // copy the worker also keeps in Redis). The trend and the "change compared
 // with" value follow the window rules: per-scan snapshots for 24h/3d/7d, one
 // daily row for 30d/60d/90d.
-func (r *PostureOverviewRepository) Get(ctx context.Context, s *scope.DataScope, w common.Window) (*PostureOverview, common.Meta, error) {
+// class is "" (as before), "HI" or "NHI": every figure below then counts only
+// that class, so the score, the trend and the lists agree with the table.
+func (r *PostureOverviewRepository) Get(ctx context.Context, s *scope.DataScope, w common.Window, class string) (*PostureOverview, common.Meta, error) {
 	if err := common.Need(s); err != nil {
 		return nil, common.Meta{}, err
 	}
@@ -64,7 +66,7 @@ func (r *PostureOverviewRepository) Get(ctx context.Context, s *scope.DataScope,
 	}
 	meta := common.Meta{Window: w.Label}
 
-	row, err := r.latestCacheRow(ctx, s)
+	row, err := r.latestCacheRow(ctx, s, class)
 	if errors.Is(err, sql.ErrNoRows) || (err != nil && common.IsUndefinedTable(err)) {
 		return out, meta, nil // nothing computed yet
 	}
@@ -85,7 +87,7 @@ func (r *PostureOverviewRepository) Get(ctx context.Context, s *scope.DataScope,
 	out.IdentitiesWith = parseIdentitiesWith(row.with)
 
 	if out.Fleet.Score != nil && row.snapshot.Valid {
-		prev, err := r.previousFleetScore(ctx, s, row.snapshot.Time, w.Days)
+		prev, err := r.previousFleetScore(ctx, s, row.snapshot.Time, w.Days, class)
 		if err != nil {
 			return nil, meta, err
 		}
@@ -96,7 +98,7 @@ func (r *PostureOverviewRepository) Get(ctx context.Context, s *scope.DataScope,
 		}
 	}
 
-	if out.Trend, err = r.trend(ctx, s, w, row.snapshot); err != nil {
+	if out.Trend, err = r.trend(ctx, s, w, row.snapshot, class); err != nil {
 		return nil, meta, err
 	}
 	if out.Pillars, err = r.pillars(ctx, s, row.pillars); err != nil {
@@ -105,36 +107,36 @@ func (r *PostureOverviewRepository) Get(ctx context.Context, s *scope.DataScope,
 	if out.QuickWins, err = r.quickWins(ctx, s, row.wins); err != nil {
 		return nil, meta, err
 	}
-	if out.WeakestIdentities, err = r.weakest(ctx, s); err != nil {
+	if out.WeakestIdentities, err = r.weakest(ctx, s, class); err != nil {
 		return nil, meta, err
 	}
 
 	out.ByCategory = parseCategoryStats(row.byClass, w)
 	if len(out.ByCategory) == 0 {
-		if out.ByCategory, err = r.liveCategoryStats(ctx, s, w); err != nil {
+		if out.ByCategory, err = r.liveCategoryStats(ctx, s, w, class); err != nil {
 			return nil, meta, err
 		}
 	}
 	out.ByAccount = parseAccountStats(row.byAccount, w)
 	if len(out.ByAccount) == 0 {
-		if out.ByAccount, err = r.liveAccountStats(ctx, s, w); err != nil {
+		if out.ByAccount, err = r.liveAccountStats(ctx, s, w, class); err != nil {
 			return nil, meta, err
 		}
 	}
 	return out, meta, nil
 }
 
-func (r *PostureOverviewRepository) latestCacheRow(ctx context.Context, s *scope.DataScope) (*cacheRow, error) {
+func (r *PostureOverviewRepository) latestCacheRow(ctx context.Context, s *scope.DataScope, class string) (*cacheRow, error) {
 	q := fmt.Sprintf(`SELECT snapshot_date, computed_at, last_scan_id::text,
 			fleet_score, fleet_grade, fleet_band, identities_scored,
 			band_healthy, band_fair, band_poor, band_critical,
 			identities_with, pillar_summary, quick_wins, by_functional_class, by_account_mean
 		FROM %s
-		WHERE tenant_id = $1
+		WHERE tenant_id = $1`+classSQL(class, 2)+`
 		ORDER BY snapshot_date DESC, computed_at DESC
 		LIMIT 1`, s.Table(common.TDashboardCache))
 	var c cacheRow
-	err := s.DB.QueryRowContext(ctx, q, s.TenantID).Scan(
+	err := s.DB.QueryRowContext(ctx, q, classArgs(s.TenantID, class)...).Scan(
 		&c.snapshot, &c.computed, &c.scanID,
 		&c.score, &c.grade, &c.band, &c.scored,
 		&c.healthy, &c.fair, &c.poor, &c.critical,
@@ -150,12 +152,12 @@ func (r *PostureOverviewRepository) latestCacheRow(ctx context.Context, s *scope
 
 // previousFleetScore is the daily fleet score from `days` days before the
 // current snapshot, or nil when the history is not that long yet.
-func (r *PostureOverviewRepository) previousFleetScore(ctx context.Context, s *scope.DataScope, current time.Time, days int) (*float64, error) {
+func (r *PostureOverviewRepository) previousFleetScore(ctx context.Context, s *scope.DataScope, current time.Time, days int, class string) (*float64, error) {
 	q := fmt.Sprintf(`SELECT fleet_score FROM %s
-		WHERE tenant_id = $1 AND snapshot_date <= $2::date - $3::int AND fleet_score IS NOT NULL
+		WHERE tenant_id = $1 AND snapshot_date <= $2::date - $3::int AND fleet_score IS NOT NULL`+classSQL(class, 4)+`
 		ORDER BY snapshot_date DESC LIMIT 1`, s.Table(common.TDashboardCache))
 	var v sql.NullFloat64
-	err := s.DB.QueryRowContext(ctx, q, s.TenantID, current, days).Scan(&v)
+	err := s.DB.QueryRowContext(ctx, q, classArgs(s.TenantID, class, current, days)...).Scan(&v)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -166,13 +168,13 @@ func (r *PostureOverviewRepository) previousFleetScore(ctx context.Context, s *s
 }
 
 // trend: one point per scan for 24h/3d/7d, one per day for 30d/60d/90d.
-func (r *PostureOverviewRepository) trend(ctx context.Context, s *scope.DataScope, w common.Window, current sql.NullTime) ([]TrendPoint, error) {
+func (r *PostureOverviewRepository) trend(ctx context.Context, s *scope.DataScope, w common.Window, current sql.NullTime, class string) ([]TrendPoint, error) {
 	out := make([]TrendPoint, 0, 64)
 	if w.PerScan {
 		q := fmt.Sprintf(`SELECT captured_at, fleet_score FROM %s
-			WHERE tenant_id = $1 AND captured_at >= $2 AND fleet_score IS NOT NULL
+			WHERE tenant_id = $1 AND captured_at >= $2 AND fleet_score IS NOT NULL`+classSQL(class, 3)+`
 			ORDER BY captured_at`, s.Table(common.TSnapshots))
-		rows, err := s.DB.QueryContext(ctx, q, s.TenantID, time.Now().Add(-w.Duration))
+		rows, err := s.DB.QueryContext(ctx, q, classArgs(s.TenantID, class, time.Now().Add(-w.Duration))...)
 		if err != nil {
 			return nil, fmt.Errorf("load posture snapshots: %w", err)
 		}
@@ -193,9 +195,9 @@ func (r *PostureOverviewRepository) trend(ctx context.Context, s *scope.DataScop
 		anchor = current.Time
 	}
 	q := fmt.Sprintf(`SELECT snapshot_date, fleet_score FROM %s
-		WHERE tenant_id = $1 AND snapshot_date >= $2::date - $3::int AND fleet_score IS NOT NULL
+		WHERE tenant_id = $1 AND snapshot_date >= $2::date - $3::int AND fleet_score IS NOT NULL`+classSQL(class, 4)+`
 		ORDER BY snapshot_date`, s.Table(common.TDashboardCache))
-	rows, err := s.DB.QueryContext(ctx, q, s.TenantID, anchor, w.Days)
+	rows, err := s.DB.QueryContext(ctx, q, classArgs(s.TenantID, class, anchor, w.Days)...)
 	if err != nil {
 		return nil, fmt.Errorf("load daily fleet scores: %w", err)
 	}
@@ -357,13 +359,13 @@ func (r *PostureOverviewRepository) quickWins(ctx context.Context, s *scope.Data
 
 // weakest returns the lowest-scoring identities straight from the posture
 // table (indexed by score).
-func (r *PostureOverviewRepository) weakest(ctx context.Context, s *scope.DataScope) ([]WeakIdentity, error) {
+func (r *PostureOverviewRepository) weakest(ctx context.Context, s *scope.DataScope, class string) ([]WeakIdentity, error) {
 	q := fmt.Sprintf(`SELECT identity_id, COALESCE(identity_name, ''), functional_class,
 			COALESCE(NULLIF(account_name, ''), account_id, ''), score, COALESCE(band, ''), COALESCE(checks_failed, 0)
-		FROM %s WHERE tenant_id = $1
+		FROM %s WHERE tenant_id = $1`+classSQL(class, 2)+`
 		ORDER BY score ASC, identity_name ASC, identity_id ASC
 		LIMIT %d`, s.Table(common.TIdentityPosture), weakestIdentityCount)
-	rows, err := s.DB.QueryContext(ctx, q, s.TenantID)
+	rows, err := s.DB.QueryContext(ctx, q, classArgs(s.TenantID, class)...)
 	if err != nil {
 		return nil, fmt.Errorf("load weakest identities: %w", err)
 	}
@@ -444,11 +446,11 @@ func parseAccountStats(raw []byte, w common.Window) []AccountStat {
 // liveCategoryStats is the fallback when the cached JSON is empty: group the
 // posture table by functional class. The change is the mean of the identities'
 // own score change in the window.
-func (r *PostureOverviewRepository) liveCategoryStats(ctx context.Context, s *scope.DataScope, w common.Window) ([]CategoryStat, error) {
+func (r *PostureOverviewRepository) liveCategoryStats(ctx context.Context, s *scope.DataScope, w common.Window, class string) ([]CategoryStat, error) {
 	q := fmt.Sprintf(`SELECT functional_class, count(*)::int, avg(score), avg(%s)
-		FROM %s WHERE tenant_id = $1 AND functional_class IS NOT NULL AND functional_class <> ''
+		FROM %s WHERE tenant_id = $1 AND functional_class IS NOT NULL AND functional_class <> ''`+classSQL(class, 2)+`
 		GROUP BY functional_class ORDER BY avg(score) ASC, functional_class`, w.ChangeColumn, s.Table(common.TIdentityPosture))
-	rows, err := s.DB.QueryContext(ctx, q, s.TenantID)
+	rows, err := s.DB.QueryContext(ctx, q, classArgs(s.TenantID, class)...)
 	if err != nil {
 		return nil, fmt.Errorf("load category stats: %w", err)
 	}
@@ -469,11 +471,11 @@ func (r *PostureOverviewRepository) liveCategoryStats(ctx context.Context, s *sc
 	return out, rows.Err()
 }
 
-func (r *PostureOverviewRepository) liveAccountStats(ctx context.Context, s *scope.DataScope, w common.Window) ([]AccountStat, error) {
+func (r *PostureOverviewRepository) liveAccountStats(ctx context.Context, s *scope.DataScope, w common.Window, class string) ([]AccountStat, error) {
 	q := fmt.Sprintf(`SELECT COALESCE(NULLIF(max(account_name), ''), account_id), count(*)::int, avg(score), avg(%s)
-		FROM %s WHERE tenant_id = $1 AND account_id IS NOT NULL
+		FROM %s WHERE tenant_id = $1 AND account_id IS NOT NULL`+classSQL(class, 2)+`
 		GROUP BY account_id ORDER BY avg(score) ASC, account_id`, w.ChangeColumn, s.Table(common.TIdentityPosture))
-	rows, err := s.DB.QueryContext(ctx, q, s.TenantID)
+	rows, err := s.DB.QueryContext(ctx, q, classArgs(s.TenantID, class)...)
 	if err != nil {
 		return nil, fmt.Errorf("load account stats: %w", err)
 	}
@@ -492,4 +494,23 @@ func (r *PostureOverviewRepository) liveAccountStats(ctx context.Context, s *sco
 		out = append(out, st)
 	}
 	return out, rows.Err()
+}
+
+// classSQL narrows a query to one identity class; n is the bind position its
+// value takes (the last argument). Rows written before the class existed
+// count as NHI.
+func classSQL(class string, n int) string {
+	if class == "" {
+		return ""
+	}
+	return fmt.Sprintf(" AND COALESCE(identity_class, 'NHI') = $%d", n)
+}
+
+// classArgs is the tenant, the query's own arguments, then the class when given.
+func classArgs(tenant string, class string, rest ...any) []any {
+	args := append([]any{tenant}, rest...)
+	if class != "" {
+		args = append(args, class)
+	}
+	return args
 }

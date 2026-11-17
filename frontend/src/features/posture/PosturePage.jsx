@@ -35,6 +35,7 @@ import { useToast } from '../../ui/Toast';
 import { RecordBar, ResultCount, ShowFiltersButton, WorkArea } from '../../ui/WorkArea';
 import { cn, TONE_VAR } from '../../ui/cn';
 import { CheckDrawer } from './CheckDrawer';
+import { ClassSwitch } from './ClassSwitch';
 import { BandTag, Delta, formatScore, identityTypeLabel, pillarLabel, PillarBars, ScoreRing } from './parts';
 import { useOpenPostureIdentity } from './useOpenIdentity';
 
@@ -116,7 +117,13 @@ export default function PosturePage() {
     return out;
   }, [searchParams]);
 
-  const filters = useMemo(() => ({ window, ...lists, changed, q }), [window, lists, changed, q]);
+  /* HI (people), NHI (workloads and keys) or both. It scopes the overview, the
+     list and the counts alike, so it is its own switch above them, not a filter. */
+  const identityClass = ['HI', 'NHI'].includes(searchParams.get('class')) ? searchParams.get('class') : '';
+  const filters = useMemo(
+    () => ({ window, ...lists, changed, q, identity_class: identityClass ? [identityClass] : [] }),
+    [window, lists, changed, q, identityClass],
+  );
   const filterKey = JSON.stringify(filters);
 
   const setParams = useCallback(
@@ -145,6 +152,7 @@ export default function PosturePage() {
     if (window !== DEFAULT_WINDOW) next.set('window', window);
     if (searchParams.get('sort')) next.set('sort', searchParams.get('sort'));
     if (searchParams.get('size')) next.set('size', searchParams.get('size'));
+    if (searchParams.get('class')) next.set('class', searchParams.get('class'));
     setSearchParams(next, { replace: true });
     setSearchText('');
   }, [searchParams, setSearchParams, window]);
@@ -162,7 +170,7 @@ export default function PosturePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debounced]);
 
-  const overviewQuery = useQuery((signal) => fetchPostureOverview({ window }, signal), [window]);
+  const overviewQuery = useQuery((signal) => fetchPostureOverview({ window, identityClass }, signal), [window, identityClass]);
   const facetsQuery = useQuery((signal) => fetchPostureFacets(filters, signal), [filterKey]);
 
   /* Keyset paging: the cursors of the pages visited so far. Any change to the
@@ -396,8 +404,15 @@ export default function PosturePage() {
       width: '20%',
       cell: (row) => (
         <span className="block min-w-0">
-          <span className="block truncate font-mono text-[12.5px] font-semibold text-ink" title={row.name}>
-            {row.name}
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate font-mono text-[12.5px] font-semibold text-ink" title={row.name}>
+              {row.name}
+            </span>
+            {!identityClass && row.identity_class === 'HI' && (
+              <Tag tone="brand" size="sm" className="shrink-0">
+                HI
+              </Tag>
+            )}
           </span>
           <span className="block truncate text-[11.5px] text-ink-3">
             {identityTypeLabel(row.type)} · {categoryLabel(row.functional_class)}
@@ -488,7 +503,7 @@ export default function PosturePage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Posture"
-        lede="Every non-human identity starts at 100 and loses points for each security check it fails: critical −25, high −15, medium −8, low −3. Fix a check to win its points back. Covers every connected account, whatever scope the dashboard is set to."
+        lede={`Every ${identityClass === 'HI' ? 'person' : identityClass === 'NHI' ? 'non-human identity' : 'identity'} starts at 100 and loses points for each security check it fails: critical −25, high −15, medium −8, low −3. Fix a check to win its points back. Covers every connected account, whatever scope the dashboard is set to.`}
         actions={
           <>
             <SegmentedControl
@@ -520,6 +535,15 @@ export default function PosturePage() {
             </Button>
           </>
         }
+      />
+
+      <ClassSwitch
+        value={identityClass}
+        counts={facets?.identity_class}
+        onChange={(next) => {
+          setParams({ class: next });
+          setPaging({ key: '', cursors: [null], page: 1 });
+        }}
       />
 
       {overviewQuery.isError && !overview ? (

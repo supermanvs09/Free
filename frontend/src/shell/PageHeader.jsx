@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Fingerprint, KeyRound } from 'lucide-react';
+import { Fingerprint, KeyRound, UsersRound } from 'lucide-react';
 import { cn } from '../ui/cn';
 
 /**
@@ -73,10 +73,11 @@ export function SectionTabs({ items, label }) {
   );
 }
 
-/** Discovery's two tabs: what acts in the accounts, and what it signs in with. */
+/** Discovery's tabs: what acts in the accounts, what it signs in with, and the people who sign in. */
 export const DISCOVERY_SECTIONS = [
   { to: '/identities', label: 'Identities', icon: Fingerprint },
   { to: '/credentials', label: 'Credentials', icon: KeyRound },
+  { to: '/people', label: 'People', icon: UsersRound },
 ];
 
 export function DiscoveryTabs() {

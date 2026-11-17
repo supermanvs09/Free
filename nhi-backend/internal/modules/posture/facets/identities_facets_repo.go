@@ -32,6 +32,10 @@ func (r *IdentitiesFacetsRepository) Get(ctx context.Context, s *scope.DataScope
 	branches = append(branches, fmt.Sprintf(
 		`SELECT 'total'::text AS facet, ''::text AS k, ''::text AS name, count(*)::bigint AS n FROM %s p WHERE %s`,
 		table, identitylist.WhereExcept(frags, "")))
+	// identity class: HI and NHI, each counted under every other filter
+	branches = append(branches, fmt.Sprintf(
+		`SELECT 'identity_class', COALESCE(p.identity_class, 'NHI')::text, ''::text, count(*)::bigint FROM %s p WHERE %s GROUP BY COALESCE(p.identity_class, 'NHI')`,
+		table, identitylist.WhereExcept(frags, identitylist.FacetClass)))
 	// band
 	branches = append(branches, fmt.Sprintf(
 		`SELECT 'band', p.band::text, ''::text, count(*)::bigint FROM %s p WHERE %s AND p.band IS NOT NULL GROUP BY p.band`,
@@ -62,13 +66,14 @@ func (r *IdentitiesFacetsRepository) Get(ctx context.Context, s *scope.DataScope
 		col, table, identitylist.WhereExcept(frags, identitylist.FacetChanged)))
 
 	out := &IdentityFacets{
-		Band:     map[string]int{},
-		Severity: map[string]int{},
-		Category: map[string]int{},
-		Account:  map[string]AccountFacet{},
-		Type:     map[string]int{},
-		Pillar:   map[string]int{},
-		Changed:  map[string]int{common.ChangedDown: 0, common.ChangedUp: 0, common.ChangedSame: 0},
+		IdentityClass: map[string]int{"HI": 0, "NHI": 0},
+		Band:          map[string]int{},
+		Severity:      map[string]int{},
+		Category:      map[string]int{},
+		Account:       map[string]AccountFacet{},
+		Type:          map[string]int{},
+		Pillar:        map[string]int{},
+		Changed:       map[string]int{common.ChangedDown: 0, common.ChangedUp: 0, common.ChangedSame: 0},
 	}
 	for _, band := range common.Bands {
 		out.Band[band] = 0
@@ -94,6 +99,8 @@ func (r *IdentitiesFacetsRepository) Get(ctx context.Context, s *scope.DataScope
 		switch facet {
 		case "total":
 			out.Total = int(n)
+		case identitylist.FacetClass:
+			out.IdentityClass[key] = int(n)
 		case identitylist.FacetBand:
 			out.Band[key] = int(n)
 		case identitylist.FacetSeverity:

@@ -24,6 +24,7 @@ func NewIdentitiesListRepository() *IdentitiesListRepository {
 
 // Facet names, one per filter that has a facet counter.
 const (
+	FacetClass    = "identity_class"
 	FacetBand     = "band"
 	FacetSeverity = "severity"
 	FacetCategory = "category"
@@ -67,6 +68,9 @@ var SeverityColumn = map[string]string{
 // column, which comes from a fixed table.
 func (b *queryBuilder) BuildFragments(s *scope.DataScope, f common.IdentityFilter) []fragment {
 	var out []fragment
+	if len(f.Classes) > 0 {
+		out = append(out, fragment{FacetClass, "COALESCE(p.identity_class, 'NHI') = ANY(" + b.add(pq.Array(f.Classes)) + "::text[])"})
+	}
 	if len(f.Bands) > 0 {
 		out = append(out, fragment{FacetBand, "p.band = ANY(" + b.add(pq.Array(f.Bands)) + "::text[])"})
 	}
@@ -218,12 +222,13 @@ type IdentityRow struct {
 	Change        sql.NullFloat64
 	OpenAlerts    sql.NullInt64
 	ARN           string
+	IdentityClass string
 }
 
 const identityRowColumns = `p.identity_id, COALESCE(p.identity_name, ''), COALESCE(p.identity_type, ''), p.functional_class,
 	COALESCE(p.account_id, ''), COALESCE(p.account_name, ''), p.score, COALESCE(p.band, ''), COALESCE(p.grade, ''),
 	p.weakest_pillar, p.checks_failed, p.failed_critical, p.failed_high, p.failed_medium, p.failed_low,
-	p.credential_type, p.credential_age_days, p.%s, p.open_alerts, COALESCE(p.identity_arn, '')`
+	p.credential_type, p.credential_age_days, p.%s, p.open_alerts, COALESCE(p.identity_arn, ''), COALESCE(p.identity_class, 'NHI')`
 
 // queryIdentityPage reads up to `limit` rows after `afterID` (empty for the
 // first page) in the filter's sort order.
@@ -259,7 +264,7 @@ func (r *IdentitiesListRepository) QueryIdentityPage(ctx context.Context, s *sco
 		var r IdentityRow
 		if err := rows.Scan(&r.IdentityID, &r.Name, &r.Type, &r.Class, &r.AccountID, &r.AccountName, &r.Score, &r.Band, &r.Grade,
 			&r.WeakestPillar, &r.Failed, &r.Critical, &r.High, &r.Medium, &r.Low,
-			&r.CredType, &r.CredAgeDays, &r.Change, &r.OpenAlerts, &r.ARN); err != nil {
+			&r.CredType, &r.CredAgeDays, &r.Change, &r.OpenAlerts, &r.ARN, &r.IdentityClass); err != nil {
 			return nil, fmt.Errorf("scan identity: %w", err)
 		}
 		out = append(out, r)
@@ -309,6 +314,7 @@ func (row IdentityRow) toItem(w common.Window) common.IdentityListItem {
 		ARN:             row.ARN,
 		Type:            row.Type,
 		FunctionalClass: common.NullStr(row.Class),
+		IdentityClass:   row.IdentityClass,
 		Account:         common.AccountRef{ID: row.AccountID, Name: row.AccountName},
 		Score:           common.NullFloat(row.Score),
 		Band:            row.Band,

@@ -31,6 +31,7 @@ type IdentityFilter struct {
 	Window        Window
 	Bands         []string // HEALTHY, FAIR, POOR, CRITICAL
 	Severities    []string // Critical, High, Medium, Low
+	Classes       []string // identity_class: HI, NHI
 	Categories    []string // functional_class
 	Accounts      []string // account id
 	Types         []string // identity type
@@ -44,19 +45,21 @@ type IdentityFilter struct {
 }
 
 type IdentityListItem struct {
-	IdentityID      string           `json:"identity_id"`
-	Name            string           `json:"name"`
-	ARN             string           `json:"arn"`
-	Type            string           `json:"type"`
-	FunctionalClass *string          `json:"functional_class"`
-	Account         AccountRef       `json:"account"`
-	Score           *float64         `json:"score"`
-	Band            string           `json:"band"`
-	Grade           string           `json:"grade"`
-	WeakestPillar   *string          `json:"weakest_pillar"`
-	Failed          FailedCounts     `json:"failed"`
-	Credential      *CredentialBrief `json:"credential"`
-	Change          Change           `json:"change"`
+	IdentityID      string  `json:"identity_id"`
+	Name            string  `json:"name"`
+	ARN             string  `json:"arn"`
+	Type            string  `json:"type"`
+	FunctionalClass *string `json:"functional_class"`
+	// IdentityClass is HI (a person) or NHI (a workload or key).
+	IdentityClass string           `json:"identity_class"`
+	Account       AccountRef       `json:"account"`
+	Score         *float64         `json:"score"`
+	Band          string           `json:"band"`
+	Grade         string           `json:"grade"`
+	WeakestPillar *string          `json:"weakest_pillar"`
+	Failed        FailedCounts     `json:"failed"`
+	Credential    *CredentialBrief `json:"credential"`
+	Change        Change           `json:"change"`
 }
 
 type CredentialBrief struct {
