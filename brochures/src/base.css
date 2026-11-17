@@ -63,3 +63,7 @@ body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);-webk
 .hero-art .ph{position:absolute;inset:0;background-position:62% 55%;background-size:cover;background-repeat:no-repeat;opacity:.55;
   -webkit-mask-image:radial-gradient(60% 68% at 60% 52%,#000 30%,transparent 78%);mask-image:radial-gradient(60% 68% at 60% 52%,#000 30%,transparent 78%)}
 .hero-art svg{position:absolute;inset:0;width:100%;height:100%}
+
+/* full-height hero visual (researched: one bold brand-tinted network render) */
+.hero-vis{position:absolute;z-index:1;right:0;top:0;bottom:0;width:780px;background-size:cover;background-repeat:no-repeat;
+  -webkit-mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.55) 20%,#000 45%);mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.55) 20%,#000 45%)}
