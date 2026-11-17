@@ -9,7 +9,6 @@ import { PageHeader } from '../../shell/PageHeader';
 import { SyncNowButton } from '../sync/SyncButton';
 import { Button } from '../../ui/Button';
 import { Modal } from '../../ui/Overlay';
-import { Panel } from '../../ui/Panel';
 import { ProviderIcon } from '../../ui/ProviderIcon';
 import { Skeleton } from '../../ui/Skeleton';
 import { Switch } from '../../ui/Switch';
@@ -171,25 +170,25 @@ function Overview({ apps, canManage, busy, onSwitch, onOpen }) {
       </div>
 
       {GROUPS.map((group) => (
-        <Panel key={group.key} flush className="overflow-hidden">
-          <div className="border-b border-line px-5 py-3.5">
-            <h2 className="text-[14px] font-semibold text-ink">{group.title}</h2>
+        <section key={group.key} aria-labelledby={`group-${group.key}`} className="flex flex-col gap-3">
+          <div>
+            <h2 id={`group-${group.key}`} className="text-[14px] font-semibold text-ink">{group.title}</h2>
             <p className="text-[12px] text-ink-3">{group.lede}</p>
           </div>
-          <ul className="divide-y divide-line">
+          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {apps
               .filter((a) => a.category === group.key)
               .map((app) => (
-                <AppRow key={app.key} app={app} canManage={canManage} busy={busy === app.key} onSwitch={(v) => onSwitch(app, v)} onOpen={() => onOpen(app.key)} />
+                <AppCard key={app.key} app={app} canManage={canManage} busy={busy === app.key} onSwitch={(v) => onSwitch(app, v)} onOpen={() => onOpen(app.key)} />
               ))}
           </ul>
-        </Panel>
+        </section>
       ))}
     </>
   );
 }
 
-function AppRow({ app, canManage, busy, onSwitch, onOpen }) {
+function AppCard({ app, canManage, busy, onSwitch, onOpen }) {
   const status = STATUS[app.status] ?? STATUS.off;
   const facts = useMemo(() => {
     if (!app.enabled) return [];
@@ -204,27 +203,40 @@ function AppRow({ app, canManage, busy, onSwitch, onOpen }) {
   }, [app]);
 
   return (
-    <li className={cn('flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5 transition-colors', app.enabled ? 'hover:bg-surface-2/60' : 'bg-surface-2/30')}>
-      <ProviderIcon provider={app.key} size={18} tile className={cn(!app.enabled && 'opacity-70 grayscale-[35%]')} />
-      <div className="min-w-0 flex-1 basis-64">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-          <span className={cn('text-[13.5px] font-semibold', app.enabled ? 'text-ink' : 'text-ink-2')}>{app.name}</span>
-          <span className="inline-flex items-center gap-1.5 text-[12px] text-ink-3">
-            <StatusDot status={app.status} />
-            {status.label}
-          </span>
-        </div>
-        <p className="mt-0.5 line-clamp-1 text-[12px] text-ink-3" title={app.summary}>
-          {app.enabled && facts.length ? facts.join(' · ') : app.summary}
-        </p>
+    <li
+      className={cn(
+        'group flex min-h-[176px] flex-col rounded-[var(--radius-panel)] border bg-surface p-4 shadow-[var(--t-shadow-sm)] transition-[border-color,box-shadow,transform] duration-200',
+        app.enabled ? 'border-line hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-[var(--t-shadow-md)]' : 'border-dashed border-line bg-surface-2/40',
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <ProviderIcon provider={app.key} size={22} tile className={cn(!app.enabled && 'opacity-70 grayscale-[35%]')} />
+        <Switch checked={app.enabled} busy={busy} disabled={!canManage} onChange={onSwitch} label={`${app.enabled ? 'Switch off' : 'Switch on'} ${app.name}`} />
       </div>
-      <div className="ml-auto flex items-center gap-3">
-        {app.enabled && (
-          <Button variant="ghost" size="sm" iconRight={ArrowRight} onClick={onOpen}>
+      <h3 className={cn('mt-3 text-[14.5px] font-semibold', app.enabled ? 'text-ink' : 'text-ink-2')}>{app.name}</h3>
+      <span className="mt-0.5 inline-flex items-center gap-1.5 text-[12px] text-ink-3">
+        <StatusDot status={app.status} />
+        {status.label}
+      </span>
+      {app.enabled && facts.length ? (
+        <ul className="mt-3 flex flex-wrap gap-1.5">
+          {facts.map((fact) => (
+            <li key={fact} className="rounded-full border border-line bg-surface-2 px-2 py-0.5 text-[11.5px] text-ink-2">
+              {fact}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 line-clamp-2 text-[12px] leading-snug text-ink-3">{app.summary}</p>
+      )}
+      <div className="mt-auto flex items-center justify-end pt-3">
+        {app.enabled ? (
+          <Button variant="secondary" size="sm" iconRight={ArrowRight} onClick={onOpen}>
             {app.status === 'not_connected' ? 'Set up' : 'Open'}
           </Button>
+        ) : (
+          <span className="text-[11.5px] text-ink-3">Switch on to connect</span>
         )}
-        <Switch checked={app.enabled} busy={busy} disabled={!canManage} onChange={onSwitch} label={`${app.enabled ? 'Switch off' : 'Switch on'} ${app.name}`} />
       </div>
     </li>
   );

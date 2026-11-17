@@ -7,7 +7,6 @@ import { useAuth } from '../app/AuthContext';
 import { useThemeMode } from '../app/ThemeContext';
 import { usePopover } from '../lib/hooks';
 import { BrandLockup } from './Brand';
-import { SyncButton } from '../features/sync/SyncButton';
 import { PresenceBar } from '../features/live/Presence';
 // import { ScanSwitcher } from './ScanSwitcher';
 import { initialsOf } from '../lib/format';
@@ -92,7 +91,6 @@ export function TopBar({ onOpenNav, onOpenCommand, minimal = false }) {
       {/* Live: who else is in the workspace, and that changes are shared. */}
       <PresenceBar />
 
-      {!minimal && <SyncButton />}
 
       {/* Search - a real control, not an afterthought. The palette behind it
           carries section jumps and identity lookup. Not during setup: there
