@@ -8,6 +8,7 @@ import (
 	"nhi-backend-api/internal/modules/identityanomalies"
 	"nhi-backend-api/internal/modules/identitysubjects"
 	"nhi-backend-api/internal/platform/datasource"
+	"nhi-backend-api/internal/platform/scope"
 
 	"github.com/gorilla/mux"
 
@@ -157,6 +158,7 @@ func SetupRoutes(h HandlerContainer) *mux.Router {
 
 	v1 := r.PathPrefix("/api/v1").Subrouter()
 	v1.Use(h.AuthMiddleware.Authenticate)
+	v1.Use(scope.AccountFilterMiddleware)
 	v1.Use(middleware.UserRateLimit)
 	// One gate decides every route from the capability table in
 	// internal/platform/authz, so a new endpoint is covered by its default
@@ -218,6 +220,7 @@ func registerProtected(router *mux.Router, h HandlerContainer, versioned bool) {
 	}
 	if h.NewAPIIdentitiesListHandler != nil {
 		router.HandleFunc("/identities", h.NewAPIIdentitiesListHandler.List).Methods(http.MethodGet)
+		router.HandleFunc("/identities/{id}/owner", h.NewAPIIdentitiesListHandler.SetOwner).Methods(http.MethodPut)
 	}
 	if h.NewAPIIdentityDetailHandler != nil {
 		router.HandleFunc("/identities/{id}", h.NewAPIIdentityDetailHandler.Get).Methods(http.MethodGet)

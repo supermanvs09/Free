@@ -45,7 +45,15 @@ type IdentityListItem struct {
 	Owner           *string `json:"owner"`
 	// OwnerReason says why the scanner suggested this owner; null when it
 	// gave none (or the tenant's identities table has no owner_reason yet).
-	OwnerReason           *string    `json:"owner_reason"`
+	OwnerReason *string `json:"owner_reason"`
+	// OwnerState is what the console should do with the owner: direct,
+	// assigned, suggested, conflicting or needs_review (see ClassifyOwner).
+	OwnerState      string           `json:"owner_state"`
+	OwnerCandidates []OwnerCandidate `json:"owner_candidates"`
+	// Set when a person assigned the owner from the console.
+	OwnerSetBy            *string    `json:"owner_set_by"`
+	OwnerSetReason        *string    `json:"owner_set_reason"`
+	OwnerSetAt            *time.Time `json:"owner_set_at"`
 	Status                string     `json:"status"`
 	IsPubliclyAccessible  bool       `json:"is_publicly_accessible"`
 	VPCID                 *string    `json:"vpc_id"`

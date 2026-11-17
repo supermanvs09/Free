@@ -78,6 +78,10 @@ type identityListRow struct {
 // identity via identity_credentials. permission_utilization_pct is
 // (distinct actions used across the identity's credentials, from CloudTrail)
 // / (SUM of effective_permissions.granted_count) * 100, rounded.
+// effectiveOwnerSQL is the owner everyone sees: a person's assignment wins over
+// the scanner's value. to_jsonb reads NULL where the column does not exist yet.
+const effectiveOwnerSQL = "COALESCE(NULLIF(BTRIM(to_jsonb(i)->>'owner_assigned'), ''), i.owner)"
+
 func (r *IdentitiesListRepository) GetIdentitiesList(ctx context.Context, resolved *scope.DataScope, f IdentityListFilter, src identitygraph.ActivitySource) (*IdentityListResponse, error) {
 	if resolved == nil || resolved.DB == nil {
 		return nil, identitygraph.ErrScopeRequired
@@ -126,7 +130,7 @@ func (r *IdentitiesListRepository) GetIdentitiesList(ctx context.Context, resolv
 		where = append(where, fmt.Sprintf("LOWER(i.status) = ANY(%s)", addArg(pq.Array(identitygraph.LowerTrimAll(f.Statuses)))))
 	}
 	if s := strings.TrimSpace(f.Owner); s != "" {
-		where = append(where, fmt.Sprintf("i.owner = %s", addArg(s)))
+		where = append(where, fmt.Sprintf("%s = %s", effectiveOwnerSQL, addArg(s)))
 	}
 	if s := strings.TrimSpace(f.VPCID); s != "" {
 		where = append(where, fmt.Sprintf("i.vpc_id = %s", addArg(s)))
@@ -135,7 +139,7 @@ func (r *IdentitiesListRepository) GetIdentitiesList(ctx context.Context, resolv
 		where = append(where, fmt.Sprintf("COALESCE(i.is_publicly_accessible, false) = %s", addArg(*f.IsPubliclyAccessible)))
 	}
 	if f.Shadow {
-		where = append(where, "(i.owner IS NULL OR BTRIM(i.owner) = '')")
+		where = append(where, "("+effectiveOwnerSQL+" IS NULL OR BTRIM("+effectiveOwnerSQL+") = '')")
 	}
 
 	sortKey := strings.ToLower(strings.TrimSpace(f.SortBy))
@@ -204,11 +208,16 @@ func (r *IdentitiesListRepository) GetIdentitiesList(ctx context.Context, resolv
 				COALESCE(i.account_id, '')             AS account_id,
 				COALESCE(i.region, '')                  AS region,
 				i.environment                            AS environment,
-				i.owner                                   AS owner,
+				%[6]s                                    AS owner,
 				-- Why the scanner chose this owner (newer scanners write
 				-- owner_reason; to_jsonb reads it as NULL where the column
 				-- does not exist yet).
 				NULLIF(BTRIM(to_jsonb(i)->>'owner_reason'), '') AS owner_reason,
+				-- A person's decision (own columns; NULL where they do not exist yet).
+				NULLIF(BTRIM(to_jsonb(i)->>'owner_assigned'), '')         AS owner_assigned,
+				NULLIF(BTRIM(to_jsonb(i)->>'owner_assigned_by'), '')      AS owner_set_by,
+				NULLIF(BTRIM(to_jsonb(i)->>'owner_assigned_reason'), '')  AS owner_set_reason,
+				NULLIF(to_jsonb(i)->>'owner_assigned_at', '')::timestamptz AS owner_set_at,
 				COALESCE(i.status, '')                     AS status,
 				COALESCE(i.is_publicly_accessible, false)   AS is_publicly_accessible,
 				i.vpc_id                                     AS vpc_id,
@@ -230,13 +239,13 @@ func (r *IdentitiesListRepository) GetIdentitiesList(ctx context.Context, resolv
 		)
 		SELECT
 			id, name, arn, identity_type, functional_class, account_id, region,
-			environment, owner, owner_reason, status, is_publicly_accessible, vpc_id,
+			environment, owner, owner_reason, owner_assigned, owner_set_by, owner_set_reason, owner_set_at, status, is_publicly_accessible, vpc_id,
 			bound_credentials_count, created_at_aws, first_seen_at, age_days, granted, perms, cred_arns, access_keys,
 			COUNT(*) OVER()::int AS total_count
 		FROM scoped
 		ORDER BY %[3]s %[4]s NULLS LAST, id
 		%[5]s`,
-		resolved.QSchema(), strings.Join(where, " AND "), sqlSortCol, sqlSortDir, limitSQL)
+		resolved.QSchema(), strings.Join(where, " AND "), sqlSortCol, sqlSortDir, limitSQL, effectiveOwnerSQL)
 
 	rows, err := tenantDB.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -249,14 +258,15 @@ func (r *IdentitiesListRepository) GetIdentitiesList(ctx context.Context, resolv
 	for rows.Next() {
 		var row identityListRow
 		item := &row.item
-		var functionalClass, environment, owner, ownerReason, vpcID sql.NullString
+		var functionalClass, environment, owner, ownerReason, ownerAssigned, setBy, setReason, vpcID sql.NullString
+		var setAt sql.NullTime
 		var ageDays sql.NullInt64
 		var credARNs, accessKeys []string
 		var perms []byte
 
 		if err := rows.Scan(
 			&item.ID, &item.Name, &item.ARN, &item.IdentityType, &functionalClass,
-			&item.AccountID, &item.Region, &environment, &owner, &ownerReason, &item.Status,
+			&item.AccountID, &item.Region, &environment, &owner, &ownerReason, &ownerAssigned, &setBy, &setReason, &setAt, &item.Status,
 			&item.IsPubliclyAccessible, &vpcID, &item.BoundCredentialsCount,
 			&item.CreatedAtAWS, &item.FirstSeenAt, &ageDays, &row.granted, &perms, pq.Array(&credARNs), pq.Array(&accessKeys), &sqlTotal,
 		); err != nil {
@@ -278,6 +288,25 @@ func (r *IdentitiesListRepository) GetIdentitiesList(ctx context.Context, resolv
 		if ownerReason.Valid && ownerReason.String != "" {
 			v := ownerReason.String
 			item.OwnerReason = &v
+		}
+		item.OwnerState, item.OwnerCandidates = ClassifyOwner(owner.String, ownerReason.String, ownerAssigned.Valid)
+		if item.OwnerCandidates == nil {
+			item.OwnerCandidates = []OwnerCandidate{}
+		}
+		if ownerAssigned.Valid {
+			item.OwnerReason = nil // the scanner's old guess no longer applies
+			if setBy.Valid {
+				v := setBy.String
+				item.OwnerSetBy = &v
+			}
+			if setReason.Valid {
+				v := setReason.String
+				item.OwnerSetReason = &v
+			}
+			if setAt.Valid {
+				v := setAt.Time
+				item.OwnerSetAt = &v
+			}
 		}
 		if vpcID.Valid && vpcID.String != "" {
 			v := vpcID.String

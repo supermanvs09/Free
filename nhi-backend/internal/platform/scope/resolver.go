@@ -129,6 +129,7 @@ func (r *Resolver) Resolve(ctx context.Context, userID, tenantID, dbName string)
 		}
 	}
 
+	s.AccountIDs = narrowAccounts(ctx, s.AccountIDs)
 	return s, nil
 }
 
