@@ -10,6 +10,7 @@ import { audit } from '../users';
 import { can } from '../roles';
 import { deliveries, liveEvents } from '../notifyBus';
 import { clearEvaluation } from '../postureEngine';
+import { jiraIssues } from './remediation';
 
 const wait = (ms) => new Promise((res) => setTimeout(res, ms));
 
@@ -48,6 +49,12 @@ function hubEntry(key) {
   if (key === 'gmail' || key === 'jira') {
     extra.sent_24h = deliveries().filter((d) => d.channel === key && d.status === 'sent' && Date.parse(d.at) > Date.now() - 24 * HOUR).length;
   }
+  if (key === 'jira') {
+    const issues = jiraIssues();
+    extra.issues_open = issues.filter((i) => i.status !== 'Done').length;
+    extra.issues_total = issues.length;
+    extra.assignees = new Set(issues.map((i) => i.assignee)).size;
+  }
   return { ...a, ...extra };
 }
 
@@ -82,6 +89,12 @@ export default function register(r) {
   /* ── Hub ─────────────────────────────────────────────────────────────── */
   /* Gmail and Jira are not offered for now: left out of the hub entirely. */
   const SHOWN = APP_KEYS.filter((k) => !HIDDEN_APPS.has(k));
+  /* Jira: the tickets tracking findings, each assigned to the identity's owner. */
+  r.get('/api/v1/integrations/jira/issues', () => {
+    const a = apps().jira;
+    return ok({ site_url: a.site_url, project_key: a.project_key, project_name: a.project_name ?? a.project_key, issues: jiraIssues() });
+  });
+
   r.get('/api/v1/integrations', ({ user }) => ok({ apps: SHOWN.map(hubEntry), catalog: APP_CATALOG.filter((a) => !HIDDEN_APPS.has(a.key)), can_manage: can(user, 'integrations') }));
 
   r.put('/api/v1/integrations/:key', async ({ params, body, user }) => {

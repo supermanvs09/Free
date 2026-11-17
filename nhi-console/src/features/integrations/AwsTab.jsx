@@ -23,6 +23,7 @@ import { ExposureDrawer } from './ExposureDrawer';
 import { OverviewTiles, SourceCards } from './IntegrationsOverview';
 import { AwsMark } from './parts';
 import { AppHeader } from './hubParts';
+import { RemediationNote } from './RemediationNote';
 
 const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
@@ -252,6 +253,8 @@ export function AwsTab({ app }) {
               setRemoving={setRemoving}
             />
           )}
+
+          {manage && <RemediationNote accounts={data.accounts} onOpen={(accountId) => setParam('account', accountId)} />}
 
           {manage && adding && data.setup && (
             <section ref={addSectionRef} className="scroll-mt-24" aria-label="Connect another AWS account">

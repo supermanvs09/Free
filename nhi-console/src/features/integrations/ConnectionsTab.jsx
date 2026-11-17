@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, Plus, RotateCw, Trash2 } from 'lucide-react';
 import { useWorkspace } from '../../app/WorkspaceContext';
+import { RequiredAccess } from './RequiredAccess';
 import { fetchConnections, removeConnection, syncConnection, verifyConnection } from '../../lib/api/hub';
 import { useQuery } from '../../lib/hooks';
 import { formatNumber } from '../../lib/format';
@@ -18,7 +19,7 @@ import { AppHeader, CheckRows, Stat, StatusTag, When } from './hubParts';
 
 const NOUN = { azure: 'subscription', jenkins: 'controller', vault: 'cluster' };
 const LEDE = {
-  azure: 'Managed identities, service principals and app registrations in each subscription, with their client secrets, certificates and federated credentials. Read-only: Reader on the subscription and Directory.Read.All in Microsoft Graph.',
+  azure: 'Managed identities, service principals and app registrations in each subscription, with their client secrets, certificates and federated credentials. Read-only: the custom role NHIPlatformCollector on each subscription and Microsoft Graph read permissions, signed in without a secret (see Required access below).',
   jenkins: 'Every job, agent and service user, and which credentials from the credential store each one binds. Credential values are never read: only IDs, kinds, scopes and dates.',
   vault: 'A secret store, not an identity source: which credentials are kept in Vault, which workloads read them, how each logs in (AppRole, Kubernetes, tokens, dynamic leases) and what its Vault policy lets it read - from the audit device.',
 };
@@ -194,6 +195,7 @@ export function ConnectionsTab({ app, canManage }) {
           </>
         }
       />
+      <RequiredAccess appKey={key} />
     </>
   );
 }

@@ -1,5 +1,5 @@
 /* Remediation: findings to fix, fix steps per provider, plans and executions. */
-import { remed, failNested, iso, DAY, HOUR, MIN, NOW, rng, hashString } from '../util';
+import { remed, failNested, iso, DAY, MIN, NOW, rng, hashString } from '../util';
 import { fleet, effectiveChecks, rule, postureRow, scoreOf, findingStates } from '../postureEngine';
 import { credentialsOf, identityById } from '../world';
 import { scopeById } from '../seed';
@@ -53,6 +53,49 @@ function stepsFor(rl, identity) {
   ];
 }
 
+/*
+ * Jira: a ticket for each Critical or High finding the team tracks there,
+ * assigned to the identity's owner (the platform on-call when it has none).
+ * Stable per finding, so the ticket number never moves between reloads.
+ */
+const JIRA = 'https://deepalgorithms.atlassian.net/browse';
+const tracked = (c) => ['CRITICAL', 'HIGH'].includes(c.severity) && hashString(c.finding_id) % 3 !== 2;
+/* Ticket numbers in the order the findings appeared: unique, and stable. */
+let jiraNumbers = null;
+function jiraNumber(findingId) {
+  if (!jiraNumbers) {
+    const all = fleet()
+      .flatMap((i) => effectiveChecks(i).filter((x) => x.failing && tracked(x)))
+      .sort((a, b) => Date.parse(a.failing_since ?? 0) - Date.parse(b.failing_since ?? 0) || String(a.finding_id).localeCompare(String(b.finding_id)));
+    jiraNumbers = new Map(all.map((x, k) => [x.finding_id, 101 + k]));
+  }
+  return jiraNumbers.get(findingId) ?? null;
+}
+function jiraFor(c, i, resolved) {
+  if (!tracked(c)) return null;
+  const h = hashString(c.finding_id);
+  const n = jiraNumber(c.finding_id);
+  if (!n) return null;
+  const key = `NHI-${n}`;
+  const status = resolved ? 'Done' : ['To Do', 'In Progress', 'In Review'][h % 3];
+  return {
+    key,
+    url: `${JIRA}/${key}`,
+    status,
+    assignee: i.owner_name ?? 'Raju Varma',
+    assignee_email: i.owner ?? 'raju@deepalgorithms.ai',
+    created_at: c.failing_since,
+    priority: c.severity === 'CRITICAL' ? 'Highest' : 'High',
+  };
+}
+
+/** Every finding tracked in Jira, for the Jira tab. */
+export function jiraIssues() {
+  return backlog()
+    .filter((f) => f.jira)
+    .map((f) => ({ ...f.jira, summary: `${f.title} - ${f.identity_name}`, finding_id: f.finding_id, identity_id: f.identity_id, identity_name: f.identity_name, severity: f.severity, provider: f.provider, plan: f.plan }));
+}
+
 function backlog() {
   const plans = plansStore();
   const out = [];
@@ -82,6 +125,7 @@ function backlog() {
         resolved_at: resolved ? plan?.updated_at ?? c.state?.updated_at ?? null : null,
         plan: plan ? { plan_id: plan.plan_id, status: plan.status, mode: plan.mode, updated_at: plan.updated_at } : null,
         stage: !plan ? 'todo' : ['EXECUTED', 'MANUALLY_DONE'].includes(plan.status) ? 'waiting_scan' : resolved ? 'done' : 'in_progress',
+        jira: jiraFor(c, i, resolved),
       });
     }
   }
@@ -342,52 +386,124 @@ export default function register(r) {
     ]),
   );
 
-  const accounts = () =>
-    slice('remediationAccounts', () =>
-      ['482915736104', '739204185562', '215660394871'].map((id, k) => ({
-        account_id: id,
-        remediation_enabled: k < 2,
-        remediation_role_arn: k < 2 ? `arn:aws:iam::${id}:role/NHIRemediationRole` : '',
-        has_external_id: k < 2,
-        auto_remediation_enabled: false,
-        allowed_action_types: k < 2 ? ['trim_unused_permissions', 'deactivate_access_key', 'tag_owner', 'enable_secret_rotation'] : [],
-        enabled_regions: ['ap-south-1'],
-        access_status: k < 2 ? 'OK' : 'NOT_CONFIGURED',
-        access_detail: k < 2 ? 'Role assumed; required permissions present.' : '',
-        access_checked_at: iso(NOW - (k + 1) * 3 * HOUR),
-      })),
-    );
-  r.get(`${B}/accounts`, () => remed(accounts()));
+  /*
+   * One-click and auto-remediation, per AWS account: the role the platform
+   * assumes (NHIPlatformRemediator), its External ID, which fixes may run,
+   * approvals, and the three policy documents the client puts in place.
+   */
+  const NAMES = { '482915736104': 'prod-core', '739204185562': 'data-platform', '215660394871': 'staging', '605218934417': 'shared-services' };
+  const accounts = () => {
+    const list = slice('remediationAccounts', () => []);
+    for (const [k, id] of Object.keys(NAMES).entries()) {
+      let a = list.find((x) => x.account_id === id);
+      if (!a) {
+        a = { account_id: id };
+        list.push(a);
+      }
+      /* Older saves used another role name and no auto-remediation fields. */
+      if (!a.v2) {
+        const on = k !== 2;
+        Object.assign(a, {
+          v2: true,
+          account_name: NAMES[id],
+          remediation_enabled: on,
+          remediation_role_arn: on ? `arn:aws:iam::${id}:role/NHIPlatformRemediator` : '',
+          remediation_external_id: on ? `ispm-${hashString(`ext:${id}`).toString(16)}-${hashString(`x:${id}`).toString(16).slice(0, 6)}` : '',
+          has_external_id: on,
+          auto_remediation_enabled: id === '482915736104' || id === '739204185562',
+          allowed_action_types: on ? ['deactivate_access_key', 'rotate_access_key', 'trim_unused_permissions', 'add_external_id_condition', 'pin_oidc_subject', 'enable_secret_rotation', 'remove_escalation_actions', 'tag_owner'] : [],
+          enabled_regions: on ? ['ap-south-1', 'us-east-1'] : [],
+          approval_policy: { LOW: 1, MEDIUM: 1, HIGH: 1, CRITICAL: 2 },
+          grace_days: { delete_key: 30 },
+          access_status: on ? 'OK' : 'NOT_CONFIGURED',
+          access_detail: on ? 'Role assumed with the External ID; all remediation permissions present; guardrail deny in place.' : 'One-click is off for this account.',
+          access_checked_at: iso(NOW - (k + 1) * 47 * MIN),
+        });
+      }
+    }
+    return list;
+  };
+  const checksOf = (a) => {
+    const on = Boolean(a.remediation_role_arn);
+    const st = (ok) => (on ? (ok ? 'pass' : 'warn') : 'idle');
+    return [
+      { key: 'assume', label: 'The worker can assume NHIPlatformRemediator', state: st(true), message: on ? `ispm-remediator assumed ${a.remediation_role_arn.split('/').pop()} with the External ID.` : 'Set the role ARN first.' },
+      { key: 'permissions', label: 'Remediation permissions present', state: st(true), message: on ? 'All 6 statements found: keys, roles, KMS, Secrets Manager, rotated-key store, guardrail.' : '' },
+      { key: 'guardrail', label: 'Guardrail: platform roles cannot be changed', state: st(true), message: on ? 'Deny on NHIPlatform*, NHIDiscoveryReadOnly and service-linked roles.' : '' },
+      { key: 'regions', label: 'Regions reachable', state: st(true), message: on ? (a.enabled_regions ?? []).join(', ') : '' },
+    ];
+  };
+  const view = (a) => ({ ...a, checks: checksOf(a) });
+  r.get(`${B}/accounts`, () => remed(accounts().map(view)));
   r.get(`${B}/accounts/:id`, ({ params }) => {
     const a = accounts().find((x) => x.account_id === params.id);
-    return a ? remed(a) : failNested(404, 'Not set up.', 'NOT_FOUND');
+    return a ? remed(view(a)) : failNested(404, 'Not set up.', 'NOT_FOUND');
   });
-  r.get(`${B}/accounts/:id/setup`, ({ params }) =>
-    remed({
+  r.get(`${B}/accounts/:id/setup`, ({ params }) => {
+    const a = accounts().find((x) => x.account_id === params.id);
+    const externalId = a?.remediation_external_id || '<accounts.remediation_external_id>';
+    return remed({
       account_id: params.id,
-      role_name: 'NHIRemediationRole',
-      external_id: 'nhi-rem-7f3a91c2',
-      trust_principal: 'arn:aws:iam::600134289077:role/NHIPlatformRemediator',
-      template_url: 'https://deepalgorithms.ai/templates/nhi-remediation-role.yaml',
-      policy_actions: ['iam:PutRolePolicy', 'iam:DetachRolePolicy', 'iam:UpdateAccessKey', 'iam:TagRole', 'secretsmanager:RotateSecret'],
-    }),
-  );
+      role_name: 'NHIPlatformRemediator',
+      worker_principal: 'arn:aws:iam::884264984984:user/ispm-remediator',
+      external_id: externalId,
+      policies: [
+        {
+          key: 'permissions',
+          title: 'Remediation role NHIPlatformRemediator: permissions',
+          note: 'Covers all 11 remediation policies. The last statement is a guardrail: the platform can never change its own roles or AWS service-linked roles.',
+          document: {
+            Version: '2012-10-17',
+            Statement: [
+              { Sid: 'R2DeactivateKeysR5RotateKeys', Effect: 'Allow', Action: ['iam:ListAccessKeys', 'iam:GetAccessKeyLastUsed', 'iam:UpdateAccessKey', 'iam:CreateAccessKey', 'iam:DeleteAccessKey'], Resource: 'arn:aws:iam::*:user/*' },
+              { Sid: 'R3TrustR5SessionR6Escalation', Effect: 'Allow', Action: ['iam:GetRole', 'iam:UpdateAssumeRolePolicy', 'iam:UpdateRole', 'iam:GetRolePolicy', 'iam:PutRolePolicy', 'iam:DeleteRolePolicy'], Resource: 'arn:aws:iam::*:role/*' },
+              { Sid: 'R4KmsPolicyGrantsR5KmsRotation', Effect: 'Allow', Action: ['kms:DescribeKey', 'kms:GetKeyPolicy', 'kms:PutKeyPolicy', 'kms:ListGrants', 'kms:RevokeGrant', 'kms:CreateGrant', 'kms:GetKeyRotationStatus', 'kms:EnableKeyRotation', 'kms:DisableKeyRotation'], Resource: '*' },
+              { Sid: 'R4SecretPolicyR5RotateSecrets', Effect: 'Allow', Action: ['secretsmanager:DescribeSecret', 'secretsmanager:GetResourcePolicy', 'secretsmanager:PutResourcePolicy', 'secretsmanager:DeleteResourcePolicy', 'secretsmanager:RotateSecret', 'secretsmanager:UpdateSecretVersionStage', 'lambda:InvokeFunction'], Resource: '*' },
+              { Sid: 'R5StoreRotatedKeys', Effect: 'Allow', Action: ['secretsmanager:CreateSecret', 'secretsmanager:PutSecretValue'], Resource: 'arn:aws:secretsmanager:*:*:secret:ispm/rotated-keys/*' },
+              { Sid: 'GuardrailNeverChangePlatformRoles', Effect: 'Deny', Action: ['iam:UpdateAssumeRolePolicy', 'iam:UpdateRole', 'iam:PutRolePolicy', 'iam:DeleteRolePolicy'], Resource: ['arn:aws:iam::*:role/NHIPlatform*', 'arn:aws:iam::*:role/NHIDiscoveryReadOnly', 'arn:aws:iam::*:role/aws-service-role/*'] },
+            ],
+          },
+        },
+        {
+          key: 'trust',
+          title: 'Remediation role: trust policy (who may assume it)',
+          note: 'Only the platform worker user, and only with this account’s External ID.',
+          document: {
+            Version: '2012-10-17',
+            Statement: [{ Effect: 'Allow', Principal: { AWS: 'arn:aws:iam::884264984984:user/ispm-remediator' }, Action: 'sts:AssumeRole', Condition: { StringEquals: { 'sts:ExternalId': externalId } } }],
+          },
+        },
+        {
+          key: 'worker',
+          title: 'Worker user ispm-remediator: its own permissions (platform side)',
+          note: 'Lives in the platform account, not yours: it may assume NHIPlatformRemediator in connected accounts and send the approval e-mails.',
+          document: {
+            Version: '2012-10-17',
+            Statement: [
+              { Effect: 'Allow', Action: 'sts:AssumeRole', Resource: 'arn:aws:iam::*:role/NHIPlatformRemediator' },
+              { Effect: 'Allow', Action: ['ses:SendRawEmail', 'ses:SendEmail'], Resource: '*' },
+            ],
+          },
+        },
+      ],
+    });
+  });
   r.put(`${B}/accounts/:id`, ({ params, body, user }) => {
     const a = accounts().find((x) => x.account_id === params.id);
     if (!a) return failNested(404, 'Not set up.', 'NOT_FOUND');
-    Object.assign(a, body, { access_status: body.remediation_role_arn ? 'OK' : 'NOT_CONFIGURED', access_checked_at: iso(Date.now()) });
+    Object.assign(a, body, { access_status: a.remediation_role_arn || body.remediation_role_arn ? 'OK' : 'NOT_CONFIGURED', access_checked_at: iso(Date.now()) });
     save();
     audit(user, 'remediation.settings', `Changed One-click settings for ${params.id}`);
-    return remed(a);
+    return remed(view(a));
   });
   r.post(`${B}/accounts/:id/validate`, ({ params }) => {
     const a = accounts().find((x) => x.account_id === params.id);
     if (!a) return failNested(404, 'Not set up.', 'NOT_FOUND');
     a.access_checked_at = iso(Date.now());
     a.access_status = a.remediation_role_arn ? 'OK' : 'CANNOT_ASSUME';
-    a.access_detail = a.remediation_role_arn ? 'Role assumed; required permissions present.' : 'No remediation role set.';
+    a.access_detail = a.remediation_role_arn ? 'Role assumed with the External ID; all remediation permissions present; guardrail deny in place.' : 'No remediation role set.';
     save();
-    return remed(a);
+    return remed(view(a));
   });
 }
 

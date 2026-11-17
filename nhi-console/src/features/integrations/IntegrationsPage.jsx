@@ -17,6 +17,7 @@ import { cn } from '../../ui/cn';
 import { AwsTab } from './AwsTab';
 import { ConnectionsTab } from './ConnectionsTab';
 import { CodeScanTab } from './CodeScanTab';
+import { JiraTab } from './JiraTab';
 import { STATUS, StatusDot } from './hubParts';
 
 /**
@@ -30,6 +31,7 @@ const GROUPS = [
   { key: 'identity', title: 'Identity sources', lede: 'Where your non-human identities and their credentials live.' },
   { key: 'secrets', title: 'Secret stores', lede: 'Where credentials are kept, and which workloads read them.' },
   { key: 'exposure', title: 'Code scanning', lede: 'Where their secrets leak: repositories and their history.' },
+  { key: 'notify', title: 'Tickets', lede: 'Where the team tracks fixes: each finding as a ticket, assigned to the identity’s owner.' },
 ];
 
 export default function IntegrationsPage() {
@@ -121,6 +123,7 @@ export default function IntegrationsPage() {
           {active === 'aws' && <AwsTab app={activeApp} />}
           {['azure', 'jenkins', 'vault'].includes(active) && <ConnectionsTab app={activeApp} canManage={canManage} />}
           {['github', 'bitbucket'].includes(active) && <CodeScanTab app={activeApp} canManage={canManage} />}
+          {active === 'jira' && <JiraTab />}
         </div>
       )}
 
@@ -192,6 +195,7 @@ function AppCard({ app, canManage, busy, onSwitch, onOpen }) {
       const noun = { aws: 'account', azure: 'subscription', jenkins: 'controller', vault: 'cluster' }[app.key];
       return [`${formatNumber(app.connections)} ${noun}${app.connections === 1 ? '' : 's'}`, `${formatNumber(app.identities)} identities`, `${formatNumber(app.credentials)} credentials`];
     }
+    if (app.key === 'jira') return [`Project ${app.project_key ?? 'NHI'}`, `${formatNumber(app.issues_open ?? 0)} open tickets`, `${formatNumber(app.assignees ?? 0)} assignees`];
     if (app.category === 'secrets') return [`${formatNumber(app.secrets)} stored credentials`, `read by ${formatNumber(app.consumers)} workloads`];
     if (app.category === 'exposure') return [`${formatNumber(app.repositories)} repositories`, `${formatNumber(app.findings)} open findings`];
     return [];

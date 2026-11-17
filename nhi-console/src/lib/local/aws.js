@@ -17,15 +17,16 @@ const DELAY = { read: 0, write: 300, verify: 1400 };
 
 /* The platform side of the connection: the role and event bus accounts trust. */
 const SETUP = {
-  account_id: '600134289077',
+  /* adapID's platform account, event bus and region (client onboarding guide). */
+  account_id: '458854656380',
   external_id: 'nhi-7f3a91c2-b84e2d1f6c9a4e07a5d3',
-  event_bus_arn: 'arn:aws:events:ap-south-1:600134289077:event-bus/nhi-central-bus',
-  region: 'ap-south-1',
-  assumer_role_arn: 'arn:aws:iam::600134289077:role/NHIPlatformAssumer',
+  event_bus_arn: 'arn:aws:events:ap-south-2:458854656380:event-bus/nhi-prod-bus',
+  region: 'ap-south-2',
+  assumer_role_arn: 'arn:aws:iam::458854656380:role/NHIPlatformAssumer',
   role_name: 'NHIPlatformCollector',
-  rule_name: 'nhi-forward-events',
+  rule_name: 'nhi-forward-activity',
   managed_policies: ['SecurityAudit', 'ViewOnlyAccess'],
-  event_sources: ['aws.ec2', 'aws.ecs', 'aws.iam', 'aws.sts', 'aws.lambda', 'aws.eks', 'aws.secretsmanager', 'aws.kms'],
+  event_sources: ['aws.ssm', 'aws.rolesanywhere', 'aws.ec2', 'aws.ecs', 'aws.iam', 'aws.sts', 'aws.lambda', 'aws.eks', 'aws.secretsmanager', 'aws.kms', 'aws.batch', 'aws.codecommit', 'aws.s3', 'aws.amplify', 'aws.glue', 'aws.states', 'aws.scheduler', 'aws.codebuild', 'aws.codedeploy', 'aws.codepipeline', 'aws.cloudformation'],
   regions: AWS_REGION_CATALOGUE,
   exposure: {
     codecommit: {

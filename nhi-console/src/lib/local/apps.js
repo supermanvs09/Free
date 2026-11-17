@@ -20,7 +20,24 @@ export const APP_CATALOG = [
 ];
 export const APP_KEYS = APP_CATALOG.map((a) => a.key);
 /* Not offered in the console for now. */
-export const HIDDEN_APPS = new Set(['gmail', 'jira']);
+export const HIDDEN_APPS = new Set(['gmail']);
+/* Connected for show; nothing is sent to these from the console for now. */
+export const DELIVERY_OFF = new Set(['gmail', 'jira']);
+
+/* Jira, connected: tickets for remediation, assigned to each identity's owner. */
+const JIRA_DEMO = {
+  enabled: true,
+  enabled_at: null,
+  site_url: 'https://deepalgorithms.atlassian.net',
+  email: 'nhi-bot@deepalgorithms.ai',
+  api_token: 'stored',
+  project_key: 'NHI',
+  project_name: 'NHI Security',
+  issue_type: 'Task',
+  min_severity: 'HIGH',
+  assign_to: 'owner',
+  fallback_assignee: 'raju@deepalgorithms.ai',
+};
 export const IDENTITY_APPS = ['aws', 'azure', 'jenkins'];
 export const SECRET_STORE_APPS = ['vault'];
 export const EXPOSURE_APPS = ['github', 'bitbucket'];
@@ -171,6 +188,8 @@ function defaults() {
 
 export function apps() {
   const s = slice('apps', defaults);
+  /* Workspaces saved before Jira was connected get the same connection. */
+  if (s.jira && !s.jira.site_url) Object.assign(s.jira, JIRA_DEMO, { enabled_at: new Date(Date.now() - 21 * 86400000).toISOString() });
   /* New applications added in a later build appear with their defaults. */
   const base = defaults();
   for (const key of APP_KEYS) if (!s[key]) s[key] = base[key];

@@ -8,7 +8,7 @@
  * One tab of the browser does the watching and the sending (it holds a Web
  * Lock); the others see the result through the shared state.
  */
-import { HIDDEN_APPS, apps, isOn } from './apps';
+import { DELIVERY_OFF, apps, isOn } from './apps';
 import { slice, save, onStateChange, isShared, isSyncLeader, onLeaderChange, getSyncStatus } from './state';
 import { response } from './response';
 import { estate, scopeById } from './seed';
@@ -166,12 +166,12 @@ async function dispatch(event) {
   /* Someone else's console already delivered it. */
   if (deliveries().some((d) => d.event_id === event.id)) return;
   const a = apps();
-  if (!HIDDEN_APPS.has('gmail') && isOn('gmail') && a.gmail.recipients?.length && matches(a.gmail, event)) {
+  if (!DELIVERY_OFF.has('gmail') && isOn('gmail') && a.gmail.recipients?.length && matches(a.gmail, event)) {
     const mail = emailFor(event);
     const res = await sendEmail({ to: a.gmail.recipients, ...mail, idempotency_key: event.id });
     if (!res.duplicate) record({ channel: 'gmail', event_id: event.id, title: event.title, severity: event.severity, to: a.gmail.recipients.join(', '), status: res.ok ? 'sent' : 'failed', message: res.ok ? `Delivered via ${res.via === 'ses' ? 'Amazon SES' : 'Gmail'}${res.from ? ` from ${res.from}` : ''}` : res.message, message_id: res.message_id ?? null });
   }
-  if (!HIDDEN_APPS.has('jira') && isOn('jira') && a.jira.site_url && a.jira.project_key && matches(a.jira, event)) {
+  if (!DELIVERY_OFF.has('jira') && isOn('jira') && a.jira.site_url && a.jira.project_key && matches(a.jira, event)) {
     const res = await createJiraIssue(jiraIssueFor(event, a.jira));
     if (!res.duplicate) record({ channel: 'jira', event_id: event.id, title: event.title, severity: event.severity, to: a.jira.project_key, status: res.ok ? 'sent' : 'failed', message: res.ok ? `${res.updated ? 'Updated' : 'Created'} ${res.key}` : res.message, issue_key: res.key ?? null, issue_url: res.url ?? null });
   }

@@ -15,12 +15,14 @@ import { ACCOUNT_STATUS } from './awsSetup';
 import { CheckList } from './CheckList';
 import { exposureState } from './ExposureBadges';
 import { AwsMark, CodeCommitMark } from './parts';
+import { AccountRemediation } from './AccountRemediation';
 
 const TABS = [
   { value: 'overview', label: 'Overview' },
   { value: 'health', label: 'Connection checks' },
   { value: 'sync', label: 'Data sync' },
   { value: 'code', label: 'Code scanning' },
+  { value: 'remediation', label: 'Remediation' },
   { value: 'activity', label: 'Activity' },
 ];
 
@@ -95,6 +97,7 @@ export function AccountDrawer({ account, setup, catalogue, counts, canManage, on
         {tab === 'sync' && <SyncTab account={account} blocked={blocked} />}
         {tab === 'code' && <CodeTab account={account} canManage={canManage} onExposure={onExposure} />}
         {tab === 'activity' && <ActivityTab account={account} />}
+        {tab === 'remediation' && <AccountRemediation accountId={account.accountId} />}
       </div>
     </Drawer>
   );

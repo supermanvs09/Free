@@ -27,7 +27,8 @@ export const deactivateKey = (credentialId) => act(client.post(`/api/v1/response
 export const breakLink = (linkId) => act(client.post('/api/v1/response/links/break', { link_id: linkId }));
 export const fetchCredentialStanding = async (id, signal) => unwrapMain(await client.get(`/api/v1/response/credentials/${enc(id)}`, { signal }));
 export const deleteRole = (id) => act(client.post(`/api/v1/response/credentials/${enc(id)}/delete`, {}));
-export const fetchCredentialGenome = async (signal) => unwrapMain(await client.get('/api/v1/response/credential-genome', { signal }))?.credentials ?? [];
+export const fetchJiraIssues = async (signal) => unwrapMain(await client.get('/api/v1/integrations/jira/issues', { signal }));
+export const fetchCredentialGenome =async (signal) => unwrapMain(await client.get('/api/v1/response/credential-genome', { signal }))?.credentials ?? [];
 export const fetchCredentialGenomeOne = async (id, signal) => unwrapMain(await client.get(`/api/v1/response/credential-genome/${enc(id)}`, { signal }));
 export const rotateInVault = (id) => act(client.post(`/api/v1/response/keys/${enc(id)}/rotate-in-vault`, {}));
 export const fetchScenarios = async (signal) => unwrapMain(await client.get('/api/v1/scenarios', { signal }))?.scenarios ?? [];
