@@ -76,9 +76,36 @@ def orbit(kind):
     return f'<div class="orb orb-{kind}" style="width:{W}px;height:{H}px">{svg}{mark}{nd}</div>'
 
 
+def orbit_light(W=600, H=360):
+    """NHI header art on a light background: glass shield with the Deep Algorithms mark,
+    flat orbit ellipse and six NHI types in white circles, labels below (own artwork)."""
+    cx, cy = W / 2, H / 2 - 8
+    nodes = [("APIs", "o-code", cx, 40), ("Automations", "o-robot", 70, 112), ("Cloud Workloads", "o-cloud", W - 70, 112),
+             ("Service Accounts", "o-user-gear", 70, 250), ("Databases", "o-database", cx, 290), ("CI/CD Pipelines", "o-infinity", W - 70, 250)]
+    sw, sh = 150, 176
+    svg = f"""<svg class="orb-svg" viewBox="0 0 {W} {H}" fill="none">
+<defs><radialGradient id="lg" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#4fb3ff" stop-opacity=".22"/><stop offset="1" stop-color="#4fb3ff" stop-opacity="0"/></radialGradient>
+<linearGradient id="ls" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e6eefc"/></linearGradient>
+<linearGradient id="lr" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2a5bea" stop-opacity="0"/><stop offset=".5" stop-color="#2a5bea" stop-opacity=".55"/><stop offset="1" stop-color="#2a5bea" stop-opacity="0"/></linearGradient></defs>
+<circle cx="{cx}" cy="{cy}" r="{H*0.5}" fill="url(#lg)"/>
+<ellipse cx="{cx}" cy="{cy+18}" rx="{W*0.49}" ry="{H*0.13}" stroke="url(#lr)" stroke-width="1.6"/>
+<ellipse cx="{cx}" cy="{cy+18}" rx="{W*0.4}" ry="{H*0.09}" stroke="#2a5bea" stroke-opacity=".18" stroke-dasharray="3 6"/>
+<circle cx="{cx}" cy="{cy}" r="{sh*0.66}" stroke="#2a5bea" stroke-opacity=".16"/>
+<g stroke="#2a5bea" stroke-opacity=".28" stroke-dasharray="3 5">""" + "".join(f'<path d="M{cx} {cy} L{x} {y}"/>' for _, _, x, y in nodes) + f"""</g>
+<g fill="#2a5bea" fill-opacity=".55"><circle cx="{cx-W*0.49}" cy="{cy+18}" r="3"/><circle cx="{cx+W*0.49}" cy="{cy+18}" r="3"/><circle cx="{cx-W*0.25}" cy="{cy+18+H*0.112}" r="2.5"/><circle cx="{cx+W*0.27}" cy="{cy+18-H*0.11}" r="2.5"/></g>
+<g transform="translate({cx-sw/2} {cy-sh/2}) scale({sw/100} {sh/118})" style="filter:drop-shadow(0 10px 18px rgba(14,26,92,.18))">
+<path d="M50 2 L94 18 V58 C94 88 74 106 50 116 C26 106 6 88 6 58 V18 Z" fill="url(#ls)" stroke="#bcd3f7" stroke-width="2.2" stroke-linejoin="round"/>
+<path d="M50 10 L87 23.5 V58 C87 83 70 98 50 107 C30 98 13 83 13 58 V23.5 Z" stroke="#0E1A5C" stroke-opacity=".08" stroke-width="1.4"/></g>
+</svg>"""
+    mark = f'<img class="orb-mark" src="../assets/brand/deep-algorithms-mark.png" alt="" style="left:{cx-sw*0.25}px;top:{cy-sh*0.23}px;width:{sw*0.5}px">'
+    nd = "".join(f'<div class="ol-n" style="left:{x-30}px;top:{y-30}px"><span class="c">{icon(ic)}</span><b>{lab}</b></div>' for lab, ic, x, y in nodes)
+    return f'<div class="orb orb-light" style="width:{W}px;height:{H}px">{svg}{mark}{nd}</div>'
+
+
 def build(src, tagline):
     html = (ROOT / "src" / src).read_text()
     html = re.sub(r"\{\{svg256:([\w-]+)\}\}", lambda m: icon(m.group(1), "", 256), html)
+    html = html.replace("{{orbit-light}}", orbit_light())
     html = re.sub(r"\{\{orbit:(\w+)\}\}", lambda m: orbit(m.group(1)), html)
     html = re.sub(r"\{\{icon:([\w-]+)\}\}", lambda m: icon(m.group(1)), html)
     html = re.sub(r"\{\{cicon:([\w-]+)\}\}", lambda m: icon(m.group(1), "ci"), html)
