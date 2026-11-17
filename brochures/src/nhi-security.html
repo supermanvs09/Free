@@ -9,20 +9,17 @@
 <link rel="stylesheet" href="../src/base.css">
 <style>
   /* ---------- HERO: identity graph ---------- */
-  .hero{height:360px;color:var(--navy);background:linear-gradient(115deg,#ffffff 0%,#f4f6fd 45%,#e8eefb 100%)}
-  .hero .dots{position:absolute;right:0;top:0;bottom:0;width:760px;opacity:.55;background-image:radial-gradient(rgba(42,91,234,.22) 1.2px,transparent 1.3px);background-size:18px 18px;-webkit-mask-image:radial-gradient(60% 70% at 60% 50%,#000,transparent);mask-image:radial-gradient(60% 70% at 60% 50%,#000,transparent)}
-  .hero .ph{position:absolute;right:0;top:0;bottom:0;width:780px;background:url(../assets/photos/hero-nhi.jpg) 50% 50%/cover no-repeat;opacity:.35;
-    -webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 40%);mask-image:linear-gradient(90deg,transparent 0%,#000 40%)}
+  .hero{height:360px;background:radial-gradient(120% 140% at 0% 0%, var(--navy-l) 0%, var(--navy) 42%, var(--navy-dd) 100%)}
   .hero-inner{position:relative;z-index:3;padding:36px 64px 0;width:600px}
   .logo{display:flex;align-items:center;gap:14px}
   .logo img{height:54px}
   .logo b{font-size:37px;font-weight:800;letter-spacing:-.02em;line-height:1}
-  .logo b i{font-style:normal;color:#2a5bea}
-  .kick{margin-top:34px;font-size:19px;font-weight:600;color:#4a5680}
+  .logo b i{font-style:normal;color:#7cc7ff}
+  .kick{margin-top:34px;font-size:19px;font-weight:600;color:#bcd0f5}
   h1{margin-top:4px;font-size:58px;line-height:1.04;font-weight:800;letter-spacing:-.025em}
-  h1 em{font-style:normal;color:#2a5bea}
-  .tagline{margin-top:14px;font-size:18.5px;line-height:1.5;color:var(--ink-2);font-weight:500}
-  .hrule2{margin-top:18px;width:84px;height:3px;border-radius:2px;background:#2a5bea}
+  h1 em{font-style:normal;color:#7cc7ff}
+  .tagline{margin-top:14px;font-size:18.5px;line-height:1.5;color:#dbe5fa;font-weight:500}
+  .hrule2{margin-top:18px;width:84px;height:3px;border-radius:2px;background:var(--cyan)}
   .orb-light{right:56px;top:0}
 
   .orb-nhi{right:70px;top:-2px}
@@ -44,7 +41,7 @@
   .nd.alert{border-color:rgba(248,113,113,.75)}
 
   /* ---------- INTRO ---------- */
-  .intro{display:grid;grid-template-columns:1fr 420px;gap:36px;padding-top:20px;padding-bottom:18px}
+  .intro{display:grid;grid-template-columns:1fr 420px;gap:36px;padding-top:26px;padding-bottom:22px}
   .intro p{margin-top:12px;font-size:17px;line-height:1.62;color:var(--ink-2)}
   .intro p b{color:var(--navy)}
   .answer{position:relative;overflow:hidden;border-radius:18px;padding:20px 26px;color:#fff;display:flex;flex-direction:column;justify-content:center;
@@ -56,7 +53,7 @@
   .answer p{margin-top:8px;font-size:17px;line-height:1.55;color:#eef3ff;font-weight:500}
 
   /* ---------- STATS ---------- */
-  .stats{background:var(--paper-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:18px 64px 18px}
+  .stats{background:var(--paper-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:20px 64px 20px}
   .sgrid{margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr)}
   .stat{display:flex;align-items:center;gap:18px;padding:0 24px}
   .stat:first-child{padding-left:0}
@@ -70,7 +67,7 @@
   .stat p strong{color:var(--navy)}
 
   /* ---------- CAPABILITIES ---------- */
-  .caps{padding-top:18px;padding-bottom:16px}
+  .caps{padding-top:22px;padding-bottom:20px}
   .cgrid{margin-top:14px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
   .cc{padding:14px 16px 15px;border-radius:16px;background:#fff;border:1px solid var(--line);box-shadow:0 6px 16px -12px rgba(14,26,92,.35)}
   .cc .t{display:flex;align-items:center;gap:12px}
@@ -88,7 +85,7 @@
   .st p{margin-top:3px;font-size:14.5px;line-height:1.4;color:var(--ink-3)}
 
   /* ---------- BUILT FOR ENTERPRISE ---------- */
-  .ent{padding-top:16px;padding-bottom:16px;background:var(--paper-2);border-top:1px solid var(--line)}
+  .ent{padding-top:20px;padding-bottom:20px;background:var(--paper-2);border-top:1px solid var(--line)}
   .egrid{margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
   .eb{border-radius:16px;background:#fff;border:1px solid var(--line);padding:14px 18px 8px;box-shadow:0 6px 16px -12px rgba(14,26,92,.35)}
   .eb .hd{display:flex;align-items:center;gap:12px;padding-bottom:12px;border-bottom:2px solid var(--navy)}
@@ -101,21 +98,13 @@
   .rows span{color:var(--ink-3);margin-left:auto;font-size:13.5px;text-align:right}
 
   /* ---------- CLOSING ---------- */
-  .close{margin-top:auto;position:relative;flex:none;color:#fff;overflow:hidden;
-    background:radial-gradient(80% 170% at 100% 0%, var(--navy-l) 0%, var(--navy) 50%, var(--navy-d) 100%)}
-  .close .ph{position:absolute;right:0;top:0;bottom:0;width:620px;background:url(../assets/photos/hero-nhi.jpg) 60% 50%/cover;opacity:.3;
-    -webkit-mask-image:linear-gradient(90deg,transparent,#000 60%);mask-image:linear-gradient(90deg,transparent,#000 60%)}
-  .close-top{position:relative;display:grid;grid-template-columns:1fr 440px;gap:24px;align-items:center;padding:22px 64px 18px}
-  .close h2{font-size:28px;line-height:1.15;font-weight:800;letter-spacing:-.02em}
-  .close h2 em{font-style:normal;color:#7cc7ff}
-  .verbs{margin-top:16px;display:flex;align-items:center;gap:10px}
-  .verbs span{font-size:15px;font-weight:700;letter-spacing:.06em;padding:7px 14px;border-radius:8px;background:rgba(79,179,255,.16);border:1px solid rgba(166,217,255,.38);color:#e3f2ff}
-  .verbs i{width:18px;height:18px;color:#7cc7ff;display:block}
-  .close-bar{position:relative;display:flex;align-items:center;justify-content:space-between;gap:30px;padding:13px 64px;background:rgba(6,12,48,.6);border-top:1px solid rgba(166,217,255,.18)}
-  .close-bar .tl{font-size:21px;font-weight:700;letter-spacing:-.01em;color:#fff}
-  .close-bar .tl em{font-style:normal;color:#7cc7ff}
-  .close-bar .by{display:flex;align-items:center;gap:10px;font-size:13px;color:#b8c8f0;font-weight:500;white-space:nowrap}
-  .close-bar .by img{height:28px}
+  .close{margin-top:auto;position:relative;flex:none;height:170px;color:#fff;overflow:hidden;
+    background:radial-gradient(80% 170% at 100% 100%, var(--navy-l) 0%, var(--navy) 45%, var(--navy-d) 100%)}
+  .close-in{height:100%;display:grid;grid-template-columns:1fr 440px;gap:40px;align-items:center;padding:0 64px}
+  .close .tl{font-size:28px;line-height:1.2;font-weight:800;letter-spacing:-.015em}
+  .close .tl em{font-style:normal;color:#7cc7ff}
+  .close .by{display:flex;align-items:center;gap:10px;margin-top:14px;font-size:13px;color:#b8c8f0;font-weight:500}
+  .close .by img{height:28px}
 </style>
 </head>
 <body>
@@ -123,7 +112,6 @@
 
   <!-- ============ HERO ============ -->
   <header class="hero">
-    <div class="dots"></div>
     {{orbit-light}}
     <div class="hero-inner">
       <div class="logo"><img src="../assets/brand/adapid-mark.png" alt=""><b>adapID <i>AI</i></b></div>
@@ -208,11 +196,10 @@
 
   <!-- ============ CLOSING ============ -->
   <footer class="close">
-    <div class="ph"></div>
-    <div class="close-top">
+    <div class="close-in">
       <div>
-        <h2>Make Every <em>Non&#8209;Human Identity</em> Accountable.</h2>
-        <div class="verbs"><span>DISCOVER</span><i>{{icon:arrow-right}}</i><span>GOVERN</span><i>{{icon:arrow-right}}</i><span>DETECT</span><i>{{icon:arrow-right}}</i><span>PROTECT</span></div>
+        <p class="tl">{{tagline}}</p>
+        <div class="by">A product of <img src="../assets/brand/deep-algorithms-lockup-inverse.png" alt="Deep Algorithms"></div>
       </div>
       <div class="contacts">
         <div class="ct">{{cicon:globe}}deepalgorithms.io</div>
@@ -220,10 +207,6 @@
         <div class="ct">{{cicon:map-pin}}Hyderabad, India</div>
         <div class="ct">{{cicon:linkedin-logo}}deepalgorithms.in</div>
       </div>
-    </div>
-    <div class="close-bar">
-      <p class="tl">{{tagline}}</p>
-      <div class="by">A product of <img src="../assets/brand/deep-algorithms-lockup-inverse.png" alt="Deep Algorithms"></div>
     </div>
   </footer>
 </div>

@@ -55,3 +55,5 @@ body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);-webk
 .ol-n .c{display:block;box-sizing:border-box;width:60px;height:60px;border-radius:50%;padding:16px;background:#fff;color:#0E1A5C;border:1px solid #d6e0f3;box-shadow:0 10px 22px -10px rgba(14,26,92,.35)}
 .ol-n .c .ico{width:100%;height:100%;display:block}
 .ol-n b{position:absolute;top:66px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:13px;font-weight:600;color:#0E1A5C}
+.orb-light.dark .ol-n b{color:#e3f0ff}
+.orb-light.dark .ol-n .c{border-color:rgba(166,217,255,.7);box-shadow:0 10px 24px -10px rgba(0,0,0,.6)}
