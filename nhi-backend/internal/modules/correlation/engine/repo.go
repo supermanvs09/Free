@@ -457,21 +457,21 @@ func (r *PGRepo) LoadRoleTrust(ctx context.Context, ds *Scope) ([]RoleTrustRow, 
 
 // LoadAssumePermissions returns the permission elements that could grant
 // sts:AssumeRole: the exact action and every wildcard action (the engine then
-// does the glob match), keyed by credential ARN.
+// does the glob match), keyed by credential ARN. They are resolved exactly as
+// LoadEffectivePermissions resolves them (policy documents first, the
+// collector's flattened elements as the fallback), so the role chain and the
+// direct grants of the same role never disagree.
+// ponytail: reads every role's policies per graph build (cached 5 min); filter in SQL if tenants grow past ~10k roles.
 func (r *PGRepo) LoadAssumePermissions(ctx context.Context, ds *Scope) (map[string][]ResourcePermission, error) {
 	if ds == nil || ds.DB == nil {
 		return nil, errors.New("nil scope")
 	}
 	query := fmt.Sprintf(`
-		SELECT c.arn, e.elem
+		SELECT c.arn, ep.permissions, c.attached_policies, c.inline_policies
 		FROM %s ep
 		JOIN %s c ON ep.credential_id = c.id
-		CROSS JOIN LATERAL jsonb_array_elements(
-			CASE WHEN jsonb_typeof(ep.permissions) = 'array' THEN ep.permissions
-			     ELSE COALESCE(ep.permissions->'permissions', '[]'::jsonb) END) AS e(elem)
 		WHERE c.deleted_at IS NULL
-		  AND (cardinality($1::text[]) = 0 OR c.account_id = ANY($1::text[]))
-		  AND (lower(e.elem->>'action') = 'sts:assumerole' OR e.elem->>'action' ~ '[*?]')`,
+		  AND (cardinality($1::text[]) = 0 OR c.account_id = ANY($1::text[]))`,
 		ds.Table("effective_permissions"), ds.Table("credentials"))
 
 	rows, err := ds.DB.QueryContext(ctx, query, pq.Array(ds.AccountIDs))
@@ -486,17 +486,25 @@ func (r *PGRepo) LoadAssumePermissions(ctx context.Context, ds *Scope) (map[stri
 	out := map[string][]ResourcePermission{}
 	for rows.Next() {
 		var arn string
-		var raw []byte
-		if err := rows.Scan(&arn, &raw); err != nil {
+		var stored, attached, inline []byte
+		if err := rows.Scan(&arn, &stored, &attached, &inline); err != nil {
 			return nil, fmt.Errorf("scan assume permission: %w", err)
 		}
-		var p ResourcePermission
-		if json.Unmarshal(raw, &p) != nil {
-			continue
-		}
-		out[arn] = append(out[arn], p)
+		out[arn] = append(out[arn], AssumeCandidates(ResolvePermissions(stored, attached, inline))...)
 	}
 	return out, rows.Err()
+}
+
+// AssumeCandidates keeps the elements that may grant sts:AssumeRole: the exact
+// action, or any action with a wildcard.
+func AssumeCandidates(perms []ResourcePermission) []ResourcePermission {
+	var out []ResourcePermission
+	for _, p := range perms {
+		if strings.EqualFold(p.Action, "sts:AssumeRole") || strings.ContainsAny(p.Action, "*?") {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // ── Cross-account lineage ──────────────────────────────────────────────────────

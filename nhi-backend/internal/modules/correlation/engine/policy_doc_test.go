@@ -172,3 +172,23 @@ func TestWildcardPerServiceThroughTheEngine(t *testing.T) {
 		t.Error("sensitivity of service wildcard targets")
 	}
 }
+
+func TestAssumeCandidatesKeepsAssumeAndWildcards(t *testing.T) {
+	got := AssumeCandidates([]ResourcePermission{
+		{Action: "sts:AssumeRole"}, {Action: "sts:*"}, {Action: "*"}, {Action: "s3:GetObject"}, {Action: "STS:ASSUMEROLE"},
+	})
+	if len(got) != 4 {
+		t.Fatalf("want 4 candidates, got %d: %+v", len(got), got)
+	}
+}
+
+func TestGroupByResourceNamesThePoliciesBehindAGrant(t *testing.T) {
+	gs := GroupByResource([]ResourcePermission{
+		{Action: "s3:GetObject", Effect: "Allow", ResourceARN: "arn:aws:s3:::b", PolicySource: "web-app", PolicyType: "managed"},
+		{Action: "s3:PutObject", Effect: "Allow", ResourceARN: "arn:aws:s3:::b", PolicySource: "uploads", PolicyType: "inline"},
+		{Action: "s3:ListBucket", Effect: "Allow", ResourceARN: "arn:aws:s3:::b", PolicySource: "web-app", PolicyType: "managed"},
+	})
+	if len(gs) != 1 || len(gs[0].Policies) != 2 || gs[0].Policies[0].Name != "web-app" || gs[0].Policies[1].Type != "inline" {
+		t.Fatalf("policies not carried: %+v", gs)
+	}
+}

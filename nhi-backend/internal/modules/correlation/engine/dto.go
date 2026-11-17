@@ -143,6 +143,8 @@ type PathHop struct {
 	// Basis says how the hop was established (see Basis* constants), so a reader
 	// can tell a trust-policy-resolved hop from a row in trust_edges.
 	Basis string `json:"basis,omitempty"`
+	// Policies are the identity policies that grant a CAN_ACCESS hop.
+	Policies []PolicyRef `json:"policies,omitempty"`
 	// ObservedCount and LastObservedAt are set when CloudTrail shows the hop
 	// actually happened.
 	ObservedCount  uint64     `json:"observed_count,omitempty"`

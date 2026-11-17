@@ -154,6 +154,28 @@ type ResourceGrant struct {
 	Except []string
 	// Flags are limitation tokens that apply to the grant as a whole.
 	Flags []string
+	// Policies are the identity policies whose statements make up the grant.
+	Policies []PolicyRef
+}
+
+// PolicyRef names one policy behind a grant: its name and kind (managed,
+// inline, ...) as the policy documents record them.
+type PolicyRef struct {
+	Name string `json:"name"`
+	Type string `json:"type,omitempty"`
+}
+
+func addPolicyRef(list []PolicyRef, p ResourcePermission) []PolicyRef {
+	if p.PolicySource == "" {
+		return list
+	}
+	ref := PolicyRef{Name: p.PolicySource, Type: p.PolicyType}
+	for _, r := range list {
+		if r == ref {
+			return list
+		}
+	}
+	return append(list, ref)
 }
 
 // GroupByResource collapses permissions to one grant per resource. A grant on
@@ -167,6 +189,7 @@ func GroupByResource(perms []ResourcePermission) []ResourceGrant {
 		exceptSets [][]string
 		plainStar  bool
 		flags      []string
+		policies   []PolicyRef
 	}
 	byRes := map[string]*acc{}
 	for _, p := range perms {
@@ -202,6 +225,7 @@ func GroupByResource(perms []ResourcePermission) []ResourceGrant {
 			}
 		}
 		a.flags = appendUnique(a.flags, p.Flags...)
+		a.policies = addPolicyRef(a.policies, p)
 		if extraFlag != "" {
 			a.flags = appendUnique(a.flags, extraFlag)
 		}
@@ -214,7 +238,7 @@ func GroupByResource(perms []ResourcePermission) []ResourceGrant {
 			actions = append(actions, act)
 		}
 		sort.Strings(actions)
-		g := ResourceGrant{ResourceARN: res, Actions: actions, Flags: a.flags}
+		g := ResourceGrant{ResourceARN: res, Actions: actions, Flags: a.flags, Policies: a.policies}
 		if len(a.cond) > 0 {
 			g.Flags = appendUnique(g.Flags, "grant_has_conditions")
 		}

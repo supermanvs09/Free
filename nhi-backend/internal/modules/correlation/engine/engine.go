@@ -323,6 +323,7 @@ func (t *traversal) grantPathsFrom(src grantSource, holderName string, hops []Pa
 		Evidence: src.evidence,
 		Table:    src.table,
 		Basis:    src.basis,
+		Policies: g.Policies,
 	}
 	allHops := append(append([]PathHop{}, hops...), hop)
 	if src.rank < rank {

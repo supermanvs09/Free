@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS :"schema".identity_credentials (
   identity_arn text, credential_arn text, account_id text);
 
 CREATE TABLE IF NOT EXISTS :"schema".effective_permissions (
-  credential_id text, granted_count int DEFAULT 0,
+  credential_id uuid, granted_count int DEFAULT 0,
   permissions jsonb DEFAULT '[]'::jsonb);
 
 CREATE TABLE IF NOT EXISTS :"schema".permission_usage (
