@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1240">
+<title>Deep Algorithms Profile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-0:#040d24; --navy-1:#071634; --navy-2:#0b2152; --navy-3:#123073;
+    --blue:#1f5fe0; --blue-2:#2f7bf5; --cyan:#47b4ff; --cyan-2:#8fd3ff;
+    --ink:#0d1a3a; --ink-2:#34425f; --ink-3:#5d6a86;
+    --line:#e2e8f3; --tile:#eef3fb; --paper:#ffffff; --paper-2:#f6f8fc;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--navy-0)}
+  body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+  .page{width:1240px;height:1754px;margin:0 auto;background:var(--paper);position:relative;overflow:hidden;display:flex;flex-direction:column}
+  .ico{width:100%;height:100%;display:block}
+
+  /* ---------- HERO ---------- */
+  .hero{position:relative;height:396px;flex:none;color:#fff;overflow:hidden;
+    background:radial-gradient(120% 140% at 0% 0%, #0d2a66 0%, var(--navy-1) 45%, var(--navy-0) 100%)}
+  .hero-art{position:absolute;right:-110px;top:-45px;width:720px;height:500px}
+  .hero-art .photo{position:absolute;inset:0;background:url(../assets/photos/hero-ai.jpg) 62% 55%/cover no-repeat;
+    -webkit-mask-image:radial-gradient(62% 70% at 60% 52%, #000 30%, transparent 78%);mask-image:radial-gradient(62% 70% at 60% 52%, #000 30%, transparent 78%);
+    opacity:.55;mix-blend-mode:screen;filter:saturate(1.15) hue-rotate(-6deg)}
+  .hero-art svg{position:absolute;inset:0}
+  .hero-grid{position:absolute;inset:0;opacity:.22;
+    background-image:linear-gradient(rgba(120,170,255,.18) 1px,transparent 1px),linear-gradient(90deg,rgba(120,170,255,.18) 1px,transparent 1px);
+    background-size:40px 40px;-webkit-mask-image:linear-gradient(90deg,transparent 30%,#000 75%);mask-image:linear-gradient(90deg,transparent 30%,#000 75%)}
+  .hero-inner{position:relative;z-index:2;padding:46px 64px 0}
+  .topbar{display:flex;align-items:center;justify-content:space-between}
+  .brand{display:flex;align-items:center;gap:22px}
+  .brand img{height:62px;display:block}
+  .pill{font-size:13px;font-weight:700;letter-spacing:.14em;padding:10px 18px;border-radius:8px;border:1px solid rgba(143,211,255,.35);
+    background:rgba(31,95,224,.28);backdrop-filter:blur(4px)}
+  .eyebrow{margin-top:36px;display:inline-flex;align-items:center;gap:10px;font-size:13px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--cyan-2)}
+  .eyebrow i{width:28px;height:2px;background:linear-gradient(90deg,var(--cyan),transparent)}
+  h1{margin-top:14px;font-size:44px;line-height:1.14;font-weight:800;letter-spacing:-.015em;max-width:660px}
+  h1 em{font-style:normal;color:#6cc0ff}
+  .tagline{margin-top:18px;font-size:18px;line-height:1.5;color:#c7d6f2;max-width:700px;font-weight:500}
+  .hero-foot{position:absolute;left:0;right:0;bottom:0;height:3px;background:linear-gradient(90deg,var(--blue) 0%,var(--cyan) 50%,transparent 100%)}
+
+  /* ---------- SECTIONS ---------- */
+  .sec{padding:0 64px}
+  .h2{display:flex;align-items:center;gap:12px;font-size:23px;font-weight:800;letter-spacing:-.01em;color:var(--ink)}
+  .h2::before{content:"";width:5px;height:24px;border-radius:3px;background:linear-gradient(180deg,var(--cyan),var(--blue))}
+  .rule{height:1px;background:var(--line);margin:0 64px}
+
+  .about{display:grid;grid-template-columns:1fr 372px;gap:36px;padding-top:28px;padding-bottom:24px}
+  .about p{margin-top:12px;font-size:15px;line-height:1.62;color:var(--ink-2)}
+  .about p b{color:var(--ink);font-weight:700}
+  .facts{border-left:1px solid var(--line);padding-left:30px;display:flex;flex-direction:column;justify-content:center;gap:14px}
+  .fact{display:flex;gap:16px;align-items:center}
+  .fact .ib{width:46px;height:46px;flex:none;border-radius:12px;background:var(--tile);color:var(--blue);padding:10px}
+  .fact h4{font-size:16px;font-weight:700}
+  .fact span{display:block;font-size:13px;color:var(--ink-3);margin-top:2px}
+  .tri{display:inline-flex;flex-direction:column;margin-left:8px;font-style:normal;vertical-align:-1px;border-radius:2px;overflow:hidden;border:1px solid #d5ddeb}
+  .tri i{width:18px;height:4px;display:block}
+
+  /* platforms */
+  .platforms{padding-top:22px;padding-bottom:24px}
+  .pgrid{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  .pcard{position:relative;border-radius:16px;padding:22px 26px 22px;color:#fff;overflow:hidden;
+    background:linear-gradient(135deg,#0d2558 0%,var(--navy-1) 60%,#06112b 100%);box-shadow:0 10px 26px -14px rgba(7,22,52,.55)}
+  .pcard::after{content:"";position:absolute;right:-60px;bottom:-90px;width:320px;height:220px;border-radius:50%;
+    background:radial-gradient(closest-side,rgba(71,180,255,.35),transparent);filter:blur(6px)}
+  .pcard .waves{position:absolute;right:0;bottom:0;width:300px;height:120px;opacity:.55}
+  .phead{display:flex;align-items:center;gap:16px;height:58px}
+  .phead .mark{height:54px;width:auto}
+  .pname{font-size:23px;font-weight:800;letter-spacing:-.01em;line-height:1.1}
+  .pname small{display:block;font-size:13.5px;font-weight:500;color:#a9c1ea;margin-top:5px;letter-spacing:0}
+  .zen{display:flex;align-items:center;gap:14px}
+  .zen .star{height:56px}
+  .zen .word{height:19px;margin-top:2px}
+  .pcard p{position:relative;z-index:1;margin-top:12px;font-size:14px;line-height:1.6;color:#d3def3;max-width:470px}
+  .tags{position:relative;z-index:1;margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
+  .tags span{font-size:11.5px;font-weight:600;letter-spacing:.02em;padding:5px 10px;border-radius:999px;background:rgba(71,180,255,.13);border:1px solid rgba(143,211,255,.25);color:#cfe7ff}
+
+  /* capabilities + right column */
+  .mid{display:grid;grid-template-columns:440px 1fr;gap:0;padding-top:24px;padding-bottom:24px}
+  .caps{padding-right:34px;border-right:1px solid var(--line)}
+  .cap{display:flex;align-items:center;gap:16px;padding:8px 0;border-bottom:1px solid var(--line)}
+  .cap:last-child{border-bottom:0}
+  .cap .ib{width:46px;height:46px;flex:none;border-radius:12px;background:var(--tile);color:var(--blue);padding:10px}
+  .cap h4{font-size:15.5px;font-weight:700;line-height:1.3}
+  .cap span{display:block;font-size:13px;color:var(--ink-3);font-weight:500;margin-top:2px}
+  .right{padding-left:34px}
+  .ind{margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .tile{position:relative;height:96px;border-radius:12px;overflow:hidden;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center}
+  .tile .bg{position:absolute;inset:0;background-size:cover;background-position:center;filter:grayscale(.3)}
+  .tile::before{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(7,22,52,.55),rgba(7,22,52,.9))}
+  .tile>*:not(.bg){position:relative;z-index:2}
+  .tile .ti{width:28px;height:28px;color:#bfe3ff}
+  .tile b{font-size:14px;font-weight:700;line-height:1.25}
+  .why{margin-top:24px;display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+  .wcard{display:flex;gap:12px;padding:12px 14px;border-radius:12px;background:var(--paper-2);border:1px solid var(--line)}
+  .wcard .ib{width:40px;height:40px;flex:none;color:var(--blue);padding:4px}
+  .wcard h4{font-size:14.5px;font-weight:700}
+  .wcard span{display:block;font-size:12.5px;line-height:1.45;color:var(--ink-3);margin-top:3px}
+
+  /* trusted + funded */
+  .proof{display:grid;grid-template-columns:1fr 330px;gap:28px;padding-top:20px;padding-bottom:22px}
+  .logos{margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .lg{height:62px;border-radius:12px;border:1px solid var(--line);background:#fff;display:flex;align-items:center;justify-content:center;padding:14px 18px}
+  .lg img{max-width:100%;max-height:100%;object-fit:contain}
+  .lg.tall img{max-height:36px}
+  .lg .wm{font-size:22px;font-weight:800;letter-spacing:-.01em;color:#1b2b4b}
+  .lg .wm i{font-style:normal;color:#e35b1f}
+  .fund{margin-top:14px;height:134px;gap:10px;border-radius:14px;padding:22px;display:flex;flex-direction:column;justify-content:space-between;
+    background:linear-gradient(160deg,#f3f7ff,#e8f0ff);border:1px solid #d6e2f7}
+  .fund img{width:100%;max-height:56px;object-fit:contain;object-position:left center}
+  .fund p{font-size:12px;line-height:1.45;color:var(--ink-3)}
+  .fund p b{color:var(--ink);font-weight:700}
+
+  /* ---------- FOOTER ---------- */
+  .foot{margin-top:auto;position:relative;height:184px;flex:none;color:#fff;overflow:hidden;
+    background:radial-gradient(90% 160% at 100% 100%, #123a8a 0%, var(--navy-1) 50%, var(--navy-0) 100%)}
+  .foot svg.fw{position:absolute;right:-20px;bottom:-10px;width:760px;height:200px;opacity:.6}
+  .foot-in{position:relative;z-index:2;height:100%;display:grid;grid-template-columns:1fr 440px;align-items:center;padding:0 64px;gap:40px}
+  .cta small{display:block;font-size:12.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--cyan-2)}
+  .cta h3{margin-top:10px;font-size:31px;line-height:1.15;font-weight:800;letter-spacing:-.015em}
+  .cta h3 em{font-style:normal;color:#6cc0ff}
+  .contacts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .ct{display:flex;align-items:center;gap:10px;padding:11px 13px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(143,211,255,.18);font-size:13px;font-weight:600;color:#e3ecfb}
+  .ct .ci{width:20px;height:20px;flex:none;color:var(--cyan)}
+  .ct.wide{grid-column:1/-1}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ============ HERO ============ -->
+  <header class="hero">
+    <div class="hero-grid"></div>
+    <div class="hero-art">
+      <div class="photo"></div>
+      <svg viewBox="0 0 720 500" fill="none">
+        <defs>
+          <radialGradient id="glow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#47b4ff" stop-opacity=".55"/><stop offset="1" stop-color="#47b4ff" stop-opacity="0"/></radialGradient>
+          <linearGradient id="scan" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#8fd3ff" stop-opacity="0"/><stop offset=".5" stop-color="#8fd3ff" stop-opacity=".9"/><stop offset="1" stop-color="#8fd3ff" stop-opacity="0"/></linearGradient>
+          <linearGradient id="ring" x1="0" x2="1"><stop offset="0" stop-color="#2f7bf5"/><stop offset="1" stop-color="#8fd3ff"/></linearGradient>
+        </defs>
+        <g transform="translate(440 250)">
+          <circle r="190" fill="url(#glow)"/>
+          <circle r="205" stroke="#2f7bf5" stroke-opacity=".25" stroke-width="1"/>
+          <circle r="172" stroke="url(#ring)" stroke-opacity=".7" stroke-width="1.5" stroke-dasharray="2 9"/>
+          <circle r="150" stroke="#8fd3ff" stroke-opacity=".35" stroke-width="1"/>
+          <path d="M0,-150 A150,150 0 0 1 130,-75" stroke="#8fd3ff" stroke-width="3" stroke-linecap="round"/>
+          <path d="M-130,75 A150,150 0 0 1 -150,0" stroke="#47b4ff" stroke-width="3" stroke-linecap="round"/>
+          <circle r="122" stroke="#47b4ff" stroke-opacity=".2" stroke-width="18"/>
+          <g transform="translate(-80 -80) scale(.625)" color="#cfeaff" opacity=".95"><svg width="256" height="256" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M68,128A130.71,130.71,0,0,1,54.27,186.7a4,4,0,0,1-3.58,2.22,3.91,3.91,0,0,1-1.78-.42,4,4,0,0,1-1.8-5.36A122.71,122.71,0,0,0,60,128,67.74,67.74,0,0,1,85.5,74.92a4,4,0,0,1,5,6.25A59.74,59.74,0,0,0,68,128Zm60-4a4,4,0,0,0-4,4,188.1,188.1,0,0,1-23.48,91,4,4,0,0,0,7,3.88A196.22,196.22,0,0,0,132,128,4,4,0,0,0,128,124Zm0-32a36,36,0,0,0-36,36,4,4,0,0,0,8,0,28,28,0,0,1,56,0,218,218,0,0,1-20.9,93.7,4,4,0,1,0,7.24,3.41A226,226,0,0,0,164,128,36,36,0,0,0,128,92Zm0-64A100.11,100.11,0,0,0,28,128a91.66,91.66,0,0,1-5.24,30.67,4,4,0,1,0,7.54,2.66A99.66,99.66,0,0,0,36,128a92,92,0,0,1,184,0,286.37,286.37,0,0,1-5.37,55.23,4,4,0,0,0,3.15,4.69,4.13,4.13,0,0,0,.78.08,4,4,0,0,0,3.92-3.23A294.25,294.25,0,0,0,228,128,100.11,100.11,0,0,0,128,28ZM93.6,156.09a4,4,0,0,0-4.71,3.12,155,155,0,0,1-17.66,46.64,4,4,0,0,0,6.93,4,163.13,163.13,0,0,0,18.57-49A4,4,0,0,0,93.6,156.09ZM128,60a68.79,68.79,0,0,0-8.5.53,4,4,0,0,0,1,7.93A62.57,62.57,0,0,1,128,68a60.07,60.07,0,0,1,60,60,256.15,256.15,0,0,1-1.95,31.5,4,4,0,0,0,3.47,4.47l.5,0a4,4,0,0,0,4-3.51A264.37,264.37,0,0,0,196,128,68.08,68.08,0,0,0,128,60Zm56.93,128.12a4,4,0,0,0-4.87,2.88c-1.49,5.78-3.21,11.58-5.1,17.23a4,4,0,1,0,7.58,2.54c2-5.83,3.73-11.81,5.27-17.77A4,4,0,0,0,184.94,188.13Z"/></svg></g>
+          <rect x="-112" y="-4" width="224" height="3" rx="1.5" fill="url(#scan)"/>
+          <!-- identity nodes -->
+          <g fill="#8fd3ff">
+            <circle cx="-205" cy="0" r="4"/><circle cx="0" cy="-205" r="3"/><circle cx="145" cy="145" r="4"/><circle cx="-120" cy="-140" r="3"/>
+          </g>
+          <g stroke="#8fd3ff" stroke-opacity=".45" stroke-width="1">
+            <path d="M-205,0 L-300,-60 M-300,-60 L-380,-30"/><path d="M145,145 L210,210"/><path d="M-120,-140 L-190,-200 L-260,-190"/>
+          </g>
+          <g fill="#47b4ff"><circle cx="-300" cy="-60" r="3"/><circle cx="-380" cy="-30" r="2.5"/><circle cx="-190" cy="-200" r="2.5"/><circle cx="-260" cy="-190" r="2"/></g>
+          <!-- labels -->
+          <g font-family="Plus Jakarta Sans" font-size="11" font-weight="700" letter-spacing="1.4" fill="#bfe3ff">
+            <g transform="translate(-338 22)"><rect x="-10" y="-14" width="104" height="22" rx="11" fill="#0b2152" fill-opacity=".85" stroke="#47b4ff" stroke-opacity=".5"/><text>HUMAN · 0.12</text></g>
+            <g transform="translate(-270 140)"><rect x="-10" y="-14" width="112" height="22" rx="11" fill="#0b2152" fill-opacity=".85" stroke="#47b4ff" stroke-opacity=".5"/><text>AI AGENT · 0.31</text></g>
+            <g transform="translate(70 150)"><rect x="-10" y="-14" width="92" height="22" rx="11" fill="#0b2152" fill-opacity=".85" stroke="#47b4ff" stroke-opacity=".5"/><text>NHI · 0.07</text></g>
+          </g>
+        </g>
+      </svg>
+    </div>
+    <div class="hero-inner">
+      <div class="topbar">
+        <div class="brand"><img src="../assets/brand/deep-algorithms-lockup-inverse.png" alt="Deep Algorithms"></div>
+        <div class="pill">ENTERPRISE PROFILE</div>
+      </div>
+      <div class="eyebrow"><i></i>Identity &amp; Data Security · Made in India</div>
+      <h1>Pioneering Agentic and Data Security through <em>Behavioural Intelligence.</em></h1>
+      <p class="tagline">AI-powered identity security for the human, non-human and agentic AI era.</p>
+    </div>
+    <div class="hero-foot"></div>
+  </header>
+
+  <!-- ============ ABOUT ============ -->
+  <section class="sec about">
+    <div>
+      <h2 class="h2">About the Company</h2>
+      <p><b>Deep Algorithms Solutions</b> is an enterprise-focused, AI-native cybersecurity company building next-generation security platforms to protect digital identities, AI agents, applications and sensitive data. Leveraging advanced artificial intelligence, behavioural intelligence and real-time risk analytics, we empower organisations to anticipate threats, strengthen cyber resilience and secure their evolving digital ecosystems.</p>
+    </div>
+    <div class="facts">
+      <div class="fact"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M221.86,47.24a14,14,0,0,0-13.11-13.1c-12.31-.73-43.77.39-69.88,26.5L133.52,66H74.35a13.9,13.9,0,0,0-9.89,4.1L30.11,104.44a14,14,0,0,0,7.94,23.76l39.13,5.46,45.16,45.16L127.8,218a14,14,0,0,0,23.76,7.92l34.35-34.35a13.91,13.91,0,0,0,4.1-9.89V122.48l5.35-5.35h0C221.46,91,222.59,59.56,221.86,47.24ZM38.11,115a2,2,0,0,1,.49-2L72.94,78.58A2,2,0,0,1,74.35,78h47.17L77.87,121.64l-38.14-5.32A1.93,1.93,0,0,1,38.11,115ZM178,181.65a2,2,0,0,1-.59,1.41L143.08,217.4a2,2,0,0,1-3.4-1.11l-5.32-38.16L178,134.48Zm8.87-73h0L128,167.51,88.49,128l58.87-58.88a78.47,78.47,0,0,1,60.69-23A2,2,0,0,1,209.88,48,78.47,78.47,0,0,1,186.88,108.64ZM100,190.31C95.68,199.84,81.13,222,40,222a6,6,0,0,1-6-6c0-41.13,22.16-55.68,31.69-60a6,6,0,1,1,5,10.92c-7,3.17-22.53,13.52-24.47,42.91,29.39-1.94,39.74-17.52,42.91-24.47a6,6,0,1,1,10.92,5Z"/></svg></div><div><h4>AI &amp; Cybersecurity Startup</h4><span>Focused on Identity Security</span></div></div>
+      <div class="fact"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M224.42,104.2c-3.9-4.07-7.93-8.27-9.55-12.18-1.5-3.63-1.58-9-1.67-14.68-.14-9.38-.3-20-7.42-27.12S188,42.94,178.66,42.8c-5.68-.09-11-.17-14.68-1.67-3.91-1.62-8.11-5.65-12.18-9.55C145.16,25.22,137.64,18,128,18s-17.16,7.22-23.8,13.58c-4.07,3.9-8.27,7.93-12.18,9.55-3.63,1.5-9,1.58-14.68,1.67-9.38.14-20,.3-27.12,7.42S42.94,68,42.8,77.34c-.09,5.68-.17,11-1.67,14.68-1.62,3.91-5.65,8.11-9.55,12.18C25.22,110.84,18,118.36,18,128s7.22,17.16,13.58,23.8c3.9,4.07,7.93,8.27,9.55,12.18,1.5,3.63,1.58,9,1.67,14.68.14,9.38.3,20,7.42,27.12S68,213.06,77.34,213.2c5.68.09,11,.17,14.68,1.67,3.91,1.62,8.11,5.65,12.18,9.55C110.84,230.78,118.36,238,128,238s17.16-7.22,23.8-13.58c4.07-3.9,8.27-7.93,12.18-9.55,3.63-1.5,9-1.58,14.68-1.67,9.38-.14,20-.3,27.12-7.42s7.28-17.74,7.42-27.12c.09-5.68.17-11,1.67-14.68,1.62-3.91,5.65-8.11,9.55-12.18C230.78,145.16,238,137.64,238,128S230.78,110.84,224.42,104.2Zm-8.66,39.3c-4.67,4.86-9.5,9.9-12,15.9-2.38,5.74-2.48,12.52-2.58,19.08-.11,7.44-.23,15.14-3.9,18.82s-11.38,3.79-18.82,3.9c-6.56.1-13.34.2-19.08,2.58-6,2.48-11,7.31-15.91,12-5.25,5-10.68,10.24-15.49,10.24s-10.24-5.21-15.5-10.24c-4.86-4.67-9.9-9.5-15.9-12-5.74-2.38-12.52-2.48-19.08-2.58-7.44-.11-15.14-.23-18.82-3.9s-3.79-11.38-3.9-18.82c-.1-6.56-.2-13.34-2.58-19.08-2.48-6-7.31-11-12-15.91C35.21,138.24,30,132.81,30,128s5.21-10.24,10.24-15.5c4.67-4.86,9.5-9.9,12-15.9,2.38-5.74,2.48-12.52,2.58-19.08.11-7.44.23-15.14,3.9-18.82s11.38-3.79,18.82-3.9c6.56-.1,13.34-.2,19.08-2.58,6-2.48,11-7.31,15.91-12C117.76,35.21,123.19,30,128,30s10.24,5.21,15.5,10.24c4.86,4.67,9.9,9.5,15.9,12,5.74,2.38,12.52,2.48,19.08,2.58,7.44.11,15.14.23,18.82,3.9s3.79,11.38,3.9,18.82c.1,6.56.2,13.34,2.58,19.08,2.48,6,7.31,11,12,15.91,5,5.25,10.24,10.68,10.24,15.49S220.79,138.24,215.76,143.5ZM172.24,99.76a6,6,0,0,1,0,8.48l-56,56a6,6,0,0,1-8.48,0l-24-24a6,6,0,0,1,8.48-8.48L112,151.51l51.76-51.75A6,6,0,0,1,172.24,99.76Z"/></svg></div><div><h4>Patented Technology</h4><span>In Behavioural Biometric Authentication</span></div></div>
+      <div class="fact"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M128,66a38,38,0,1,0,38,38A38,38,0,0,0,128,66Zm0,64a26,26,0,1,1,26-26A26,26,0,0,1,128,130Zm0-112a86.1,86.1,0,0,0-86,86c0,30.91,14.34,63.74,41.47,94.94a252.32,252.32,0,0,0,41.09,38,6,6,0,0,0,6.88,0,252.32,252.32,0,0,0,41.09-38c27.13-31.2,41.47-64,41.47-94.94A86.1,86.1,0,0,0,128,18Zm0,206.51C113,212.93,54,163.62,54,104a74,74,0,0,1,148,0C202,163.62,143,212.93,128,224.51Z"/></svg></div><div><h4>Made in India <em class="tri"><i style="background:#ff9933"></i><i style="background:#fff"></i><i style="background:#138808"></i></em></h4><span>Aligned with Government &amp; MeitY initiatives</span></div></div>
+    </div>
+  </section>
+
+  <div class="rule"></div>
+
+  <!-- ============ PLATFORMS ============ -->
+  <section class="sec platforms">
+    <h2 class="h2">Our Platforms</h2>
+    <div class="pgrid">
+      <article class="pcard">
+        <svg class="waves" viewBox="0 0 300 120" preserveAspectRatio="none" fill="none"><path d="M0,70 C60,40 120,110 180,70 S270,30 300,50" stroke="#47b4ff" stroke-opacity="0.080" stroke-width="1"/><path d="M0,75 C60,46 120,107 180,72 S270,37 300,55" stroke="#47b4ff" stroke-opacity="0.115" stroke-width="1"/><path d="M0,80 C60,52 120,104 180,74 S270,44 300,60" stroke="#47b4ff" stroke-opacity="0.150" stroke-width="1"/><path d="M0,85 C60,58 120,101 180,76 S270,51 300,65" stroke="#47b4ff" stroke-opacity="0.185" stroke-width="1"/><path d="M0,90 C60,64 120,98 180,78 S270,58 300,70" stroke="#47b4ff" stroke-opacity="0.220" stroke-width="1"/><path d="M0,95 C60,70 120,95 180,80 S270,65 300,75" stroke="#47b4ff" stroke-opacity="0.255" stroke-width="1"/><path d="M0,100 C60,76 120,92 180,82 S270,72 300,80" stroke="#47b4ff" stroke-opacity="0.290" stroke-width="1"/><path d="M0,105 C60,82 120,89 180,84 S270,79 300,85" stroke="#47b4ff" stroke-opacity="0.325" stroke-width="1"/><path d="M0,110 C60,88 120,86 180,86 S270,86 300,90" stroke="#47b4ff" stroke-opacity="0.360" stroke-width="1"/><path d="M0,115 C60,94 120,83 180,88 S270,93 300,95" stroke="#47b4ff" stroke-opacity="0.395" stroke-width="1"/></svg>
+        <div class="phead">
+          <img class="mark" src="../assets/brand/adapid-mark.png" alt="">
+          <div class="pname">adapID AI · CIRM Platform<small>Continuous Identity Risk Management</small></div>
+        </div>
+        <p>Behavioural biometric–powered, Zero Trust platform for continuous authentication and identity threat detection across human and non-human identities.</p>
+        <div class="tags"><span>Behavioural Biometrics</span><span>NHI Security</span><span>Fraud Prevention</span></div>
+      </article>
+      <article class="pcard">
+        <svg class="waves" viewBox="0 0 300 120" preserveAspectRatio="none" fill="none"><path d="M0,70 C60,40 120,110 180,70 S270,30 300,50" stroke="#47b4ff" stroke-opacity="0.080" stroke-width="1"/><path d="M0,75 C60,46 120,107 180,72 S270,37 300,55" stroke="#47b4ff" stroke-opacity="0.115" stroke-width="1"/><path d="M0,80 C60,52 120,104 180,74 S270,44 300,60" stroke="#47b4ff" stroke-opacity="0.150" stroke-width="1"/><path d="M0,85 C60,58 120,101 180,76 S270,51 300,65" stroke="#47b4ff" stroke-opacity="0.185" stroke-width="1"/><path d="M0,90 C60,64 120,98 180,78 S270,58 300,70" stroke="#47b4ff" stroke-opacity="0.220" stroke-width="1"/><path d="M0,95 C60,70 120,95 180,80 S270,65 300,75" stroke="#47b4ff" stroke-opacity="0.255" stroke-width="1"/><path d="M0,100 C60,76 120,92 180,82 S270,72 300,80" stroke="#47b4ff" stroke-opacity="0.290" stroke-width="1"/><path d="M0,105 C60,82 120,89 180,84 S270,79 300,85" stroke="#47b4ff" stroke-opacity="0.325" stroke-width="1"/><path d="M0,110 C60,88 120,86 180,86 S270,86 300,90" stroke="#47b4ff" stroke-opacity="0.360" stroke-width="1"/><path d="M0,115 C60,94 120,83 180,88 S270,93 300,95" stroke="#47b4ff" stroke-opacity="0.395" stroke-width="1"/></svg>
+        <div class="phead zen">
+          <img class="star" src="../assets/brand/zenstra-star.png" alt="">
+          <div><img class="word" src="../assets/brand/zenstra-wordmark.png" alt="Zenstra AI"><div class="pname"><small>Agentic AI Security Platform</small></div></div>
+        </div>
+        <p>Discovers, governs and secures every AI agent: agent identity and access, runtime enforcement of every tool call, MCP security and a tamper-evident decision record.</p>
+        <div class="tags"><span>Agent Discovery</span><span>Runtime Enforcement</span><span>MCP Security</span></div>
+      </article>
+    </div>
+  </section>
+
+  <div class="rule"></div>
+
+  <!-- ============ CAPABILITIES / INDUSTRIES / WHY ============ -->
+  <section class="sec mid">
+    <div class="caps">
+      <h2 class="h2">Core Capabilities</h2>
+      <div style="margin-top:8px">
+        <div class="cap"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M70,128a132.68,132.68,0,0,1-14,59.58,6,6,0,0,1-5.38,3.33,6,6,0,0,1-5.36-8.67A120.74,120.74,0,0,0,58,128,69.72,69.72,0,0,1,84.25,73.36a6,6,0,0,1,7.51,9.37A57.73,57.73,0,0,0,70,128Zm58-6a6,6,0,0,0-6,6,186.07,186.07,0,0,1-23.23,90.07,6,6,0,0,0,10.5,5.82A198.14,198.14,0,0,0,134,128,6,6,0,0,0,128,122Zm0-32a38,38,0,0,0-38,38,6,6,0,0,0,12,0,26,26,0,0,1,52,0,216.06,216.06,0,0,1-20.71,92.85A6,6,0,1,0,144.16,226,227.94,227.94,0,0,0,166,128,38,38,0,0,0,128,90Zm0-64A102.11,102.11,0,0,0,26,128a90,90,0,0,1-5.12,30,6,6,0,1,0,11.31,4A101.83,101.83,0,0,0,38,128a90,90,0,0,1,180,0,284.7,284.7,0,0,1-5.33,54.84,6,6,0,0,0,4.72,7.05,6.8,6.8,0,0,0,1.17.11,6,6,0,0,0,5.88-4.84A295.92,295.92,0,0,0,230,128,102.12,102.12,0,0,0,128,26ZM94,154.13a6,6,0,0,0-7.07,4.69,152.82,152.82,0,0,1-17.44,46,6,6,0,0,0,10.4,6,164.77,164.77,0,0,0,18.8-49.65A6,6,0,0,0,94,154.13ZM128,58a70.76,70.76,0,0,0-8.75.54,6,6,0,1,0,1.49,11.91A58,58,0,0,1,186,128a252.27,252.27,0,0,1-1.94,31.26,6,6,0,0,0,5.21,6.69,6.59,6.59,0,0,0,.75,0,6,6,0,0,0,5.95-5.26A266.46,266.46,0,0,0,198,128,70.08,70.08,0,0,0,128,58ZM185.44,186.2a6,6,0,0,0-7.31,4.31c-1.47,5.74-3.18,11.49-5.06,17.09a6,6,0,0,0,11.38,3.82c2-5.88,3.75-11.9,5.3-17.92A6,6,0,0,0,185.44,186.2Z"/></svg></div><div><h4>Behavioural Biometrics &amp; Continuous Authentication</h4></div></div>
+        <div class="cap"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M200,50H134V16a6,6,0,0,0-12,0V50H56A30,30,0,0,0,26,80V192a30,30,0,0,0,30,30H200a30,30,0,0,0,30-30V80A30,30,0,0,0,200,50Zm18,142a18,18,0,0,1-18,18H56a18,18,0,0,1-18-18V80A18,18,0,0,1,56,62H200a18,18,0,0,1,18,18ZM74,108a10,10,0,1,1,10,10A10,10,0,0,1,74,108Zm88,0a10,10,0,1,1,10,10A10,10,0,0,1,162,108Zm2,30H92a26,26,0,0,0,0,52h72a26,26,0,0,0,0-52Zm-22,12v28H114V150ZM78,164a14,14,0,0,1,14-14h10v28H92A14,14,0,0,1,78,164Zm86,14H154V150h10a14,14,0,0,1,0,28Z"/></svg></div><div><h4>Human, Non-Human &amp; Agentic Identity Security</h4></div></div>
+        <div class="cap"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M208,42H48A14,14,0,0,0,34,56v56c0,51.94,25.12,83.4,46.2,100.64,22.73,18.6,45.27,24.89,46.22,25.15a6,6,0,0,0,3.16,0c.95-.26,23.49-6.55,46.22-25.15C196.88,195.4,222,163.94,222,112V56A14,14,0,0,0,208,42Zm2,70c0,37.76-13.94,68.39-41.44,91.06A131.17,131.17,0,0,1,128,225.72a130.94,130.94,0,0,1-40.56-22.66C59.94,180.39,46,149.76,46,112V56a2,2,0,0,1,2-2H208a2,2,0,0,1,2,2ZM172.24,99.76a6,6,0,0,1,0,8.48l-56,56a6,6,0,0,1-8.48,0l-24-24a6,6,0,0,1,8.48-8.48L112,151.51l51.76-51.75A6,6,0,0,1,172.24,99.76Z"/></svg></div><div><h4>AI Security &amp; Governance</h4><span>Shadow AI, Data Protection</span></div></div>
+        <div class="cap"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M229.18,173a6,6,0,0,1-2.16,8.2l-96,56a6,6,0,0,1-6,0l-96-56a6,6,0,0,1,6-10.36l93,54.23,93-54.23A6,6,0,0,1,229.18,173ZM221,122.82l-93,54.23L35,122.82a6,6,0,0,0-6,10.36l96,56a6,6,0,0,0,6,0l96-56a6,6,0,0,0-6-10.36ZM26,80a6,6,0,0,1,3-5.18l96-56a6,6,0,0,1,6,0l96,56a6,6,0,0,1,0,10.36l-96,56a6,6,0,0,1-6,0l-96-56A6,6,0,0,1,26,80Zm17.91,0L128,129.05,212.09,80,128,31Z"/></svg></div><div><h4>Application Runtime Protection</h4><span>RASP</span></div></div>
+        <div class="cap"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M238,128a6,6,0,0,1-6,6H203.71l-38.34,76.68A6,6,0,0,1,160,214h-.3a6,6,0,0,1-5.31-3.85L95.51,55.57,61.46,130.48A6,6,0,0,1,56,134H24a6,6,0,0,1,0-12H52.14l38.4-84.48a6,6,0,0,1,11.07.34L160.74,193.1l33.89-67.78A6,6,0,0,1,200,122h32A6,6,0,0,1,238,128Z"/></svg></div><div><h4>Identity Threat Detection &amp; Response</h4><span>ITDR</span></div></div>
+      </div>
+    </div>
+    <div class="right">
+      <h2 class="h2">Industries We Serve</h2>
+      <div class="ind">
+        <div class="tile"><div class="bg" style="background-image:url(../assets/photos/bfsi.jpg)"></div><div class="ti"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M24,102H50v68H32a6,6,0,0,0,0,12H224a6,6,0,0,0,0-12H206V102h26a6,6,0,0,0,3.14-11.11l-104-64a6,6,0,0,0-6.28,0l-104,64A6,6,0,0,0,24,102Zm38,0H98v68H62Zm84,0v68H110V102Zm48,68H158V102h36ZM128,39l82.8,51H45.2ZM246,208a6,6,0,0,1-6,6H16a6,6,0,0,1,0-12H240A6,6,0,0,1,246,208Z"/></svg></div><b>Banking &amp; BFSI</b></div>
+        <div class="tile"><div class="bg" style="background-image:url(../assets/photos/government.jpg)"></div><div class="ti"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M240,210H222V96a14,14,0,0,0-14-14H142V32a14,14,0,0,0-21.77-11.64l-80,53.33A14,14,0,0,0,34,85.34V210H16a6,6,0,0,0,0,12H240a6,6,0,0,0,0-12ZM208,94a2,2,0,0,1,2,2V210H142V94ZM46,85.34a2,2,0,0,1,.89-1.66l80-53.34A2,2,0,0,1,130,32V210H46ZM110,112v16a6,6,0,0,1-12,0V112a6,6,0,0,1,12,0Zm-32,0v16a6,6,0,0,1-12,0V112a6,6,0,0,1,12,0Zm0,56v16a6,6,0,0,1-12,0V168a6,6,0,0,1,12,0Zm32,0v16a6,6,0,0,1-12,0V168a6,6,0,0,1,12,0Z"/></svg></div><b>Government &amp;<br>Public Sector</b></div>
+        <div class="tile"><div class="bg" style="background:radial-gradient(circle at 70% 30%,#1f5fe0,#071634 70%)"></div><svg viewBox="0 0 200 112" style="position:absolute;inset:0;width:100%;height:100%;z-index:1;opacity:.5" fill="none">
+<g transform="translate(150 30)" stroke="#8fd3ff"><circle r="18" stroke-opacity=".5"/><circle r="38" stroke-opacity=".35"/><circle r="60" stroke-opacity=".22"/><circle r="84" stroke-opacity=".14"/>
+<path d="M0,0 L-60,40" stroke-opacity=".6"/></g></svg><div class="ti"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M173.57,117.77a6,6,0,0,1-3.34,7.8L137.5,138.66l19.3,25.74a6,6,0,0,1-9.6,7.2L128,146l-19.2,25.6a6,6,0,1,1-9.6-7.2l19.3-25.74L85.77,125.57a6,6,0,0,1,4.46-11.14L122,127.14V96a6,6,0,0,1,12,0v31.14l31.77-12.71A6,6,0,0,1,173.57,117.77ZM222,56v56c0,51.94-25.12,83.4-46.2,100.64-22.73,18.6-45.27,24.89-46.22,25.15a6,6,0,0,1-3.16,0c-1-.26-23.49-6.55-46.22-25.15C59.12,195.4,34,163.94,34,112V56A14,14,0,0,1,48,42H208A14,14,0,0,1,222,56Zm-12,0a2,2,0,0,0-2-2H48a2,2,0,0,0-2,2v56c0,37.75,13.94,68.39,41.44,91.06A130.94,130.94,0,0,0,128,225.72a131.17,131.17,0,0,0,40.56-22.66C196.06,180.39,210,149.75,210,112Z"/></svg></div><b>Defence</b></div>
+      </div>
+      <h2 class="h2" style="margin-top:18px">Why Choose Deep Algorithms Solutions?</h2>
+      <div class="why">
+        <div class="wcard"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M174,232a6,6,0,0,1-6,6H88a6,6,0,0,1,0-12h80A6,6,0,0,1,174,232Zm40-128a85.56,85.56,0,0,1-32.88,67.64A18.23,18.23,0,0,0,174,186v6a14,14,0,0,1-14,14H96a14,14,0,0,1-14-14v-6a18,18,0,0,0-7-14.23h0a85.59,85.59,0,0,1-33-67.24C41.74,57.91,79.39,19.12,125.93,18A86,86,0,0,1,214,104Zm-12,0a74,74,0,0,0-75.79-74C86.17,31,53.78,64.34,54,104.42a73.67,73.67,0,0,0,28.4,57.87A29.92,29.92,0,0,1,94,186v6a2,2,0,0,0,2,2h64a2,2,0,0,0,2-2v-6a30.18,30.18,0,0,1,11.7-23.78A73.59,73.59,0,0,0,202,104Zm-20.08-9A55.58,55.58,0,0,0,137,50.08a6,6,0,1,0-2,11.84C152.38,64.84,167.13,79.6,170.08,97a6,6,0,0,0,5.91,5,6.87,6.87,0,0,0,1-.08A6,6,0,0,0,181.92,95Z"/></svg></div><div><h4>Indigenous Innovation</h4><span>Made-in-India technology and intellectual property.</span></div></div>
+        <div class="wcard"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M246,124a54.13,54.13,0,0,0-32-49.33V72a46,46,0,0,0-86-22.67A46,46,0,0,0,42,72v2.67a54,54,0,0,0,0,98.63V176a46,46,0,0,0,86,22.67A46,46,0,0,0,214,176v-2.7A54.07,54.07,0,0,0,246,124ZM88,210a34,34,0,0,1-34-32.94A53.67,53.67,0,0,0,64,178h8a6,6,0,0,0,0-12H64A42,42,0,0,1,50,84.39a6,6,0,0,0,4-5.66V72a34,34,0,0,1,68,0v73.05A45.89,45.89,0,0,0,88,130a6,6,0,0,0,0,12,34,34,0,0,1,0,68Zm104-44h-8a6,6,0,0,0,0,12h8a53.67,53.67,0,0,0,10-.94A34,34,0,1,1,168,142a6,6,0,0,0,0-12,45.89,45.89,0,0,0-34,15.05V72a34,34,0,0,1,68,0v6.73a6,6,0,0,0,4,5.66A42,42,0,0,1,192,166Zm14-54a6,6,0,0,1-6,6h-4a34,34,0,0,1-34-34V80a6,6,0,0,1,12,0v4a22,22,0,0,0,22,22h4A6,6,0,0,1,206,112ZM60,118H56a6,6,0,0,1,0-12h4A22,22,0,0,0,82,84V80a6,6,0,0,1,12,0v4A34,34,0,0,1,60,118Z"/></svg></div><div><h4>AI-Driven Security</h4><span>Adaptive, contextual and continuous protection.</span></div></div>
+        <div class="wcard"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M240,210H222V96a14,14,0,0,0-14-14H142V32a14,14,0,0,0-21.77-11.64l-80,53.33A14,14,0,0,0,34,85.34V210H16a6,6,0,0,0,0,12H240a6,6,0,0,0,0-12ZM208,94a2,2,0,0,1,2,2V210H142V94ZM46,85.34a2,2,0,0,1,.89-1.66l80-53.34A2,2,0,0,1,130,32V210H46ZM110,112v16a6,6,0,0,1-12,0V112a6,6,0,0,1,12,0Zm-32,0v16a6,6,0,0,1-12,0V112a6,6,0,0,1,12,0Zm0,56v16a6,6,0,0,1-12,0V168a6,6,0,0,1,12,0Zm32,0v16a6,6,0,0,1-12,0V168a6,6,0,0,1,12,0Z"/></svg></div><div><h4>Enterprise Ready</h4><span>Scalable, secure and integration-friendly.</span></div></div>
+        <div class="wcard"><div class="ib"><svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M172.91,83.09a78,78,0,1,0-89.82,89.82,78,78,0,1,0,89.82-89.82ZM30,96A66,66,0,0,1,160.49,82H160a78.09,78.09,0,0,0-78,78c0,.17,0,.33,0,.49A66.1,66.1,0,0,1,30,96Zm64,64a65.62,65.62,0,0,1,6-27.49L123.49,156A65.62,65.62,0,0,1,96,162c-.65,0-1.3,0-2-.05C94,161.3,94,160.65,94,160Zm40.23-10.25-28-28a66.47,66.47,0,0,1,15.52-15.52l28,28A66.47,66.47,0,0,1,134.23,149.75ZM162,96a65.62,65.62,0,0,1-6,27.49L132.51,100A65.62,65.62,0,0,1,160,94c.65,0,1.3,0,1.95,0C162,94.7,162,95.35,162,96Zm-2,130a66.1,66.1,0,0,1-64.49-52H96a78.09,78.09,0,0,0,78-78c0-.17,0-.33,0-.49A66,66,0,0,1,160,226Z"/></svg></div><div><h4>Unified Approach</h4><span>Correlated security across identities, applications and AI.</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="rule"></div>
+
+  <!-- ============ TRUSTED BY / FUNDED BY ============ -->
+  <section class="sec proof">
+    <div>
+      <h2 class="h2">Trusted By</h2>
+      <div class="logos">
+        <div class="lg"><img src="../assets/logos/canara-bank.png" alt="Canara Bank" style="max-height:40px"></div>
+        <div class="lg"><img src="../assets/logos/karnataka-bank.png" alt="Karnataka Bank"></div>
+        <div class="lg"><img src="../assets/logos/dcb-bank.png" alt="DCB Bank" style="max-height:32px"></div>
+        <div class="lg"><span class="wm">CSB <i>Bank</i></span></div>
+        <div class="lg tall"><img src="../assets/logos/mirae-asset.png" alt="Mirae Asset"></div>
+        <div class="lg tall"><img src="../assets/logos/ncrtc.png" alt="NCRTC"></div>
+      </div>
+    </div>
+    <div>
+      <h2 class="h2">Funded By</h2>
+      <div class="fund">
+        <img src="../assets/logos/unicorn-india-ventures.png" alt="Unicorn India Ventures">
+        <p><b>₹16 Cr pre-Series A</b> led by Unicorn India Ventures.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="foot">
+    <svg class="fw" viewBox="0 0 760 200" preserveAspectRatio="none" fill="none"><path d="M0,160 C150,120 300,200 460,130 S680,60 760,90" stroke="#47b4ff" stroke-opacity="0.050" stroke-width="1"/><path d="M0,156 C150,113 300,197 460,124 S680,62 760,85" stroke="#47b4ff" stroke-opacity="0.080" stroke-width="1"/><path d="M0,152 C150,106 300,194 460,118 S680,64 760,80" stroke="#47b4ff" stroke-opacity="0.110" stroke-width="1"/><path d="M0,148 C150,99 300,191 460,112 S680,66 760,75" stroke="#47b4ff" stroke-opacity="0.140" stroke-width="1"/><path d="M0,144 C150,92 300,188 460,106 S680,68 760,70" stroke="#47b4ff" stroke-opacity="0.170" stroke-width="1"/><path d="M0,140 C150,85 300,185 460,100 S680,70 760,65" stroke="#47b4ff" stroke-opacity="0.200" stroke-width="1"/><path d="M0,136 C150,78 300,182 460,94 S680,72 760,60" stroke="#47b4ff" stroke-opacity="0.230" stroke-width="1"/><path d="M0,132 C150,71 300,179 460,88 S680,74 760,55" stroke="#47b4ff" stroke-opacity="0.260" stroke-width="1"/><path d="M0,128 C150,64 300,176 460,82 S680,76 760,50" stroke="#47b4ff" stroke-opacity="0.290" stroke-width="1"/><path d="M0,124 C150,57 300,173 460,76 S680,78 760,45" stroke="#47b4ff" stroke-opacity="0.320" stroke-width="1"/><path d="M0,120 C150,50 300,170 460,70 S680,80 760,40" stroke="#47b4ff" stroke-opacity="0.350" stroke-width="1"/><path d="M0,116 C150,43 300,167 460,64 S680,82 760,35" stroke="#47b4ff" stroke-opacity="0.380" stroke-width="1"/><path d="M0,112 C150,36 300,164 460,58 S680,84 760,30" stroke="#47b4ff" stroke-opacity="0.410" stroke-width="1"/><path d="M0,108 C150,29 300,161 460,52 S680,86 760,25" stroke="#47b4ff" stroke-opacity="0.440" stroke-width="1"/></svg>
+    <div class="foot-in">
+      <div class="cta">
+        <small>Partner with us</small>
+        <h3>Let’s Build a <em>Safer Digital Future</em>, Together.</h3>
+      </div>
+      <div class="contacts">
+        <div class="ct"><svg class="ci" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M128,26A102,102,0,1,0,230,128,102.12,102.12,0,0,0,128,26Zm81.57,64H169.19a132.58,132.58,0,0,0-25.73-50.67A90.29,90.29,0,0,1,209.57,90ZM218,128a89.7,89.7,0,0,1-3.83,26H171.81a155.43,155.43,0,0,0,0-52h42.36A89.7,89.7,0,0,1,218,128Zm-90,87.83a110,110,0,0,1-15.19-19.45A124.24,124.24,0,0,1,99.35,166h57.3a124.24,124.24,0,0,1-13.46,30.38A110,110,0,0,1,128,215.83ZM96.45,154a139.18,139.18,0,0,1,0-52h63.1a139.18,139.18,0,0,1,0,52ZM38,128a89.7,89.7,0,0,1,3.83-26H84.19a155.43,155.43,0,0,0,0,52H41.83A89.7,89.7,0,0,1,38,128Zm90-87.83a110,110,0,0,1,15.19,19.45A124.24,124.24,0,0,1,156.65,90H99.35a124.24,124.24,0,0,1,13.46-30.38A110,110,0,0,1,128,40.17Zm-15.46-.84A132.58,132.58,0,0,0,86.81,90H46.43A90.29,90.29,0,0,1,112.54,39.33ZM46.43,166H86.81a132.58,132.58,0,0,0,25.73,50.67A90.29,90.29,0,0,1,46.43,166Zm97,50.67A132.58,132.58,0,0,0,169.19,166h40.38A90.29,90.29,0,0,1,143.46,216.67Z"/></svg>deepalgorithms.io</div>
+        <div class="ct"><svg class="ci" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M224,50H32a6,6,0,0,0-6,6V192a14,14,0,0,0,14,14H216a14,14,0,0,0,14-14V56A6,6,0,0,0,224,50Zm-96,85.86L47.42,62H208.58ZM101.67,128,38,186.36V69.64Zm8.88,8.14L124,148.42a6,6,0,0,0,8.1,0l13.4-12.28L208.58,194H47.43ZM154.33,128,218,69.64V186.36Z"/></svg>info@deepalgorithms.in</div>
+        <div class="ct"><svg class="ci" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M128,66a38,38,0,1,0,38,38A38,38,0,0,0,128,66Zm0,64a26,26,0,1,1,26-26A26,26,0,0,1,128,130Zm0-112a86.1,86.1,0,0,0-86,86c0,30.91,14.34,63.74,41.47,94.94a252.32,252.32,0,0,0,41.09,38,6,6,0,0,0,6.88,0,252.32,252.32,0,0,0,41.09-38c27.13-31.2,41.47-64,41.47-94.94A86.1,86.1,0,0,0,128,18Zm0,206.51C113,212.93,54,163.62,54,104a74,74,0,0,1,148,0C202,163.62,143,212.93,128,224.51Z"/></svg>Hyderabad, India</div>
+        <div class="ct"><svg class="ci" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M216,26H40A14,14,0,0,0,26,40V216a14,14,0,0,0,14,14H216a14,14,0,0,0,14-14V40A14,14,0,0,0,216,26Zm2,190a2,2,0,0,1-2,2H40a2,2,0,0,1-2-2V40a2,2,0,0,1,2-2H216a2,2,0,0,1,2,2ZM94,112v64a6,6,0,0,1-12,0V112a6,6,0,0,1,12,0Zm88,28v36a6,6,0,0,1-12,0V140a22,22,0,0,0-44,0v36a6,6,0,0,1-12,0V112a6,6,0,0,1,12,0v2.11A34,34,0,0,1,182,140ZM98,84A10,10,0,1,1,88,74,10,10,0,0,1,98,84Z"/></svg>deepalgorithms.in</div>
+      </div>
+    </div>
+  </footer>
+</div>
+</body>
+</html>
