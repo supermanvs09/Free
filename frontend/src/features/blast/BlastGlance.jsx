@@ -71,7 +71,7 @@ export function BlastGlance({ identityId, arn }) {
               {formatNumber(s.total)} {s.total === 1 ? 'resource' : 'resources'}
             </span>
             {s.roles ? ` and become ${formatNumber(s.roles)} ${s.roles === 1 ? 'role' : 'roles'}` : ''}
-            {s.accounts.size ? `, in ${formatNumber(s.accounts.size)} other ${s.accounts.size === 1 ? 'account' : 'accounts'}` : ''}.
+            {s.accounts.size ? `, across ${formatNumber(s.accounts.size + 1)} AWS accounts` : ''}.
           </>
         )}
       </p>
