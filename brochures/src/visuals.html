@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Product visuals</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  /* Illustrative product views (sample data, as on deepalgorithms.io), rendered on a transparent page. */
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:transparent}
+  body{font-family:Inter,system-ui,sans-serif;color:#111827;-webkit-font-smoothing:antialiased}
+  .scene{position:relative;padding:30px}
+  .win{background:#fff;border-radius:16px;border:1px solid #dfe3ec;box-shadow:0 30px 60px -20px rgba(6,12,48,.55),0 8px 20px -8px rgba(6,12,48,.25);overflow:hidden}
+  .bar{display:flex;align-items:center;gap:12px;height:50px;padding:0 18px;border-bottom:1px solid #e8ebf2;background:#fbfcfe}
+  .dots{display:flex;gap:7px}.dots i{width:11px;height:11px;border-radius:50%;background:#dfe3ea}
+  .bar img{height:22px}
+  .bar b{font-size:14.5px;font-weight:700}
+  .bar span{font-size:14.5px;color:#6b7280}
+  .bar .cnt{margin-left:auto;font-size:13px;font-weight:600;color:#1d4ed8;background:#eaf1ff;padding:5px 10px;border-radius:7px}
+  .tabs{display:flex;gap:4px;margin:14px 18px;padding:4px;border-radius:10px;background:#f2f4f8;width:max-content}
+  .tabs span{font-size:13px;font-weight:500;color:#4b5563;padding:6px 11px;border-radius:7px}
+  .tabs span.on{background:#fff;color:#111827;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+  table{width:100%;border-collapse:collapse}
+  th{font-size:11.5px;font-weight:600;letter-spacing:.08em;color:#6b7280;text-align:left;padding:10px 18px;background:#f6f8fb;border-top:1px solid #e8ebf2;border-bottom:1px solid #e8ebf2}
+  td{padding:11px 18px;border-bottom:1px solid #eef0f5;font-size:14px;vertical-align:middle}
+  tr.sel td{background:#f2f7ff}
+  tr.sel td:first-child{box-shadow:inset 3px 0 0 #1d4ed8}
+  .nm{font-weight:600;color:#111827}
+  .sub{display:block;font-size:12.5px;color:#6b7280;margin-top:2px;font-weight:400}
+  .sc{font-weight:700;font-size:16px;text-align:right}
+  .r{color:#b91c1c}.o{color:#c2410c}.g{color:#15803d}.y{color:#a16207}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:4px 9px;border-radius:7px}
+  .pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+  .p-hold{background:#fff1e7;color:#c2410c}.p-rev{background:#fef6dc;color:#a16207}.p-crit{background:#fde8e8;color:#b91c1c}.p-ok{background:#e6f6ec;color:#15803d}
+  .mono{font-family:'JetBrains Mono',monospace;font-size:12px;color:#6b7280}
+
+  /* floating decision card */
+  .card{position:absolute;background:#fff;border-radius:14px;border:1px solid #dfe3ec;box-shadow:0 26px 50px -16px rgba(6,12,48,.6);padding:16px 18px;width:400px}
+  .card .h{display:flex;align-items:center;gap:10px}
+  .card .h img{height:24px}
+  .card .h b{font-size:15px}
+  .card .h .pill{margin-left:auto}
+  .card .s{font-size:12.5px;color:#6b7280;margin-top:3px}
+  .card ul{list-style:none;margin-top:10px;padding-top:10px;border-top:1px solid #eef0f5}
+  .card li{font-size:13px;color:#374151;padding:3px 0 3px 16px;position:relative}
+  .card li::before{content:"›";position:absolute;left:2px;color:#9ca3af;font-weight:700}
+  .card .f{display:flex;justify-content:space-between;margin-top:10px;padding-top:9px;border-top:1px solid #eef0f5;font-size:12.5px;color:#4b5563}
+
+  /* KPI tiles */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:16px 18px 6px}
+  .k{border:1px solid #e8ebf2;border-radius:12px;padding:14px 14px 12px;background:#fbfcfe}
+  .k b{display:block;font-size:26px;font-weight:800;letter-spacing:-.02em}
+  .k span{display:block;font-size:12.5px;color:#6b7280;margin-top:3px;line-height:1.35}
+  .bars{display:flex;align-items:center;gap:8px}
+  .bars i{display:block;height:6px;border-radius:3px;background:#e5e7eb;width:90px;overflow:hidden}
+  .bars i em{display:block;height:100%;background:#1d4ed8}
+</style>
+</head>
+<body>
+
+<!-- Profile: identity inventory + Zenstra decision -->
+<div class="scene" id="profile" style="width:1000px;height:560px">
+  <div class="win" style="width:860px">
+    <div class="bar"><div class="dots"><i></i><i></i><i></i></div><img src="../assets/brand/adapid-mark.png" alt=""><b>adapID AI</b><span>/ Identity inventory</span><em class="cnt" style="font-style:normal">6 of 48,210 identities</em></div>
+    <div class="tabs"><span class="on">All</span><span>Person</span><span>IAM role</span><span>Service account</span><span>Access key</span><span>AI agent</span></div>
+    <table>
+      <tr><th>IDENTITY</th><th>TYPE</th><th style="text-align:right">RISK</th><th>DECISION</th></tr>
+      <tr class="sel"><td><span class="nm">Kavya Reddy</span><span class="sub">Okta · Microsoft 365</span></td><td>Person</td><td class="sc r">81</td><td><span class="pill p-hold">Held</span></td></tr>
+      <tr><td><span class="nm">AKIA…7Q2N</span><span class="sub">AWS · GitHub</span></td><td>Access key</td><td class="sc r">92</td><td><span class="pill p-crit">Disabled</span></td></tr>
+      <tr><td><span class="nm">ecs-notify-svc</span><span class="sub">AWS · prod-payments</span></td><td>IAM role</td><td class="sc o">63</td><td><span class="pill p-rev">Review</span></td></tr>
+      <tr><td><span class="nm">svc-backup</span><span class="sub">Active Directory</span></td><td>Service account</td><td class="sc o">72</td><td><span class="pill p-rev">Review</span></td></tr>
+      <tr><td><span class="nm">Rahul Menon</span><span class="sub">Entra ID · Salesforce</span></td><td>Person</td><td class="sc g">12</td><td><span class="pill p-ok">Allow</span></td></tr>
+    </table>
+  </div>
+  <div class="card" style="right:30px;bottom:30px">
+    <div class="h"><img src="../assets/brand/zenstra-star.png" alt=""><b>invoice-agent · vendors.export</b><span class="pill p-crit">Blocked</span></div>
+    <p class="s">Copilot Studio · owner: Finance ops</p>
+    <ul><li>Not part of its declared task: invoice processing</li><li>Destination outside the company domain</li></ul>
+    <div class="f"><span>Policy: invoice-processing v3</span><span class="mono">ZEN-3B9E02 · 10:02:15</span></div>
+  </div>
+</div>
+
+<!-- NHI: NHI Security for AWS explorer -->
+<div class="scene" id="nhi" style="width:1000px;height:560px">
+  <div class="win" style="width:880px">
+    <div class="bar"><div class="dots"><i></i><i></i><i></i></div><img src="../assets/brand/adapid-mark.png" alt=""><b>adapID AI</b><span>/ NHI Security for AWS</span><em class="cnt" style="font-style:normal">3 accounts · scanned 2 min ago</em></div>
+    <div class="kpis">
+      <div class="k"><b>12,708</b><span>machine identities found</span></div>
+      <div class="k"><b class="o">1,942</b><span>with no owner on record</span></div>
+      <div class="k"><b>71%</b><span>of granted permissions unused in 90 days</span></div>
+      <div class="k"><b class="r">14</b><span>secrets exposed in code</span></div>
+    </div>
+    <table style="margin-top:10px">
+      <tr><th>IDENTITY</th><th>OWNER</th><th>PERMISSIONS USED</th><th style="text-align:right">RISK</th></tr>
+      <tr class="sel"><td><span class="nm">ecs-notify-svc</span><span class="sub">IAM role · prod-payments</span></td><td><span class="pill p-rev">No owner</span></td><td><div class="bars"><i><em style="width:4%"></em></i><span class="mono">9 / 214</span></div></td><td class="sc r">High</td></tr>
+      <tr><td><span class="nm">AKIA…7Q2N</span><span class="sub">Access key · GitHub</span></td><td>Payments CI</td><td><span class="pill p-crit">In public repo</span></td><td class="sc r">Critical</td></tr>
+      <tr><td><span class="nm">lambda-kyc-sync</span><span class="sub">IAM role · prod-kyc</span></td><td>KYC platform</td><td><div class="bars"><i><em style="width:65%"></em></i><span class="mono">31 / 48</span></div></td><td class="sc y">Medium</td></tr>
+    </table>
+  </div>
+  <div class="card" style="right:30px;bottom:24px;width:390px">
+    <div class="h"><b>Least privilege · ecs-notify-svc</b><span class="pill p-ok">Proposed</span></div>
+    <ul><li>205 of 214 permissions unused in 90 days</li><li>Remove s3:*, rds:*, secretsmanager:*, kms:*</li><li>Keep 3 scoped permissions it actually uses</li></ul>
+    <div class="f"><span>Sent to owner for approval</span><span class="mono">risk 63 → 18</span></div>
+  </div>
+</div>
+
+</body>
+</html>
