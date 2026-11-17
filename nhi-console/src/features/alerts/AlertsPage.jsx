@@ -40,7 +40,12 @@ const VERIFIED = {
 };
 const BLAST = { CRITICAL: 'text-critical', HIGH: 'text-high', MEDIUM: 'text-medium', LOW: 'text-low' };
 
-const linkOf = (a) => (a.source === 'genome' && a.facts ? `${genomeRoute(a.facts.source_type, a.facts.identity_name)}?tab=anomalies` : a.link);
+const linkOf = (a) =>
+  a.source === 'genome' && a.facts?.credential_id
+    ? `/genome/credentials/${encodeURIComponent(a.facts.credential_id)}`
+    : a.source === 'genome' && a.facts
+      ? `${genomeRoute(a.facts.source_type, a.facts.identity_name)}?tab=anomalies`
+      : a.link;
 const postureId = (a) => (a.source === 'posture' ? a.key.slice('posture:'.length) : null);
 
 /* ── One row ────────────────────────────────────────────────────────────── */

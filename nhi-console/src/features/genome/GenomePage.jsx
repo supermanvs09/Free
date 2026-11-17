@@ -26,6 +26,8 @@ import { RecordBar, ResultCount, ShowFiltersButton, WorkArea } from '../../ui/Wo
 import { CompositionDonut } from '../../charts/CompositionDonut';
 import { TrendChart } from '../../charts/TrendChart';
 import { AnomalyDrawer } from './AnomalyDrawer';
+import { CredentialsTab } from './CredentialGenome';
+import { fetchCredentialGenome } from '../../lib/api/response';
 import { AnomalyInbox } from './AnomalyInbox';
 import { useAccess } from '../../app/useAccess';
 import { anomalyStatusMeta, dimensionLabel, roleKindLabel, sourceTypeLabel } from './meta';
@@ -109,6 +111,7 @@ export default function GenomePage() {
 
   const summary = useQuery((signal) => fetchGenomeSummary({ window }, signal), [window]);
   const fleet = useQuery((signal) => fetchGenomeFleet({}, signal), []);
+  const keys = useQuery((signal) => fetchCredentialGenome(signal), []);
   /* The tab badge counts what the tab lists: every open anomaly, any age
      (the summary card counts only the selected window). */
   const openTotal = fleet.data ? fleet.data.items.reduce((sum, row) => sum + (Number(row.openAnomalies) || 0), 0) : undefined;
@@ -117,6 +120,7 @@ export default function GenomePage() {
     { value: 'overview', label: 'Overview' },
     { value: 'identities', label: 'Identities', count: fleet.data?.items.length || undefined },
     { value: 'anomalies', label: 'Anomalies', count: Number.isFinite(openTotal) && openTotal > 0 ? openTotal : undefined },
+    { value: 'credentials', label: 'Credentials', count: keys.data?.length || undefined },
   ];
 
   /* A tab change starts at the top of the page, with the other tab's filters
@@ -134,7 +138,7 @@ export default function GenomePage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="NHI Genome"
-        lede="Each workload identity learns its own normal behaviour from its calls, then every call is compared with it. Open an identity to see its fingerprint, its departures and how its baseline got where it is."
+        lede="Each workload identity, and each credential it shares, learns its own normal behaviour; every call is then compared with it. Identities show their fingerprint and departures; Credentials show who uses each key, from where and how - and flag a known credential used by an unknown consumer."
         actions={
           <SegmentedControl
             label="Detection window"
@@ -149,6 +153,7 @@ export default function GenomePage() {
       {tab === 'overview' && <OverviewTab summary={summary} fleet={fleet} window={window} openTab={openTab} />}
       {tab === 'identities' && <IdentitiesTab fleet={fleet} searchParams={searchParams} setParams={setParams} />}
       {tab === 'anomalies' && <AnomaliesTab searchParams={searchParams} setParams={setParams} />}
+      {tab === 'credentials' && <CredentialsTab query={keys} />}
     </div>
   );
 }

@@ -8,12 +8,12 @@
 import { save, slice } from './state';
 
 export const response = () =>
-  slice('response', () => ({ rev: 1, keys: {}, rightsized: {}, broken: {}, deleted: {}, deletedCreds: {}, scenarios: {}, applied: {} }));
+  slice('response', () => ({ rev: 1, keys: {}, rightsized: {}, broken: {}, deleted: {}, deletedCreds: {}, scenarios: {}, applied: {}, vaultRotated: {} }));
 
 /** Applies a change and moves the version every derived view keys off. */
 export function mutate(fn) {
   const r = response();
-  for (const k of ['keys', 'rightsized', 'broken', 'deleted', 'deletedCreds', 'scenarios', 'applied']) r[k] ??= {};
+  for (const k of ['keys', 'rightsized', 'broken', 'deleted', 'deletedCreds', 'scenarios', 'applied', 'vaultRotated']) r[k] ??= {};
   fn(r);
   r.rev = (r.rev ?? 1) + 1;
   save();
@@ -40,7 +40,8 @@ export const linkBroken = (linkId) => response().broken?.[linkId] ?? fromPlan((a
 export const identityDeleted = (id) => response().deleted?.[id] ?? null;
 export const credentialDeleted = (id) => response().deletedCreds?.[id] ?? null;
 export const scenario = (key) => response().scenarios?.[key] ?? null;
-export const keyRotated = (credId) => fromPlan((a) => a.rotated?.includes(credId));
+/* Rotated in Vault (new key written to the same path) or by a remediation plan. */
+export const keyRotated = (credId) => (response().vaultRotated?.[credId] ? { ...response().vaultRotated[credId], via: 'vault' } : null) ?? fromPlan((a) => a.rotated?.includes(credId));
 export const trustPinned = (credId) => fromPlan((a) => a.pinned?.includes(credId));
 export const rotationEnabled = (credId) => fromPlan((a) => a.rotation_on?.includes(credId));
 export const madePrivate = (identityId) => fromPlan((a) => a.private && a.identity_id === identityId);

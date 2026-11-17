@@ -116,6 +116,7 @@ export const BREADCRUMB_PREFIXES = [
   { prefix: '/scans/', trail: ['Overview', 'Dashboard', 'Scan changes'] },
   { prefix: '/identities/', trail: ['Overview', 'Discovery', 'Identity'] },
   { prefix: '/access-graph/', trail: ['Overview', 'Access graph', 'Identity'] },
+  { prefix: '/genome/credentials/', trail: ['Overview', 'NHI Genome', 'Credential'] },
   { prefix: '/genome/', trail: ['Overview', 'NHI Genome', 'Identity'] },
   { prefix: '/remediation/findings/', trail: ['Overview', 'Remediation', 'Finding'] },
   { prefix: '/remediation/plans/', trail: ['Overview', 'Remediation', 'Plan'] },

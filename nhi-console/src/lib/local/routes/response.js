@@ -29,6 +29,7 @@ import { findingStates } from '../postureEngine';
 import { plansStore } from './remediation';
 import { mutate, response, rightSized, scenario } from '../response';
 import { genomeRouteFor } from '../../identityLinks';
+import { credentialGenome, credentialGenomeOne, sharedKey } from '../keyGenome';
 
 const ACCOUNT_NAME = { '482915736104': 'prod-core', '739204185562': 'data-platform', '215660394871': 'staging', '605218934417': 'shared-services' };
 const byName = (name) => estate().identities.find((i) => i.name === name && !i.__deleted) ?? estate().identities.find((i) => i.name === name);
@@ -180,6 +181,7 @@ const SCENARIOS = {
   chain: { title: 'Privilege escalation through an AssumeRole chain' },
   orphan: { title: 'Role left behind by a deleted Lambda' },
   agent: { title: 'Runaway Bedrock agent' },
+  sharedkey: { title: 'Known credential, unknown consumer' },
 };
 
 /* The EC2 scenario's headline number, kept until its access changes. */
@@ -206,6 +208,10 @@ function scenarioState() {
     chain: { ran_at: r.scenarios?.chain?.at ?? null, done: Boolean(r.broken?.['assume:reporting-readonly->ops-support-role']), identity_id: ro?.id, link_id: 'assume:reporting-readonly->ops-support-role' },
     orphan: { ran_at: r.scenarios?.orphan?.at ?? null, done: Boolean(role && r.deletedCreds?.[role.id]), identity_id: lambda?.id, credential_id: role?.id },
     agent: { ran_at: r.scenarios?.agent?.at ?? null, done: Boolean(agent && r.rightsized?.[principalOf(agent)]), identity_id: agent?.id, genome: agent ? genomeRouteFor(agent) : null },
+    sharedkey: (() => {
+      const k = sharedKey();
+      return { ran_at: r.scenarios?.sharedkey?.at ?? null, done: Boolean(k && r.vaultRotated?.[k.id]), credential_id: k?.id ?? null, identity_id: byName('svc-billing')?.id ?? null };
+    })(),
   };
 }
 
@@ -243,6 +249,11 @@ function scenarioFacts() {
   }
   const agent = byName('support-copilot-agent');
   if (agent) out.agent = { name: agent.name, resources: n(blastSummary(subjectArn(agent)).resources) };
+  const k = sharedKey();
+  if (k) {
+    const g = credentialGenomeOne(k.id);
+    out.sharedkey = { key: `${k.access_key_id.slice(0, 4)}…${k.access_key_id.slice(-4)}`, path: k.vault_path, consumers: g.consumers.map((c) => ({ name: c.name, network: c.network, hours: c.hours })), days: g.baseline.days };
+  }
   return out;
 }
 
@@ -312,6 +323,23 @@ function runScenario(key, user) {
       link: `/credentials?credential=${role.id}`,
     });
   }
+  if (key === 'sharedkey') {
+    const k = sharedKey();
+    const owner = byName('svc-billing');
+    if (k && owner) {
+      emitEvent({
+        id: `evt_scn_sharedkey_${Date.now().toString(36)}`,
+        kind: 'anomaly',
+        severity: 'CRITICAL',
+        identity: owner,
+        scenario: 'sharedkey',
+        title: `Known credential, unknown consumer: ${k.access_key_id.slice(0, 4)}…${k.access_key_id.slice(-4)} used from 185.193.88.41`,
+        summary: 'svc-billing’s access key (kept in Vault, read by svc-billing-api and batch-reconciler) was just used by a third source: a new IP outside every VPC, a new client and an enumeration pattern (ListAllMyBuckets, GetSecretValue).',
+        facts: { credential_id: k.id, dimension: 'consumer', value: '185.193.88.41' },
+        link: `/genome/credentials/${k.id}`,
+      });
+    }
+  }
   if (key === 'agent') {
     const agent = byName('support-copilot-agent');
     estate();
@@ -348,6 +376,10 @@ function scenarioSubjects(key) {
     add(estate().credentials.find((c) => c.id === st.credential_id));
   }
   if (key === 'agent') add(byName('support-copilot-agent'));
+  if (key === 'sharedkey') {
+    ['svc-billing', 'svc-billing-api', 'batch-reconciler'].forEach((n) => add(byName(n)));
+    add(sharedKey());
+  }
   return ids;
 }
 
@@ -372,6 +404,7 @@ function resetScenario(key) {
       if (st.orphan.credential_id) delete r.deletedCreds[st.orphan.credential_id];
     }
     if (key === 'agent') delete r.rightsized[principalOf(byName('support-copilot-agent'))];
+    if (key === 'sharedkey' && st.sharedkey.credential_id) delete r.vaultRotated[st.sharedkey.credential_id];
     for (const id of planIds) delete r.applied[id];
   });
   const sweep = (list, drop) => {
@@ -397,6 +430,29 @@ export default function register(r) {
     const i = identityById(params.id);
     if (!i || !visible(i)) return fail(404, 'Not in scope.', 'NOT_FOUND');
     return ok(insights(i));
+  });
+
+  /* NHI Genome for credentials: known consumers, and any unknown one. */
+  r.get('/api/v1/response/credential-genome', () => ok({ credentials: credentialGenome() }));
+  r.get('/api/v1/response/credential-genome/:id', ({ params }) => {
+    const d = credentialGenomeOne(params.id);
+    return d ? ok(d) : fail(404, 'Not in scope.', 'NOT_FOUND');
+  });
+
+  /* Rotate a Vault-held key: a new key is written to the same Vault path, so
+     every known consumer picks it up on its next read and any copy taken
+     outside Vault stops working. */
+  r.post('/api/v1/response/keys/:id/rotate-in-vault', ({ params, user }) => {
+    if (!can(user, 'operate') && !can(user, 'integrations')) return fail(403, 'Your role cannot change access.', 'FORBIDDEN');
+    const key = credentialById(params.id);
+    if (!key || key.store !== 'vault') return fail(404, 'That key is not kept in Vault.', 'NOT_FOUND');
+    const before = credentialGenomeOne(key.id);
+    mutate((st) => {
+      st.vaultRotated[key.id] = { ...actor(user), old_key: key.access_key_id };
+    });
+    resolve((e) => e.scenario === 'sharedkey' || e.facts?.credential_id === key.id, { label: 'Rotated in Vault', at: new Date().toISOString(), by: user.email, by_name: user.full_name ?? user.email });
+    audit(user, 'credential.rotate', `Rotated ${key.name} in Vault (${key.vault_path}); ${before?.known_consumers ?? 0} known consumers read the new key, the unknown one is cut off`, { target: key.id });
+    return ok({ credential_id: key.id, genome: credentialGenomeOne(key.id) });
   });
 
   r.get('/api/v1/response/identities/:id/access-path', ({ params }) => {

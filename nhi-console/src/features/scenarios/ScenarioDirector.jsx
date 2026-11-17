@@ -126,15 +126,36 @@ const SCRIPTS = {
       ];
     },
   },
+  sharedkey: {
+    title: 'Known credential, unknown consumer',
+    narration: 'One key in Vault, two legitimate workloads. A third source starts using it - flagged in real time and cut off without breaking the other two.',
+    then: 'Open the key in NHI Genome, then Rotate in Vault.',
+    length: 35,
+    steps: (s) => {
+      const f = s.sharedkey.facts ?? {};
+      const [a, b] = f.consumers ?? [{ name: 'svc-billing-api', network: '10.0.2.0/24', hours: 'business hours' }, { name: 'batch-reconciler', network: 'AWS internal', hours: 'nightly' }];
+      const page = `/genome/credentials/${s.sharedkey.credential_id}`;
+      return [
+        { at: 0, kicker: 'Exposure', caption: 'One access key, shared by two workloads', sub: `Kept in HashiCorp Vault at ${f.path ?? 'secret/data/billing/aws-access-key'}; ${a.name} and ${b.name} read it from there.`, go: page, focus: '[data-scene="key-consumers"]', max: 1.15 },
+        { at: 7, kicker: 'Baseline', caption: 'Each consumer has its own fingerprint', sub: `${a.name}: ${a.network}, ${String(a.hours).toLowerCase()}. ${b.name}: ${b.network}, ${String(b.hours).toLowerCase()}. ${f.days ?? 14} days learned.`, focus: '[data-scene="key-consumers"]', max: 1.3 },
+        { at: 13, kicker: 'Detect', caption: 'Then a third source uses the same key', sub: '185.193.88.41 · outside every VPC · python-requests · ListAllMyBuckets, GetSecretValue', run: 'sharedkey', go: '/alerts', focus: '[data-scene="alert-selected"]', max: 1.5 },
+        { at: 18, kicker: 'Detect', caption: 'Known credential, unknown consumer', sub: 'New network, region, client and call pattern - flagged the moment it appeared.', go: page, focus: '[data-scene="stranger-card"]', max: 1.5 },
+        { at: 23, kicker: 'Contain', caption: 'Rotate it in Vault - not deactivate it', sub: `${a.name} and ${b.name} read the new key on their next Vault read. No redeploy, no downtime.`, focus: '[data-scene="rotate-card"]', max: 1.45 },
+        { at: 26.5, click: '[data-scene="rotate-vault"]' },
+        { at: 29, kicker: 'Outcome', caption: 'Unknown consumer cut off. The business kept running.', sub: `New key in Vault · ${a.name} and ${b.name} unaffected · the stolen copy is dead.`, focus: '[data-scene="key-contained"]', max: 1.3, close: true },
+      ];
+    },
+  },
 };
 const KICKER_DOT = { Exposure: 'bg-red-400', 'Hidden risk': 'bg-red-400', Impact: 'bg-red-400', Detect: 'bg-amber-300', Map: 'bg-amber-300', Baseline: 'bg-sky-400', Fix: 'bg-emerald-400', Contain: 'bg-emerald-400' };
-const ORDER = ['leak', 'ec2', 'chain', 'orphan', 'agent'];
+const ORDER = ['leak', 'ec2', 'chain', 'orphan', 'agent', 'sharedkey'];
 const LIVE_LINK = {
   leak: (s) => `/identities/${s.leak.identity_id}`,
   ec2: (s) => `/identities/${s.ec2.identity_id}`,
   chain: (s) => `/identities/${s.chain.identity_id}`,
   orphan: () => '/alerts',
   agent: (s) => `/identities/${s.agent.identity_id}`,
+  sharedkey: (s) => `/genome/credentials/${s.sharedkey.credential_id}`,
 };
 
 export function ScenarioDirector() {

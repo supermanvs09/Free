@@ -18,6 +18,7 @@ import LoginPage from '../features/auth/LoginPage';
 const OverviewPage = lazy(() => import('../features/overview/OverviewPage'));
 const AlertsPage = lazy(() => import('../features/alerts/AlertsPage'));
 const AlertDetailPage = lazy(() => import('../features/alerts/AlertDetailPage'));
+const CredentialGenomePage = lazy(() => import('../features/genome/CredentialGenome'));
 const PosturePage = lazy(() => import('../features/posture/PosturePage'));
 const PostureIdentityPage = lazy(() => import('../features/posture/PostureIdentityPage'));
 const ScanChangesPage = lazy(() => import('../features/changes/ScanChangesPage'));
@@ -114,6 +115,7 @@ export default function App() {
                 <Route path="/access-graph" element={<Screen><AccessGraphPage /></Screen>} />
                 <Route path="/access-graph/:id" element={<Screen><AccessDetailPage /></Screen>} />
                 <Route path="/genome" element={<Screen><GenomePage /></Screen>} />
+                <Route path="/genome/credentials/:id" element={<Screen><CredentialGenomePage /></Screen>} />
                 <Route path="/genome/:id" element={<Screen><GenomeDetailPage /></Screen>} />
                 <Route path="/integrations" element={<Screen><IntegrationsPage /></Screen>} />
                 <Route
