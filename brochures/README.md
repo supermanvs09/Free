@@ -13,7 +13,7 @@ Tagline versions (footer):
 - Rebuild everything: `python3 build.py` (Node + Playwright render the PNG/PDF; `--no-render` for HTML only).
   Taglines are set in `build.py` (`TAGLINES`).
 - Logos: `assets/brand` (Deep Algorithms, adapID, Zenstra AI), `assets/logos` (clients, investor).
-- Header photos (`assets/photos/hero-ai.jpg`, `hero-network.jpg`) are free-licence photos (Unsplash), recoloured to the brand navy.
+- Header photos (`assets/photos/hero-agentic.jpg`, `hero-nhi.jpg`) are Unsplash photos (Unsplash License); the NHI one is tinted to the brand navy.
 - `source-notes/` holds the annotated feedback prints and original artwork.
 - PDFs are made from the 300 dpi PNGs so every viewer shows identical colours.
 - Integration icons: Simple Icons (CC0) and Phosphor (MIT); licences in `assets/icons`.
