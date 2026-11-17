@@ -70,6 +70,7 @@ const PERMISSION_CAPABILITY = {
   'data.view': 'read',
   'data.export': 'export',
   'alerts.view': 'read',
+  'identities.owner': 'write',
   'alerts.viewAll': 'read',
   'alerts.work': 'write',
   'alerts.dismiss': 'write',

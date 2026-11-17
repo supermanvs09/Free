@@ -8,13 +8,14 @@ import { LatestChangesNotice, RecentChangeMarker } from '../changes/parts';
 import { bandMeta } from '../../lib/posture';
 import { useDebouncedValue, useQuery } from '../../lib/hooks';
 import { useAccess } from '../../app/useAccess';
+import { useAccountGroup } from '../../app/useAccountGroup';
 import { formatDate, formatNumber, formatRelative } from '../../lib/format';
 import { exportRowsToCsv, timestampedName } from '../../lib/csv';
 import { DiscoveryTabs, PageHeader } from '../../shell/PageHeader';
 import { Button, IconButton } from '../../ui/Button';
 import { Panel } from '../../ui/Panel';
 import { SearchInput, Select } from '../../ui/Field';
-import { AppliedFilters, FacetRail, useFacetRail } from '../../ui/FacetRail';
+import { AppliedFilters, FacetRail, mergeCaseVariants, useFacetRail } from '../../ui/FacetRail';
 import { RecordBar, ResultCount, ShowFiltersButton, WorkArea } from '../../ui/WorkArea';
 import { OverflowMenu, RefreshButton, TableSettings, TableToolbar } from '../../ui/TableTools';
 import { DataGrid } from '../../ui/DataGrid';
@@ -109,7 +110,8 @@ export default function IdentitiesPage() {
 
   /* Facet values and their counts come from the API's own aggregate for the
      user's scope, so a filter never offers a value the inventory lacks. */
-  const facetsQuery = useQuery((signal) => fetchFilters(signal), []);
+  const accountsKey = filters.accounts.join(',');
+  const facetsQuery = useQuery((signal) => fetchFilters(signal, filters.accounts), [accountsKey]);
   const ownersQuery = useQuery((signal) => fetchTopOwners(signal), []);
   /* Posture scores by ARN, so each row shows the same score as the Posture page. */
   const postureIndex = useQuery((signal) => fetchPostureScoreIndex(signal), []);
@@ -120,15 +122,15 @@ export default function IdentitiesPage() {
   const countsQuery = useQuery(
     async (signal) => {
       const [all, isPublic, stale, idle, shadow] = await Promise.all([
-        countIdentities({}, signal),
-        countIdentities({ isPublic: 'true' }, signal),
-        countIdentities({ minIdleDays: 90 }, signal),
-        countIdentities({ minIdleDays: 30 }, signal),
-        countIdentities({ shadow: 'true' }, signal),
+        countIdentities({ accounts: filters.accounts }, signal),
+        countIdentities({ accounts: filters.accounts, isPublic: 'true' }, signal),
+        countIdentities({ accounts: filters.accounts, minIdleDays: 90 }, signal),
+        countIdentities({ accounts: filters.accounts, minIdleDays: 30 }, signal),
+        countIdentities({ accounts: filters.accounts, shadow: 'true' }, signal),
       ]);
       return { all, public: isPublic, stale, idle, shadow };
     },
-    [],
+    [accountsKey],
   );
   const counts = countsQuery.data;
 
@@ -248,6 +250,11 @@ export default function IdentitiesPage() {
     [writeSort],
   );
 
+  const accountGroup = useAccountGroup({
+    selected: filters.accounts,
+    onToggle: (id) => toggleListValue('accounts', id),
+    onSelectAll: (ids) => update((next) => (ids.length ? next.set('accounts', ids.join(',')) : next.delete('accounts'))),
+  });
   const facetGroups = useMemo(() => {
     const listGroup = (key, label, param, entries, valueKey, allowed, describe, note) => ({
       key,
@@ -258,7 +265,7 @@ export default function IdentitiesPage() {
           if (values.length) next.set(param, values.map((value) => String(value).toLowerCase()).join(','));
           else next.delete(param);
         }),
-      options: (entries ?? [])
+      options: mergeCaseVariants(entries, valueKey)
         .filter((entry) => allowed.has(String(entry[valueKey]).toLowerCase()) && Number(entry.count) > 0)
         .map((entry) => ({
           value: entry[valueKey],
@@ -270,6 +277,7 @@ export default function IdentitiesPage() {
       onToggle: (value) => toggleListValue(param, value),
     });
     return [
+      ...(accountGroup ? [accountGroup] : []),
       {
         key: 'signals',
         label: 'Risks',
@@ -307,11 +315,11 @@ export default function IdentitiesPage() {
           active: searchParams.get('owner') === entry.owner,
         })),
         onToggle: (value) => toggleParam('owner', value),
-        note: 'The owners with the most identities. Identities with no owner tag cannot be filtered here; the Owner column reads No owner for them.',
+        note: 'The owners with the most identities. Identities still waiting for an owner to be confirmed are not listed here.',
         defaultOpen: false,
       },
     ];
-  }, [facets, ownersQuery.data, counts, railCounts, searchParams, toggleListValue, toggleParam, update]);
+  }, [facets, ownersQuery.data, counts, railCounts, searchParams, accountGroup, toggleListValue, toggleParam, update]);
 
   const rows = query.data?.rows ?? [];
   const total = query.data?.total ?? 0;
@@ -330,7 +338,9 @@ export default function IdentitiesPage() {
         { header: 'Region', value: (row) => row.region },
         { header: 'Environment', value: (row) => row.environment },
         { header: 'Owner', value: (row) => row.owner },
-        { header: 'Owner reason', value: (row) => row.owner_reason ?? '' },
+        { header: 'Owner status', value: (row) => row.owner_state ?? '' },
+        { header: 'Owner reason', value: (row) => row.owner_set_reason ?? row.owner_reason ?? '' },
+        { header: 'Owner set by', value: (row) => row.owner_set_by ?? '' },
         { header: 'Status', value: (row) => row.status },
         { header: 'Publicly accessible', value: (row) => (row.is_publicly_accessible ? 'yes' : 'no') },
         { header: 'VPC', value: (row) => row.vpc_id },
@@ -407,11 +417,11 @@ export default function IdentitiesPage() {
     {
       key: 'owner',
       header: 'Owner',
-      width: '14%',
+      width: '17%',
       sortable: true,
       cell: (row) => (
         <span className="block min-w-0">
-          <OwnerCell owner={row.owner} reason={row.owner_reason} />
+          <OwnerCell row={row} onChanged={query.refetch} />
           {/* Who created it and how long ago, on one line: age reads best beside its creator. */}
           {(row.created_by || Number.isFinite(row.age_days) || row.first_seen_at) && (
             <span

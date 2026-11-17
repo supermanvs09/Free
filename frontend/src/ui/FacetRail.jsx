@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useContainedScroll } from '../lib/hooks';
 import { ChevronDown, Lock, PanelLeftClose, SlidersHorizontal, X } from 'lucide-react';
 import { formatNumber } from '../lib/format';
@@ -179,11 +179,45 @@ export function FacetRail({
   );
 }
 
+/**
+ * Facet entries as the API lists them can carry one value in several spellings
+ * ("Production" and "production"), which the rail then showed as the same
+ * option twice. Merge them: first spelling wins, counts add up.
+ */
+export function mergeCaseVariants(entries, valueKey) {
+  const merged = new Map();
+  for (const entry of entries ?? []) {
+    const key = String(entry[valueKey]).trim().toLowerCase();
+    const seen = merged.get(key);
+    if (seen) seen.count = (Number(seen.count) || 0) + (Number(entry.count) || 0);
+    else merged.set(key, { ...entry });
+  }
+  return [...merged.values()];
+}
+
+/* Whatever a screen hands in, one value is one row: a repeat (same value in
+   any letter case) is folded into the first, active if either was. */
+function uniqueOptions(options) {
+  const byValue = new Map();
+  for (const option of options) {
+    const key = String(option.value).trim().toLowerCase();
+    const seen = byValue.get(key);
+    if (!seen) byValue.set(key, { ...option });
+    else {
+      seen.active = seen.active || option.active;
+      if (Number.isFinite(option.count) && !Number.isFinite(seen.count)) seen.count = option.count;
+    }
+  }
+  return [...byValue.values()];
+}
+
 /* Long groups (dozens of detectors or repositories) show the first few and
    a "Show all"; an active option is always shown so a filter never hides. */
 const FACET_PREVIEW = 6;
 
-function FacetGroup({ group }) {
+function FacetGroup({ group: given }) {
+  const options = useMemo(() => uniqueOptions(given.options), [given.options]);
+  const group = useMemo(() => ({ ...given, options }), [given, options]);
   const [open, setOpen] = useState(group.defaultOpen !== false);
   const [showAll, setShowAll] = useState(false);
   const activeInGroup = group.options.filter((option) => option.active).length;

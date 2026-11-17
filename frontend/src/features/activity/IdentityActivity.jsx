@@ -2,6 +2,7 @@ import { Panel } from '../../ui/Panel';
 import { Tabs } from '../../ui/Tabs';
 import {
   ActivitySummary,
+  GenomeActivitySummary,
   CredentialsUsedSection,
   CrossAccountSection,
   ErrorsSection,
@@ -47,7 +48,7 @@ export function IdentityActivity({ identityId, identity }) {
 
   return (
     <div className="flex flex-col gap-5">
-      <ActivitySummary identityId={identityId} state={state} />
+      {genomeKey ? <GenomeActivitySummary genomeKey={genomeKey} state={state} /> : <ActivitySummary identityId={identityId} state={state} />}
 
       <Panel prominence="lead" flush className="animate-rise overflow-hidden">
         <div className="border-b border-line px-4 pt-2 sm:px-5">

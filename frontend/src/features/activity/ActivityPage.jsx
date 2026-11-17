@@ -12,7 +12,10 @@ import { ListSkeleton } from '../../ui/Skeleton';
 import { EmptyState, InlineError } from '../../ui/States';
 import { Pagination } from '../../ui/Pagination';
 import { identityTypeLabel } from '../identities/meta';
-import { ActivitySummary } from './ActivitySections';
+import { StatStripSkeleton } from '../../ui/Skeleton';
+import { ActivitySummary, GenomeActivitySummary } from './ActivitySections';
+import { GenomeEvents } from './GenomeEvents';
+import { canonicalGenomeName, genomeSourceType } from '../../lib/identityLinks';
 import { EventTimeline } from './EventTimeline';
 import { IdentityPicker } from './IdentityPicker';
 import { EVENT_DEFAULTS, useEventState } from './eventState';
@@ -50,6 +53,11 @@ export default function ActivityPage() {
     [searchParams, setSearchParams],
   );
 
+  /* A workload the genome watches reads its calls from the genome activity
+     API - the summary and the list from the same place, so they agree. */
+  const genomeFamily = genomeSourceType(identity?.identity_type);
+  const genomeKey = genomeFamily && identity?.arn ? { sourceType: genomeFamily, identityName: canonicalGenomeName(identity.identity_type, identity.arn) } : null;
+
   const picker = <IdentityPicker value={identityId} label={identity?.name} onChange={choose} />;
 
   return (
@@ -83,10 +91,16 @@ export default function ActivityPage() {
         </Panel>
       ) : (
         <>
-          <ActivitySummary identityId={identityId} state={state} />
+          {!identity ? <StatStripSkeleton count={4} /> : genomeKey ? <GenomeActivitySummary genomeKey={genomeKey} state={state} /> : <ActivitySummary identityId={identityId} state={state} />}
+          {identity && (
           <Panel prominence="lead" flush className="animate-rise overflow-hidden">
-            <EventTimeline identityId={identityId} state={state} patch={patch} clearFilters={clearFilters} leading={picker} />
+            {genomeKey ? (
+              <GenomeEvents genomeKey={genomeKey} state={state} patch={patch} leading={picker} />
+            ) : (
+              <EventTimeline identityId={identityId} state={state} patch={patch} clearFilters={clearFilters} leading={picker} />
+            )}
           </Panel>
+          )}
           {identity && (
             <p className="text-[12px] text-ink-3">
               {identityTypeLabel(identity.identity_type)} in account <span className="font-mono">{identity.account_id}</span>

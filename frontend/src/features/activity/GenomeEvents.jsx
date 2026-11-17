@@ -19,7 +19,7 @@ import { eventRange, rangeInstants } from './eventState';
  * the record's own table. That API pages by cursor; a page further on is
  * reached by walking the cursors once and remembering them.
  */
-export function GenomeEvents({ genomeKey, state, patch }) {
+export function GenomeEvents({ genomeKey, state, patch, leading }) {
   const range = eventRange(state);
   const instants = useMemo(() => rangeInstants(state), [state.range, state.from, state.to]); // eslint-disable-line react-hooks/exhaustive-deps
   const scopeKey = `${genomeKey.sourceType}|${genomeKey.identityName}|${instants.from}|${instants.to}|${state.size}`;
@@ -123,6 +123,7 @@ export function GenomeEvents({ genomeKey, state, patch }) {
           </TableToolbar>
         }
       >
+        {leading}
         <RangePicker state={state} patch={patch} />
         <ResultCount shown={formatNumber(rows.length)} total={formatNumber(total)} unit="calls" loading={query.isLoading && !data} />
       </RecordBar>

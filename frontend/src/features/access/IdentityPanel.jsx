@@ -5,7 +5,6 @@ import { findPosture, getCredentialTab, getIdentityTab } from '../../lib/api/acc
 import { useQuery } from '../../lib/hooks/useQuery';
 import { accessDetailRoute, genomeRouteFor, identityRoute } from '../../lib/identityLinks';
 import { formatDateTime, formatNumber, formatRelative, humanizeToken } from '../../lib/format';
-import { severityMeta } from '../../lib/domain';
 import { Button } from '../../ui/Button';
 import { Panel, SectionLabel } from '../../ui/Panel';
 import { Meter } from '../../ui/Meter';
@@ -14,7 +13,6 @@ import { InlineError } from '../../ui/States';
 import { Tag } from '../../ui/Tag';
 import { cn } from '../../ui/cn';
 import { KIND_LABEL, riskReason } from './graphTheme';
-import { BlastGlance } from '../blast/BlastGlance';
 import { NODE_KINDS, edgeKindMeta, edgeLabel, edgesOf, subtypeLabel } from './graphModel';
 
 /**
@@ -30,7 +28,6 @@ import { NODE_KINDS, edgeKindMeta, edgeLabel, edgesOf, subtypeLabel } from './gr
  *   Summary      identity or credential overview tab (+ posture score, when
  *                the posture service knows the ARN)
  *   Connections  the graph store: every edge read so far that touches it
- *   Activity     the activity tab's analytics, last 30 days (CloudTrail)
  *   Permissions  the identity permissions tab: granted against used
  *   Credentials  the identity credentials tab / the credential's bound
  *                identities
@@ -42,7 +39,6 @@ import { NODE_KINDS, edgeKindMeta, edgeLabel, edgesOf, subtypeLabel } from './gr
 const ALL_TABS = [
   { value: 'summary', label: 'Summary' },
   { value: 'connections', label: 'Relationships' },
-  { value: 'activity', label: 'Activity' },
   { value: 'permissions', label: 'What it can do' },
   { value: 'credentials', label: 'Credentials it uses' },
   { value: 'bound', label: 'Used by' },
@@ -68,24 +64,22 @@ const settle = (promise) =>
 async function loadDetail(node, signal) {
   if (node.identityId) {
     const id = node.identityId;
-    const [overview, credentials, activity, permissions] = await Promise.all([
+    const [overview, credentials, permissions] = await Promise.all([
       settle(getIdentityTab(id, 'overview', {}, signal)),
       settle(getIdentityTab(id, 'credentials', {}, signal)),
-      settle(getIdentityTab(id, 'activity', { time_range: '30d', page_size: 1 }, signal)),
       settle(getIdentityTab(id, 'permissions', {}, signal)),
     ]);
     if (overview.error) throw overview.error;
-    return { kind: 'identity', overview: overview.value, credentials, activity, permissions };
+    return { kind: 'identity', overview: overview.value, credentials, permissions };
   }
   if (node.credentialId) {
     const id = node.credentialId;
-    const [overview, trust, activity] = await Promise.all([
+    const [overview, trust] = await Promise.all([
       settle(getCredentialTab(id, 'overview', {}, signal)),
       settle(getCredentialTab(id, 'trust', {}, signal)),
-      settle(getCredentialTab(id, 'activity', { time_range: '30d', page_size: 1 }, signal)),
     ]);
     if (overview.error) throw overview.error;
-    return { kind: 'credential', overview: overview.value, trust, activity };
+    return { kind: 'credential', overview: overview.value, trust };
   }
   return { kind: 'none' };
 }
@@ -105,8 +99,6 @@ export function IdentityPanel({ node, isFocusNode, store, status, error, onRetry
   const data = detail.data;
   const connections = useMemo(() => (node && store ? edgesOf(store, node.id) : []), [node, store]);
 
-  const activity = data?.activity?.value;
-  const activityTotal = activity?.events_pagination?.total_count ?? 0;
   const permissions = data?.permissions?.value;
   const heldCredentials = data?.credentials?.value?.credentials ?? [];
   const boundIdentities = data?.kind === 'credential' ? (data.overview?.bound_identities ?? []) : [];
@@ -118,7 +110,6 @@ export function IdentityPanel({ node, isFocusNode, store, status, error, onRetry
     const has = {
       summary: true,
       connections: connections.length > 0,
-      activity: Boolean(activity?.activity_data_available) && activityTotal > 0,
       permissions: (permissions?.summary?.granted_count ?? 0) > 0,
       credentials: heldCredentials.length > 0,
       bound: boundIdentities.length > 0,
@@ -228,7 +219,6 @@ export function IdentityPanel({ node, isFocusNode, store, status, error, onRetry
           />
         )}
         {activeTab === 'connections' && <ConnectionsPane node={node} connections={connections} />}
-        {activeTab === 'activity' && <ActivityPane activity={activity} total={activityTotal} />}
         {activeTab === 'permissions' && <PermissionsPane permissions={permissions} identityId={node.identityId} />}
         {activeTab === 'credentials' && <CredentialList credentials={heldCredentials} />}
         {activeTab === 'bound' && <BoundList identities={boundIdentities} />}
@@ -247,7 +237,6 @@ function SummaryPane({ node, isFocusNode, detail, posture, discoveryId, onFocus 
       : detail.data?.kind === 'credential'
         ? detail.data.overview?.credential
         : null;
-  const signals = (detail.data?.overview?.risk_signals ?? []).filter((signal) => signal.status);
   const genome = node.identityId ? genomeRouteFor({ identity_type: node.identityType, arn: node.arn }) : null;
   const score = posture.data;
 
@@ -255,32 +244,6 @@ function SummaryPane({ node, isFocusNode, detail, posture, discoveryId, onFocus 
     <>
       {detail.isError && (
         <InlineError error={detail.error} onRetry={detail.refetch} label="Its details could not be loaded" />
-      )}
-
-      {signals.length > 0 && (
-        <div>
-          <SectionLabel>Risks</SectionLabel>
-          <ul className="mt-1.5 flex flex-col gap-1">
-            {signals.map((signal) => {
-              const meta = severityMeta(signal.severity);
-              return (
-                <li key={signal.signal} className="flex items-start gap-1.5">
-                  <Tag tone={meta.tone} size="sm" dot>
-                    {meta.label}
-                  </Tag>
-                  <span className="min-w-0 flex-1 text-[11.5px] leading-snug text-ink-2">{signal.signal}</span>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
-
-      {(node.identityId || (node.credentialId && node.arn?.includes(':iam::'))) && (
-        <div>
-          <SectionLabel>If it is taken over</SectionLabel>
-          <BlastGlance key={node.id} identityId={node.identityId} arn={node.arn} />
-        </div>
       )}
 
       <div>
@@ -399,7 +362,7 @@ function ConnectionsPane({ node, connections }) {
                 </Tag>
               )}
             </div>
-            <p className="mt-1 truncate text-[12px] text-ink" title={edge.otherArn}>
+            <p className="mt-1 [overflow-wrap:anywhere] text-[12px] text-ink" title={edge.otherArn}>
               {edge.other?.name ?? edge.otherArn}
               {edge.other && (
                 <span className="text-[10.5px] text-ink-3">
@@ -436,95 +399,6 @@ function relationLabel(edge) {
   return edgeLabel(edge.kind, edge.direction);
 }
 
-/** What it did in the last 30 days, from CloudTrail. */
-function ActivityPane({ activity, total }) {
-  const analytics = activity?.analytics ?? {};
-  const services = analytics.top_services ?? [];
-  const actions = analytics.top_actions ?? [];
-  const regions = analytics.active_regions ?? [];
-  const busiest = services[0]?.count || 1;
-  return (
-    <>
-      <dl className="grid grid-cols-3 gap-1.5">
-        <Figure label="Recorded actions" value={formatNumber(total)} />
-        <Figure
-          label="Failed (% of actions)"
-          value={typeof analytics.error_rate_pct === 'number' ? `${analytics.error_rate_pct}%` : 'Not recorded'}
-          tone={analytics.error_rate_pct > 5 ? 'medium' : 'neutral'}
-        />
-        <Figure label="Regions" value={formatNumber((analytics.active_regions ?? []).length)} />
-        <Figure label="Network addresses (IPs)" value={formatNumber((analytics.source_ips ?? []).length)} />
-        <Figure
-          label="Refused (% of actions)"
-          value={typeof analytics.access_denied_rate_pct === 'number' ? `${analytics.access_denied_rate_pct}%` : 'Not recorded'}
-          tone={analytics.access_denied_rate_pct > 0 ? 'critical' : 'neutral'}
-        />
-      </dl>
-
-      {regions.length > 0 && (
-        <div>
-          <SectionLabel>Regions</SectionLabel>
-          <ul className="mt-1.5 flex flex-col gap-1">
-            {regions.map((entry) => (
-              <li key={entry.region} className="flex items-baseline justify-between gap-2">
-                <span className="min-w-0 truncate font-mono text-[11px] text-ink-2">{entry.region}</span>
-                <span data-numeric="" className="shrink-0 text-[11px] text-ink-3">
-                  {formatNumber(entry.count)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {actions.length > 0 && (
-        <div>
-          <SectionLabel>What it did most</SectionLabel>
-          <ul className="mt-1.5 flex flex-col gap-1">
-            {actions.slice(0, 6).map((action) => (
-              <li key={action.action} className="flex items-baseline justify-between gap-2">
-                <span className="min-w-0 truncate font-mono text-[11px] text-ink-2">{action.action}</span>
-                <span data-numeric="" className="shrink-0 text-[11px] text-ink-3">
-                  {formatNumber(action.count)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {services.length > 0 && (
-        <div>
-          <SectionLabel>AWS services it used most</SectionLabel>
-          <ul className="mt-1.5 flex flex-col gap-1.5">
-            {services.slice(0, 5).map((service) => (
-              <li key={service.service}>
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="min-w-0 truncate text-[11.5px] text-ink-2">{service.service}</span>
-                  <span data-numeric="" className="shrink-0 text-[11px] text-ink-3">
-                    {formatNumber(service.count)}
-                  </span>
-                </div>
-                <Meter
-                  className="mt-1"
-                  value={(service.count / busiest) * 100}
-                  tone="info"
-                  label={`${service.service}: ${service.pct}% of calls`}
-                />
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <p className="text-[11px] leading-relaxed text-ink-3">
-        Counted from the AWS activity log (CloudTrail) over the last 30 days
-        {analytics.usage_pattern ? `; usage pattern: ${humanizeToken(analytics.usage_pattern).toLowerCase()}` : ''}.
-      </p>
-    </>
-  );
-}
-
 /** Granted against used, from the permissions tab. */
 function PermissionsPane({ permissions, identityId }) {
   const summary = permissions?.summary ?? {};
@@ -559,7 +433,7 @@ function PermissionsPane({ permissions, identityId }) {
                 <span className="min-w-0 truncate font-mono text-[11px] text-ink-2" title={row.resource_arn}>
                   {row.action}
                 </span>
-                <span className="shrink-0 truncate text-[10.5px] text-ink-3">{row.resource_arn}</span>
+                <span className="min-w-0 max-w-[55%] text-right [overflow-wrap:anywhere] text-[10.5px] text-ink-3">{row.resource_arn}</span>
               </li>
             ))}
           </ul>
@@ -600,7 +474,7 @@ function CredentialList({ credentials }) {
           <li key={credential.credential_id} className="rounded-[var(--radius-control)] border border-line bg-surface-2 p-2.5">
             <div className="flex items-start justify-between gap-2">
               <span className="min-w-0">
-                <span className="block truncate font-mono text-[11px] text-ink" title={credential.arn}>
+                <span className="block [overflow-wrap:anywhere] font-mono text-[11px] text-ink" title={credential.arn}>
                   {credential.name}
                 </span>
                 <span className="mt-0.5 block text-[10.5px] text-ink-3">
@@ -719,7 +593,7 @@ function TrustPane({ trust }) {
                     policy === 'AdministratorAccess' ? 'bg-critical' : 'bg-line-strong',
                   )}
                 />
-                <span className="min-w-0 truncate font-mono text-[11px] text-ink-2" title={policy}>
+                <span className="min-w-0 [overflow-wrap:anywhere] font-mono text-[11px] text-ink-2" title={policy}>
                   {policy}
                 </span>
               </li>
@@ -816,7 +690,7 @@ function Row({ label, value, fallback = '-', warn = false, title }) {
     <div className="flex items-baseline justify-between gap-2">
       <dt className="shrink-0 text-ink-3">{label}</dt>
       <dd
-        className={cn('min-w-0 truncate text-right', warn ? 'font-medium text-high' : 'text-ink-2')}
+        className={cn('min-w-0 [overflow-wrap:anywhere] text-right', warn ? 'font-medium text-high' : 'text-ink-2')}
         title={title ?? (typeof value === 'string' ? value : undefined)}
       >
         {value || fallback}

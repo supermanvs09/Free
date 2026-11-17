@@ -288,6 +288,12 @@ export default function PosturePage() {
 
   const facetGroups = [
     {
+      key: 'account',
+      label: 'AWS account',
+      options: optionsFrom('account', facets?.account, (value) => accountNames[value] ?? value),
+      onToggle: (value) => toggleValue('account', value),
+    },
+    {
       key: 'band',
       label: 'Score band',
       options: optionsFrom('band', facets?.band, (value) => bandMeta(value.toLowerCase()).label, BAND_KEYS),
@@ -329,12 +335,6 @@ export default function PosturePage() {
       label: 'Weakest area',
       options: optionsFrom('pillar', facets?.pillar, (value) => pillarLabel(value, pillarNames)),
       onToggle: (value) => toggleValue('pillar', value),
-    },
-    {
-      key: 'account',
-      label: 'Account',
-      options: optionsFrom('account', facets?.account, (value) => accountNames[value] ?? value),
-      onToggle: (value) => toggleValue('account', value),
     },
   ].filter(Boolean);
 

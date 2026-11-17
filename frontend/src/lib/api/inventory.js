@@ -36,8 +36,8 @@ function pageOf(data) {
 }
 
 /** Facet values and counts for the user's scope. */
-export async function fetchFilters(signal) {
-  return unwrapMain(await client.get(`${V1}/filters`, { signal }));
+export async function fetchFilters(signal, accounts) {
+  return unwrapMain(await client.get(`${V1}/filters`, { signal, params: params({ account_filter: accounts }) }));
 }
 
 /**
@@ -71,6 +71,7 @@ export async function fetchIdentities(query = {}, signal) {
       is_publicly_accessible: query.isPublic,
       min_idle_days: query.minIdleDays,
       shadow: query.shadow,
+      account_filter: query.accounts,
       sort_by: query.sortBy,
       sort_order: query.sortOrder,
     }),
@@ -133,6 +134,7 @@ export async function fetchCredentials(query = {}, signal) {
   const res = await client.get(`${V1}/credentials`, {
     signal,
     params: params({
+      account_filter: query.accounts,
       page: query.page,
       page_size: query.pageSize,
       search: query.search?.trim(),
@@ -174,4 +176,12 @@ export async function fetchPermissionSource({ credentialId, eventSource, eventNa
     params: params({ credential_id: credentialId, event_source: eventSource, event_name: eventName }),
   });
   return unwrapMain(res);
+}
+
+/**
+ * A person confirms or names an identity's owner and says why. The server
+ * records who did it; nothing here sends a name for that.
+ */
+export async function setIdentityOwner(id, { owner, reason }) {
+  return unwrapMain(await client.put(`${V1}/identities/${encodeURIComponent(id)}/owner`, { owner: owner.trim(), reason: reason.trim() }));
 }

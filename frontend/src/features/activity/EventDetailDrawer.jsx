@@ -240,7 +240,7 @@ function PermissionSource({ matched, policy, type, effect, scope, action, usedCo
         </div>
         <div className="min-w-0">
           <dt className="text-ink-3">Resource scope</dt>
-          <dd className="truncate font-mono text-ink-2" title={scope || undefined}>
+          <dd className="[overflow-wrap:anywhere] font-mono text-ink-2" title={scope || undefined}>
             {scope || '-'}
           </dd>
         </div>

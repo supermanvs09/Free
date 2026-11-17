@@ -11,6 +11,7 @@ import { PageHeader } from '../../shell/PageHeader';
 import { Button } from '../../ui/Button';
 import { DataGrid } from '../../ui/DataGrid';
 import { FacetRail, useFacetRail } from '../../ui/FacetRail';
+import { accountIdsOf } from '../../app/useAccountGroup';
 import { SearchInput, Select } from '../../ui/Field';
 import { Meter } from '../../ui/Meter';
 import { Pagination } from '../../ui/Pagination';
@@ -797,6 +798,7 @@ function AnomaliesTab({ searchParams, setParams, openTotal }) {
   const state = searchParams.get('state') === 'all' ? 'all' : 'open';
   const severities = (searchParams.get('sev') || '').split(',').filter(Boolean);
   const dimensions = (searchParams.get('dim') || '').split(',').filter(Boolean);
+  const accounts = accountIdsOf(searchParams.get('acct'));
   const pageSize = PAGE_SIZES.includes(Number(searchParams.get('size'))) ? Number(searchParams.get('size')) : 25;
   const page = Math.max(1, Number(searchParams.get('page')) || 1);
   const [searchDraft, setSearchDraft] = useState(() => searchParams.get('q') || '');
@@ -809,17 +811,20 @@ function AnomaliesTab({ searchParams, setParams, openTotal }) {
   const query = useQuery((signal) => fetchAllAnomalies({ state: state === 'all' ? '' : 'open' }, signal), [state]);
   const all = useMemo(() => query.data?.items ?? [], [query.data]);
   const sevOf = (item) => String(item.severity ?? '').toUpperCase();
+  /* An anomaly names its identity by ARN; the 12 digits in it are its AWS account. */
+  const accountOfItem = (item) => (String(item.identity?.identity_name ?? '').match(/:(\d{12}):/) ?? [])[1] ?? '';
 
   /* Counts follow the other filters, so each number is what that option would show. */
   const matches = useCallback(
     (item, skip) =>
+      (skip === 'acct' || accounts.length === 0 || accounts.includes(accountOfItem(item))) &&
       (skip === 'sev' || severities.length === 0 || severities.includes(sevOf(item))) &&
       (skip === 'dim' || dimensions.length === 0 || dimensions.includes(item.dimension)) &&
       (!search ||
         [item.identity?.display_name, item.identity?.identity_name, item.what_changed, item.region].some((v) =>
           String(v ?? '').toLowerCase().includes(search),
         )),
-    [severities, dimensions, search],
+    [accounts, severities, dimensions, search],
   );
   const filtered = useMemo(() => all.filter((item) => matches(item)), [all, matches]);
   const countBy = (skip, key) => {
@@ -827,6 +832,8 @@ function AnomaliesTab({ searchParams, setParams, openTotal }) {
     for (const item of all) if (matches(item, skip)) out.set(key(item), (out.get(key(item)) ?? 0) + 1);
     return out;
   };
+  const acctCounts = countBy('acct', accountOfItem);
+  const acctKeys = [...new Set(all.map(accountOfItem).filter(Boolean))].sort();
   const sevCounts = countBy('sev', sevOf);
   const dimCounts = countBy('dim', (item) => item.dimension);
   const dimKeys = [...new Set([...all.map((item) => item.dimension), ...dimensions])].sort((a, b) => dimensionLabel(a).localeCompare(dimensionLabel(b)));
@@ -835,8 +842,18 @@ function AnomaliesTab({ searchParams, setParams, openTotal }) {
     const next = list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
     setParams({ [param]: next.join(','), page: '' });
   };
-  const applied = severities.length + dimensions.length;
+  const applied = severities.length + dimensions.length + accounts.length;
   const facetGroups = [
+    ...(acctKeys.length
+      ? [
+          {
+            key: 'acct',
+            label: 'AWS account',
+            options: acctKeys.map((id) => ({ value: id, label: id, count: acctCounts.get(id) ?? 0, active: accounts.includes(id) })),
+            onToggle: (value) => toggle('acct', accounts, value),
+          },
+        ]
+      : []),
     {
       key: 'sev',
       label: 'Severity',
@@ -952,7 +969,7 @@ function AnomaliesTab({ searchParams, setParams, openTotal }) {
         <FacetRail
           groups={facetGroups}
           appliedCount={applied}
-          onClearAll={() => setParams({ sev: '', dim: '', page: '' })}
+          onClearAll={() => setParams({ acct: '', sev: '', dim: '', page: '' })}
           onClose={toggleRail}
           mobileTitle="Filter anomalies"
         />
@@ -1002,7 +1019,7 @@ function AnomaliesTab({ searchParams, setParams, openTotal }) {
                       size="sm"
                       onClick={() => {
                         setSearchDraft('');
-                        setParams({ q: '', sev: '', dim: '', page: '' });
+                        setParams({ q: '', acct: '', sev: '', dim: '', page: '' });
                       }}
                     >
                       Clear filters

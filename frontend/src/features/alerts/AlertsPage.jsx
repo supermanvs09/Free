@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, CheckCheck, Dna, FileWarning, Fingerprint, GitCommitVertical, Radius, ShieldAlert, ShieldX } from 'lucide-react';
+import { ArrowUpRight, CheckCheck, Dna, FileWarning, Fingerprint, GitCommitVertical, ShieldAlert, ShieldX } from 'lucide-react';
 import { fetchAlerts, fetchIdentityAlert } from '../../lib/api/alerts';
-import { fetchBlastRadius } from '../../lib/api/blastRadius';
 import { useQuery } from '../../lib/hooks/useQuery';
 import { formatDateTime, formatNumber, formatRelative } from '../../lib/format';
 import { genomeRoute } from '../../lib/identityLinks';
@@ -49,7 +48,6 @@ const VERIFIED = {
   unsupported: 'Cannot be checked automatically',
   unknown: 'Not checked yet',
 };
-const BLAST = { CRITICAL: 'text-critical', HIGH: 'text-high', MEDIUM: 'text-medium', LOW: 'text-low' };
 
 /* A genome alert for an identity discovery no longer sees (or that is out of
    scope) has no identity page; its anomalies are still listed, so link there. */
@@ -107,9 +105,6 @@ function PostureWhy({ a }) {
   const id = postureId(a);
   const q = useQuery((signal) => fetchIdentityAlert(id, signal), [id]);
   const d = q.data;
-  const subject = d ? d.credential_arn || (String(d.identity_arn).includes(':iam::') ? d.identity_arn : '') : '';
-  const blast = useQuery((signal) => (subject ? fetchBlastRadius(subject, {}, signal) : Promise.resolve(null)), [subject]);
-  const b = blast.data;
   return (
     <>
       <section className="rounded-[14px] border border-line p-4">
@@ -180,27 +175,12 @@ function PostureWhy({ a }) {
           </>
         )}
       </section>
-      {b && (
-        <section className="mt-3 flex items-center gap-3 rounded-[14px] border border-line px-4 py-3">
-          <Radius className="size-4 shrink-0 text-ink-3" />
-          <p className="min-w-0 flex-1 text-[12.5px] text-ink-2">
-            If its role is taken over, an attacker reaches <span className="font-semibold text-ink">{formatNumber((b.reachable_resources ?? []).length)} resources</span>
-            {(b.reachable_identities ?? []).length ? ` and can become ${formatNumber(b.reachable_identities.length)} more ${b.reachable_identities.length === 1 ? 'role' : 'roles'}` : ''}.
-          </p>
-          <span data-numeric="" className={cn('shrink-0 text-[15px] font-bold', BLAST[b.risk_level] ?? 'text-ink')} title="Blast radius score">
-            {Number(b.blast_radius_score ?? 0).toFixed(1)}
-          </span>
-        </section>
-      )}
       <Actions>
         <Button as={Link} to={a.link} size="sm" variant="primary" iconRight={ArrowUpRight}>
           Why it dropped, in full
         </Button>
         {d?.discovery_id && (
           <>
-            <Button as={Link} to={`/identities/${encodeURIComponent(d.discovery_id)}?tab=blast`} size="sm" variant="secondary" icon={Radius}>
-              Blast radius
-            </Button>
             <Button as={Link} to={`/identities/${encodeURIComponent(d.discovery_id)}`} size="sm" variant="ghost" icon={Fingerprint}>
               Identity
             </Button>

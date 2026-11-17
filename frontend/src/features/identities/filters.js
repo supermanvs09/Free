@@ -8,6 +8,7 @@ import {
   identityTypeLabel,
   lifecycleMeta,
 } from './meta';
+import { accountIdsOf } from '../../app/useAccountGroup';
 
 /**
  * Identity explorer filters.
@@ -60,6 +61,7 @@ export const SIGNALS = [
 
 export const FILTER_PARAMS = [
   'search',
+  'accounts',
   'owner',
   'is_publicly_accessible',
   'shadow',
@@ -124,6 +126,7 @@ export function readFilters(searchParams) {
   const pageSize = Number(searchParams.get('page_size'));
   return {
     search: searchParams.get('search') || '',
+    accounts: accountIdsOf(searchParams.get('accounts')),
     identityType: listOf(searchParams, 'identity_type'),
     functionalClass: listOf(searchParams, 'functional_class'),
     environment: listOf(searchParams, 'environment'),
@@ -144,6 +147,8 @@ export function describeFilters(searchParams) {
   const chips = [];
   const search = searchParams.get('search');
   if (search) chips.push({ key: 'search', label: 'Search', value: search });
+
+  for (const id of accountIdsOf(searchParams.get('accounts'))) chips.push({ key: `accounts=${id}`, label: 'AWS account', value: id });
 
   for (const entry of LIST_PARAMS) {
     for (const value of splitList(searchParams.get(entry.param), entry.allowed)) {

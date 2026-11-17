@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Activity, AlertTriangle, DatabaseZap, Globe, Network } from 'lucide-react';
+import { fetchGenomeActivity } from '../../lib/api/genome';
 import { fetchIdentity, fetchIdentityEvents } from '../../lib/api/inventory';
 import { useQuery } from '../../lib/hooks';
 import { rampColor, SERIES_TOKENS } from '../../lib/domain';
@@ -14,7 +15,7 @@ import { ListSkeleton, StatStripSkeleton } from '../../ui/Skeleton';
 import { ClearState, EmptyState, ErrorState, InlineError } from '../../ui/States';
 import { Code, Tag } from '../../ui/Tag';
 import { bindingLabel, credentialTypeMeta } from '../identities/meta';
-import { activeEventFilters, activityRange, eventQuery, eventRange, rangeQuery } from './eventState';
+import { activeEventFilters, activityRange, eventQuery, eventRange, rangeInstants, rangeQuery } from './eventState';
 
 /**
  * The sections of `GET /api/v1/identities/{id}/events` other than the
@@ -45,6 +46,107 @@ function SectionState({ query, children, rows = 5 }) {
   if (!query.data) return <ListSkeleton rows={rows} />;
   if (query.data.data_available === false) return <Unavailable />;
   return children;
+}
+
+/**
+ * The summary for an identity the genome watches. Its calls come from one
+ * place - the same activity API as the calls table beside it
+ * (GET /genome/identities/{type}/{name}/activity, each call counted once) - so
+ * the total, the calls per day and the busiest services always add up to the
+ * list below. The discovery summary counts from a different aggregate, which
+ * is why the two used to disagree (11 calls above, 22 in one day below).
+ *
+ * That API has no read/changed or error split, so those figures are left out
+ * here rather than taken from the other source. The busiest services and
+ * source addresses come from the calls the API lists (up to 100); past that
+ * they say they are from the most recent 100.
+ */
+const RECENT_FOR_SUMMARY = 100;
+
+export function GenomeActivitySummary({ genomeKey, state }) {
+  const range = eventRange(state);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const instants = useMemo(() => rangeInstants(state), [state.range, state.from, state.to]);
+  const query = useQuery(
+    (signal) =>
+      fetchGenomeActivity(genomeKey.sourceType, genomeKey.identityName, { ...instants, bucket: 'day', recentLimit: RECENT_FOR_SUMMARY }, signal),
+    [genomeKey.sourceType, genomeKey.identityName, instants.from, instants.to],
+  );
+  const data = query.data;
+  const total = Number(data?.totalCalls) || 0;
+  const calls = useMemo(() => data?.recentCalls ?? [], [data]);
+
+  const { services, ips, partial } = useMemo(() => {
+    const byService = new Map();
+    const addresses = new Set();
+    for (const call of calls) {
+      const service = String(call.api_call ?? '').split(':')[0] || 'unknown';
+      byService.set(service, (byService.get(service) ?? 0) + 1);
+      if (call.source_ip) addresses.add(call.source_ip);
+    }
+    return {
+      services: [...byService.entries()].map(([service, count]) => ({ service, count })).sort((a, b) => b.count - a.count),
+      ips: addresses.size,
+      partial: calls.length < total,
+    };
+  }, [calls, total]);
+  const volume = useMemo(() => (data?.volume ?? []).map((point) => ({ date: String(point.bucket).slice(0, 10), count: Number(point.calls) || 0 })), [data]);
+
+  if (query.isError && !data) return <InlineError error={query.error} onRetry={query.refetch} label="Activity summary unavailable" />;
+  if (!data) return <StatStripSkeleton count={2} />;
+  if (data.totalCalls === null || data.totalCalls === undefined) {
+    return (
+      <Panel>
+        <Unavailable />
+      </Panel>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid gap-3 @min-[30rem]:grid-cols-2">
+        <MetricTile label="Calls" value={total} tone="brand" icon={Activity} caption={range.title} className="animate-rise" />
+        <MetricTile
+          label="Source IPs"
+          value={ips}
+          tone="neutral"
+          caption={partial ? `In the ${formatNumber(calls.length)} most recent calls` : 'Distinct addresses these calls came from'}
+          className="animate-rise"
+          data-stagger=""
+          style={{ '--stagger': 1 }}
+        />
+      </div>
+      {total > 0 && (
+        <Panel prominence="quiet" className="animate-rise">
+          <PanelHeader prominence="quiet" title="How it was used" subtitle={`${range.title}, counted from the AWS activity log (CloudTrail).`} />
+          <div className="mt-3.5 grid gap-6 @min-[46rem]:grid-cols-2">
+            <div>
+              <p className="text-[10.5px] font-semibold tracking-[0.11em] text-ink-3 uppercase">
+                Busiest services{partial ? ` · ${formatNumber(calls.length)} most recent calls` : ''}
+              </p>
+              <ul className="mt-2 flex flex-col gap-1.5">
+                {services.slice(0, 5).map((entry) => (
+                  <li key={entry.service} className="flex items-center gap-3">
+                    <span className="min-w-0 flex-1 font-mono text-[12px] [overflow-wrap:anywhere] text-ink-2">{entry.service}</span>
+                    <span className="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-track">
+                      <span className="block h-full rounded-full bg-[var(--t-ramp-4)]" style={{ width: `${percentValue(entry.count, services[0].count)}%` }} />
+                    </span>
+                    <span data-numeric="" className="w-10 shrink-0 text-right text-[12px] font-semibold text-ink">
+                      {formatNumber(entry.count)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <p className="text-[10.5px] font-semibold tracking-[0.11em] text-ink-3 uppercase">Calls per day</p>
+              {volume.length === 0 ? <p className="mt-2 text-[12px] text-ink-3">No daily figures.</p> : <DailyBars points={volume} />}
+            </div>
+          </div>
+        </Panel>
+      )}
+    </div>
+  );
 }
 
 /* ── Summary ─────────────────────────────────────────────────────────────── */

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, ChevronRight, Fingerprint, GitCommitVertical, Radius, ShieldCheck, Wrench } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronRight, Fingerprint, GitCommitVertical, ShieldCheck, Wrench } from 'lucide-react';
 import { fetchIdentityAlert } from '../../lib/api/alerts';
 import { useQuery } from '../../lib/hooks/useQuery';
 import { formatDateTime, formatNumber, formatRelative } from '../../lib/format';
@@ -540,9 +540,6 @@ export default function AlertDetailPage() {
                 <>
                   <RailLink to={`/identities/${encodeURIComponent(a.discovery_id)}`} icon={Fingerprint}>
                     Open identity
-                  </RailLink>
-                  <RailLink to={`/identities/${encodeURIComponent(a.discovery_id)}?tab=blast`} icon={Radius}>
-                    Blast radius
                   </RailLink>
                 </>
               )}

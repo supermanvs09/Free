@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, Braces, Eye, Fingerprint, GitCompareArrows, History, KeyRound, Link2, Radar, ShieldCheck, UsersRound } from 'lucide-react';
-import { BlastRadiusView } from '../blast/BlastRadiusView';
+import { AlertTriangle, Braces, Eye, Fingerprint, GitCompareArrows, History, KeyRound, Link2, ShieldCheck, UsersRound } from 'lucide-react';
 import { fetchCredential } from '../../lib/api/inventory';
 import { EntityChangesTab } from '../changes/EntityChangesTab';
 import { useQuery } from '../../lib/hooks';
@@ -33,7 +32,6 @@ import {
 const TABS = [
   { value: 'overview', label: 'Overview', icon: KeyRound },
   { value: 'trust', label: 'Trust & permissions', icon: ShieldCheck },
-  { value: 'blast', label: 'Blast radius', icon: Radar },
   { value: 'activity', label: 'Activity', icon: Eye },
   { value: 'rotation', label: 'Rotation', icon: History },
   { value: 'relationships', label: 'Relationships', icon: Link2 },
@@ -109,7 +107,6 @@ export function CredentialDrawer({ credentialId, row, onClose, initialTab }) {
         {tab === 'trust' && <TrustTab credentialId={credentialId} />}
         {tab === 'rotation' && <RotationTab credentialId={credentialId} longLived={meta.longLived} />}
         {tab === 'sessions' && <SessionsTab credentialId={credentialId} />}
-        {tab === 'blast' && credential?.arn && <BlastRadiusView arn={credential.arn} compact />}
         {tab === 'activity' && <ActivityTab credentialId={credentialId} />}
         {tab === 'relationships' && <RelationshipsTab credentialId={credentialId} />}
         {tab === 'changes' && <EntityChangesTab kind="credential" id={credentialId} />}
@@ -252,8 +249,7 @@ function OverviewBody({ data, privilege, record, recordLoading }) {
         )}
       </div>
 
-      {/* Security at a glance, from posture and blast radius (as their
-          tabs show them). A credential is scored as itself when posture has
+      {/* Security at a glance, from posture (as its tab shows it). A credential is scored as itself when posture has
           it (a role), else with the identity it belongs to. */}
       <div>
         <SectionLabel>Security at a glance</SectionLabel>
@@ -323,7 +319,7 @@ function TrustTab({ credentialId }) {
             <ul className="mt-2 divide-y divide-line">
               {principals.map((principal) => (
                 <li key={`${principal.type}-${principal.principal}`} className="flex flex-wrap items-center gap-2 py-2">
-                  <span className="min-w-0 flex-1 truncate font-mono text-[12.5px] text-ink" title={principal.principal}>
+                  <span className="min-w-0 flex-1 [overflow-wrap:anywhere] font-mono text-[12.5px] text-ink" title={principal.principal}>
                     {principal.principal}
                   </span>
                   <Tag tone="neutral" size="sm">
@@ -753,7 +749,7 @@ function ActivityTab({ credentialId }) {
                             {user.name}
                           </Link>
                         ) : (
-                          <span className="block truncate font-mono text-[12.5px] text-ink">{user.caller_arn}</span>
+                          <span className="block [overflow-wrap:anywhere] font-mono text-[12.5px] text-ink">{user.caller_arn}</span>
                         )}
                         <span className="block truncate text-[11.5px] text-ink-3">
                           {user.identity_type ? identityTypeLabel(user.identity_type) : 'Not in the inventory'}

@@ -4,6 +4,7 @@ import { ArrowDownWideNarrow, ArrowUpNarrowWide, KeyRound, SearchX } from 'lucid
 import { countCredentials, fetchCredentials, fetchFilters } from '../../lib/api/inventory';
 import { useDebouncedValue, useQuery } from '../../lib/hooks';
 import { useAccess } from '../../app/useAccess';
+import { accountIdsOf, useAccountGroup } from '../../app/useAccountGroup';
 import { formatDateTime, formatNumber, formatRelative, percentValue } from '../../lib/format';
 import { exportRowsToCsv, timestampedName } from '../../lib/csv';
 import { DiscoveryTabs, PageHeader } from '../../shell/PageHeader';
@@ -51,7 +52,7 @@ const FLAGS = [
   { key: 'external', label: 'External trust', param: 'has_external_trust', value: 'true', tone: 'medium', query: { hasExternalTrust: 'true' } },
 ];
 
-const FILTER_PARAMS = ['search', 'credential_type', 'status', ...new Set(FLAGS.map((flag) => flag.param))];
+const FILTER_PARAMS = ['search', 'accounts', 'credential_type', 'status', ...new Set(FLAGS.map((flag) => flag.param))];
 
 /* Grid column -> API sort field. */
 const SORTABLE = {
@@ -95,6 +96,7 @@ function readQuery(searchParams) {
     sort: sortKey ? { key: sortKey, direction: desc ? 'desc' : 'asc' } : null,
     query: {
       search: searchParams.get('search') || '',
+      accounts: accountIdsOf(searchParams.get('accounts')),
       credentialType: splitList(searchParams.get('credential_type'), API_CREDENTIAL_TYPES),
       status: splitList(searchParams.get('status'), new Set(API_CREDENTIAL_STATUSES)),
       rotationEnabled: boolParam('rotation_enabled'),
@@ -162,20 +164,21 @@ export default function CredentialsPage() {
 
   const { query: filters, sort } = useMemo(() => readQuery(searchParams), [searchParams]);
   const query = useQuery((signal) => fetchCredentials(filters, signal), [JSON.stringify(filters)]);
-  const facetsQuery = useQuery((signal) => fetchFilters(signal), []);
+  const accountsKey = filters.accounts.join(',');
+  const facetsQuery = useQuery((signal) => fetchFilters(signal, filters.accounts), [accountsKey]);
 
   const countsQuery = useQuery(
     async (signal) => {
-      const flagCounts = await Promise.all(FLAGS.map((flag) => countCredentials(flag.query, signal)));
-      const statusCounts = await Promise.all(API_CREDENTIAL_STATUSES.map((status) => countCredentials({ status: [status] }, signal)));
-      const total = await countCredentials({}, signal);
+      const flagCounts = await Promise.all(FLAGS.map((flag) => countCredentials({ ...flag.query, accounts: filters.accounts }, signal)));
+      const statusCounts = await Promise.all(API_CREDENTIAL_STATUSES.map((status) => countCredentials({ status: [status], accounts: filters.accounts }, signal)));
+      const total = await countCredentials({ accounts: filters.accounts }, signal);
       return {
         total,
         flags: Object.fromEntries(FLAGS.map((flag, index) => [flag.key, flagCounts[index]])),
         statuses: Object.fromEntries(API_CREDENTIAL_STATUSES.map((status, index) => [status, statusCounts[index]])),
       };
     },
-    [],
+    [accountsKey],
   );
   const counts = countsQuery.data;
 
@@ -238,6 +241,7 @@ export default function CredentialsPage() {
   const chips = useMemo(() => {
     const list = [];
     if (filters.search) list.push({ key: 'search', label: 'Search', value: filters.search });
+    filters.accounts.forEach((id) => list.push({ key: `accounts=${id}`, label: 'AWS account', value: id }));
     filters.credentialType.forEach((value) => list.push({ key: `credential_type=${value}`, label: 'Type', value: credentialTypeMeta(value).label }));
     filters.status.forEach((value) => list.push({ key: `status=${value}`, label: 'Status', value: lifecycleMeta(value).label }));
     FLAGS.forEach((flag) => {
@@ -253,7 +257,13 @@ export default function CredentialsPage() {
     else update((next) => next.delete(param));
   };
 
+  const accountGroup = useAccountGroup({
+    selected: filters.accounts,
+    onToggle: (id) => toggleList('accounts', id),
+    onSelectAll: (ids) => update((next) => (ids.length ? next.set('accounts', ids.join(',')) : next.delete('accounts'))),
+  });
   const facetGroups = [
+    ...(accountGroup ? [accountGroup] : []),
     {
       key: 'flags',
       label: 'Needs attention',

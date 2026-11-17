@@ -44,12 +44,16 @@ export function CopyButton({ value, label = 'Copy', className, size = 'md' }) {
   );
 }
 
-/** Monospace value plus copy control, aligned for use inside detail lists. */
+/**
+ * Monospace value plus copy control, aligned for use inside detail lists.
+ * The value wraps, it is never cut off: a record that hides the end of an ARN
+ * makes the reader copy it just to see what it is.
+ */
 export function CopyableValue({ value, mono = true, className, children }) {
   if (!value) return <span className="text-ink-3">-</span>;
   return (
-    <span className={cn('inline-flex min-w-0 max-w-full items-center gap-1.5', className)}>
-      <span className={cn('min-w-0 truncate', mono && 'font-mono text-[12.5px]')} title={value}>
+    <span className={cn('inline-flex min-w-0 max-w-full items-start gap-1.5', className)}>
+      <span className={cn('min-w-0 [overflow-wrap:anywhere]', mono && 'font-mono text-[12.5px]')}>
         {children ?? value}
       </span>
       <CopyButton value={value} size="sm" />

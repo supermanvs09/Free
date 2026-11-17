@@ -239,8 +239,7 @@ function OverviewPanel({ identityId, query, active, compact }) {
       </section>
 
       {/* Security at a glance: the same posture score and checks as the
-          Posture tab and the same blast radius as its tab, so the overview
-          never says "OK" where they say otherwise. */}
+          Posture tab, so the overview never says "OK" where it says otherwise. */}
       <div>
         <SectionLabel>Security at a glance</SectionLabel>
         <div className="mt-2">
@@ -706,7 +705,7 @@ function MiniFact({ label, children }) {
   return (
     <div className="min-w-0">
       <dt className="text-[10.5px] font-semibold tracking-[0.1em] text-ink-3 uppercase">{label}</dt>
-      <dd className="mt-0.5 truncate text-[12px] text-ink-2">{children}</dd>
+      <dd className="mt-0.5 [overflow-wrap:anywhere] text-[12px] text-ink-2">{children}</dd>
     </div>
   );
 }

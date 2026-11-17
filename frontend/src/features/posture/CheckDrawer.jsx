@@ -131,7 +131,7 @@ export function CheckDrawer({
               {pillarLabel(pillar, pillarNames)}
             </Tag>
           )}
-          {identity && <span className="truncate font-mono text-[12px]">{identity.name}</span>}
+          {identity && <span className="[overflow-wrap:anywhere] font-mono text-[12px]">{identity.name}</span>}
         </span>
       }
       width="lg"

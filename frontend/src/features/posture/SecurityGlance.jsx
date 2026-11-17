@@ -8,7 +8,6 @@ import { identityRoute } from '../../lib/identityLinks';
 import { SectionLabel } from '../../ui/Panel';
 import { DetailSkeleton } from '../../ui/Skeleton';
 import { TONE_BG, cn } from '../../ui/cn';
-import { BlastGlance } from '../blast/BlastGlance';
 import { BandTag, ScoreRing, formatScore } from './parts';
 
 const SHOWN = 4;
@@ -89,21 +88,15 @@ function PostureGlance({ candidates, postureLink, missing }) {
 }
 
 /**
- * The Overview's "at a glance": its posture and its blast radius, read from
- * the same services as the Posture and Blast radius tabs so the three never
- * disagree. Replaces the discovery scan's own OK / needs-a-look list.
+ * The Overview's "at a glance": its posture, read from the same service as the
+ * Posture tab so the two never disagree. Replaces the discovery scan's own
+ * OK / needs-a-look list.
  */
-export function SecurityGlance({ identityId, arn, candidates, missing, compact = false }) {
+export function SecurityGlance({ arn, candidates, missing, identityId }) {
   return (
-    <div className={cn('grid gap-4', !compact && 'lg:grid-cols-2')}>
-      <section className="rounded-[var(--radius-control)] border border-line bg-surface-2 p-4">
-        <SectionLabel>Posture</SectionLabel>
-        <PostureGlance candidates={candidates ?? [arn]} missing={missing} postureLink={identityId ? identityRoute(identityId, 'posture') : undefined} />
-      </section>
-      <section className="rounded-[var(--radius-control)] border border-line bg-surface-2 p-4">
-        <SectionLabel>If it is taken over</SectionLabel>
-        <BlastGlance identityId={identityId} arn={arn} />
-      </section>
-    </div>
+    <section className="rounded-[var(--radius-control)] border border-line bg-surface-2 p-4">
+      <SectionLabel>Posture</SectionLabel>
+      <PostureGlance candidates={candidates ?? [arn]} missing={missing} postureLink={identityId ? identityRoute(identityId, 'posture') : undefined} />
+    </section>
   );
 }

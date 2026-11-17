@@ -453,7 +453,7 @@ export function FindingDrawer({ finding, onClose, onDismiss, dismissing, onDecid
         >
           <div className="flex flex-col gap-4">
             <div className="rounded-[var(--radius-control)] border border-line bg-surface-2 px-3 py-2.5">
-              <p className="truncate font-mono text-[12px] text-ink" title={finding.file_path}>
+              <p className="[overflow-wrap:anywhere] font-mono text-[12px] text-ink" title={finding.file_path}>
                 {finding.file_path || 'Finding'}
               </p>
               <p className="mt-0.5 text-[12px] text-ink-3">
