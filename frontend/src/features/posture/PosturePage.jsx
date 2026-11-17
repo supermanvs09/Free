@@ -296,6 +296,21 @@ export default function PosturePage() {
 
   const facetGroups = [
     {
+      key: 'identity_class',
+      label: 'Identity class',
+      single: true,
+      options: [
+        { value: 'HI', label: 'Human (HI)', count: facets ? facets.identity_class?.HI ?? 0 : undefined, active: identityClass === 'HI' },
+        { value: 'NHI', label: 'Non-human (NHI)', count: facets ? facets.identity_class?.NHI ?? 0 : undefined, active: identityClass === 'NHI' },
+      ],
+      /* The same choice as the cards above: one place to change it, two ways to reach it. */
+      onSelect: (value) => {
+        setParams({ class: value ?? '' });
+        setPaging({ key: '', cursors: [null], page: 1 });
+      },
+      onToggle: (value) => setParams({ class: identityClass === value ? '' : value }),
+    },
+    {
       key: 'account',
       label: 'AWS account',
       options: optionsFrom('account', facets?.account, (value) => accountNames[value] ?? value),
