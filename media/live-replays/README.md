@@ -1,6 +1,6 @@
 # Live replay recordings
 
-Screen recordings (no audio, 1600×900) of the six live scenarios, for sharing
+Screen recordings (no audio, 1920×1080 at 30 fps, H.264) of the six live scenarios, for sharing
 outside the console. The app does not load these files: inside the console,
 Ctrl+Shift+L plays the scenarios live.
 

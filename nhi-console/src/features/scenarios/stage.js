@@ -24,7 +24,9 @@ function ensureLayer() {
   layer = document.createElement('div');
   layer.id = 'nhi-stage';
   layer.setAttribute('aria-hidden', 'true');
-  layer.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:300;';
+  /* The page is zoomed on wide screens (html { zoom }); the layer cancels it so
+     its positions are screen pixels, the same as getBoundingClientRect. */
+  layer.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:300;zoom:calc(1 / var(--app-zoom, 1));';
   spot = document.createElement('div');
   spot.style.cssText =
     'position:fixed;left:50%;top:50%;width:0;height:0;border-radius:18px;opacity:0;' +
@@ -98,9 +100,11 @@ function aim(target, { max, spotlight, base, smooth = true }) {
   const el = root();
   const vw = window.innerWidth;
   const vh = window.innerHeight;
+  const z = pageZoom();
   const rr = el.getBoundingClientRect();
   const r = target.getBoundingClientRect();
-  const current = zoomed ? Number(/scale\(([\d.]+)\)/.exec(el.style.transform)?.[1] ?? 1) : 1;
+  /* The scale it is at right now, even mid-animation: drawn width over layout width. */
+  const current = el.offsetWidth ? rr.width / (el.offsetWidth * z) : 1;
   /* Unscaled position, relative to the app's own top-left. */
   const ux = (r.left - rr.left) / current;
   const uy = (r.top - rr.top) / current;
@@ -109,17 +113,39 @@ function aim(target, { max, spotlight, base, smooth = true }) {
   const scale = Math.max(1, Math.min(max, (vw * 0.84) / uw, (vh * 0.72) / uh));
   /* Origin fixed at the app's top-left, so a re-aim animates the transform
      alone: point p of the app lands at base + t + scale * p. */
-  const tx = vw / 2 - base.x - scale * (ux + uw / 2);
-  const ty = vh / 2 - base.y - scale * (uy + uh / 2);
+  /* Centre the element, but never pan past the app's edges: the frame always
+     shows the app, not the empty page around it. */
+  const aw = el.offsetWidth * z;
+  const ah = el.offsetHeight * z;
+  const clamp = (v, lo, hi) => (lo > hi ? (lo + hi) / 2 : Math.min(hi, Math.max(lo, v)));
+  const tx = clamp(vw / 2 - base.x - scale * (ux + uw / 2), vw - base.x - scale * aw, -base.x);
+  const ty = clamp(vh / 2 - base.y - scale * (uy + uh / 2), vh - base.y - scale * ah, -base.y);
   el.style.transformOrigin = '0px 0px';
   el.style.transition = reduced() || !smooth ? 'none' : 'transform .95s cubic-bezier(.22,1,.36,1)';
-  el.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+  /* Everything above is screen pixels; the transform is in the app's own (zoomed) CSS pixels. */
+  el.style.transform = `translate(${tx / z}px, ${ty / z}px) scale(${scale})`;
   zoomed = true;
+  aimed = { x: ux, y: uy, w: uw, h: uh };
   if (spotlight) {
-    const w = Math.min(vw - 16, uw * scale + 20);
-    const h = Math.min(vh - 16, uh * scale + 20);
-    Object.assign(spot.style, { left: `${vw / 2 - w / 2}px`, top: `${vh / 2 - h / 2}px`, width: `${w}px`, height: `${h}px` });
+    /* Light the element where it lands (it is off-centre when the pan is clamped). */
+    const left = Math.max(8, base.x + tx + scale * ux - 10);
+    const top = Math.max(8, base.y + ty + scale * uy - 10);
+    const w = Math.min(vw - 8 - left, uw * scale + 20);
+    const h = Math.min(vh - 8 - top, uh * scale + 20);
+    Object.assign(spot.style, { left: `${left}px`, top: `${top}px`, width: `${w}px`, height: `${h}px` });
   }
+}
+/* The page's own zoom (index.css zooms html on wide screens). */
+const pageZoom = () => Number.parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+let aimed = null; // where the camera last aimed, in the app's own coordinates
+
+/* Where an element is now, in the app's own (unscaled) coordinates. */
+function placeOf(target) {
+  const el = root();
+  const rr = el.getBoundingClientRect();
+  const r = target.getBoundingClientRect();
+  const current = el.offsetWidth ? rr.width / (el.offsetWidth * pageZoom()) : 1;
+  return { x: (r.left - rr.left) / current, y: (r.top - rr.top) / current, w: r.width / current, h: r.height / current };
 }
 
 /**
@@ -151,7 +177,8 @@ export async function focus(selector, { max = 1.55, spotlight = true } = {}) {
       spot.style.opacity = '1';
       const observer = new ResizeObserver(() => place());
       observer.observe(target);
-      follow = { observer, target };
+      const watch = setInterval(() => target.isConnected && place(), 200);
+      follow = { observer: { disconnect: () => (observer.disconnect(), clearInterval(watch)) }, target };
     }
     return true;
   }
@@ -171,7 +198,14 @@ export async function focus(selector, { max = 1.55, spotlight = true } = {}) {
     }, 120);
   });
   observer.observe(target);
-  follow = { observer, target };
+  /* Content arriving above it (a new alert at the top of a list) moves it
+     without resizing it: follow the move too. */
+  const watch = setInterval(() => {
+    if (follow?.target !== target || !target.isConnected || !aimed) return;
+    const now = placeOf(target);
+    if (Math.abs(now.x - aimed.x) > 3 || Math.abs(now.y - aimed.y) > 3) aim(target, { max, spotlight, base });
+  }, 200);
+  follow = { observer: { disconnect: () => (observer.disconnect(), clearInterval(watch)) }, target };
   if (spotlight) {
     await sleep(reduced() ? 0 : 650);
     spot.style.opacity = '1';
