@@ -42,7 +42,7 @@ const WINDOWS = [
   { value: '30d', label: '30d' },
 ];
 const WINDOW_WORDS = { '24h': '24 hours', '7d': '7 days', '30d': '30 days' };
-const TAB_KEYS = ['overview', 'identities', 'anomalies'];
+const TAB_KEYS = ['overview', 'identities', 'anomalies', 'credentials'];
 const DAY_MS = 86400000;
 
 /**

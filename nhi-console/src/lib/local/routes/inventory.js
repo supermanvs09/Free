@@ -65,7 +65,7 @@ const pub = (row) => {
   return rest;
 };
 
-const CATEGORY = { lambda_function: 'COMPUTE', ecs_task: 'COMPUTE', eks_pod: 'COMPUTE', ec2_instance: 'COMPUTE', batch_job: 'COMPUTE', step_function: 'ORCHESTRATION', codepipeline: 'CICD', codebuild_project: 'CICD', jenkins_job: 'CICD', jenkins_agent: 'CICD', jenkins_user: 'CICD', bedrock_agent: 'AI_AGENT', sagemaker_notebook: 'AI_AGENT', sagemaker_endpoint: 'AI_AGENT', glue_job: 'DATA', emr_cluster: 'DATA', iam_user: 'EXCEPTION', iam_user_service_account: 'EXCEPTION', iam_role: 'FEDERATED', managed_identity: 'COMPUTE', aks_workload: 'COMPUTE', function_app: 'COMPUTE', service_principal: 'FEDERATED', app_registration: 'FEDERATED', vault_approle: 'COMPUTE', vault_k8s_role: 'COMPUTE', vault_token: 'EXCEPTION', vault_dynamic_role: 'DATA' };
+const CATEGORY = { lambda_function: 'COMPUTE', ecs_task: 'COMPUTE', eks_pod: 'COMPUTE', ec2_instance: 'COMPUTE', batch_job: 'COMPUTE', step_function: 'ORCHESTRATION', codepipeline: 'CICD', codebuild_project: 'CICD', jenkins_job: 'CICD', jenkins_agent: 'CICD', jenkins_user: 'CICD', bedrock_agent: 'AI_AGENT', sagemaker_notebook: 'AI_AGENT', sagemaker_endpoint: 'AI_AGENT', glue_job: 'DATA', emr_cluster: 'DATA', iam_user: 'EXCEPTION', iam_user_service_account: 'EXCEPTION', iam_role: 'FEDERATED', managed_identity: 'COMPUTE', aks_workload: 'COMPUTE', function_app: 'COMPUTE', aks_cluster: 'COMPUTE', azure_vm: 'COMPUTE', synapse_pipeline: 'DATA', github_actions_workflow: 'CICD', saas_integration: 'FEDERATED', ssm_automation: 'ORCHESTRATION', cloudformation_stackset: 'CICD', service_principal: 'FEDERATED', app_registration: 'FEDERATED', vault_approle: 'COMPUTE', vault_k8s_role: 'COMPUTE', vault_token: 'EXCEPTION', vault_dynamic_role: 'DATA' };
 export function identityRow(row) {
   return { ...pub(row), last_used_at: row.last_activity_at, last_seen_at: new Date(Date.now() - 41 * 60000).toISOString(), category: CATEGORY[row.identity_type] ?? 'UNKNOWN', subnet_id: row.vpc_id ? `subnet-0${row.vpc_id.slice(5, 21)}` : null, security_group_ids: row.vpc_id ? [`sg-0${row.vpc_id.slice(6, 22)}`] : [], parent_arn: row.identity_type === 'eks_pod' ? `arn:aws:eks:${row.region}:${row.account_id}:cluster/payments-eks` : row.identity_type === 'aks_workload' ? `/subscriptions/${row.account_id}/resourceGroups/rg-payments-prod/providers/Microsoft.ContainerService/managedClusters/aks-payments` : null };
 }
@@ -196,10 +196,21 @@ function typeAttributes(identity) {
     case 'service_principal':
     case 'app_registration':
       return { ...base, app_id: credentialsOf(identity)[0]?.client_id ?? null, sign_in_audience: 'AzureADMyOrg', publisher_domain: 'deepalgorithms.ai', api_permissions: identity.is_admin ? ['Directory.ReadWrite.All', 'Application.ReadWrite.All'] : ['User.Read'] };
+    case 'github_actions_workflow':
+      return { ...base, repository: 'deepalgo-labs/payments-api', workflow: '.github/workflows/deploy.yml', trigger: 'push to main', federation: 'OIDC (token.actions.githubusercontent.com)', role: identity.__role ?? null };
+    case 'saas_integration':
+      return { ...base, vendor: identity.name.split('-')[0], vendor_account: identity.external_account, role: identity.__role ?? null, external_id_required: true };
+    case 'ssm_automation':
+      return { ...base, document: identity.name, execution_role: identity.__role ?? null, invoked_by: identity.name.startsWith('break-glass') ? 'On-call engineers, in an incident' : 'EventBridge schedule and on-call engineers' };
+    case 'cloudformation_stackset':
+      return { ...base, stackset: 'org-baseline', administration_account: identity.external_account, execution_role: identity.__role?.split('@')[0] ?? null };
+    case 'aks_cluster':
+    case 'azure_vm':
+    case 'synapse_pipeline':
     case 'managed_identity':
     case 'aks_workload':
     case 'function_app':
-      return { ...base, principal_type: identity.identity_type === 'managed_identity' ? 'user-assigned' : 'system-assigned', role_assignments: identity.is_admin ? ['Owner'] : ['Key Vault Secrets User', 'Storage Blob Data Reader'] };
+      return { ...base, managed_identity: identity.__role ?? null, principal_type: identity.__role || identity.identity_type === 'managed_identity' ? 'user-assigned' : 'system-assigned', role_assignments: identity.is_admin ? ['Owner'] : ['Key Vault Secrets User', 'Storage Blob Data Reader'] };
     case 'jenkins_job':
       return { ...base, folder: identity.name.split('/')[0], last_build: `#${200 + (hashString(identity.id) % 700)}`, last_build_result: 'SUCCESS', triggers: ['SCM push', 'cron H 2 * * *'], credentials_bound: credentialsOf(identity).map((c) => c.name) };
     case 'jenkins_agent':
@@ -260,6 +271,13 @@ function discoveryApi(identity) {
     app_registration: 'GET /applications (Microsoft Graph)',
     aks_workload: 'Microsoft.ContainerService workload identities (ARM)',
     function_app: 'Microsoft.Web/sites identity (ARM)',
+    aks_cluster: 'Microsoft.ContainerService/managedClusters (ARM)',
+    azure_vm: 'Microsoft.Compute/virtualMachines (ARM)',
+    synapse_pipeline: 'Microsoft.Synapse pipelines (ARM)',
+    github_actions_workflow: 'iam:ListOpenIDConnectProviders + role trust (IAM)',
+    saas_integration: 'iam:GetRole trust policy (IAM)',
+    ssm_automation: 'ssm:ListDocuments (SSM)',
+    cloudformation_stackset: 'cloudformation:ListStackInstances (CloudFormation)',
     jenkins_job: 'GET /api/json?tree=jobs[...] (Jenkins REST)',
     jenkins_agent: 'GET /computer/api/json (Jenkins REST)',
     jenkins_user: 'GET /asynchPeople/api/json (Jenkins REST)',

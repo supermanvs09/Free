@@ -7,7 +7,7 @@
 import { enabledProviders } from './apps';
 import { estate } from './seed';
 import { credentialsOf, eventsOf, identitiesOf, identityByArn, credentialByArn, visible, scopeSettings } from './world';
-import { dataScore, escalationPaths, grantsOf, linksFrom, linksTo, resolveResource, sharedRoleOf, storedTarget } from './entitlements';
+import { dataScore, escalationPaths, principalName, grantsOf, linksFrom, linksTo, resolveResource, sharedRoleOf, storedTarget } from './entitlements';
 
 const ACCOUNT_NAME = { '482915736104': 'prod-core', '739204185562': 'data-platform', '215660394871': 'staging', '605218934417': 'shared-services' };
 const SERVICE_PRINCIPAL = {
@@ -24,6 +24,7 @@ const SERVICE_PRINCIPAL = {
   emr_cluster: 'elasticmapreduce.amazonaws.com',
   sagemaker_notebook: 'sagemaker.amazonaws.com',
   sagemaker_endpoint: 'sagemaker.amazonaws.com',
+  ssm_automation: 'ssm.amazonaws.com',
 };
 
 /* ── Scope ─────────────────────────────────────────────────────────────── */
@@ -160,10 +161,10 @@ export function accessPath(identity) {
   const direct = coverage(grantsOf(identity));
   const become = linksFrom(identity)
     .filter((l) => l.kind === 'assume' && visible(l.to))
-    .map((l) => ({ id: l.to.id, name: l.to.name, arn: l.to.arn, account: ACCOUNT_NAME[l.to.account_id] ?? l.to.account_id, other_account: l.to.account_id !== identity.account_id, is_admin: Boolean(l.to.is_admin), why: l.why }));
+    .map((l) => ({ id: l.to.id, name: principalName(l.to), workload: l.to.name, arn: l.to.arn, account: ACCOUNT_NAME[l.to.account_id] ?? l.to.account_id, other_account: l.to.account_id !== identity.account_id, is_admin: Boolean(l.to.is_admin), why: l.why }));
   const adminPolicy = policies.find((p) => p.admin);
   const paths = escalationPaths(identity).map((p) => ({
-    steps: p.identities.map((i) => ({ id: i.id, name: i.name, arn: i.arn, account: ACCOUNT_NAME[i.account_id] ?? i.account_id, is_admin: Boolean(i.is_admin) })),
+    steps: p.identities.map((i) => ({ id: i.id, name: principalName(i), workload: i.name, arn: i.arn, account: ACCOUNT_NAME[i.account_id] ?? i.account_id, is_admin: Boolean(i.is_admin) })),
     links: p.links.map((l) => l.why),
   }));
   const adminTargets = become.filter((b) => b.is_admin);
@@ -253,15 +254,30 @@ function drawTrust(b, credential, target) {
   }
 }
 
+/* What an assume arrow points at: the role a workload runs as (shown with the
+   workload that uses it), or the identity itself when it has no role. */
+function roleOf(b, i) {
+  const arn = carrierOf(i);
+  b.identityNode(i);
+  if (arn === i.arn) return arn;
+  const rc = credentialByArn(arn);
+  if (rc) b.credNode(rc);
+  b.edge(i.arn, arn, 'bound_to', { label: 'runs as' });
+  return arn;
+}
+
 function drawLinks(b, identity) {
   const from = carrierOf(identity);
   for (const l of linksFrom(identity)) {
     if (!visible(l.to)) continue;
-    b.identityNode(l.to);
     if (l.kind === 'assume') {
-      b.edge(from, l.to.arn, 'assume_role', { label: l.why });
-      if (l.to.account_id !== identity.account_id) b.edge(from, l.to.arn, 'cross_account', { label: `into ${ACCOUNT_NAME[l.to.account_id] ?? l.to.account_id}` });
-    } else if (l.via) {
+      const to = roleOf(b, l.to);
+      b.edge(from, to, 'assume_role', { label: l.why });
+      if (l.to.account_id !== identity.account_id) b.edge(from, to, 'cross_account', { label: `into ${ACCOUNT_NAME[l.to.account_id] ?? l.to.account_id}` });
+      continue;
+    }
+    b.identityNode(l.to);
+    if (l.via) {
       b.credNode(l.via);
       b.edge(identity.arn, l.via.arn, 'uses');
       b.edge(l.via.arn, l.to.arn, 'signs_in_as', { label: l.why });
@@ -274,9 +290,15 @@ function drawLinks(b, identity) {
       continue;
     }
     if (!visible(l.from) || l.via) continue;
+    if (l.kind === 'assume') {
+      const from = roleOf(b, l.from);
+      const to = carrierOf(identity);
+      b.edge(from, to, 'assume_role', { label: l.why });
+      if (l.from.account_id !== identity.account_id) b.edge(from, to, 'cross_account', { label: `from ${ACCOUNT_NAME[l.from.account_id] ?? l.from.account_id}` });
+      continue;
+    }
     b.identityNode(l.from);
-    b.edge(l.kind === 'assume' ? carrierOf(l.from) : l.from.arn, identity.arn, l.kind === 'assume' ? 'assume_role' : 'signs_in_as', { label: l.why });
-    if (l.kind === 'assume' && l.from.account_id !== identity.account_id) b.edge(carrierOf(l.from), identity.arn, 'cross_account', { label: `from ${ACCOUNT_NAME[l.from.account_id] ?? l.from.account_id}` });
+    b.edge(l.from.arn, identity.arn, 'signs_in_as', { label: l.why });
   }
 }
 
@@ -369,8 +391,7 @@ export function credentialGraph(credential) {
     drawGrants(b, owners[0], credential.arn);
     for (const o of owners) {
       for (const l of linksFrom(o).filter((x) => x.kind === 'assume' && visible(x.to))) {
-        b.identityNode(l.to);
-        b.edge(credential.arn, l.to.arn, 'assume_role', { label: l.why });
+        b.edge(credential.arn, roleOf(b, l.to), 'assume_role', { label: l.why });
       }
     }
   }
@@ -495,7 +516,7 @@ export function blastRadius(arn) {
       if (visited.has(l.to.id) || !visible(l.to)) continue;
       visited.add(l.to.id);
       const next = [...path, ...(l.via ? [l.via.arn] : []), l.to.arn];
-      roles.push({ arn: l.to.arn, name: l.to.name, provider: l.to.provider, path_arns: next, how: l.kind, why: l.why });
+      roles.push({ arn: l.to.arn, name: principalName(l.to), provider: l.to.provider, path_arns: next, how: l.kind, why: l.why });
       queue.push({ identity: l.to, path: next });
     }
   }
@@ -564,7 +585,7 @@ export function whoCanAssume(arn) {
       add('role', l.from.arn, false);
       continue;
     }
-    add(l.from.identity_type?.startsWith('iam_user') ? 'user' : 'role', l.from.arn, l.from.account_id === target.account_id);
+    add(l.from.identity_type?.startsWith('iam_user') ? 'user' : 'role', carrierOf(l.from), l.from.account_id === target.account_id);
   }
   /* Further back: who can become the ones that can become it. */
   const callers = [];
@@ -577,7 +598,7 @@ export function whoCanAssume(arn) {
       if (l.fromKind !== 'identity' || seen.has(l.from.id)) continue;
       seen.add(l.from.id);
       const next = [l.from.arn, ...path];
-      callers.push({ arn: l.from.arn, name: l.from.name, path: next, hops: next.length - 1 });
+      callers.push({ arn: l.from.arn, name: principalName(l.from), path: next, hops: next.length - 1 });
       queue.push({ identity: l.from, path: next });
     }
     if (identity !== target) {

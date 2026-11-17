@@ -328,7 +328,7 @@ function ensureAutoPlans() {
   if (flag.v === 3) return;
   flag.v = 3;
   /* Never on an identity a live scenario is about: its story must start clean. */
-  const STORY = new Set(['payments-gateway-01', 'svc-deploy-bot', 'reporting-readonly', 'ops-support-role', 'break-glass-admin', 'support-copilot-agent', 'invoice-legacy-export', 'svc-billing', 'svc-billing-api', 'batch-reconciler']);
+  const STORY = new Set(['payments-gateway-01', 'svc-deploy-bot', 'reporting-extract-job', 'ops-support-runbook', 'break-glass-runbook', 'support-copilot-agent', 'invoice-legacy-export', 'svc-billing', 'svc-billing-api', 'batch-reconciler']);
   const find = (ruleId, name) => backlog().find((f) => f.rule_id === ruleId && f.status === 'OPEN' && (!name || f.identity_name === name) && f.provider === 'aws' && !STORY.has(f.identity_name));
   const engine = (policy, f, status, reason, agoMin) => {
     if (!f || plansStore().some((p) => p.finding_ids.includes(f.finding_id))) return;

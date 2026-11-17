@@ -79,12 +79,12 @@ const IDENTITY_SPECS = [
   I('svc-razorpay-webhook', 'iam_user_service_account', 'NHI_SAAS', P, 'vamsi', { keys: 1, oldKey: 196 }),
   I('deploy-prod-pipeline', 'codepipeline', 'NHI_CICD', P, 'raju', { admin: true }),
   I('build-payments-api', 'codebuild_project', 'NHI_CICD', P, 'raju', {}),
-  I('github-actions-deploy', 'iam_role', 'NHI_CICD', P, 'charan', { oidc: 'token.actions.githubusercontent.com', admin: true, hot: true }),
-  I('terraform-runner', 'iam_role', 'NHI_CICD', P, 'charan', { admin: true }),
+  I('gha-payments-api-deploy', 'github_actions_workflow', 'NHI_CICD', P, 'charan', { role: 'github-actions-deploy', oidc: 'token.actions.githubusercontent.com', admin: true, hot: true }),
+  I('terraform-apply', 'codebuild_project', 'NHI_CICD', P, 'charan', { role: 'terraform-runner', admin: true }),
   I('order-saga-orchestrator', 'step_function', 'NHI_SERVICE', P, 'vamsi', {}),
   I('support-copilot-agent', 'bedrock_agent', 'NHI_AGENT', P, 'kiran', { hot: true }),
-  I('datadog-integration', 'iam_role', 'NHI_SAAS', P, 'venkat', { external: '464622532012' }),
-  I('snowflake-external-stage', 'iam_role', 'NHI_SAAS', P, 'sashi', { external: '898466741470' }),
+  I('datadog-aws-integration', 'saas_integration', 'NHI_SAAS', P, 'venkat', { role: 'datadog-integration', external: '464622532012' }),
+  I('snowflake-storage-integration', 'saas_integration', 'NHI_SAAS', P, 'sashi', { role: 'snowflake-external-stage', external: '898466741470' }),
   I('pranav.reddy', 'iam_user', 'HUMAN', P, 'pranav', { keys: 1, oldKey: 34 }),
   I('raju-ops-automation', 'iam_user', 'DUAL_IDENTITY', P, 'raju', { keys: 2, oldKey: 288, admin: true }),
   I('cloudwatch-log-shipper', 'lambda_function', 'NHI_SERVICE', P, 'venkat', {}),
@@ -106,13 +106,13 @@ const IDENTITY_SPECS = [
   I('payments-api-staging', 'ecs_task', 'NHI_SERVICE', S, 'vamsi', {}),
   I('qa-regression-runner', 'codebuild_project', 'NHI_CICD', S, 'divya', {}),
   I('load-test-agent', 'ec2_instance', 'NHI_SERVICE', S, 'divya', { public: true }),
-  I('temp-debug-role', 'iam_role', 'NHI_EPHEMERAL', S, 'sanju', { admin: true, stale: 140 }),
+  I('temp-debug-runbook', 'ssm_automation', 'NHI_EPHEMERAL', S, 'sanju', { role: 'temp-debug-role', admin: true, stale: 140 }),
   I('mobile-api-staging', 'lambda_function', 'NHI_SERVICE', S, 'sanju', {}),
   I('svc-old-sms-gateway', 'iam_user_service_account', 'NHI_SERVICE', S, null, { keys: 1, oldKey: 734, stale: 213, shadow: true }),
   I('preview-env-builder', 'codebuild_project', 'NHI_CICD', S, 'sanju', {}),
   // Azure Payments-Prod
-  I('mi-payments-aks', 'managed_identity', 'NHI_SERVICE', AZP, 'charan', { hot: true }),
-  I('mi-keyvault-reader', 'managed_identity', 'NHI_SERVICE', AZP, 'charan', {}),
+  I('aks-payments', 'aks_cluster', 'NHI_SERVICE', AZP, 'charan', { mi: 'mi-payments-aks', hot: true }),
+  I('vm-keyvault-sync', 'azure_vm', 'NHI_SERVICE', AZP, 'charan', { mi: 'mi-keyvault-reader',}),
   I('sp-pos-terminal-sync', 'service_principal', 'NHI_SERVICE', AZP, 'vamsi', { azSecret: 18, admin: true }),
   I('app-merchant-portal', 'app_registration', 'NHI_SERVICE', AZP, 'vamsi', { azSecret: 9, public: true }),
   I('sp-powerbi-refresh', 'service_principal', 'NHI_SAAS', AZP, 'meghana', { azSecret: 71 }),
@@ -122,7 +122,7 @@ const IDENTITY_SPECS = [
   I('sp-backup-automation', 'service_principal', 'NHI_SERVICE', AZP, null, { azSecret: -12, shadow: true, stale: 96 }),
   // Azure Analytics-Dev
   I('sp-databricks-jobs', 'service_principal', 'NHI_SERVICE', AZD, 'sashi', { azSecret: 44 }),
-  I('mi-synapse-pipeline', 'managed_identity', 'NHI_SERVICE', AZD, 'sashi', {}),
+  I('synapse-ingest-pipeline', 'synapse_pipeline', 'NHI_SERVICE', AZD, 'sashi', { mi: 'mi-synapse-pipeline',}),
   I('sp-legacy-reporting', 'service_principal', 'NHI_SERVICE', AZD, 'meghana', { azSecret: -63, stale: 181 }),
   I('app-ml-experiments', 'app_registration', 'NHI_AGENT', AZD, 'kiran', { azSecret: 120 }),
   // Jenkins
@@ -144,15 +144,15 @@ const IDENTITY_SPECS = [
   I('token/legacy-batch', 'vault_token', 'NHI_SERVICE', VT, null, { vault: 'token', shadow: true, stale: 122 , consumer: 'ledger-reconciler', vaultAuth: 'Token', reads: 'secret/data/payments/*, database/creds/readwrite' }),
   I('aws-secrets-engine/db-readonly', 'vault_dynamic_role', 'NHI_SERVICE', VT, 'sashi', { vault: 'lease' , consumer: 'redshift-loader', vaultAuth: 'Database secrets engine', reads: 'database/creds/readonly' }),
   /* Appended so every identity above keeps its id. */
-  I('OrganizationAccountAccessRole', 'iam_role', 'NHI_CICD', D, 'charan', { admin: true, external: P }),
-  I('OrganizationAccountAccessRole', 'iam_role', 'NHI_CICD', S, 'charan', { admin: true, external: P }),
+  I('org-stackset-data-platform', 'cloudformation_stackset', 'NHI_CICD', D, 'charan', { role: 'OrganizationAccountAccessRole', admin: true, external: P }),
+  I('org-stackset-staging', 'cloudformation_stackset', 'NHI_CICD', S, 'charan', { role: 'OrganizationAccountAccessRole', admin: true, external: P }),
   I('sp-terraform-prod', 'service_principal', 'NHI_CICD', AZP, 'charan', { azSecret: 164, admin: true }),
   /* Scenario identities (appended, so every id above stays as it is). */
   I('svc-deploy-bot', 'iam_user_service_account', 'NHI_CICD', P, 'raju', { keys: 1, oldKey: 58, admin: true, hot: true }),
-  I('OrganizationAccountAccessRole', 'iam_role', 'NHI_CICD', SH, 'charan', { admin: true, external: P }),
-  I('reporting-readonly', 'iam_role', 'NHI_SERVICE', P, 'meghana', {}),
-  I('ops-support-role', 'iam_role', 'NHI_SERVICE', P, 'venkat', { stale: 41 }),
-  I('break-glass-admin', 'iam_role', 'HUMAN', P, 'pranav', { admin: true, stale: 63 }),
+  I('org-stackset-shared-services', 'cloudformation_stackset', 'NHI_CICD', SH, 'charan', { role: 'OrganizationAccountAccessRole', admin: true, external: P }),
+  I('reporting-extract-job', 'glue_job', 'NHI_SERVICE', P, 'meghana', { role: 'reporting-readonly' }),
+  I('ops-support-runbook', 'ssm_automation', 'NHI_SERVICE', P, 'venkat', { role: 'ops-support-role', stale: 41 }),
+  I('break-glass-runbook', 'ssm_automation', 'HUMAN', P, 'pranav', { role: 'break-glass-admin', as: 'NHI_SERVICE', admin: true, stale: 63 }),
   I('invoice-legacy-export', 'lambda_function', 'NHI_SERVICE', P, 'sashi', { cred: 'shared:invoice-legacy-export-role', stale: 97 }),
   /* One IAM access key, kept in Vault, legitimately used by two workloads. */
   I('svc-billing', 'iam_user_service_account', 'NHI_SERVICE', P, 'vamsi', { keys: 1, oldKey: 64, vaultKey: 'secret/data/billing/aws-access-key' }),
@@ -192,6 +192,11 @@ const AWS_ARN = {
   emr_cluster: (a, r, n) => `arn:aws:elasticmapreduce:${r}:${a}:cluster/${n}`,
   sagemaker_notebook: (a, r, n) => `arn:aws:sagemaker:${r}:${a}:notebook-instance/${n}`,
   sagemaker_endpoint: (a, r, n) => `arn:aws:sagemaker:${r}:${a}:endpoint/${n}`,
+  /* Workloads that run as a role they do not own by name: the role is their credential. */
+  github_actions_workflow: (a) => `arn:aws:iam::${a}:oidc-provider/token.actions.githubusercontent.com/repo/deepalgo-labs/payments-api/workflow/deploy.yml`,
+  saas_integration: (a, r, n) => `arn:aws:iam::${a}:integration/${n}`,
+  ssm_automation: (a, r, n) => `arn:aws:ssm:${r}:${a}:automation-definition/${n}`,
+  cloudformation_stackset: (a, r, n) => `arn:aws:cloudformation:${r}:${a}:stackset-target/${n}`,
 };
 
 function identityArn(spec, scope, region, r) {
@@ -208,6 +213,9 @@ function identityArn(spec, scope, region, r) {
       app_registration: 'Microsoft.Graph/applications',
       aks_workload: 'Microsoft.ContainerService/managedClusters/aks-payments/workloads',
       function_app: 'Microsoft.Web/sites',
+      aks_cluster: 'Microsoft.ContainerService/managedClusters',
+      azure_vm: 'Microsoft.Compute/virtualMachines',
+      synapse_pipeline: 'Microsoft.Synapse/workspaces/syn-analytics/pipelines',
     }[spec.type];
     return `/subscriptions/${scope.id}/resourceGroups/${rg}/providers/${kind}/${spec.name}`;
   }
@@ -247,15 +255,15 @@ function build() {
     /* Automation is created by the delivery roles; those, and the organisation
        roles, were created by a person. (The pick keeps the sequence stable.) */
     const picked = provider === 'aws' && spec.cls !== 'HUMAN' ? r.pick(AWS_CREATORS) : null;
-    const creator = owner ? (picked && !AWS_CREATORS.includes(spec.name) && spec.name !== 'OrganizationAccountAccessRole' ? picked : owner.email) : null;
+    const creator = owner ? (picked && !AWS_CREATORS.includes(spec.role ?? spec.name) && spec.role !== 'OrganizationAccountAccessRole' ? picked : owner.email) : null;
     const identity = {
       id,
       name: spec.name,
       arn,
       provider,
       identity_type: spec.type,
-      functional_class: spec.cls,
-      classification: spec.cls,
+      functional_class: spec.as ?? spec.cls,
+      classification: spec.as ?? spec.cls,
       environment: env,
       status: idle > 120 ? 'inactive' : 'active',
       owner: owner?.email ?? null,
@@ -348,7 +356,7 @@ function build() {
         const sharedKey = spec.cred;
         let role = sharedKey ? sharedCreds.get(sharedKey) : null;
         if (!role) {
-          const roleName = sharedKey ? sharedKey.split(':')[1] : spec.type === 'iam_role' ? spec.name : `${spec.name}-role`;
+          const roleName = sharedKey ? sharedKey.split(':')[1] : spec.role ?? (spec.type === 'iam_role' ? spec.name : `${spec.name}-role`);
           role = newCred({
             name: roleName,
             arn: `arn:aws:iam::${scope.id}:role/${roleName}`,
@@ -377,8 +385,8 @@ function build() {
         bind(cred);
       }
     } else if (provider === 'azure') {
-      if (spec.type === 'managed_identity' || spec.type === 'aks_workload' || spec.type === 'function_app') {
-        bind(newCred({ name: `${spec.name} (managed identity)`, arn: `${arn}/token`, credential_type: 'managed_identity', client_id: r.uuid() }));
+      if (['managed_identity', 'aks_workload', 'function_app', 'aks_cluster', 'azure_vm', 'synapse_pipeline'].includes(spec.type)) {
+        bind(newCred({ name: spec.mi ?? `${spec.name} (managed identity)`, arn: `${arn}/token`, credential_type: 'managed_identity', client_id: r.uuid() }));
       }
       if (spec.azSecret !== undefined) {
         const days = spec.azSecret;

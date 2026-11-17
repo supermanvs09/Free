@@ -45,7 +45,7 @@ export function anomalies() {
   /* Departures from baseline, from the entitlement model's list, each with
      the recorded events behind it (world.js eventsOf). */
   activeAnomalySpecs().forEach((spec, k) => {
-    const i = estate().identities.find((x) => x.name === spec.who);
+    const i = estate().identities.find((x) => x.name === spec.who || x.__role === spec.who);
     if (!i || !sourceTypeOf(i)) return;
     const r = rng(hashString(`an:${i.id}:${k}`));
     const ev = eventsOf(i);

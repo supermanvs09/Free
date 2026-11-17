@@ -33,7 +33,7 @@ export function onLiveEvent(fn) {
   return () => listeners.delete(fn);
 }
 
-const byName = (name) => estate().identities.find((i) => i.name === name);
+const byName = (name) => estate().identities.find((i) => i.name === name || i.__role === name);
 
 /* What the watchers will find next, in order. */
 const UPCOMING = [

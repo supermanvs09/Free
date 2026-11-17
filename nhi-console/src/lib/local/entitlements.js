@@ -566,7 +566,6 @@ let model = null;
 const principalKey = (identity) => {
   const shared = identity.__role;
   if (shared && GRANTS[shared]) return shared;
-  if (identity.name === 'OrganizationAccountAccessRole') return `OrganizationAccountAccessRole@${identity.account_id}`;
   return identity.name;
 };
 
@@ -583,15 +582,19 @@ function accessLevel(actions) {
 export function enrich(world) {
   const cat = catalog();
   const byName = new Map();
-  for (const i of world.identities) {
-    const key = i.name === 'OrganizationAccountAccessRole' ? `OrganizationAccountAccessRole@${i.account_id}` : i.name;
-    byName.set(key, i);
-  }
+  for (const i of world.identities) byName.set(i.name, i);
   const credByName = new Map(world.credentials.map((c) => [c.name, c]));
-  /* The shared Lambda role. */
+  /* A workload runs as a role (AWS) or a managed identity (Azure): that
+     credential is the principal its permissions, trust and links name. The
+     organisation role has one name in every account, so it is keyed by account. */
   for (const i of world.identities) {
-    const role = (i.credential_ids ?? []).map((id) => world.credentials.find((c) => c.id === id)).find((c) => c?.credential_type === 'iam_role');
-    if (role && GRANTS[role.name] && role.name !== i.name) i.__role = role.name;
+    const role = (i.credential_ids ?? []).map((id) => world.credentials.find((c) => c.id === id)).find((c) => ['iam_role', 'managed_identity'].includes(c?.credential_type));
+    if (!role) continue;
+    const key = role.name === 'OrganizationAccountAccessRole' ? `${role.name}@${i.account_id}` : role.name;
+    if (GRANTS[key] && key !== i.name) {
+      i.__role = key;
+      if (!byName.has(key)) byName.set(key, i);
+    }
   }
 
   const resolve = (key) => {
@@ -698,7 +701,7 @@ export function enrich(world) {
   /* An identity seen misbehaving recently was, by definition, active then. */
   const now = Date.now();
   for (const a of ANOMALY_SPECS) {
-    const i = world.identities.find((x) => x.name === a.who);
+    const i = world.identities.find((x) => x.name === a.who || x.__role === a.who);
     if (!i) continue;
     const at = now - a.hoursAgo * 3600 * 1000;
     if (Date.parse(i.last_activity_at) >= at) continue;
@@ -855,7 +858,9 @@ export function storedTarget(credential) {
   return ext ? { resource: catalog().get(ext) } : null;
 }
 export const sharedRoleOf = (identity) => identity.__role ?? null;
-export const anomalySpecsFor = (identity) => activeAnomalySpecs().filter((a) => a.who === identity.name && identity.name !== 'OrganizationAccountAccessRole');
+export const anomalySpecsFor = (identity) => activeAnomalySpecs().filter((a) => a.who === identity.name || (identity.__role && a.who === identity.__role));
+/** The name a path or a trust policy shows for an identity: the role it runs as, when it runs as one. */
+export const principalName = (identity) => (identity?.__role ? identity.__role.split('@')[0] : identity?.name);
 export const dataScore = (data) => DATA_SCORE[data] ?? 4;
 
 /* ── Applying what people did to the estate ────────────────────────────── */

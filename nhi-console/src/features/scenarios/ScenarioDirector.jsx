@@ -72,15 +72,15 @@ const SCRIPTS = {
   },
   chain: {
     title: 'Privilege escalation via AssumeRole chain',
-    narration: 'A read-only role can climb to administrator through two forgotten trust policies. One fix closes the whole path.',
-    then: 'Open reporting-readonly, then Remove trust.',
+    narration: 'A reporting job’s read-only role can climb to administrator through two forgotten trust policies. One fix closes the whole path.',
+    then: 'Open reporting-extract-job, then Remove trust.',
     length: 32,
     steps: (s) => {
       const f = s.chain.facts ?? {};
       const hops = num(f.hops, 2);
       const path = f.path?.length ? f.path.join(' → ') : 'reporting-readonly → ops-support-role → break-glass-admin';
       return [
-        { at: 0, kicker: 'Exposure', caption: 'A read-only reporting role. It looks harmless.', sub: 'Its own policy can read two resources. Nothing a reviewer would flag.', go: `/identities/${s.chain.identity_id}?tab=permissions&act=quiet` },
+        { at: 0, kicker: 'Exposure', caption: 'A reporting job on a read-only role. It looks harmless.', sub: 'reporting-extract-job runs as reporting-readonly: two resources it can read. Nothing a reviewer would flag.', go: `/identities/${s.chain.identity_id}?tab=permissions&act=quiet` },
         { at: 6, kicker: 'Hidden risk', caption: `${hops} trust hops turn it into an administrator`, sub: path, go: `/identities/${s.chain.identity_id}?tab=permissions&act=chain`, focus: '[data-scene="chain"]', max: 1.35 },
         { at: 14, kicker: 'Detect', caption: 'Mapped end to end: every hop, every trust policy', sub: 'The first door was left open by an incident fix (INC-2231) that was never rolled back.', run: 'chain', focus: '[data-scene="chain-card"]', max: 1.2 },
         { at: 20, kicker: 'Fix', caption: 'Close the first door and the whole chain collapses', sub: 'One stale trust relationship removed. Nothing else changes.', focus: '[data-scene="fix"]', max: 1.45 },

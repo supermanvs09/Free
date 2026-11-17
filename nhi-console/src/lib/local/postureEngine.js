@@ -8,9 +8,9 @@ import { estate, scopeById, person } from './seed';
 import { slice } from './state';
 import { DAY, HOUR, NOW, hashString, iso, rng } from './util';
 import { exposedIdentityIds } from './exposureData';
-import { activeAnomalySpecs, escalationPaths, onOverlayChange } from './entitlements';
+import { activeAnomalySpecs, escalationPaths, onOverlayChange, principalName } from './entitlements';
 
-const untrustedCall = (i) => activeAnomalySpecs().find((a) => a.who === i.name && a.untrusted && !a.resolved) ?? null;
+const untrustedCall = (i) => activeAnomalySpecs().find((a) => (a.who === i.name || a.who === i.__role) && a.untrusted && !a.resolved) ?? null;
 
 export const WEIGHTS = { CRITICAL: 25, HIGH: 15, MEDIUM: 8, LOW: 3 };
 export const PILLAR_NAMES = {
@@ -101,7 +101,7 @@ export const RULES = [
   {
     rule_id: 'NHI-ES-002', pillar: 'escalation', severity: 'CRITICAL', title: 'Can reach administrator access through a role chain',
     applies: (i) => i.provider === 'aws', fails: (i) => escalationPaths(i).length > 0,
-    detail: (i) => `Can assume ${escalationPaths(i)[0].identities.slice(1).map((x) => x.name).join(', then ')}, which has administrator access.`,
+    detail: (i) => `Can assume ${escalationPaths(i)[0].identities.slice(1).map((x) => principalName(x)).join(', then ')}, which has administrator access.`,
     why: 'A role with little access is still as powerful as the strongest role it can become.', fix: 'Remove it from the trust policy of the first role in the chain.', compliance: ['NIST-AC-6', 'CIS-AWS-1.16', 'SOC2-CC6.3'], auto: 'break_trust_link',
   },
   {

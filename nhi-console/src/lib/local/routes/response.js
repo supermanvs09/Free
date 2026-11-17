@@ -20,7 +20,7 @@ import { audit, auditLog } from '../users';
 import { can } from '../roles';
 import { save } from '../state';
 import { credentialById, credentialsOf, identityById, identitiesOf, eventsOf, visible } from '../world';
-import { escalationPaths, escalationThrough, grantsForPrincipal, linkById, originalGrants, principalOf, rightSize, withRightSizePreview } from '../entitlements';
+import { escalationPaths, escalationThrough, principalName, grantsForPrincipal, linkById, originalGrants, principalOf, rightSize, withRightSizePreview } from '../entitlements';
 import { accessPath, blastRadius } from '../reach';
 import { liveFindings } from '../exposureData';
 import { anomalies } from './genome';
@@ -32,7 +32,9 @@ import { genomeRouteFor } from '../../identityLinks';
 import { credentialGenome, credentialGenomeOne, sharedKey } from '../keyGenome';
 
 const ACCOUNT_NAME = { '482915736104': 'prod-core', '739204185562': 'data-platform', '215660394871': 'staging', '605218934417': 'shared-services' };
-const byName = (name) => estate().identities.find((i) => i.name === name && !i.__deleted) ?? estate().identities.find((i) => i.name === name);
+/* By name, or by the role it runs as (the chain scenario names roles). */
+const named = (i, name) => i.name === name || i.__role === name;
+const byName = (name) => estate().identities.find((i) => named(i, name) && !i.__deleted) ?? estate().identities.find((i) => named(i, name));
 const actor = (user) => ({ at: Date.now(), by: user.email, by_name: user.full_name });
 
 function blastSummary(arn) {
@@ -125,15 +127,15 @@ function insights(identity) {
   const brokenHere = Object.entries(response().broken ?? {}).filter(([id]) => id.includes(`assume:${identity.name}->`) || id.includes(`->${identity.name}`));
   if (from.length || through.length || brokenHere.length) {
     const shape = (p) => ({
-      identities: p.identities.map((i) => ({ id: i.id, name: i.name, arn: i.arn, identity_type: i.identity_type, is_admin: i.is_admin, account: ACCOUNT_NAME[i.account_id] ?? i.account_id, utilization_pct: i.permission_utilization_pct })),
-      links: p.links.map((l) => ({ id: l.id, why: l.why, from: l.from.name, to: l.to.name })),
+      identities: p.identities.map((i) => ({ id: i.id, name: principalName(i), workload: i.name, arn: i.arn, identity_type: i.identity_type, is_admin: i.is_admin, account: ACCOUNT_NAME[i.account_id] ?? i.account_id, utilization_pct: i.permission_utilization_pct })),
+      links: p.links.map((l) => ({ id: l.id, why: l.why, from: principalName(l.from), to: principalName(l.to) })),
     });
     out.escalation = {
       paths: from.map(shape),
       through: through.map(shape),
       closed: brokenHere.map(([id, v]) => {
         const l = linkById(id);
-        return { id, from: l?.from.name, to: l?.to.name, why: l?.why, at: new Date(v.at).toISOString(), by: v.by, by_name: v.by_name };
+        return { id, from: l ? principalName(l.from) : null, to: l ? principalName(l.to) : null, why: l?.why, at: new Date(v.at).toISOString(), by: v.by, by_name: v.by_name };
       }),
     };
   }
@@ -222,7 +224,7 @@ function scenarioState() {
  * plays, so the captions say what the screens are about to show.
  */
 function scenarioFacts() {
-  const byName = (n) => estate().identities.find((i) => i.name === n && !i.__deleted);
+  const byName = (n) => estate().identities.find((i) => named(i, n) && !i.__deleted);
   const n = (v) => (Number.isFinite(v) ? v : null);
   const out = {};
   const bot = byName('svc-deploy-bot');
@@ -240,7 +242,7 @@ function scenarioFacts() {
   const ro = byName('reporting-readonly');
   if (ro) {
     const p = escalationPaths(ro)[0];
-    out.chain = { hops: p ? p.identities.length - 1 : null, path: p ? p.identities.map((i) => i.name) : [], target: p?.identities.at(-1)?.name ?? null, resources: n(blastSummary(subjectArn(ro)).resources) };
+    out.chain = { hops: p ? p.identities.length - 1 : null, path: p ? p.identities.map((i) => principalName(i)) : [], target: p ? principalName(p.identities.at(-1)) : null, resources: n(blastSummary(subjectArn(ro)).resources) };
   }
   const role = estate().credentials.find((c) => c.name === 'invoice-legacy-export-role');
   if (role) {
@@ -300,7 +302,7 @@ function runScenario(key, user) {
       identity: ro,
       scenario: 'chain',
       title: 'reporting-readonly can become break-glass-admin',
-      summary: 'A read-only reporting role can assume ops-support-role, which can assume break-glass-admin (AdministratorAccess). Two hops from read-only to full admin.',
+      summary: 'reporting-extract-job runs as the read-only role reporting-readonly, which can assume ops-support-role, which can assume break-glass-admin (AdministratorAccess). Two hops from read-only to full admin.',
       facts: {},
       link: `/identities/${ro.id}`,
     });
@@ -500,8 +502,8 @@ export default function register(r) {
     mutate((st) => {
       st.broken[link.id] = actor(user);
     });
-    audit(user, 'remediation.trust', `Removed ${link.from.name} from the trust policy of ${link.to.name}`, { target: link.to.arn });
-    resolve((e) => e.scenario === 'chain' || e.identity?.id === link.from.id && e.title?.includes(link.to.name), { label: 'Escalation path closed', at: new Date().toISOString(), by: user.full_name });
+    audit(user, 'remediation.trust', `Removed ${principalName(link.from)} from the trust policy of ${principalName(link.to)}`, { target: link.to.arn });
+    resolve((e) => e.scenario === 'chain' || e.identity?.id === link.from.id && e.title?.includes(principalName(link.to)), { label: 'Escalation path closed', at: new Date().toISOString(), by: user.full_name });
     return ok({ link_id: link.id, from: insights(link.from) });
   });
 
