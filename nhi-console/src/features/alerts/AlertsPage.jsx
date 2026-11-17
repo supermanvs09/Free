@@ -164,7 +164,7 @@ function PostureWhy({ a }) {
       )}
       <Actions>
         <Button as={Link} to={a.link} size="sm" variant="primary" iconRight={ArrowUpRight}>
-          Why it dropped, in full
+          {a.scenario ? 'Open and respond' : 'What changed since the previous sync'}
         </Button>
         {d?.discovery_id && (
           <>

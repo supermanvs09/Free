@@ -3,6 +3,7 @@ import { estate, person } from './seed';
 import { identities, credentials, visible, identityById } from './world';
 import { HOUR, MIN, NOW, iso, rng, hashString } from './util';
 import { slice, save } from './state';
+import { evaluate, TRIGGERS } from './postureEngine';
 
 const SCAN_EVERY = 6 * HOUR;
 
@@ -10,7 +11,7 @@ export function scans() {
   const extra = slice('extraScans', () => []);
   const base = [];
   const latest = NOW - 41 * MIN;
-  for (let i = 0; i < 24; i += 1) {
+  for (let i = 0; i < 40; i += 1) {
     const end = latest - i * SCAN_EVERY;
     const id = `scan_${new Date(end).toISOString().slice(0, 13).replace(/[-T]/g, '')}`;
     base.push({ scan_id: id, status: 'COMPLETED', account_id: null, started_at: iso(end - 9 * MIN), completed_at: iso(end) });
@@ -47,6 +48,16 @@ export function changesOf(scanId, index = 0) {
   if (index === 0) {
     for (const row of ids.filter((x) => x.recent_change)) out.push(change(scanId, at, row, 'identity', row.recent_change.change_type, row.recent_change.summary, r));
     for (const row of creds.filter((x) => x.recent_change)) out.push(change(scanId, at, row, 'credential', row.recent_change.change_type, row.recent_change.summary, r));
+  }
+  /* The cloud changes behind checks that started failing in this sync's window. */
+  for (const row of ids) {
+    for (const c of evaluate(row)) {
+      const t = TRIGGERS[c.rule_id];
+      if (!c.failing || !c.failing_since || t?.kind !== 'change') continue;
+      const when = Date.parse(c.failing_since);
+      if (when > Date.parse(at) || when <= Date.parse(at) - SCAN_EVERY) continue;
+      out.push(checkChange(scanId, at, row, c, t, r));
+    }
   }
   while (out.length < n) {
     const [entity, type, summary, details] = r.pick(FIELD_CHANGES);
@@ -85,6 +96,19 @@ function change(scanId, at, row, entity, type, summary, r, details = null) {
   };
 }
 
+function checkChange(scanId, at, row, check, t, r) {
+  const base = change(scanId, at, row, t.entity === 'credential' ? 'identity' : 'identity', t.type, t.summary, r, { field: t.field, before: t.before, after: t.after });
+  const when = check.failing_since;
+  return {
+    ...base,
+    change_id: `chg_${check.finding_id.slice(4)}`,
+    entity_type: t.entity,
+    detected_at: at,
+    rule_id: check.rule_id,
+    cloudtrail_evidence: row.provider === 'aws' && t.event ? { ...(base.cloudtrail_evidence ?? {}), event_name: t.event, event_time: when } : base.cloudtrail_evidence,
+  };
+}
+
 export function visibleChanges(list) {
   return list.filter((c) => {
     const row = c.credential_id ? estate().credentials.find((x) => x.id === c.credential_id) : identityById(c.identity_id);
@@ -93,7 +117,7 @@ export function visibleChanges(list) {
 }
 
 export function changesForEntity(kind, row) {
-  const all = scans().slice(0, 12).flatMap((s, i) => changesOf(s.scan_id, i));
+  const all = scans().flatMap((s, i) => changesOf(s.scan_id, i));
   const mine = all.filter((c) => (kind === 'credential' ? c.credential_id === row.id : c.identity_id === row.id && !c.credential_id) || c.entity_arn === row.arn);
   return { changes: mine.slice(0, 50), truncated: mine.length > 50, change_tracking_available: true };
 }

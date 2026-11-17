@@ -137,6 +137,33 @@ export const RULES = [
 ];
 export const rule = (id) => RULES.find((r) => r.rule_id === id);
 
+/*
+ * What makes each check start failing. `change` rules fail because something
+ * was changed in the cloud account, and that change is recorded by the sync
+ * that saw it (changes.js); `time` rules fail because a threshold passed with
+ * nothing changing; `scan` and `activity` come from code scanning and the
+ * activity log.
+ */
+export const TRIGGERS = {
+  'NHI-LP-001': { kind: 'time', text: 'Nothing changed in AWS: these permissions passed 90 days without a single call.' },
+  'NHI-LP-002': { kind: 'change', entity: 'permission', type: 'MODIFIED', summary: 'AdministratorAccess attached', event: 'AttachRolePolicy', field: 'attached_policies', before: 'scoped policy', after: 'AdministratorAccess' },
+  'NHI-CH-001': { kind: 'time', text: 'Nothing changed in AWS: the access key turned 90 days old.' },
+  'NHI-CH-002': { kind: 'change', entity: 'credential', type: 'CREATED', summary: 'A second active access key was created', event: 'CreateAccessKey', field: 'active_access_keys', before: 1, after: 2 },
+  'NHI-CH-003': { kind: 'time', text: 'Nothing changed: the client secret came within 30 days of expiry.' },
+  'NHI-CH-004': { kind: 'time', text: 'Nothing changed: the secret passed 180 days without rotation.' },
+  'NHI-CH-005': { kind: 'change', entity: 'credential', type: 'CREATED', summary: 'Token issued without a max TTL', event: null, field: 'token_max_ttl', before: '24h', after: 'none' },
+  'NHI-TA-001': { kind: 'change', entity: 'trust_edge', type: 'CREATED', summary: 'Trust policy now allows another AWS account', event: 'UpdateAssumeRolePolicy', field: 'trust_policy', before: '1 principal', after: '2 principals' },
+  'NHI-TA-002': { kind: 'change', entity: 'trust_edge', type: 'MODIFIED', summary: 'Federated trust widened to any branch', event: 'UpdateAssumeRolePolicy', field: 'trust_condition', before: 'ref:refs/heads/main', after: 'repo:deepalgo-labs/*' },
+  'NHI-TA-003': { kind: 'change', entity: 'identity', type: 'MODIFIED', summary: 'Opened to the internet', event: 'AuthorizeSecurityGroupIngress', field: 'ingress', before: '10.0.0.0/8', after: '0.0.0.0/0' },
+  'NHI-ES-001': { kind: 'change', entity: 'permission', type: 'MODIFIED', summary: 'Policy now allows it to change its own access', event: 'PutRolePolicy', field: 'policy_document', before: 'no iam:Put*', after: 'iam:PutRolePolicy, iam:AttachRolePolicy' },
+  'NHI-ES-002': { kind: 'change', entity: 'trust_edge', type: 'MODIFIED', summary: 'A trust policy now lets it assume a more powerful role', event: 'UpdateAssumeRolePolicy', field: 'trust_policy', before: 'not trusted', after: 'trusted' },
+  'NHI-EX-001': { kind: 'scan', text: 'Found by code scanning in a repository commit, not by an AWS change.' },
+  'NHI-EX-002': { kind: 'activity', text: 'Seen in the activity log: calls from a network it has never used.' },
+  'NHI-LC-001': { kind: 'change', entity: 'identity', type: 'MODIFIED', summary: 'Owner tag removed', event: 'UntagRole', field: 'tags.owner', before: 'owner tag', after: null },
+  'NHI-LC-002': { kind: 'time', text: 'Nothing changed in AWS: 90 days passed with no activity.' },
+  'NHI-LC-003': { kind: 'change', entity: 'identity', type: 'MODIFIED', summary: 'Required tags missing after an update', event: 'UntagRole', field: 'tags', before: 'owner, team, env', after: 'env' },
+};
+
 export const postureId = (identity) => `pst_${identity.id.slice(4)}`;
 export const fromPostureId = (id) => estate().identities.find((i) => `pst_${i.id.slice(4)}` === id) ?? null;
 
@@ -195,9 +222,16 @@ export function gradeOf(score) {
 
 /** Score some days ago: identities that recently gained a failing check were higher. */
 export function scoreAt(identity, daysBack) {
-  const now = scoreOf(identity);
-  const recent = effectiveChecks(identity).filter((c) => c.counted && c.failing_since && Date.parse(c.failing_since) > NOW - daysBack * DAY);
-  return Math.min(100, now + recent.reduce((s, c) => s + c.points, 0));
+  return scoreAtTime(effectiveChecks(identity).filter((c) => c.counted), NOW - daysBack * DAY);
+}
+
+/* The score at a moment, from the checks failing then (failing now and
+   already failing at that time), with the same floor and ceiling as today's.
+   Adding the new points to today's floored score would overstate every
+   past score of an identity sitting at the floor. */
+export function scoreAtTime(counted, t) {
+  const lost = counted.filter((c) => !c.failing_since || Date.parse(c.failing_since) <= t).reduce((s, c) => s + c.points, 0);
+  return Math.max(4, Math.min(100, 100 - lost));
 }
 
 export function pillarScores(identity) {
