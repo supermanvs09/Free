@@ -126,6 +126,26 @@ func (h *AWSIntegrationHandler) Exposure(w http.ResponseWriter, r *http.Request)
 	httpx.SendJSONResponse(w, http.StatusOK, httpx.APIResponse{Success: true, Message: message, Data: result})
 }
 
+// CodeCommitRepos handles POST .../accounts/{account_id}/codecommit/repositories:
+// every repository the role can see, each read-tested, for the "choose what to
+// scan" step. Admin only, like the exposure switch it belongs to.
+func (h *AWSIntegrationHandler) CodeCommitRepos(w http.ResponseWriter, r *http.Request) {
+	caller, ok := h.adminCaller(w, r)
+	if !ok {
+		return
+	}
+	accountID, ok := pathAccountID(w, r)
+	if !ok {
+		return
+	}
+	result, err := h.service.ListCodeCommitRepos(r.Context(), caller, accountID)
+	if err != nil {
+		writeAWSError(w, r, err, "Failed to list the repositories", "AWS_CODECOMMIT_REPOS_FAILED")
+		return
+	}
+	httpx.SendJSONResponse(w, http.StatusOK, httpx.APIResponse{Success: true, Message: "Repositories checked", Data: result})
+}
+
 func (h *AWSIntegrationHandler) Sync(w http.ResponseWriter, r *http.Request) {
 	caller, ok := h.adminCaller(w, r)
 	if !ok {

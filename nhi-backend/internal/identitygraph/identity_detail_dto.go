@@ -58,29 +58,36 @@ type IdentityOverviewResponse struct {
 }
 
 type IdentityOverviewCore struct {
-	ID                   string      `json:"id"`
-	Name                 string      `json:"name"`
-	ARN                  string      `json:"arn"`
-	IdentityType         string      `json:"identity_type"`
-	FunctionalClass      *string     `json:"functional_class"`
-	Category             string      `json:"category"`
-	AccountID            string      `json:"account_id"`
-	Region               string      `json:"region"`
-	VPCID                *string     `json:"vpc_id"`
-	SubnetID             *string     `json:"subnet_id"`
-	SecurityGroupIDs     interface{} `json:"security_group_ids"`
-	Environment          *string     `json:"environment"`
-	Owner                *string     `json:"owner"`
-	Status               string      `json:"status"`
-	IsPubliclyAccessible bool        `json:"is_publicly_accessible"`
-	CreatedAtAWS         *time.Time  `json:"created_at_aws"`
-	AgeDays              *int        `json:"age_days"`
-	FirstSeenAt          *time.Time  `json:"first_seen_at"`
-	LastSeenAt           *time.Time  `json:"last_seen_at"`
-	LastActivityAt       *time.Time  `json:"last_activity_at"`
-	IdleDays             *int        `json:"idle_days"`
-	ParentARN            *string     `json:"parent_arn"`
-	CreatedBy            *string     `json:"created_by"`
+	ID               string      `json:"id"`
+	Name             string      `json:"name"`
+	ARN              string      `json:"arn"`
+	IdentityType     string      `json:"identity_type"`
+	FunctionalClass  *string     `json:"functional_class"`
+	Category         string      `json:"category"`
+	AccountID        string      `json:"account_id"`
+	Region           string      `json:"region"`
+	VPCID            *string     `json:"vpc_id"`
+	SubnetID         *string     `json:"subnet_id"`
+	SecurityGroupIDs interface{} `json:"security_group_ids"`
+	Environment      *string     `json:"environment"`
+	Owner            *string     `json:"owner"`
+	// Owner review, same meaning as on the identities list.
+	OwnerReason          *string          `json:"owner_reason"`
+	OwnerState           string           `json:"owner_state"`
+	OwnerCandidates      []OwnerCandidate `json:"owner_candidates"`
+	OwnerSetBy           *string          `json:"owner_set_by"`
+	OwnerSetReason       *string          `json:"owner_set_reason"`
+	OwnerSetAt           *time.Time       `json:"owner_set_at"`
+	Status               string           `json:"status"`
+	IsPubliclyAccessible bool             `json:"is_publicly_accessible"`
+	CreatedAtAWS         *time.Time       `json:"created_at_aws"`
+	AgeDays              *int             `json:"age_days"`
+	FirstSeenAt          *time.Time       `json:"first_seen_at"`
+	LastSeenAt           *time.Time       `json:"last_seen_at"`
+	LastActivityAt       *time.Time       `json:"last_activity_at"`
+	IdleDays             *int             `json:"idle_days"`
+	ParentARN            *string          `json:"parent_arn"`
+	CreatedBy            *string          `json:"created_by"`
 }
 
 type IdentityDiscovery struct {

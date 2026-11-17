@@ -35,6 +35,7 @@ import (
 	"nhi-backend-api/internal/modules/genome/identitytimeline"
 	"nhi-backend-api/internal/modules/genome/summarycommon"
 	"nhi-backend-api/internal/modules/genome/workloadtypes"
+	"nhi-backend-api/internal/modules/humanidentities"
 	"nhi-backend-api/internal/modules/identities"
 	"nhi-backend-api/internal/modules/identityanomalies"
 	"nhi-backend-api/internal/modules/identityevents"
@@ -403,6 +404,7 @@ func main() {
 		NewAPICredentialsHandler:       credentialsHandler,
 		NewAPICredentialDetailHandler:  credentialDetailHandler,
 		CorrelationHandler:             corrApp.handlers(),
+		HumanIdentities:                humanidentities.New(resolver),
 		AlertsHandler: alerts.NewHandler(resolver, ceFindingsRepo,
 			anomalylist.NewService(genomefullcommon.NewMonitoredIdentityLookup(resolver), anomalylist.NewRepository(), genomeAlertEvents)),
 		IdentitySubjects:              identitysubjects.NewHandler(resolver),

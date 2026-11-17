@@ -27,6 +27,8 @@ func (r *AWSIntegrationRepository) ensureApprovalColumns(ctx context.Context, db
 	for _, col := range []string{
 		"approval_status text", "approval_requested_at timestamptz", "approval_requested_by text",
 		"approved_at timestamptz", "approved_by text", "approval_note text",
+		// CodeCommit repositories the customer chose to scan (empty = all).
+		"codecommit_repositories jsonb",
 	} {
 		if _, err := db.ExecContext(ctx, `ALTER TABLE `+t+` ADD COLUMN IF NOT EXISTS `+col); err != nil {
 			return fmt.Errorf("add accounts approval column: %w", missingSchema(err))

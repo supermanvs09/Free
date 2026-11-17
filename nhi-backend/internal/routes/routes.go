@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"nhi-backend-api/internal/modules/alerts"
 	"nhi-backend-api/internal/modules/correlation"
+	"nhi-backend-api/internal/modules/humanidentities"
 	"nhi-backend-api/internal/modules/identityanomalies"
 	"nhi-backend-api/internal/modules/identitysubjects"
 	"nhi-backend-api/internal/platform/datasource"
@@ -58,6 +59,9 @@ type HandlerContainer struct {
 	NewAPICredentialDetailHandler *credentials.CredentialDetailHandler
 	// CorrelationHandler serves blast radius (the correlation engine).
 	CorrelationHandler *correlation.Handler
+
+	// HumanIdentities serves /human-identities (the people, as opposed to the NHIs).
+	HumanIdentities *humanidentities.Module
 	// AlertsHandler serves the Alerts page (score drops, exposed credentials).
 	AlertsHandler *alerts.Handler
 	// IdentityAnomalies lists one genome identity's anomalies (its page's tab).
@@ -235,6 +239,9 @@ func registerProtected(router *mux.Router, h HandlerContainer, versioned bool) {
 		router.HandleFunc("/credentials/{id}", h.NewAPICredentialDetailHandler.Get).Methods(http.MethodGet)
 	}
 	registerCorrelation(router, h.CorrelationHandler)
+	if h.HumanIdentities != nil {
+		h.HumanIdentities.Register(router)
+	}
 	if h.IdentitySubjects != nil {
 		h.IdentitySubjects.Register(router)
 	}
@@ -253,6 +260,7 @@ func registerProtected(router *mux.Router, h HandlerContainer, versioned bool) {
 		router.HandleFunc("/integrations/aws/verify", h.AWSIntegrationHandler.Verify).Methods(http.MethodPost)
 		router.HandleFunc("/integrations/aws/accounts/{account_id}/regions", h.AWSIntegrationHandler.UpdateRegions).Methods(http.MethodPut)
 		router.HandleFunc("/integrations/aws/accounts/{account_id}/exposure", h.AWSIntegrationHandler.Exposure).Methods(http.MethodPut)
+		router.HandleFunc("/integrations/aws/accounts/{account_id}/codecommit/repositories", h.AWSIntegrationHandler.CodeCommitRepos).Methods(http.MethodPost)
 		router.HandleFunc("/integrations/aws/accounts/{account_id}/sync", h.AWSIntegrationHandler.Sync).Methods(http.MethodPost)
 		router.HandleFunc("/integrations/aws/accounts/{account_id}/sync", h.AWSIntegrationHandler.CancelSync).Methods(http.MethodDelete)
 		router.HandleFunc("/integrations/aws/accounts/{account_id}", h.AWSIntegrationHandler.Remove).Methods(http.MethodDelete)

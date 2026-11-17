@@ -161,7 +161,7 @@ const accountColumns = `account_id, COALESCE(client_role_arn, ''), COALESCE(regi
 	account_status, is_connected, checks,
 	COALESCE(last_verified_at, updated_at), last_verified_by, connected_at,
 	github_enabled, COALESCE(github_secret_arn, ''), github_checks, github_verified_at,
-	codecommit_enabled, codecommit_checks, codecommit_verified_at, exposure_updated_by,
+	codecommit_enabled, codecommit_checks, codecommit_verified_at, COALESCE(codecommit_repositories, '[]'::jsonb), exposure_updated_by,
 	sync_status, sync_requested_at, sync_requested_by, sync_started_at, last_synced_at, last_sync_error,
 	COALESCE(approval_status, ''), approval_requested_at, COALESCE(approval_requested_by, ''),
 	approved_at, COALESCE(approved_by, ''), COALESCE(approval_note, '')`
@@ -185,12 +185,12 @@ const dbStatusActive = "active"
 func scanAccount(row rowScanner) (*AWSAccountRecord, error) {
 	var rec AWSAccountRecord
 	var regions pq.StringArray
-	var checks, ghChecks, ccChecks []byte
+	var checks, ghChecks, ccChecks, ccRepos []byte
 	var connectedAt, ghVerified, ccVerified, requestedAt, startedAt, syncedAt, apprRequested, apprDecided sql.NullTime
 	if err := row.Scan(&rec.AccountID, &rec.RoleARN, &regions, &rec.ExternalID, &rec.Status, &rec.IsConnected, &checks,
 		&rec.LastVerifiedAt, &rec.LastVerifiedBy, &connectedAt,
 		&rec.GitHubConnected, &rec.GitHubSecretARN, &ghChecks, &ghVerified,
-		&rec.CodeCommitConnected, &ccChecks, &ccVerified, &rec.ExposureUpdatedBy,
+		&rec.CodeCommitConnected, &ccChecks, &ccVerified, &ccRepos, &rec.ExposureUpdatedBy,
 		&rec.SyncStatus, &requestedAt, &rec.SyncRequestedBy, &startedAt, &syncedAt, &rec.LastSyncError,
 		&rec.Approval.Status, &apprRequested, &rec.Approval.RequestedBy, &apprDecided, &rec.Approval.DecidedBy, &rec.Approval.Note); err != nil {
 		return nil, err
@@ -218,6 +218,9 @@ func scanAccount(row rowScanner) (*AWSAccountRecord, error) {
 	}
 	if rec.CodeCommitChecks, err = decodeChecks(ccChecks); err != nil {
 		return nil, err
+	}
+	if len(ccRepos) > 0 {
+		_ = json.Unmarshal(ccRepos, &rec.CodeCommitRepos) // a malformed value reads as "all"
 	}
 	rec.LastVerifiedAt = rec.LastVerifiedAt.UTC()
 	rec.ConnectedAt = utcPtr(connectedAt)
@@ -567,6 +570,8 @@ type ExposureUpdate struct {
 type ExposurePlatformUpdate struct {
 	Connected bool
 	Checks    []AWSCheck
+	// Repositories is the CodeCommit selection to store; nil leaves it as it is.
+	Repositories *[]AWSRepoRef
 	// SecretARN is stored for GitHub; empty clears it.
 	SecretARN string
 }
@@ -601,6 +606,13 @@ func (r *AWSIntegrationRepository) SaveExposure(ctx context.Context, schema, acc
 		checks, err := json.Marshal(nonNil(p.Checks))
 		if err != nil {
 			return nil, fmt.Errorf("encode codecommit checks: %w", err)
+		}
+		if p.Repositories != nil {
+			raw, err := json.Marshal(*p.Repositories)
+			if err != nil {
+				return nil, fmt.Errorf("encode codecommit repositories: %w", err)
+			}
+			add("codecommit_repositories = $%d::jsonb", raw)
 		}
 		add("codecommit_enabled = $%d", p.Connected)
 		add("codecommit_checks = $%d::jsonb", checks)

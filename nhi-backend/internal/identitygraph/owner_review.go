@@ -1,4 +1,4 @@
-package identities
+package identitygraph
 
 import (
 	"regexp"

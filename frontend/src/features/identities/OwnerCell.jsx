@@ -54,7 +54,10 @@ export function OwnerCell({ row, onChanged }) {
   );
 
   return (
-    <span className="flex min-w-0 items-center gap-1.5" onClick={stop}>
+    /* The row behind opens the record on a click and on Enter or Space, and
+       React sends events from the dialog (a portal) up through here too -
+       typing a space in the dialog opened the drawer. Both are stopped. */
+    <span className="flex min-w-0 items-center gap-1.5" onClick={stop} onKeyDown={stop}>
       {pending ? (
         <button type="button" onClick={() => setOpen(true)} className="shrink-0 rounded-full">
           <Tag tone={pending.tone} size="sm">

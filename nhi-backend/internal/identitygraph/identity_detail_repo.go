@@ -52,7 +52,12 @@ type coreIdentity struct {
 	SecurityGroupIDs     []byte
 	IsPubliclyAccessible bool
 	Tags                 []byte
-	Owner                *string
+	Owner                *string // the effective owner: a person's assignment wins
+	OwnerReason          *string
+	OwnerAssigned        bool
+	OwnerSetBy           *string
+	OwnerSetReason       *string
+	OwnerSetAt           *time.Time
 	Environment          *string
 	ParentARN            *string
 	CloudtrailCreatorARN *string
@@ -77,10 +82,16 @@ func (r *IdentityDetailRepository) loadCoreIdentity(ctx context.Context, resolve
 			account_id, region, status,
 			created_at_aws, first_seen_at, last_seen_at, last_activity_at, deleted_at,
 			vpc_id, subnet_id, security_group_ids, COALESCE(is_publicly_accessible, false),
-			tags, owner, environment, parent_arn, cloudtrail_creator_arn,
+			tags, COALESCE(NULLIF(BTRIM(to_jsonb(i)->>'owner_assigned'), ''), owner),
+			environment, parent_arn, cloudtrail_creator_arn,
 			discovery_source, type_attributes, raw_api_response,
-			created_at, updated_at
-		FROM %s.identities
+			created_at, updated_at,
+			NULLIF(BTRIM(to_jsonb(i)->>'owner_reason'), ''),
+			NULLIF(BTRIM(to_jsonb(i)->>'owner_assigned'), '') IS NOT NULL,
+			NULLIF(BTRIM(to_jsonb(i)->>'owner_assigned_by'), ''),
+			NULLIF(BTRIM(to_jsonb(i)->>'owner_assigned_reason'), ''),
+			NULLIF(to_jsonb(i)->>'owner_assigned_at', '')::timestamptz
+		FROM %s.identities i
 		WHERE id = $1::uuid
 		  AND account_id = ANY($2::text[]) AND region = ANY($3::text[])
 		  AND deleted_at IS NULL
@@ -95,6 +106,7 @@ func (r *IdentityDetailRepository) loadCoreIdentity(ctx context.Context, resolve
 		&ci.Tags, &ci.Owner, &ci.Environment, &ci.ParentARN, &ci.CloudtrailCreatorARN,
 		&ci.DiscoverySource, &ci.TypeAttributes, &ci.RawAPIResponse,
 		&ci.CreatedAt, &ci.UpdatedAt,
+		&ci.OwnerReason, &ci.OwnerAssigned, &ci.OwnerSetBy, &ci.OwnerSetReason, &ci.OwnerSetAt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -357,6 +369,12 @@ func (r *IdentityDetailRepository) GetOverview(ctx context.Context, resolved *sc
 			SecurityGroupIDs:     decodeJSON(ci.SecurityGroupIDs),
 			Environment:          ci.Environment,
 			Owner:                ci.Owner,
+			OwnerReason:          ownerReasonOf(ci),
+			OwnerState:           ownerStateOf(ci),
+			OwnerCandidates:      ownerCandidatesOf(ci),
+			OwnerSetBy:           ci.OwnerSetBy,
+			OwnerSetReason:       ci.OwnerSetReason,
+			OwnerSetAt:           ci.OwnerSetAt,
 			Status:               ci.Status,
 			IsPubliclyAccessible: ci.IsPubliclyAccessible,
 			CreatedAtAWS:         ci.CreatedAtAWS,
@@ -1012,4 +1030,33 @@ func vpcBoundIdentity(identityType string) bool {
 		return true
 	}
 	return false
+}
+
+func ptrStr(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
+}
+
+// The owner review state of one identity, as the list reports it.
+func ownerStateOf(ci *coreIdentity) string {
+	state, _ := ClassifyOwner(ptrStr(ci.Owner), ptrStr(ci.OwnerReason), ci.OwnerAssigned)
+	return state
+}
+
+func ownerCandidatesOf(ci *coreIdentity) []OwnerCandidate {
+	_, c := ClassifyOwner(ptrStr(ci.Owner), ptrStr(ci.OwnerReason), ci.OwnerAssigned)
+	if c == nil {
+		return []OwnerCandidate{}
+	}
+	return c
+}
+
+// ownerReasonOf is the scanner's reasoning; a person's decision replaces it.
+func ownerReasonOf(ci *coreIdentity) *string {
+	if ci.OwnerAssigned {
+		return nil
+	}
+	return ci.OwnerReason
 }

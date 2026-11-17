@@ -664,8 +664,13 @@ func (s *AWSIntegrationService) SetExposure(ctx context.Context, caller AWSCalle
 		stepCancel()
 
 		if req.CodeCommit {
-			checks := s.checkCodeCommit(ctx, caller, session, assumeErr, rec)
+			chosen := cleanRepoSelection(req.Repositories)
+			checks := s.checkCodeCommit(ctx, caller, session, assumeErr, rec, chosen)
 			update.CodeCommit = &ExposurePlatformUpdate{Connected: allPass(checks), Checks: checks}
+			if allPass(checks) {
+				// Scanning is on: remember what it covers (nothing chosen = every repository).
+				update.CodeCommit.Repositories = &chosen
+			}
 			logChecks(ctx, "aws integration: credential exposure, CodeCommit checked", accountID, checks, "connected", allPass(checks))
 		}
 		if req.GitHub {
@@ -725,7 +730,7 @@ const (
 // checkCodeCommit: list repositories in every allowed region, then read a
 // sample of them exactly as the scanner will (GetBranch, GetCommit,
 // GetDifferences, GetBlob) and say, per repository, what could not be read.
-func (s *AWSIntegrationService) checkCodeCommit(ctx context.Context, caller AWSCaller, session *awsconnect.Session, assumeErr error, rec *AWSAccountRecord) []AWSCheck {
+func (s *AWSIntegrationService) checkCodeCommit(ctx context.Context, caller AWSCaller, session *awsconnect.Session, assumeErr error, rec *AWSAccountRecord, chosen []AWSRepoRef) []AWSCheck {
 	checks := []AWSCheck{
 		{Key: ExposureCheckCodeCommitList, Label: "Find your repositories"},
 		{Key: ExposureCheckCodeCommitRead, Label: "Read code from them"},
@@ -757,6 +762,16 @@ func (s *AWSIntegrationService) checkCodeCommit(ctx context.Context, caller AWSC
 	pass(&checks[0], msg)
 
 	sample := sampleRepos(found.Repos)
+	if len(chosen) > 0 {
+		// The customer picked repositories: read exactly those, and only
+		// those. One that is not on the list (renamed, deleted) is said so.
+		var missing []string
+		sample, missing = pickRepos(found.Repos, chosen)
+		if len(missing) > 0 {
+			fail(&checks[1], "These repositories were not found: "+strings.Join(missing, ", ")+".", "Choose repositories again")
+			return checks
+		}
+	}
 	if len(sample) == 0 {
 		checks[1].State, checks[1].Message = AWSCheckSkipped, "Nothing to read yet."
 		return checks
@@ -1481,4 +1496,148 @@ func orDefault(value, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// cleanRepoSelection drops blanks and repeats from a chosen list.
+func cleanRepoSelection(in []AWSRepoRef) []AWSRepoRef {
+	seen := map[AWSRepoRef]bool{}
+	out := []AWSRepoRef{}
+	for _, r := range in {
+		r.Region, r.Name = strings.TrimSpace(r.Region), strings.TrimSpace(r.Name)
+		if r.Region == "" || r.Name == "" || seen[r] {
+			continue
+		}
+		seen[r] = true
+		out = append(out, r)
+	}
+	return out
+}
+
+// pickRepos returns the found repositories that were chosen, and the chosen
+// ones that are not among them ("name (region)").
+func pickRepos(found []awsconnect.RepoRef, chosen []AWSRepoRef) (picked []awsconnect.RepoRef, missing []string) {
+	have := map[AWSRepoRef]awsconnect.RepoRef{}
+	for _, r := range found {
+		have[AWSRepoRef{Region: r.Region, Name: r.Name}] = r
+	}
+	for _, c := range chosen {
+		if r, ok := have[c]; ok {
+			picked = append(picked, r)
+		} else {
+			missing = append(missing, c.Name+" ("+c.Region+")")
+		}
+	}
+	return picked, missing
+}
+
+// Repositories read-tested when the customer is choosing: more than the
+// sample of the first check, still bounded so one request stays quick.
+const (
+	chooseProbeMax         = 60
+	chooseProbeConcurrency = 8
+)
+
+// ListCodeCommitRepos answers "which repositories can I scan?": every
+// repository found in the account's regions (up to a cap per region), each
+// read-tested with the scanner's four permissions, so the customer can pick
+// the ones that work (or fix the policy for the rest) instead of all failing
+// together. Past chooseProbeMax they are listed as unchecked and are tested
+// when chosen.
+func (s *AWSIntegrationService) ListCodeCommitRepos(ctx context.Context, caller AWSCaller, accountID string) (*AWSCodeCommitRepos, error) {
+	rec, err := s.store.GetAccount(ctx, caller.Schema, accountID)
+	if err != nil {
+		return nil, err
+	}
+	if rec == nil {
+		return nil, ErrAWSAccountNotFound
+	}
+	if rec.ConnectedAt == nil {
+		return nil, ErrAWSAccountNotConnected
+	}
+	p, settings, err := s.platform(ctx, caller.TenantID)
+	if err != nil {
+		return nil, err
+	}
+	if s.verifier == nil {
+		return nil, ErrAWSUnavailable
+	}
+	role, err := awsconnect.ParseRoleARN(rec.RoleARN)
+	if err != nil {
+		return nil, err
+	}
+	done, err := s.begin(caller.TenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer done()
+	ctx, cancel := context.WithTimeout(ctx, awsVerifyBudget)
+	defer cancel()
+
+	stepCtx, stepCancel := context.WithTimeout(ctx, awsAssumeTimeout)
+	session, err := s.verifier.AssumeRole(stepCtx, p, role, settings.ExternalID)
+	stepCancel()
+	if err != nil {
+		logCheckError(ctx, caller.TenantID, accountID, ExposureCheckCodeCommitList, err)
+		return nil, ErrAWSUnavailable
+	}
+	stepCtx, stepCancel = context.WithTimeout(ctx, exposureStepTimeout)
+	found, err := s.verifier.ListCodeCommit(stepCtx, session, rec.Regions)
+	stepCancel()
+	if err != nil {
+		logCheckError(ctx, caller.TenantID, accountID, ExposureCheckCodeCommitList, err)
+		return nil, ErrAWSUnavailable
+	}
+
+	out := &AWSCodeCommitRepos{Total: found.Repositories, Repositories: make([]AWSRepoStatus, len(found.Repos)), Selected: nonNilRepos(rec.CodeCommitRepos), Unavailable: nonNilStrings(found.Unavailable)}
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, chooseProbeConcurrency)
+	for i, ref := range found.Repos {
+		out.Repositories[i] = AWSRepoStatus{Region: ref.Region, Name: ref.Name, State: RepoUnchecked, Denied: []string{}}
+		if i >= chooseProbeMax {
+			continue
+		}
+		wg.Add(1)
+		go func(i int, ref awsconnect.RepoRef) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			stepCtx, cancel := context.WithTimeout(ctx, probeStep)
+			defer cancel()
+			out.Repositories[i] = repoStatusOf(s.verifier.ProbeCodeCommit(stepCtx, session, ref.Region, ref.Name))
+		}(i, ref)
+	}
+	wg.Wait()
+	if out.Total < len(out.Repositories) {
+		out.Total = len(out.Repositories)
+	}
+	return out, nil
+}
+
+func repoStatusOf(p awsconnect.RepoProbe) AWSRepoStatus {
+	st := AWSRepoStatus{Region: p.Region, Name: p.Repository, Denied: []string{}}
+	switch {
+	case len(p.Denied) > 0:
+		st.State, st.Denied = RepoBlocked, p.Denied
+	case p.Err != nil:
+		st.State = RepoError
+	case p.Empty:
+		st.State = RepoEmpty
+	default:
+		st.State = RepoReadable
+	}
+	return st
+}
+
+func nonNilRepos(r []AWSRepoRef) []AWSRepoRef {
+	if r == nil {
+		return []AWSRepoRef{}
+	}
+	return r
+}
+
+func nonNilStrings(s []string) []string {
+	if s == nil {
+		return []string{}
+	}
+	return s
 }

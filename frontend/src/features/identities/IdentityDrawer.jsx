@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, Globe, UserX } from 'lucide-react';
 import { identityRoute } from '../../lib/identityLinks';
+import { OwnerCell } from './OwnerCell';
 import { Button } from '../../ui/Button';
 import { Drawer } from '../../ui/Overlay';
 import { Tabs } from '../../ui/Tabs';
@@ -19,9 +20,12 @@ import { environmentLabel, functionalClassMeta, identityTypeLabel, lifecycleMeta
  * activity history - is one click away on the identity page. The caller keys
  * it by identity, so each record opens on its overview.
  */
-export function IdentityDrawer({ identity, open, onClose }) {
+export function IdentityDrawer({ identity: listed, open, onClose }) {
   const [tab, setTab] = useState('overview');
-  const overviewQuery = useIdentityTab(identity?.id, 'overview', { enabled: open });
+  const overviewQuery = useIdentityTab(listed?.id, 'overview', { enabled: open });
+  /* The list row until the record answers; then the record, which is the
+     fresher of the two after an owner is set from here. */
+  const identity = listed ? { ...listed, ...(overviewQuery.data?.identity ?? {}) } : listed;
 
   if (!identity) return null;
 
@@ -35,7 +39,7 @@ export function IdentityDrawer({ identity, open, onClose }) {
       subtitle={<CopyableValue value={identity.arn} />}
       header={
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-          <IdentityTags identity={identity} />
+          <IdentityTags identity={identity} onOwnerChanged={overviewQuery.refetch} />
           {identity.id && (
             <Button
               as={Link}
@@ -62,7 +66,7 @@ export function IdentityDrawer({ identity, open, onClose }) {
 }
 
 /** Type, exposure, environment and lifecycle at a glance - the same tags on the drawer and the page. */
-export function IdentityTags({ identity }) {
+export function IdentityTags({ identity, onOwnerChanged }) {
   const status = lifecycleMeta(identity.status);
   return (
     <>
@@ -86,10 +90,16 @@ export function IdentityTags({ identity }) {
           {status.label}
         </Tag>
       )}
-      {!identity.owner && (
-        <Tag tone="medium" size="sm" icon={UserX}>
-          No owner
-        </Tag>
+      {identity.owner_state && identity.owner_state !== 'direct' ? (
+        <span className="inline-flex items-center gap-1 text-[12px] text-ink-3">
+          Owner <OwnerCell row={identity} onChanged={onOwnerChanged} />
+        </span>
+      ) : (
+        !identity.owner && (
+          <Tag tone="medium" size="sm" icon={UserX}>
+            No owner
+          </Tag>
+        )
       )}
     </>
   );

@@ -213,6 +213,8 @@ type ExposurePlatformState struct {
 	VerifiedAt *time.Time `json:"verified_at"`
 	// SecretARN is the GitHub token secret (GitHub only).
 	SecretARN string `json:"secret_arn,omitempty"`
+	// Repositories is the CodeCommit selection; empty means all of them.
+	Repositories []AWSRepoRef `json:"repositories,omitempty"`
 }
 
 type AWSSync struct {
@@ -276,6 +278,45 @@ type AWSExposureRequest struct {
 	GitHub          bool   `json:"github"`
 	CodeCommit      bool   `json:"codecommit"`
 	GitHubSecretARN string `json:"github_secret_arn"`
+	// Repositories narrows CodeCommit scanning to these repositories. Empty
+	// means every repository in the account's regions. Only the ones named are
+	// checked, so a repository the role cannot read yet no longer blocks the
+	// rest.
+	Repositories []AWSRepoRef `json:"repositories"`
+}
+
+// AWSRepoRef names one CodeCommit repository.
+type AWSRepoRef struct {
+	Region string `json:"region"`
+	Name   string `json:"name"`
+}
+
+// Repository states in AWSRepoStatus.State.
+const (
+	RepoReadable  = "readable"  // the role can read its code
+	RepoBlocked   = "blocked"   // the role lacks permissions (Denied names them)
+	RepoEmpty     = "empty"     // no commits yet, nothing to read
+	RepoError     = "error"     // could not be checked right now
+	RepoUnchecked = "unchecked" // found, not tried (too many to try at once)
+)
+
+// AWSRepoStatus is one repository and whether the role can read it.
+type AWSRepoStatus struct {
+	Region string   `json:"region"`
+	Name   string   `json:"name"`
+	State  string   `json:"state"`
+	Denied []string `json:"denied"`
+}
+
+// AWSCodeCommitRepos is the answer to "which repositories can be scanned":
+// every repository found (up to a cap per region), each read-tested.
+type AWSCodeCommitRepos struct {
+	// Total repositories in the account's regions; Repositories may hold fewer.
+	Total        int             `json:"total"`
+	Repositories []AWSRepoStatus `json:"repositories"`
+	// Selected is the saved choice; empty means all of them.
+	Selected    []AWSRepoRef `json:"selected"`
+	Unavailable []string     `json:"unavailable"`
 }
 
 type AWSExposureResponse struct {
@@ -346,6 +387,7 @@ type AWSAccountRecord struct {
 	CodeCommitConnected bool
 	CodeCommitChecks    []AWSCheck
 	CodeCommitVerified  *time.Time
+	CodeCommitRepos     []AWSRepoRef
 	ExposureUpdatedBy   string
 	Approval            AWSApproval
 	SyncStatus          string
@@ -388,9 +430,10 @@ func (r AWSAccountRecord) ToAPI() AWSConnectedAccount {
 				SecretARN:  r.GitHubSecretARN,
 			},
 			CodeCommit: ExposurePlatformState{
-				Connected:  r.CodeCommitConnected,
-				Checks:     nonNilChecks(r.CodeCommitChecks),
-				VerifiedAt: r.CodeCommitVerified,
+				Connected:    r.CodeCommitConnected,
+				Checks:       nonNilChecks(r.CodeCommitChecks),
+				VerifiedAt:   r.CodeCommitVerified,
+				Repositories: r.CodeCommitRepos,
 			},
 			UpdatedBy: r.ExposureUpdatedBy,
 		},

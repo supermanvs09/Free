@@ -265,6 +265,9 @@ func (f *fakeAWSStore) SaveExposure(_ context.Context, _, accountID string, u Ex
 	}
 	if u.CodeCommit != nil {
 		rec.CodeCommitConnected, rec.CodeCommitChecks = u.CodeCommit.Connected, u.CodeCommit.Checks
+		if u.CodeCommit.Repositories != nil {
+			rec.CodeCommitRepos = *u.CodeCommit.Repositories
+		}
 	}
 	f.accounts[accountID] = rec
 	return &rec, nil
@@ -351,6 +354,7 @@ type fakeVerifier struct {
 	ccList      awsconnect.CodeCommitResult
 	ccListErr   error
 	ccReadErr   error
+	ccDenyRepo  map[string]bool // repositories (by name) the role cannot read
 	ccRegions   []string
 	secretToken string
 	secretErr   error
@@ -408,7 +412,7 @@ func (v *fakeVerifier) ListCodeCommit(_ context.Context, _ *awsconnect.Session, 
 }
 func (v *fakeVerifier) ProbeCodeCommit(_ context.Context, _ *awsconnect.Session, region, repo string) awsconnect.RepoProbe {
 	p := awsconnect.RepoProbe{Region: region, Repository: repo, Branch: "main", Files: 2}
-	if v.ccReadErr != nil {
+	if v.ccReadErr != nil || v.ccDenyRepo[repo] {
 		p.Denied = []string{"codecommit:GetBlob"}
 	}
 	return p
@@ -1043,6 +1047,57 @@ func TestExposureCodeCommit(t *testing.T) {
 				t.Fatalf("checked regions %v, want the account's", tc.v.ccRegions)
 			}
 		})
+	}
+}
+
+// One repository without the policy no longer sinks the rest: the customer
+// chooses the ones that work, only those are checked and kept, and the choice
+// is saved.
+func TestExposureCodeCommitChosenRepositories(t *testing.T) {
+	repos := []awsconnect.RepoRef{{Region: "us-east-1", Name: "api"}, {Region: "us-east-1", Name: "web"}, {Region: "eu-west-1", Name: "legacy"}}
+	v := &fakeVerifier{ccList: awsconnect.CodeCommitResult{Repositories: 3, Regions: []string{"us-east-1", "eu-west-1"}, Repos: repos}, ccDenyRepo: map[string]bool{"legacy": true}}
+	ctx := context.Background()
+
+	// Nothing chosen: the one that cannot be read fails the check, as before.
+	store := newFakeAWSStore()
+	connectedAccount(store)
+	res, err := newTestService(store, v, nil, nil).SetExposure(ctx, awsTestCaller, "222222222222", AWSExposureRequest{CodeCommit: true})
+	if err != nil || res.Account.Exposure.CodeCommit.Connected {
+		t.Fatalf("all repositories with one unreadable must not connect: %v %+v", err, res)
+	}
+
+	// The two that work, chosen: connected, and the choice is kept.
+	res, err = newTestService(store, v, nil, nil).SetExposure(ctx, awsTestCaller, "222222222222", AWSExposureRequest{CodeCommit: true, Repositories: []AWSRepoRef{{"us-east-1", "api"}, {"us-east-1", "web"}, {"us-east-1", "api"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cc := res.Account.Exposure.CodeCommit
+	if !cc.Connected || len(cc.Repositories) != 2 {
+		t.Fatalf("want connected with the 2 chosen (repeat dropped), got %v %v", cc.Connected, cc.Repositories)
+	}
+
+	// Choosing the unreadable one fails again; a name that does not exist is said so.
+	res, _ = newTestService(store, v, nil, nil).SetExposure(ctx, awsTestCaller, "222222222222", AWSExposureRequest{CodeCommit: true, Repositories: []AWSRepoRef{{"eu-west-1", "legacy"}}})
+	if res.Account.Exposure.CodeCommit.Connected {
+		t.Fatal("an unreadable chosen repository must fail")
+	}
+	res, _ = newTestService(store, v, nil, nil).SetExposure(ctx, awsTestCaller, "222222222222", AWSExposureRequest{CodeCommit: true, Repositories: []AWSRepoRef{{"us-east-1", "gone"}}})
+	if res.Account.Exposure.CodeCommit.Connected || !strings.Contains(res.Account.Exposure.CodeCommit.Checks[1].Message, "gone (us-east-1)") {
+		t.Fatalf("a missing repository must be named: %+v", res.Account.Exposure.CodeCommit.Checks)
+	}
+}
+
+func TestListCodeCommitReposTestsEachOne(t *testing.T) {
+	repos := []awsconnect.RepoRef{{Region: "us-east-1", Name: "api"}, {Region: "eu-west-1", Name: "legacy"}}
+	v := &fakeVerifier{ccList: awsconnect.CodeCommitResult{Repositories: 2, Regions: []string{"us-east-1", "eu-west-1"}, Repos: repos}, ccDenyRepo: map[string]bool{"legacy": true}}
+	store := newFakeAWSStore()
+	connectedAccount(store)
+	got, err := newTestService(store, v, nil, nil).ListCodeCommitRepos(context.Background(), awsTestCaller, "222222222222")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Total != 2 || got.Repositories[0].State != RepoReadable || got.Repositories[1].State != RepoBlocked || got.Repositories[1].Denied[0] != "codecommit:GetBlob" {
+		t.Fatalf("got %+v", got)
 	}
 }
 

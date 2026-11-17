@@ -53,6 +53,8 @@ function platform(p = {}) {
     checks: checks(p.checks),
     verifiedAt: p.verified_at ?? null,
     secretArn: p.secret_arn || '',
+    /* CodeCommit: the repositories the customer chose to scan; empty = all of them. */
+    repositories: Array.isArray(p.repositories) ? p.repositories.map((r) => ({ region: String(r.region), name: String(r.name) })) : [],
   };
 }
 
@@ -168,12 +170,50 @@ export async function updateAwsAccountRegions({ accountId, regions }) {
   return awsAccount(unwrapMain(await client.put(`${BASE}/accounts/${enc(accountId)}/regions`, { regions })));
 }
 
-export async function setAwsExposure({ accountId, github, codecommit, githubSecretArn }) {
-  const body = { github: Boolean(github), codecommit: Boolean(codecommit), github_secret_arn: github ? githubSecretArn || '' : '' };
+export async function setAwsExposure({ accountId, github, codecommit, githubSecretArn, repositories }) {
+  const body = {
+    github: Boolean(github),
+    codecommit: Boolean(codecommit),
+    github_secret_arn: github ? githubSecretArn || '' : '',
+    /* Only the repositories named are checked and scanned; none named = all. */
+    repositories: Array.isArray(repositories) ? repositories.map((r) => ({ region: r.region, name: r.name })) : [],
+  };
   const d = INTEGRATIONS_PREVIEW
     ? await preview.setExposure(accountId, body)
     : unwrapMain(await client.put(`${BASE}/accounts/${enc(accountId)}/exposure`, body, SLOW));
   return { account: awsAccount(d.account), exposureEnabled: Boolean(d.exposure_enabled) };
+}
+
+/**
+ * Every CodeCommit repository the account's role can see, each read-tested, so
+ * the customer can choose which to scan: [{ region, name, state, denied[] }]
+ * with state readable | blocked | empty | error | unchecked.
+ */
+export async function fetchCodeCommitRepos({ accountId }, signal) {
+  if (INTEGRATIONS_PREVIEW) {
+    return {
+      total: 3,
+      unavailable: [],
+      selected: [],
+      repositories: [
+        { region: 'ap-south-1', name: 'billing-api', state: 'readable', denied: [] },
+        { region: 'ap-south-1', name: 'web-app', state: 'readable', denied: [] },
+        { region: 'ap-south-2', name: 'legacy-batch', state: 'blocked', denied: ['codecommit:GetCommit', 'codecommit:GetDifferences'] },
+      ],
+    };
+  }
+  const d = unwrapMain(await client.post(`${BASE}/accounts/${enc(accountId)}/codecommit/repositories`, null, { ...SLOW, signal }));
+  return {
+    total: Number(d.total) || 0,
+    unavailable: Array.isArray(d.unavailable) ? d.unavailable : [],
+    selected: Array.isArray(d.selected) ? d.selected : [],
+    repositories: (Array.isArray(d.repositories) ? d.repositories : []).map((r) => ({
+      region: String(r.region),
+      name: String(r.name),
+      state: String(r.state || 'unchecked'),
+      denied: Array.isArray(r.denied) ? r.denied : [],
+    })),
+  };
 }
 
 export async function syncAwsAccount({ accountId }) {

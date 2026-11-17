@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Activity, ArrowLeftRight, ArrowUpRight, Info, KeyRound, ListChecks, ShieldAlert, Waypoints } from 'lucide-react';
 import { fetchIdentity } from '../../lib/api/inventory';
 import { useQuery } from '../../lib/hooks';
+import { OwnerCell } from './OwnerCell';
 import { accessDetailRoute, identityRoute } from '../../lib/identityLinks';
 import { Button } from '../../ui/Button';
 import { formatDateTime, formatNumber, formatRelative, percentValue, policyName, titleCaseEnum } from '../../lib/format';
@@ -154,7 +155,9 @@ function OverviewPanel({ identityId, query, active, compact }) {
             </span>
           </Fact>
           <Fact label="Who owns it">
-            {identity.owner ? (
+            {identity.owner_state ? (
+              <OwnerCell row={identity} onChanged={query.refetch} />
+            ) : identity.owner ? (
               <span title={identity.owner}>{ownerName(identity.owner)}</span>
             ) : (
               <span className="font-semibold text-high">No owner recorded</span>

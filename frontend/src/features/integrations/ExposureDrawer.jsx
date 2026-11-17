@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, ArrowRight, Check, ExternalLink, EyeOff, Info, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Check, ExternalLink, EyeOff, FolderGit2, Info, ShieldCheck } from 'lucide-react';
 import { setAwsExposure } from '../../lib/api/integrations';
 import { formatDateTime, formatRelative } from '../../lib/format';
 import { Button } from '../../ui/Button';
@@ -20,6 +20,7 @@ import {
 import { CheckResult } from './CheckList';
 import { exposureState } from './ExposureBadges';
 import { CodeBlock, CodeCommitMark, CopyChip, Disclosure, Instructions } from './parts';
+import { RepositoryPicker } from './RepositoryPicker';
 
 /**
  * Turn CodeCommit scanning for leaked credentials on or off for one connected
@@ -101,8 +102,13 @@ function ExposureForm({ account, accounts, onSelectAccount, setup, onClose, onSa
   const anyOn = want.codecommit;
   const canSubmit = anyOn || turningOff.length > 0;
 
-  const submit = async (event) => {
-    event?.preventDefault();
+  /* The repositories step: opened by the person, and on its own when a check
+     failed only because some repositories cannot be read - the usual reason a
+     whole account used to be refused. */
+  const [choosing, setChoosing] = useState(false);
+
+  const submit = async (event, repositories) => {
+    event?.preventDefault?.();
     setRunning(true);
     setRequestError(null);
     setRan(want.codecommit ? { codecommit: true } : null);
@@ -113,6 +119,8 @@ function ExposureForm({ account, accounts, onSelectAccount, setup, onClose, onSa
         github: want.github,
         codecommit: want.codecommit,
         githubSecretArn: secretArn.trim(),
+        /* Re-checking keeps the choice already saved; only the picker changes it. */
+        repositories: repositories ?? current.exposure.codecommit.repositories,
       });
       setCurrent(outcome.account);
       onSaved?.(outcome);
@@ -136,7 +144,10 @@ function ExposureForm({ account, accounts, onSelectAccount, setup, onClose, onSa
           title: `${platformList(Object.fromEntries(failed.map((key) => [key, true])))} not turned on`,
           description: 'A check did not pass. The fix is shown under it.',
         });
+        /* A read failure on some repositories: let them choose the ones that work. */
+        if (next.codecommit.checks.find((check) => check.key === 'codecommit_read')?.state === 'fail') setChoosing(true);
       }
+      if (failed.length === 0) setChoosing(false);
     } catch (error) {
       setRan(null);
       setRequestError(error);
@@ -148,6 +159,7 @@ function ExposureForm({ account, accounts, onSelectAccount, setup, onClose, onSa
   const toggle = (key) => {
     setWant((prev) => ({ ...prev, [key]: !prev[key] }));
     setRan(null);
+    setChoosing(false);
   };
 
   const codecommit = current.exposure.codecommit;
@@ -187,7 +199,11 @@ function ExposureForm({ account, accounts, onSelectAccount, setup, onClose, onSa
             <PlatformChoice
               mark={<CodeCommitMark size="sm" />}
               name="AWS CodeCommit"
-              detail={`Repositories in ${current.accountId}, in the regions it reads.`}
+              detail={
+                codecommit.repositories.length > 0
+                  ? `Only the ${codecommit.repositories.length} ${codecommit.repositories.length === 1 ? 'repository' : 'repositories'} you chose in ${current.accountId}.`
+                  : `Repositories in ${current.accountId}, in the regions it reads.`
+              }
               checked={want.codecommit}
               state={exposureState(codecommit)}
               verifiedAt={codecommit.verifiedAt}
@@ -242,6 +258,25 @@ function ExposureForm({ account, accounts, onSelectAccount, setup, onClose, onSa
               </p>
             )}
           </SetupSection>
+        )}
+
+        {want.codecommit && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <Button type="button" variant="secondary" size="sm" icon={FolderGit2} onClick={() => setChoosing((open) => !open)} disabled={running}>
+              {choosing ? 'Hide repositories' : codecommit.repositories.length > 0 ? 'Change repositories' : 'Choose repositories'}
+            </Button>
+            <span className="text-[12px] text-ink-3">
+              {codecommit.repositories.length > 0 ? 'Scanning only the ones you chose.' : 'By default every repository in the account is scanned.'}
+            </span>
+          </div>
+        )}
+        {want.codecommit && choosing && (
+          <RepositoryPicker
+            key={current.accountId}
+            accountId={current.accountId}
+            disabled={running}
+            onApply={(repositories) => submit(null, repositories)}
+          />
         )}
 
         {!anyOn && turningOff.length === 0 && (
