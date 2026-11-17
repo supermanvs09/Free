@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="../src/base.css">
 <style>
   /* ---------- HERO: identity graph ---------- */
-  .hero{height:360px;background:radial-gradient(120% 140% at 0% 0%, var(--navy-l) 0%, var(--navy) 42%, var(--navy-dd) 100%)}
+  .hero{height:346px;background:radial-gradient(120% 140% at 0% 0%, var(--navy-l) 0%, var(--navy) 42%, var(--navy-dd) 100%)}
   .hero-inner{position:relative;z-index:3;padding:36px 64px 0;width:600px}
   .logo{display:flex;align-items:center;gap:14px}
   .logo img{height:54px}
@@ -20,7 +20,7 @@
   h1 em{font-style:normal;color:#7cc7ff}
   .tagline{margin-top:14px;font-size:18.5px;line-height:1.5;color:#dbe5fa;font-weight:500}
   .hrule2{margin-top:18px;width:84px;height:3px;border-radius:2px;background:var(--cyan)}
-  .orb-light{right:56px;top:0}
+  .hero .hero-art{top:-84px}
 
   .orb-nhi{right:70px;top:-2px}
   .graph{position:absolute;z-index:2;right:40px;top:6px;width:620px;height:310px}
@@ -80,7 +80,7 @@
   .flow{position:relative;margin-top:14px;display:grid;grid-template-columns:repeat(4,1fr);gap:22px}
   .st{position:relative;display:grid;grid-template-columns:66px 1fr;gap:14px;align-items:center}
   .st .c{position:relative;width:66px;height:66px;border-radius:50%;padding:17px;background:var(--navy);color:#d6ecff;box-shadow:0 0 0 6px #fff}
-  .st .n{position:absolute;right:-6px;top:-4px;width:24px;height:24px;border-radius:50%;background:var(--cyan);color:var(--navy);font-size:12px;font-weight:800;display:grid;place-items:center;border:2px solid #fff}
+  .st small{display:block;font-size:11.5px;font-weight:800;letter-spacing:.14em;color:#2a5bea;margin-bottom:2px}
   .st b{display:block;font-size:15px;font-weight:800;letter-spacing:.1em;color:var(--navy)}
   .st p{margin-top:3px;font-size:14.5px;line-height:1.4;color:var(--ink-3)}
 
@@ -112,7 +112,7 @@
 
   <!-- ============ HERO ============ -->
   <header class="hero">
-    {{orbit-light}}
+    {{scan:nhi}}
     <div class="hero-inner">
       <div class="logo"><img src="../assets/brand/adapid-mark.png" alt=""><b>adapID <i>AI</i></b></div>
       <p class="kick">Continuous Identity Risk Management</p>
@@ -174,10 +174,10 @@
   <section class="sec how">
     <h2 class="h2">How It Works</h2>
     <div class="flow">
-      <div class="st"><div class="c">{{icon:cloud-arrow-down}}<span class="n">1</span></div><div><b>DISCOVER</b><p>Collect identity data and find every NHI.</p></div></div>
-      <div class="st"><div class="c">{{icon:chart-bar}}<span class="n">2</span></div><div><b>ANALYSE</b><p>Baseline behaviour and score each identity’s risk.</p></div></div>
-      <div class="st"><div class="c">{{icon:shield-check}}<span class="n">3</span></div><div><b>DETECT</b><p>Spot misuse and anomalies as they happen.</p></div></div>
-      <div class="st"><div class="c">{{icon:lightning}}<span class="n">4</span></div><div><b>RESPOND</b><p>Trigger automated remediation.</p></div></div>
+      <div class="st"><div class="c">{{icon:cloud-arrow-down}}</div><div><small>STEP 01</small><b>DISCOVER</b><p>Collect identity data and find every NHI.</p></div></div>
+      <div class="st"><div class="c">{{icon:chart-bar}}</div><div><small>STEP 02</small><b>ANALYSE</b><p>Baseline behaviour and score each identity’s risk.</p></div></div>
+      <div class="st"><div class="c">{{icon:shield-check}}</div><div><small>STEP 03</small><b>DETECT</b><p>Spot misuse and anomalies as they happen.</p></div></div>
+      <div class="st"><div class="c">{{icon:lightning}}</div><div><small>STEP 04</small><b>RESPOND</b><p>Trigger automated remediation.</p></div></div>
     </div>
   </section>
 

@@ -102,10 +102,47 @@ def orbit_light(W=600, H=360):
     return f'<div class="orb orb-light dark" style="width:{W}px;height:{H}px">{svg}{mark}{nd}</div>'
 
 
+SCAN = {
+    "profile": dict(photo="hero-ai.jpg", center="fingerprint-thin",
+                    chips=[("HUMAN · 0.12", -300, 34, 108), ("AI AGENT · 0.31", -150, 160, 118), ("NHI · 0.07", 60, 112, 94)]),
+    "nhi": dict(photo="hero-dc.jpg", center="shield-check-thin",
+                chips=[("SERVICE ACCT · 0.07", -330, 34, 150), ("API KEY · 0.92", -160, 150, 112), ("CI/CD TOKEN · 0.31", 0, 112, 142)]),
+}
+
+
+def scanart(kind):
+    """First-build header art: masked photo underlay, glow, scan rings, centre icon, scan line, nodes, score chips."""
+    k = SCAN[kind]
+    chips = "".join(
+        f'<g transform="translate({x} {y})"><rect x="-11" y="-15" width="{w}" height="23" rx="11.5" fill="#0E1A5C" stroke="#4fb3ff" stroke-opacity=".6"/><text>{t}</text></g>'
+        for t, x, y, w in k["chips"])
+    return f"""<div class="hero-art"><div class="ph" style="background-image:url(../assets/photos/{k['photo']})"></div>
+<svg viewBox="0 0 720 500" fill="none">
+<defs><radialGradient id="glow-{kind}" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#4fb3ff" stop-opacity=".5"/><stop offset="1" stop-color="#4fb3ff" stop-opacity="0"/></radialGradient>
+<linearGradient id="scan-{kind}" x1="0" x2="1"><stop offset="0" stop-color="#a6d9ff" stop-opacity="0"/><stop offset=".5" stop-color="#a6d9ff" stop-opacity=".95"/><stop offset="1" stop-color="#a6d9ff" stop-opacity="0"/></linearGradient>
+<linearGradient id="ring-{kind}" x1="0" x2="1"><stop offset="0" stop-color="#2a5bea"/><stop offset="1" stop-color="#a6d9ff"/></linearGradient></defs>
+<g transform="translate(430 270)">
+<circle r="190" fill="url(#glow-{kind})"/>
+<circle r="205" stroke="#2a5bea" stroke-opacity=".3"/>
+<circle r="172" stroke="url(#ring-{kind})" stroke-opacity=".75" stroke-width="1.5" stroke-dasharray="2 9"/>
+<circle r="150" stroke="#a6d9ff" stroke-opacity=".35"/>
+<path d="M0,-150 A150,150 0 0 1 130,-75" stroke="#a6d9ff" stroke-width="3" stroke-linecap="round"/>
+<path d="M-130,75 A150,150 0 0 1 -150,0" stroke="#4fb3ff" stroke-width="3" stroke-linecap="round"/>
+<circle r="122" stroke="#4fb3ff" stroke-opacity=".2" stroke-width="18"/>
+<g transform="translate(-80 -80) scale(.625)" color="#d8eeff">{icon(k['center'], '', 256)}</g>
+<rect x="-112" y="-1.5" width="224" height="3" rx="1.5" fill="url(#scan-{kind})"/>
+<g fill="#a6d9ff"><circle cx="-205" cy="0" r="4"/><circle cx="0" cy="-205" r="3"/><circle cx="145" cy="145" r="4"/><circle cx="-120" cy="-140" r="3"/></g>
+<g stroke="#a6d9ff" stroke-opacity=".45"><path d="M-205,0 L-290,-50 L-360,-24"/><path d="M-120,-140 L-180,-196 L-250,-186"/></g>
+<g fill="#4fb3ff"><circle cx="-290" cy="-50" r="3"/><circle cx="-360" cy="-24" r="2.5"/><circle cx="-180" cy="-196" r="2.5"/></g>
+<g font-family="Plus Jakarta Sans" font-size="11.5" font-weight="700" letter-spacing="1.3" fill="#d8eeff">{chips}</g>
+</g></svg></div>"""
+
+
 def build(src, tagline):
     html = (ROOT / "src" / src).read_text()
     html = re.sub(r"\{\{svg256:([\w-]+)\}\}", lambda m: icon(m.group(1), "", 256), html)
     html = html.replace("{{orbit-light}}", orbit_light())
+    html = re.sub(r"\{\{scan:(\w+)\}\}", lambda m: scanart(m.group(1)), html)
     html = re.sub(r"\{\{orbit:(\w+)\}\}", lambda m: orbit(m.group(1)), html)
     html = re.sub(r"\{\{icon:([\w-]+)\}\}", lambda m: icon(m.group(1)), html)
     html = re.sub(r"\{\{cicon:([\w-]+)\}\}", lambda m: icon(m.group(1), "ci"), html)

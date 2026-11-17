@@ -57,3 +57,9 @@ body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);-webk
 .ol-n b{position:absolute;top:66px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:13px;font-weight:600;color:#0E1A5C}
 .orb-light.dark .ol-n b{color:#e3f0ff}
 .orb-light.dark .ol-n .c{border-color:rgba(166,217,255,.7);box-shadow:0 10px 24px -10px rgba(0,0,0,.6)}
+
+/* first-build header art (photo underlay + scan rings) */
+.hero-art{position:absolute;z-index:1;right:-100px;top:-55px;width:720px;height:500px}
+.hero-art .ph{position:absolute;inset:0;background-position:62% 55%;background-size:cover;background-repeat:no-repeat;opacity:.55;
+  -webkit-mask-image:radial-gradient(60% 68% at 60% 52%,#000 30%,transparent 78%);mask-image:radial-gradient(60% 68% at 60% 52%,#000 30%,transparent 78%)}
+.hero-art svg{position:absolute;inset:0;width:100%;height:100%}
