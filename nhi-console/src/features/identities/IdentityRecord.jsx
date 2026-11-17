@@ -1,3 +1,4 @@
+import { ProviderIcon } from '../../ui/ProviderIcon';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Activity, ArrowLeftRight, ArrowUpRight, Info, KeyRound, ListChecks, ShieldAlert, Waypoints } from 'lucide-react';
@@ -608,6 +609,8 @@ function CredentialsPanel({ identityId }) {
                   <CopyableValue value={credential.arn || credential.name} />
                 </div>
 
+                {credential.stored_in && <StoredInVault stored={credential.stored_in} currentId={identityId} />}
+
                 <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
                   <MiniFact label="Created">{life.created_at_aws ? formatDateTime(life.created_at_aws) : 'Not recorded'}</MiniFact>
                   {Number.isFinite(life.age_days) && <MiniFact label="Age">{formatNumber(life.age_days)} days</MiniFact>}
@@ -1142,4 +1145,59 @@ function AttributeValue({ value, depth = 0 }) {
     );
   }
   return String(value);
+}
+
+/* Where a credential is kept: HashiCorp Vault is a secret store, so the card
+   says which Vault path holds it, how the workload logs in, what that login
+   may read, and every other workload that uses the same stored credential. */
+export function StoredInVault({ stored, currentId }) {
+  const others = (stored.consumers ?? []).filter((c) => c.id !== currentId && c.name !== stored.owner);
+  const ownerRow = stored.owner ? (stored.consumers ?? []).find((c) => c.name === stored.owner) : null;
+  return (
+    <div className="mt-2.5 rounded-[10px] border border-line bg-surface px-3 py-2.5">
+      <p className="flex flex-wrap items-center gap-2 text-[12.5px] text-ink">
+        <ProviderIcon provider="vault" size={14} />
+        <b className="font-semibold">Stored in HashiCorp Vault</b>
+        <span className="text-ink-3">· {stored.store_name}</span>
+        <span className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[11.5px] text-ink-2">{stored.path}</span>
+      </p>
+      <dl className="mt-1.5 grid gap-x-4 gap-y-1 text-[12px] sm:grid-cols-2">
+        <div className="flex gap-1.5">
+          <dt className="text-ink-3">Login</dt>
+          <dd className="text-ink-2">{stored.auth}</dd>
+        </div>
+        {stored.reads?.length > 0 && (
+          <div className="flex min-w-0 gap-1.5">
+            <dt className="shrink-0 text-ink-3">Reads</dt>
+            <dd className="min-w-0 truncate font-mono text-[11.5px] text-ink-2" title={stored.reads.join(', ')}>
+              {stored.reads.join(', ')}
+            </dd>
+          </div>
+        )}
+      </dl>
+      {ownerRow && ownerRow.id !== currentId && (
+        <p className="mt-1.5 text-[12px] text-ink-2">
+          The key belongs to the IAM user{' '}
+          <Link to={`/identities/${encodeURIComponent(ownerRow.id)}?tab=credentials`} className="font-medium text-brand hover:underline">
+            {ownerRow.name}
+          </Link>
+          ; this workload reads it from Vault.
+        </p>
+      )}
+      {others.length > 0 && (
+        <p className="mt-1 text-[12px] text-ink-2">
+          {ownerRow ? 'Also read by' : 'Also used by'}{' '}
+          {others.map((c, i) => (
+            <span key={c.id}>
+              {i > 0 && ', '}
+              <Link to={`/identities/${encodeURIComponent(c.id)}?tab=credentials`} className="font-medium text-brand hover:underline">
+                {c.name}
+              </Link>
+            </span>
+          ))}
+          {' '}- the same secret, read from the same Vault path.
+        </p>
+      )}
+    </div>
+  );
 }

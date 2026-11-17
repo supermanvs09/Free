@@ -76,6 +76,8 @@ export function credentialRow(row) {
   out.created_at_aws = row.created_at;
   out.rotation_status = row.rotation_enabled ? 'enabled' : row.rotation_overdue ? 'overdue' : row.expires_at ? 'expires' : 'not_applicable';
   out.max_session_duration = row.credential_type === 'iam_role' ? 3600 : null;
+  /* Where it is kept, when a secret store holds it (HashiCorp Vault). */
+  out.stored_in = row.store === 'vault' ? { store: 'vault', owner: row.credential_type === 'access_key' ? identitiesOf(row)[0]?.name ?? null : null, store_name: row.store_name ?? 'Vault prod', path: row.vault_path, auth: row.vault_auth, reads: row.vault_reads ?? [], consumers: identitiesOf(row).map((i) => ({ id: i.id, name: i.name, identity_type: i.identity_type })) } : null;
   const first = identitiesOf(row)[0];
   out.owner_name = first?.name ?? null;
   out.bound_identity_names = identitiesOf(row).map((i) => i.name);
@@ -119,6 +121,8 @@ function trustStatements(row) {
 
 /* Who the trust policy lets in: the same answer blast radius gives (reach.js). */
 function trustPrincipals(cred) {
+  /* Only a role has a trust policy; a key, secret or token has none. */
+  if (cred.credential_type !== 'iam_role') return [];
   const ext = String(cred.external_principal ?? '');
   return whoCanAssume(cred.arn).principals.map((p) => ({
     key: `${p.kind}:${p.value}`,
@@ -150,7 +154,7 @@ function bindingOf(identity, cred) {
     attached_policies_count: attachedPolicies(cred).filter((p) => p.policy_type !== 'inline').length,
     inline_policies_count: attachedPolicies(cred).filter((p) => p.policy_type === 'inline').length,
     inline_policies: attachedPolicies(cred).filter((p) => p.policy_type === 'inline').map((p) => ({ name: p.policy_name, policy_name: p.policy_name })),
-    binding_source: cred.credential_type === 'iam_role' ? 'Execution role on the workload' : cred.credential_type === 'access_key' ? 'Access key of the IAM user' : cred.provider === 'jenkins' ? 'withCredentials() binding in the pipeline' : cred.provider === 'vault' ? 'Auth method role' : 'Configuration',
+    binding_source: cred.store === 'vault' && cred.credential_type === 'access_key' && identitiesOf(cred)[0]?.id !== identity.id ? `Read from HashiCorp Vault at ${cred.vault_path}` : cred.store === 'vault' ? `Vault login (${cred.vault_auth}) kept for this workload` : cred.credential_type === 'iam_role' ? 'Execution role on the workload' : cred.credential_type === 'access_key' ? 'Access key of the IAM user' : cred.provider === 'jenkins' ? 'withCredentials() binding in the pipeline' : cred.provider === 'vault' ? 'Auth method role' : 'Configuration',
     assumable_roles: [],
     trust_policy: cred.credential_type === 'iam_role' ? rawDoc(cred).raw?.Role?.AssumeRolePolicyDocument ?? null : null,
     is_primary: identitiesOf(cred)[0]?.id === identity.id && cred === credentialsOf(identity)[0],

@@ -70,8 +70,8 @@ export const RULES = [
   },
   {
     rule_id: 'NHI-CH-005', pillar: 'credential_hygiene', severity: 'HIGH', title: 'Long-lived Vault token without a max TTL',
-    applies: (i) => i.provider === 'vault', fails: (i) => creds(i).some((c) => c.credential_type === 'vault_token'),
-    detail: () => 'Periodic orphan token, renewable for ever (period 768h, no explicit max TTL).', why: 'An orphan periodic token outlives the system that created it and is never revoked with its parent.',
+    applies: (i) => creds(i).some((c) => c.store === 'vault'), fails: (i) => creds(i).some((c) => c.credential_type === 'vault_token'),
+    detail: () => 'Its Vault login is a periodic orphan token, renewable for ever (period 768h, no explicit max TTL).', why: 'An orphan periodic token outlives the system that created it and is never revoked with its parent.',
     fix: 'Move the batch job to AppRole with a short token TTL and revoke the token.', compliance: ['NIST-AC-12', 'ISO27001-A.8.5'], auto: null,
   },
   {

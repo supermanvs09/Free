@@ -130,7 +130,7 @@ export default function LoginPage() {
             style={{ '--step': 3 }}
             className="animate-auth mt-[clamp(1.25rem,2vw,2.5rem)] max-w-[46ch] text-[clamp(14px,1.21vw,23px)] leading-[1.6] text-[var(--t-auth-ink-2)]"
           >
-            Inventory every workload, pipeline and agent across AWS, Azure, Jenkins and Vault, and
+            Inventory every workload, pipeline and agent across AWS, Azure and Jenkins, every secret they keep in Vault, and
             the keys and tokens they hold. Trace what they can reach, and catch secrets the moment
             they leak into GitHub or Bitbucket.
           </p>

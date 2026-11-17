@@ -134,13 +134,15 @@ const IDENTITY_SPECS = [
   I('agent-linux-01', 'jenkins_agent', 'NHI_CICD', JK, 'raju', { jenkinsCreds: ['agent-ssh-key'] }),
   I('agent-docker-02', 'jenkins_agent', 'NHI_CICD', JK, 'raju', { jenkinsCreds: ['dockerhub-push-token'] }),
   I('jenkins-svc-bot', 'jenkins_user', 'NHI_CICD', JK, null, { jenkinsCreds: ['github-pat-release-bot'], shadow: true }),
-  // Vault
-  I('approle/payments-api', 'vault_approle', 'NHI_SERVICE', VT, 'vamsi', { vault: 'secret_id', hot: true }),
-  I('approle/settlement-worker', 'vault_approle', 'NHI_SERVICE', VT, 'vamsi', { vault: 'secret_id' }),
-  I('approle/jenkins-ci', 'vault_approle', 'NHI_CICD', VT, 'raju', { vault: 'secret_id', admin: true }),
-  I('k8s/fraud-scoring', 'vault_k8s_role', 'NHI_SERVICE', VT, 'kiran', { vault: 'k8s' }),
-  I('token/legacy-batch', 'vault_token', 'NHI_SERVICE', VT, null, { vault: 'token', shadow: true, stale: 122 }),
-  I('aws-secrets-engine/db-readonly', 'vault_dynamic_role', 'NHI_SERVICE', VT, 'sashi', { vault: 'lease' }),
+  /* HashiCorp Vault is a secret store, not an identity source: each entry
+     below is a credential kept in Vault and used by the workload named in
+     `consumer`. Kept in this list so every identity id above stays stable. */
+  I('approle/payments-api', 'vault_approle', 'NHI_SERVICE', VT, 'vamsi', { vault: 'secret_id', hot: true , consumer: 'upi-payment-processor', vaultAuth: 'AppRole', reads: 'secret/data/payments/*, transit/keys/payments' }),
+  I('approle/settlement-worker', 'vault_approle', 'NHI_SERVICE', VT, 'vamsi', { vault: 'secret_id' , consumer: 'settlement-batch-worker', vaultAuth: 'AppRole', reads: 'secret/data/settlement/*' }),
+  I('approle/jenkins-ci', 'vault_approle', 'NHI_CICD', VT, 'raju', { vault: 'secret_id', admin: true , consumer: 'payments-api/deploy-prod', vaultAuth: 'AppRole', reads: 'secret/data/ci/*' }),
+  I('k8s/fraud-scoring', 'vault_k8s_role', 'NHI_SERVICE', VT, 'kiran', { vault: 'k8s' , consumer: 'fraud-scoring-api', vaultAuth: 'Kubernetes auth', reads: 'secret/data/fraud/*' }),
+  I('token/legacy-batch', 'vault_token', 'NHI_SERVICE', VT, null, { vault: 'token', shadow: true, stale: 122 , consumer: 'ledger-reconciler', vaultAuth: 'Token', reads: 'secret/data/payments/*, database/creds/readwrite' }),
+  I('aws-secrets-engine/db-readonly', 'vault_dynamic_role', 'NHI_SERVICE', VT, 'sashi', { vault: 'lease' , consumer: 'redshift-loader', vaultAuth: 'Database secrets engine', reads: 'database/creds/readonly' }),
   /* Appended so every identity above keeps its id. */
   I('OrganizationAccountAccessRole', 'iam_role', 'NHI_CICD', D, 'charan', { admin: true, external: P }),
   I('OrganizationAccountAccessRole', 'iam_role', 'NHI_CICD', S, 'charan', { admin: true, external: P }),
@@ -152,6 +154,10 @@ const IDENTITY_SPECS = [
   I('ops-support-role', 'iam_role', 'NHI_SERVICE', P, 'venkat', { stale: 41 }),
   I('break-glass-admin', 'iam_role', 'HUMAN', P, 'pranav', { admin: true, stale: 63 }),
   I('invoice-legacy-export', 'lambda_function', 'NHI_SERVICE', P, 'sashi', { cred: 'shared:invoice-legacy-export-role', stale: 97 }),
+  /* One IAM access key, kept in Vault, legitimately used by two workloads. */
+  I('svc-billing', 'iam_user_service_account', 'NHI_SERVICE', P, 'vamsi', { keys: 1, oldKey: 64, vaultKey: 'secret/data/billing/aws-access-key' }),
+  I('svc-billing-api', 'ecs_task', 'NHI_SERVICE', P, 'vamsi', { hot: true, usesVaultKey: 'svc-billing' }),
+  I('batch-reconciler', 'lambda_function', 'NHI_SERVICE', P, 'sashi', { usesVaultKey: 'svc-billing' }),
 ];
 
 export const IDENTITY_TYPE_PROVIDER = {
@@ -280,14 +286,15 @@ function build() {
       hot: Boolean(spec.hot),
       tags: owner ? { owner: owner.email, team: owner.team, env } : { env },
     };
-    identities.push(identity);
+    /* A Vault entry is a stored credential, not an identity (see above). */
+    if (provider !== 'vault') identities.push(identity);
 
     /* Credentials bound to it. */
-    const bind = (cred) => {
+    const bind = (cred, to = identity) => {
       cred.bound_identities = cred.bound_identities ?? [];
-      cred.bound_identities.push(id);
-      identity.bound_credentials_count += 1;
-      (identity.credential_ids ??= []).push(cred.id);
+      cred.bound_identities.push(to.id);
+      to.bound_credentials_count += 1;
+      (to.credential_ids ??= []).push(cred.id);
     };
     const newCred = (fields) => {
       const created = NOW - r.int(Math.max(5, Math.min(ageDays, 30)), Math.max(10, ageDays)) * DAY;
@@ -415,8 +422,16 @@ function build() {
       }
     } else if (provider === 'vault') {
       const ttlDays = spec.vault === 'token' ? -1 : spec.vault === 'lease' ? 0.04 : r.int(7, 30);
+      const consumer = identities.find((x) => x.name === spec.consumer);
       const cred = newCred({
-        name: spec.vault === 'secret_id' ? `${spec.name} · secret_id` : spec.vault === 'token' ? `${spec.name} · periodic token` : spec.vault === 'lease' ? `${spec.name} · dynamic lease` : `${spec.name} · service account JWT`,
+        name: spec.vault === 'secret_id' ? `Vault ${spec.name} · secret_id` : spec.vault === 'token' ? `Vault ${spec.name} · periodic token` : spec.vault === 'lease' ? `Vault ${spec.name} · dynamic DB lease` : `Vault ${spec.name} · Kubernetes login`,
+        store: 'vault',
+        store_name: scope.name,
+        vault_path: arn.replace(`vault://${scope.id}/`, ''),
+        vault_auth: spec.vaultAuth,
+        vault_reads: spec.reads.split(', '),
+        consumer_name: spec.consumer,
+        owner_principal_arn: consumer?.arn ?? arn,
         arn: `${arn}/${spec.vault}`,
         credential_type: { secret_id: 'vault_secret_id', token: 'vault_token', lease: 'vault_lease', k8s: 'vault_k8s_jwt' }[spec.vault],
         expires_at: ttlDays > 0 ? iso(NOW + ttlDays * DAY) : null,
@@ -425,7 +440,7 @@ function build() {
         rotation_overdue: spec.vault === 'token',
         last_rotated_at: spec.vault === 'token' ? null : iso(NOW - r.int(1, 6) * DAY),
       });
-      bind(cred);
+      if (consumer) bind(cred, consumer);
     }
 
     identity.severity = spec.admin && (spec.public || !owner) ? 'CRITICAL' : spec.admin || spec.shadow ? 'HIGH' : idle > 90 ? 'MEDIUM' : null;
@@ -468,6 +483,20 @@ function build() {
       bound_identities: [],
     });
   });
+
+  /* svc-billing's access key lives in Vault; two workloads read it from there. */
+  for (const spec of IDENTITY_SPECS.filter((x) => x.vaultKey)) {
+    const owner = identities.find((x) => x.name === spec.name);
+    const key = credentials.find((c) => c.credential_type === 'access_key' && c.bound_identities?.includes(owner.id));
+    if (!key) continue;
+    Object.assign(key, { store: 'vault', store_name: 'Vault prod', vault_path: spec.vaultKey, vault_auth: 'KV v2', vault_reads: [spec.vaultKey], last_used_at: iso(NOW - 4 * MIN) });
+    for (const user of IDENTITY_SPECS.filter((x) => x.usesVaultKey === spec.name)) {
+      const consumer = identities.find((x) => x.name === user.name);
+      key.bound_identities.push(consumer.id);
+      consumer.bound_credentials_count += 1;
+      (consumer.credential_ids ??= []).push(key.id);
+    }
+  }
 
   for (const cred of credentials) {
     cred.bound_identities_count = cred.bound_identities.length;

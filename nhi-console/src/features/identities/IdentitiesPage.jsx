@@ -523,7 +523,7 @@ export default function IdentitiesPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Discovery"
-        lede="Workloads, pipelines and automations across AWS, Azure, Jenkins and Vault. Select one to see what it can do, who can use it and what it did."
+        lede="Workloads, pipelines and automations across AWS, Azure and Jenkins, with the credentials they keep in Vault. Select one to see what it can do, who can use it and what it did."
         sections={<DiscoveryTabs />}
         /* The views are lenses on the same identities, not a breakdown of the
            total: an identity unused for 90 days is also idle for 30, and a

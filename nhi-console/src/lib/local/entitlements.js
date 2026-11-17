@@ -476,23 +476,31 @@ const GRANTS = {
     ['Overall/Administer', 'jenkins:credentials', ''],
     ['repo.contents:write,releases:write', 'repo:releases', 'u'],
   ],
-  /* Vault */
-  'approle/payments-api': [
-    ['read', 'vault:secret/data/payments', 'u'],
-    ['update (encrypt)', 'vault:transit/keys/payments', 'u'],
+  /* The shared billing key's owner, and the two workloads that read it from Vault. */
+  'svc-billing': [
+    ['dynamodb:GetItem,dynamodb:PutItem,dynamodb:Query', 'ddb:orders', 'u'],
+    ['s3:GetObject,s3:PutObject', 's3:dpa-invoices', 'u'],
+    ['sqs:SendMessage', 'sqs:settlement-events', 'u'],
   ],
-  'approle/settlement-worker': [['read', 'vault:secret/data/settlement', 'u']],
-  'approle/jenkins-ci': [
-    ['read', 'vault:secret/data/ci', 'u'],
-    ['read,update,delete', 'svc:vault-kv', '', []],
-    ['update', 'vault:sys/policies/acl', ''],
-  ],
-  'k8s/fraud-scoring': [['read', 'vault:secret/data/fraud', 'u']],
-  'token/legacy-batch': [
-    ['read', 'vault:secret/data/payments', 'u'],
-    ['read', 'vault:database/creds/readwrite', 'u'],
-  ],
-  'aws-secrets-engine/db-readonly': [['read', 'vault:database/creds/readonly', 'u']],
+  'svc-billing-api': [['logs:PutLogEvents', 'logs:/aws/lambda/payments', 'u']],
+  'batch-reconciler': [['dynamodb:Query', 'ddb:payments-ledger', 'u']],
+};
+
+/* ── Vault: what each workload may read with the credential it keeps in Vault ──
+   HashiCorp Vault is a secret store. A workload logs in to it (AppRole,
+   Kubernetes auth, a token, the database engine) with a credential bound to
+   it, and the Vault policy of that login decides which paths it reads. Those
+   paths are part of the workload's own reach. Keyed by the workload. */
+const VAULT_POLICIES = {
+  'upi-payment-processor': { login: 'approle/payments-api', rows: [['read', 'vault:secret/data/payments', 'u'], ['update (encrypt)', 'vault:transit/keys/payments', 'u']] },
+  'settlement-batch-worker': { login: 'approle/settlement-worker', rows: [['read', 'vault:secret/data/settlement', 'u']] },
+  'payments-api/deploy-prod': {
+    login: 'approle/jenkins-ci',
+    rows: [['read', 'vault:secret/data/ci', 'u'], ['read,update,delete', 'svc:vault-kv', '', []], ['update', 'vault:sys/policies/acl', '']],
+  },
+  'fraud-scoring-api': { login: 'k8s/fraud-scoring', rows: [['read', 'vault:secret/data/fraud', 'u']] },
+  'ledger-reconciler': { login: 'token/legacy-batch', rows: [['read', 'vault:secret/data/payments', 'u'], ['read', 'vault:database/creds/readwrite', 'u']] },
+  'redshift-loader': { login: 'aws-secrets-engine/db-readonly', rows: [['read', 'vault:database/creds/readonly', 'u']] },
 };
 
 /* ── Links: how one identity becomes another ───────────────────────────────
@@ -510,14 +518,10 @@ const LINKS = [
   ['assume', 'svc-deploy-bot', `OrganizationAccountAccessRole@${SH}`, 'Organization role in shared-services trusts prod-core'],
   ['assume', 'reporting-readonly', 'ops-support-role', 'Trust policy of ops-support-role names reporting-readonly (added for incident INC-2231, never removed)'],
   ['assume', 'ops-support-role', 'break-glass-admin', 'Trust policy of break-glass-admin names ops-support-role'],
-  ['signs_in_as', 'upi-payment-processor', 'approle/payments-api', 'Vault AppRole login with a secret_id from Secrets Manager'],
-  ['signs_in_as', 'settlement-batch-worker', 'approle/settlement-worker', 'Vault AppRole login'],
-  ['signs_in_as', 'fraud-scoring-api', 'k8s/fraud-scoring', 'Vault Kubernetes auth with its service account token'],
-  ['signs_in_as', 'ledger-reconciler', 'token/legacy-batch', 'Periodic Vault token in the job environment'],
-  ['signs_in_as', 'redshift-loader', 'aws-secrets-engine/db-readonly', 'Dynamic database credentials from Vault'],
+  ['signs_in_as', 'svc-billing-api', 'svc-billing', 'Reads the svc-billing access key from Vault (secret/data/billing/aws-access-key)'],
+  ['signs_in_as', 'batch-reconciler', 'svc-billing', 'Reads the svc-billing access key from Vault (secret/data/billing/aws-access-key)'],
   ['signs_in_as', 'aks-settlement-pod', 'mi-payments-aks', 'Entra workload identity federation'],
   ['stores', 'aws-prod-deploy-keys', 'raju-ops-automation', 'Jenkins holds an access key of raju-ops-automation'],
-  ['stores', 'vault-approle-ci', 'approle/jenkins-ci', 'Jenkins holds the AppRole role_id and secret_id'],
   ['stores', 'azure-sp-terraform', 'sp-terraform-prod', 'Jenkins holds the client secret of sp-terraform-prod'],
 ];
 
@@ -534,7 +538,7 @@ const STORED_EXTERNAL = {
 export const ANOMALY_SPECS = [
   { who: 'fraud-scoring-api', dimension: 'source_ip', severity: 'critical', value: '185.220.101.47', baseline: '10.x private addresses only', ip: '185.220.101.47', action: 'sts:AssumeRole', target: `arn:aws:iam::${D}:role/OrganizationAccountAccessRole`, errors: 6, hoursAgo: 3, description: 'sts:AssumeRole into data-platform from a known Tor exit node; 6 AccessDenied errors followed.', untrusted: true },
   { who: 'svc-airflow-scheduler', dimension: 'source_ip', severity: 'critical', value: '45.137.21.9', baseline: '10.x private addresses only', ip: '45.137.21.9', action: 'sts:GetCallerIdentity', target: null, errors: 0, hoursAgo: 5, description: 'Its access key was used from a hosting provider it has never used, right after the key was committed to DATA/airflow-dags.', untrusted: true },
-  { who: 'approle/jenkins-ci', dimension: 'resource', severity: 'high', value: 'secret/data/payments/*', baseline: 'secret/data/ci/* only', action: 'read', target: 'vault:secret/data/payments', hoursAgo: 9, description: 'Read secret/data/payments/npci and secret/data/payments/hsm, outside every path in its 14-day baseline.' },
+  { who: 'payments-api/deploy-prod', dimension: 'resource', severity: 'high', value: 'secret/data/payments/*', baseline: 'secret/data/ci/* only', action: 'read', target: 'vault:secret/data/payments', hoursAgo: 9, description: 'With its Vault AppRole, read secret/data/payments/npci and secret/data/payments/hsm, outside every Vault path in its 14-day baseline.' },
   { who: 'terraform-runner', dimension: 'api_call', severity: 'high', value: 'iam:PutRolePolicy', baseline: 'Not seen in 14 days of baseline', action: 'iam:PutRolePolicy', target: `arn:aws:iam::${P}:role/terraform-runner`, hoursAgo: 14, description: 'Added an inline policy to itself that allows iam:PassRole on every role.' },
   { who: 'payments-gateway-01', dimension: 'volume', severity: 'high', value: '9x the usual hourly calls', baseline: 'About 40 calls an hour', action: 'secretsmanager:GetSecretValue', target: 'sec:prod/payments/npci-api-key', hoursAgo: 26, description: 'Read the NPCI API key 9 times more often than usual in one hour.' },
   { who: 'sp-pos-terminal-sync', dimension: 'api_call', severity: 'high', value: 'roleAssignments/write', baseline: 'Not seen in 14 days of baseline', action: 'Microsoft.Authorization/roleAssignments/write', target: 'sub:Payments-Prod', hoursAgo: 40, description: 'Created a role assignment on the Payments-Prod subscription.' },
@@ -645,6 +649,35 @@ export function enrich(world) {
     grants.set(principal, resolved);
   }
 
+  /* Vault policies, on the workload that logs in to Vault. */
+  const vaultGrants = new Map();
+  for (const [name, { login, rows }] of Object.entries(VAULT_POLICIES)) {
+    const owner = byName.get(name);
+    if (!owner) continue;
+    const role = login.split('/').pop();
+    vaultGrants.set(
+      name,
+      rows.map(([actions, res, flags, seen], index) => {
+        const list = actions.split(',');
+        const wildcard = res.startsWith('svc:');
+        const targets = wildcard ? [...cat.values()].filter((r) => r.service === res.slice(4)) : [resolve(res, owner)].filter(Boolean);
+        return {
+          id: `vault:${login}#${index}`,
+          actions: list,
+          resource_spec: res,
+          wildcard,
+          targets,
+          used: flags.includes('u'),
+          seen_on: flags.includes('u') ? (wildcard ? (seen ?? []).map((k) => resolve(k, owner)).filter(Boolean) : targets) : [],
+          level: accessLevel(list),
+          policy_source: `${role}-read`,
+          policy_type: 'vault_policy',
+          vault_login: login,
+        };
+      }),
+    );
+  }
+
   const links = [];
   for (const [kind, from, to, why] of LINKS) {
     const a = kind === 'stores' ? credByName.get(from) : byName.get(from) ?? world.identities.find((i) => i.__role === from);
@@ -660,7 +693,7 @@ export function enrich(world) {
     }
   }
 
-  model = { grants, links, resolve, byName, credByName };
+  model = { grants, vaultGrants, links, resolve, byName, credByName };
 
   /* An identity seen misbehaving recently was, by definition, active then. */
   const now = Date.now();
@@ -693,7 +726,14 @@ export function enrich(world) {
 /* ── Reading the model ─────────────────────────────────────────────────── */
 export function grantsOf(identity) {
   if (!model || identity.__disabled) return [];
-  return grantsForPrincipal(principalKey(identity));
+  const own = grantsForPrincipal(principalKey(identity));
+  /* What it reads in Vault, while the Vault credential it logs in with is live. */
+  const vault = model.vaultGrants.get(identity.name) ?? [];
+  const live = vault.filter((g) => {
+    const cred = [...model.credByName.values()].find((c) => c.store === 'vault' && c.name.startsWith(`Vault ${g.vault_login} `));
+    return !cred || (!cred.__deleted && !keyDeactivated(cred.id));
+  });
+  return rightSized(principalKey(identity)) ? own : [...own, ...live];
 }
 
 /** A principal's grants after what people did: right-sized, or none once deleted. */

@@ -133,7 +133,7 @@ function OrganisationDashboard({ exposure, offerExposureSetup }) {
     <div className="flex flex-col gap-5">
       <PageHeader
         title="Dashboard"
-        lede="What is at risk across AWS, Azure, Jenkins and Vault, what changed in the last sync, and where to look first."
+        lede="What is at risk across AWS, Azure and Jenkins (with the secrets kept in Vault), what changed in the last sync, and where to look first."
         actions={
           <Button variant="secondary" icon={RotateCw} onClick={refreshAll} loading={refreshing}>
             Refresh figures

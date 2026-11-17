@@ -1,3 +1,4 @@
+import { StoredInVault } from '../identities/IdentityRecord';
 import { useState } from 'react';
 import { ProviderIcon, providerOf } from '../../ui/ProviderIcon';
 import { Link } from 'react-router-dom';
@@ -170,6 +171,7 @@ function OverviewBody({ data, privilege, record, recordLoading }) {
 
   return (
     <div className="flex flex-col gap-5">
+      {credential.stored_in && <StoredInVault stored={credential.stored_in} />}
       <div>
         <SectionLabel>Credential</SectionLabel>
         <DetailList className="mt-1">

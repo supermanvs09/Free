@@ -28,6 +28,7 @@ import { STATUS, StatusDot } from './hubParts';
  */
 const GROUPS = [
   { key: 'identity', title: 'Identity sources', lede: 'Where your non-human identities and their credentials live.' },
+  { key: 'secrets', title: 'Secret stores', lede: 'Where credentials are kept, and which workloads read them.' },
   { key: 'exposure', title: 'Code scanning', lede: 'Where their secrets leak: repositories and their history.' },
 ];
 
@@ -191,6 +192,7 @@ function AppCard({ app, canManage, busy, onSwitch, onOpen }) {
       const noun = { aws: 'account', azure: 'subscription', jenkins: 'controller', vault: 'cluster' }[app.key];
       return [`${formatNumber(app.connections)} ${noun}${app.connections === 1 ? '' : 's'}`, `${formatNumber(app.identities)} identities`, `${formatNumber(app.credentials)} credentials`];
     }
+    if (app.category === 'secrets') return [`${formatNumber(app.secrets)} stored credentials`, `read by ${formatNumber(app.consumers)} workloads`];
     if (app.category === 'exposure') return [`${formatNumber(app.repositories)} repositories`, `${formatNumber(app.findings)} open findings`];
     return [];
   }, [app]);

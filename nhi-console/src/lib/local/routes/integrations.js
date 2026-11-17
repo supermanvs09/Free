@@ -25,6 +25,12 @@ async function guard(fn) {
 function inventoryOf(provider) {
   const ids = estate().identities.filter((i) => i.provider === provider);
   const creds = estate().credentials.filter((c) => c.provider === provider);
+  if (provider === 'vault') {
+    /* A secret store: what is kept there, and how many workloads read it. */
+    const stored = estate().credentials.filter((c) => c.store === 'vault');
+    const consumers = new Set(stored.flatMap((c) => (c.credential_type === 'access_key' ? (c.bound_identities ?? []).slice(1) : c.bound_identities ?? [])));
+    return { identities: 0, credentials: stored.length, secrets: stored.length, consumers: consumers.size };
+  }
   return { identities: ids.length, credentials: creds.length };
 }
 

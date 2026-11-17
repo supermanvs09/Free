@@ -12,7 +12,7 @@ export const APP_CATALOG = [
   { key: 'aws', name: 'Amazon Web Services', short: 'AWS', category: 'identity', summary: 'IAM roles, users, access keys, Lambda, ECS, EKS, EC2 and Secrets Manager, with CloudTrail activity.' },
   { key: 'azure', name: 'Microsoft Azure', short: 'Azure', category: 'identity', summary: 'Managed identities, service principals, app registrations and their secrets, certificates and federated credentials.' },
   { key: 'jenkins', name: 'Jenkins', short: 'Jenkins', category: 'identity', summary: 'Jobs, agents and service users, and every credential they bind from the credential store.' },
-  { key: 'vault', name: 'HashiCorp Vault', short: 'Vault', category: 'identity', summary: 'AppRoles, Kubernetes roles, tokens and dynamic secret leases, with audit-device activity.' },
+  { key: 'vault', name: 'HashiCorp Vault', short: 'Vault', category: 'secrets', summary: 'A secret store: which credentials are kept in Vault, which workloads read them, and how each logs in (AppRole, Kubernetes, tokens, dynamic leases).' },
   { key: 'github', name: 'GitHub', short: 'GitHub', category: 'exposure', summary: 'Scans repositories and history for secrets that belong to your identities.' },
   { key: 'bitbucket', name: 'Bitbucket', short: 'Bitbucket', category: 'exposure', summary: 'Scans Bitbucket Data Center projects and history for leaked credentials.' },
   { key: 'gmail', name: 'Gmail', short: 'Gmail', category: 'notify', summary: 'Real-time alert email, sent from your Gmail or Google Workspace account.' },
@@ -21,7 +21,8 @@ export const APP_CATALOG = [
 export const APP_KEYS = APP_CATALOG.map((a) => a.key);
 /* Not offered in the console for now. */
 export const HIDDEN_APPS = new Set(['gmail', 'jira']);
-export const IDENTITY_APPS = ['aws', 'azure', 'jenkins', 'vault'];
+export const IDENTITY_APPS = ['aws', 'azure', 'jenkins'];
+export const SECRET_STORE_APPS = ['vault'];
 export const EXPOSURE_APPS = ['github', 'bitbucket'];
 
 const check = (key, label, message, state = 'pass', fix = '') => ({ key, label, state, message, ...(fix ? { fix } : {}) });
@@ -177,7 +178,7 @@ export function apps() {
 }
 
 export const isOn = (key) => Boolean(apps()[key]?.enabled);
-export const enabledProviders = () => IDENTITY_APPS.filter(isOn);
+export const enabledProviders = () => [...IDENTITY_APPS, ...SECRET_STORE_APPS].filter(isOn);
 
 export function setEnabled(key, enabled, actor) {
   const a = apps()[key];
