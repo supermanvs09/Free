@@ -27,10 +27,10 @@ RUN if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-f
 COPY . .
 # on: the live scenarios panel (Ctrl/Cmd + Shift + L) is built in.
 #   docker build --build-arg VITE_LIVE_REPLAY=on -t nhi-console .
-ARG VITE_LIVE_REPLAY=off
+ARG VITE_LIVE_REPLAY=on
 ENV VITE_LIVE_REPLAY=$VITE_LIVE_REPLAY
 # off: the console never looks for the shared workspace (pair with SYNC_ENABLED=false).
-ARG VITE_SYNC=on
+ARG VITE_SYNC=off
 ENV VITE_SYNC=$VITE_SYNC
 RUN npm run build && test -f dist/index.html
 
@@ -44,6 +44,7 @@ ENV NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx/conf.d \
     NGINX_ENVSUBST_FILTER='(NOTIFY_RELAY_PORT)$' \
     NOTIFY_RELAY_PORT=8787 \
     NOTIFY_RELAY_ENABLED=true \
+    SYNC_ENABLED=false \
     DATA_DIR=/var/lib/nhi
 
 RUN rm -f /etc/nginx/conf.d/default.conf
