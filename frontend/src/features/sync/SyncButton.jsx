@@ -14,19 +14,36 @@ const STEP_OF = { start: 1, discovery: 2, posture: 3, refresh: 4 };
  *
  *   idle       "Sync now" (each account's last sync is in its chooser)
  *   running    "Syncing · step 2 of 4": opens the progress panel
- *   cooling    the next sync's countdown (the scanner allows one every 10 minutes)
+ *   cooling    every account is in its post-sync freeze: when the first is free
+ *              (the freeze is per account, NHI_SYNC_COOLDOWN_MINUTES; none when unset)
  *   failed     "Sync didn't finish": opens the panel
  *
  */
-export function SyncButton() {
-  const { run, cooldownUntil, canScan, openPanel, start } = useSync();
+/** Now, re-read every 15 s while any account is frozen, so countdowns move. */
+function useCooldownClock(cooldowns) {
   const [now, setNow] = useState(() => Date.now());
-  const cooling = cooldownUntil > now;
+  const latest = Math.max(0, ...Object.values(cooldowns ?? {}).map(Number));
+  const frozen = latest > now;
   useEffect(() => {
-    if (!cooling) return undefined;
-    const id = setInterval(() => setNow(Date.now()), 15000);
-    return () => clearInterval(id);
-  }, [cooling]);
+    /* A freeze just set (or ended) is read at once, then every 15 s. */
+    const tick = () => setNow(Date.now());
+    const first = setTimeout(tick, 0);
+    const id = frozen ? setInterval(tick, 15000) : null;
+    return () => {
+      clearTimeout(first);
+      if (id) clearInterval(id);
+    };
+  }, [frozen, latest]);
+  return now;
+}
+
+const minutesUntil = (until, now) => Math.max(1, Math.ceil((until - now) / 60000));
+
+export function SyncButton() {
+  const { run, cooldowns, untilFor, allCoolingUntil, connected, canScan, openPanel, start } = useSync();
+  const now = useCooldownClock(cooldowns);
+  const allUntil = allCoolingUntil(connected);
+  const cooling = allUntil > now;
 
   const running = run && run.stage !== 'done' && run.stage !== 'failed';
   const failed = run?.stage === 'failed';
@@ -52,7 +69,7 @@ export function SyncButton() {
   /* No "Synced N ago" beside it: each account's last sync is in the chooser,
      where it is per account and not one misleading time for all of them. */
   if (!canScan) return null;
-  return <SyncChooser base={base} cooling={cooling} cooldownUntil={cooldownUntil} now={now} start={start} openPanel={openPanel} />;
+  return <SyncChooser base={base} cooling={cooling} allUntil={allUntil} untilFor={untilFor} now={now} start={start} openPanel={openPanel} />;
 }
 
 /** Accounts a sync can read: connected, with regions to read. */
@@ -65,24 +82,27 @@ function syncableAccounts(integration) {
  * which - every account (read, score, refresh every page: the full sync) or
  * one account (the same sync, for that account only).
  */
-function SyncChooser({ base, cooling, cooldownUntil, now, start, openPanel }) {
+function SyncChooser({ base, cooling, allUntil, untilFor, now, start, openPanel }) {
   const workspace = useWorkspace();
   const anchorRef = useRef(null);
   const [open, setOpen] = useState(false);
   const accounts = syncableAccounts(workspace.integration);
   const choose = accounts.length > 1;
-  const minutes = Math.ceil((cooldownUntil - now) / 60000);
+  const minutes = minutesUntil(allUntil, now);
+  const frozen = accounts.filter((a) => untilFor(a.accountId) > now);
+  const ready = accounts.filter((a) => untilFor(a.accountId) <= now);
 
+  /* Every account that is not in its freeze; frozen ones wait their turn. */
   const syncAll = () => {
     setOpen(false);
     if (cooling) openPanel();
-    else start(accounts.map((a) => a.accountId));
+    else start(ready.map((a) => a.accountId));
   };
 
   /* One account: the same sync (read, score, refresh), for that account only. */
   const syncOne = (account) => {
     setOpen(false);
-    if (cooling) openPanel();
+    if (untilFor(account.accountId) > now) openPanel();
     else start([account.accountId]);
   };
 
@@ -90,9 +110,9 @@ function SyncChooser({ base, cooling, cooldownUntil, now, start, openPanel }) {
     return (
       <button
         type="button"
-        onClick={cooling ? openPanel : start}
+        onClick={cooling ? openPanel : () => start()}
         className={cn(base, 'border-topbar-line bg-topbar-field text-topbar-ink hover:border-ink-3/45')}
-        title={cooling ? `A sync can run every 10 minutes. The next one can start in ${minutes} min.` : 'Read your AWS accounts, score what is found and refresh every page'}
+        title={cooling ? `This account was just synced. It can be synced again in ${minutes} min.` : 'Read your AWS accounts, score what is found and refresh every page'}
       >
         <RefreshCw aria-hidden="true" className="size-4" />
         <span>{cooling ? `Next sync in ${minutes} min` : 'Sync now'}</span>
@@ -126,11 +146,13 @@ function SyncChooser({ base, cooling, cooldownUntil, now, start, openPanel }) {
         <p className="px-2.5 pt-1.5 pb-1 text-[11px] font-semibold tracking-[0.06em] text-ink-3 uppercase">What to sync</p>
         <ChooserItem
           icon={Layers}
-          title={`All accounts (${accounts.length})`}
+          title={frozen.length && !cooling ? `All accounts ready (${ready.length} of ${accounts.length})` : `All accounts (${accounts.length})`}
           detail={
             cooling
-              ? `Available again in ${minutes} min - the scanner runs one full sync every 10 minutes.`
-              : 'Reads every account, scores what it finds and refreshes every page.'
+              ? `Every account was just synced. The first can be synced again in ${minutes} min.`
+              : frozen.length
+                ? `Reads the ${ready.length} ${ready.length === 1 ? 'account' : 'accounts'} not synced just now; ${frozen.length} ${frozen.length === 1 ? 'waits' : 'wait'} a few minutes.`
+                : 'Reads every account, scores what it finds and refreshes every page.'
           }
           disabled={cooling}
           onSelect={syncAll}
@@ -147,11 +169,11 @@ function SyncChooser({ base, cooling, cooldownUntil, now, start, openPanel }) {
             mono
             title={account.accountId}
             detail={
-              cooling
-                ? `Available again in ${minutes} min.`
+              untilFor(account.accountId) > now
+                ? `Just synced. Available again in ${minutesUntil(untilFor(account.accountId), now)} min.`
                 : `${account.regions.length} region${account.regions.length === 1 ? '' : 's'}${account.sync.lastSyncedAt ? ` · last synced ${formatRelative(account.sync.lastSyncedAt)}` : ''}`
             }
-            disabled={cooling || account.regions.length === 0}
+            disabled={untilFor(account.accountId) > now || account.regions.length === 0}
             onSelect={() => syncOne(account)}
           />
         ))}
@@ -187,14 +209,10 @@ function ChooserItem({ icon: Icon, title, detail, disabled, loading, mono, onSel
  * with the run's state in its label. Hidden for roles that cannot start one.
  */
 export function SyncNowButton() {
-  const { run, cooldownUntil, canScan, openPanel, start } = useSync();
-  const [now, setNow] = useState(() => Date.now());
-  const cooling = cooldownUntil > now;
-  useEffect(() => {
-    if (!cooling) return undefined;
-    const id = setInterval(() => setNow(Date.now()), 15000);
-    return () => clearInterval(id);
-  }, [cooling]);
+  const { run, cooldowns, untilFor, allCoolingUntil, connected, canScan, openPanel, start } = useSync();
+  const now = useCooldownClock(cooldowns);
+  const allUntil = allCoolingUntil(connected);
+  const cooling = allUntil > now;
 
   if (!canScan) return null;
   const running = run && run.stage !== 'done' && run.stage !== 'failed';
@@ -212,13 +230,15 @@ export function SyncNowButton() {
       </Button>
     );
   }
-  const minutes = Math.ceil((cooldownUntil - now) / 60000);
+  const minutes = minutesUntil(allUntil, now);
+  /* Every account not in its post-sync freeze. */
+  const ready = connected.filter((id) => untilFor(id) <= now);
   return (
     <Button
       variant="secondary"
       icon={RefreshCw}
-      onClick={cooling ? openPanel : start}
-      title={cooling ? `A sync can run every 10 minutes. The next one can start in ${minutes} min.` : 'Read every connected AWS account, score what is found and refresh every page'}
+      onClick={cooling ? openPanel : () => start(ready)}
+      title={cooling ? `Every account was just synced. The first can be synced again in ${minutes} min.` : 'Read every connected AWS account, score what is found and refresh every page'}
     >
       {cooling ? `Next sync in ${minutes} min` : 'Sync all accounts'}
     </Button>

@@ -130,10 +130,13 @@ function Step({ step, last }) {
 export function SyncPanel({ open, onClose }) {
   const sync = useSync();
   const navigate = useNavigate();
-  const { run, cooldownUntil, canScan } = sync;
-  const ticking = open && (Boolean(run) || cooldownUntil > 0);
+  const { run, canScan, allCoolingUntil, connected } = sync;
+  /* Try again waits only when every account it would sync is in its freeze. */
+  const retryIds = run?.requestedIds?.length ? run.requestedIds : run?.accountIds?.length ? run.accountIds : connected;
+  const retryUntil = allCoolingUntil(retryIds);
+  const ticking = open && (Boolean(run) || retryUntil > 0);
   const now = useNow(ticking);
-  const waitMs = Math.max(0, cooldownUntil - now);
+  const waitMs = Math.max(0, retryUntil - now);
 
   const go = (path) => {
     onClose();

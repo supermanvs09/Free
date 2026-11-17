@@ -30,12 +30,20 @@ const POSTURE_POLL_MS = 4_000;
 const SLOW_AFTER_MS = 20 * 60_000;
 const SLOW_POLL_MS = 30_000;
 const MAX_RUN_MS = 3 * 60 * 60_000;
-const COOLDOWN_MS = 10 * 60_000; // the scanner's gap between two scans
+/* After an account is synced it waits cooldownMinutes before it can be
+   synced again - that account only. The length comes from the backend
+   (NHI_SYNC_COOLDOWN_MINUTES, via the integration status); 0 means no wait.
+   The scan service can still answer "wait N minutes" on its own, which then
+   holds back the accounts that were asked for. */
+let cooldownMinutes = 0;
+export function setCooldownMinutes(minutes) {
+  cooldownMinutes = Math.max(0, Number(minutes) || 0);
+}
 const MAX_LOST_POLLS = 5;
 const STORE_KEY = 'nhi.sync.v1';
 
 let owner = '';
-let state = { run: null, cooldownUntil: 0, lastScanAt: null, notice: null };
+let state = { run: null, cooldowns: {}, lastScanAt: null, notice: null };
 let timer = null;
 let lostPolls = 0;
 const listeners = new Set();
@@ -82,7 +90,7 @@ function patchRun(patch) {
 
 function persist() {
   try {
-    localStorage.setItem(STORE_KEY, JSON.stringify({ owner, run: state.run, cooldownUntil: state.cooldownUntil }));
+    localStorage.setItem(STORE_KEY, JSON.stringify({ owner, run: state.run, cooldowns: liveCooldowns(state.cooldowns) }));
   } catch {
     /* a per-browser convenience; progress is still shown without it */
   }
@@ -90,6 +98,37 @@ function persist() {
 
 function emit(type) {
   eventListeners.forEach((listener) => listener({ type, run: state.run }));
+}
+
+/* Freezes that have not ended yet. */
+function liveCooldowns(cooldowns, now = Date.now()) {
+  return Object.fromEntries(Object.entries(cooldowns ?? {}).filter(([, until]) => Number(until) > now));
+}
+
+/** When the account can be synced again (0: now). */
+export function cooldownUntilFor(accountId, cooldowns = state.cooldowns) {
+  return Number(cooldowns?.[accountId]) || 0;
+}
+
+/**
+ * For a list of accounts: 0 when any of them can be synced now, else the
+ * moment the first one can.
+ */
+export function allCoolingUntil(accountIds, cooldowns = state.cooldowns, now = Date.now()) {
+  const ids = accountIds ?? [];
+  if (ids.length === 0) return 0;
+  let first = Infinity;
+  for (const id of ids) {
+    const until = cooldownUntilFor(id, cooldowns);
+    if (until <= now) return 0;
+    first = Math.min(first, until);
+  }
+  return first;
+}
+
+function freeze(accountIds, until) {
+  if (!accountIds?.length || !(until > Date.now())) return;
+  set({ cooldowns: { ...liveCooldowns(state.cooldowns), ...Object.fromEntries(accountIds.map((id) => [id, until])) } });
 }
 
 const isActive = (run) => Boolean(run) && run.stage !== 'done' && run.stage !== 'failed';
@@ -110,11 +149,14 @@ function fail(step, message, extra = {}) {
  */
 export async function start(accountIds) {
   if (isActive(state.run)) return;
-  if (state.cooldownUntil > Date.now()) {
-    set({ notice: { kind: 'cooldown', until: state.cooldownUntil } });
+  const asked = accountIds?.length ? [...accountIds] : (state.run?.requestedIds?.length ? state.run.requestedIds : (state.run?.accountIds ?? []));
+  /* Only accounts out of their freeze are synced; the others wait. */
+  const now = Date.now();
+  const accounts = asked.filter((id) => cooldownUntilFor(id) <= now);
+  if (asked.length > 0 && accounts.length === 0) {
+    set({ notice: { kind: 'cooldown', until: allCoolingUntil(asked) } });
     return;
   }
-  const accounts = accountIds?.length ? [...accountIds] : (state.run?.accountIds ?? []);
   set({ notice: null, run: { ...newRun(), accountIds: accounts } });
   const result = await startDiscoveryScan(accounts);
   if (!state.run || state.run.stage !== 'start') return;
@@ -140,8 +182,10 @@ export async function start(accountIds) {
       });
       break;
     case 'cooldown': {
+      /* The scan service's own gap: the accounts asked for wait. */
       const until = Date.now() + result.retryAfterMinutes * 60_000;
-      set({ run: null, cooldownUntil: until, notice: { kind: 'cooldown', until } });
+      set({ run: null, notice: { kind: 'cooldown', until } });
+      freeze(accounts, until);
       return;
     }
     default:
@@ -202,7 +246,9 @@ async function pollDiscovery(run) {
   if (state.run?.id !== run.id) return;
   if (result.state === 'completed') {
     const scanEndMs = Date.parse(result.scanEnd) || Date.now();
-    set({ cooldownUntil: Math.max(state.cooldownUntil, scanEndMs + COOLDOWN_MS), lastScanAt: result.scanEnd ?? new Date().toISOString() });
+    set({ lastScanAt: result.scanEnd ?? new Date().toISOString() });
+    /* The accounts just synced wait their freeze; every other account is free. */
+    if (cooldownMinutes > 0) freeze(run.accountIds?.length ? run.accountIds : run.requestedIds, scanEndMs + cooldownMinutes * 60_000);
     patchRun({
       stage: 'posture',
       discovery: { ...state.run.discovery, state: 'completed', identities: result.identities, credentials: result.credentials, changes: result.changes, scanEnd: result.scanEnd, finishedAt: Date.now() },
@@ -369,7 +415,7 @@ export function init(user) {
     saved = null;
   }
   if (saved && saved.owner === owner) {
-    state = { ...state, run: saved.run ?? null, cooldownUntil: Number(saved.cooldownUntil) || 0 };
+    state = { ...state, run: saved.run ?? null, cooldowns: liveCooldowns(saved.cooldowns) };
   }
   listeners.forEach((listener) => listener());
   if (isActive(state.run)) {
@@ -383,7 +429,7 @@ export function init(user) {
 export function stop() {
   clearTimeout(timer);
   owner = '';
-  state = { run: null, cooldownUntil: 0, lastScanAt: null, notice: null };
+  state = { run: null, cooldowns: {}, lastScanAt: null, notice: null };
   listeners.forEach((listener) => listener());
 }
 

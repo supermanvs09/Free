@@ -300,6 +300,7 @@ func (s *AWSIntegrationService) Get(ctx context.Context, caller AWSCaller, canMa
 		out.Platforms.Bitbucket = settings.BitbucketActive && codesources.BitbucketOn()
 	}
 	out.ExposureEnabled = out.Platforms.CodeCommit || out.Platforms.GitHub || out.Platforms.Bitbucket
+	out.SyncCooldownMinutes = SyncCooldownMinutes()
 	if !canManage {
 		return out, nil
 	}

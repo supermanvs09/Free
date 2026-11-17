@@ -61,6 +61,10 @@ export function SyncProvider({ children }) {
 
   /* Without a list: every connected AWS account (Sync all accounts). */
   const workspace = useWorkspace();
+  /* The freeze after a sync, per account, from the backend's setting. */
+  useEffect(() => {
+    engine.setCooldownMinutes(workspace.integration?.syncCooldownMinutes ?? 0);
+  }, [workspace.integration?.syncCooldownMinutes]);
   const connected = useMemo(
     () => (workspace.integration?.accounts ?? []).filter((a) => a.status === 'connected' && a.connectedAt).map((a) => a.accountId),
     [workspace.integration],
@@ -76,6 +80,10 @@ export function SyncProvider({ children }) {
   const value = useMemo(
     () => ({
       ...snapshot,
+      /* When one account can be synced again (0: now), and for a list: 0 when any can. */
+      untilFor: (accountId) => engine.cooldownUntilFor(accountId, snapshot.cooldowns),
+      allCoolingUntil: (accountIds) => engine.allCoolingUntil(accountIds, snapshot.cooldowns),
+      connected,
       canScan: can('scan.run'),
       active: engine.isRunActive(),
       start,
@@ -83,7 +91,7 @@ export function SyncProvider({ children }) {
       closePanel: () => setPanelOpen(false),
       panelOpen,
     }),
-    [snapshot, can, start, panelOpen],
+    [snapshot, can, start, panelOpen, connected],
   );
 
   return (

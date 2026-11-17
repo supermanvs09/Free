@@ -101,6 +101,9 @@ type AWSIntegrationResponse struct {
 	// CodeCommit on an AWS account, or GitHub / Bitbucket for the company. The
 	// console shows the exposed-credential pages from then on.
 	ExposureEnabled bool `json:"exposure_enabled"`
+	// SyncCooldownMinutes is how long an account waits after a sync before it
+	// can be synced again (NHI_SYNC_COOLDOWN_MINUTES); 0 means no wait.
+	SyncCooldownMinutes int `json:"sync_cooldown_minutes"`
 	// Platforms says which credential-exposure sources are on. GitHub and
 	// Bitbucket are switched on for the whole company (nhi_global.tenants
 	// github_active / bitbucket_active), CodeCommit per AWS account.

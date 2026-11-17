@@ -73,14 +73,15 @@ export function useAccountActions(account, { onChanged, onEditRegions } = {}) {
   /* This account only: the same sync as the top bar's (read, score, refresh
      every page), with account_ids = [this account]. Its progress is in the
      sync panel. */
-  const { start: startSync, run, cooldownUntil } = useSync();
+  const { start: startSync, run, untilFor } = useSync();
   const sync = async () => {
     if (run && run.stage !== 'done' && run.stage !== 'failed') {
       notify({ variant: 'info', title: 'A sync is already running', description: 'Wait for it to finish, then sync this account.' });
       return;
     }
-    if (cooldownUntil > Date.now()) {
-      notify({ variant: 'info', title: 'Sync again in a few minutes', description: `A sync can run every 10 minutes. The next one can start in ${Math.ceil((cooldownUntil - Date.now()) / 60000)} min.` });
+    const until = untilFor(account.accountId);
+    if (until > Date.now()) {
+      notify({ variant: 'info', title: 'Sync again in a few minutes', description: `This account was just synced. It can be synced again in ${Math.max(1, Math.ceil((until - Date.now()) / 60000))} min.` });
       return;
     }
     setBusy('sync');

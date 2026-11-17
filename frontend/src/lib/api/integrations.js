@@ -99,6 +99,8 @@ export async function fetchAwsIntegration(signal) {
     status: d.status || 'not_connected',
     hasConnectedAccount: Boolean(d.has_connected_account),
     exposureEnabled: Boolean(d.exposure_enabled),
+    /* Minutes an account waits after its sync (NHI_SYNC_COOLDOWN_MINUTES); 0: none. */
+    syncCooldownMinutes: Math.max(0, Number(d.sync_cooldown_minutes) || 0),
     /* Which credential-exposure sources are on: GitHub and Bitbucket for the
        whole company, CodeCommit per AWS account. */
     platforms: {
