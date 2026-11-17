@@ -11,7 +11,9 @@
   /* ---------- HERO ---------- */
   .hero{height:400px;background:radial-gradient(120% 140% at 0% 0%, var(--navy-l) 0%, var(--navy) 42%, var(--navy-dd) 100%)}
   .hero-inner{position:relative;z-index:2;padding:46px 64px 0}
-  .topbar{display:flex;align-items:center;justify-content:space-between}
+  .topbar{display:flex;align-items:center;gap:22px}
+  .topbar .pill{position:relative;z-index:3}
+  .topbar .sep{width:1px;height:38px;background:rgba(166,217,255,.35)}
   h1{margin-top:46px;font-size:48px;line-height:1.12;font-weight:800;letter-spacing:-.02em;max-width:680px}
   h1 em{font-style:normal;color:#7cc7ff}
   .tagline{margin-top:18px;font-size:20px;line-height:1.5;color:#d2ddf5;font-weight:500;white-space:nowrap}
@@ -89,11 +91,11 @@
   <!-- ============ HERO ============ -->
   <header class="hero">
     <div class="grid"></div>
-    <div class="hero-vis" style="background-image:url(../assets/photos/hero-agentic.jpg);background-position:62% 35%"></div>
+    <div class="hero-vis" style="background-image:url(../assets/photos/hero-agentic.jpg);background-position:50% 45%;width:660px"></div>
     <div class="hero-inner">
       <div class="topbar">
         <img src="../assets/brand/deep-algorithms-lockup-inverse.png" alt="Deep Algorithms" style="height:64px;display:block">
-        <div class="pill">ENTERPRISE PROFILE</div>
+        <span class="sep"></span><div class="pill">ENTERPRISE PROFILE</div>
       </div>
       <h1>Pioneering Agentic and Data Security through <em>Behavioural Intelligence.</em></h1>
       <p class="tagline">AI-powered identity security for the human, non-human and agentic AI era.</p>

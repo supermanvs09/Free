@@ -107,6 +107,13 @@
   .close .tl em{font-style:normal;color:#7cc7ff}
   .close .by{display:flex;align-items:center;gap:10px;margin-top:14px;font-size:13px;color:#b8c8f0;font-weight:500}
   .close .by img{height:28px}
+  .dbadge{position:absolute;z-index:2;right:230px;top:50%;width:200px;height:200px;transform:translateY(-50%)}
+  .dbadge .bring{position:absolute;inset:0;border-radius:50%;border:2px solid rgba(166,217,255,.75);background:radial-gradient(circle,rgba(14,26,92,.55) 55%,transparent 71%)}
+  .dbadge .bring.r2{inset:22px;border:2px dashed rgba(166,217,255,.85);background:none}
+  .dbadge .disc{position:absolute;inset:44px;border-radius:50%;display:grid;place-items:center;
+    background:radial-gradient(circle at 35% 30%,#ffffff 0%,#e4f0ff 60%,#c7defc 100%);border:3px solid #4fb3ff;
+    box-shadow:0 0 0 8px rgba(79,179,255,.18),0 18px 40px -12px rgba(0,0,0,.6)}
+  .dbadge img{width:62px}
 </style>
 </head>
 <body>
@@ -115,6 +122,7 @@
   <!-- ============ HERO ============ -->
   <header class="hero">
     <div class="hero-vis" style="background-image:url(../assets/photos/hero-nhi.jpg);background-position:50% 50%"></div>
+    <div class="dbadge"><span class="bring"></span><span class="bring r2"></span><div class="disc"><img src="../assets/brand/deep-algorithms-mark.png" alt="Deep Algorithms"></div></div>
     <div class="hero-inner">
       <div class="logo"><img src="../assets/brand/adapid-mark.png" alt=""><b>adapID <i>AI</i></b></div>
       <p class="kick">Continuous Identity Risk Management</p>
