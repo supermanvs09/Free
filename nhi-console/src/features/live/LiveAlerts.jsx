@@ -9,8 +9,8 @@ const VARIANT = { CRITICAL: 'error', HIGH: 'warning', MEDIUM: 'info', LOW: 'info
 
 /**
  * Real-time alerts while the console is open: a new detection shows as a
- * toast with a link to it, refreshes the alert badge, and is sent to Gmail
- * and Jira by the watcher (lib/local/notifyBus.js). A finished "Sync now"
+ * toast with a link to it and refreshes the alert badge.
+ * A finished "Sync now"
  * picks up the next detection straight away.
  */
 export function LiveAlerts() {

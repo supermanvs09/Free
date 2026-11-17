@@ -2,7 +2,7 @@
 import { ok, fail, iso, MIN, HOUR } from '../util';
 import { ApiError } from '../../api/http';
 import * as aws from '../aws';
-import { APP_CATALOG, APP_KEYS, apps, publicApp, setEnabled, isOn } from '../apps';
+import { APP_CATALOG, APP_KEYS, HIDDEN_APPS, apps, publicApp, setEnabled, isOn } from '../apps';
 import { estate, REPOSITORIES } from '../seed';
 import { allFindings } from '../exposureData';
 import { save } from '../state';
@@ -74,7 +74,9 @@ const CHECKS = {
 
 export default function register(r) {
   /* ── Hub ─────────────────────────────────────────────────────────────── */
-  r.get('/api/v1/integrations', ({ user }) => ok({ apps: APP_KEYS.map(hubEntry), catalog: APP_CATALOG, can_manage: can(user, 'integrations') }));
+  /* Gmail and Jira are not offered for now: left out of the hub entirely. */
+  const SHOWN = APP_KEYS.filter((k) => !HIDDEN_APPS.has(k));
+  r.get('/api/v1/integrations', ({ user }) => ok({ apps: SHOWN.map(hubEntry), catalog: APP_CATALOG.filter((a) => !HIDDEN_APPS.has(a.key)), can_manage: can(user, 'integrations') }));
 
   r.put('/api/v1/integrations/:key', async ({ params, body, user }) => {
     if (!APP_KEYS.includes(params.key)) return fail(404, 'Unknown application.', 'NOT_FOUND');

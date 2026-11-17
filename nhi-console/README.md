@@ -201,6 +201,8 @@ brand mark (`src/ui/ProviderIcon.jsx`, from `react-icons`).
 
 ## Real-time alerts, Gmail and Jira
 
+> **Currently switched off.** Gmail and Jira are hidden from the console and nothing is emailed or ticketed. To bring them back, empty `HIDDEN_APPS` in `src/lib/local/apps.js` (and restore `GmailTab.jsx` / `JiraTab.jsx` from git history).
+
 New detections (an exposed credential, a behaviour anomaly, a posture drop,
 newly discovered identities) arrive while the console is open. Each one:
 

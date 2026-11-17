@@ -19,6 +19,8 @@ export const APP_CATALOG = [
   { key: 'jira', name: 'Jira', short: 'Jira', category: 'notify', summary: 'Opens and updates Jira issues for the alerts you choose.' },
 ];
 export const APP_KEYS = APP_CATALOG.map((a) => a.key);
+/* Not offered in the console for now. */
+export const HIDDEN_APPS = new Set(['gmail', 'jira']);
 export const IDENTITY_APPS = ['aws', 'azure', 'jenkins', 'vault'];
 export const EXPOSURE_APPS = ['github', 'bitbucket'];
 

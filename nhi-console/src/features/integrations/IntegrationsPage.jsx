@@ -17,8 +17,6 @@ import { cn } from '../../ui/cn';
 import { AwsTab } from './AwsTab';
 import { ConnectionsTab } from './ConnectionsTab';
 import { CodeScanTab } from './CodeScanTab';
-import { GmailTab } from './GmailTab';
-import { JiraTab } from './JiraTab';
 import { STATUS, StatusDot } from './hubParts';
 
 /**
@@ -31,7 +29,6 @@ import { STATUS, StatusDot } from './hubParts';
 const GROUPS = [
   { key: 'identity', title: 'Identity sources', lede: 'Where your non-human identities and their credentials live.' },
   { key: 'exposure', title: 'Code scanning', lede: 'Where their secrets leak: repositories and their history.' },
-  { key: 'notify', title: 'Alerts and tickets', lede: 'Where people hear about it, as it happens.' },
 ];
 
 export default function IntegrationsPage() {
@@ -87,7 +84,7 @@ export default function IntegrationsPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Integrations"
-        lede="Switch on the applications your non-human identities live in, where their secrets could leak, and where alerts should go. Each one you switch on gets its own tab."
+        lede="Switch on the applications your non-human identities live in, and where their secrets could leak. Each one you switch on gets its own tab."
         actions={<SyncNowButton />}
         tabs={
           <nav aria-label="Applications" className="-mb-px flex gap-0.5 overflow-x-auto">
@@ -123,8 +120,6 @@ export default function IntegrationsPage() {
           {active === 'aws' && <AwsTab app={activeApp} />}
           {['azure', 'jenkins', 'vault'].includes(active) && <ConnectionsTab app={activeApp} canManage={canManage} />}
           {['github', 'bitbucket'].includes(active) && <CodeScanTab app={activeApp} canManage={canManage} />}
-          {active === 'gmail' && <GmailTab app={activeApp} canManage={canManage} />}
-          {active === 'jira' && <JiraTab app={activeApp} canManage={canManage} />}
         </div>
       )}
 
@@ -158,7 +153,7 @@ function Overview({ apps, canManage, busy, onSwitch, onOpen }) {
   const on = apps.filter((a) => a.enabled);
   const identities = on.reduce((s, a) => s + (Number(a.identities) || 0), 0);
   const repos = on.reduce((s, a) => s + (Number(a.repositories) || 0), 0);
-  const sent = on.reduce((s, a) => s + (Number(a.sent_24h) || 0), 0);
+  const credentials = on.reduce((s, a) => s + (Number(a.credentials) || 0), 0);
   const attention = on.filter((a) => a.status === 'action_needed' || a.status === 'not_connected');
   return (
     <>
@@ -166,7 +161,7 @@ function Overview({ apps, canManage, busy, onSwitch, onOpen }) {
         <Summary label="Applications on" value={`${on.length} of ${apps.length}`} />
         <Summary label="Identities discovered" value={formatNumber(identities)} hint={`from ${on.filter((a) => a.category === 'identity').length} sources`} />
         <Summary label="Repositories scanned" value={formatNumber(repos)} />
-        <Summary label="Alerts delivered, 24h" value={formatNumber(sent)} hint={attention.length ? `${attention.length} ${attention.length === 1 ? 'application needs' : 'applications need'} attention` : 'Everything healthy'} tone={attention.length ? 'medium' : 'low'} />
+        <Summary label="Credentials discovered" value={formatNumber(credentials)} hint={attention.length ? `${attention.length} ${attention.length === 1 ? 'application needs' : 'applications need'} attention` : 'Everything healthy'} tone={attention.length ? 'medium' : 'low'} />
       </div>
 
       {GROUPS.map((group) => (
@@ -197,8 +192,6 @@ function AppCard({ app, canManage, busy, onSwitch, onOpen }) {
       return [`${formatNumber(app.connections)} ${noun}${app.connections === 1 ? '' : 's'}`, `${formatNumber(app.identities)} identities`, `${formatNumber(app.credentials)} credentials`];
     }
     if (app.category === 'exposure') return [`${formatNumber(app.repositories)} repositories`, `${formatNumber(app.findings)} open findings`];
-    if (app.key === 'gmail') return [app.recipients?.length ? `${app.recipients.length} recipient${app.recipients.length === 1 ? '' : 's'}` : 'No recipients yet', `${formatNumber(app.sent_24h)} sent in 24h`];
-    if (app.key === 'jira') return [app.project_key ? `Project ${app.project_key}` : 'No project yet', `${formatNumber(app.sent_24h)} issues in 24h`];
     return [];
   }, [app]);
 
