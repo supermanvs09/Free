@@ -1,3 +1,4 @@
+import { ScopePicker } from '../../ui/ScopePicker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ArrowDownWideNarrow, ArrowUpNarrowWide, KeyRound, SearchX } from 'lucide-react';
@@ -54,7 +55,7 @@ const FLAGS = [
   { key: 'external', label: 'External trust', param: 'has_external_trust', value: 'true', tone: 'medium', query: { hasExternalTrust: 'true' } },
 ];
 
-const FILTER_PARAMS = ['search', 'provider', 'credential_type', 'status', ...new Set(FLAGS.map((flag) => flag.param))];
+const FILTER_PARAMS = ['search', 'provider', 'account_id', 'credential_type', 'status', ...new Set(FLAGS.map((flag) => flag.param))];
 
 /* Grid column -> API sort field. */
 const SORTABLE = {
@@ -99,6 +100,7 @@ function readQuery(searchParams) {
     query: {
       search: searchParams.get('search') || '',
       provider: splitList(searchParams.get('provider'), PROVIDER_KEYS),
+      accountId: searchParams.get('account_id') || undefined,
       credentialType: splitList(searchParams.get('credential_type'), API_CREDENTIAL_TYPES),
       status: splitList(searchParams.get('status'), new Set(API_CREDENTIAL_STATUSES)),
       rotationEnabled: boolParam('rotation_enabled'),
@@ -243,6 +245,7 @@ export default function CredentialsPage() {
     const list = [];
     if (filters.search) list.push({ key: 'search', label: 'Search', value: filters.search });
     filters.provider.forEach((value) => list.push({ key: `provider=${value}`, label: 'Source', value: providerLabel(value) }));
+    if (filters.accountId) list.push({ key: 'account_id', label: 'Account', value: filters.accountId });
     filters.credentialType.forEach((value) => list.push({ key: `credential_type=${value}`, label: 'Type', value: credentialTypeMeta(value).label }));
     filters.status.forEach((value) => list.push({ key: `status=${value}`, label: 'Status', value: lifecycleMeta(value).label }));
     FLAGS.forEach((flag) => {
@@ -259,6 +262,24 @@ export default function CredentialsPage() {
   };
 
   const facetGroups = [
+    {
+        key: 'scope',
+        render: () => (
+          <ScopePicker
+            accounts={facetsQuery.data?.accounts ?? []}
+            provider={(searchParams.get('provider') || '').split(',').filter(Boolean).length === 1 ? searchParams.get('provider') : null}
+            accountId={searchParams.get('account_id')}
+            onChange={({ provider, accountId }) =>
+              update((next) => {
+                if (provider) next.set('provider', provider);
+                else next.delete('provider');
+                if (accountId) next.set('account_id', accountId);
+                else next.delete('account_id');
+              })
+            }
+          />
+        ),
+      },
     {
       key: 'flags',
       label: 'Needs attention',

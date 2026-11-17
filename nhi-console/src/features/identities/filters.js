@@ -66,6 +66,7 @@ export const FILTER_PARAMS = [
   'is_publicly_accessible',
   'shadow',
   'min_idle_days',
+  'account_id',
   ...LIST_PARAMS.map((entry) => entry.param),
 ];
 
@@ -127,6 +128,7 @@ export function readFilters(searchParams) {
   return {
     search: searchParams.get('search') || '',
     provider: listOf(searchParams, 'provider'),
+    accountId: searchParams.get('account_id') || '',
     identityType: listOf(searchParams, 'identity_type'),
     functionalClass: listOf(searchParams, 'functional_class'),
     environment: listOf(searchParams, 'environment'),
@@ -147,6 +149,8 @@ export function describeFilters(searchParams) {
   const chips = [];
   const search = searchParams.get('search');
   if (search) chips.push({ key: 'search', label: 'Search', value: search });
+  const account = searchParams.get('account_id');
+  if (account) chips.push({ key: 'account_id', label: 'Account', value: account });
 
   for (const entry of LIST_PARAMS) {
     for (const value of splitList(searchParams.get(entry.param), entry.allowed)) {

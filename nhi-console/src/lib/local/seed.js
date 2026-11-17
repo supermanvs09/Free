@@ -218,11 +218,6 @@ function identityArn(spec, scope, region, r) {
 
 const AWS_CREATORS = ['terraform-runner', 'github-actions-deploy', 'deploy-prod-pipeline'];
 
-function ownerReasonFor(spec, owner) {
-  if (!owner) return 'No owner tag, team tag or creator could be resolved';
-  if (spec.cls === 'NHI_CICD') return `Team tag "${owner.team}"`;
-  return `Owner tag "${owner.email}"`;
-}
 
 /* ── Build ─────────────────────────────────────────────────────────────── */
 function build() {
@@ -261,7 +256,7 @@ function build() {
       owner_name: owner?.name ?? null,
       owner_team: owner?.team ?? null,
       owner_type: owner ? (spec.cls === 'NHI_CICD' ? 'TEAM_TAG' : 'TAG_OWNER') : 'ORPHANED',
-      owner_reason: ownerReasonFor(spec, owner),
+      owner_reason: null,
       account_id: scope.id,
       account_name: scope.name,
       region,

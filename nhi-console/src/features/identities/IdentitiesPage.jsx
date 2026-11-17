@@ -28,6 +28,7 @@ import { Tag } from '../../ui/Tag';
 import { useToast } from '../../ui/Toast';
 import { IdentityDrawer } from './IdentityDrawer';
 import { OwnerCell } from './OwnerCell';
+import { ScopePicker } from '../../ui/ScopePicker';
 import { ActivityCell, UtilisationCell } from './status';
 import {
   API_ENVIRONMENTS,
@@ -307,6 +308,24 @@ export default function IdentitiesPage() {
     });
     return [
       {
+        key: 'scope',
+        render: () => (
+          <ScopePicker
+            accounts={facets?.accounts ?? []}
+            provider={(searchParams.get('provider') || '').split(',').filter(Boolean).length === 1 ? searchParams.get('provider') : null}
+            accountId={searchParams.get('account_id')}
+            onChange={({ provider, accountId }) =>
+              update((next) => {
+                if (provider) next.set('provider', provider);
+                else next.delete('provider');
+                if (accountId) next.set('account_id', accountId);
+                else next.delete('account_id');
+              })
+            }
+          />
+        ),
+      },
+      {
         key: 'signals',
         label: 'Risks',
         options: SIGNALS.map((signal) => ({
@@ -367,7 +386,6 @@ export default function IdentitiesPage() {
         { header: 'Region', value: (row) => row.region },
         { header: 'Environment', value: (row) => row.environment },
         { header: 'Owner', value: (row) => row.owner },
-        { header: 'Owner reason', value: (row) => row.owner_reason ?? '' },
         { header: 'Status', value: (row) => row.status },
         { header: 'Publicly accessible', value: (row) => (row.is_publicly_accessible ? 'yes' : 'no') },
         { header: 'VPC', value: (row) => row.vpc_id },
@@ -438,7 +456,7 @@ export default function IdentitiesPage() {
       sortable: true,
       cell: (row) => (
         <span className="block min-w-0">
-          <OwnerCell owner={row.owner} reason={row.owner_reason} />
+          <OwnerCell owner={row.owner} />
           {/* Who created it and how long ago, on one line: age reads best beside its creator. */}
           {(row.created_by || Number.isFinite(row.age_days) || row.first_seen_at) && (
             <span

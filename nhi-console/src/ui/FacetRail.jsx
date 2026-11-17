@@ -123,9 +123,15 @@ export function FacetRail({
       </div>
 
       <div data-rail-body="" className="min-h-0 flex-1 divide-y divide-line overflow-y-auto overscroll-contain">
-        {groups.map((group) => (
-          <FacetGroup key={group.key} group={group} />
-        ))}
+        {groups.map((group) =>
+          group.render ? (
+            <div key={group.key} className="px-3 py-3">
+              {group.render()}
+            </div>
+          ) : (
+            <FacetGroup key={group.key} group={group} />
+          ),
+        )}
       </div>
     </>
   );

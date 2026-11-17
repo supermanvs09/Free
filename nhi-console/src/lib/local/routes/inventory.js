@@ -46,6 +46,8 @@ export function filterCredentials(q) {
   if (statuses.length) rows = rows.filter((r) => statuses.includes(r.status));
   const providers = list(q.provider);
   if (providers.length) rows = rows.filter((r) => providers.includes(r.provider));
+  const accountIds = list(q.account_id);
+  if (accountIds.length) rows = rows.filter((r) => accountIds.includes(r.account_id));
   if (q.owner_principal_arn) rows = rows.filter((r) => r.owner_principal_arn === q.owner_principal_arn || identitiesOf(r).some((i) => i.arn === q.owner_principal_arn));
   if (q.rotation_enabled !== undefined && q.rotation_enabled !== '') rows = rows.filter((r) => r.rotation_enabled === truthy(q.rotation_enabled));
   if (truthy(q.rotation_overdue)) rows = rows.filter((r) => r.rotation_overdue);
