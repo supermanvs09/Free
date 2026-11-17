@@ -17,6 +17,8 @@ import { SegmentedControl } from '../../ui/Tabs';
 import { Tag } from '../../ui/Tag';
 import { RecordBar, ResultCount } from '../../ui/WorkArea';
 import { cn } from '../../ui/cn';
+import { fetchPostureScoreIndex } from '../../lib/api/posture';
+import { BandTag, ScoreRing } from '../posture/parts';
 import { PersonDrawer } from './PersonDrawer';
 import { Avatar, CoverageRing, LegendRow } from './parts';
 import { MFA_OPTIONS, SORT_OPTIONS, SOURCE_LABEL, SOURCE_OPTIONS, STATUS_OPTIONS, daysSince, personName, statusMeta } from './peopleMeta';
@@ -82,6 +84,9 @@ export default function PeoplePage() {
     (signal) => fetchHumanIdentities({ page, pageSize, source, status, mfa, search: urlSearch, sortBy, sortOrder }, signal),
     [page, pageSize, source, status, mfa, urlSearch, sortBy, sortOrder],
   );
+  /* Security scores from the posture service, matched by ARN (IAM users) or by
+     name / email (single sign-on users, who have no ARN). */
+  const postureIndex = useQuery((signal) => fetchPostureScoreIndex(signal), []);
   const o = overview.data;
   const rows = list.data?.rows ?? [];
   const total = list.data?.total ?? 0;
@@ -93,7 +98,7 @@ export default function PeoplePage() {
         key: 'person',
         header: 'Person',
         primary: true,
-        width: '30%',
+        width: '27%',
         cell: (row) => (
           <span className="flex min-w-0 items-center gap-3">
             <Avatar name={personName(row)} seed={row.email || row.user_name || row.id} size={34} />
@@ -104,7 +109,7 @@ export default function PeoplePage() {
       {
         key: 'source',
         header: 'Signs in with',
-        width: '15%',
+        width: '13%',
         cell: (row) => (
           <span className="block min-w-0">
             <Tag tone={row.source === 'sso' ? 'brand' : 'neutral'} size="sm">
@@ -117,7 +122,7 @@ export default function PeoplePage() {
       {
         key: 'status',
         header: 'Status',
-        width: '11%',
+        width: '10%',
         cell: (row) => {
           const meta = statusMeta(row.status);
           return (
@@ -130,13 +135,13 @@ export default function PeoplePage() {
       {
         key: 'mfa',
         header: 'MFA',
-        width: '12%',
+        width: '10%',
         cell: (row) => <MfaCell row={row} />,
       },
       {
         key: 'access',
         header: 'Access',
-        width: '12%',
+        width: '11%',
         priority: 'wide',
         cell: (row) => (
           <span className="block text-[12.5px] text-ink-2">
@@ -151,22 +156,28 @@ export default function PeoplePage() {
         ),
       },
       {
+        key: 'score',
+        header: 'Security score',
+        width: '15%',
+        cell: (row) => <ScoreCell entry={scoreFor(postureIndex.data, row)} loading={!postureIndex.data && !postureIndex.isError} />,
+      },
+      {
         key: 'last',
         header: 'Last active',
-        width: '14%',
+        width: '12%',
         cell: (row) => <LastActive value={row.last_activity_at} />,
       },
     ],
-    [],
+    [postureIndex.data, postureIndex.isError],
   );
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Discovery"
-        lede="The people who sign in to your AWS accounts: IAM users and single sign-on users. See who has MFA, who has gone quiet and who holds admin-level access."
+        lede="The human identities that sign in to your AWS accounts: IAM users and single sign-on users. See who has MFA, who has gone quiet and who holds admin-level access."
         sections={<DiscoveryTabs />}
-        meta={o ? <p className="text-[11.5px] text-ink-3">{formatNumber(o.total)} people in your scope.</p> : null}
+        meta={o ? <p className="text-[11.5px] text-ink-3">{formatNumber(o.total)} human identities in your scope.</p> : null}
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -176,7 +187,7 @@ export default function PeoplePage() {
 
       {overview.isError && !o ? (
         <Panel>
-          <ErrorState compact error={overview.error} onRetry={overview.refetch} title="People figures could not be loaded" />
+          <ErrorState compact error={overview.error} onRetry={overview.refetch} title="Human identity figures could not be loaded" />
         </Panel>
       ) : (
         <Tiles overview={o} onMfaOff={() => update({ mfa: 'false' })} />
@@ -192,7 +203,7 @@ export default function PeoplePage() {
                   overview.refetch();
                 }}
                 refreshing={list.isRefreshing}
-                label="Refresh people"
+                label="Refresh human identities"
               />
             </TableToolbar>
           }
@@ -201,14 +212,14 @@ export default function PeoplePage() {
           <Select aria-label="Status" value={status} onChange={(e) => update({ status: e.target.value })} options={STATUS_OPTIONS} className="w-auto" />
           <Select aria-label="MFA" value={mfa} onChange={(e) => update({ mfa: e.target.value })} options={MFA_OPTIONS} className="w-auto" />
           <Select aria-label="Sort" value={sort} onChange={(e) => update({ sort: e.target.value === SORT_OPTIONS[0].value ? '' : e.target.value })} options={SORT_OPTIONS} className="w-auto" />
-          <ResultCount shown={formatNumber(rows.length)} total={formatNumber(total)} unit="people" filtered={filtered} paged loading={list.isLoading && !list.data} />
+          <ResultCount shown={formatNumber(rows.length)} total={formatNumber(total)} unit="identities" filtered={filtered} paged loading={list.isLoading && !list.data} />
         </RecordBar>
 
         {list.isError && !list.data ? (
-          <ErrorState error={list.error} onRetry={list.refetch} title="People could not be loaded" />
+          <ErrorState error={list.error} onRetry={list.refetch} title="Human identities could not be loaded" />
         ) : (
           <DataGrid
-            caption="People who sign in to AWS"
+            caption="Human identities"
             columns={columns}
             rows={rows}
             rowKey={(row) => row.id}
@@ -234,7 +245,7 @@ export default function PeoplePage() {
             page={page}
             pageSize={pageSize}
             total={total}
-            unit="people"
+            unit="identities"
             onPageChange={(next) => update({ page: next > 1 ? next : '' }, { keepPage: true })}
             onPageSizeChange={(size) => update({ size: size === 25 ? '' : size })}
           />
@@ -256,7 +267,7 @@ function Tiles({ overview: o, onMfaOff }) {
     <div className="flex flex-col gap-3">
       <div className="grid gap-3 @container lg:grid-cols-3">
         <Panel prominence="quiet" className="animate-rise">
-          <p className="text-[12.5px] font-medium text-ink-2">People</p>
+          <p className="text-[12.5px] font-medium text-ink-2">Human identities</p>
           <p data-numeric="" className={cn('mt-1 font-display text-[34px] leading-none font-extrabold tracking-[-0.03em] text-ink', loading && 'opacity-40')}>
             {loading ? '-' : formatNumber(o.total)}
           </p>
@@ -356,6 +367,26 @@ function MfaCell({ row }) {
       </span>
       {consoleOn && !on && <span className="mt-0.5 block text-[11px] font-medium text-critical">Console open</span>}
       {consoleOn && on && <span className="mt-0.5 block text-[11px] text-ink-3">Console access</span>}
+    </span>
+  );
+}
+
+/** The posture entry for a person: by ARN first, then by user name, email or display name. */
+function scoreFor(index, row) {
+  if (!index) return null;
+  return (
+    (row.arn && index.get(row.arn)) ||
+    [row.user_name, row.email, row.display_name].map((v) => v && index.get(`name:${String(v).toLowerCase()}`)).find(Boolean) ||
+    null
+  );
+}
+
+function ScoreCell({ entry, loading }) {
+  if (!entry) return <span className="text-[12px] text-ink-3">{loading ? '…' : 'Not scored yet'}</span>;
+  return (
+    <span className="flex min-w-0 items-center gap-1.5" title={`Security score ${entry.score} of 100`}>
+      <ScoreRing score={entry.score} band={entry.band} size={28} />
+      <BandTag score={entry.score} band={entry.band} />
     </span>
   );
 }

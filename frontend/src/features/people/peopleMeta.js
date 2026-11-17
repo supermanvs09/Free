@@ -1,7 +1,7 @@
 /** Shared words and rules for the People screens. */
 
 export const SOURCE_OPTIONS = [
-  { value: 'all', label: 'All people' },
+  { value: 'all', label: 'All' },
   { value: 'iam', label: 'AWS IAM' },
   { value: 'sso', label: 'Single sign-on' },
 ];

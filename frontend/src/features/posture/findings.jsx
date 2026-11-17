@@ -65,6 +65,8 @@ const MODES = {
   },
 };
 
+const SHOW_RISK_DECISIONS = false;
+
 /**
  * The actions a finding in this status offers, as Menu items. RESOLVED
  * findings belong to the engine and offer none.
@@ -73,8 +75,10 @@ export function findingActions(status, onAction) {
   const key = String(status ?? '').toUpperCase();
   if (key === 'RESOLVED') return [];
   return [
-    key !== 'ACCEPTED' && { key: 'accept', label: 'Accept risk…', icon: CheckCircle2, onSelect: () => onAction('accept') },
-    key !== 'SUPPRESSED' && { key: 'suppress', label: 'Suppress until…', icon: BellOff, onSelect: () => onAction('suppress') },
+    /* Accept risk and Suppress until are switched off for now (SHOW_RISK_DECISIONS).
+       Findings already accepted or suppressed can still be reopened. */
+    SHOW_RISK_DECISIONS && key !== 'ACCEPTED' && { key: 'accept', label: 'Accept risk…', icon: CheckCircle2, onSelect: () => onAction('accept') },
+    SHOW_RISK_DECISIONS && key !== 'SUPPRESSED' && { key: 'suppress', label: 'Suppress until…', icon: BellOff, onSelect: () => onAction('suppress') },
     (key === 'ACCEPTED' || key === 'SUPPRESSED') && { key: 'reopen', label: 'Reopen', icon: RotateCcw, onSelect: () => onAction('reopen') },
     { key: 'assign', label: 'Assign…', icon: UserPlus, onSelect: () => onAction('assign') },
     { key: 'note', label: 'Add a note…', icon: MessageSquarePlus, onSelect: () => onAction('note') },

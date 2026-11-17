@@ -147,7 +147,10 @@ export async function fetchPostureScoreIndex(signal) {
   for (let page = 0; page < 10; page += 1) {
     const result = await fetchPostureIdentities({}, { sort: 'name', limit: 100, cursor }, signal);
     for (const item of result.items) {
-      if (item.arn) index.set(item.arn, { score: item.score, band: item.band, grade: item.grade, id: item.identity_id });
+      const entry = { score: item.score, band: item.band, grade: item.grade, id: item.identity_id };
+      if (item.arn) index.set(item.arn, entry);
+      /* People signed in through single sign-on have no ARN: match them by name. */
+      if (item.name) index.set(`name:${String(item.name).toLowerCase()}`, entry);
     }
     if (!result.nextCursor) break;
     cursor = result.nextCursor;

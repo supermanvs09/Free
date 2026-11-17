@@ -32,7 +32,7 @@ export const NAV_GROUPS = [
     label: 'Overview',
     items: [
       { to: '/overview', label: 'Dashboard', icon: Gauge, end: true },
-      { to: '/identities', label: 'Discovery', icon: Fingerprint, match: ['/identities', '/credentials', '/people', '/discovery'] },
+      { to: '/people', label: 'Discovery', icon: Fingerprint, match: ['/identities', '/credentials', '/people', '/discovery'] },
       /* Separate from the genome on purpose: the genome is what an identity
          has done, the graph what it could do. */
       { to: '/access-graph', label: 'Access graph', icon: Waypoints },
@@ -94,9 +94,9 @@ export const BREADCRUMBS = {
   '/alerts': ['Overview', 'Alerts'],
   '/posture': ['Overview', 'Posture'],
   '/remediation': ['Overview', 'Remediation'],
-  '/identities': ['Overview', 'Discovery', 'Identities'],
+  '/identities': ['Overview', 'Discovery', 'Non-human'],
   '/credentials': ['Overview', 'Discovery', 'Credentials'],
-  '/people': ['Overview', 'Discovery', 'People'],
+  '/people': ['Overview', 'Discovery', 'Human'],
   '/exposure': ['Overview', 'Credential exposure'],
   '/exposure/dismissed': ['Overview', 'Credential exposure', 'Marked safe'],
   '/access-graph': ['Overview', 'Access graph'],

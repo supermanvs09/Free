@@ -73,11 +73,11 @@ export function SectionTabs({ items, label }) {
   );
 }
 
-/** Discovery's tabs: what acts in the accounts, what it signs in with, and the people who sign in. */
+/** Discovery's tabs: the people who sign in (Human), what acts in the accounts (Non-human), and what it signs in with (Credentials). */
 export const DISCOVERY_SECTIONS = [
-  { to: '/identities', label: 'Identities', icon: Fingerprint },
+  { to: '/people', label: 'Human', icon: UsersRound },
+  { to: '/identities', label: 'Non-human', icon: Fingerprint },
   { to: '/credentials', label: 'Credentials', icon: KeyRound },
-  { to: '/people', label: 'People', icon: UsersRound },
 ];
 
 export function DiscoveryTabs() {
