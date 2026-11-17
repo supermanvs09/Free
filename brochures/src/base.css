@@ -67,3 +67,13 @@ body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);-webk
 /* full-height hero visual (researched: one bold brand-tinted network render) */
 .hero-vis{position:absolute;z-index:1;right:0;top:0;bottom:0;width:780px;background-size:cover;background-repeat:no-repeat;
   -webkit-mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.55) 20%,#000 45%);mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.55) 20%,#000 45%)}
+
+/* premium NHI orbit */
+.pn{position:absolute;width:58px;height:58px}
+.pn .c{display:block;box-sizing:border-box;width:58px;height:58px;border-radius:50%;padding:15px;color:#fff;
+  background:radial-gradient(circle at 30% 25%,#2f4fb8 0%,#14257a 55%,#0a1347 100%);
+  border:1.5px solid #7cc7ff;box-shadow:0 0 0 5px rgba(79,179,255,.12),0 0 22px rgba(79,179,255,.45),inset 0 1px 0 rgba(255,255,255,.35)}
+.pn .c .ico{width:100%;height:100%;display:block}
+.pn b{position:absolute;top:50%;transform:translateY(-50%);white-space:nowrap;font-size:12.5px;font-weight:700;letter-spacing:.02em;color:#eaf4ff;
+  padding:5px 11px;border-radius:999px;background:rgba(10,19,71,.85);border:1px solid rgba(124,199,255,.5);left:66px}
+.pn.in b{left:auto;right:66px}
