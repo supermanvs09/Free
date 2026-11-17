@@ -145,7 +145,20 @@ def orbit_premium(W=660, H=346):
     nodes = [("APIs", "o-code", cx, 46), ("Automations", "o-robot", 92, 108), ("Cloud Workloads", "o-cloud", W - 92, 108),
              ("Service Accounts", "o-user-gear", 92, 236), ("Databases", "o-database", cx, 298), ("CI/CD Pipelines", "o-infinity", W - 92, 236)]
     sw, sh = 128, 150
-    links = "".join(f'<path d="M{cx} {cy} L{x} {y}" stroke="url(#pl)"/>' for _, _, x, y in nodes)
+    import math
+    lk, pk = [], []
+    for _, _, x, y in nodes:
+        dx, dy = x - cx, y - cy; L = math.hypot(dx, dy); ux, uy = dx / L, dy / L
+        r0 = 68 if abs(uy) > .8 else 62
+        sx, sy, ex, ey = cx + ux * r0, cy + uy * r0, x - ux * 31, y - uy * 31
+        lk.append(f'<path d="M{sx:.1f} {sy:.1f} L{ex:.1f} {ey:.1f}"/>')
+        for t, r in ((.35, 2.6), (.72, 2)):
+            pk.append(f'<circle cx="{sx+(ex-sx)*t:.1f}" cy="{sy+(ey-sy)*t:.1f}" r="{r}"/>')
+        pk.append(f'<circle cx="{sx:.1f}" cy="{sy:.1f}" r="4" fill="#0E1A5C" stroke="#a6d9ff" stroke-width="1.5"/>')
+    lines = "".join(lk)
+    links = (f'<g stroke="#4fb3ff" stroke-width="5" stroke-opacity=".35" filter="url(#gl)">{lines}</g>'
+             f'<g stroke="#a6d9ff" stroke-width="1.6" stroke-opacity=".9">{lines}</g>')
+    packets = f'<g fill="#ffffff" filter="url(#pk)">{"".join(pk)}</g>' 
     import random
     random.seed(7)
     stars = "".join(f'<circle cx="{random.uniform(0,W):.0f}" cy="{random.uniform(0,H):.0f}" r="{random.choice([0.8,1,1.3,1.8])}" fill="#bfe3ff" opacity="{random.uniform(.25,.8):.2f}"/>' for _ in range(70))
@@ -159,17 +172,21 @@ def orbit_premium(W=660, H=346):
 <linearGradient id="sf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#eef6ff"/><stop offset="1" stop-color="#cfe4fb"/></linearGradient>
 <linearGradient id="sh" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity=".9"/><stop offset=".5" stop-color="#ffffff" stop-opacity="0"/></linearGradient>
 <filter id="gl" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
+<filter id="pk" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="1.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
 </defs>
 {stars}
 <circle cx="{cx}" cy="{cy}" r="{H*0.52}" fill="url(#pg)"/>
-<g stroke-width="1.2" stroke-dasharray="2 6">{links}</g>
+
 <ellipse cx="{cx}" cy="{cy+14}" rx="{W*0.47}" ry="{H*0.15}" stroke="#4fb3ff" stroke-opacity=".25" stroke-width="6" filter="url(#gl)"/>
 <ellipse cx="{cx}" cy="{cy+14}" rx="{W*0.47}" ry="{H*0.15}" stroke="url(#po)" stroke-width="1.8"/>
 <ellipse cx="{cx}" cy="{cy+14}" rx="{W*0.36}" ry="{H*0.1}" stroke="#a6d9ff" stroke-opacity=".35" stroke-dasharray="3 7"/>
 <circle cx="{cx}" cy="{cy}" r="{sh*0.72}" stroke="url(#po)" stroke-opacity=".7"/>
 <circle cx="{cx}" cy="{cy}" r="{sh*0.86}" stroke="#a6d9ff" stroke-opacity=".18"/>
 <g fill="#ffffff"><circle cx="{cx-W*0.47}" cy="{cy+14}" r="3"/><circle cx="{cx+W*0.47}" cy="{cy+14}" r="3"/><circle cx="{cx-W*0.24}" cy="{cy+14+H*0.129}" r="2.6"/><circle cx="{cx+W*0.3}" cy="{cy+14-H*0.122}" r="2.6"/></g>
-<ellipse cx="{cx}" cy="{cy+sh*0.52}" rx="{sw*0.75}" ry="12" fill="url(#pf)" opacity=".75"/>
+<ellipse cx="{cx}" cy="{cy+sh*0.5}" rx="{sw*0.95}" ry="18" stroke="#a6d9ff" stroke-opacity=".35"/>
+<ellipse cx="{cx}" cy="{cy+sh*0.5}" rx="{sw*0.7}" ry="12" stroke="#4fb3ff" stroke-opacity=".6" stroke-width="1.4"/>
+<ellipse cx="{cx}" cy="{cy+sh*0.5}" rx="{sw*0.75}" ry="12" fill="url(#pf)" opacity=".8"/>
+{links}{packets}
 <g transform="translate({cx-sw/2} {cy-sh/2}) scale({sw/100} {sh/118})">
 <path d="M50 2 L94 18 V58 C94 88 74 106 50 116 C26 106 6 88 6 58 V18 Z" fill="#4fb3ff" opacity=".45" filter="url(#gl)"/>
 <path d="M50 2 L94 18 V58 C94 88 74 106 50 116 C26 106 6 88 6 58 V18 Z" fill="url(#sb)"/>
@@ -178,7 +195,8 @@ def orbit_premium(W=660, H=346):
 <path d="M50 8.5 L88 22.5 V58 C88 84 70 100 50 109" stroke="#2a5bea" stroke-opacity=".18" stroke-width="1.2"/>
 </g></svg>"""
     mark = f'<img class="orb-mark" src="../assets/brand/deep-algorithms-mark.png" alt="" style="left:{cx-sw*0.24}px;top:{cy-sh*0.2}px;width:{sw*0.48}px">'
-    nd = "".join(f'<div class="pn{" in" if x > cx + 10 else ""}" style="left:{x-29}px;top:{y-29}px"><span class="c">{icon(ic)}</span><b>{lab}</b></div>' for lab, ic, x, y in nodes)
+    pos = {"APIs": "r", "Databases": "r", "Automations": "t", "Cloud Workloads": "t", "Service Accounts": "b", "CI/CD Pipelines": "b"}
+    nd = "".join(f'<div class="pn {pos[lab]}" style="left:{x-29}px;top:{y-29}px"><span class="c">{icon(ic)}</span><b>{lab}</b></div>' for lab, ic, x, y in nodes)
     return f'<div class="orb orb-prem" style="width:{W}px;height:{H}px">{svg}{mark}{nd}</div>'
 
 
