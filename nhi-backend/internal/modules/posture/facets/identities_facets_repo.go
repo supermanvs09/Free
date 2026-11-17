@@ -34,8 +34,8 @@ func (r *IdentitiesFacetsRepository) Get(ctx context.Context, s *scope.DataScope
 		table, identitylist.WhereExcept(frags, "")))
 	// identity class: HI and NHI, each counted under every other filter
 	branches = append(branches, fmt.Sprintf(
-		`SELECT 'identity_class', COALESCE(p.identity_class, 'NHI')::text, ''::text, count(*)::bigint FROM %s p WHERE %s GROUP BY COALESCE(p.identity_class, 'NHI')`,
-		table, identitylist.WhereExcept(frags, identitylist.FacetClass)))
+		`SELECT 'identity_class', %[1]s::text, ''::text, count(*)::bigint FROM %[2]s p WHERE %[3]s GROUP BY 2`,
+		common.ClassExpr("p.identity_class"), table, identitylist.WhereExcept(frags, identitylist.FacetClass)))
 	// band
 	branches = append(branches, fmt.Sprintf(
 		`SELECT 'band', p.band::text, ''::text, count(*)::bigint FROM %s p WHERE %s AND p.band IS NOT NULL GROUP BY p.band`,

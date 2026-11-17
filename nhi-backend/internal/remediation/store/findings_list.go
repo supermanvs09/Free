@@ -15,26 +15,30 @@ type FindingListFilter struct {
 	Severity string
 	Search   string
 	Stage    string
-	Limit    int
-	Offset   int
+	// Class is "" (both), "HI" (people) or "NHI".
+	Class  string
+	Limit  int
+	Offset int
 }
 
 // FindingRow is one finding of the remediation backlog, with its newest plan
 // that is still in progress or waiting for the scan (nil when none).
 type FindingRow struct {
-	FindingID    string     `json:"finding_id"`
-	RuleID       string     `json:"rule_id"`
-	RuleName     string     `json:"rule_name"`
-	Severity     string     `json:"severity"`
-	Status       string     `json:"status"`
-	Title        string     `json:"title"`
-	IdentityName string     `json:"identity_name"`
-	IdentityType string     `json:"identity_type"`
-	AccountID    string     `json:"account_id"`
-	RiskScore    float64    `json:"risk_score"`
-	FirstSeen    time.Time  `json:"first_seen"`
-	ResolvedAt   *time.Time `json:"resolved_at"`
-	Plan         *PlanRef   `json:"plan"`
+	FindingID    string `json:"finding_id"`
+	RuleID       string `json:"rule_id"`
+	RuleName     string `json:"rule_name"`
+	Severity     string `json:"severity"`
+	Status       string `json:"status"`
+	Title        string `json:"title"`
+	IdentityName string `json:"identity_name"`
+	IdentityType string `json:"identity_type"`
+	// IdentityClass is HI (a person) or NHI; the worker stores HUMAN for people.
+	IdentityClass string     `json:"identity_class"`
+	AccountID     string     `json:"account_id"`
+	RiskScore     float64    `json:"risk_score"`
+	FirstSeen     time.Time  `json:"first_seen"`
+	ResolvedAt    *time.Time `json:"resolved_at"`
+	Plan          *PlanRef   `json:"plan"`
 }
 
 type PlanRef struct {
@@ -80,6 +84,9 @@ func (s *Store) ListFindings(ctx context.Context, f FindingListFilter) ([]Findin
 	if f.Severity != "" {
 		add("lower(f.severity) = lower(?)", f.Severity)
 	}
+	if f.Class == "HI" || f.Class == "NHI" {
+		add("CASE WHEN upper(COALESCE(f.identity_class, 'NHI')) IN ('HI', 'HUMAN') THEN 'HI' ELSE 'NHI' END = ?", f.Class)
+	}
 	if q := strings.TrimSpace(f.Search); q != "" {
 		add("(f.identity_name ILIKE ? OR f.title ILIKE $X OR f.rule_id ILIKE $X OR f.rule_name ILIKE $X)", "%"+escapeLike(q)+"%")
 		where[len(where)-1] = strings.ReplaceAll(where[len(where)-1], "$X", fmt.Sprintf("$%d", len(args)))
@@ -103,7 +110,7 @@ func (s *Store) ListFindings(ctx context.Context, f FindingListFilter) ([]Findin
 		limit = 50
 	}
 	q := `SELECT f.finding_id::text, f.rule_id, COALESCE(f.rule_name,''), f.severity, f.status, COALESCE(f.title,''),
-		COALESCE(f.identity_name,''), COALESCE(f.identity_type,''), COALESCE(f.account_id,''), COALESCE(f.risk_score,0)::float8,
+		COALESCE(f.identity_name,''), COALESCE(f.identity_type,''), CASE WHEN upper(COALESCE(f.identity_class, 'NHI')) IN ('HI', 'HUMAN') THEN 'HI' ELSE 'NHI' END, COALESCE(f.account_id,''), COALESCE(f.risk_score,0)::float8,
 		f.first_seen, f.resolved_at, ap.plan_id, ap.status ` + from + `
 		ORDER BY CASE lower(f.severity) WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
 			f.risk_score DESC, f.first_seen, f.finding_id
@@ -118,7 +125,7 @@ func (s *Store) ListFindings(ctx context.Context, f FindingListFilter) ([]Findin
 		var r FindingRow
 		var planID, planStatus *string
 		if err := rows.Scan(&r.FindingID, &r.RuleID, &r.RuleName, &r.Severity, &r.Status, &r.Title, &r.IdentityName,
-			&r.IdentityType, &r.AccountID, &r.RiskScore, &r.FirstSeen, &r.ResolvedAt, &planID, &planStatus); err != nil {
+			&r.IdentityType, &r.IdentityClass, &r.AccountID, &r.RiskScore, &r.FirstSeen, &r.ResolvedAt, &planID, &planStatus); err != nil {
 			return nil, 0, err
 		}
 		if planID != nil {

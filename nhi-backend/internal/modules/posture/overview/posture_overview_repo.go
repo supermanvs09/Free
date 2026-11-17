@@ -503,7 +503,7 @@ func classSQL(class string, n int) string {
 	if class == "" {
 		return ""
 	}
-	return fmt.Sprintf(" AND COALESCE(identity_class, 'NHI') = $%d", n)
+	return fmt.Sprintf(" AND %s = $%d", common.ClassExpr("identity_class"), n)
 }
 
 // classArgs is the tenant, the query's own arguments, then the class when given.

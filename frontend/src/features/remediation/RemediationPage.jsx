@@ -99,6 +99,7 @@ function FindingsTab({ params, set, summaryQuery }) {
   const navigate = useNavigate();
   const stage = params.get('stage') || '';
   const severity = params.get('severity') || '';
+  const identityClass = ['HI', 'NHI'].includes(params.get('class')) ? params.get('class') : '';
   const page = Math.max(1, Number(params.get('page')) || 1);
   const pageSize = 25;
   const [draft, setDraft] = useState(params.get('q') || '');
@@ -111,11 +112,11 @@ function FindingsTab({ params, set, summaryQuery }) {
   const query = useQuery(
     (signal) =>
       fetchFindingsToFix(
-        { status: stage === 'fixed' ? 'RESOLVED' : 'OPEN', stage: stage === 'fixed' ? '' : stage, severity, q },
+        { status: stage === 'fixed' ? 'RESOLVED' : 'OPEN', stage: stage === 'fixed' ? '' : stage, severity, q, identityClass },
         { page, pageSize },
         signal,
       ),
-    [stage, severity, q, page],
+    [stage, severity, q, page, identityClass],
   );
   useEffect(() => {
     if (query.data?.summary) summaryQuery.set(query.data.summary);
@@ -176,7 +177,7 @@ function FindingsTab({ params, set, summaryQuery }) {
     },
   ];
 
-  const filtered = Boolean(stage || severity || q);
+  const filtered = Boolean(stage || severity || q || identityClass);
   return (
     <Panel flush className="overflow-hidden">
       <RecordBar
@@ -186,6 +187,16 @@ function FindingsTab({ params, set, summaryQuery }) {
           </TableToolbar>
         }
       >
+        <SegmentedControl
+          label="Which identities"
+          value={identityClass}
+          onChange={(value) => set({ class: value, page: '' })}
+          options={[
+            { value: '', label: 'All' },
+            { value: 'HI', label: 'Human', title: 'Findings on people' },
+            { value: 'NHI', label: 'Non-human', title: 'Findings on workloads, keys and services' },
+          ]}
+        />
         <SearchInput size="sm" value={draft} onChange={setDraft} placeholder="Search identity, rule or title…" className="w-full min-w-0 sm:w-72" aria-label="Search findings" />
         <Select
           size="sm"

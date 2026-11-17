@@ -9,7 +9,7 @@ func TestClassScopingAddsOneBindAtTheEnd(t *testing.T) {
 	if got := classSQL("", 2); got != "" {
 		t.Fatalf("no class must add nothing, got %q", got)
 	}
-	if got := classSQL("HI", 4); got != " AND COALESCE(identity_class, 'NHI') = $4" {
+	if got := classSQL("HI", 4); got != " AND CASE WHEN upper(COALESCE(identity_class, 'NHI')) IN ('HI', 'HUMAN') THEN 'HI' ELSE 'NHI' END = $4" {
 		t.Fatalf("got %q", got)
 	}
 	if got := classArgs("t1", "", "a", 3); !reflect.DeepEqual(got, []any{"t1", "a", 3}) {

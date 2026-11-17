@@ -148,3 +148,11 @@ var (
 	// written before the class existed read as NHI.
 	IdentityClasses = []string{"HI", "NHI"}
 )
+
+// ClassExpr is the SQL that turns a row's stored identity_class into HI or NHI.
+// The worker writes HUMAN for a person (and NHI for everything else); HI is
+// read the same way, and a missing value is NHI. col is the column, with its
+// table alias when there is one.
+func ClassExpr(col string) string {
+	return "CASE WHEN upper(COALESCE(" + col + ", 'NHI')) IN ('HI', 'HUMAN') THEN 'HI' ELSE 'NHI' END"
+}

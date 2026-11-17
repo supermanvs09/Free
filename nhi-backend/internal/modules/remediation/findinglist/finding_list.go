@@ -19,7 +19,7 @@ type Handler struct{ core *engine.Service }
 
 func NewHandler(core *engine.Service) *Handler { return &Handler{core: core} }
 
-var allowed = common.Allow("status", "severity", "q", "stage", "limit", "offset")
+var allowed = common.Allow("status", "severity", "q", "stage", "identity_class", "limit", "offset")
 
 var stages = map[string]bool{"": true, "todo": true, "in_progress": true, "waiting_scan": true}
 var statuses = map[string]bool{"": true, "OPEN": true, "RESOLVED": true, "ALL": true}
@@ -60,6 +60,11 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		common.Invalid(w, "stage", "stage must be todo, in_progress or waiting_scan")
 		return
 	}
+	class := strings.ToUpper(strings.TrimSpace(q.Get("identity_class")))
+	if class != "" && class != "HI" && class != "NHI" {
+		common.Invalid(w, "identity_class", "identity_class must be HI or NHI")
+		return
+	}
 	status := strings.ToUpper(strings.TrimSpace(q.Get("status")))
 	if !statuses[status] {
 		common.Invalid(w, "status", "status must be OPEN, RESOLVED or ALL")
@@ -70,7 +75,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	res, err := h.list(r.Context(), c, store.FindingListFilter{
 		Status: status, Severity: strings.TrimSpace(q.Get("severity")), Search: strings.TrimSpace(q.Get("q")),
-		Stage: stage, Limit: limit, Offset: max(0, offset),
+		Stage: stage, Class: class, Limit: limit, Offset: max(0, offset),
 	})
 	if err != nil {
 		common.Fail(w, r, "list findings to fix", err)

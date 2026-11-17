@@ -69,7 +69,7 @@ var SeverityColumn = map[string]string{
 func (b *queryBuilder) BuildFragments(s *scope.DataScope, f common.IdentityFilter) []fragment {
 	var out []fragment
 	if len(f.Classes) > 0 {
-		out = append(out, fragment{FacetClass, "COALESCE(p.identity_class, 'NHI') = ANY(" + b.add(pq.Array(f.Classes)) + "::text[])"})
+		out = append(out, fragment{FacetClass, common.ClassExpr("p.identity_class") + " = ANY(" + b.add(pq.Array(f.Classes)) + "::text[])"})
 	}
 	if len(f.Bands) > 0 {
 		out = append(out, fragment{FacetBand, "p.band = ANY(" + b.add(pq.Array(f.Bands)) + "::text[])"})
@@ -228,7 +228,7 @@ type IdentityRow struct {
 const identityRowColumns = `p.identity_id, COALESCE(p.identity_name, ''), COALESCE(p.identity_type, ''), p.functional_class,
 	COALESCE(p.account_id, ''), COALESCE(p.account_name, ''), p.score, COALESCE(p.band, ''), COALESCE(p.grade, ''),
 	p.weakest_pillar, p.checks_failed, p.failed_critical, p.failed_high, p.failed_medium, p.failed_low,
-	p.credential_type, p.credential_age_days, p.%s, p.open_alerts, COALESCE(p.identity_arn, ''), COALESCE(p.identity_class, 'NHI')`
+	p.credential_type, p.credential_age_days, p.%s, p.open_alerts, COALESCE(p.identity_arn, ''), CASE WHEN upper(COALESCE(p.identity_class, 'NHI')) IN ('HI', 'HUMAN') THEN 'HI' ELSE 'NHI' END`
 
 // queryIdentityPage reads up to `limit` rows after `afterID` (empty for the
 // first page) in the filter's sort order.

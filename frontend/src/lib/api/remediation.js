@@ -265,12 +265,13 @@ export async function validateRemediationAccount(accountId) {
  * it is at (null when none yet), plus `summary` for the page's cards.
  * stage: '' | todo | in_progress | waiting_scan; status: OPEN | RESOLVED | ALL.
  */
-export async function fetchFindingsToFix({ status, severity, q, stage } = {}, { page = 1, pageSize = 25 } = {}, signal) {
+export async function fetchFindingsToFix({ status, severity, q, stage, identityClass } = {}, { page = 1, pageSize = 25 } = {}, signal) {
   const params = { limit: pageSize, offset: (page - 1) * pageSize };
   if (status) params.status = status;
   if (severity) params.severity = severity;
   if (q) params.q = q;
   if (stage) params.stage = stage;
+  if (identityClass) params.identity_class = identityClass;
   const b = body(await client.get(`${BASE}/findings`, { params, signal }));
   return {
     findings: arr(b.data),
