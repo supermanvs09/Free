@@ -10,7 +10,7 @@ import { DetailSkeleton } from '../../ui/Skeleton';
 import { ClearState, EmptyState, ErrorState } from '../../ui/States';
 import { cn } from '../../ui/cn';
 import { BlastExplorer } from './BlastExplorer';
-import { CATEGORIES, accountOf, categoryOf, shrinkSteps, summarize } from './blastModel';
+import { CATEGORIES, accountOf, adminVerdict, categoryOf, hopReason, shrinkSteps, summarize } from './blastModel';
 
 /* ── Vocabulary ─────────────────────────────────────────────────────────── */
 
@@ -44,6 +44,9 @@ const LIMITATION = {
   does_not_prove_access_happened: 'Allowed by policy - CloudTrail has not shown it being used.',
   wildcard_resource_grant: 'Granted on every resource of this kind ("*"), not on a named one.',
   condition_not_evaluated: 'The policy has a condition that was not evaluated.',
+  target_has_higher_privilege: 'Lands on a role more powerful than where it started.',
+  does_not_prove_assumption_happened: 'The switch is allowed by policy - CloudTrail has not shown it happening.',
+  does_not_prove_no_SCP_blocks: 'An organisation policy (SCP) could still block it.',
 };
 const limitationText = (code) => LIMITATION[code] ?? String(code).replaceAll('_', ' ').replace(/^./, (c) => c.toUpperCase()) + '.';
 
@@ -97,7 +100,7 @@ function Gauge({ score, level }) {
 
 /* ── One reachable resource ─────────────────────────────────────────────── */
 
-function ResourceRow({ res, source, paths, open, onToggle }) {
+function ResourceRow({ res, source, paths, holder, open, onToggle }) {
   const sensitive = isSensitive(res);
   const via = (res.path_arns ?? []).slice(1, -1);
   const cross = accountOf(res.arn) && accountOf(res.arn) !== accountOf(source);
@@ -160,13 +163,23 @@ function ResourceRow({ res, source, paths, open, onToggle }) {
             <div key={k} className={cn(k > 0 && 'mt-3 border-t border-line pt-3')}>
               <p className="text-[12.5px] text-ink-2">{p.path_description}</p>
               <ol className="mt-2 flex flex-col gap-1">
-                {(p.hops ?? []).map((hop, i) => (
-                  <li key={i} className="flex min-w-0 items-center gap-2 text-[11.5px] text-ink-3">
-                    <span className="w-14 shrink-0 font-medium text-ink-2">{hop.edge_type === 'CAN_ASSUME' ? 'Assumes' : 'Can use'}</span>
-                    <span className="min-w-0 truncate font-mono" title={hop.to_arn}>
-                      {hop.to_arn}
+                {holder && (
+                  <li className="grid grid-cols-[3.5rem_minmax(0,1fr)] gap-2 text-[11.5px] text-ink-3">
+                    <span className="font-medium text-ink-2">Runs as</span>
+                    <span className="min-w-0">
+                      <span className="font-medium text-ink-2">{lastSegment(p.source_arn)}</span> · {holder} signs in with this role
                     </span>
-                    <span className="shrink-0">· {hop.evidence === 'observed' ? 'seen in CloudTrail' : 'from IAM policy'}</span>
+                  </li>
+                )}
+                {(p.hops ?? []).map((hop, i) => (
+                  <li key={i} className="grid grid-cols-[3.5rem_minmax(0,1fr)] gap-2 text-[11.5px] text-ink-3">
+                    <span className="font-medium text-ink-2">{hop.edge_type === 'CAN_ASSUME' ? 'Assumes' : 'Can use'}</span>
+                    <span className="min-w-0 [overflow-wrap:anywhere]">
+                      <span className="font-medium text-ink-2" title={hop.to_arn}>
+                        {lastSegment(hop.to_arn)}
+                      </span>{' '}
+                      · via {hopReason(hop)}
+                    </span>
                   </li>
                 ))}
               </ol>
@@ -182,6 +195,33 @@ function ResourceRow({ res, source, paths, open, onToggle }) {
         </div>
       )}
     </li>
+  );
+}
+
+/* ── Can it become an administrator? ───────────────────────────────────── */
+
+const ANSWER_TONE = { critical: 'critical', high: 'high', medium: 'medium', low: 'low' };
+function AdminAnswer({ verdict }) {
+  return (
+    <section className="rounded-[var(--radius-panel)] border border-line bg-surface px-5 py-4 shadow-[var(--t-shadow-sm)]">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="text-[13px] font-semibold text-ink">Can it become an administrator?</h3>
+        <Tag tone={ANSWER_TONE[verdict.tone]} size="sm" dot>
+          {verdict.answer}
+        </Tag>
+        <span className="text-[11.5px] text-ink-3" title="0 = no permissions, 10 = every action on every resource">
+          Its own power: {verdict.own} of 10
+        </span>
+      </div>
+      <p className="mt-1.5 text-[12.5px] text-ink-2">{verdict.text}</p>
+      {verdict.escalation.length > 0 && (
+        <ul className="mt-2 flex flex-col gap-1 text-[11.5px] text-ink-3">
+          {verdict.escalation.slice(0, 5).map((p, i) => (
+            <li key={i}>· {p.path_description}</li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
@@ -265,7 +305,7 @@ function ShrinkIt({ steps }) {
  * its policies allow, directly or by becoming other roles, scored by how
  * damaging it is. Read from IAM policies (allowed), with CloudTrail use marked.
  */
-export function BlastRadiusView({ arn, compact = false }) {
+export function BlastRadiusView({ arn, holder, compact = false }) {
   const [refreshKey, setRefreshKey] = useState(0);
   const [filter, setFilter] = useState('all');
   const [openRow, setOpenRow] = useState(null);
@@ -275,7 +315,7 @@ export function BlastRadiusView({ arn, compact = false }) {
   const derived = useMemo(() => {
     if (!result) return null;
     const s = summarize(result);
-    return { ...s, sensitive: s.resources.filter(isSensitive), steps: shrinkSteps(s) };
+    return { ...s, sensitive: s.resources.filter(isSensitive), steps: shrinkSteps(s), admin: adminVerdict(result) };
   }, [result]);
 
   if (query.isError && !result) {
@@ -350,7 +390,8 @@ export function BlastRadiusView({ arn, compact = false }) {
               {result.converging_paths && <Tag size="sm">Several routes to the same target</Tag>}
             </div>
             <p className="mt-3 text-[15px] leading-snug text-ink">
-              If <span className="font-semibold">{name}</span> is taken over, an attacker can reach{' '}
+              If <span className="font-semibold">{holder ?? name}</span>
+              {holder ? ` (it runs as ${name})` : ''} is taken over, an attacker can reach{' '}
               <span data-numeric="" className="font-semibold">
                 {formatNumber(total)} {total === 1 ? 'resource' : 'resources'}
               </span>
@@ -404,6 +445,8 @@ export function BlastRadiusView({ arn, compact = false }) {
         </div>
       </section>
 
+      <AdminAnswer verdict={derived.admin} />
+
       <ShrinkIt steps={derived.steps} />
 
       {/* Explore the attack surface */}
@@ -413,7 +456,7 @@ export function BlastRadiusView({ arn, compact = false }) {
             <h3 className="text-[13.5px] font-semibold text-ink">Attack surface</h3>
             <span className="text-[12px] text-ink-3">Select any node to trace how an attacker gets there</span>
           </header>
-          <BlastExplorer result={result} />
+          <BlastExplorer result={result} holder={holder} />
         </section>
       )}
 
@@ -438,6 +481,7 @@ export function BlastRadiusView({ arn, compact = false }) {
                 res={res}
                 source={result.source_arn}
                 paths={result.paths ?? []}
+                holder={holder}
                 open={openRow === res.arn}
                 onToggle={() => setOpenRow((cur) => (cur === res.arn ? null : res.arn))}
               />

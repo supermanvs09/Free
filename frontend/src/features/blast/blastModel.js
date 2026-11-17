@@ -117,3 +117,54 @@ export function shrinkSteps(s) {
   }
   return steps;
 }
+
+const tail = (arn) => {
+  const text = String(arn ?? '');
+  return text.split(':').slice(5).join(':').split('/').filter(Boolean).pop() || text;
+};
+const POLICY_KIND = { managed: 'managed policy', aws_managed: 'AWS managed policy', customer_managed: 'managed policy', inline: 'inline policy' };
+
+/**
+ * Why one arrow of a path exists, in plain words: the policy that grants it,
+ * the trust policy that allows the switch, or the CloudTrail call that shows it.
+ */
+export function hopReason(hop) {
+  if (hop.edge_type === 'CAN_ASSUME') {
+    if (hop.basis === 'observed_in_cloudtrail') return `seen switching in CloudTrail${hop.observed_count ? ` (${hop.observed_count}×)` : ''}`;
+    const to = tail(hop.to_arn);
+    const from = tail(hop.from_arn);
+    const trust = {
+      trust_policy_names_role: `${to}'s trust policy names ${from}`,
+      trust_policy_account_and_identity_permission: `${to}'s trust policy trusts ${from}'s whole account, and ${from}'s own policy allows the switch`,
+      trust_policy_public_and_identity_permission: `${to}'s trust policy lets anyone switch to it`,
+    }[hop.basis] ?? `${to}'s trust policy allows it`;
+    return hop.observed_count ? `${trust}, and CloudTrail shows it used` : trust;
+  }
+  if (hop.evidence === 'observed') return 'seen used in CloudTrail';
+  if (hop.table === 'nhi_resource_policies') return `the ${String(hop.basis || 'resource policy').replaceAll('_', ' ')} on it`;
+  const policies = hop.policies ?? [];
+  if (policies.length === 1) return `${POLICY_KIND[policies[0].type] ?? 'policy'} ${policies[0].name}`;
+  if (policies.length > 1) return `policies ${policies.map((p) => p.name).join(', ')}`;
+  return 'its IAM policy';
+}
+
+const ADMIN = 10;
+/**
+ * Can it become an administrator? From the engine's privilege levels (0-10,
+ * 10 = every action on every resource) of the source and of every role it can
+ * become, and its privilege-escalation paths (PATH-005).
+ */
+export function adminVerdict(result) {
+  const own = Number(result.privilege_level) || 0;
+  const roles = [...(result.reachable_identities ?? [])].sort((a, b) => (b.privilege_level ?? 0) - (a.privilege_level ?? 0));
+  const top = roles[0];
+  const escalation = (result.paths ?? []).filter((p) => p.path_type === 'PATH-005');
+  if (own >= ADMIN) return { tone: 'critical', answer: 'Yes', text: 'It is already an administrator: its policies allow every action on every resource.', own, top, escalation };
+  if (top && top.privilege_level >= ADMIN)
+    return { tone: 'critical', answer: 'Yes', text: `By becoming ${tail(top.arn)}${top.hops > 1 ? ` (${top.path.join(' → ')})` : ''}, which is an administrator.`, own, top, escalation };
+  if (escalation.length)
+    return { tone: 'high', answer: 'Possibly', text: `It can change permissions (${escalation.length} ${escalation.length === 1 ? 'route' : 'routes'} below), which can be used to raise them up to administrator.`, own, top, escalation };
+  if (top && top.privilege_level > own)
+    return { tone: 'medium', answer: 'No', text: `No route to administrator found. It can become ${tail(top.arn)}, which is more powerful (${top.privilege_level} of 10) than itself (${own} of 10).`, own, top, escalation };
+  return { tone: 'low', answer: 'No', text: `No route to administrator found. Its own permissions rate ${own} of 10${top ? ', and no role it can become is stronger' : ''}.`, own, top, escalation };
+}

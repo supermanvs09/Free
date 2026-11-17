@@ -56,7 +56,7 @@ export function IdentityBlastRadius({ identity }) {
           ))}
         </div>
       )}
-      <BlastRadiusView key={current.arn} arn={current.arn} />
+      <BlastRadiusView key={current.arn} arn={current.arn} holder={current.arn !== identity.arn ? identity.name : undefined} />
     </div>
   );
 }

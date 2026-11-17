@@ -6,7 +6,7 @@ import { formatNumber } from '../../lib/format';
 import { identityRoute } from '../../lib/identityLinks';
 import { DetailSkeleton } from '../../ui/Skeleton';
 import { cn } from '../../ui/cn';
-import { CATEGORIES, categoryOf, summarize } from './blastModel';
+import { CATEGORIES, adminVerdict, categoryOf, summarize } from './blastModel';
 
 const RISK_TEXT = { CRITICAL: 'text-critical', HIGH: 'text-high', MEDIUM: 'text-medium', LOW: 'text-low' };
 const RISK_BAR = { CRITICAL: 'bg-critical', HIGH: 'bg-high', MEDIUM: 'bg-medium', LOW: 'bg-low' };
@@ -47,6 +47,7 @@ export function BlastGlance({ identityId, arn }) {
   const s = summarize(r);
   const top = [...s.resources].sort((a, b) => Number(b.score) - Number(a.score)).slice(0, 3);
   const score = Number(r.blast_radius_score ?? 0);
+  const admin = adminVerdict(r);
 
   return (
     <div className="mt-1.5 flex flex-col gap-2.5">
@@ -74,6 +75,11 @@ export function BlastGlance({ identityId, arn }) {
             {s.accounts.size ? `, across ${formatNumber(s.accounts.size + 1)} AWS accounts` : ''}.
           </>
         )}
+      </p>
+      <p className="text-[11.5px] text-ink-3">
+        Can become an administrator:{' '}
+        <span className={cn('font-semibold', admin.answer === 'No' ? 'text-low' : admin.answer === 'Yes' ? 'text-critical' : 'text-high')}>{admin.answer}</span>
+        {admin.answer !== 'No' ? ` - ${admin.text}` : ''}
       </p>
       {s.total > 0 && (
         <dl className="grid grid-cols-2 gap-1.5">

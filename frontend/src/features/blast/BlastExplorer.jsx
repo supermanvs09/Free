@@ -4,6 +4,7 @@ import '@xyflow/react/dist/base.css';
 import { Box, ChevronRight, KeyRound, Lock, UserRoundCog, X } from 'lucide-react';
 import { formatNumber } from '../../lib/format';
 import { cn } from '../../ui/cn';
+import { hopReason } from './blastModel';
 
 /* ── Vocabulary (kept local: the explorer is self-contained) ────────────── */
 
@@ -161,16 +162,26 @@ const LIMIT_TEXT = {
   crosses_account_boundary: 'Crosses into another AWS account',
   does_not_prove_access_happened: 'Allowed by policy, not seen used in CloudTrail',
   wildcard_resource_grant: 'Granted on "*", not on a named resource',
+  target_has_higher_privilege: 'Lands on a role more powerful than where it started',
+  does_not_prove_assumption_happened: 'The switch is allowed, not seen in CloudTrail',
+  does_not_prove_no_SCP_blocks: 'An organisation policy (SCP) could still block it',
 };
 
-function Steps({ resource, paths }) {
+function Steps({ resource, paths, holder }) {
   const path = paths.find((p) => p.target_arn === resource.arn);
   const hops = path?.hops ?? [];
-  const chain = [{ text: 'Attacker controls', name: shortName(path?.source_arn ?? resource.path_arns?.[0]), how: 'starting point', dot: 'bg-ink' }].concat(
+  const role = shortName(path?.source_arn ?? resource.path_arns?.[0]);
+  const start = holder
+    ? [
+        { text: 'Attacker controls', name: holder, how: 'starting point', dot: 'bg-ink' },
+        { text: 'runs as', name: role, how: 'its role', dot: 'bg-ink-3' },
+      ]
+    : [{ text: 'Attacker controls', name: role, how: 'starting point', dot: 'bg-ink' }];
+  const chain = start.concat(
     hops.map((h, i) => ({
       text: h.edge_type === 'CAN_ASSUME' ? 'assumes' : 'can use',
       name: shortName(h.to_arn),
-      how: h.evidence === 'observed' ? 'seen in CloudTrail' : 'allowed by IAM policy',
+      how: `via ${hopReason(h)}`,
       dot: i === hops.length - 1 ? (isSensitive(resource) ? 'bg-critical' : 'bg-high') : 'bg-ink-3',
     })),
   );
@@ -187,7 +198,7 @@ function Steps({ resource, paths }) {
               <span className="mt-0.5 block truncate text-[13px] font-semibold text-ink" title={c.name}>
                 {c.name}
               </span>
-              <span className="block text-[11px] text-ink-3">{c.how}</span>
+              <span className="block text-[11px] text-ink-3 [overflow-wrap:anywhere]">{c.how}</span>
             </span>
             {i < chain.length - 1 && <ChevronRight aria-hidden="true" className="mx-1 hidden size-4 shrink-0 text-ink-3 md:block" />}
           </li>
@@ -207,7 +218,7 @@ function Steps({ resource, paths }) {
   );
 }
 
-function Panel({ sel, model, paths, onSelect, onClear }) {
+function Panel({ sel, model, paths, holder, onSelect, onClear }) {
   const close = (
     <button type="button" onClick={onClear} aria-label="Clear selection" className="grid size-7 place-items-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink">
       <X className="size-4" />
@@ -245,7 +256,7 @@ function Panel({ sel, model, paths, onSelect, onClear }) {
             <p className="text-[11px] font-semibold tracking-[0.14em] text-ink-3 uppercase">How an attacker gets there</p>
             <span className="hidden lg:block">{close}</span>
           </div>
-          <Steps resource={r} paths={paths} />
+          <Steps resource={r} paths={paths} holder={holder} />
         </div>
       </div>
     );
@@ -282,7 +293,7 @@ function Panel({ sel, model, paths, onSelect, onClear }) {
 
 /* ── The explorer ───────────────────────────────────────────────────────── */
 
-function ExplorerInner({ result }) {
+function ExplorerInner({ result, holder }) {
   /* Sensitive services start open: those are what a reader looks for first. */
   const [open, setOpen] = useState(() => new Set((result.reach_by_service ?? []).filter((s) => SENSITIVE.has(s.service) && s.resources <= 8).map((s) => s.service)));
   const [sel, setSel] = useState(null);
@@ -367,7 +378,7 @@ function ExplorerInner({ result }) {
       </div>
       {panel && (
         <aside aria-label="Selected" className="border-t border-line p-5">
-          <Panel sel={sel} model={model} paths={result.paths ?? []} onSelect={setSel} onClear={() => setSel(null)} />
+          <Panel sel={sel} model={model} paths={result.paths ?? []} holder={holder} onSelect={setSel} onClear={() => setSel(null)} />
         </aside>
       )}
     </div>
@@ -375,10 +386,10 @@ function ExplorerInner({ result }) {
 }
 
 /** The attack surface as an explorable graph with a path-tracing side panel. */
-export function BlastExplorer({ result }) {
+export function BlastExplorer({ result, holder }) {
   return (
     <ReactFlowProvider>
-      <ExplorerInner result={result} />
+      <ExplorerInner result={result} holder={holder} />
     </ReactFlowProvider>
   );
 }
