@@ -47,7 +47,7 @@ export function OrphanPanel({ credentialId, onDeleted }) {
 
   if (!d?.orphaned || !d.orphaned_by) return null;
   return (
-    <section aria-label="Orphaned role" className={cn('animate-rise mb-4 overflow-hidden rounded-[var(--radius-panel)] border border-high/40 bg-surface', act === 'owner' && 'animate-attention')}>
+    <section data-scene="orphan-card" aria-label="Orphaned role" className={cn('animate-rise mb-4 overflow-hidden rounded-[var(--radius-panel)] border border-high/40 bg-surface', act === 'owner' && 'animate-attention')}>
       <header className="flex items-start gap-3 border-b border-high/20 bg-high-soft/50 px-4 py-3.5">
         <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-high-soft text-high">
           <Ghost aria-hidden="true" className="size-4.5" />
@@ -61,7 +61,7 @@ export function OrphanPanel({ credentialId, onDeleted }) {
         </span>
       </header>
       <div className="grid gap-4 px-4 py-4 sm:grid-cols-2">
-        <div>
+        <div data-scene="orphan-access">
           <p className="flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.1em] text-ink-3 uppercase">
             <Database aria-hidden="true" className="size-3.5" /> Still has access to
           </p>
@@ -85,7 +85,7 @@ export function OrphanPanel({ credentialId, onDeleted }) {
             </span>
           </div>
           {d.owner && (
-            <div className={cn('flex items-start gap-2 rounded-[8px] border border-line px-3 py-2', act === 'owner' && 'border-brand bg-info-soft/50')}>
+            <div data-scene="orphan-owner" className={cn('flex items-start gap-2 rounded-[8px] border border-line px-3 py-2', act === 'owner' && 'border-brand bg-info-soft/50')}>
               <UserRound aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-brand" />
               <span className="text-[12.5px] text-ink-2">
                 <b className="text-ink">Owner: {d.owner.name}</b> ({d.owner.team}) from the owner tag; created by <span className="font-mono">{d.owner.created_by}</span> for <span className="font-mono">{d.owner.workload}</span>.
@@ -95,7 +95,7 @@ export function OrphanPanel({ credentialId, onDeleted }) {
           <div className="mt-auto rounded-[8px] border border-line bg-surface-2 px-3 py-2.5">
             <p className="text-[12.5px] font-semibold text-ink">Recommended: delete the role</p>
             <p className="mt-0.5 text-[11.5px] text-ink-3">Nothing references it. {d.owner ? `${d.owner.name.split(' ')[0]} is notified.` : ''}</p>
-            <Button className="mt-2" variant="danger" size="sm" icon={Trash2} loading={busy} disabled={!d.can_delete} onClick={remove}>
+            <Button data-scene="delete-role" className="mt-2" variant="danger" size="sm" icon={Trash2} loading={busy} disabled={!d.can_delete} onClick={remove}>
               Delete role
             </Button>
           </div>

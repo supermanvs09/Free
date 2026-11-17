@@ -78,8 +78,8 @@ export const AccessNode = memo(function AccessNode({ data, selected }) {
         {/* Two lines, because an IAM name is often a path or an OIDC issuer
             and one line turns `token.actions.githubusercontent.com` into
             `token.actions.githubuse...`, which names nothing. */}
-        <span className="block text-[12px] leading-[1.25] font-semibold text-ink line-clamp-2 break-words">
-          {data.name}
+        <span className="block text-[12px] leading-[1.25] font-semibold text-ink line-clamp-2 break-words" title={data.name}>
+          {softBreaks(data.name)}
         </span>
         <span className="mt-0.5 flex items-center gap-1 text-[10px] leading-none text-ink-3">
           {providerFromArn(data.arn ?? data.id) && <ProviderIcon provider={providerFromArn(data.arn ?? data.id)} size={10} decorative />}
@@ -157,3 +157,12 @@ export const MoreNode = memo(function MoreNode({ data }) {
 });
 
 export const nodeTypes = { access: AccessNode, more: MoreNode };
+
+/* Break opportunities where a reader would break an IAM name: after a path or
+   domain separator and between camel-case words, so
+   `OrganizationAccountAccessRole` wraps as `OrganizationAccount / AccessRole`
+   instead of splitting a word. */
+function softBreaks(name = '') {
+  const parts = String(name).split(/(?<=[./:_\-])|(?<=[a-z0-9])(?=[A-Z][a-z])/);
+  return parts.flatMap((part, i) => (i ? [<wbr key={i} />, part] : [part]));
+}

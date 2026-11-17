@@ -454,8 +454,7 @@
      grows into. */
   @media (min-width: 768px) {
     .access-shell-sized {
-      height: min(var(--graph-max-h, 560px), 74vh);
-      min-height: 420px;
+      height: max(460px, calc(100dvh - var(--graph-top, 284px)));
     }
   }
 
@@ -468,8 +467,7 @@
      columns aligned without either dictating the other's size. */
   @media (min-width: 1120px) {
     .access-shell-sized {
-      height: min(var(--graph-max-h, 560px), 74vh);
-      min-height: 420px;
+      height: max(460px, calc(100dvh - var(--graph-top, 284px)));
     }
 
     /* The panel is bounded by the same rule at the same breakpoint, and
@@ -481,8 +479,7 @@
        stays put. `height` rather than `max-height` so the flex child below the
        pinned head has a definite space to scroll within. */
     .access-inspector {
-      height: min(var(--graph-max-h, 560px), 74vh);
-      min-height: 420px;
+      height: max(460px, calc(100dvh - var(--graph-top, 284px)));
     }
   }
 

@@ -383,11 +383,13 @@ function GenomeIdentity({ sourceType, identityName }) {
         <GenomeTab sourceType={sourceType} identityName={identityName} window={window} summary={summary.data} timeline={timeline.items} />
       )}
       {tab === 'anomalies' && (
+        <div data-scene="genome-anomalies">
         <IdentityAnomalies
           sourceType={sourceType}
           keys={[identityName, identity?.identity_name, identity?.workload_key, identity?.principal_arn]}
           displayName={identity?.display_name}
         />
+        </div>
       )}
       {tab === 'activity' && <ActivityTab sourceType={sourceType} identityName={identityName} window={window} />}
       {tab === 'baseline' && <BaselineTab sourceType={sourceType} identityName={identityName} />}
@@ -686,7 +688,7 @@ function NormalBehaviour({ dimensions, schedule, span }) {
   const measured = dimensions.filter((entry) => !SHOWN_ELSEWHERE.has(entry.dimension) && !entry.values.every((value) => unreported(value.value))).length;
 
   return (
-    <Panel prominence="lead" className="animate-rise">
+    <Panel prominence="lead" className="animate-rise" data-scene="genome-normal">
       <PanelHeader
         prominence="lead"
         title="Normal behaviour"

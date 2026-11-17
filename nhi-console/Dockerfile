@@ -25,6 +25,10 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
 COPY . .
+# on: the live scenarios panel (Ctrl/Cmd + Shift + L) is built in.
+#   docker build --build-arg VITE_LIVE_REPLAY=on -t nhi-console .
+ARG VITE_LIVE_REPLAY=off
+ENV VITE_LIVE_REPLAY=$VITE_LIVE_REPLAY
 RUN npm run build && test -f dist/index.html
 
 # ── Stage 2: serve it ────────────────────────────────────────────────────────

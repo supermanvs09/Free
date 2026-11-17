@@ -16,7 +16,7 @@
  */
 import { ok, fail } from '../util';
 import { estate } from '../seed';
-import { audit } from '../users';
+import { audit, auditLog } from '../users';
 import { can } from '../roles';
 import { save } from '../state';
 import { credentialById, credentialsOf, identityById, identitiesOf, eventsOf, visible } from '../world';
@@ -24,7 +24,9 @@ import { escalationPaths, escalationThrough, grantsForPrincipal, linkById, origi
 import { blastRadius } from '../reach';
 import { liveFindings } from '../exposureData';
 import { anomalies } from './genome';
-import { emitEvent, liveEvents } from '../notifyBus';
+import { deliveries, emitEvent, liveEvents } from '../notifyBus';
+import { findingStates } from '../postureEngine';
+import { plansStore } from './remediation';
 import { mutate, response, rightSized, scenario } from '../response';
 import { genomeRouteFor } from '../../identityLinks';
 
@@ -290,8 +292,39 @@ function runScenario(key, user) {
   return scenarioState();
 }
 
+/* Who a scenario touches: its identities and credentials, by id and ARN. */
+function scenarioSubjects(key) {
+  const st = scenarioState()[key];
+  const ids = new Set();
+  const add = (row) => row && ids.add(row.id) && ids.add(row.arn);
+  if (key === 'leak') {
+    add(byName('svc-deploy-bot'));
+    add(estate().credentials.find((c) => c.id === st.credential_id));
+  }
+  if (key === 'ec2') {
+    add(byName('payments-gateway-01'));
+    for (const c of estate().credentials) if (c.name === 'payments-gateway-01-role') add(c);
+  }
+  if (key === 'chain') ['reporting-readonly', 'ops-support-role', 'break-glass-admin'].forEach((n) => add(byName(n)));
+  if (key === 'orphan') {
+    add(byName('invoice-legacy-export'));
+    add(estate().credentials.find((c) => c.id === st.credential_id));
+  }
+  if (key === 'agent') add(byName('support-copilot-agent'));
+  return ids;
+}
+
+/**
+ * Puts a scenario back as if it never ran - for everyone, and without a trace:
+ * its alerts, delivery log lines, audit entries, the fixes made during it (by
+ * card or by remediation plan) and the posture findings they resolved.
+ */
 function resetScenario(key) {
   const st = scenarioState();
+  const since = (response().scenarios?.[key]?.at ?? Date.now()) - 2000;
+  const subjects = scenarioSubjects(key);
+  const plans = plansStore().filter((p) => subjects.has(p.target_arn) && Date.parse(p.created_at) >= since);
+  const planIds = new Set(plans.map((p) => p.plan_id));
   mutate((r) => {
     delete r.scenarios[key];
     if (key === 'leak' && st.leak.credential_id) delete r.keys[st.leak.credential_id];
@@ -302,9 +335,21 @@ function resetScenario(key) {
       if (st.orphan.credential_id) delete r.deletedCreds[st.orphan.credential_id];
     }
     if (key === 'agent') delete r.rightsized[principalOf(byName('support-copilot-agent'))];
+    for (const id of planIds) delete r.applied[id];
   });
-  const list = liveEvents();
-  for (let i = list.length - 1; i >= 0; i -= 1) if (list[i].scenario === key) list.splice(i, 1);
+  const sweep = (list, drop) => {
+    for (let i = list.length - 1; i >= 0; i -= 1) if (drop(list[i])) list.splice(i, 1);
+  };
+  const eventIds = new Set(liveEvents().filter((e) => e.scenario === key).map((e) => e.id));
+  sweep(liveEvents(), (e) => e.scenario === key);
+  sweep(deliveries(), (d) => eventIds.has(d.event_id));
+  sweep(auditLog(), (a) => Date.parse(a.at) >= since && (subjects.has(a.target) || [...subjects].some((x) => typeof x === 'string' && x.startsWith('arn:') && String(a.summary).includes(x.split('/').pop()))));
+  sweep(plansStore(), (p) => planIds.has(p.plan_id));
+  const states = findingStates();
+  for (const [fid, state] of Object.entries(states)) {
+    const owner = [...subjects].find((x) => typeof x === 'string' && x.startsWith('idn_') && fid.startsWith(`fnd_${x.slice(4, 10)}_`));
+    if (owner && Date.parse(state?.updated_at ?? 0) >= since) delete states[fid];
+  }
   save();
   return scenarioState();
 }

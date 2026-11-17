@@ -190,7 +190,7 @@ function FlowInner({
         target: reversed ? edge.from : edge.to,
         type: 'labeled',
         animated: false,
-        label: active ? meta.label : edge.crossAccount ? 'another account' : undefined,
+        label: active ? (edge.crossAccount ? `${meta.label} · another account` : meta.label) : undefined,
         ariaLabel: `${meta.label}${edge.callCount ? `, ${edge.callCount} calls` : ''}`,
         labelShowBg: true,
         labelBgPadding: [4, 2],

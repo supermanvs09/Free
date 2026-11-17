@@ -337,7 +337,7 @@ export function BlastRadiusView({ arn, compact = false }) {
   return (
     <div className={cn('@container flex flex-col gap-4', query.isRefreshing && 'opacity-70 transition-opacity')}>
       {/* Verdict */}
-      <section className="overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface shadow-[var(--t-shadow-sm)]">
+      <section data-scene="blast-verdict" className="overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface shadow-[var(--t-shadow-sm)]">
         <div className="flex flex-col gap-5 p-5 @xl:flex-row @xl:items-center @xl:gap-7 sm:p-6">
           <div className="flex items-center gap-4">
             <Gauge score={result.blast_radius_score} level={result.risk_level} />

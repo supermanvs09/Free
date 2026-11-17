@@ -21,24 +21,32 @@ npm install
 npm run build && npm start      # http://localhost:3000 - console + live workspace + alerts
 ```
 
-For development with hot reload, two terminals:
+For development with hot reload:
 
 ```sh
-npm run relay                   # the workspace + alert server on :8787
-npm run dev                     # http://localhost:3000, proxies /notify-api to it
+npm run dev                     # http://localhost:3000 - same live workspace, built in
 ```
 
+There is no separate server to start: `npm run dev`, `npm run preview` and
+`npm start` all serve the shared workspace at `/notify-api` themselves. (Set
+`NOTIFY_RELAY_URL` only if you want dev to use a server running elsewhere.)
+
 Open the address in two browsers (or a normal and a private window), sign in
-as two different people, and change something in one: it appears in the other.
+as two different people, and change something in one: it appears in the other
+within about a second.
 
-Sign in with any of these (password `Welcome@2026`):
+Every account's password is `Nhi@admin`:
 
-| User | Role |
+| Sign in as | Role |
 |---|---|
-| pranav@deepalgorithms.ai, charan@deepalgorithms.ai | Admin |
-| harika@deepalgorithms.ai, raju@deepalgorithms.ai | Operator |
-| swathi@, vamsi@, sashi@, venkat@deepalgorithms.ai | Analyst |
-| sanju@, kiran@, divya@deepalgorithms.ai | Viewer |
+| `Pranav@das` | Admin |
+| `charan@deepalgorithms.ai` | Admin |
+| `harika@deepalgorithms.ai`, `raju@deepalgorithms.ai` | Operator |
+| `swathi@`, `vamsi@`, `sashi@`, `venkat@deepalgorithms.ai` | Analyst |
+| `sanju@`, `kiran@`, `divya@deepalgorithms.ai` | Viewer |
+
+A workspace saved before this change is migrated on first load: the seeded
+accounts get the new sign-in names and password.
 
 Admins add people, change roles, reset passwords and switch accounts off in
 **Users & roles**. Each takes effect for that person straight away: a new role
@@ -86,7 +94,7 @@ stopped) to start over.
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `PORT` | 3000 with `npm start`, 8787 for `npm run relay` | Where it listens |
+| `PORT` | 3000 with `npm start`, 8787 for `npm run relay` (optional standalone server) | Where it listens |
 | `DATA_DIR` | `./data` | Where the workspace and secrets are saved |
 | `SYNC_ENABLED` | `true` | `false`: no shared workspace (each browser on its own) |
 | `ALLOWED_ORIGINS` | any | Comma list of origins allowed to post changes |
@@ -117,13 +125,42 @@ recompute for everyone at once:
 | A role left behind by a deleted function | **Delete role** (credential drawer) | The orphaned role is gone |
 | A behaviour anomaly (NHI Genome) | **Restrict to its baseline** | Access it never used is removed |
 
-**Live scenarios** (⌘/Ctrl + Shift + L, or type "live" in ⌘K; admins and
-analysts) replay five stories on a fixed timeline against the real console,
-with large captions for recording: leaked IAM key, EC2 role stolen via IMDS,
-AssumeRole escalation chain, orphaned role after a Lambda is deleted, runaway
-Bedrock agent. Each run starts from a reset; **Pause**, **Next step** and
-**Stop** sit in a small pill while it plays, and background detections wait
-until it finishes. Open the console with `?present=1` to show the panel.
+Completing a remediation plan (executed or marked done) changes access the same
+way - right-size, rotate, deactivate, break a trust link, pin a trust policy,
+make private, disable - and rolling the plan back restores it. Every page that
+shows the identity (inventory, permissions, blast radius, access graph,
+who-can-assume, posture, exposure, dashboard) reads the same model.
+
+### Live scenarios (presenter only)
+
+Built in only when `VITE_LIVE_REPLAY=on` at build time (in `.env` for
+`npm run dev` / `npm run build`, or `docker build --build-arg
+VITE_LIVE_REPLAY=on`). With it off, nothing of it is in the bundle. With it
+on, **Ctrl/Cmd + Shift + L** is the only way to open the panel - there is no
+menu entry.
+
+The five alerts:
+
+| # | Alert | Where it lands | The fix on screen |
+|---|---|---|---|
+| 1 | Leaked IAM key committed to GitHub | `svc-deploy-bot`, credential exposure | Deactivate key |
+| 2 | EC2 instance role used from outside AWS (IMDS theft) | `payments-gateway-01` | Generate least-privilege policy → Apply |
+| 3 | Privilege escalation via an AssumeRole chain | `reporting-readonly` → `ops-support-role` → `break-glass-admin` | Remove trust on the first link |
+| 4 | Orphaned role after its Lambda was deleted | `invoice-legacy-export`'s role, credential drawer | Delete role |
+| 5 | Runaway Bedrock agent | `support-copilot-agent`, NHI Genome anomalies | Restrict to its baseline |
+
+**Replay** tab: plays one story with captions; the camera zooms to the card
+each beat is about and a pointer clicks the real buttons. Space pauses,
+→ skips a beat, Esc stops, C hides captions.
+
+**Live, by hand** tab: **Raise alert** fires the detection for real (alert,
+toasts, email/Jira if set up) for everyone signed in; **Open** takes you to it;
+then you fix it yourself while recording. **Reset** (per row) or **Reset all**
+puts it back to before the alert was raised - the alert, its deliveries, the
+fix, its audit entries and its plans are removed silently, with no toast or
+audit entry, so other viewers see the console simply return to normal. While
+this tab is open, background detections are held so nothing unexpected
+appears mid-recording.
 
 ## Integrations
 
@@ -241,6 +278,9 @@ the result under **Sender**.
 docker build -t nhi-console:latest .
 docker run --rm -p 3000:3000 -e MAIL_FROM=alerts@deepalgorithms.ai -e AWS_REGION=ap-south-1 nhi-console:latest
 ```
+
+Add `--build-arg VITE_LIVE_REPLAY=on` to include the presenter panel. Mount a
+volume at `/var/lib/nhi` to keep the workspace across restarts.
 
 The image is nginx + Node (for the relay only). nginx serves the app, adds the
 security headers (CSP `connect-src 'self'`), and proxies `/notify-api`. The

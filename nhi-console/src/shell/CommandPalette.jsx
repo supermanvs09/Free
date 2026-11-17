@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Clapperboard, CornerDownLeft, Fingerprint, KeyRound, Search } from 'lucide-react';
+import { CornerDownLeft, Fingerprint, KeyRound, Search } from 'lucide-react';
 import { fetchCredentials, fetchIdentities } from '../lib/api/inventory';
 import { useDebouncedValue, useQuery, useScrollLock } from '../lib/hooks';
 import { useAccess } from '../app/useAccess';
@@ -95,9 +95,6 @@ export function CommandPalette({ open, onClose }) {
         icon: Fingerprint,
         run: () => navigate(identityRoute(identity.id)),
       })),
-      ...(['live', 'scen', 'pres', 'play'].some((w) => term.trim().toLowerCase().startsWith(w))
-        ? [{ id: 'present:scenarios', kind: 'nav', label: 'Live scenarios', hint: 'Present · ⌘⇧L', icon: Clapperboard, run: () => window.dispatchEvent(new CustomEvent('scenarios:open')) }]
-        : []),
       ...credentialMatches.map((credential) => ({
         id: `credential:${credential.id}`,
         kind: 'credential',
@@ -111,7 +108,7 @@ export function CommandPalette({ open, onClose }) {
           ),
       })),
     ],
-    [navMatches, identityMatches, credentialMatches, navigate, term],
+    [navMatches, identityMatches, credentialMatches, navigate],
   );
 
   useEffect(() => {

@@ -48,9 +48,10 @@ export function ResponseInsights({ identity }) {
 
 /* ── Shared pieces ──────────────────────────────────────────────────────── */
 
-function Card({ tone, highlight, children, label }) {
+function Card({ tone, highlight, children, label, scene }) {
   return (
     <section
+      data-scene={scene}
       aria-label={label}
       className={cn(
         'animate-rise overflow-hidden rounded-[var(--radius-panel)] border bg-surface shadow-[var(--t-shadow-sm)]',
@@ -157,7 +158,7 @@ function ExposureCard({ data, identity, act, onActed, reload }) {
     [14, 'ECS_CLUSTER=payments-prod', ''],
   ];
   return (
-    <Card tone={off ? 'resolved' : 'critical'} label="Exposed access key" highlight={act === 'map'}>
+    <Card scene="exposure-card" tone={off ? 'resolved' : 'critical'} label="Exposed access key" highlight={act === 'map'}>
       <CardHead
         tone={off ? 'resolved' : 'critical'}
         icon={off ? ShieldCheck : KeyRound}
@@ -201,6 +202,7 @@ function ExposureCard({ data, identity, act, onActed, reload }) {
 
         {/* What it opens */}
         <div className="min-w-0">
+          <div data-scene="mapped">
           <p className="text-[11px] font-semibold tracking-[0.12em] text-ink-3 uppercase">Mapped to</p>
           <ol className="mt-2 flex flex-wrap items-center gap-2">
             {[
@@ -224,6 +226,7 @@ function ExposureCard({ data, identity, act, onActed, reload }) {
               </Fragment>
             ))}
           </ol>
+          </div>
           {!off ? (
             <>
               <div className="mt-4 grid grid-cols-3 gap-3 rounded-[10px] border border-line px-4 py-3">
@@ -232,7 +235,7 @@ function ExposureCard({ data, identity, act, onActed, reload }) {
                 <Stat value={formatNumber(before.roles)} label="Roles it can become" />
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-2">
-                <Button variant="danger" icon={Ban} loading={busy} onClick={deactivate}>
+                <Button data-scene="deactivate" variant="danger" icon={Ban} loading={busy} onClick={deactivate}>
                   Deactivate key
                 </Button>
                 <Button variant="ghost" as={Link} to={`/identities/${identity.id}?tab=blast`}>
@@ -271,7 +274,7 @@ function OverprivilegeCard({ data, identity, act, onActed, reload }) {
   });
   const cells = Array.from({ length: data.services_granted }, (_, i) => i < data.services_used);
   return (
-    <Card tone={sized ? 'resolved' : 'critical'} label="Over-privileged" highlight={act === 'usage'}>
+    <Card scene="overpriv-card" tone={sized ? 'resolved' : 'critical'} label="Over-privileged" highlight={act === 'usage'}>
       <CardHead
         tone={sized ? 'resolved' : 'critical'}
         icon={sized ? ShieldCheck : ShieldAlert}
@@ -279,7 +282,7 @@ function OverprivilegeCard({ data, identity, act, onActed, reload }) {
         title={sized ? `${data.role_name} now has only what it uses` : data.public ? 'This internet-facing server’s role has full admin' : `${data.role_name} has full admin and barely uses it`}
       />
       <div className="grid gap-5 px-5 py-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <div className={cn('min-w-0', act === 'usage' && 'animate-attention rounded-[10px]')}>
+        <div data-scene="usage" className={cn('min-w-0', act === 'usage' && 'animate-attention rounded-[10px]')}>
           <div className="flex items-end gap-3">
             <p data-numeric="" className={cn('font-display text-[44px] leading-none font-bold', sized ? 'text-low' : 'text-critical')}>
               {sized ? '100%' : `${data.utilization_pct}%`}
@@ -322,7 +325,7 @@ function OverprivilegeCard({ data, identity, act, onActed, reload }) {
               </div>
               <p className="mt-3 text-[12.5px] text-ink-2">One app flaw exposes the whole account. Replace AdministratorAccess with a policy built from what it actually called.</p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Button variant="primary" icon={Wand2} onClick={() => setOpen(true)}>
+                <Button data-scene="generate-lp" variant="primary" icon={Wand2} onClick={() => setOpen(true)}>
                   Generate least-privilege policy
                 </Button>
                 <Button variant="ghost" as={Link} to={`/identities/${identity.id}?tab=blast`}>
@@ -396,7 +399,7 @@ function LeastPrivilegeModal({ identity, autoApply, onClose, onApplied }) {
       description={lp ? `Built from ${lp.based_on}. Replaces ${lp.replaces.join(', ')}.` : 'Reading what it actually used…'}
       footer={
         applied ? (
-          <Button variant="primary" onClick={onClose}>
+          <Button data-scene="lp-done" variant="primary" onClick={onClose}>
             Done
           </Button>
         ) : (
@@ -404,7 +407,7 @@ function LeastPrivilegeModal({ identity, autoApply, onClose, onApplied }) {
             <Button variant="ghost" onClick={onClose}>
               Cancel
             </Button>
-            <Button variant="primary" icon={ShieldCheck} loading={busy} disabled={!lp} onClick={apply}>
+            <Button data-scene="apply-lp" variant="primary" icon={ShieldCheck} loading={busy} disabled={!lp} onClick={apply}>
               Apply policy
             </Button>
           </>
@@ -481,7 +484,7 @@ function EscalationCard({ data, identity, act, onActed, reload }) {
 
   const nodes = path?.identities ?? (closed ? [{ name: closed.from }, { name: closed.to }] : []);
   return (
-    <Card tone={open ? 'critical' : 'resolved'} label="Privilege escalation path" highlight={act === 'flag'}>
+    <Card scene="chain-card" tone={open ? 'critical' : 'resolved'} label="Privilege escalation path" highlight={act === 'flag'}>
       <CardHead
         tone={open ? 'critical' : 'resolved'}
         icon={open ? ShieldAlert : ShieldCheck}
@@ -490,7 +493,7 @@ function EscalationCard({ data, identity, act, onActed, reload }) {
         right={open ? <span className="rounded-full bg-critical-soft px-2.5 py-1 text-[11.5px] font-semibold text-critical">{path.links.length} hops to admin</span> : null}
       />
       <div className="px-5 py-5">
-        <ol key={play} className="flex flex-wrap items-stretch gap-y-3" aria-label="Role chain">
+        <ol key={play} data-scene="chain" className="flex flex-wrap items-stretch gap-y-3" aria-label="Role chain">
           {nodes.map((n, i) => {
             const isAdmin = n.is_admin;
             const self = n.id === identity.id;
@@ -524,7 +527,7 @@ function EscalationCard({ data, identity, act, onActed, reload }) {
         </ol>
 
         {open ? (
-          <div className={cn('mt-5 grid gap-4 rounded-[12px] border border-line bg-surface-2 p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center', act === 'fix' && 'animate-attention')}>
+          <div data-scene="fix" className={cn('mt-5 grid gap-4 rounded-[12px] border border-line bg-surface-2 p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center', act === 'fix' && 'animate-attention')}>
             <div className="min-w-0">
               <p className="text-[11px] font-semibold tracking-[0.12em] text-ink-3 uppercase">One fix closes the path</p>
               <p className="mt-1 text-[13.5px] font-semibold text-ink">
@@ -532,7 +535,7 @@ function EscalationCard({ data, identity, act, onActed, reload }) {
               </p>
               <p className="mt-0.5 text-[12px] text-ink-3">{first.why}. Nothing has assumed it through this trust in 90 days; {first.to} keeps the rest of its access.</p>
             </div>
-            <Button variant="danger" icon={Unlink} loading={busy} onClick={remove}>
+            <Button data-scene="remove-trust" variant="danger" icon={Unlink} loading={busy} onClick={remove}>
               Remove trust
             </Button>
           </div>
@@ -573,7 +576,7 @@ function AnomalyCard({ data, identity, act, onActed, reload }) {
   useCue(act, 'contain', contain);
   const baseline = String(data.change?.baseline ?? '').replace(/ only$/, '');
   return (
-    <Card tone={contained ? 'resolved' : 'critical'} label="Behaviour anomaly" highlight={act === 'detect'}>
+    <Card scene="anomaly-card" tone={contained ? 'resolved' : 'critical'} label="Behaviour anomaly" highlight={act === 'detect'}>
       <CardHead
         tone={contained ? 'resolved' : 'critical'}
         icon={contained ? ShieldCheck : Dna}
@@ -611,7 +614,7 @@ function AnomalyCard({ data, identity, act, onActed, reload }) {
                 <Stat value={formatNumber(data.blast.resources)} label="Resources it reaches" />
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Button variant="danger" icon={Ban} loading={busy} onClick={contain}>
+                <Button data-scene="contain" variant="danger" icon={Ban} loading={busy} onClick={contain}>
                   Restrict to its baseline
                 </Button>
                 {genome && (

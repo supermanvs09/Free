@@ -11,7 +11,7 @@ export default defineConfig((env) =>
     define: {
       'import.meta.env.VITE_ROUTER': JSON.stringify('memory'),
       'import.meta.env.VITE_SYNC': JSON.stringify('off'),
-      'import.meta.env.VITE_PRESENT': JSON.stringify('on'),
+      'import.meta.env.VITE_LIVE_REPLAY': JSON.stringify('on'),
       'import.meta.env.VITE_LOCAL_LATENCY': JSON.stringify('90'),
     },
     build: {

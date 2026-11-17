@@ -51,6 +51,7 @@ function Row({ a, selected, onSelect, isNew }) {
   return (
     <div
       role="option"
+      data-scene={selected ? 'alert-selected' : undefined}
       aria-selected={selected}
       onClick={onSelect}
       className={cn('relative flex cursor-pointer items-start gap-3 border-b border-line px-4 py-3.5 transition-colors', selected ? 'bg-info-soft/55' : 'hover:bg-surface-2/70')}
