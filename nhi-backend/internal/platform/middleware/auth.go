@@ -97,7 +97,7 @@ func respondUnauthorized(w http.ResponseWriter, r *http.Request, message string)
 // to, so a client of one family parses every error it can receive:
 //
 //	/genome/               {error: {code, message, request_id}}
-//	/ispm/, /remediation/  {error: {code, message}}
+//	/ispm/, /remediation/, /correlation/  {error: {code, message}}
 //	/credential-exposure/  {error: code, message}
 //	everything else        {success: false, message, error: code}
 func respondError(w http.ResponseWriter, r *http.Request, status int, message, code string) {
@@ -108,7 +108,7 @@ func respondError(w http.ResponseWriter, r *http.Request, status int, message, c
 		rid := requestID(r)
 		w.Header().Set("X-Request-ID", rid)
 		body = map[string]any{"error": map[string]string{"code": code, "message": message, "request_id": rid}}
-	case strings.Contains(path, "/ispm/"), strings.Contains(path, "/remediation/"):
+	case strings.Contains(path, "/ispm/"), strings.Contains(path, "/remediation/"), strings.Contains(path, "/correlation/"):
 		body = map[string]any{"error": map[string]string{"code": code, "message": message}}
 	case strings.Contains(path, "/credential-exposure/"):
 		body = map[string]string{"error": code, "message": message}
