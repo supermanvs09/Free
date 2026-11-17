@@ -19,16 +19,16 @@
   .tagline{margin-top:18px;font-size:20px;line-height:1.5;color:#d2ddf5;font-weight:500;white-space:nowrap}
 
   /* ---------- ABOUT ---------- */
-  .about{display:grid;grid-template-columns:1fr 356px;gap:32px;padding-top:28px;padding-bottom:24px}
+  .about{display:grid;grid-template-columns:1fr 400px;gap:28px;padding-top:28px;padding-bottom:24px}
   .about p{margin-top:12px;font-size:16.5px;line-height:1.62;color:var(--ink-2)}
   .about p b{color:var(--navy);font-weight:700}
-  .facts{border-left:1px solid var(--line);padding-left:28px;display:flex;flex-direction:column;justify-content:center;gap:10px}
+  .facts{border-left:1px solid var(--line);padding-left:28px;display:flex;flex-direction:column;justify-content:center;gap:14px}
   .fact{display:flex;gap:16px;align-items:center}
   .fact .ib{width:52px;height:52px;padding:12px}
   .fact h3{font-size:17.5px;font-weight:700;color:var(--navy)}
-  .fact span{display:block;font-size:14px;color:var(--ink-3);margin-top:2px}
-  .tri{display:inline-flex;flex-direction:column;margin-left:8px;vertical-align:-1px;border-radius:2px;overflow:hidden;border:1px solid #d5ddeb}
-  .tri i{width:19px;height:4px;display:block}
+  .fact span{display:block;white-space:nowrap;font-size:14px;color:var(--ink-3);margin-top:2px}
+  .fact h3.mi{display:flex;align-items:center;gap:10px}
+  .flag{width:27px;height:18px;flex:none;border-radius:2px;box-shadow:0 1px 3px rgba(14,26,92,.18)}
 
   /* ---------- PLATFORMS ---------- */
   .platforms{padding-top:24px;padding-bottom:26px}
@@ -112,7 +112,7 @@
     <div class="facts">
       <div class="fact"><div class="ib">{{icon:rocket-launch}}</div><div><h3>AI &amp; Cybersecurity Startup</h3><span>Focused on Identity Security</span></div></div>
       <div class="fact"><div class="ib">{{icon:seal-check}}</div><div><h3>Patented Technology</h3><span>In Behavioural Biometric Authentication</span></div></div>
-      <div class="fact"><div class="ib">{{icon:map-pin}}</div><div><h3>Made in India <em class="tri"><i style="background:#ff9933"></i><i style="background:#fff"></i><i style="background:#138808"></i></em></h3><span>Aligned with Government &amp; MeitY initiatives</span></div></div>
+      <div class="fact"><div class="ib">{{icon:map-pin}}</div><div><h3 class="mi">Made in India <svg class="flag" viewBox="0 0 30 20" aria-label="Indian flag"><rect width="30" height="20" fill="#fff"/><rect width="30" height="6.67" fill="#FF9933"/><rect y="13.33" width="30" height="6.67" fill="#138808"/><circle cx="15" cy="10" r="2.6" fill="none" stroke="#000080" stroke-width=".6"/><circle cx="15" cy="10" r=".55" fill="#000080"/><line x1="15" y1="10" x2="17.60" y2="10.00" stroke="#000080" stroke-width=".25"/><line x1="15" y1="10" x2="17.51" y2="10.67" stroke="#000080" stroke-width=".25"/><line x1="15" y1="10" x2="17.25" y2="11.30" stroke="#000080" stroke-width=".25"/><line x1="15" y1="10" x2="16.84" y2="11.84" stroke="#000080" stroke-width=".25"/><line x1="15" y1="10" x2="16.30" y2="12.25" stroke="#000080" stroke-width=".25"/><line x1="15" y1="10" x2="15.67" y2="12.51" stroke="#000080" stroke-width=".25"/><line x1="15" y1="10" x2="15.00" y2="12.60" stroke="#000080" stroke-width=".25"/><line x1="15" y1="10" x2="14.33" y2="12.51" stroke="#000080" stroke-width=".25"/><line x1="15" y1="10" x2="13.70" y2="12.25" stroke="#000080" stroke-width=".25"/><line x1="15" y1="10" x2="13.16" y2="11.84" stroke="#000080" stroke-width=".25"/><line x1="15" y1="10" x2="12.75" y2="11.30" stroke="#000080" stroke-width=".25"/><line x1="15" y1="10" x2="12.49" y2="10.67" stroke="#000080" stroke-width=".25"/><line x1="15" y1="10" x2="12.40" y2="10.00" stroke="#000080" stroke-width=".25"/><line x1="15" y1="10" x2="12.49" y2="9.33" stroke="#000080" stroke-width=".25"/><line x1="15" y1="10" x2="12.75" y2="8.70" stroke="#000080" stroke-width=".25"/><line x1="15" y1="10" x2="13.16" y2="8.16" stroke="#000080" stroke-width=".25"/><line x1="15" y1="10" x2="13.70" y2="7.75" stroke="#000080" stroke-width=".25"/><line x1="15" y1="10" x2="14.33" y2="7.49" stroke="#000080" stroke-width=".25"/><line x1="15" y1="10" x2="15.00" y2="7.40" stroke="#000080" stroke-width=".25"/><line x1="15" y1="10" x2="15.67" y2="7.49" stroke="#000080" stroke-width=".25"/><line x1="15" y1="10" x2="16.30" y2="7.75" stroke="#000080" stroke-width=".25"/><line x1="15" y1="10" x2="16.84" y2="8.16" stroke="#000080" stroke-width=".25"/><line x1="15" y1="10" x2="17.25" y2="8.70" stroke="#000080" stroke-width=".25"/><line x1="15" y1="10" x2="17.51" y2="9.33" stroke="#000080" stroke-width=".25"/><rect width="30" height="20" fill="none" stroke="#d5ddeb" stroke-width=".8"/></svg></h3><span>Aligned with Government &amp; MeitY initiatives</span></div></div>
     </div>
   </section>
 
