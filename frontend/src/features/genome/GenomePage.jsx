@@ -137,7 +137,7 @@ export default function GenomePage() {
 
       {tab === 'overview' && <OverviewTab summary={summary} fleet={fleet} window={window} openTab={openTab} />}
       {tab === 'identities' && <IdentitiesTab fleet={fleet} searchParams={searchParams} setParams={setParams} />}
-      {tab === 'anomalies' && <AnomaliesTab searchParams={searchParams} setParams={setParams} openTotal={openTotal} />}
+      {tab === 'anomalies' && <AnomaliesTab searchParams={searchParams} setParams={setParams} />}
     </div>
   );
 }
@@ -792,7 +792,7 @@ const VIEWS = [
   { value: 'list', label: 'Every anomaly' },
 ];
 
-function AnomaliesTab({ searchParams, setParams, openTotal }) {
+function AnomaliesTab({ searchParams, setParams }) {
   const listRef = useRef(null);
   const { railOpen, toggleRail } = useFacetRail('genome-anomalies');
   const state = searchParams.get('state') === 'all' ? 'all' : 'open';
@@ -999,7 +999,7 @@ function AnomaliesTab({ searchParams, setParams, openTotal }) {
           />
           <ResultCount
             shown={formatNumber(filtered.length)}
-            total={formatNumber(query.data && !query.data.complete && state === 'open' && openTotal > all.length ? openTotal : all.length)}
+            total={formatNumber(query.data && !query.data.complete && query.data.total > all.length ? query.data.total : all.length)}
             unit={query.data && !query.data.complete ? `${state === 'open' ? 'open anomalies' : 'anomalies'} (newest ${formatNumber(all.length)} loaded)` : state === 'open' ? 'open anomalies' : 'anomalies'}
             filtered={applied > 0 || Boolean(search)}
             loading={query.isLoading && !query.data}
@@ -1053,7 +1053,7 @@ function AnomaliesTab({ searchParams, setParams, openTotal }) {
                 emptyState={emptyState}
                 onSeverity={(list) => setParams({ sev: list.join(','), page: '' })}
                 activeSeverities={severities}
-                realTotal={state === 'open' && !applied && !search && query.data && !query.data.complete ? openTotal : undefined}
+                realTotal={!applied && !search && query.data && !query.data.complete ? query.data.total : undefined}
               />
             );
           }

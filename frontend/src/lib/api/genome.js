@@ -56,6 +56,10 @@ function identityPath(sourceType, identityName, suffix = '') {
    list (a shared link, an alert) gets the same paths built from its key. */
 const LINK_KINDS = ['summary', 'baseline', 'activity', 'genome', 'timeline'];
 const knownLinks = new Map();
+/* The list row's own names per identity: display_name for the page heading,
+   event_identity_name (the latest event's identity name, as alerts record it)
+   for the anomalies filter. */
+const knownNames = new Map();
 
 function rememberLinks(sourceType, identityName, links) {
   knownLinks.set(`${sourceType}:${identityName}`, links);
@@ -136,6 +140,29 @@ export async function fetchGenomeFleet({ sort = 'risk_desc' } = {}, signal) {
   return { items, complete: false };
 }
 
+function listNames(row) {
+  return { displayName: row.display_name || null, eventIdentityName: row.event_identity_name || null };
+}
+
+/**
+ * The genome list's names for one identity: { displayName, eventIdentityName }.
+ * From the list already read when the page was opened from it; otherwise
+ * (a shared link, an alert) the list searched for this key, exact row only.
+ */
+export async function fetchGenomeListNames(sourceType, identityName, signal) {
+  const key = `${sourceType}:${identityName}`;
+  if (knownNames.has(key)) return knownNames.get(key);
+  const { data } = unwrapGenome(
+    await client.get(`${BASE}/identities`, { params: params({ source_type: sourceType, search: identityName, limit: 100 }), signal }),
+  );
+  const row = list(data?.items).find(
+    (r) => r.identity_name === identityName || (r.source_type === sourceType && r.workload_key === identityName),
+  );
+  const names = row ? listNames(row) : { displayName: null, eventIdentityName: null };
+  knownNames.set(key, names);
+  return names;
+}
+
 function fleetRow(row) {
   const baseline = row.baseline ?? {};
   const risk = row.risk ?? {};
@@ -153,6 +180,7 @@ function fleetRow(row) {
         ? null
         : { sourceType: row.source_type, identityName: row.identity_name };
   if (open && row.links) rememberLinks(open.sourceType, open.identityName, row.links);
+  if (open) knownNames.set(`${open.sourceType}:${open.identityName}`, listNames(row));
   return {
     id: row.id || `${row.source_type}:${row.identity_name}`,
     sourceType: open?.sourceType ?? row.source_type,
@@ -160,6 +188,7 @@ function fleetRow(row) {
     openable: Boolean(open),
     mapped: row.mapping ? row.mapping.status === 'mapped' : true,
     name: row.display_name || row.identity_name,
+    eventIdentityName: row.event_identity_name ?? null,
     nhiType: row.nhi_identity_type ?? null,
     workloadKey: row.workload_key ?? null,
     /* ECS tasks are expanded into their task role and execution role, each
@@ -347,58 +376,60 @@ export async function fetchGenomePeers(sourceType, identityName, signal) {
   return list(data.peers);
 }
 
-/** One page of anomalies, newest first: { items, nextCursor }. */
-export async function fetchAnomalies({ state, dimension, sourceType, search, limit = 25, cursor } = {}, signal) {
-  const { data, meta } = unwrapGenome(
+/**
+ * One page of anomalies, newest first. The service pages by number and counts
+ * the whole filtered result: { items, page, pageCount, total, severityCounts }.
+ * `identityName` is an exact match on the alert's identity name (the list's
+ * event_identity_name).
+ */
+export async function fetchAnomalies({ state, dimension, sourceType, identityName, severity, search, limit = 25, page = 1 } = {}, signal) {
+  const { data } = unwrapGenome(
     await client.get(`${BASE}/anomalies`, {
-      params: params({ state, dimension, source_type: sourceType, search, limit, cursor }),
+      params: params({ state, dimension, source_type: sourceType, identity_name: identityName, severity, search, limit, page }),
       signal,
     }),
   );
-  return { items: list(data?.items), nextCursor: meta?.next_cursor || null };
+  const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  return {
+    items: list(data?.items),
+    page: n(data?.page) || page,
+    pageCount: n(data?.page_count),
+    total: n(data?.total_count),
+    severityCounts: data?.severity_counts ?? null,
+  };
 }
 
-/**
- * Every anomaly in a state (open, or '' for all), newest first: pages of 100
- * by cursor up to 1,000, so the Anomalies tab can count and filter by severity
- * and departure type without a request per filter. `complete` is false beyond
- * that.
- */
-export async function fetchAllAnomalies({ state, sourceType, search } = {}, signal) {
+/* Pages of 100 until the service's page count, up to `maxPages`. */
+async function fetchAnomalyPages(query, maxPages, signal) {
   const items = [];
-  let cursor;
-  for (let page = 0; page < 10; page += 1) {
-    const result = await fetchAnomalies({ state, sourceType, search, limit: 100, cursor }, signal);
+  let first = null;
+  for (let page = 1; page <= maxPages; page += 1) {
+    const result = await fetchAnomalies({ ...query, limit: 100, page }, signal);
+    first ??= result;
     items.push(...result.items);
-    cursor = result.nextCursor;
-    if (!cursor) return { items, complete: true };
+    if (page >= result.pageCount || result.items.length === 0) {
+      return { items, total: first.total, severityCounts: first.severityCounts, complete: true };
+    }
   }
-  return { items, complete: false };
+  return { items, total: first?.total ?? items.length, severityCounts: first?.severityCounts ?? null, complete: false };
 }
 
 /**
- * One identity's anomalies, newest first, resolved on the server exactly as
- * its summary and timeline resolve it (GET /api/v1/identity-anomalies), in
- * pages of 200 up to 2,000. `total` is the identity's real count in that
- * state, whatever was loaded.
+ * Every anomaly in a state (open, or '' for all), newest first, up to 1,000,
+ * so the Anomalies tab can group and filter without a request per filter.
+ * `total` is the real count whatever was loaded; `complete` is false beyond.
  */
-export async function fetchIdentityAnomalies({ sourceType, identityName, state } = {}, signal) {
-  const items = [];
-  let cursor;
-  let total = null;
-  for (let page = 0; page < 10; page += 1) {
-    const { data, meta } = unwrapGenome(
-      await client.get('/api/v1/identity-anomalies', {
-        params: params({ source_type: sourceType, identity_name: identityName, state, limit: 200, cursor }),
-        signal,
-      }),
-    );
-    items.push(...list(data?.items));
-    total ??= Number.isFinite(Number(data?.total)) ? Number(data.total) : null;
-    cursor = meta?.next_cursor || null;
-    if (!cursor) return { items, total: total ?? items.length, complete: true };
-  }
-  return { items, total: total ?? items.length, complete: false };
+export function fetchAllAnomalies({ state, sourceType, search } = {}, signal) {
+  return fetchAnomalyPages({ state, sourceType, search }, 10, signal);
+}
+
+/**
+ * One identity's anomalies, newest first, up to 2,000: the anomalies list
+ * filtered by the identity's event_identity_name from the genome list.
+ */
+export function fetchIdentityAnomalies({ eventIdentityName, state } = {}, signal) {
+  if (!eventIdentityName) return Promise.resolve({ items: [], total: 0, severityCounts: null, complete: true });
+  return fetchAnomalyPages({ state, identityName: eventIdentityName }, 20, signal);
 }
 
 export async function fetchAnomaly(id, signal) {

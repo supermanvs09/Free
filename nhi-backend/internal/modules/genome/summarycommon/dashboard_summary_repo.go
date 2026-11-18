@@ -9,6 +9,7 @@ import (
 
 	"github.com/lib/pq"
 
+	"nhi-backend-api/internal/modules/genome/common"
 	"nhi-backend-api/internal/modules/genome/workloadtypes"
 	chclient "nhi-backend-api/internal/platform/clickhouse"
 	"nhi-backend-api/internal/platform/scope"
@@ -520,6 +521,100 @@ func (r *DashboardSummaryRepository) CountOpenAlerts(ctx context.Context, resolv
 		return 0, WrapMonitoringErr("count open alerts", err)
 	}
 	return n, nil
+}
+
+// OpenAlerts returns open alert rows for the selected baseline-backed
+// monitoring keys and time window.
+//
+// Alert event IDs are used to retrieve the latest matching log_events rows
+// from ClickHouse for severity aggregation.
+// OpenAlerts returns open alerts for the selected baseline-backed identities
+// and time window. The event IDs are subsequently joined with the latest
+// ClickHouse log_events versions to calculate critical anomalies.
+func (
+	r *DashboardSummaryRepository,
+) OpenAlerts(
+	ctx context.Context,
+	resolved *scope.DataScope,
+	keys []MonitoringKey,
+	from time.Time,
+	to time.Time,
+) (
+	[]common.AlertRow,
+	error,
+) {
+	output := make(
+		[]common.AlertRow,
+		0,
+	)
+
+	if len(keys) == 0 {
+		return output, nil
+	}
+
+	types, names := KeyArrays(
+		keys,
+	)
+
+	query := `
+		SELECT
+			` + common.AlertColumns + `
+		FROM ` + resolved.Table("alerts") + ` AS a
+	` + KeyJoin("a") + `
+		WHERE LOWER(
+			TRIM(a.status)
+		) = 'open'
+		  AND a.created_at >= $3
+		  AND a.created_at < $4
+		ORDER BY
+			a.created_at DESC,
+			a.id DESC
+	`
+
+	rows, err := resolved.DB.QueryContext(
+		ctx,
+		query,
+		types,
+		names,
+		from,
+		to,
+	)
+	if err != nil {
+		return nil,
+			WrapMonitoringErr(
+				"dashboard open alerts",
+				err,
+			)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		row, scanErr := common.ScanAlert(
+			rows,
+		)
+		if scanErr != nil {
+			return nil,
+				WrapMonitoringErr(
+					"dashboard open alerts",
+					scanErr,
+				)
+		}
+
+		output = append(
+			output,
+			row,
+		)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil,
+			WrapMonitoringErr(
+				"dashboard open alerts",
+				err,
+			)
+	}
+
+	return output, nil
 }
 
 // DimensionCountRow is one GROUP BY dimension row.

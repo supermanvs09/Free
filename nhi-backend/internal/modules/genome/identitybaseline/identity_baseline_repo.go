@@ -41,50 +41,144 @@ type BaselineRow struct {
 
 // Baseline returns the baselines row of the first key, in the order given,
 // that has one; nil, nil when no key has a row.
-func (r *Repository) Baseline(ctx context.Context, resolved *scope.DataScope, keys []common.MonitoringKey) (*BaselineRow, error) {
+// Baseline returns the baselines row of the first key, in the order given,
+// that has one. It returns nil, nil when none of the supplied keys has a row.
+//
+// Both active and inactive baseline rows are returned.
+func (r *Repository) Baseline(
+	ctx context.Context,
+	resolved *scope.DataScope,
+	keys []common.MonitoringKey,
+) (*BaselineRow, error) {
 	if len(keys) == 0 {
 		return nil, nil
 	}
-	types, names := common.KeyArrays(keys)
-q := `SELECT
-          b.source_type,
-          b.identity_name,
-          b.status,
-          b.required_days,
-          b.built_days,
-          b.days_remaining,
-          b.first_seen_date,
-          b.active_since,
-          b.updated_at,
-          b.profile_json
-      FROM ` + resolved.Table("baselines") + ` b` +
-	common.KeyPreferenceJoin("b") + `
-      WHERE LOWER(TRIM(b.status)) = 'active'
-      ORDER BY k.preference
-      LIMIT 1`
+
+	types, names := common.KeyArrays(
+		keys,
+	)
+
+	q := `
+		WITH requested_keys AS (
+			SELECT
+				key.source_type,
+				key.identity_name,
+				key.preference
+			FROM unnest(
+				$1::text[],
+				$2::text[]
+			) WITH ORDINALITY AS key(
+				source_type,
+				identity_name,
+				preference
+			)
+		)
+		SELECT
+			b.source_type,
+			b.identity_name,
+			COALESCE(
+				b.status,
+				''
+			),
+			COALESCE(
+				b.required_days,
+				0
+			),
+			COALESCE(
+				b.built_days,
+				0
+			),
+			COALESCE(
+				b.days_remaining,
+				GREATEST(
+					COALESCE(
+						b.required_days,
+						0
+					) -
+					COALESCE(
+						b.built_days,
+						0
+					),
+					0
+				)
+			),
+			b.first_seen_date,
+			b.active_since,
+			b.updated_at,
+			COALESCE(
+				b.profile_json,
+				'{}'::jsonb
+			)
+		FROM ` + resolved.Table("baselines") + ` AS b
+		JOIN requested_keys AS key
+		  ON key.source_type =
+		     b.source_type
+		 AND key.identity_name =
+		     b.identity_name
+		ORDER BY
+			key.preference
+		LIMIT 1`
+
 	var (
-		row       BaselineRow
+		row BaselineRow
+
 		firstSeen sql.NullTime
 		active    sql.NullTime
+		updated   sql.NullTime
+
+		profile []byte
 	)
-	err := resolved.DB.QueryRowContext(ctx, q, types, names).Scan(
-		&row.Key.SourceType, &row.Key.IdentityName, &row.Status, &row.RequiredDays, &row.BuiltDays, &row.DaysRemaining,
-		&firstSeen, &active, &row.UpdatedAt, &row.Profile)
-	if errors.Is(err, sql.ErrNoRows) {
+
+	err := resolved.DB.QueryRowContext(
+		ctx,
+		q,
+		types,
+		names,
+	).Scan(
+		&row.Key.SourceType,
+		&row.Key.IdentityName,
+		&row.Status,
+		&row.RequiredDays,
+		&row.BuiltDays,
+		&row.DaysRemaining,
+		&firstSeen,
+		&active,
+		&updated,
+		&profile,
+	)
+
+	if errors.Is(
+		err,
+		sql.ErrNoRows,
+	) {
 		return nil, nil
 	}
+
 	if err != nil {
-		return nil, common.WrapMonitoringErr(ctx, "baseline", err)
+		return nil, common.WrapMonitoringErr(
+			ctx,
+			"baseline",
+			err,
+		)
 	}
+
 	if firstSeen.Valid {
-		t := firstSeen.Time.UTC()
-		row.FirstSeenDate = &t
+		value := firstSeen.Time.UTC()
+		row.FirstSeenDate = &value
 	}
+
 	if active.Valid {
-		t := active.Time.UTC()
-		row.ActiveSince = &t
+		value := active.Time.UTC()
+		row.ActiveSince = &value
 	}
-	row.UpdatedAt = row.UpdatedAt.UTC()
+
+	if updated.Valid {
+		row.UpdatedAt =
+			updated.Time.UTC()
+	}
+
+	row.Profile = profile
+
 	return &row, nil
 }
 

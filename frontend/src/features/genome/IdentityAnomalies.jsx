@@ -21,18 +21,18 @@ const STATES = [
  * patterns (same departure, numbers aside) so hundreds of near-identical
  * anomalies read as one line each. The evidence and verdict open in the drawer.
  *
- * The rows come from the identity's own list on the server, resolved like its
- * summary and timeline (baseline key, event keys and the event identity names
- * recorded under them), so the count here and on the tab agree.
+ * The rows are the anomalies list filtered by this identity's
+ * event_identity_name from the genome list (the name its alerts are recorded
+ * under). `loading` is true while that name is being looked up.
  */
-export function IdentityAnomalies({ sourceType, identityName }) {
+export function IdentityAnomalies({ eventIdentityName, loading = false }) {
   const [state, setState] = useState('open');
   const [selected, setSelected] = useState(null);
   const [pattern, setPattern] = useState(null);
   const { can } = useAccess();
   const query = useQuery(
-    (signal) => fetchIdentityAnomalies({ state: state === 'all' ? '' : 'open', sourceType, identityName }, signal),
-    [state, sourceType, identityName],
+    (signal) => (loading ? new Promise(() => {}) : fetchIdentityAnomalies({ state: state === 'all' ? '' : 'open', eventIdentityName }, signal)),
+    [state, eventIdentityName, loading],
   );
   const items = useMemo(() => query.data?.items ?? [], [query.data]);
   const total = query.data?.total ?? 0;

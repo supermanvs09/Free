@@ -6,8 +6,12 @@ import (
 )
 
 func TestIdentityEquals(t *testing.T) {
-	if got := IdentityEquals("LAMBDA"); got != `(identity_name = {identity_name:String} OR workload_key = {identity_name:String})` {
-		t.Fatalf("non-ECS must compare the plain column, got %q", got)
+	flat := func(s string) string { return strings.Join(strings.Fields(s), " ") }
+	if got := flat(IdentityEquals("LAMBDA")); got != `( workload_key = {identity_name:String} OR identity_name = {identity_name:String} )` {
+		t.Fatalf("non-ECS matches workload_key or identity_name, got %q", got)
+	}
+	if got := flat(IdentityEquals(" ec2 ")); !strings.Contains(got, "instance_arn = {identity_name:String}") {
+		t.Fatalf("EC2 must match the instance ARN, got %q", got)
 	}
 	for _, st := range []string{"ECS", "ecs", " ECS "} {
 		got := IdentityEquals(st)

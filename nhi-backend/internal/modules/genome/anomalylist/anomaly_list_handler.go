@@ -3,39 +3,54 @@ package anomalylist
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
 	"nhi-backend-api/internal/modules/genome/common"
 )
 
-// Handler serves GET /api/v1/genome/anomalies (the anomaly list). It only
-// reads the JWT claims, validates the request and shapes the response; the
-// data work is in Service.
 type Handler struct {
 	service *Service
 	now     func() time.Time
 }
 
-// NewHandler creates the handler.
 func NewHandler(service *Service) *Handler {
-	return &Handler{service: service, now: func() time.Time { return time.Now().UTC().Truncate(time.Second) }}
+	return &Handler{
+		service: service,
+		now: func() time.Time {
+			return time.Now().UTC().Truncate(time.Second)
+		},
+	}
 }
 
-// Query parameters (nothing else is accepted).
 var allowed = map[string]struct{}{
-	"severity": {}, "dimension": {}, "state": {}, "source_type": {}, "search": {},
-	"from": {}, "to": {}, "limit": {}, "cursor": {},
+	"severity":      {},
+	"dimension":     {},
+	"state":         {},
+	"source_type":   {},
+	"identity_name": {},
+	"search":        {},
+	"from":          {},
+	"to":            {},
+	"page":          {},
+	"limit":         {},
+	"event_id":      {},
+	"cursor":        {}, // retained for backward compatibility
 }
 
-// Severity values, as stored in log_events.event_risk_severity.
-var severities = map[string]string{"critical": "Critical", "high": "High", "medium": "Medium", "low": "Low"}
+var severities = map[string]string{
+	"critical": "Critical",
+	"high":     "High",
+	"medium":   "Medium",
+	"low":      "Low",
+}
 
-// Get handles GET /api/v1/genome/anomalies.
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	rid := common.RequestID(r)
 	w.Header().Set("X-Request-ID", rid)
 	defer common.Recover(w, r, "anomaly list", rid)
+
 	ctx, cancel := common.RequestContext(r)
 	defer cancel()
 
@@ -43,6 +58,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+
 	q := r.URL.Query()
 	if unknown, bad := common.CheckUnknown(q, allowed); bad {
 		common.WriteError(w, http.StatusBadRequest, common.CodeValidation, common.UnknownParamMessage(q, unknown, allowed), rid)
@@ -52,29 +68,56 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		common.WriteError(w, http.StatusBadRequest, common.CodeValidation, err.Error(), rid)
 		return
 	}
+
 	params := Params{
-		Dimension:  strings.TrimSpace(q.Get("dimension")),
-		State:      strings.TrimSpace(q.Get("state")),
-		SourceType: strings.ToUpper(strings.TrimSpace(q.Get("source_type"))), // compact upper-case family
-		Search:     strings.TrimSpace(q.Get("search")),
-		Cursor:     strings.TrimSpace(q.Get("cursor")),
+		Dimension:    strings.TrimSpace(q.Get("dimension")),
+		State:        strings.TrimSpace(q.Get("state")),
+		SourceType:   strings.ToUpper(strings.TrimSpace(q.Get("source_type"))),
+		IdentityName: strings.TrimSpace(q.Get("identity_name")),
+		Search:       strings.TrimSpace(q.Get("search")),
+		Cursor:       strings.TrimSpace(q.Get("cursor")),
+		Page:         1,
+		EventID:      strings.TrimSpace(q.Get("event_id")),
 	}
-	if sv := strings.TrimSpace(q.Get("severity")); sv != "" {
-		canonical, ok := severities[strings.ToLower(sv)]
-		if !ok {
+
+	if value := strings.TrimSpace(q.Get("severity")); value != "" {
+		canonical, found := severities[strings.ToLower(value)]
+		if !found {
 			common.WriteError(w, http.StatusBadRequest, common.CodeValidation, "severity must be one of Critical, High, Medium, Low", rid)
 			return
 		}
 		params.Severity = canonical
 	}
+
+	if value := strings.TrimSpace(q.Get("page")); value != "" {
+		page, parseErr := strconv.Atoi(value)
+		if parseErr != nil || page < 1 {
+			common.WriteError(w, http.StatusBadRequest, common.CodeValidation, "page must be a positive integer", rid)
+			return
+		}
+		params.Page = page
+	}
+	if params.Cursor != "" && strings.TrimSpace(q.Get("page")) != "" {
+		common.WriteError(w, http.StatusBadRequest, common.CodeValidation, "page and cursor cannot be used together", rid)
+		return
+	}
+
 	var err error
-	if params.From, params.To, err = common.ParseOptionalWindow(q); err != nil {
+	params.From, params.To, err = common.ParseOptionalWindow(q)
+	if err != nil {
 		common.WriteError(w, http.StatusBadRequest, common.CodeValidation, err.Error(), rid)
 		return
 	}
-	if params.Limit, err = common.ParseIdentityLimit(q, "limit"); err != nil {
+	params.Limit, err = common.ParseIdentityLimit(q, "limit")
+	if err != nil {
 		common.WriteError(w, http.StatusBadRequest, common.CodeValidation, err.Error(), rid)
 		return
+	}
+	if params.Limit < 1 {
+		params.Limit = 25
+	}
+	if params.Limit > 100 {
+		params.Limit = 100
 	}
 
 	data, next, err := h.service.List(ctx, claims.UserID, claims.TenantID, claims.DBName, params)
@@ -86,8 +129,13 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		common.WriteServiceError(w, r, "anomaly list", rid, err)
 		return
 	}
+
 	common.WriteJSON(w, http.StatusOK, common.Envelope{
 		Data: data,
-		Meta: common.Meta{RequestID: rid, GeneratedAt: h.now(), NextCursor: next},
+		Meta: common.Meta{
+			RequestID:   rid,
+			GeneratedAt: h.now(),
+			NextCursor:  next,
+		},
 	})
 }

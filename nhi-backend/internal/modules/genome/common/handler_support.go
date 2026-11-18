@@ -51,7 +51,7 @@ import (
 // http.Server WriteTimeout set in cmd/api-server/main.go, so an over-long
 // request is answered with 504 STORE_TIMEOUT instead of the server closing
 // the connection mid-response.
-const RequestBudget = 12 * time.Second
+const RequestBudget = 120 * time.Second
 
 // Protective input limits (not business rules): a request beyond them is
 // rejected with 400 before any store is touched.

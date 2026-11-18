@@ -4,6 +4,7 @@ import { ArrowLeft, Boxes, Dna, ListFilter, Fingerprint as FingerprintIcon, Hist
 import {
   fetchGenomeActivity,
   fetchGenomeIdentity,
+  fetchGenomeListNames,
   fetchGenomeProfile,
   fetchGenomeTimeline,
   genomeLinks,
@@ -205,6 +206,10 @@ function GenomeIdentity({ sourceType, identityName }) {
   const setTab = (value) => setParam('tab', value === firstTab ? '' : value);
 
   const timeline = useTimeline(sourceType, identityName, Boolean(links.timeline));
+  /* The genome list's names for this identity: the heading is its
+     display_name, and its anomalies are the alerts recorded under its
+     event_identity_name. */
+  const listNames = useQuery((signal) => fetchGenomeListNames(sourceType, identityName, signal), [sourceType, identityName]);
   /* The header: identity, baseline and headline metrics. A failure only costs
      the header; the tabs still load. */
   const summary = useQuery(
@@ -249,7 +254,7 @@ function GenomeIdentity({ sourceType, identityName }) {
   const identity = summary.data?.identity;
   const state = baselineState(summary.data?.baseline ?? null, timeline.items, summary.data?.lastSeen ?? null);
   const discoveryId = inventoryId ?? record?.id ?? null;
-  const title = identity?.display_name || record?.name || arnName(identityName);
+  const title = listNames.data?.displayName || identity?.display_name || record?.name || arnName(identityName);
 
   const tabs = shownTabs.map(({ value, label }) => ({ value, label, count: value === 'anomalies' ? openCount || undefined : undefined }));
 
@@ -360,7 +365,7 @@ function GenomeIdentity({ sourceType, identityName }) {
         <GenomeTab sourceType={sourceType} identityName={identityName} window={window} summary={summary.data} timeline={timeline.items} />
       )}
       {tab === 'anomalies' && (
-        <IdentityAnomalies sourceType={sourceType} identityName={identityName} />
+        <IdentityAnomalies eventIdentityName={listNames.data?.eventIdentityName} loading={listNames.isLoading} />
       )}
       {tab === 'activity' && <ActivityTab sourceType={sourceType} identityName={identityName} window={window} />}
       {tab === 'baseline' && <BaselineTab sourceType={sourceType} identityName={identityName} />}

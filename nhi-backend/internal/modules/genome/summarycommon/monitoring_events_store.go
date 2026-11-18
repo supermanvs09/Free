@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	ch "github.com/ClickHouse/clickhouse-go/v2"
@@ -33,10 +34,150 @@ type MonitoringEvents struct {
 	client  *chclient.Client
 }
 
+type AlertRiskEvent struct {
+	EventID           string
+	RiskStatus        string
+	EventRiskSeverity string
+	Region            string
+}
+
 // ErrMonitoringEventsNotConfigured is returned by every reader when no
 // monitoring ClickHouse is configured (NHI_MONITORING_CLICKHOUSE_HOST empty)
 // or it is not answering right now.
 var ErrMonitoringEventsNotConfigured = errors.New("monitoring clickhouse is not configured")
+
+func (
+	e *MonitoringEvents,
+) AlertRiskEvents(
+	ctx context.Context,
+	eventIDs []string,
+) (
+	map[string]AlertRiskEvent,
+	error,
+) {
+	output := make(
+		map[string]AlertRiskEvent,
+		len(eventIDs),
+	)
+
+	if len(eventIDs) == 0 {
+		return output, nil
+	}
+
+	if !e.Enabled() {
+		return output, nil
+	}
+
+	queryCtx, cancel :=
+		e.queryContext(ctx)
+
+	defer cancel()
+
+	query := `
+		SELECT
+			event_id,
+
+			tupleElement(
+				latest,
+				1
+			) AS risk_status,
+
+			tupleElement(
+				latest,
+				2
+			) AS event_risk_severity
+
+		FROM
+		(
+			SELECT
+				toString(event_id)
+					AS event_id,
+
+				argMax(
+					tuple(
+						ifNull(
+							risk_status,
+							''
+						),
+
+						ifNull(
+							event_risk_severity,
+							''
+						)
+					),
+
+					tuple(
+						ingested_at,
+						event_time
+					)
+				) AS latest
+
+			FROM ` + e.tbl(queryCtx) + `
+
+			WHERE has(
+				{event_ids:Array(String)},
+				toString(event_id)
+			)
+
+			GROUP BY
+				event_id
+		)
+	`
+
+	rows, err := e.client.Conn().Query(
+		queryCtx,
+		query,
+		ch.Named(
+			"event_ids",
+			eventIDs,
+		),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		var event AlertRiskEvent
+
+		if err := rows.Scan(
+			&event.EventID,
+			&event.RiskStatus,
+			&event.EventRiskSeverity,
+		); err != nil {
+			return nil, err
+		}
+
+		event.EventID =
+			strings.TrimSpace(
+				event.EventID,
+			)
+
+		event.RiskStatus =
+			strings.TrimSpace(
+				event.RiskStatus,
+			)
+
+		event.EventRiskSeverity =
+			strings.TrimSpace(
+				event.EventRiskSeverity,
+			)
+
+		if event.EventID == "" {
+			continue
+		}
+
+		output[event.EventID] =
+			event
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return output, nil
+}
 
 // NewMonitoringEvents wraps the monitoring ClickHouse client. database is
 // the configured database name; a nil client yields a nil *MonitoringEvents,

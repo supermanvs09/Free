@@ -32,6 +32,13 @@ type MonitoringEvents struct {
 	client  *chclient.Client
 	timeout time.Duration
 }
+type AlertRiskEvent struct {
+	EventID string
+
+	RiskStatus        string
+	EventRiskSeverity string
+	Region            string
+}
 
 // tbl is the table for this request's tenant: `<tenant>_clickhouse`.`table`
 // when the monitoring ClickHouse is configured per tenant, else the fixed one.
@@ -199,6 +206,114 @@ type AlertEventRow struct {
 	RiskStatus           string
 	RiskReasonsJSON      string
 	RiskComponentsJSON   string
+}
+
+func (e *MonitoringEvents) AlertRiskEvents(
+	ctx context.Context,
+	eventIDs []string,
+) (map[string]AlertRiskEvent, error) {
+	out := make(
+		map[string]AlertRiskEvent,
+		len(eventIDs),
+	)
+
+	if len(eventIDs) == 0 {
+		return out, nil
+	}
+
+	if !e.Enabled() {
+		return out, nil
+	}
+
+	queryCtx, cancel := e.queryContext(ctx)
+	defer cancel()
+
+	query := `
+		SELECT
+			event_id,
+			tupleElement(latest, 1) AS risk_status,
+			tupleElement(latest, 2) AS event_risk_severity,
+			tupleElement(latest, 3) AS region
+		FROM
+		(
+			SELECT
+				toString(event_id) AS event_id,
+
+				argMax(
+					tuple(
+						ifNull(risk_status, ''),
+						ifNull(event_risk_severity, ''),
+						ifNull(region, '')
+					),
+					tuple(
+						ingested_at,
+						event_time
+					)
+				) AS latest
+
+			FROM ` + e.tbl(queryCtx) + `
+
+			WHERE has(
+				{event_ids:Array(String)},
+				toString(event_id)
+			)
+
+			GROUP BY
+				event_id
+		)
+	`
+
+	rows, err := e.client.Conn().Query(
+		queryCtx,
+		query,
+		ch.Named(
+			"event_ids",
+			eventIDs,
+		),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var event AlertRiskEvent
+
+		if err := rows.Scan(
+			&event.EventID,
+			&event.RiskStatus,
+			&event.EventRiskSeverity,
+			&event.Region,
+		); err != nil {
+			return nil, err
+		}
+
+		event.EventID =
+			strings.TrimSpace(event.EventID)
+
+		event.RiskStatus =
+			strings.TrimSpace(event.RiskStatus)
+
+		event.EventRiskSeverity =
+			strings.TrimSpace(
+				event.EventRiskSeverity,
+			)
+
+		event.Region =
+			strings.TrimSpace(event.Region)
+
+		if event.EventID == "" {
+			continue
+		}
+
+		out[event.EventID] = event
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }
 
 // EventsByID reads the latest version (FINAL on the event_id key) of every

@@ -173,7 +173,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		ev := common.EventOf(events, a)
 		out.Items = append(out.Items, anomalylist.Item{
 			ID: a.ID, Identity: common.AnomalyIdentityRefFor(a, index), WhatChanged: common.WhatChangedText(a),
-			Dimension: a.Dimension, ProvenanceConfidence: common.AnomalyProvenance(ev), Severity: common.AnomalySeverity(ev),
+			Dimension: a.Dimension, Severity: common.AnomalySeverity(ev), EventID: a.EventID,
 			State: a.Status, DetectedAt: a.CreatedAt, Region: common.AnomalyRegion(a, ev),
 		})
 	}

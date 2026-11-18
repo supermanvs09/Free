@@ -4,165 +4,500 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
 	"nhi-backend-api/internal/modules/genome/common"
 )
 
-// Service implements GET /api/v1/genome/anomalies: the tenant's alerts
-// newest first, each joined to its log_events row for
-// provenance_confidence, severity and region.
-//
-// Query plan: one keyset page from PostgreSQL alerts ordered created_at
-// DESC, id DESC, then ONE ClickHouse batch read of the page's event ids —
-// never a ClickHouse query per alert. dimension, state, source_type,
-// search and from/to are applied in SQL. severity lives only on
-// log_events, so it is applied after the join; when it drops rows the
-// service keeps reading further pages (bounded) until the page is full or
-// the alerts run out, and meta.next_cursor always points at the last
-// alert consumed.
+const (
+	severityBatchSize      = 1000
+	maxSeverityAggregation = 50000
+)
+
+// Service implements GET /api/v1/genome/anomalies.
 type Service struct {
 	lookup *common.MonitoredIdentityLookup
 	repo   *Repository
 	events *common.MonitoringEvents
 }
 
-// NewService wires the service. events may be nil (monitoring ClickHouse
-// not configured): the event-backed fields are then null and a severity
-// filter matches nothing.
-func NewService(lookup *common.MonitoredIdentityLookup, repo *Repository, events *common.MonitoringEvents) *Service {
-	return &Service{lookup: lookup, repo: repo, events: events}
+func NewService(
+	lookup *common.MonitoredIdentityLookup,
+	repo *Repository,
+	events *common.MonitoringEvents,
+) *Service {
+	return &Service{
+		lookup: lookup,
+		repo:   repo,
+		events: events,
+	}
 }
 
-// Params are the parsed query parameters.
 type Params struct {
-	Severity   string     // Critical | High | Medium | Low ("" = all); matched against log_events.event_risk_severity
-	Dimension  string     // exact alerts.dimension
-	State      string     // exact alerts.status
-	SourceType string     // exact alerts.source_type
-	Search     string     // substring of identity_name / display name
-	From, To   *time.Time // optional created_at window [From, To)
-	Limit      int        // page size: default 25, max 100
-	Cursor     string     // opaque, from a previous meta.next_cursor; "" for the first page
+	Severity     string
+	Dimension    string
+	State        string
+	SourceType   string
+	IdentityName string
+	EventID      string
+	Search       string
+
+	From *time.Time
+	To   *time.Time
+
+	Page   int
+	Limit  int
+	Cursor string
 }
 
-// maxPages bounds the alerts pages one request reads while a severity
-// filter is discarding rows; the returned cursor lets the client continue
-// from exactly where the request stopped.
-const maxPages = 5
+func (s *Service) List(
+	ctx context.Context,
+	userID string,
+	tenantID string,
+	dbName string,
+	p Params,
+) (*Response, *string, error) {
+	if p.Page < 1 {
+		p.Page = 1
+	}
+	if p.Limit < 1 {
+		p.Limit = 25
+	}
+	if p.Limit > 100 {
+		p.Limit = 100
+	}
 
-// List builds the page and the meta.next_cursor (nil on the last page).
-func (s *Service) List(ctx context.Context, userID, tenantID, dbName string, p Params) (*Response, *string, error) {
 	after, err := decodeCursor(p.Cursor)
 	if err != nil {
 		return nil, nil, err
 	}
-	sc, fleet, err := s.lookup.Fleet(ctx, userID, tenantID, dbName)
+
+	sc, fleet, err := s.lookup.Fleet(
+		ctx,
+		userID,
+		tenantID,
+		dbName,
+	)
 	if err != nil {
 		return nil, nil, err
 	}
-	set := common.NewIdentityIndex(fleet)
 
-	out := &Response{Items: []Item{}}
-	if p.Severity != "" && !s.events.Enabled() {
-		return out, nil, nil // severity is an event-level column; without the event store nothing can match
-	}
+	set := common.NewIdentityIndex(fleet)
 	filter := Filter{
-		Dimension: p.Dimension, Status: p.State, SourceType: p.SourceType, Search: p.Search,
-		From: p.From, To: p.To, After: after,
+		Dimension:    p.Dimension,
+		Status:       p.State,
+		SourceType:   p.SourceType,
+		IdentityName: p.IdentityName,
+		EventID:      p.EventID,
+		Search:       p.Search,
+		From:         p.From,
+		To:           p.To,
+		After:        after,
 	}
+
+	if p.Cursor == "" {
+		filter.Offset = (p.Page - 1) * p.Limit
+	}
+
 	if p.Search != "" {
-		needle := strings.ToLower(p.Search)
-		for _, id := range fleet {
-			if strings.Contains(strings.ToLower(id.DisplayName), needle) {
-				filter.SearchKeys = append(filter.SearchKeys, id.AllKeys()...)
+		needle := strings.ToLower(strings.TrimSpace(p.Search))
+		for _, identity := range fleet {
+			if strings.Contains(
+				strings.ToLower(identity.DisplayName),
+				needle,
+			) {
+				filter.SearchKeys = append(
+					filter.SearchKeys,
+					identity.AllKeys()...,
+				)
 			}
 		}
 	}
 
-	var next *string
-	for page := 0; page < maxPages; page++ {
-		want := p.Limit - len(out.Items)
-		filter.Limit = want + 1
-		rows, err := s.repo.Page(ctx, sc, filter)
-		if err != nil {
-			return nil, nil, &common.StoreUnavailableError{Op: "read alerts", Err: err}
+	postgresTotal, err := s.repo.Count(ctx, sc, filter)
+	if err != nil {
+		return nil, nil, &common.StoreUnavailableError{
+			Op:  "count alerts",
+			Err: err,
 		}
-		more := len(rows) > want
-		if more {
-			rows = rows[:want]
+	}
+
+	if postgresTotal > maxSeverityAggregation {
+		return nil, nil, &common.StoreUnavailableError{
+			Op: "severity aggregation",
+			Err: fmt.Errorf(
+				"filtered anomaly count %d exceeds aggregation limit %d; narrow the filters",
+				postgresTotal,
+				maxSeverityAggregation,
+			),
 		}
-		events := common.AlertEvents(ctx, s.events, "anomaly list events", rows)
-		for _, a := range rows {
-			item := listItem(a, common.EventOf(events, a), set)
-			if p.Severity != "" && (item.Severity == nil || !strings.EqualFold(*item.Severity, p.Severity)) {
+	}
+
+	// Severity is a property of the latest ClickHouse event result, not the
+	// PostgreSQL alert row. Load the complete filtered alert population so the
+	// severity filter, totals and page count describe the same result set.
+	allRows, err := s.repo.All(
+		ctx,
+		sc,
+		filter,
+		maxSeverityAggregation+1,
+	)
+	if err != nil {
+		return nil, nil, &common.StoreUnavailableError{
+			Op:  "read alerts for severity aggregation",
+			Err: err,
+		}
+	}
+	if len(allRows) > maxSeverityAggregation {
+		return nil, nil, &common.StoreUnavailableError{
+			Op: "severity aggregation",
+			Err: fmt.Errorf(
+				"filtered anomaly count exceeds aggregation limit %d; narrow the filters",
+				maxSeverityAggregation,
+			),
+		}
+	}
+
+	riskEvents, err := s.alertRiskEvents(ctx, allRows)
+	if err != nil {
+		return nil, nil, &common.StoreUnavailableError{
+			Op:  "read latest anomaly risk events",
+			Err: err,
+		}
+	}
+
+	severityCounts := SeverityCounts{}
+
+	filteredItems := make(
+		[]Item,
+		0,
+		len(allRows),
+	)
+
+	for _, alert := range allRows {
+		eventID := strings.TrimSpace(
+			alert.EventID,
+		)
+
+		riskEvent, found :=
+			riskEvents[eventID]
+
+		item := listItem(
+			alert,
+			riskEvent,
+			found,
+			set,
+		)
+
+		// Severity counts are alert-row counts. Several alert rows may share
+		// one event_id when one event violates multiple baseline dimensions.
+		addSeverity(
+			&severityCounts,
+			item.Severity,
+		)
+
+		if p.Severity != "" {
+			if item.Severity == nil ||
+				!strings.EqualFold(
+					strings.TrimSpace(
+						*item.Severity,
+					),
+					p.Severity,
+				) {
 				continue
 			}
-			out.Items = append(out.Items, item)
 		}
-		if !more {
-			next = nil
-			break
-		}
-		last := rows[len(rows)-1]
-		filter.After = &common.AlertCursor{CreatedAt: last.CreatedAt, ID: last.ID}
-		next = encodeCursor(*filter.After)
-		if len(out.Items) >= p.Limit {
-			break
-		}
+
+		filteredItems = append(
+			filteredItems,
+			item,
+		)
 	}
-	if err := common.BudgetExceeded(ctx, "anomaly list"); err != nil {
-		return nil, nil, err
+	totalCount := len(filteredItems)
+	pageCount := 0
+	if totalCount > 0 {
+		pageCount = (totalCount + p.Limit - 1) / p.Limit
 	}
-	return out, next, nil
+
+	start := (p.Page - 1) * p.Limit
+	pageItems := []Item{}
+	if start < totalCount {
+		end := start + p.Limit
+		if end > totalCount {
+			end = totalCount
+		}
+		pageItems = filteredItems[start:end]
+	}
+
+	out := &Response{
+		Items:          pageItems,
+		Page:           p.Page,
+		Limit:          p.Limit,
+		PageCount:      pageCount,
+		TotalCount:     totalCount,
+		SeverityCounts: severityCounts,
+	}
+
+	if budgetErr := common.BudgetExceeded(ctx, "anomaly list"); budgetErr != nil {
+		return nil, nil, budgetErr
+	}
+
+	// Page-number pagination is authoritative. Cursor remains accepted by the
+	// handler for backward compatibility, but this response does not emit one.
+	return out, nil, nil
 }
 
-// listItem maps one alerts row (+ its event, if read) to a list item.
-func listItem(a common.AlertRow, ev *common.AlertEventRow, set *common.IdentityIndex) Item {
+func (s *Service) alertRiskEvents(
+	ctx context.Context,
+	alerts []common.AlertRow,
+) (map[string]common.AlertRiskEvent, error) {
+	result := make(map[string]common.AlertRiskEvent)
+	eventIDs := uniqueAlertEventIDs(alerts)
+
+	if len(eventIDs) == 0 {
+		return result, nil
+	}
+	if s.events == nil || !s.events.Enabled() {
+		return nil, fmt.Errorf("clickhouse monitoring events are unavailable")
+	}
+
+	for start := 0; start < len(eventIDs); start += severityBatchSize {
+		end := start + severityBatchSize
+		if end > len(eventIDs) {
+			end = len(eventIDs)
+		}
+
+		batch, err := s.events.AlertRiskEvents(
+			ctx,
+			eventIDs[start:end],
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		for eventID, event := range batch {
+			result[strings.TrimSpace(eventID)] = event
+		}
+	}
+
+	return result, nil
+}
+func listItem(
+	alert common.AlertRow,
+	riskEvent common.AlertRiskEvent,
+	riskEventFound bool,
+	set *common.IdentityIndex,
+) Item {
+	var region *string
+
+	if riskEventFound {
+		value := strings.TrimSpace(
+			riskEvent.Region,
+		)
+
+		if value != "" {
+			region = &value
+		}
+	}
+
 	return Item{
-		ID:                   a.ID,
-		Identity:             common.AnomalyIdentityRefFor(a, set),
-		WhatChanged:          common.WhatChangedText(a),
-		Dimension:            a.Dimension,
-		ProvenanceConfidence: common.AnomalyProvenance(ev),
-		Severity:             common.AnomalySeverity(ev),
-		State:                a.Status,
-		DetectedAt:           a.CreatedAt,
-		Region:               common.AnomalyRegion(a, ev),
+		ID: alert.ID,
+
+		EventID: strings.TrimSpace(
+			alert.EventID,
+		),
+
+		Identity: common.AnomalyIdentityRefFor(
+			alert,
+			set,
+		),
+
+		WhatChanged: common.WhatChangedText(
+			alert,
+		),
+
+		Dimension: alert.Dimension,
+
+		Severity: latestSeverity(
+			riskEvent,
+			riskEventFound,
+		),
+
+		State: alert.Status,
+
+		DetectedAt: alert.CreatedAt,
+
+		Region: region,
+	}
+}
+func uniqueAlertEventIDs(alerts []common.AlertRow) []string {
+	seen := make(map[string]struct{}, len(alerts))
+	eventIDs := make([]string, 0, len(alerts))
+
+	for _, alert := range alerts {
+		eventID := strings.TrimSpace(alert.EventID)
+		if eventID == "" {
+			continue
+		}
+		if _, exists := seen[eventID]; exists {
+			continue
+		}
+		seen[eventID] = struct{}{}
+		eventIDs = append(eventIDs, eventID)
+	}
+
+	return eventIDs
+}
+
+func latestSeverity(
+	event common.AlertRiskEvent,
+	found bool,
+) *string {
+	if !found {
+		return nil
+	}
+
+	severity := strings.TrimSpace(
+		event.EventRiskSeverity,
+	)
+
+	switch {
+	case strings.EqualFold(
+		severity,
+		"Critical",
+	):
+		value := "Critical"
+		return &value
+
+	case strings.EqualFold(
+		severity,
+		"High",
+	):
+		value := "High"
+		return &value
+
+	case strings.EqualFold(
+		severity,
+		"Medium",
+	):
+		value := "Medium"
+		return &value
+
+	case strings.EqualFold(
+		severity,
+		"Low",
+	):
+		value := "Low"
+		return &value
+
+	case strings.EqualFold(
+		severity,
+		"Pending",
+	):
+		value := "Pending"
+		return &value
+
+	case strings.EqualFold(
+		severity,
+		"Unknown",
+	):
+		value := "Unknown"
+		return &value
+
+	default:
+		return nil
 	}
 }
 
-// ---------------------------------------------------------------------------
-// keyset cursor: (created_at, id) of the last alert consumed
-// ---------------------------------------------------------------------------
+func addSeverity(
+	counts *SeverityCounts,
+	severity *string,
+) {
+	if severity == nil {
+		counts.Unknown++
+		return
+	}
+
+	switch {
+	case strings.EqualFold(
+		*severity,
+		"Critical",
+	):
+		counts.Critical++
+
+	case strings.EqualFold(
+		*severity,
+		"High",
+	):
+		counts.High++
+
+	case strings.EqualFold(
+		*severity,
+		"Medium",
+	):
+		counts.Medium++
+
+	case strings.EqualFold(
+		*severity,
+		"Low",
+	):
+		counts.Low++
+
+	case strings.EqualFold(
+		*severity,
+		"Pending",
+	):
+		counts.Pending++
+
+	case strings.EqualFold(
+		*severity,
+		"Unknown",
+	):
+		counts.Unknown++
+
+	default:
+		counts.Unknown++
+	}
+}
 
 type cursorPayload struct {
-	CreatedAt string `json:"t"` // RFC 3339 with nanoseconds, UTC
+	CreatedAt string `json:"t"`
 	ID        int64  `json:"i"`
 }
 
 func encodeCursor(c common.AlertCursor) *string {
-	raw, _ := json.Marshal(cursorPayload{CreatedAt: c.CreatedAt.UTC().Format(time.RFC3339Nano), ID: c.ID})
-	s := base64.RawURLEncoding.EncodeToString(raw)
-	return &s
+	raw, _ := json.Marshal(cursorPayload{
+		CreatedAt: c.CreatedAt.UTC().Format(time.RFC3339Nano),
+		ID:        c.ID,
+	})
+	value := base64.RawURLEncoding.EncodeToString(raw)
+	return &value
 }
 
-func decodeCursor(s string) (*common.AlertCursor, error) {
-	if s == "" {
+func decodeCursor(value string) (*common.AlertCursor, error) {
+	if value == "" {
 		return nil, nil
 	}
-	raw, err := base64.RawURLEncoding.DecodeString(s)
+
+	raw, err := base64.RawURLEncoding.DecodeString(value)
 	if err != nil {
 		return nil, common.ErrInvalidCursor
 	}
-	var c cursorPayload
-	if err := json.Unmarshal(raw, &c); err != nil || c.ID < 1 {
+
+	var payload cursorPayload
+	if err := json.Unmarshal(raw, &payload); err != nil || payload.ID < 1 {
 		return nil, common.ErrInvalidCursor
 	}
-	at, err := time.Parse(time.RFC3339Nano, c.CreatedAt)
+
+	createdAt, err := time.Parse(time.RFC3339Nano, payload.CreatedAt)
 	if err != nil {
 		return nil, common.ErrInvalidCursor
 	}
-	return &common.AlertCursor{CreatedAt: at.UTC(), ID: c.ID}, nil
+
+	return &common.AlertCursor{
+		CreatedAt: createdAt.UTC(),
+		ID:        payload.ID,
+	}, nil
 }

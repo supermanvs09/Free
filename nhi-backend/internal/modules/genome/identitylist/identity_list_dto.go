@@ -16,13 +16,14 @@ type Response struct {
 // identity summary) accepts it, so links are always set. An ECS task role and
 // execution role are separate items with separate keys.
 type Item struct {
-	ID              string  `json:"id"`
-	SourceType      string  `json:"source_type"`
-	IdentityName    string  `json:"identity_name"`
-	DisplayName     string  `json:"display_name"`
-	NHIIdentityType *string `json:"nhi_identity_type"`
-	AccountID       string  `json:"account_id"`
-	Region          *string `json:"region"`
+	ID                string  `json:"id"`
+	SourceType        string  `json:"source_type"`
+	IdentityName      string  `json:"identity_name"`
+	EventIdentityName *string `json:"event_identity_name"`
+	DisplayName       string  `json:"display_name"`
+	NHIIdentityType   *string `json:"nhi_identity_type"`
+	AccountID         string  `json:"account_id"`
+	Region            *string `json:"region"`
 
 	// The IAM role the baseline is for and how the workload uses it
 	// (task | execution | ... for ECS).

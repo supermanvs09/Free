@@ -18,6 +18,7 @@ type IdentitySummaryResponse struct {
 	BaselineSummary *IdentityBaselineSummary `json:"baseline_summary,omitempty"`
 	HeadlineMetrics IdentityHeadlineMetrics  `json:"headline_metrics"`
 }
+
 // IdentityRecord describes the selected monitored principal and its parent
 // discovery inventory resource.
 //

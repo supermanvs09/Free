@@ -2,9 +2,11 @@ package dashboardsummary
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strings"
 
+	"nhi-backend-api/internal/modules/genome/common"
 	"nhi-backend-api/internal/modules/genome/summarycommon"
 	"nhi-backend-api/internal/modules/genome/workloadtypes"
 	chclient "nhi-backend-api/internal/platform/clickhouse"
@@ -24,7 +26,7 @@ import (
 type DashboardSummaryService struct {
 	repo     *summarycommon.DashboardSummaryRepository
 	resolver summarycommon.ScopeResolver
-	events   *summarycommon.MonitoringEvents // nil when no monitoring ClickHouse is configured
+	events   *summarycommon.MonitoringEvents
 }
 
 // NewDashboardSummaryService wires the service. events may be nil: alert
@@ -134,8 +136,16 @@ func (s *DashboardSummaryService) GetSummary(
 		eventKeys = append(eventKeys, id.eventKeys...)
 	}
 
-	facts, err := s.events.WorkloadFacts(ctx, sc.AccountIDs, eventKeys)
-	if !summarycommon.EventsReadOK(ctx, "dashboard summary workload facts", err) {
+	facts, err := s.events.WorkloadFacts(
+		ctx,
+		sc.AccountIDs,
+		eventKeys,
+	)
+	if !summarycommon.EventsReadOK(
+		ctx,
+		"dashboard summary workload facts",
+		err,
+	) {
 		facts = map[summarycommon.MonitoringKey]chclient.WorkloadFacts{}
 	}
 
@@ -178,8 +188,38 @@ func (s *DashboardSummaryService) GetSummary(
 		out.Cards.BaselineCoveragePercent = summarycommon.FloatPtr(summarycommon.Round1(float64(established) / float64(len(ids)) * 100))
 	}
 
-	if n, err := s.repo.CountOpenAlerts(ctx, sc, sc.AccountIDs, alertKeys, p.Cards.From, p.Cards.To); summarycommon.ReadOK(ctx, "dashboard summary open alerts", err) {
-		out.Cards.OpenAnomalies = summarycommon.IntPtr(n)
+	openAlerts, openAlertsErr := s.repo.OpenAlerts(
+		ctx,
+		sc,
+		alertKeys,
+		p.Cards.From,
+		p.Cards.To,
+	)
+
+	if summarycommon.ReadOK(
+		ctx,
+		"dashboard summary open alerts",
+		openAlertsErr,
+	) {
+		out.Cards.OpenAnomalies =
+			summarycommon.IntPtr(
+				len(openAlerts),
+			)
+
+		criticalCount, available :=
+			s.criticalAnomalyCount(
+				ctx,
+				openAlerts,
+			)
+
+		if available {
+			out.Cards.CriticalAnomalies =
+				summarycommon.IntPtr(
+					criticalCount,
+				)
+		} else {
+			out.Cards.CriticalAnomalies = nil
+		}
 	}
 
 	// ---- most anomalous identities -----------------------------------------
@@ -274,6 +314,157 @@ func (s *DashboardSummaryService) GetSummary(
 	}
 
 	return out, nil
+}
+
+func uniqueAlertEventIDs(
+	alerts []common.AlertRow,
+) []string {
+	seen := make(map[string]struct{}, len(alerts))
+	eventIDs := make([]string, 0, len(alerts))
+
+	for _, alert := range alerts {
+		eventID := strings.TrimSpace(alert.EventID)
+		if eventID == "" {
+			continue
+		}
+		if _, exists := seen[eventID]; exists {
+			continue
+		}
+		seen[eventID] = struct{}{}
+		eventIDs = append(eventIDs, eventID)
+	}
+
+	return eventIDs
+}
+
+func (
+	s *DashboardSummaryService,
+) alertRiskEvents(
+	ctx context.Context,
+	alerts []common.AlertRow,
+) (
+	map[string]summarycommon.AlertRiskEvent,
+	error,
+) {
+	result := make(
+		map[string]summarycommon.AlertRiskEvent,
+	)
+
+	if len(alerts) == 0 {
+		return result, nil
+	}
+
+	if s.events == nil ||
+		!s.events.Enabled() {
+		return nil,
+			fmt.Errorf(
+				"ClickHouse monitoring events are unavailable",
+			)
+	}
+
+	// Deduplicate only the ClickHouse lookup. The final Critical count still
+	// counts every PostgreSQL alert row, including multiple dimensions that
+	// share the same event_id.
+	eventIDs := uniqueAlertEventIDs(
+		alerts,
+	)
+
+	for start := 0; start < len(eventIDs); start += dashboardEventBatchSize {
+		end := start +
+			dashboardEventBatchSize
+
+		if end > len(eventIDs) {
+			end = len(eventIDs)
+		}
+
+		batch, err :=
+			s.events.AlertRiskEvents(
+				ctx,
+				eventIDs[start:end],
+			)
+		if err != nil {
+			return nil, err
+		}
+
+		for eventID, event := range batch {
+			eventID =
+				strings.TrimSpace(
+					eventID,
+				)
+
+			if eventID == "" {
+				continue
+			}
+
+			result[eventID] =
+				event
+		}
+	}
+
+	return result, nil
+}
+
+const dashboardEventBatchSize = 1000
+
+func (
+	s *DashboardSummaryService,
+) criticalAnomalyCount(
+	ctx context.Context,
+	alerts []common.AlertRow,
+) (
+	int,
+	bool,
+) {
+	if len(alerts) == 0 {
+		return 0, true
+	}
+
+	events, err :=
+		s.alertRiskEvents(
+			ctx,
+			alerts,
+		)
+	if err != nil {
+		return 0, false
+	}
+
+	critical := 0
+
+	for _, alert := range alerts {
+		eventID := strings.TrimSpace(
+			alert.EventID,
+		)
+
+		event, found :=
+			events[eventID]
+		if !found {
+			continue
+		}
+
+		if !strings.EqualFold(
+			strings.TrimSpace(
+				event.RiskStatus,
+			),
+			"scored",
+		) {
+			continue
+		}
+
+		if !strings.EqualFold(
+			strings.TrimSpace(
+				event.EventRiskSeverity,
+			),
+			"Critical",
+		) {
+			continue
+		}
+
+		// Count the PostgreSQL alert row. One ClickHouse event can produce
+		// several alerts for different baseline dimensions.
+		critical++
+	}
+
+	return critical, true
 }
 
 // betterRisk orders two snapshots of one identity: a higher score wins,

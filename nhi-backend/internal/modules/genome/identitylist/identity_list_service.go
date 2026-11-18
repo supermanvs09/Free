@@ -223,20 +223,21 @@ type mappedIdentity struct {
 }
 
 type listEntry struct {
-	row         BaselineRow
-	matches     []mappedIdentity // primary first
-	matchedBy   string
-	keyRole     string                 // role the baseline key names (ECS)
-	context     string                 // role context of the key (task, execution, ...)
-	keyService  string                 // service the baseline key names (ECS)
-	eventKeys   []common.MonitoringKey // names its log_events rows carry, baseline key first
-	alertKeys   []common.MonitoringKey // keys alerts / risk scores are stored under
-	sortID      string
-	displayName string
-	serviceName string
-	region      string
-	score       *int
-	lastSeen    *time.Time
+	row               BaselineRow
+	matches           []mappedIdentity // primary first
+	matchedBy         string
+	keyRole           string                 // role the baseline key names (ECS)
+	context           string                 // role context of the key (task, execution, ...)
+	keyService        string                 // service the baseline key names (ECS)
+	eventKeys         []common.MonitoringKey // names its log_events rows carry, baseline key first
+	alertKeys         []common.MonitoringKey // keys alerts / risk scores are stored under
+	eventIdentityName string                 // latest ClickHouse identity_name; matches alerts.identity_name
+	sortID            string
+	displayName       string
+	serviceName       string
+	region            string
+	score             *int
+	lastSeen          *time.Time
 }
 
 func newListEntry(mapper *identityMapper, row BaselineRow) listEntry {
@@ -310,11 +311,12 @@ func (e *listEntry) attachFacts(facts map[common.MonitoringKey]chclient.Workload
 	if !ok {
 		return
 	}
+	e.eventIdentityName = strings.TrimSpace(f.EventIdentityName)
 	if f.LastSeen != nil {
 		t := f.LastSeen.UTC()
 		e.lastSeen = &t
 	}
-	e.displayName = common.FirstNonEmpty(f.DisplayName, e.displayName)
+	e.displayName = common.FirstNonEmpty(strings.TrimSpace(f.DisplayName), e.displayName)
 	e.serviceName = common.FirstNonEmpty(e.serviceName, f.ServiceName)
 	if e.keyRole == "" && strings.HasPrefix(f.RoleARN, "arn:") && e.row.Key.SourceType == "ECS" {
 		e.keyRole = f.RoleARN
@@ -373,7 +375,7 @@ func matchesFilters(entry listEntry, params Params) bool {
 		return true
 	}
 	needle := strings.ToLower(params.Search)
-	values := []string{row.Key.IdentityName, entry.displayName, entry.serviceName, entry.keyRole}
+	values := []string{row.Key.IdentityName, entry.eventIdentityName, entry.displayName, entry.serviceName, entry.keyRole}
 	for _, m := range entry.matches {
 		values = append(values, m.raw.row.ID, m.raw.row.ARN, m.raw.row.Name, m.role)
 		if m.fleet != nil {
@@ -413,15 +415,16 @@ func buildItem(entry listEntry) Item {
 	row := entry.row
 	links := common.IdentityLinksFor(row.Key.SourceType, row.Key.IdentityName)
 	item := Item{
-		ID:           entry.sortID,
-		SourceType:   row.Key.SourceType,
-		IdentityName: row.Key.IdentityName,
-		DisplayName:  entry.displayName,
-		AccountID:    row.AccountID,
-		Region:       common.OptionalString(entry.region),
-		RoleARN:      common.OptionalString(entry.keyRole),
-		RoleKind:     common.OptionalString(entry.context),
-		ServiceName:  common.OptionalString(common.FirstNonEmpty(entry.serviceName, entry.keyService)),
+		ID:                entry.sortID,
+		SourceType:        row.Key.SourceType,
+		IdentityName:      row.Key.IdentityName,
+		EventIdentityName: common.OptionalString(entry.eventIdentityName),
+		DisplayName:       entry.displayName,
+		AccountID:         row.AccountID,
+		Region:            common.OptionalString(entry.region),
+		RoleARN:           common.OptionalString(entry.keyRole),
+		RoleKind:          common.OptionalString(entry.context),
+		ServiceName:       common.OptionalString(common.FirstNonEmpty(entry.serviceName, entry.keyService)),
 		Baseline: BaselineSummary{
 			Status:        common.OptionalString(row.Status),
 			BuiltDays:     common.IntPtr(row.BuiltDays),
@@ -1486,3 +1489,7 @@ func dedupe(values []int) []int {
 	sort.Ints(out)
 	return out
 }
+
+// Package anomalylist serves GET /api/v1/genome/anomalies: one item per
+// PostgreSQL alerts row, newest first, with the event-level columns of
+// ClickHouse log_events joined in by event_id.

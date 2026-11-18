@@ -31,7 +31,7 @@ type MonitoredIdentity struct {
 	WorkloadKey    string
 
 	DiscoveryIdentityID string
-	ResourceARN string
+	ResourceARN         string
 
 	ClusterARN string
 	TaskGroup  string
@@ -932,6 +932,7 @@ func ecsRoleWorkloadKey(
 
 	return strings.Join(parts, ":")
 }
+
 // ExpandCredentialIdentities converts one ECS workload into separate
 // task-role and execution-role monitored identities.
 func ExpandCredentialIdentities(
