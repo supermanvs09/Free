@@ -166,7 +166,7 @@ export default function PeoplePage() {
         key: 'last',
         header: 'Last active',
         width: '12%',
-        cell: (row) => <LastActive value={row.last_activity_at} />,
+        cell: (row) => <LastActive value={row.last_activity_at} source={row.source} />,
       },
     ],
     [postureIndex.data, postureIndex.isError],
@@ -392,8 +392,9 @@ function ScoreCell({ entry, loading }) {
   );
 }
 
-function LastActive({ value }) {
-  if (!value) return <span className="text-[12.5px] text-ink-3">Never signed in</span>;
+// ponytail: SSO sign-ins are not collected yet, so an empty value means unknown, not never.
+function LastActive({ value, source }) {
+  if (!value) return <span className="text-[12.5px] text-ink-3">{source === 'iam' ? 'Never signed in' : 'Not reported'}</span>;
   const days = daysSince(value);
   return (
     <span className="block min-w-0 whitespace-nowrap" title={String(value)}>

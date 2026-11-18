@@ -98,8 +98,10 @@ export function PersonDrawer({ id, onClose }) {
                 <DetailRow label="Last active">
                   {d.last_activity_at ? (
                     <span title={formatDateTime(d.last_activity_at)}>{formatRelative(d.last_activity_at)}</span>
-                  ) : (
+                  ) : d.source === 'iam' ? (
                     <span className="font-medium text-medium">Never signed in</span>
+                  ) : (
+                    <span className="text-ink-3">Not reported</span>
                   )}
                 </DetailRow>
                 <DetailRow label="Account created">{d.created_at_source ? formatDateTime(d.created_at_source) : <span className="text-ink-3">Not reported</span>}</DetailRow>
