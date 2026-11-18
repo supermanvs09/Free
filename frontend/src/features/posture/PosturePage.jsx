@@ -999,8 +999,24 @@ function Distribution({ overview, selected, onBand }) {
   );
 }
 
+const QUICK_WINS_SHOWN = 5;
+const BREAKDOWN_ROWS_SHOWN = 5;
+
+/* "See 8 more" / "Show fewer" under a list that is capped so a long one does not stretch its card. */
+function MoreToggle({ hidden, expanded, onToggle }) {
+  if (hidden <= 0) return null;
+  return (
+    <button type="button" onClick={onToggle} aria-expanded={expanded} className="mt-2 text-[12px] font-medium text-brand hover:underline">
+      {expanded ? 'Show fewer' : `See ${formatNumber(hidden)} more`}
+    </button>
+  );
+}
+
 function QuickWins({ overview, active, onPick, pillarNames }) {
-  const wins = overview.quick_wins ?? [];
+  const all = overview.quick_wins ?? [];
+  const [expanded, setExpanded] = useState(false);
+  /* A pick that is hidden behind "See more" stays visible. */
+  const wins = expanded ? all : all.filter((win, index) => index < QUICK_WINS_SHOWN || active.includes(win.rule_id));
   return (
     <Panel id="quick-wins" prominence="quiet" className="animate-rise scroll-mt-28" data-stagger="" style={{ '--stagger': 2 }}>
       <PanelHeader
@@ -1041,6 +1057,7 @@ function QuickWins({ overview, active, onPick, pillarNames }) {
           ))}
         </ul>
       )}
+      <MoreToggle hidden={expanded ? all.length - QUICK_WINS_SHOWN : all.length - wins.length} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
       {wins.length > 0 && (
         <p className="mt-3 text-[11px] leading-relaxed text-ink-3">Choose one to see the fix and the identities it applies to.</p>
       )}
@@ -1114,12 +1131,14 @@ function Breakdowns({ overview, window, facets, onCategory, onAccount }) {
     <Panel prominence="quiet" className="animate-rise" data-stagger="" style={{ '--stagger': 2 }}>
       <PanelHeader prominence="quiet" title="By category and account" subtitle={`Mean score, and its change over ${windowPhrase(window)}.`} />
       <BreakdownList title="Category" items={categories} />
-      <BreakdownList title="Account" items={accounts} />
+      <BreakdownList title="Account" items={accounts} limit={BREAKDOWN_ROWS_SHOWN} />
     </Panel>
   );
 }
 
-function BreakdownList({ title, items }) {
+function BreakdownList({ title, items: all, limit }) {
+  const [expanded, setExpanded] = useState(false);
+  const items = limit && !expanded ? all.slice(0, limit) : all;
   return (
     <div className="mt-4">
       <p className="text-[10.5px] font-semibold tracking-[0.1em] text-ink-3 uppercase">{title}</p>
@@ -1158,6 +1177,7 @@ function BreakdownList({ title, items }) {
           })}
         </ul>
       )}
+      {limit && <MoreToggle hidden={expanded ? all.length - limit : all.length - items.length} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />}
     </div>
   );
 }

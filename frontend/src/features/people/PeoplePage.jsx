@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowRight, Clock3, Crown, ShieldCheck, ShieldOff, UserRoundX, UsersRound } from 'lucide-react';
+import { Clock3, Crown, Link2Off, ShieldOff, UserRoundX, UsersRound } from 'lucide-react';
 import { fetchHumanIdentities, fetchHumanOverview } from '../../lib/api/humanIdentities';
 import { useDebouncedValue, useQuery } from '../../lib/hooks';
 import { formatNumber, formatRelative, formatRelativeShort } from '../../lib/format';
@@ -9,6 +9,8 @@ import { CellStack, DataGrid } from '../../ui/DataGrid';
 import { Select, SearchInput } from '../../ui/Field';
 import { AppliedFilters, FacetRail, useFacetRail } from '../../ui/FacetRail';
 import { ProportionBar } from '../../ui/Meter';
+import { MetricTile } from '../../ui/Stat';
+import { SegmentedControl } from '../../ui/Tabs';
 import { Pagination } from '../../ui/Pagination';
 import { Panel } from '../../ui/Panel';
 import { EmptyState, ErrorState } from '../../ui/States';
@@ -19,7 +21,7 @@ import { cn } from '../../ui/cn';
 import { fetchPostureScoreIndex } from '../../lib/api/posture';
 import { BandTag, ScoreRing } from '../posture/parts';
 import { PersonDrawer } from './PersonDrawer';
-import { Avatar, CoverageRing } from './parts';
+import { Avatar, CoverageRing, LegendRow } from './parts';
 import { HUMAN_TYPE_LABEL, MFA_OPTIONS, SORT_OPTIONS, SOURCE_LABEL, SOURCE_OPTIONS, STATUS_OPTIONS, daysSince, humanTypeLabel, personName, statusMeta } from './peopleMeta';
 
 /**
@@ -34,8 +36,6 @@ import { HUMAN_TYPE_LABEL, MFA_OPTIONS, SORT_OPTIONS, SOURCE_LABEL, SOURCE_OPTIO
  * Filters, sort, page and the open person live in the address.
  */
 const PAGE_SIZES = [10, 25, 50, 100];
-const STATUS_COLORS = { active: 'var(--t-low)', inactive: 'var(--t-medium)', suspended: 'var(--t-high)', disabled: 'var(--t-ink-3)' };
-const TONE_CHIP = { critical: 'bg-critical-soft text-critical', high: 'bg-high-soft text-high', medium: 'bg-medium-soft text-medium' };
 
 export default function PeoplePage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -103,18 +103,6 @@ export default function PeoplePage() {
     const typeKeys = Object.keys(o?.byHumanType ?? {}).sort((a, b) => (o.byHumanType[b] ?? 0) - (o.byHumanType[a] ?? 0));
     return [
       {
-        key: 'source',
-        label: 'Signs in with',
-        single: true,
-        options: SOURCE_OPTIONS.filter((opt) => opt.value !== 'all').map((opt) => ({
-          value: opt.value,
-          label: opt.label,
-          count: count(opt.value === 'iam' ? o?.bySource.iam : o?.bySource.sso),
-          active: source === opt.value,
-        })),
-        onSelect: (value) => update({ source: value && value !== source ? value : '', type: '' }),
-      },
-      {
         key: 'type',
         label: 'Identity type',
         single: true,
@@ -151,7 +139,7 @@ export default function PeoplePage() {
         onSelect: (value) => update({ mfa: value && value !== mfa ? value : '' }),
       },
     ];
-  }, [o, source, humanType, status, mfa, update]);
+  }, [o, humanType, status, mfa, update]);
 
   const chips = [
     source !== 'all' && { key: 'source', label: 'Signs in with', value: SOURCE_LABEL[source] },
@@ -252,12 +240,17 @@ export default function PeoplePage() {
         meta={o ? <p className="text-[11.5px] text-ink-3">{formatNumber(o.total)} human identities in your scope.</p> : null}
       />
 
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <SegmentedControl label="Where people sign in" options={SOURCE_OPTIONS} value={source} onChange={(value) => update({ source: value === 'all' ? '' : value, type: '' })} />
+        <p className="text-[12px] text-ink-3">The tiles and the list follow this choice.</p>
+      </div>
+
       {overview.isError && !o ? (
         <Panel>
           <ErrorState compact error={overview.error} onRetry={overview.refetch} title="Human identity figures could not be loaded" />
         </Panel>
       ) : (
-        <SummaryBand overview={o} source={source} onFilter={(changes) => update(changes)} />
+        <Tiles overview={o} onMfaOff={() => update({ mfa: 'false' })} />
       )}
 
       <WorkArea
@@ -337,152 +330,101 @@ export default function PeoplePage() {
   );
 }
 
-/* ── Summary band ────────────────────────────────────────────────────────── */
+/* ── Tiles ───────────────────────────────────────────────────────────────── */
 
-/**
- * One panel, three columns: who (total and where they sign in), MFA coverage
- * with account status, and what needs attention. Risks at zero are not drawn
- * as tiles; with nothing to act on the column says so in one calm line.
- */
-function SummaryBand({ overview: o, source, onFilter }) {
+function Tiles({ overview: o, onMfaOff }) {
   const loading = !o;
   const known = o ? o.mfa.enabled + o.mfa.disabled : 0;
-  const statusEntries = o
-    ? STATUS_OPTIONS.filter((opt) => opt.value).map((opt) => ({ key: opt.value, label: opt.label, value: o.byStatus[opt.value] ?? 0, color: STATUS_COLORS[opt.value] }))
-    : [];
-  const statusTotal = statusEntries.reduce((sum, e) => sum + e.value, 0);
-  /* Linking people across IAM and SSO is not filled in by discovery yet; when
-     nobody is linked the count is the whole population and says nothing. */
-  const unlinkedMeaningful = o && o.unlinked > 0 && o.unlinked < o.total;
-  const risks = o
-    ? [
-        { key: 'console', icon: ShieldOff, tone: 'critical', value: o.consoleWithoutMfa, label: 'can sign in to the console with a password alone', action: { label: 'Show MFA off', changes: { mfa: 'false' } } },
-        { key: 'admin', icon: Crown, tone: 'high', value: o.privileged, label: 'hold an administrator permission set or policy' },
-        { key: 'inactive', icon: Clock3, tone: 'high', value: o.inactiveOver90, label: 'have not signed in for 90 days or more', action: { label: 'Oldest first', changes: { sort: 'last_activity_at:asc' } } },
-        { key: 'never', icon: UserRoundX, tone: 'medium', value: o.neverUsed, label: 'IAM users have never signed in' },
-        unlinkedMeaningful && { key: 'unlinked', icon: UsersRound, tone: 'medium', value: o.unlinked, label: 'cannot be matched to one person across IAM and SSO' },
-      ].filter((r) => r && r.value > 0)
-    : [];
-
+  const statusTotal = o ? o.byStatus.active + o.byStatus.inactive + o.byStatus.suspended + o.byStatus.disabled : 0;
   return (
-    <Panel prominence="quiet" flush className="animate-rise overflow-hidden">
-      <div className="grid divide-y divide-line lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)_minmax(0,1.35fr)] lg:divide-x lg:divide-y-0">
-        {/* Who */}
-        <section className="flex flex-col gap-3 p-5">
-          <p className="text-[11px] font-semibold tracking-[0.1em] text-ink-3 uppercase">People</p>
-          <p data-numeric="" className={cn('font-display text-[36px] leading-none font-extrabold tracking-[-0.03em] text-ink', loading && 'opacity-40')}>
+    <div className="flex flex-col gap-3">
+      <div className="grid gap-3 @container lg:grid-cols-3">
+        <Panel prominence="quiet" className="animate-rise">
+          <p className="text-[12.5px] font-medium text-ink-2">Human identities</p>
+          <p data-numeric="" className={cn('mt-1 font-display text-[34px] leading-none font-extrabold tracking-[-0.03em] text-ink', loading && 'opacity-40')}>
             {loading ? '-' : formatNumber(o.total)}
           </p>
           <ProportionBar
-            height={6}
+            className="mt-4"
+            height={8}
             total={o?.total}
             ariaLabel="Where people sign in"
             segments={[
               { key: 'iam', label: 'AWS IAM', value: o?.bySource.iam ?? 0, color: 'var(--t-series-1)' },
               { key: 'sso', label: 'Single sign-on', value: o?.bySource.sso ?? 0, color: 'var(--t-series-2)' },
+              { key: 'both', label: 'Both', value: o?.bySource.both ?? 0, color: 'var(--t-series-3)' },
             ]}
           />
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-ink-2">
-            <Dot color="var(--t-series-1)" label="AWS IAM" value={loading ? '-' : formatNumber(o.bySource.iam)} />
-            <Dot color="var(--t-series-2)" label="Single sign-on" value={loading ? '-' : formatNumber(o.bySource.sso)} />
-            {o?.rootAccounts > 0 && <span className="text-ink-3">incl. {formatNumber(o.rootAccounts)} root {o.rootAccounts === 1 ? 'user' : 'users'}</span>}
+          <div className="mt-3 flex flex-col gap-1">
+            <LegendRow color="var(--t-series-1)" label="AWS IAM" value={loading ? '-' : formatNumber(o.bySource.iam)} />
+            <LegendRow color="var(--t-series-2)" label="Single sign-on" value={loading ? '-' : formatNumber(o.bySource.sso)} />
+            <LegendRow color="var(--t-series-3)" label="In both" value={loading ? '-' : formatNumber(o.bySource.both)} />
           </div>
-          {source !== 'all' && <p className="text-[11px] text-ink-3">Showing {SOURCE_LABEL[source]} only.</p>}
-        </section>
+        </Panel>
 
-        {/* MFA and status */}
-        <section className="flex flex-col gap-4 p-5">
-          <div className="flex items-center gap-4">
-            <CoverageRing
-              size={76}
-              stroke={8}
-              value={o?.mfa.enabled ?? 0}
-              total={known}
-              tone={known > 0 && o.mfa.enabled / known < 0.8 ? 'var(--t-high)' : 'var(--t-low)'}
-              label={known ? `${o.mfa.enabled} of ${known} people with a known setting have MFA on` : 'MFA coverage unknown'}
-            />
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold tracking-[0.1em] text-ink-3 uppercase">MFA coverage</p>
-              <p className="mt-1 text-[12.5px] leading-relaxed text-ink-2">
-                {loading
-                  ? 'Loading…'
-                  : known === 0
-                    ? 'Not reported for these people.'
-                    : `${formatNumber(o.mfa.enabled)} on, ${formatNumber(o.mfa.disabled)} off${o.mfa.unknown ? `, ${formatNumber(o.mfa.unknown)} not reported` : ''}.`}
-              </p>
+        <Panel prominence="quiet" className="animate-rise" data-stagger="" style={{ '--stagger': 1 }}>
+          <p className="text-[12.5px] font-medium text-ink-2">MFA coverage</p>
+          <div className="mt-2 flex items-center gap-5">
+            <CoverageRing value={o?.mfa.enabled ?? 0} total={known} tone={known > 0 && o.mfa.enabled / known < 0.8 ? 'var(--t-medium)' : 'var(--t-low)'} label={known ? `${o.mfa.enabled} of ${known} people with a known setting have MFA on` : 'MFA coverage unknown'} />
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <LegendRow color="var(--t-low)" label="MFA on" value={loading ? '-' : formatNumber(o.mfa.enabled)} />
+              <LegendRow color="var(--t-high)" label="MFA off" value={loading ? '-' : formatNumber(o.mfa.disabled)} />
+              <LegendRow color="var(--t-track)" label="Not reported" value={loading ? '-' : formatNumber(o.mfa.unknown)} />
             </div>
           </div>
-          <div>
-            <div className="flex items-baseline justify-between gap-2">
-              <p className="text-[11px] font-semibold tracking-[0.1em] text-ink-3 uppercase">Account status</p>
-              <p className="text-[11.5px] text-ink-3">
-                <span data-numeric="" className="font-semibold text-ink">
-                  {loading ? '-' : formatNumber(o.byStatus.active)}
-                </span>{' '}
-                active
-              </p>
-            </div>
-            <ProportionBar className="mt-2" height={6} total={statusTotal} ariaLabel="Account status" segments={statusEntries} />
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-ink-2">
-              {statusEntries
-                .filter((e) => e.value > 0 || e.key === 'active')
-                .map((e) => (
-                  <button key={e.key} type="button" onClick={() => onFilter({ status: e.key })} className="rounded hover:text-ink focus-visible:outline-2">
-                    <Dot color={e.color} label={e.label} value={formatNumber(e.value)} />
-                  </button>
-                ))}
-            </div>
-          </div>
-        </section>
+          <p className="mt-3 text-[11.5px] leading-relaxed text-ink-3">
+            Of the {formatNumber(known)} people whose setting is known.{' '}
+            {o && o.mfa.disabled > 0 && (
+              <button type="button" onClick={onMfaOff} className="font-medium text-brand hover:underline">
+                Show who has it off
+              </button>
+            )}
+          </p>
+        </Panel>
 
-        {/* What needs attention */}
-        <section className="flex flex-col p-5">
-          <p className="text-[11px] font-semibold tracking-[0.1em] text-ink-3 uppercase">Needs attention</p>
-          {loading ? (
-            <p className="mt-3 text-[12.5px] text-ink-3">Loading…</p>
-          ) : risks.length === 0 ? (
-            <div className="mt-3 flex items-start gap-2.5 rounded-[var(--radius-control)] bg-low-soft px-3 py-2.5">
-              <ShieldCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-low" />
-              <p className="text-[12.5px] leading-relaxed text-ink-2">Nothing stands out: no console access without MFA, no idle or unused accounts, no admin-level access.</p>
-            </div>
-          ) : (
-            <ul className="mt-2 flex flex-col divide-y divide-line">
-              {risks.map((r) => (
-                <li key={r.key} className="flex items-center gap-3 py-2">
-                  <span className={cn('grid size-7 shrink-0 place-items-center rounded-md', TONE_CHIP[r.tone])}>
-                    <r.icon aria-hidden="true" className="size-3.5" />
-                  </span>
-                  <p className="min-w-0 flex-1 text-[12.5px] leading-snug text-ink-2">
-                    <span data-numeric="" className="font-semibold text-ink">
-                      {formatNumber(r.value)}
-                    </span>{' '}
-                    {r.label}
-                  </p>
-                  {r.action && (
-                    <button type="button" onClick={() => onFilter(r.action.changes)} className="inline-flex shrink-0 items-center gap-1 text-[11.5px] font-medium text-brand hover:underline">
-                      {r.action.label}
-                      <ArrowRight aria-hidden="true" className="size-3" />
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        <Panel prominence="quiet" className="animate-rise" data-stagger="" style={{ '--stagger': 2 }}>
+          <p className="text-[12.5px] font-medium text-ink-2">Account status</p>
+          <p data-numeric="" className={cn('mt-1 font-display text-[34px] leading-none font-extrabold tracking-[-0.03em] text-ink', loading && 'opacity-40')}>
+            {loading ? '-' : formatNumber(o.byStatus.active)}
+            <span className="ml-1.5 font-sans text-[13px] font-medium tracking-normal text-ink-3">active</span>
+          </p>
+          <ProportionBar
+            className="mt-4"
+            height={8}
+            total={statusTotal}
+            ariaLabel="Account status"
+            segments={[
+              { key: 'active', label: 'Active', value: o?.byStatus.active ?? 0, color: 'var(--t-low)' },
+              { key: 'inactive', label: 'Inactive', value: o?.byStatus.inactive ?? 0, color: 'var(--t-medium)' },
+              { key: 'suspended', label: 'Suspended', value: o?.byStatus.suspended ?? 0, color: 'var(--t-high)' },
+              { key: 'disabled', label: 'Disabled', value: o?.byStatus.disabled ?? 0, color: 'var(--t-ink-3)' },
+            ]}
+          />
+          <div className="mt-3 flex flex-col gap-1">
+            <LegendRow color="var(--t-low)" label="Active" value={loading ? '-' : formatNumber(o.byStatus.active)} />
+            <LegendRow color="var(--t-medium)" label="Inactive" value={loading ? '-' : formatNumber(o.byStatus.inactive)} />
+            <LegendRow color="var(--t-high)" label="Suspended" value={loading ? '-' : formatNumber(o.byStatus.suspended)} />
+            <LegendRow color="var(--t-ink-3)" label="Disabled" value={loading ? '-' : formatNumber(o.byStatus.disabled)} />
+          </div>
+        </Panel>
       </div>
-    </Panel>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <RiskTile label="Console without MFA" value={o?.consoleWithoutMfa} icon={ShieldOff} bad="critical" caption="Can sign in to the console with a password alone" />
+        <RiskTile label="Inactive 90+ days" value={o?.inactiveOver90} icon={Clock3} bad="high" caption="Signed in once, then went quiet" />
+        <RiskTile label="Never signed in" value={o?.neverUsed} icon={UserRoundX} bad="medium" caption="Created, never used" />
+        <RiskTile label="Admin-level access" value={o?.privileged} icon={Crown} bad="high" caption="Administrator permission set or policy" />
+        <RiskTile label="Not tied to a person" value={o?.unlinked} icon={Link2Off} bad="medium" caption="Cannot be matched across IAM and SSO" />
+      </div>
+    </div>
   );
 }
 
-function Dot({ color, label, value }) {
+/** A risk count: loud when above zero, quiet green when it is clear. */
+function RiskTile({ label, value, icon, bad, caption }) {
+  const known = Number.isFinite(value);
   return (
-    <span className="inline-flex items-center gap-1.5">
-      <span aria-hidden="true" className="size-2 rounded-full" style={{ background: color }} />
-      {label}
-      <span data-numeric="" className="font-semibold text-ink">
-        {value}
-      </span>
-    </span>
+    <MetricTile label={label} value={known ? value : null} tone={known && value > 0 ? bad : 'low'} icon={icon} caption={known && value === 0 ? 'None' : caption} className="animate-rise" />
   );
 }
 

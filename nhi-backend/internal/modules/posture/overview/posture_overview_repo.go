@@ -107,6 +107,7 @@ func (r *PostureOverviewRepository) Get(ctx context.Context, s *scope.DataScope,
 	if out.QuickWins, err = r.quickWins(ctx, s, row.wins); err != nil {
 		return nil, meta, err
 	}
+	out.QuickWins = r.moreQuickWins(ctx, s, class, out.Fleet.IdentitiesScored, out.QuickWins)
 	if out.WeakestIdentities, err = r.weakest(ctx, s, class); err != nil {
 		return nil, meta, err
 	}
@@ -321,6 +322,25 @@ func (r *PostureOverviewRepository) quickWins(ctx context.Context, s *scope.Data
 	if len(out) == 0 {
 		return out, nil
 	}
+	info, err := r.quickWinTitles(ctx, s, ids)
+	if err != nil {
+		return nil, err
+	}
+	for i := range out {
+		ri := info[out[i].RuleID]
+		if out[i].Title == "" {
+			out[i].Title = ri[0]
+		}
+		if out[i].Pillar == "" {
+			out[i].Pillar = ri[1]
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool { return out[i].FleetGain > out[j].FleetGain })
+	return out, nil
+}
+
+// quickWinTitles maps rule id to {title, pillar} from the rule catalog.
+func (r *PostureOverviewRepository) quickWinTitles(ctx context.Context, s *scope.DataScope, ids []string) (map[string][2]string, error) {
 	q := fmt.Sprintf(`SELECT w.rule_id,
 			COALESCE(NULLIF(w.check_title, ''), NULLIF(w.rule_name, ''), w.rule_id),
 			COALESCE(c.pillar_code, '')
@@ -331,30 +351,16 @@ func (r *PostureOverviewRepository) quickWins(ctx context.Context, s *scope.Data
 		return nil, fmt.Errorf("load quick-win rules: %w", err)
 	}
 	defer rows.Close()
-	type ruleInfo struct{ title, pillar string }
-	info := map[string]ruleInfo{}
+	info := map[string][2]string{}
 	for rows.Next() {
 		var id string
-		var ri ruleInfo
-		if err := rows.Scan(&id, &ri.title, &ri.pillar); err != nil {
+		var ri [2]string
+		if err := rows.Scan(&id, &ri[0], &ri[1]); err != nil {
 			return nil, fmt.Errorf("scan quick-win rule: %w", err)
 		}
 		info[id] = ri
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	for i := range out {
-		ri := info[out[i].RuleID]
-		if out[i].Title == "" {
-			out[i].Title = ri.title
-		}
-		if out[i].Pillar == "" {
-			out[i].Pillar = ri.pillar
-		}
-	}
-	sort.SliceStable(out, func(i, j int) bool { return out[i].FleetGain > out[j].FleetGain })
-	return out, nil
+	return info, rows.Err()
 }
 
 // weakest returns the lowest-scoring identities straight from the posture
