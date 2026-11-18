@@ -72,7 +72,12 @@ func humanWhere(resolved *scope.DataScope, a *humanArgs, source, humanType strin
 	}
 	where := []string{
 		"h.deleted_at IS NULL",
-		fmt.Sprintf("h.account_id = ANY(%s::text[])", a.add(pq.Array(accounts))),
+		// SSO users live in the Identity Center account (often the org's management
+		// account, which the tenant may not connect), so they are not filtered by
+		// their own account_id; the tenant schema already isolates the company.
+		// A user with no accounts in scope still sees nothing.
+		fmt.Sprintf("(h.account_id = ANY(%[1]s::text[]) OR (h.source = '%[2]s' AND cardinality(%[1]s::text[]) > 0))",
+			a.add(pq.Array(accounts)), HumanSourceSSO),
 	}
 	if stored := ResolveHumanSource(source); stored != "" {
 		where = append(where, fmt.Sprintf("h.source = %s", a.add(stored)))
