@@ -140,6 +140,7 @@ function useCredentialTab(id, tab, enabled = true, extra = {}) {
 function TabState({ query, label, children }) {
   if (query.isError && !query.data) {
     if (query.error?.status === 404) {
+      if (query.error?.code === 'DELETED') return <EmptyState compact title="Deleted" description={query.error.message} />;
       return <EmptyState compact title="Not in the inventory" description="A later discovery run may have removed this credential." />;
     }
     return <InlineError error={query.error} onRetry={query.refetch} label={label} />;

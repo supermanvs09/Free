@@ -241,10 +241,83 @@ function scenarioFindings() {
   ];
 }
 
+/* A leak the watchers raised live (notifyBus) is a finding like any other:
+   it is on this page, and its alert opens it. One finding per detection,
+   however often the watchers see it again. */
+const WATCH_COMMIT = 'a91c3e7d20f4b8e1c6a5d9f02b7e4c13a8d6f590';
+export const watcherFindingId = (e) => `${e.facts?.platform ?? 'bitbucket'}/${e.facts?.repository}/${(e.facts?.commit ?? WATCH_COMMIT).slice(0, 12)}/${e.facts?.file}:${e.facts?.line ?? 1}`;
+function watcherFindings() {
+  const events = slice('liveEvents', () => []).filter((e) => e.kind === 'exposure' && !e.scenario && e.facts?.repository && e.facts?.file);
+  const first = new Map();
+  for (const e of events) first.set(e.dedupe_key ?? e.id, e); /* newest first: the last write is the first sighting */
+  return [...first.values()].map((e) => {
+    const i = e.identity ? estate().identities.find((x) => x.id === e.identity.id) : null;
+    const cred = i ? estate().credentials.find((c) => c.bound_identities?.includes(i.id) && ['access_key', 'jenkins_credential'].includes(c.credential_type)) : null;
+    const f = e.facts;
+    const commit = f.commit ?? WATCH_COMMIT;
+    const at = e.detected_at;
+    const gh = f.platform === 'github';
+    const sev = e.severity === 'CRITICAL' ? 'CRITICAL' : 'HIGH';
+    return {
+      finding_id: watcherFindingId(e),
+      client_id: gh ? GITHUB_ORG : f.repository.split('/')[0],
+      platform: f.platform ?? 'bitbucket',
+      repository: f.repository,
+      branch: f.branch ?? 'master',
+      file_path: f.file,
+      line_number: f.line ?? 1,
+      line_preview: f.redacted ?? '',
+      detector: /AWS/.test(e.title) ? 'AWS' : /Jenkins/.test(e.title) ? 'JenkinsAPIToken' : 'Generic',
+      detectors: [/AWS/.test(e.title) ? 'AWS' : /Jenkins/.test(e.title) ? 'JenkinsAPIToken' : 'Generic'],
+      redacted: f.redacted ?? '',
+      value_fingerprint: commit.slice(0, 16),
+      commit_id: commit,
+      commit_message: e.summary,
+      author: f.author ?? 'Sashi Kumar',
+      committer: f.author ?? 'Sashi Kumar',
+      commit_authored_at: at,
+      created_at: at,
+      risk_tier: sev,
+      severity: sev,
+      recommended_action: 'TRIGGER_REMEDIATION',
+      category: 'cloud_credential',
+      confidence: 'high',
+      verification_status: f.verification === 'verified' ? 'ACTIVE' : 'UNKNOWN',
+      ml_decision: 'TRUE_POSITIVE',
+      ml_score: 0.97,
+      ml_model_version: 'secretnet-2026.10',
+      analyst_decision: null,
+      analyst_decided_by: null,
+      analyst_decided_at: null,
+      repo_visibility: 'private',
+      repo_stars: 0,
+      repo_forks: 0,
+      repo_pushed_at: at,
+      files_changed: 1,
+      additions: 3,
+      deletions: 0,
+      github_uri: gh ? `https://github.com/${f.repository}/blob/${commit}/${f.file}#L${f.line ?? 1}` : null,
+      bitbucket_uri: gh ? null : `${BITBUCKET_URL}/projects/${f.repository.split('/')[0]}/repos/${f.repository.split('/')[1]}/browse/${f.file}?at=${commit}#${f.line ?? 1}`,
+      codecommit_uri: null,
+      noise_flags: '',
+      reason: '',
+      count: 1,
+      list: 'live',
+      identity_id: i?.id ?? null,
+      identity_name: i?.name ?? null,
+      identity_provider: i?.provider ?? null,
+      credential_id: cred?.id ?? null,
+      credential_name: cred?.name ?? null,
+      credential_type: cred?.credential_type ?? null,
+      watcher: true,
+    };
+  });
+}
+
 export function liveFindings() {
   const d = decisions();
   const accepted = new Set(allowlist().map((e) => [e.client_id, e.file_path, e.detector, e.redacted].join('|')));
-  return [...scenarioFindings(), ...allFindings()]
+  return [...scenarioFindings(), ...watcherFindings(), ...allFindings()]
     .filter((f) => platformOn(f.platform))
     .filter((f) => !accepted.has([f.client_id, f.file_path, f.detector, f.redacted].join('|')))
     .map((f) => (d[f.finding_id] ? { ...f, ...d[f.finding_id] } : f));

@@ -1,7 +1,8 @@
 /* Inventory: identities, credentials, their record tabs and activity. */
 import { ok, fail, paged, list, truthy, sortBy, matches, rng, hashString, iso, DAY, NOW, MIN } from '../util';
 import { identities, credentials, identityById, credentialById, credentialsOf, identitiesOf, visible, filteredEvents, eventsOf, visibleScopes, scopeSettings } from '../world';
-import { scopeById, person } from '../seed';
+import { scopeById, person, estate } from '../seed';
+import { credentialDeleted } from '../response';
 import { save } from '../state';
 import { permissionsOf } from '../permissions';
 import { changesForEntity } from '../changes';
@@ -523,7 +524,13 @@ export default function register(r) {
 
   r.get('/api/v1/credentials/:id', ({ params, query }) => {
     const cred = credentialById(params.id);
-    if (!cred || !visible(cred)) return fail(404, 'That credential is not in the current scope.', 'NOT_FOUND');
+    if (!cred || !visible(cred)) {
+      /* Deleted from here (a response action): say so, with who and when. */
+      const gone = credentialDeleted(params.id);
+      const raw = gone ? estate().credentials.find((c) => c.id === params.id) : null;
+      if (gone) return fail(404, `${raw?.name ?? 'This credential'} was deleted ${gone.at ? `on ${new Date(gone.at).toUTCString().slice(5, 22)} UTC ` : ''}by ${gone.by_name ?? gone.by ?? 'an operator'}. Nothing can use it any more.`, 'DELETED');
+      return fail(404, 'That credential is not in the current scope.', 'NOT_FOUND');
+    }
     switch (query.tab || 'overview') {
       case 'overview':
         return ok(credentialOverview(cred));

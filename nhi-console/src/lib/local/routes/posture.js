@@ -46,6 +46,34 @@ function sortRows(rows, sort = 'score') {
   return desc ? out.reverse() : out;
 }
 
+
+/* How to fix each check, as text with copyable commands (the drawer lifts
+   fenced blocks out as artefacts). <placeholders> are per identity: Remediation
+   fills them in for a chosen finding. */
+const GUIDE = {
+  'NHI-LP-001': ['Generate a policy from the last 90 days of CloudTrail activity and replace the current one.', 'aws accessanalyzer start-policy-generation --policy-generation-details principalArn=<role-arn>\naws iam put-role-policy --role-name <role> --policy-name <role>-least-privilege --policy-document file://policy.json'],
+  'NHI-LP-002': ['Detach AdministratorAccess and attach a policy scoped to the actions and resources the workload uses.', 'aws iam detach-role-policy --role-name <role> --policy-arn arn:aws:iam::aws:policy/AdministratorAccess\naws iam put-role-policy --role-name <role> --policy-name <role>-scoped --policy-document file://policy.json'],
+  'NHI-CH-001': ['Create a new key, move the workload to it, deactivate the old key, then delete it once nothing uses it.', 'aws iam create-access-key --user-name <user>\naws iam update-access-key --user-name <user> --access-key-id <old-key-id> --status Inactive\naws iam delete-access-key --user-name <user> --access-key-id <old-key-id>'],
+  'NHI-CH-002': ['Deactivate the key that is not in use.', 'aws iam update-access-key --user-name <user> --access-key-id <unused-key-id> --status Inactive'],
+  'NHI-CH-003': ['Add a new client secret (or better, a certificate or federated credential), update the app, then remove the old secret.', 'az ad app credential reset --id <app-id> --append --years 0.5\naz ad app credential delete --id <app-id> --key-id <old-key-id>'],
+  'NHI-CH-004': ['Turn on automatic rotation for the secret.', 'aws secretsmanager rotate-secret --secret-id <secret> --rotation-rules AutomaticallyAfterDays=30'],
+  'NHI-CH-005': ['Revoke the token and give the role a short TTL and a max TTL.', 'vault token revoke -accessor <accessor>\nvault write auth/approle/role/<role> token_ttl=1h token_max_ttl=4h'],
+  'NHI-TA-001': ['Require an External ID (sts:ExternalId) in the trust policy for the other account.', 'aws iam update-assume-role-policy --role-name <role> --policy-document file://trust-with-external-id.json'],
+  'NHI-TA-002': ['Pin the federated trust to one repository branch or environment (the token sub claim).', 'aws iam update-assume-role-policy --role-name <role> --policy-document file://trust-pinned.json'],
+  'NHI-TA-003': ['Move credentials off the internet-facing workload, or remove its public exposure; require IMDSv2 on EC2.', 'aws ec2 modify-instance-metadata-options --instance-id <instance-id> --http-tokens required --http-put-response-hop-limit 1'],
+  'NHI-ES-001': ['Remove iam:PassRole, iam:CreateAccessKey and policy-writing actions on *, or scope them to named resources.', 'aws iam put-role-policy --role-name <role> --policy-name <role>-scoped --policy-document file://policy-no-iam-write.json'],
+  'NHI-ES-002': ['Remove the first role in the chain from the trust policy of the role it can assume.', 'aws iam update-assume-role-policy --role-name <next-role> --policy-document file://trust-without-<role>.json'],
+  'NHI-EX-001': ['Deactivate the exposed credential now, issue a new one, and remove it from the repository history.', 'aws iam update-access-key --user-name <user> --access-key-id <exposed-key-id> --status Inactive\ngit filter-repo --path <file> --invert-paths'],
+  'NHI-EX-002': ['Rotate the credential and restrict where it can be used from (aws:SourceIp or aws:SourceVpc condition).', 'aws iam put-user-policy --user-name <user> --policy-name source-restrict --policy-document file://deny-outside-vpc.json'],
+  'NHI-LC-001': ['Tag the identity with an owner and team so findings reach someone.', 'aws iam tag-role --role-name <role> --tags Key=owner,Value=<owner-email> Key=team,Value=<team>'],
+  'NHI-LC-002': ['Confirm nothing uses it, then disable it (deny-all policy) and delete it after a grace period.', 'aws iam put-role-policy --role-name <role> --policy-name deny-all --policy-document \'{"Version":"2012-10-17","Statement":[{"Effect":"Deny","Action":"*","Resource":"*"}]}\''],
+  'NHI-LC-003': ['Add the required tags: owner, team and env.', 'aws iam tag-role --role-name <role> --tags Key=owner,Value=<owner-email> Key=team,Value=<team> Key=env,Value=<env>'],
+};
+function remediationText(rl) {
+  const [text, cli] = GUIDE[rl.rule_id] ?? [rl.fix, null];
+  return `${text}${cli ? `\n\n\`\`\`bash\n${cli}\n\`\`\`` : ''}\n\nFor one identity, open its finding and choose Fix: Remediation fills in the names and can apply it with One-click.`;
+}
+
 export function fleetOverview(window = '30d') {
   const ids = fleet();
   const rows = ids.map((i) => ({ i, row: postureRow(i, window) }));
@@ -218,7 +246,15 @@ export default function register(r) {
   r.get(`${B}/posture/quick-wins/:rule/identities`, ({ params, query }) => {
     const rl = rule(params.rule);
     if (!rl) return failNested(404, 'No such check.', 'NOT_FOUND');
-    const rows = fleet().filter((i) => effectiveChecks(i).some((c) => c.rule_id === rl.rule_id && c.counted)).map((i) => postureRow(i));
+    /* Worst first, each with what fixing this one check is worth to it. */
+    const rows = fleet()
+      .map((i) => ({ i, c: effectiveChecks(i).find((c) => c.rule_id === rl.rule_id && c.counted) }))
+      .filter((x) => x.c)
+      .map(({ i, c }) => {
+        const row = postureRow(i);
+        return { ...row, account: row.account?.name ?? i.account_id, account_ref: row.account, failing_since: c.failing_since ?? null, points_if_fixed: c.points, severity: c.severity };
+      })
+      .sort((a, b) => a.score - b.score || b.points_if_fixed - a.points_if_fixed);
     const p = cursorPage(rows, query, 25);
     return env({ rule: { rule_id: rl.rule_id, title: rl.title, pillar: rl.pillar, severity: rl.severity, fix: rl.fix }, identities: p.items }, { page: { next_cursor: p.next, limit: p.limit } });
   });
@@ -317,7 +353,7 @@ export default function register(r) {
     const rl = rule(params.rule);
     if (!rl) return failNested(404, 'No such check.', 'NOT_FOUND');
     const failing = fleet().filter((i) => effectiveChecks(i).some((c) => c.rule_id === rl.rule_id && c.counted));
-    return env({ rule_id: rl.rule_id, title: rl.title, pillar: rl.pillar, severity: rl.severity, why: rl.why, fix: rl.fix, remediation: { steps: [rl.fix], action_type: rl.auto, one_click: Boolean(rl.auto) }, compliance: rl.compliance, points: WEIGHTS[rl.severity], identities_failing: failing.length });
+    return env({ rule_id: rl.rule_id, title: rl.title, pillar: rl.pillar, severity: rl.severity, why: rl.why, fix: rl.fix, remediation: remediationText(rl), remediation_plan: { steps: [rl.fix], action_type: rl.auto, one_click: Boolean(rl.auto) }, compliance: rl.compliance, points: WEIGHTS[rl.severity], penalty_points: WEIGHTS[rl.severity], identities_failing: failing.length });
   });
 
   r.patch(`${B}/findings/:id`, ({ params, body, user }) => {

@@ -2,7 +2,7 @@
 import { ok, fail, iso, DAY, HOUR, NOW } from '../util';
 import { fleet, effectiveChecks, scoreOf, scoreAtTime, bandOf, postureId, fromPostureId, rule, PILLAR_NAMES, TRIGGERS } from '../postureEngine';
 import { anomalies, sourceTypeOf } from './genome';
-import { liveFindings } from '../exposureData';
+import { liveFindings, watcherFindingId } from '../exposureData';
 import { liveEvents } from '../notifyBus';
 import { credentialsOf, identityById, visible } from '../world';
 import { scopeById } from '../seed';
@@ -70,7 +70,7 @@ function postureAlerts() {
 
 function genomeAlerts() {
   /* An anomaly raised live is already on the list as it happened. */
-  const live = new Set(liveEvents().filter((e) => e.kind === 'anomaly' && e.scenario).map((e) => e.identity?.id));
+  const live = new Set(liveEvents().filter((e) => e.kind === 'anomaly').map((e) => e.identity?.id));
   return anomalies()
     .filter((a) => a.status === 'open' && ['critical', 'high'].includes(a.severity) && !live.has(a.identity_id))
     .map((a) => ({
@@ -97,7 +97,7 @@ function genomeAlerts() {
 function exposureAlerts() {
   return liveFindings()
     /* A live leak is already on the list as it happened (liveAlerts). */
-    .filter((f) => f.list === 'live' && !f.scenario && ['CRITICAL', 'HIGH'].includes(f.risk_tier) && f.analyst_decision !== 'false_positive')
+    .filter((f) => f.list === 'live' && !f.scenario && !f.watcher && ['CRITICAL', 'HIGH'].includes(f.risk_tier) && f.analyst_decision !== 'false_positive')
     .map((f) => ({
       key: `exposure:${f.finding_id}`,
       source: 'exposure',
@@ -119,7 +119,21 @@ function exposureAlerts() {
 
 function liveAlerts() {
   const map = { exposure: 'exposure', anomaly: 'genome', posture: 'posture', scan: 'posture' };
+  /* The watchers see some things again: one alert per detection, newest
+     sighting first, with how many times it was seen. */
+  const seen = new Map();
+  for (const e of liveEvents()) {
+    const k = e.dedupe_key ?? e.id;
+    seen.set(k, (seen.get(k) ?? 0) + 1);
+  }
+  const shown = new Set();
   return liveEvents()
+    .filter((e) => {
+      const k = e.dedupe_key ?? e.id;
+      if (shown.has(k)) return false;
+      shown.add(k);
+      return true;
+    })
     .filter((e) => e.kind !== 'scan')
     .filter((e) => !e.identity || visible(identityById(e.identity.id)))
     .filter((e) => (e.kind === 'exposure' ? isOn(e.facts?.platform ?? 'github') : true))
@@ -145,9 +159,15 @@ function liveAlerts() {
       facts: e.kind === 'anomaly' ? { source_type: sourceTypeOf(identityById(e.identity.id)), identity_name: canonicalGenomeName(identityById(e.identity.id).identity_type, e.identity.arn), latest: e.title, ...e.facts } : e.kind === 'exposure' ? { author: 'Sashi Kumar', commit: 'a91c3e7d20f4b8e1c6a5d9f02b7e4c13a8d6f590', ...e.facts } : e.facts,
       /* A score drop opens its sync comparison; a live incident (a replayed
          story) opens where it is handled. */
-      link: e.kind === 'posture' && e.identity && !e.scenario ? `/alerts/identities/${postureId(identityById(e.identity.id))}` : e.link,
+      link:
+        e.kind === 'posture' && e.identity && !e.scenario
+          ? `/alerts/identities/${postureId(identityById(e.identity.id))}`
+          : e.kind === 'exposure' && !e.scenario && e.facts?.repository
+            ? `/exposure?finding=${encodeURIComponent(watcherFindingId(e))}`
+            : e.link,
+      finding_id: e.kind === 'exposure' && !e.scenario && e.facts?.repository ? watcherFindingId(e) : undefined,
       scenario: e.scenario ?? null,
-      count: 1,
+      count: seen.get(e.dedupe_key ?? e.id) ?? 1,
       live: true,
       resolution: e.resolution ?? null,
     }));

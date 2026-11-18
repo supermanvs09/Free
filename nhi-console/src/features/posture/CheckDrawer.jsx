@@ -35,7 +35,7 @@ function artefactsFrom(text) {
     const language = match[1] || (content.startsWith('{') ? 'json' : 'shell');
     artefacts.push({ label: language === 'json' ? 'Policy' : 'Commands', language, content });
   }
-  prose = prose.replace(fence, '').trim();
+  prose = prose.replace(fence, '').replace(/\n{3,}/g, '\n\n').trim();
 
   if (artefacts.length === 0) {
     const lines = prose.split('\n');
