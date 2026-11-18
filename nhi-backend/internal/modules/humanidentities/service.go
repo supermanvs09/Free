@@ -50,23 +50,32 @@ func (s *HumanIdentityService) GetDetail(ctx context.Context, userID, tenantID, 
 // buildHumanRiskSignals uses the same definitions as the overview SQL:
 // MFA not on = NULL or false; inactive = last activity older than 90 days;
 // never used = no last activity; privileged = admin-like permission set or
-// AdministratorAccess policy.
+// AdministratorAccess policy. Activity signals apply to IAM only, because SSO
+// has no sign-in activity yet. Root without MFA is critical.
 func buildHumanRiskSignals(d *identitygraph.HumanIdentityDetail, now time.Time) []identitygraph.HumanRiskSignal {
 	signals := []identitygraph.HumanRiskSignal{}
 
 	mfaNotOn := d.MFAActive == nil || !*d.MFAActive
 	consoleOn := d.ConsoleAccess != nil && *d.ConsoleAccess
 
-	if consoleOn && mfaNotOn {
+	isRoot := d.HumanType == identitygraph.HumanTypeRoot
+	isIAM := d.Source == identitygraph.HumanSourceIAM
+
+	switch {
+	case isRoot && mfaNotOn:
+		signals = append(signals, identitygraph.HumanRiskSignal{Label: "Root account without MFA", Severity: "critical"})
+	case consoleOn && mfaNotOn:
 		signals = append(signals, identitygraph.HumanRiskSignal{Label: "Console access without MFA", Severity: "critical"})
 	}
 	if d.MFAActive != nil && !*d.MFAActive {
 		signals = append(signals, identitygraph.HumanRiskSignal{Label: "MFA disabled", Severity: "high"})
 	}
-	if d.LastActivityAt == nil {
-		signals = append(signals, identitygraph.HumanRiskSignal{Label: "Never used", Severity: "medium"})
-	} else if now.Sub(*d.LastActivityAt) > 90*24*time.Hour {
-		signals = append(signals, identitygraph.HumanRiskSignal{Label: "Inactive over 90 days", Severity: "high"})
+	if isIAM {
+		if d.LastActivityAt == nil {
+			signals = append(signals, identitygraph.HumanRiskSignal{Label: "Never used", Severity: "medium"})
+		} else if now.Sub(*d.LastActivityAt) > 90*24*time.Hour {
+			signals = append(signals, identitygraph.HumanRiskSignal{Label: "Inactive over 90 days", Severity: "high"})
+		}
 	}
 	for _, a := range d.Access {
 		name := ""

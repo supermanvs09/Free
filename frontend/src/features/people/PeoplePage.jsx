@@ -21,7 +21,7 @@ import { fetchPostureScoreIndex } from '../../lib/api/posture';
 import { BandTag, ScoreRing } from '../posture/parts';
 import { PersonDrawer } from './PersonDrawer';
 import { Avatar, CoverageRing, LegendRow } from './parts';
-import { MFA_OPTIONS, SORT_OPTIONS, SOURCE_LABEL, SOURCE_OPTIONS, STATUS_OPTIONS, daysSince, personName, statusMeta } from './peopleMeta';
+import { MFA_OPTIONS, SORT_OPTIONS, SOURCE_LABEL, SOURCE_OPTIONS, STATUS_OPTIONS, daysSince, humanTypeLabel, personName, statusMeta } from './peopleMeta';
 
 /**
  * People: the humans who sign in to AWS, next to the workloads in Discovery.
@@ -112,10 +112,11 @@ export default function PeoplePage() {
         width: '13%',
         cell: (row) => (
           <span className="block min-w-0">
-            <Tag tone={row.source === 'sso' ? 'brand' : 'neutral'} size="sm">
+            <Tag tone={row.source === 'iam' ? 'neutral' : 'brand'} size="sm">
               {SOURCE_LABEL[row.source] ?? row.source}
             </Tag>
-            {row.source === 'iam' && row.account_id && <span className="mt-0.5 block truncate font-mono text-[11px] text-ink-3">{row.account_id}</span>}
+            {row.human_type && <span className="mt-0.5 block truncate text-[11px] text-ink-3">{humanTypeLabel(row.human_type)}</span>}
+            {row.source === 'iam' && row.account_id && <span className="block truncate font-mono text-[11px] text-ink-3">{row.account_id}</span>}
           </span>
         ),
       },

@@ -9,7 +9,8 @@ import (
 type HumanIdentityListFilter struct {
 	Page      int
 	PageSize  int
-	Source    string   // "", "all", "iam" or "sso"
+	Source    string   // "", "all", "iam" or "sso" (API values)
+	HumanType string   // exact match on human_type, e.g. "ROOT_USER"; "" = no filter
 	Statuses  []string // matched case-insensitively
 	MFA       *bool
 	Search    string
@@ -39,12 +40,14 @@ type HumanOverviewMFA struct {
 type HumanIdentityOverview struct {
 	TotalIdentities    int                   `json:"total_identities"`
 	BySource           HumanOverviewBySource `json:"by_source"`
+	ByHumanType        map[string]int        `json:"by_human_type"`
 	ByStatus           HumanOverviewByStatus `json:"by_status"`
 	MFA                HumanOverviewMFA      `json:"mfa"`
 	InactiveOver90Days int                   `json:"inactive_over_90_days"`
 	NeverUsed          int                   `json:"never_used"`
 	ConsoleWithoutMFA  int                   `json:"console_access_without_mfa"`
 	PrivilegedCount    int                   `json:"privileged_count"`
+	RootAccounts       int                   `json:"root_accounts"`
 	UnlinkedCount      int                   `json:"unlinked_count"`
 }
 

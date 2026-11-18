@@ -13,6 +13,14 @@ import (
 	"nhi-backend-api/internal/platform/scope"
 )
 
+// Stored values in human_identities. These must match what the collector writes.
+// The API accepts source=sso, but the collector stores it as identity_center.
+const (
+	HumanSourceIAM = "iam"
+	HumanSourceSSO = "identity_center"
+	HumanTypeRoot  = "ROOT_USER"
+)
+
 // ErrHumanIdentityNotFound is returned when the id is missing, deleted, or outside the user's scope.
 var ErrHumanIdentityNotFound = errors.New("human identity not found")
 
@@ -26,6 +34,18 @@ var humanSortColumns = map[string]string{
 	"mfa":              "h.mfa_active",
 	"last_activity_at": "h.last_activity_at",
 	"created_at":       "h.created_at_source",
+}
+
+// ResolveHumanSource maps the API source value to the stored value.
+// "iam" -> "iam", "sso" -> "identity_center". Anything else returns "" (no filter).
+func ResolveHumanSource(apiValue string) string {
+	switch strings.ToLower(strings.TrimSpace(apiValue)) {
+	case "iam":
+		return HumanSourceIAM
+	case "sso":
+		return HumanSourceSSO
+	}
+	return ""
 }
 
 // HumanIdentityRepository reads the human_identities, human_identity_access
@@ -45,7 +65,7 @@ func (a *humanArgs) add(v any) string {
 
 // humanWhere is the single filter used by overview, list and detail, so the
 // same scope and filters always produce the same counts.
-func humanWhere(resolved *scope.DataScope, a *humanArgs, source string, statuses []string, mfa *bool, search string) []string {
+func humanWhere(resolved *scope.DataScope, a *humanArgs, source, humanType string, statuses []string, mfa *bool, search string) []string {
 	accounts := resolved.AccountIDs
 	if accounts == nil {
 		accounts = []string{}
@@ -54,8 +74,11 @@ func humanWhere(resolved *scope.DataScope, a *humanArgs, source string, statuses
 		"h.deleted_at IS NULL",
 		fmt.Sprintf("h.account_id = ANY(%s::text[])", a.add(pq.Array(accounts))),
 	}
-	if src := strings.ToLower(strings.TrimSpace(source)); src == "iam" || src == "sso" {
-		where = append(where, fmt.Sprintf("h.source = %s", a.add(src)))
+	if stored := ResolveHumanSource(source); stored != "" {
+		where = append(where, fmt.Sprintf("h.source = %s", a.add(stored)))
+	}
+	if t := strings.TrimSpace(humanType); t != "" {
+		where = append(where, fmt.Sprintf("h.human_type = %s", a.add(t)))
 	}
 	if len(statuses) > 0 {
 		lowered := make([]string, 0, len(statuses))
@@ -82,21 +105,23 @@ func (r *HumanIdentityRepository) Overview(ctx context.Context, resolved *scope.
 		return nil, ErrScopeRequired
 	}
 	a := &humanArgs{}
-	whereSQL := strings.Join(humanWhere(resolved, a, source, nil, nil, ""), " AND ")
+	whereSQL := strings.Join(humanWhere(resolved, a, source, "", nil, nil, ""), " AND ")
 
+	// The source and type values are code constants, not user input, so they
+	// are written into the SQL text.
 	q := fmt.Sprintf(`
 		SELECT
 			COUNT(*)::int,
-			COUNT(*) FILTER (WHERE h.source = 'iam')::int,
-			COUNT(*) FILTER (WHERE h.source = 'sso')::int,
+			COUNT(*) FILTER (WHERE h.source = '%[3]s')::int,
+			COUNT(*) FILTER (WHERE h.source = '%[4]s')::int,
 			COUNT(*) FILTER (WHERE h.status = 'active')::int,
 			COUNT(*) FILTER (WHERE h.status = 'inactive')::int,
 			COUNT(*) FILTER (WHERE h.status = 'suspended')::int,
 			COUNT(*) FILTER (WHERE h.mfa_active IS TRUE)::int,
 			COUNT(*) FILTER (WHERE h.mfa_active IS FALSE)::int,
 			COUNT(*) FILTER (WHERE h.mfa_active IS NULL)::int,
-			COUNT(*) FILTER (WHERE h.last_activity_at < NOW() - INTERVAL '90 days')::int,
-			COUNT(*) FILTER (WHERE h.last_activity_at IS NULL)::int,
+			COUNT(*) FILTER (WHERE h.source = '%[3]s' AND h.last_activity_at < NOW() - INTERVAL '90 days')::int,
+			COUNT(*) FILTER (WHERE h.source = '%[3]s' AND h.last_activity_at IS NULL)::int,
 			COUNT(*) FILTER (WHERE h.console_access IS TRUE AND h.mfa_active IS NOT TRUE)::int,
 			COUNT(*) FILTER (WHERE h.person_id IS NULL)::int,
 			COUNT(*) FILTER (WHERE EXISTS (
@@ -104,6 +129,7 @@ func (r *HumanIdentityRepository) Overview(ctx context.Context, resolved *scope.
 				WHERE a.human_id = h.id
 				  AND (a.permission_set_name ILIKE '%%admin%%' OR a.policy_arn ILIKE '%%AdministratorAccess%%')
 			))::int,
+			COUNT(*) FILTER (WHERE h.human_type = '%[5]s')::int,
 			(SELECT COUNT(*)::int FROM (
 				SELECT h.person_id
 				FROM %[1]s.human_identities h
@@ -113,7 +139,7 @@ func (r *HumanIdentityRepository) Overview(ctx context.Context, resolved *scope.
 			) p)
 		FROM %[1]s.human_identities h
 		WHERE %[2]s`,
-		resolved.QSchema(), whereSQL)
+		resolved.QSchema(), whereSQL, HumanSourceIAM, HumanSourceSSO, HumanTypeRoot)
 
 	var o HumanIdentityOverview
 	err := resolved.DB.QueryRowContext(ctx, q, a.values...).Scan(
@@ -123,10 +149,38 @@ func (r *HumanIdentityRepository) Overview(ctx context.Context, resolved *scope.
 		&o.MFA.Enabled, &o.MFA.Disabled, &o.MFA.Unknown,
 		&o.InactiveOver90Days, &o.NeverUsed, &o.ConsoleWithoutMFA,
 		&o.UnlinkedCount, &o.PrivilegedCount,
+		&o.RootAccounts,
 		&o.BySource.Both,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("query human identity overview: %w", err)
+	}
+
+	// Separate arg set: this query only uses the placeholders in its own WHERE.
+	ta := &humanArgs{}
+	typeWhere := strings.Join(humanWhere(resolved, ta, source, "", nil, nil, ""), " AND ")
+	typeQ := fmt.Sprintf(`
+		SELECT h.human_type, COUNT(*)::int
+		FROM %[1]s.human_identities h
+		WHERE %[2]s
+		GROUP BY h.human_type`,
+		resolved.QSchema(), typeWhere)
+	typeRows, err := resolved.DB.QueryContext(ctx, typeQ, ta.values...)
+	if err != nil {
+		return nil, fmt.Errorf("query human identity types: %w", err)
+	}
+	defer typeRows.Close()
+	o.ByHumanType = make(map[string]int)
+	for typeRows.Next() {
+		var t string
+		var n int
+		if err := typeRows.Scan(&t, &n); err != nil {
+			return nil, fmt.Errorf("scan human identity type: %w", err)
+		}
+		o.ByHumanType[t] = n
+	}
+	if err := typeRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate human identity types: %w", err)
 	}
 	return &o, nil
 }
@@ -149,7 +203,7 @@ func (r *HumanIdentityRepository) List(ctx context.Context, resolved *scope.Data
 	}
 
 	a := &humanArgs{}
-	whereSQL := strings.Join(humanWhere(resolved, a, f.Source, f.Statuses, f.MFA, f.Search), " AND ")
+	whereSQL := strings.Join(humanWhere(resolved, a, f.Source, f.HumanType, f.Statuses, f.MFA, f.Search), " AND ")
 
 	countQ := fmt.Sprintf(`SELECT COUNT(*)::int FROM %s.human_identities h WHERE %s`, resolved.QSchema(), whereSQL)
 	var total int
@@ -234,7 +288,7 @@ func (r *HumanIdentityRepository) Detail(ctx context.Context, resolved *scope.Da
 		return nil, ErrScopeRequired
 	}
 	a := &humanArgs{}
-	whereSQL := strings.Join(humanWhere(resolved, a, "", nil, nil, ""), " AND ")
+	whereSQL := strings.Join(humanWhere(resolved, a, "", "", nil, nil, ""), " AND ")
 	idPh := a.add(id)
 
 	q := fmt.Sprintf(`
@@ -244,7 +298,7 @@ func (r *HumanIdentityRepository) Detail(ctx context.Context, resolved *scope.Da
 			COALESCE(h.given_name, ''), COALESCE(h.family_name, ''), COALESCE(h.title, ''),
 			COALESCE(h.email, ''), COALESCE(h.external_id, ''), COALESCE(h.external_id_issuer, ''),
 			COALESCE(h.idp_name, ''), h.status, h.mfa_active, h.console_access,
-			h.last_activity_at, h.created_at_source, h.details::text, h.person_id::text,
+			h.last_activity_at, h.created_at_source, COALESCE(h.details::text, '{}'), h.person_id::text,
 			h.first_seen_at, h.last_seen_at
 		FROM %[1]s.human_identities h
 		WHERE %[2]s AND h.id::text = %[3]s`,

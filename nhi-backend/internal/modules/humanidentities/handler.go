@@ -15,7 +15,10 @@ import (
 	"nhi-backend-api/internal/platform/middleware"
 )
 
-const maxHumanPageSize = 100
+const (
+	maxHumanPageSize   = 100
+	maxHumanTypeLength = 64
+)
 
 // humanSortKeys must stay in sync with humanSortColumns in the identitygraph repo.
 var humanSortKeys = map[string]bool{
@@ -106,6 +109,14 @@ func (h *HumanIdentityHandler) List(w http.ResponseWriter, r *http.Request) {
 		Search:    strings.TrimSpace(q.Get("search")),
 		SortBy:    "last_activity_at",
 		SortOrder: "desc",
+	}
+
+	if raw := strings.TrimSpace(q.Get("human_type")); raw != "" {
+		if len(raw) > maxHumanTypeLength {
+			writeHumanError(w, http.StatusBadRequest, "human_type is too long", "INVALID_HUMAN_TYPE")
+			return
+		}
+		filter.HumanType = raw
 	}
 
 	if raw := q.Get("page"); raw != "" {

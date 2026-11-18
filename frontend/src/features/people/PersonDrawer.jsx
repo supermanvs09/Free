@@ -10,7 +10,7 @@ import { EmptyState, ErrorState } from '../../ui/States';
 import { Tag } from '../../ui/Tag';
 import { cn } from '../../ui/cn';
 import { Avatar } from './parts';
-import { SOURCE_LABEL, personName, statusMeta } from './peopleMeta';
+import { SOURCE_LABEL, humanTypeLabel, personName, statusMeta } from './peopleMeta';
 
 const RISK_TONE = { critical: 'critical', high: 'high', medium: 'medium', low: 'low' };
 
@@ -42,7 +42,7 @@ export function PersonDrawer({ id, onClose }) {
             </Tag>
             {d.human_type && (
               <Tag tone="neutral" size="sm">
-                {String(d.human_type).replace(/_/g, ' ')}
+                {humanTypeLabel(d.human_type)}
               </Tag>
             )}
             {d.title && <span className="text-[12px] text-ink-3">{d.title}</span>}

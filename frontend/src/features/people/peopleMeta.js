@@ -6,7 +6,16 @@ export const SOURCE_OPTIONS = [
   { value: 'sso', label: 'Single sign-on' },
 ];
 
-export const SOURCE_LABEL = { iam: 'AWS IAM', sso: 'Single sign-on' };
+// The API filter takes source=sso, but rows carry the stored value identity_center.
+export const SOURCE_LABEL = { iam: 'AWS IAM', sso: 'Single sign-on', identity_center: 'Single sign-on' };
+
+export const HUMAN_TYPE_LABEL = {
+  ROOT_USER: 'Root user',
+  IAM_CONSOLE_HUMAN: 'Console user',
+  IAM_USER_HUMAN: 'IAM user, no console',
+  SSO_HUMAN: 'SSO user',
+};
+export const humanTypeLabel = (t) => HUMAN_TYPE_LABEL[t] ?? String(t || '').replace(/_/g, ' ').toLowerCase();
 
 export const STATUS_OPTIONS = [
   { value: '', label: 'Any status' },
