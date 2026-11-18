@@ -22,6 +22,7 @@ export const STATUS_OPTIONS = [
   { value: 'active', label: 'Active' },
   { value: 'inactive', label: 'Inactive' },
   { value: 'suspended', label: 'Suspended' },
+  { value: 'disabled', label: 'Disabled' },
 ];
 
 export const MFA_OPTIONS = [
@@ -47,6 +48,8 @@ export function statusMeta(status) {
       return { label: 'Inactive', tone: 'medium' };
     case 'suspended':
       return { label: 'Suspended', tone: 'high' };
+    case 'disabled':
+      return { label: 'Disabled', tone: 'neutral' };
     default:
       return { label: status ? String(status) : 'Unknown', tone: 'neutral' };
   }

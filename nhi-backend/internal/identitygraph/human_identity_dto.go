@@ -28,6 +28,7 @@ type HumanOverviewByStatus struct {
 	Active    int `json:"active"`
 	Inactive  int `json:"inactive"`
 	Suspended int `json:"suspended"`
+	Disabled  int `json:"disabled"`
 }
 
 type HumanOverviewMFA struct {

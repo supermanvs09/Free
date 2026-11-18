@@ -22,7 +22,9 @@ export async function fetchHumanOverview({ source } = {}, signal) {
   return {
     total: n(d.total_identities),
     bySource: { iam: n(d.by_source?.iam), sso: n(d.by_source?.sso), both: n(d.by_source?.both) },
-    byStatus: { active: n(d.by_status?.active), inactive: n(d.by_status?.inactive), suspended: n(d.by_status?.suspended) },
+    byStatus: { active: n(d.by_status?.active), inactive: n(d.by_status?.inactive), suspended: n(d.by_status?.suspended), disabled: n(d.by_status?.disabled) },
+    byHumanType: Object.fromEntries(Object.entries(d.by_human_type ?? {}).map(([k, v]) => [k, n(v)])),
+    rootAccounts: n(d.root_accounts),
     mfa: { enabled: n(d.mfa?.enabled), disabled: n(d.mfa?.disabled), unknown: n(d.mfa?.unknown) },
     inactiveOver90: n(d.inactive_over_90_days),
     neverUsed: n(d.never_used),
@@ -32,7 +34,7 @@ export async function fetchHumanOverview({ source } = {}, signal) {
   };
 }
 
-/** query: { page, pageSize, source, status, mfa ('true'|'false'|''), search, sortBy, sortOrder } */
+/** query: { page, pageSize, source, humanType, status, mfa ('true'|'false'|''), search, sortBy, sortOrder } */
 export async function fetchHumanIdentities(query = {}, signal) {
   const d = unwrapMain(
     await client.get(BASE, {
@@ -41,6 +43,7 @@ export async function fetchHumanIdentities(query = {}, signal) {
         page: query.page,
         page_size: query.pageSize,
         source: query.source && query.source !== 'all' ? query.source : undefined,
+        human_type: query.humanType,
         status: query.status,
         mfa: query.mfa,
         search: query.search?.trim(),

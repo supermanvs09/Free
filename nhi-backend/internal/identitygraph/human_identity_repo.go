@@ -122,6 +122,7 @@ func (r *HumanIdentityRepository) Overview(ctx context.Context, resolved *scope.
 			COUNT(*) FILTER (WHERE h.status = 'active')::int,
 			COUNT(*) FILTER (WHERE h.status = 'inactive')::int,
 			COUNT(*) FILTER (WHERE h.status = 'suspended')::int,
+			COUNT(*) FILTER (WHERE h.status = 'disabled')::int,
 			COUNT(*) FILTER (WHERE h.mfa_active IS TRUE)::int,
 			COUNT(*) FILTER (WHERE h.mfa_active IS FALSE)::int,
 			COUNT(*) FILTER (WHERE h.mfa_active IS NULL)::int,
@@ -150,7 +151,7 @@ func (r *HumanIdentityRepository) Overview(ctx context.Context, resolved *scope.
 	err := resolved.DB.QueryRowContext(ctx, q, a.values...).Scan(
 		&o.TotalIdentities,
 		&o.BySource.IAM, &o.BySource.SSO,
-		&o.ByStatus.Active, &o.ByStatus.Inactive, &o.ByStatus.Suspended,
+		&o.ByStatus.Active, &o.ByStatus.Inactive, &o.ByStatus.Suspended, &o.ByStatus.Disabled,
 		&o.MFA.Enabled, &o.MFA.Disabled, &o.MFA.Unknown,
 		&o.InactiveOver90Days, &o.NeverUsed, &o.ConsoleWithoutMFA,
 		&o.UnlinkedCount, &o.PrivilegedCount,
