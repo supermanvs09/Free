@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertTriangle, ArrowRight, Bot, Eye, Gauge, FileWarning, Fingerprint, Globe2, KeyRound, LineChart, Pencil, RotateCw, ScanEye } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Bot, Eye, Gauge, FileWarning, Fingerprint, Globe2, KeyRound, LineChart, RotateCw, ScanEye } from 'lucide-react';
 import { useAccess } from '../../app/useAccess';
 import { useSync } from '../sync/SyncContext';
 import { useWorkspace } from '../../app/WorkspaceContext';
@@ -11,8 +11,9 @@ import {
   fetchGenomeSummary,
   fetchPostureSummary,
   fetchScopeSettings,
-  fetchLatestActivity,
 } from '../../lib/api/overview';
+import { fetchRecentGenomeCalls } from '../../lib/api/genome';
+import { genomeRoute } from '../../lib/identityLinks';
 import { useQuery } from '../../lib/hooks';
 import { useToast } from '../../ui/Toast';
 import { NEUTRAL_SERIES, SERIES_TOKENS } from '../../lib/domain';
@@ -64,7 +65,9 @@ function OrganisationDashboard({ exposure, offerExposureSetup }) {
   const genomeQuery = useQuery((signal) => fetchGenomeSummary(signal), []);
   const findingsQuery = useQuery((signal) => fetchFindings(signal), [], { enabled: exposure });
   const trendsQuery = useQuery((signal) => fetchScanTrends(signal), []);
-  const activityQuery = useQuery((signal) => fetchLatestActivity(signal), []);
+  /* Latest calls come from the genome activity API, the same call history the
+     NHI Genome and identity Activity pages show. */
+  const activityQuery = useQuery((signal) => fetchRecentGenomeCalls({}, signal), []);
 
   const overview = overviewQuery.data;
   const kpis = overview?.kpis;
@@ -771,45 +774,47 @@ function LatestActivity({ query, genome }) {
           <ListSkeleton rows={5} />
         ) : query.isError && !data ? (
           <InlineError error={query.error} onRetry={query.refetch} label="Latest activity could not be loaded" />
-        ) : !data.available ? (
-          <EmptyState compact icon={LineChart} title="No activity log data" description="The AWS activity log (CloudTrail) could not be read for these accounts." />
-        ) : data.events.length === 0 ? (
-          <EmptyState compact icon={LineChart} title="No calls in the last 30 days" description="No identity in these accounts and regions made an AWS call recently." />
+        ) : data.calls.length === 0 ? (
+          <EmptyState compact icon={LineChart} title="No calls in the last 30 days" description="No monitored identity in these accounts made an AWS call recently." />
         ) : (
           <ol className="flex flex-col">
-            {data.events.map((event, index) => {
-              const mutating = !event.is_read_only;
-              const Icon = mutating ? Pencil : Eye;
-              const last = index === data.events.length - 1;
+            {data.calls.map((call, index) => {
+              const risk = CALL_RISK[String(call.risk_status ?? '').toLowerCase()] ?? CALL_RISK.normal;
+              const flagged = risk.tone !== 'neutral';
+              const Icon = flagged ? AlertTriangle : Eye;
+              const last = index === data.calls.length - 1;
+              const [service, action] = String(call.api_call ?? '').split(':');
               return (
-                <li key={`${event.event_id}-${event.identity.id}`} className="relative flex gap-3 pb-3.5">
+                <li key={`${call.event_id}-${call.identity.identityName}`} className="relative flex gap-3 pb-3.5">
                   {!last && <span aria-hidden="true" className="absolute top-9 bottom-0 left-[17px] w-px bg-line" />}
                   <span
                     className={cn(
                       'grid size-9 shrink-0 place-items-center rounded-full border',
-                      mutating ? 'border-high/30 bg-high-soft text-high' : 'border-line bg-surface-2 text-ink-3',
+                      flagged ? 'border-high/30 bg-high-soft text-high' : 'border-line bg-surface-2 text-ink-3',
                     )}
                   >
                     <Icon aria-hidden="true" className="size-4" />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-baseline justify-between gap-3">
-                      <span className="truncate text-[13.5px] font-semibold text-ink">{event.event_name}</span>
-                      <span className="shrink-0 text-[11.5px] text-ink-3" title={formatDateTime(event.event_time)}>
-                        {formatRelative(event.event_time)}
+                      <span className="truncate text-[13.5px] font-semibold text-ink">{action || call.api_call}</span>
+                      <span className="shrink-0 text-[11.5px] text-ink-3" title={formatDateTime(call.event_time)}>
+                        {formatRelative(call.event_time)}
                       </span>
                     </span>
                     <span className="block truncate text-[12.5px] text-ink-3">
-                      <Link to={`/activity?identity=${encodeURIComponent(event.identity.id)}`} className="font-medium text-brand hover:underline">
-                        {event.identity.name}
+                      <Link to={genomeRoute(call.identity.sourceType, call.identity.identityName)} className="font-medium text-brand hover:underline">
+                        {call.identity.name}
                       </Link>
-                      {event.event_source ? ` · ${event.event_source}` : ''}
+                      {action && service ? ` · ${service}` : ''}
                     </span>
                     <span className="mt-0.5 flex flex-wrap items-center gap-x-3 text-[11.5px] text-ink-3">
-                      {event.source_ip && <span className="font-mono">{event.source_ip}</span>}
-                      {event.aws_region && <span>{event.aws_region}</span>}
-                      <span className={mutating ? 'font-medium text-high' : ''}>{mutating ? 'Mutating' : 'Read-only'}</span>
-                      {event.status === 'error' && <span className="font-medium text-critical">Failed</span>}
+                      {call.source_ip && <span className="font-mono">{call.source_ip}</span>}
+                      {call.region && <span>{call.region}</span>}
+                      <span className={flagged ? 'font-medium text-high' : ''}>
+                        {risk.label}
+                        {Number.isFinite(call.risk_score) ? ` · risk ${call.risk_score}` : ''}
+                      </span>
                     </span>
                   </span>
                 </li>
@@ -821,6 +826,13 @@ function LatestActivity({ query, genome }) {
     </>
   );
 }
+
+/* The genome's call risk words, as on the NHI Genome identity page. */
+const CALL_RISK = {
+  anomalous: { label: 'Anomalous', tone: 'critical' },
+  elevated: { label: 'Elevated', tone: 'medium' },
+  normal: { label: 'Normal', tone: 'neutral' },
+};
 
 /* ── Credential exposure ──────────────────────────────────────────────────── */
 
