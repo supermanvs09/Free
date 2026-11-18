@@ -15,9 +15,20 @@ import (
 	"nhi-backend-api/internal/remediation/store"
 )
 
-type Handler struct{ core *engine.Service }
+type Handler struct {
+	core *engine.Service
+	// scope returns the caller's AWS accounts when their saved scope leaves
+	// some out (nil = all accounts); unset means no account scoping.
+	scope func(ctx context.Context, c common.Caller) ([]string, error)
+}
 
 func NewHandler(core *engine.Service) *Handler { return &Handler{core: core} }
+
+// WithScope makes the backlog and its summary follow the user's account scope.
+func (h *Handler) WithScope(fn func(ctx context.Context, c common.Caller) ([]string, error)) *Handler {
+	h.scope = fn
+	return h
+}
 
 var allowed = common.Allow("status", "severity", "q", "stage", "identity_class", "limit", "offset")
 
@@ -88,6 +99,13 @@ func (h *Handler) list(ctx context.Context, c common.Caller, f store.FindingList
 	if err := common.Require(c, domain.PermRead); err != nil {
 		return nil, err
 	}
+	if h.scope != nil {
+		accounts, err := h.scope(ctx, c)
+		if err != nil {
+			return nil, err
+		}
+		f.Accounts = accounts
+	}
 	st, err := h.core.Store(ctx, c.TenantID)
 	if err != nil {
 		return nil, err
@@ -96,7 +114,7 @@ func (h *Handler) list(ctx context.Context, c common.Caller, f store.FindingList
 	if err != nil {
 		return nil, err
 	}
-	sum, err := st.FindingsSummary(ctx)
+	sum, err := st.FindingsSummary(ctx, f.Accounts)
 	if err != nil {
 		return nil, err
 	}

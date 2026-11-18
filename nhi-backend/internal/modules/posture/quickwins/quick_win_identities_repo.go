@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/lib/pq"
 	"strings"
 
 	"nhi-backend-api/internal/modules/posture/common"
@@ -54,6 +55,10 @@ func (r *QuickWinIdentitiesRepository) Get(ctx context.Context, s *scope.DataSco
 		}
 		args = append(args, cur.ID)
 		where += fmt.Sprintf(` AND (p.score, p.identity_id) > (SELECT x.score, x.identity_id FROM %s x WHERE x.tenant_id = $1 AND x.identity_id = $3)`, posture)
+	}
+	if s.Narrowed {
+		args = append(args, pq.Array(s.AccountIDs))
+		where += fmt.Sprintf(" AND p.account_id = ANY($%d::text[])", len(args))
 	}
 	args = append(args, limit+1)
 	q := fmt.Sprintf(`SELECT p.identity_id, COALESCE(p.identity_name, ''), COALESCE(NULLIF(p.account_name, ''), p.account_id, ''),

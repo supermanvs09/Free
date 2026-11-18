@@ -16,9 +16,12 @@ type FindingListFilter struct {
 	Search   string
 	Stage    string
 	// Class is "" (both), "HI" (people) or "NHI".
-	Class  string
-	Limit  int
-	Offset int
+	Class string
+	// Accounts limits the list to these AWS accounts (the user's scope);
+	// nil means every account of the tenant.
+	Accounts []string
+	Limit    int
+	Offset   int
 }
 
 // FindingRow is one finding of the remediation backlog, with its newest plan
@@ -84,6 +87,9 @@ func (s *Store) ListFindings(ctx context.Context, f FindingListFilter) ([]Findin
 	if f.Severity != "" {
 		add("lower(f.severity) = lower(?)", f.Severity)
 	}
+	if f.Accounts != nil {
+		add("f.account_id = ANY(?::text[])", f.Accounts)
+	}
 	if f.Class == "HI" || f.Class == "NHI" {
 		add("CASE WHEN upper(COALESCE(f.identity_class, 'NHI')) IN ('HI', 'HUMAN') THEN 'HI' ELSE 'NHI' END = ?", f.Class)
 	}
@@ -137,14 +143,20 @@ func (s *Store) ListFindings(ctx context.Context, f FindingListFilter) ([]Findin
 }
 
 // FindingsSummary counts the backlog for the remediation page's cards.
-func (s *Store) FindingsSummary(ctx context.Context) (*FindingSummary, error) {
+// FindingsSummary counts the open backlog; accounts limits it like
+// FindingListFilter.Accounts (nil = every account).
+func (s *Store) FindingsSummary(ctx context.Context, accounts []string) (*FindingSummary, error) {
 	sum := &FindingSummary{BySeverity: map[string]int{}}
+	acct, args := "", []any{s.TenantID}
+	if accounts != nil {
+		acct, args = " AND f.account_id = ANY($2::text[])", append(args, accounts)
+	}
 	rows, err := s.pool.Query(ctx, fmt.Sprintf(`SELECT initcap(lower(f.severity)),
 			count(*) FILTER (WHERE ap.plan_id IS NULL),
 			count(*) FILTER (WHERE ap.status IN ('DRAFT','READY','WAITING_EXTERNAL')),
 			count(*) FILTER (WHERE ap.status = 'MANUALLY_DONE'),
 			count(*)
-		FROM %s f %s WHERE f.tenant_id = $1::uuid AND f.status = 'OPEN' GROUP BY 1`, s.tbl("ispm_nhi_findings"), s.planJoin()), s.TenantID)
+		FROM %s f %s WHERE f.tenant_id = $1::uuid AND f.status = 'OPEN'%s GROUP BY 1`, s.tbl("ispm_nhi_findings"), s.planJoin(), acct), args...)
 	if err != nil {
 		return nil, err
 	}
@@ -164,8 +176,8 @@ func (s *Store) FindingsSummary(ctx context.Context) (*FindingSummary, error) {
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	err = s.pool.QueryRow(ctx, fmt.Sprintf(`SELECT count(*) FROM %s WHERE tenant_id = $1::uuid AND status = 'RESOLVED'
-		AND COALESCE(resolved_at, updated_at) > now() - interval '30 days'`, s.tbl("ispm_nhi_findings")), s.TenantID).Scan(&sum.Fixed30d)
+	err = s.pool.QueryRow(ctx, fmt.Sprintf(`SELECT count(*) FROM %s f WHERE f.tenant_id = $1::uuid AND f.status = 'RESOLVED'
+		AND COALESCE(f.resolved_at, f.updated_at) > now() - interval '30 days'%s`, s.tbl("ispm_nhi_findings"), acct), args...).Scan(&sum.Fixed30d)
 	return sum, err
 }
 
