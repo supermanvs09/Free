@@ -38,11 +38,8 @@ func NewBase(resolver *scope.Resolver) Base {
 	return Base{resolver: resolver, meta: NewMetaRepository()}
 }
 
-// Tenant resolves the caller's tenant and account scope. The worker
-// precomputes posture for the whole tenant; when the user's saved scope leaves
-// accounts out (s.Narrowed), the fleet-level reads filter by s.AccountIDs.
 func (b Base) Tenant(ctx context.Context, c Caller) (*scope.DataScope, error) {
-	return b.resolver.ResolveNarrowing(ctx, c.UserID, c.TenantID, c.DBName)
+	return b.resolver.ResolveTenant(ctx, c.UserID, c.TenantID, c.DBName)
 }
 
 // ScanMeta returns the latest finished scan of the caller's tenant. Handlers

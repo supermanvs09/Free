@@ -32,8 +32,7 @@ const (
 	FacetType     = "type"
 	FacetPillar   = "pillar"
 	FacetChanged  = "changed"
-	facetOther    = ""      // filters without a facet (failing_check, q) apply everywhere
-	facetScope    = "scope" // the user's account scope: no facet skips it
+	facetOther    = "" // filters without a facet (failing_check, q) apply everywhere
 )
 
 // fragment is one WHERE condition on ispm_identity_posture (alias p).
@@ -69,9 +68,6 @@ var SeverityColumn = map[string]string{
 // column, which comes from a fixed table.
 func (b *queryBuilder) BuildFragments(s *scope.DataScope, f common.IdentityFilter) []fragment {
 	var out []fragment
-	if s.Narrowed { // the user's account scope; never skipped by a facet
-		out = append(out, fragment{facetScope, "p.account_id = ANY(" + b.add(pq.Array(s.AccountIDs)) + "::text[])"})
-	}
 	if len(f.Classes) > 0 {
 		out = append(out, fragment{FacetClass, common.ClassExpr("p.identity_class") + " = ANY(" + b.add(pq.Array(f.Classes)) + "::text[])"})
 	}

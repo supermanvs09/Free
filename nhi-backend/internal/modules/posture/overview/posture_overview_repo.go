@@ -77,13 +77,6 @@ func (r *PostureOverviewRepository) Get(ctx context.Context, s *scope.DataScope,
 	meta.ScanID = row.scanID.String
 	meta.ComputedAt = common.NullTime(row.computed)
 
-	if s.Narrowed { // the user's scope leaves accounts out: recompute from the scoped identities
-		if err := r.scopedOverview(ctx, s, w, class, out, row.snapshot); err != nil {
-			return nil, meta, err
-		}
-		return out, meta, nil
-	}
-
 	out.Fleet.Score = common.NullFloat(row.score)
 	out.Fleet.Grade = row.grade.String
 	out.Fleet.Band = row.band.String

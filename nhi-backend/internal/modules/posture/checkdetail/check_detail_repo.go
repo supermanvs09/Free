@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/lib/pq"
 	"sort"
 
 	"nhi-backend-api/internal/modules/posture/common"
@@ -79,12 +78,7 @@ func (r *CheckDetailRepository) Get(ctx context.Context, s *scope.DataScope, rul
 	}
 
 	cq := fmt.Sprintf(`SELECT count(*)::int FROM %s WHERE tenant_id = $1 AND rule_id = $2 AND status = 'FAIL'`, s.Table(common.TIdentityChecks))
-	cargs := []any{s.TenantID, ruleID}
-	if s.Narrowed { // only the identities of the user's accounts
-		cq += fmt.Sprintf(` AND identity_id IN (SELECT identity_id FROM %s WHERE tenant_id = $1 AND account_id = ANY($3::text[]))`, s.Table(common.TIdentityPosture))
-		cargs = append(cargs, pq.Array(s.AccountIDs))
-	}
-	if err := s.DB.QueryRowContext(ctx, cq, cargs...).Scan(&d.IdentitiesFailing); err != nil {
+	if err := s.DB.QueryRowContext(ctx, cq, s.TenantID, ruleID).Scan(&d.IdentitiesFailing); err != nil {
 		return nil, fmt.Errorf("count failing identities: %w", err)
 	}
 	return d, nil

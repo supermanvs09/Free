@@ -59,7 +59,6 @@ import (
 	"nhi-backend-api/internal/modules/posture/identityroleuse"
 	"nhi-backend-api/internal/modules/posture/overview"
 	"nhi-backend-api/internal/modules/posture/quickwins"
-	remediationcommon "nhi-backend-api/internal/modules/remediation/common"
 	"nhi-backend-api/internal/modules/scanchanges"
 	"nhi-backend-api/internal/modules/settings"
 	"nhi-backend-api/internal/modules/users"
@@ -363,15 +362,6 @@ func main() {
 		if remApp, err = newRemediation(cfg, &remCfg); err != nil {
 			fatal("start remediation", err)
 		}
-		// The remediation backlog follows the user's account scope, like the
-		// rest of the console.
-		remApp.Handlers.FindingList.WithScope(func(ctx context.Context, c remediationcommon.Caller) ([]string, error) {
-			s, err := resolver.ResolveNarrowing(ctx, c.UserID, c.TenantID, c.DBName)
-			if err != nil || !s.Narrowed {
-				return nil, err
-			}
-			return s.AccountIDs, nil
-		})
 		remApp.Start()
 		defer remApp.Stop()
 	} else {

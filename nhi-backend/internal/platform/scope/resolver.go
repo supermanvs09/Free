@@ -38,12 +38,6 @@ type DataScope struct {
 	sources *datasource.Recorder
 
 	HasUserSettings bool
-
-	// Narrowed is set by ResolveNarrowing: the caller's accounts (AccountIDs)
-	// leave out at least one account of the tenant. Modules that read
-	// tenant-wide precomputed data (posture, remediation) filter by
-	// AccountIDs only then, so an unnarrowed scope keeps the fast path.
-	Narrowed bool
 }
 
 // QueryArgs are the first two PostgreSQL bind values used by scoped data
@@ -159,34 +153,6 @@ func (r *Resolver) ResolveTenant(_ context.Context, userID, tenantID, dbName str
 		DB: tenantDB, UserID: userID, TenantID: tenantID, DBName: dbName, Schema: dbName,
 		AccountIDs: make([]string, 0), Regions: make([]string, 0),
 	}, nil
-}
-
-// ResolveNarrowing is Resolve plus Narrowed: whether the user's saved scope
-// (and the request's account filter) leaves out any of the tenant's accounts.
-func (r *Resolver) ResolveNarrowing(ctx context.Context, userID, tenantID, dbName string) (*DataScope, error) {
-	s, err := r.Resolve(ctx, userID, tenantID, dbName)
-	if err != nil {
-		return nil, err
-	}
-	all, err := r.existingAccounts(ctx, s.DB, s.Schema, tenantID, []string{"all"})
-	if err != nil {
-		return nil, err
-	}
-	s.Narrowed = isNarrowed(all, s.AccountIDs)
-	return s, nil
-}
-
-func isNarrowed(all, scoped []string) bool {
-	in := make(map[string]bool, len(scoped))
-	for _, a := range scoped {
-		in[a] = true
-	}
-	for _, a := range all {
-		if !in[a] {
-			return true
-		}
-	}
-	return false
 }
 
 type savedSettings struct {
