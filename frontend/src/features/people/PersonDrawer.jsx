@@ -1,4 +1,4 @@
-import { KeyRound, ShieldCheck, UsersRound } from 'lucide-react';
+import { KeyRound, LogIn, ShieldCheck, UsersRound } from 'lucide-react';
 import { fetchHumanIdentity } from '../../lib/api/humanIdentities';
 import { useQuery } from '../../lib/hooks';
 import { formatDateTime, formatNumber, formatRelative } from '../../lib/format';
@@ -10,7 +10,7 @@ import { EmptyState, ErrorState } from '../../ui/States';
 import { Tag } from '../../ui/Tag';
 import { cn } from '../../ui/cn';
 import { Avatar } from './parts';
-import { SOURCE_LABEL, humanTypeLabel, personName, statusMeta } from './peopleMeta';
+import { SOURCE_LABEL, humanTypeLabel, personName, sessionLength, statusMeta } from './peopleMeta';
 
 const RISK_TONE = { critical: 'critical', high: 'high', medium: 'medium', low: 'low' };
 
@@ -93,6 +93,7 @@ export function PersonDrawer({ id, onClose }) {
                   <span className={cn('font-medium', d.mfa_active === true ? 'text-low' : d.mfa_active === false ? 'text-critical' : 'text-ink-3')}>
                     {d.mfa_active === true ? 'On' : d.mfa_active === false ? 'Off' : 'Not reported'}
                   </span>
+                  {mfaTypes(d).length > 0 && <span className="text-ink-3"> · {mfaTypes(d).join(', ')}</span>}
                 </DetailRow>
                 <DetailRow label="Console access">{d.console_access === true ? 'Yes' : d.console_access === false ? 'No' : <span className="text-ink-3">Not reported</span>}</DetailRow>
                 <DetailRow label="Last active">
@@ -123,6 +124,35 @@ export function PersonDrawer({ id, onClose }) {
               </DetailList>
             </section>
 
+            {d.sign_in && (
+              <section aria-label="Console sign-in">
+                <SectionLabel>Console sign-in</SectionLabel>
+                <DetailList className="mt-1">
+                  <DetailRow label="Last sign-in">
+                    <SignInValue login={d.sign_in.last_success} />
+                  </DetailRow>
+                  <DetailRow label="Last failed sign-in">
+                    <SignInValue login={d.sign_in.last_failure} failed />
+                  </DetailRow>
+                </DetailList>
+              </section>
+            )}
+
+            <section aria-label="Credentials">
+              <SectionLabel>
+                Credentials <span data-numeric="" className="font-normal text-ink-3">{formatNumber((d.credentials ?? []).length)}</span>
+              </SectionLabel>
+              {(d.credentials ?? []).length === 0 ? (
+                <p className="mt-2 text-[12.5px] text-ink-3">{d.source === 'iam' ? 'No password, access key or MFA device recorded.' : 'Single sign-on users sign in through their identity provider.'}</p>
+              ) : (
+                <ul className="mt-2 flex flex-col gap-1.5">
+                  {d.credentials.map((c) => (
+                    <CredentialRow key={c.id} credential={c} />
+                  ))}
+                </ul>
+              )}
+            </section>
+
             <section aria-label="Access">
               <SectionLabel>
                 Access <span data-numeric="" className="font-normal text-ink-3">{formatNumber(d.access.length)}</span>
@@ -133,7 +163,8 @@ export function PersonDrawer({ id, onClose }) {
                 <ul className="mt-2 flex flex-col gap-1.5">
                   {d.access.map((a) => {
                     const name = a.permission_set_name || a.role_arn || a.policy_arn || a.access_type;
-                    const admin = /admin/i.test(`${a.permission_set_name ?? ''} ${a.policy_arn ?? ''}`);
+                    /* The API flags admin and escalation from the policy document too; older answers without the flags fall back to the name. */
+                    const admin = a.is_admin ?? /admin/i.test(`${a.permission_set_name ?? ''} ${a.policy_arn ?? ''}`);
                     return (
                       <li key={a.id} className="rounded-[var(--radius-control)] border border-line px-3 py-2.5">
                         <div className="flex items-start gap-2.5">
@@ -142,15 +173,30 @@ export function PersonDrawer({ id, onClose }) {
                             <p className="text-[12.5px] font-semibold [overflow-wrap:anywhere] text-ink">{name}</p>
                             <p className="mt-0.5 text-[11.5px] text-ink-3">
                               Account <span className="font-mono">{a.account_id}</span> · {String(a.access_type).replace(/_/g, ' ')} · via {a.granted_via}
-                              {a.session_duration ? ` · ${a.session_duration} sessions` : ''}
+                              {a.session_duration ? ` · ${sessionLength(a.session_duration)} sessions` : ''}
                             </p>
                             <p className="mt-0.5 text-[11.5px] text-ink-3">{a.last_used_at ? `Last used ${formatRelative(a.last_used_at)}` : 'Never used'}</p>
+                            {a.policy_document && (
+                              <details className="mt-1.5">
+                                <summary className="cursor-pointer text-[11.5px] font-medium text-brand">Policy document</summary>
+                                <pre className="mt-1.5 max-h-56 overflow-auto rounded-[var(--radius-control)] bg-surface-2 p-2.5 font-mono text-[11px] leading-relaxed text-ink-2">
+                                  {JSON.stringify(a.policy_document, null, 2)}
+                                </pre>
+                              </details>
+                            )}
                           </div>
-                          {admin && (
-                            <Tag tone="high" size="sm">
-                              Admin-level
-                            </Tag>
-                          )}
+                          <span className="flex shrink-0 flex-col items-end gap-1">
+                            {admin && (
+                              <Tag tone="high" size="sm">
+                                Admin-level
+                              </Tag>
+                            )}
+                            {a.has_escalation && (
+                              <Tag tone="critical" size="sm">
+                                Escalation risk
+                              </Tag>
+                            )}
+                          </span>
                         </div>
                       </li>
                     );
@@ -181,5 +227,68 @@ export function PersonDrawer({ id, onClose }) {
         )}
       </div>
     </Drawer>
+  );
+}
+
+const CREDENTIAL_LABEL = { ACCESS_KEY: 'Access key', PASSWORD: 'Console password', MFA_DEVICE: 'MFA device' };
+
+/** Active MFA device types, e.g. ["virtual"]. */
+function mfaTypes(d) {
+  return [...new Set((d.credentials ?? []).filter((c) => c.credential_type === 'MFA_DEVICE' && c.status === 'active' && c.mfa_type).map((c) => String(c.mfa_type).toLowerCase()))];
+}
+
+function SignInValue({ login, failed = false }) {
+  if (!login) return <span className="text-ink-3">{failed ? 'None recorded' : 'Not recorded'}</span>;
+  return (
+    <span className="block">
+      <span title={login.at ? formatDateTime(login.at) : undefined} className={cn(failed && 'font-medium text-medium')}>
+        {login.at ? formatRelative(login.at) : 'Date not recorded'}
+      </span>
+      <span className="mt-0.5 block text-[11.5px] text-ink-3">
+        {[login.source_ip && <span key="ip" className="font-mono">{login.source_ip}</span>, login.region].filter(Boolean).reduce((acc, part, i) => (i ? [...acc, ' · ', part] : [part]), [])}
+        {login.mfa_used === false && <span className="font-medium text-critical">{login.source_ip || login.region ? ' · ' : ''}without MFA</span>}
+        {login.mfa_used === true && <span>{login.source_ip || login.region ? ' · ' : ''}with MFA</span>}
+      </span>
+    </span>
+  );
+}
+
+function CredentialRow({ credential: c }) {
+  const active = String(c.status).toLowerCase() === 'active';
+  const age = c.last_rotated_at || c.created_at;
+  const old = c.credential_type !== 'MFA_DEVICE' && age && Date.now() - Date.parse(age) > 90 * 86400000;
+  return (
+    <li className="rounded-[var(--radius-control)] border border-line px-3 py-2.5">
+      <div className="flex items-start gap-2.5">
+        {c.credential_type === 'PASSWORD' ? (
+          <LogIn aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-ink-3" />
+        ) : c.credential_type === 'MFA_DEVICE' ? (
+          <ShieldCheck aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-ink-3" />
+        ) : (
+          <KeyRound aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-ink-3" />
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="text-[12.5px] font-semibold text-ink">
+            {CREDENTIAL_LABEL[c.credential_type] ?? String(c.credential_type).replace(/_/g, ' ').toLowerCase()}
+            {c.mfa_type ? <span className="font-normal text-ink-3"> · {String(c.mfa_type).toLowerCase()}</span> : null}
+          </p>
+          {c.credential_ref && c.credential_type !== 'PASSWORD' && <p className="mt-0.5 truncate font-mono text-[11px] text-ink-3" title={c.credential_ref}>{c.credential_ref}</p>}
+          <p className="mt-0.5 text-[11.5px] text-ink-3">
+            {age ? `${c.last_rotated_at ? 'Rotated' : 'Created'} ${formatRelative(age)}` : 'Created date not recorded'}
+            {c.credential_type === 'ACCESS_KEY' && (c.last_used_at ? ` · last used ${formatRelative(c.last_used_at)}${c.last_used_service ? ` (${c.last_used_service})` : ''}` : ' · never used')}
+          </p>
+        </div>
+        <span className="flex shrink-0 flex-col items-end gap-1">
+          <Tag tone={active ? 'low' : 'neutral'} size="sm" dot>
+            {active ? 'Active' : c.status || 'Unknown'}
+          </Tag>
+          {active && old && (
+            <Tag tone="high" size="sm">
+              Older than 90 days
+            </Tag>
+          )}
+        </span>
+      </div>
+    </li>
   );
 }

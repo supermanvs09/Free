@@ -1,5 +1,6 @@
 // Package humanidentities serves the Human Identities API: the overview
-// counts, the paginated identity list, and the per-identity detail.
+// counts, the paginated identity list, the per-identity detail, and the
+// SSO permission sets.
 package humanidentities
 
 import (
@@ -24,9 +25,11 @@ func New(resolver *scope.Resolver) *Module {
 }
 
 // Register mounts the human identity routes on an authenticated router.
-// "/overview" is registered before "/{id}" so it is not read as an ID.
+// Fixed paths ("/overview", "/permission-sets") are registered before "/{id}"
+// so they are not read as an ID.
 func (m *Module) Register(r *mux.Router) {
 	r.HandleFunc("/human-identities/overview", m.handler.Overview).Methods(http.MethodGet)
+	r.HandleFunc("/human-identities/permission-sets", m.handler.PermissionSets).Methods(http.MethodGet)
 	r.HandleFunc("/human-identities", m.handler.List).Methods(http.MethodGet)
 	r.HandleFunc("/human-identities/{id}", m.handler.Get).Methods(http.MethodGet)
 }

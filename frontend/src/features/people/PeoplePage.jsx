@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ArrowDownWideNarrow, ArrowUpNarrowWide, Clock3, Crown, Link2Off, ShieldOff, UserRoundX, UsersRound } from 'lucide-react';
-import { fetchHumanIdentities, fetchHumanOverview } from '../../lib/api/humanIdentities';
+import { fetchHumanIdentities, fetchHumanOverview, fetchPermissionSets } from '../../lib/api/humanIdentities';
 import { useDebouncedValue, useQuery } from '../../lib/hooks';
 import { formatNumber, formatRelative, formatRelativeShort } from '../../lib/format';
 import { DiscoveryTabs, PageHeader } from '../../shell/PageHeader';
@@ -12,7 +12,7 @@ import { ProportionBar } from '../../ui/Meter';
 import { MetricTile } from '../../ui/Stat';
 import { SegmentedControl } from '../../ui/Tabs';
 import { Pagination } from '../../ui/Pagination';
-import { Panel } from '../../ui/Panel';
+import { Panel, PanelHeader } from '../../ui/Panel';
 import { EmptyState, ErrorState } from '../../ui/States';
 import { IconButton } from '../../ui/Button';
 import { RefreshButton, TableToolbar } from '../../ui/TableTools';
@@ -23,7 +23,7 @@ import { fetchPostureScoreIndex } from '../../lib/api/posture';
 import { BandTag, ScoreRing } from '../posture/parts';
 import { PersonDrawer } from './PersonDrawer';
 import { Avatar, CoverageRing, LegendRow } from './parts';
-import { HUMAN_TYPE_LABEL, COLUMN_SORT, DEFAULT_SORT, MFA_OPTIONS, SORT_FIELDS, SOURCE_LABEL, SOURCE_OPTIONS, STATUS_OPTIONS, daysSince, humanTypeLabel, personName, readSort, statusMeta } from './peopleMeta';
+import { HUMAN_TYPE_LABEL, COLUMN_SORT, DEFAULT_SORT, MFA_OPTIONS, RISK_OPTIONS, sessionLength, SORT_FIELDS, SOURCE_LABEL, SOURCE_OPTIONS, STATUS_OPTIONS, daysSince, humanTypeLabel, personName, readSort, statusMeta } from './peopleMeta';
 
 /**
  * Human identities: the people who sign in to AWS, next to the workloads in
@@ -43,6 +43,7 @@ export default function PeoplePage() {
   const source = SOURCE_OPTIONS.some((o) => o.value === searchParams.get('source')) ? searchParams.get('source') : 'all';
   const status = STATUS_OPTIONS.some((o) => o.value === searchParams.get('status')) ? searchParams.get('status') || '' : '';
   const mfa = ['true', 'false'].includes(searchParams.get('mfa')) ? searchParams.get('mfa') : '';
+  const risk = RISK_OPTIONS.some((r) => r.value === searchParams.get('risk')) ? searchParams.get('risk') : '';
   const humanType = /^[A-Z_]{1,64}$/.test(searchParams.get('type') || '') ? searchParams.get('type') : '';
   const sort = readSort(searchParams.get('sort'));
   const [sortBy, sortOrder] = sort.split(':');
@@ -89,8 +90,8 @@ export default function PeoplePage() {
 
   const overview = useQuery((signal) => fetchHumanOverview({ source }, signal), [source]);
   const list = useQuery(
-    (signal) => fetchHumanIdentities({ page, pageSize, source, humanType, status, mfa, search: urlSearch, sortBy, sortOrder }, signal),
-    [page, pageSize, source, humanType, status, mfa, urlSearch, sortBy, sortOrder],
+    (signal) => fetchHumanIdentities({ page, pageSize, source, humanType, status, mfa, risk, search: urlSearch, sortBy, sortOrder }, signal),
+    [page, pageSize, source, humanType, status, mfa, risk, urlSearch, sortBy, sortOrder],
   );
   /* Security scores from the posture service, matched by ARN (IAM users) or by
      name / email (single sign-on users, who have no ARN). */
@@ -98,14 +99,28 @@ export default function PeoplePage() {
   const o = overview.data;
   const rows = list.data?.rows ?? [];
   const total = list.data?.total ?? 0;
-  const filtered = Boolean(status || mfa || urlSearch || humanType);
+  const filtered = Boolean(status || mfa || urlSearch || humanType || risk);
 
   /* The rail. Counts come from the overview, which follows "Signs in with",
      so each group's numbers describe the people that choice covers. */
   const facetGroups = useMemo(() => {
     const count = (v) => (o ? v : undefined);
     const typeKeys = Object.keys(o?.byHumanType ?? {}).sort((a, b) => (o.byHumanType[b] ?? 0) - (o.byHumanType[a] ?? 0));
+    /* Risks: the ones present (and the one chosen), with their counts. */
+    const riskOptions = RISK_OPTIONS.filter((r) => !o || (o.risks?.[r.value] ?? 0) > 0 || r.value === risk).map((r) => ({
+      value: r.value,
+      label: r.label,
+      count: count(o?.risks?.[r.value] ?? 0),
+      active: risk === r.value,
+    }));
     return [
+      {
+        key: 'risk',
+        label: 'Risk',
+        single: true,
+        options: riskOptions,
+        onSelect: (value) => update({ risk: value && value !== risk ? value : '' }),
+      },
       {
         key: 'type',
         label: 'Identity type',
@@ -143,16 +158,17 @@ export default function PeoplePage() {
         onSelect: (value) => update({ mfa: value && value !== mfa ? value : '' }),
       },
     ];
-  }, [o, humanType, status, mfa, update]);
+  }, [o, humanType, status, mfa, risk, update]);
 
   const chips = [
     source !== 'all' && { key: 'source', label: 'Signs in with', value: SOURCE_LABEL[source] },
+    risk && { key: 'risk', label: 'Risk', value: RISK_OPTIONS.find((r) => r.value === risk)?.label ?? risk },
     humanType && { key: 'type', label: 'Type', value: humanTypeLabel(humanType) },
     status && { key: 'status', label: 'Status', value: statusMeta(status).label },
     mfa && { key: 'mfa', label: 'MFA', value: mfa === 'true' ? 'On' : 'Off' },
     urlSearch && { key: 'search', label: 'Search', value: urlSearch },
   ].filter(Boolean);
-  const clearAll = () => update({ source: '', type: '', status: '', mfa: '', search: '' });
+  const clearAll = () => update({ source: '', type: '', status: '', mfa: '', risk: '', search: '' });
 
   const columns = useMemo(
     () => [
@@ -218,6 +234,7 @@ export default function PeoplePage() {
             {row.access_count === 1 ? 'grant' : 'grants'}
             <span className="block text-[11px] text-ink-3">
               {formatNumber(row.group_count)} {row.group_count === 1 ? 'group' : 'groups'}
+              {row.active_key_count > 0 ? ` · ${formatNumber(row.active_key_count)} ${row.active_key_count === 1 ? 'access key' : 'access keys'}` : ''}
             </span>
           </span>
         ),
@@ -344,6 +361,8 @@ export default function PeoplePage() {
         </Panel>
       </WorkArea>
 
+      {source === 'sso' && <PermissionSets />}
+
       <PersonDrawer id={personId} onClose={() => update({ person: '' }, { keepPage: true })} />
     </div>
   );
@@ -447,6 +466,64 @@ function RiskTile({ label, value, icon, bad, caption }) {
   );
 }
 
+/* ── Permission sets (single sign-on) ────────────────────────────────────── */
+
+/** What each SSO permission set grants and to whom. Shown under "Single sign-on". */
+function PermissionSets() {
+  const query = useQuery((signal) => fetchPermissionSets(signal), []);
+  const sets = query.data ?? [];
+  return (
+    <Panel prominence="quiet" className="animate-rise">
+      <PanelHeader prominence="quiet" title="Permission sets" subtitle="What single sign-on users can do in your accounts, and who holds each set." />
+      {query.isError && !query.data ? (
+        <ErrorState compact error={query.error} onRetry={query.refetch} title="Permission sets could not be loaded" />
+      ) : !query.data ? (
+        <p className="mt-3 text-[12.5px] text-ink-3">Loading…</p>
+      ) : sets.length === 0 ? (
+        <p className="mt-3 text-[12.5px] text-ink-3">No permission set is assigned to a single sign-on user.</p>
+      ) : (
+        <ul className="mt-3 divide-y divide-line">
+          {sets.map((set) => (
+            <li key={set.permission_set_arn} className="py-2.5">
+              <details>
+                <summary className="flex cursor-pointer list-none items-center gap-3">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[12.5px] font-semibold text-ink">{set.permission_set_name || set.permission_set_arn}</span>
+                    <span className="block text-[11.5px] text-ink-3">
+                      {formatNumber(set.assigned_user_count)} {set.assigned_user_count === 1 ? 'user' : 'users'} · {formatNumber(set.account_count)}{' '}
+                      {set.account_count === 1 ? 'account' : 'accounts'}
+                      {set.session_duration ? ` · ${sessionLength(set.session_duration)} sessions` : ''}
+                    </span>
+                  </span>
+                  {/admin/i.test(`${set.permission_set_name} ${(set.policies ?? []).join(' ')}`) && (
+                    <Tag tone="high" size="sm">
+                      Admin-level
+                    </Tag>
+                  )}
+                </summary>
+                <div className="mt-2 grid gap-2 text-[11.5px] text-ink-2 sm:grid-cols-3">
+                  <p>
+                    <span className="block font-semibold text-ink-3">Policies</span>
+                    {(set.policies ?? []).length ? set.policies.map((p) => <span key={p} className="block truncate font-mono" title={p}>{p.split('/').pop()}</span>) : 'Inline only'}
+                  </p>
+                  <p>
+                    <span className="block font-semibold text-ink-3">Accounts</span>
+                    {(set.account_ids ?? []).map((a) => <span key={a} className="block font-mono">{a}</span>)}
+                  </p>
+                  <p>
+                    <span className="block font-semibold text-ink-3">Users</span>
+                    {(set.assigned_users ?? []).map((u) => <span key={u} className="block truncate" title={u}>{u}</span>)}
+                  </p>
+                </div>
+              </details>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
+  );
+}
+
 /* ── Cells ───────────────────────────────────────────────────────────────── */
 
 function MfaCell({ row }) {
@@ -458,6 +535,7 @@ function MfaCell({ row }) {
       <span className={cn('inline-flex items-center gap-1.5 text-[12.5px] font-medium', on ? 'text-low' : off ? 'text-critical' : 'text-ink-3')}>
         <span aria-hidden="true" className={cn('size-1.5 rounded-full', on ? 'bg-low' : off ? 'bg-critical' : 'bg-ink-3/50')} />
         {on ? 'On' : off ? 'Off' : 'Not reported'}
+        {on && row.mfa_type ? <span className="font-normal text-ink-3">· {String(row.mfa_type).toLowerCase()}</span> : null}
       </span>
       {consoleOn && !on && <span className="mt-0.5 block text-[11px] font-medium text-critical">Console open</span>}
       {consoleOn && on && <span className="mt-0.5 block text-[11px] text-ink-3">Console access</span>}

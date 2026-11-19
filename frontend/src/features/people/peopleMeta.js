@@ -25,6 +25,30 @@ export const STATUS_OPTIONS = [
   { value: 'disabled', label: 'Disabled' },
 ];
 
+/* The list's risk= values (the backend's shared risk rules), worst first. */
+export const RISK_OPTIONS = [
+  { value: 'console_no_mfa', label: 'Console access without MFA' },
+  { value: 'admin', label: 'Admin-level access' },
+  { value: 'escalation', label: 'Privilege escalation risk' },
+  { value: 'virtual_mfa_admin', label: 'Admin with only virtual MFA' },
+  { value: 'login_without_mfa', label: 'Signed in without MFA (90 days)' },
+  { value: 'failed_login', label: 'Failed sign-in (7 days)' },
+  { value: 'old_access_key', label: 'Access key older than 90 days' },
+  { value: 'unused_access_key', label: 'Access key never used' },
+  { value: 'two_active_keys', label: 'Two active access keys' },
+  { value: 'old_password', label: 'Password older than 90 days' },
+  { value: 'password_never_changed', label: 'Password never changed' },
+  { value: 'inactive_90d', label: 'Inactive 90+ days' },
+  { value: 'never_used', label: 'Never signed in' },
+];
+
+/** "PT8H" / "PT1H30M" -> "8h" / "1h 30m"; anything else as given. */
+export function sessionLength(iso) {
+  const m = /^PT(?:(\d+)H)?(?:(\d+)M)?$/i.exec(String(iso ?? '').trim());
+  if (!m || (!m[1] && !m[2])) return iso;
+  return [m[1] && `${m[1]}h`, m[2] && `${m[2]}m`].filter(Boolean).join(' ');
+}
+
 export const MFA_OPTIONS = [
   { value: '', label: 'Any MFA' },
   { value: 'true', label: 'MFA on' },

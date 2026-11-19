@@ -32,6 +32,13 @@ var humanSortKeys = map[string]bool{
 	"score":            true,
 }
 
+// humanListAllowed lists the query parameters GET /human-identities accepts.
+// Any other parameter is rejected with 400.
+var humanListAllowed = map[string]struct{}{
+	"source": {}, "human_type": {}, "page": {}, "page_size": {}, "status": {},
+	"mfa": {}, "search": {}, "sort_by": {}, "sort_order": {}, "risk": {},
+}
+
 var humanIDPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
 type HumanIdentityHandler struct {
@@ -94,6 +101,9 @@ func (h *HumanIdentityHandler) List(w http.ResponseWriter, r *http.Request) {
 		writeHumanError(w, http.StatusUnauthorized, "Unauthorized", "UNAUTHORIZED")
 		return
 	}
+	if httpx.RejectUnknownQuery(w, r, humanListAllowed) {
+		return
+	}
 
 	q := r.URL.Query()
 
@@ -150,6 +160,15 @@ func (h *HumanIdentityHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	filter.MFA = mfa
 
+	if raw := strings.TrimSpace(q.Get("risk")); raw != "" {
+		key := strings.ToLower(raw)
+		if !identitygraph.IsValidHumanRisk(key) {
+			writeHumanError(w, http.StatusBadRequest, "Invalid risk: "+raw, "INVALID_RISK")
+			return
+		}
+		filter.Risk = key
+	}
+
 	if raw := q.Get("sort_by"); raw != "" {
 		key := strings.ToLower(strings.TrimSpace(raw))
 		if !humanSortKeys[key] {
@@ -167,6 +186,10 @@ func (h *HumanIdentityHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := h.service.GetList(r.Context(), claims.UserID, claims.TenantID, claims.DBName, filter)
+	if errors.Is(err, identitygraph.ErrInvalidHumanRisk) {
+		writeHumanError(w, http.StatusBadRequest, "Invalid risk filter", "INVALID_RISK")
+		return
+	}
 	if err != nil {
 		logging.FromContext(r.Context()).Error("human identity list failed", "err", err)
 		writeHumanError(w, http.StatusInternalServerError, "Failed to retrieve human identities", "HUMAN_LIST_FAILED")
@@ -208,6 +231,27 @@ func (h *HumanIdentityHandler) Get(w http.ResponseWriter, r *http.Request) {
 	httpx.SendJSONResponse(w, http.StatusOK, httpx.APIResponse{
 		Success: true,
 		Message: "Human identity retrieved successfully",
+		Data:    result,
+	})
+}
+
+// PermissionSets handles GET /api/v1/human-identities/permission-sets.
+// It returns SSO permission sets only, with their assigned users and accounts.
+func (h *HumanIdentityHandler) PermissionSets(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetClaims(r)
+	if claims == nil {
+		writeHumanError(w, http.StatusUnauthorized, "Unauthorized", "UNAUTHORIZED")
+		return
+	}
+	result, err := h.service.GetPermissionSets(r.Context(), claims.UserID, claims.TenantID, claims.DBName)
+	if err != nil {
+		logging.FromContext(r.Context()).Error("human permission sets failed", "err", err)
+		writeHumanError(w, http.StatusInternalServerError, "Failed to retrieve permission sets", "HUMAN_PERMISSION_SETS_FAILED")
+		return
+	}
+	httpx.SendJSONResponse(w, http.StatusOK, httpx.APIResponse{
+		Success: true,
+		Message: "Permission sets retrieved successfully",
 		Data:    result,
 	})
 }

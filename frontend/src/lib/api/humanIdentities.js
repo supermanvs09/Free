@@ -25,6 +25,22 @@ export async function fetchHumanOverview({ source } = {}, signal) {
     byStatus: { active: n(d.by_status?.active), inactive: n(d.by_status?.inactive), suspended: n(d.by_status?.suspended), disabled: n(d.by_status?.disabled) },
     byHumanType: Object.fromEntries(Object.entries(d.by_human_type ?? {}).map(([k, v]) => [k, n(v)])),
     rootAccounts: n(d.root_accounts),
+    /* Counts per risk rule, keyed by the list's risk= values. */
+    risks: {
+      console_no_mfa: n(d.console_access_without_mfa),
+      inactive_90d: n(d.inactive_over_90_days),
+      never_used: n(d.never_used),
+      admin: n(d.privileged_count),
+      escalation: n(d.escalation_count),
+      virtual_mfa_admin: n(d.admins_virtual_mfa_only),
+      old_access_key: n(d.access_keys?.older_than_90_days),
+      unused_access_key: n(d.access_keys?.never_used),
+      two_active_keys: n(d.access_keys?.two_active_keys),
+      old_password: n(d.passwords?.older_than_90_days),
+      password_never_changed: n(d.passwords?.never_changed),
+      login_without_mfa: n(d.sign_ins?.login_without_mfa_90_days),
+      failed_login: n(d.sign_ins?.failed_login_7_days),
+    },
     mfa: { enabled: n(d.mfa?.enabled), disabled: n(d.mfa?.disabled), unknown: n(d.mfa?.unknown) },
     inactiveOver90: n(d.inactive_over_90_days),
     neverUsed: n(d.never_used),
@@ -34,7 +50,7 @@ export async function fetchHumanOverview({ source } = {}, signal) {
   };
 }
 
-/** query: { page, pageSize, source, humanType, status, mfa ('true'|'false'|''), search, sortBy, sortOrder } */
+/** query: { page, pageSize, source, humanType, status, mfa ('true'|'false'|''), risk, search, sortBy, sortOrder } */
 export async function fetchHumanIdentities(query = {}, signal) {
   const d = unwrapMain(
     await client.get(BASE, {
@@ -46,6 +62,7 @@ export async function fetchHumanIdentities(query = {}, signal) {
         human_type: query.humanType,
         status: query.status,
         mfa: query.mfa,
+        risk: query.risk,
         search: query.search?.trim(),
         sort_by: query.sortBy,
         sort_order: query.sortOrder,
@@ -64,4 +81,10 @@ export async function fetchHumanIdentities(query = {}, signal) {
 
 export async function fetchHumanIdentity(id, signal) {
   return unwrapMain(await client.get(`${BASE}/${encodeURIComponent(id)}`, { signal }));
+}
+
+/** SSO permission sets with their assigned users, accounts and policies. */
+export async function fetchPermissionSets(signal) {
+  const d = unwrapMain(await client.get(`${BASE}/permission-sets`, { signal }));
+  return Array.isArray(d) ? d : [];
 }
