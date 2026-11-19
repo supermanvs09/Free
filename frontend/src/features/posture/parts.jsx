@@ -87,7 +87,7 @@ export function ScoreRing({ score, band, size = 44, stroke, grade, label, classN
             data-numeric=""
             className={cn(
               'block font-display font-extrabold tracking-[-0.03em] text-ink',
-              large ? 'text-[34px]' : size >= 56 ? 'text-[17px]' : 'text-[12.5px]',
+              large ? 'text-[34px]' : size >= 56 ? 'text-[17px]' : shown.length >= 3 && size < 44 ? 'text-[9.5px] tracking-[-0.06em]' : 'text-[12.5px]',
             )}
           >
             {shown}

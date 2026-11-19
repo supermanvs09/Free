@@ -34,7 +34,20 @@ var humanSortColumns = map[string]string{
 	"mfa":              "h.mfa_active",
 	"last_activity_at": "h.last_activity_at",
 	"created_at":       "h.created_at_source",
+	"score":            "ps.score", // needs scoreJoin
 }
+
+// scoreJoin attaches each person's posture score, matched like the console
+// does: by ARN first, then by user name, e-mail or display name (single sign-on
+// people have no ARN). Only used when sorting by score.
+const scoreJoin = `
+		LEFT JOIN LATERAL (
+			SELECT p.score FROM %[1]s.ispm_identity_posture p
+			WHERE p.identity_arn = h.arn
+			   OR lower(p.identity_name) IN (lower(NULLIF(h.user_name, '')), lower(NULLIF(h.email, '')), lower(NULLIF(h.display_name, '')))
+			ORDER BY (p.identity_arn = h.arn) DESC, p.score
+			LIMIT 1
+		) ps ON true`
 
 // ResolveHumanSource maps the API source value to the stored value.
 // "iam" -> "iam", "sso" -> "identity_center". Anything else returns "" (no filter).
@@ -230,6 +243,10 @@ func (r *HumanIdentityRepository) List(ctx context.Context, resolved *scope.Data
 	limitPh := a.add(pageSize)
 	offsetPh := a.add((page - 1) * pageSize)
 
+	join := ""
+	if sortKey == "score" {
+		join = fmt.Sprintf(scoreJoin, resolved.QSchema())
+	}
 	q := fmt.Sprintf(`
 		SELECT
 			h.id::text, h.source, h.source_id, h.human_type, h.account_id,
@@ -237,13 +254,20 @@ func (r *HumanIdentityRepository) List(ctx context.Context, resolved *scope.Data
 			h.status, h.mfa_active, h.console_access, h.last_activity_at, h.created_at_source,
 			(SELECT COUNT(*)::int FROM %[1]s.human_identity_access a WHERE a.human_id = h.id),
 			(SELECT COUNT(*)::int FROM %[1]s.human_identity_groups g WHERE g.human_id = h.id)
-		FROM %[1]s.human_identities h
+		FROM %[1]s.human_identities h%[7]s
 		WHERE %[2]s
 		ORDER BY %[3]s %[4]s NULLS LAST, h.id %[4]s
 		LIMIT %[5]s OFFSET %[6]s`,
-		resolved.QSchema(), whereSQL, sortExpr, dir, limitPh, offsetPh)
+		resolved.QSchema(), whereSQL, sortExpr, dir, limitPh, offsetPh, join)
 
 	rows, err := resolved.DB.QueryContext(ctx, q, a.values...)
+	var pgErr *pq.Error
+	if err != nil && join != "" && errors.As(err, &pgErr) && pgErr.Code == "42P01" {
+		// no posture tables in this tenant yet: keep the list, sorted by last activity
+		q = strings.Replace(q, join, "", 1)
+		q = strings.Replace(q, "ORDER BY "+sortExpr, "ORDER BY "+humanSortColumns["last_activity_at"], 1)
+		rows, err = resolved.DB.QueryContext(ctx, q, a.values...)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("query human identities: %w", err)
 	}

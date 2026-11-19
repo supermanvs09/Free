@@ -29,6 +29,7 @@ var humanSortKeys = map[string]bool{
 	"mfa":              true,
 	"last_activity_at": true,
 	"created_at":       true,
+	"score":            true,
 }
 
 var humanIDPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)

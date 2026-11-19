@@ -31,14 +31,27 @@ export const MFA_OPTIONS = [
   { value: 'false', label: 'MFA off' },
 ];
 
-export const SORT_OPTIONS = [
-  { value: 'last_activity_at:desc', label: 'Sort: Last active' },
-  { value: 'name:asc', label: 'Sort: Name' },
-  { value: 'email:asc', label: 'Sort: Email' },
-  { value: 'status:asc', label: 'Sort: Status' },
-  { value: 'mfa:asc', label: 'Sort: MFA' },
-  { value: 'created_at:desc', label: 'Sort: Newest account' },
+/* What the API sorts by; `dir` is the direction a field starts in. Score sorts
+   lowest first: the people who need attention come first. */
+export const SORT_FIELDS = [
+  { value: 'last_activity_at', label: 'Last active', dir: 'desc' },
+  { value: 'name', label: 'Name', dir: 'asc' },
+  { value: 'email', label: 'Email', dir: 'asc' },
+  { value: 'status', label: 'Status', dir: 'asc' },
+  { value: 'mfa', label: 'MFA', dir: 'asc' },
+  { value: 'score', label: 'Security score', dir: 'asc' },
+  { value: 'created_at', label: 'Newest account', dir: 'desc' },
 ];
+export const DEFAULT_SORT = 'last_activity_at:desc';
+
+/** "field:dir" from the address, or the default when it is not one the API takes. */
+export function readSort(raw) {
+  const [field, dir] = String(raw ?? '').split(':');
+  return SORT_FIELDS.some((f) => f.value === field) && (dir === 'asc' || dir === 'desc') ? raw : DEFAULT_SORT;
+}
+
+/** Column key -> API sort field, for the sortable headers. */
+export const COLUMN_SORT = { person: 'name', status: 'status', mfa: 'mfa', score: 'score', last: 'last_activity_at' };
 
 export function statusMeta(status) {
   switch (String(status ?? '').toLowerCase()) {

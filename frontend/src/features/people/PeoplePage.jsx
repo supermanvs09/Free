@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Clock3, Crown, Link2Off, ShieldOff, UserRoundX, UsersRound } from 'lucide-react';
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, Clock3, Crown, Link2Off, ShieldOff, UserRoundX, UsersRound } from 'lucide-react';
 import { fetchHumanIdentities, fetchHumanOverview } from '../../lib/api/humanIdentities';
 import { useDebouncedValue, useQuery } from '../../lib/hooks';
 import { formatNumber, formatRelative, formatRelativeShort } from '../../lib/format';
@@ -14,6 +14,7 @@ import { SegmentedControl } from '../../ui/Tabs';
 import { Pagination } from '../../ui/Pagination';
 import { Panel } from '../../ui/Panel';
 import { EmptyState, ErrorState } from '../../ui/States';
+import { IconButton } from '../../ui/Button';
 import { RefreshButton, TableToolbar } from '../../ui/TableTools';
 import { Tag } from '../../ui/Tag';
 import { RecordBar, ResultCount, ShowFiltersButton, WorkArea } from '../../ui/WorkArea';
@@ -22,7 +23,7 @@ import { fetchPostureScoreIndex } from '../../lib/api/posture';
 import { BandTag, ScoreRing } from '../posture/parts';
 import { PersonDrawer } from './PersonDrawer';
 import { Avatar, CoverageRing, LegendRow } from './parts';
-import { HUMAN_TYPE_LABEL, MFA_OPTIONS, SORT_OPTIONS, SOURCE_LABEL, SOURCE_OPTIONS, STATUS_OPTIONS, daysSince, humanTypeLabel, personName, statusMeta } from './peopleMeta';
+import { HUMAN_TYPE_LABEL, COLUMN_SORT, DEFAULT_SORT, MFA_OPTIONS, SORT_FIELDS, SOURCE_LABEL, SOURCE_OPTIONS, STATUS_OPTIONS, daysSince, humanTypeLabel, personName, readSort, statusMeta } from './peopleMeta';
 
 /**
  * Human identities: the people who sign in to AWS, next to the workloads in
@@ -43,13 +44,16 @@ export default function PeoplePage() {
   const status = STATUS_OPTIONS.some((o) => o.value === searchParams.get('status')) ? searchParams.get('status') || '' : '';
   const mfa = ['true', 'false'].includes(searchParams.get('mfa')) ? searchParams.get('mfa') : '';
   const humanType = /^[A-Z_]{1,64}$/.test(searchParams.get('type') || '') ? searchParams.get('type') : '';
-  const sort = SORT_OPTIONS.some((o) => o.value === searchParams.get('sort')) ? searchParams.get('sort') : SORT_OPTIONS[0].value;
+  const sort = readSort(searchParams.get('sort'));
   const [sortBy, sortOrder] = sort.split(':');
   const page = Math.max(1, Number(searchParams.get('page')) || 1);
   const pageSize = PAGE_SIZES.includes(Number(searchParams.get('size'))) ? Number(searchParams.get('size')) : 25;
   const urlSearch = searchParams.get('search') || '';
   const personId = searchParams.get('person') || '';
   const { railOpen, toggleRail } = useFacetRail('people');
+
+  const writeSort = (field, dir) => update({ sort: `${field}:${dir}` === DEFAULT_SORT ? '' : `${field}:${dir}` });
+  const activeColumn = Object.entries(COLUMN_SORT).find(([, field]) => field === sortBy)?.[0];
 
   const update = useCallback(
     (changes, { keepPage = false } = {}) => {
@@ -154,6 +158,7 @@ export default function PeoplePage() {
     () => [
       {
         key: 'person',
+        sortable: true,
         header: 'Person',
         primary: true,
         width: '26%',
@@ -181,6 +186,7 @@ export default function PeoplePage() {
       },
       {
         key: 'status',
+        sortable: true,
         header: 'Status',
         width: '10%',
         cell: (row) => {
@@ -194,6 +200,7 @@ export default function PeoplePage() {
       },
       {
         key: 'mfa',
+        sortable: true,
         header: 'MFA',
         width: '11%',
         cell: (row) => <MfaCell row={row} />,
@@ -217,12 +224,14 @@ export default function PeoplePage() {
       },
       {
         key: 'score',
+        sortable: true,
         header: 'Security score',
         width: '14%',
         cell: (row) => <ScoreCell entry={scoreFor(postureIndex.data, row)} loading={!postureIndex.data && !postureIndex.isError} />,
       },
       {
         key: 'last',
+        sortable: true,
         header: 'Last active',
         width: '12%',
         cell: (row) => <LastActive value={row.last_activity_at} source={row.source} />,
@@ -275,13 +284,21 @@ export default function PeoplePage() {
           >
             <SearchInput size="sm" value={draft} onChange={setDraft} placeholder="Search name, email or user name…" className="w-full min-w-0 sm:max-w-sm" />
             <ResultCount shown={formatNumber(rows.length)} total={formatNumber(total)} unit="people" filtered={filtered} paged loading={list.isLoading && !list.data} />
-            <Select
-              size="sm"
-              aria-label="Sort by"
-              value={sort}
-              onChange={(e) => update({ sort: e.target.value === SORT_OPTIONS[0].value ? '' : e.target.value })}
-              options={SORT_OPTIONS}
-            />
+            <span className="flex items-center gap-1">
+              <Select
+                size="sm"
+                aria-label="Sort by"
+                value={sortBy}
+                onChange={(e) => writeSort(e.target.value, SORT_FIELDS.find((f) => f.value === e.target.value)?.dir ?? 'asc')}
+                options={SORT_FIELDS.map((field) => ({ value: field.value, label: `Sort: ${field.label}` }))}
+              />
+              <IconButton
+                size="sm"
+                icon={sortOrder === 'desc' ? ArrowDownWideNarrow : ArrowUpNarrowWide}
+                label={sortOrder === 'desc' ? 'Sorted descending - switch to ascending' : 'Sorted ascending - switch to descending'}
+                onClick={() => writeSort(sortBy, sortOrder === 'desc' ? 'asc' : 'desc')}
+              />
+            </span>
           </RecordBar>
 
           <AppliedFilters filters={chips} onRemove={(key) => update({ [key]: '' })} onClearAll={clearAll} />
@@ -298,6 +315,8 @@ export default function PeoplePage() {
               loading={list.isLoading && !list.data}
               refreshing={list.isRefreshing}
               onRowClick={(row) => update({ person: row.id }, { keepPage: true })}
+              sort={{ key: activeColumn, direction: sortOrder }}
+              onSortChange={({ key, direction }) => writeSort(COLUMN_SORT[key], direction)}
               skeletonRows={8}
               emptyState={
                 <EmptyState
