@@ -175,7 +175,10 @@ func TestExecuteVerifyRollback(t *testing.T) {
 				continue
 			}
 			if !strings.HasPrefix(a, "iam:Get") && !strings.HasPrefix(a, "iam:List") && !strings.HasPrefix(a, "iam:Generate") &&
-				!strings.HasPrefix(a, "kms:") && !strings.HasPrefix(a, "secretsmanager:") && !strings.HasPrefix(a, "access-analyzer:") {
+				!strings.HasPrefix(a, "kms:") && !strings.HasPrefix(a, "secretsmanager:") && !strings.HasPrefix(a, "access-analyzer:") &&
+				// reads of the exposure / workload actions (never a write)
+				!strings.HasPrefix(a, "s3:Get") && !strings.HasPrefix(a, "ec2:Describe") && !strings.HasPrefix(a, "rds:Describe") &&
+				!strings.HasPrefix(a, "sqs:Get") && !strings.HasPrefix(a, "sns:Get") {
 				t.Errorf("unexpected action in the session policy: %s", a)
 			}
 		}

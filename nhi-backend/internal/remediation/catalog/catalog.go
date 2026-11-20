@@ -30,6 +30,22 @@ const (
 	RotateSecret         = "rotate_secret"
 	SetSessionDuration   = "set_session_duration"
 	EnableKeyRotation    = "enable_key_rotation"
+
+	// Reme4 / Reme10: public and cross-account exposure of resources
+	BlockS3PublicAccess = "block_s3_public_access"
+	UpdateBucketPolicy  = "update_bucket_policy"
+	UpdateQueuePolicy   = "update_queue_policy"
+	UpdateTopicPolicy   = "update_topic_policy"
+	UnshareAMI          = "unshare_ami"
+	UnshareSnapshot     = "unshare_snapshot"
+	UnshareRDSSnapshot  = "unshare_rds_snapshot"
+	// Reme5: workload configuration
+	EnforceIMDS = "enforce_imds"
+	// Reme11 / Reme12 / Reme14: unused roles, privilege escalation, policy versions
+	QuarantineRole       = "quarantine_role"
+	DenyIAMEscalation    = "deny_iam_escalation"
+	DenyEscalation       = "deny_escalation"
+	RestorePolicyVersion = "restore_policy_version"
 )
 
 type step struct {
@@ -142,6 +158,104 @@ func Defaults() []domain.Action {
 			"Enable annual rotation of the key material.", []string{"kms:EnableKeyRotation", "kms:DisableKeyRotation"},
 			steps(step{"Enable rotation for {key_id}", "KMS > Customer managed keys > {key_id} > Key rotation",
 				"aws kms enable-key-rotation --key-id {key_id}", "resource \"aws_kms_key\" \"k\" { enable_key_rotation = true }"})),
+
+		// ---- Reme4 / Reme10: public and cross-account exposure ----
+		a(BlockS3PublicAccess, "R6", domain.RiskMedium, true, true, 0, "Turn on S3 Block Public Access for the bucket",
+			"Turns on the four Block Public Access settings of the bucket, so public ACLs and public bucket policies stop working.",
+			[]string{"s3:PutBucketPublicAccessBlock"},
+			steps(step{"Read the Block Public Access settings of the bucket", "S3 > Buckets > {bucket} > Permissions > Block public access",
+				"aws s3api get-public-access-block --bucket {bucket}", ""},
+				step{"Check the bucket is not a public website or a public download location that must stay public", "S3 > Buckets > {bucket} > Properties > Static website hosting",
+					"aws s3api get-bucket-website --bucket {bucket}", ""},
+				step{"Turn on all four settings", "S3 > Buckets > {bucket} > Permissions > Block public access > Edit > Block all public access",
+					"aws s3api put-public-access-block --bucket {bucket} --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true", ""},
+				step{"Check the settings", "", "aws s3api get-public-access-block --bucket {bucket}", ""})),
+		a(UpdateBucketPolicy, "R6", domain.RiskHigh, true, true, 0, "Remove public and external principals from a bucket policy",
+			"Removes \"*\" (without a limiting condition) and the named external accounts from the bucket policy; deletes the policy when nothing is left.",
+			[]string{"s3:PutBucketPolicy", "s3:DeleteBucketPolicy"},
+			steps(step{"Read the bucket policy", "S3 > Buckets > {bucket} > Permissions > Bucket policy",
+				"aws s3api get-bucket-policy --bucket {bucket} --query Policy --output text", ""},
+				step{"Keep a policy: save it without the public / external statements shown in the diff", "S3 > Buckets > {bucket} > Permissions > Bucket policy > Edit",
+					"aws s3api put-bucket-policy --bucket {bucket} --policy file://bucket-policy.json", ""},
+				step{"Or, when no statement is left: delete the policy", "", "aws s3api delete-bucket-policy --bucket {bucket}", ""})),
+		a(UpdateQueuePolicy, "R6", domain.RiskHigh, true, true, 0, "Remove public and external principals from an SQS queue policy",
+			"Removes \"*\" (without a limiting condition) and the named external accounts from the queue policy.",
+			[]string{"sqs:SetQueueAttributes"},
+			steps(step{"Read the queue policy", "SQS > Queues > {queue_name} > Access policy",
+				"aws sqs get-queue-attributes --queue-url {queue_url} --attribute-names Policy{region_flag}", ""},
+				step{"Save the policy without the public / external statements shown in the diff (file: {\"Policy\":\"<policy JSON as a string>\"})", "SQS > Queues > {queue_name} > Edit > Access policy",
+					"aws sqs set-queue-attributes --queue-url {queue_url} --attributes file://queue-policy-attribute.json{region_flag}", ""})),
+		a(UpdateTopicPolicy, "R6", domain.RiskHigh, true, true, 0, "Remove public and external principals from an SNS topic policy",
+			"Removes \"*\" (without a limiting condition such as AWS:SourceOwner) and the named external accounts from the topic policy.",
+			[]string{"sns:SetTopicAttributes"},
+			steps(step{"Read the topic policy", "SNS > Topics > {topic_name} > Access policy",
+				"aws sns get-topic-attributes --topic-arn {topic_arn} --query Attributes.Policy --output text{region_flag}", ""},
+				step{"Save the policy without the public / external statements shown in the diff", "SNS > Topics > {topic_name} > Edit > Access policy",
+					"aws sns set-topic-attributes --topic-arn {topic_arn} --attribute-name Policy --attribute-value file://topic-policy.json{region_flag}", ""})),
+		a(UnshareAMI, "R6", domain.RiskMedium, true, true, 0, "Remove public / external sharing of an AMI",
+			"Removes the public launch permission and the named external accounts from the AMI. Organization / OU shares are kept.",
+			[]string{"ec2:ModifyImageAttribute"},
+			steps(step{"Read who can launch the AMI", "EC2 > AMIs > {image_id} > Permissions",
+				"aws ec2 describe-image-attribute --image-id {image_id} --attribute launchPermission{region_flag}", ""},
+				step{"Remove public sharing", "EC2 > AMIs > {image_id} > Actions > Edit AMI permissions > Private",
+					"aws ec2 modify-image-attribute --image-id {image_id} --launch-permission \"Remove=[{Group=all}]\"{region_flag}", ""},
+				step{"Remove each external account", "EC2 > AMIs > {image_id} > Actions > Edit AMI permissions > Remove account",
+					"aws ec2 modify-image-attribute --image-id {image_id} --launch-permission \"Remove=[{UserId=<other_account_id>}]\"{region_flag}", ""})),
+		a(UnshareSnapshot, "R6", domain.RiskMedium, true, true, 0, "Remove public / external sharing of an EBS snapshot",
+			"Removes the public create-volume permission and the named external accounts from the snapshot.",
+			[]string{"ec2:ModifySnapshotAttribute"},
+			steps(step{"Read who can create volumes from the snapshot", "EC2 > Snapshots > {snapshot_id} > Permissions",
+				"aws ec2 describe-snapshot-attribute --snapshot-id {snapshot_id} --attribute createVolumePermission{region_flag}", ""},
+				step{"Remove public sharing", "EC2 > Snapshots > {snapshot_id} > Actions > Snapshot settings > Modify permissions > Private",
+					"aws ec2 modify-snapshot-attribute --snapshot-id {snapshot_id} --attribute createVolumePermission --operation-type remove --group-names all{region_flag}", ""},
+				step{"Remove each external account", "EC2 > Snapshots > {snapshot_id} > Actions > Snapshot settings > Modify permissions",
+					"aws ec2 modify-snapshot-attribute --snapshot-id {snapshot_id} --attribute createVolumePermission --operation-type remove --user-ids <other_account_id>{region_flag}", ""})),
+		a(UnshareRDSSnapshot, "R6", domain.RiskMedium, true, true, 0, "Remove public / external sharing of an RDS snapshot",
+			"Removes \"all\" and the named external accounts from the restore attribute of a DB or Aurora cluster snapshot.",
+			[]string{"rds:ModifyDBSnapshotAttribute", "rds:ModifyDBClusterSnapshotAttribute"},
+			steps(step{"Read who can restore the snapshot", "RDS > Snapshots > {snapshot_id} > Actions > Share snapshot",
+				"aws rds describe-db-snapshot-attributes --db-snapshot-identifier {snapshot_id}{region_flag}", ""},
+				step{"Remove public and external sharing (Aurora: modify-db-cluster-snapshot-attribute --db-cluster-snapshot-identifier)", "RDS > Snapshots > {snapshot_id} > Actions > Share snapshot > Private",
+					"aws rds modify-db-snapshot-attribute --db-snapshot-identifier {snapshot_id} --attribute-name restore --values-to-remove all <other_account_id>{region_flag}", ""})),
+
+		// ---- Reme5: workload configuration ----
+		a(EnforceIMDS, "R7", domain.RiskMedium, true, true, 0, "Require IMDSv2 and limit the metadata hop count",
+			"Sets HttpTokens=required and the IMDS response hop limit (default 1) on the instance. Software that still uses IMDSv1 stops getting credentials.",
+			[]string{"ec2:ModifyInstanceMetadataOptions"},
+			steps(step{"Read the instance metadata options", "EC2 > Instances > {instance_id} > Details > Instance metadata",
+				"aws ec2 describe-instances --instance-ids {instance_id} --query \"Reservations[].Instances[].MetadataOptions\"{region_flag}", ""},
+				step{"Require IMDSv2 and set the hop limit (2 only for containers that need the instance role)", "EC2 > Instances > {instance_id} > Actions > Instance settings > Modify instance metadata options",
+					"aws ec2 modify-instance-metadata-options --instance-id {instance_id} --http-tokens required --http-put-response-hop-limit {hop_limit} --http-endpoint enabled{region_flag}", ""},
+				step{"Change the launch template / Auto Scaling group too, so new instances get the same setting", "EC2 > Launch templates > <template> > Modify template (Create new version) > Metadata", "", ""})),
+
+		// ---- Reme11 / Reme12 / Reme14 ----
+		a(QuarantineRole, "R8", domain.RiskHigh, true, true, 0, "Quarantine an unused role (inline Deny-all)",
+			"Adds the inline policy ISPMQuarantine that denies every action to the role. Nothing is deleted; rollback removes the policy.",
+			[]string{"iam:PutRolePolicy", "iam:DeleteRolePolicy"},
+			steps(step{"Confirm the role is not used", "IAM > Roles > {role_name} > Last activity",
+				"aws iam get-role --role-name {role_name} --query Role.RoleLastUsed", ""},
+				step{"Add a Deny-all inline policy (undo: delete the inline policy ISPMQuarantine)", "IAM > Roles > {role_name} > Add permissions > Create inline policy",
+					"aws iam put-role-policy --role-name {role_name} --policy-name ISPMQuarantine --policy-document file://deny-all.json", ""},
+				step{"Later, when nobody needed the role: delete it", "IAM > Roles > {role_name} > Delete", "", ""})),
+		a(DenyIAMEscalation, "R8", domain.RiskHigh, true, true, 0, "Deny IAM privilege-escalation actions to the role",
+			"Adds the inline policy ISPMDenyIAMEscalation that denies the IAM write actions a role can use to grant itself more permissions.",
+			[]string{"iam:PutRolePolicy", "iam:DeleteRolePolicy"},
+			steps(step{"Check the role is not an approved IAM administration or pipeline role", "IAM > Roles > {role_name} > Permissions",
+				"aws iam list-attached-role-policies --role-name {role_name}", ""},
+				step{"Add the inline Deny of the IAM escalation actions shown in the diff (undo: delete the inline policy ISPMDenyIAMEscalation)", "IAM > Roles > {role_name} > Add permissions > Create inline policy",
+					"aws iam put-role-policy --role-name {role_name} --policy-name ISPMDenyIAMEscalation --policy-document file://deny-iam-escalation.json", ""})),
+		a(DenyEscalation, "R8", domain.RiskHigh, true, true, 0, "Deny the escalation actions named by the finding",
+			"Adds the inline policy ISPMDenyEscalation that denies only the escalation actions the finding names (params.actions).",
+			[]string{"iam:PutRolePolicy", "iam:DeleteRolePolicy"},
+			steps(step{"Add the inline Deny of the actions shown in the diff (undo: delete the inline policy ISPMDenyEscalation)", "IAM > Roles > {role_name} > Add permissions > Create inline policy",
+				"aws iam put-role-policy --role-name {role_name} --policy-name ISPMDenyEscalation --policy-document file://deny-escalation.json", ""})),
+		a(RestorePolicyVersion, "R8", domain.RiskHigh, true, true, 0, "Set a managed policy back to an approved version",
+			"Makes the approved (or previous) version of a customer-managed policy the default again. No version is deleted.",
+			[]string{"iam:SetDefaultPolicyVersion"},
+			steps(step{"List the versions of the policy", "IAM > Policies > {policy_name} > Policy versions",
+				"aws iam list-policy-versions --policy-arn {policy_arn}", ""},
+				step{"Set the approved version as default", "IAM > Policies > {policy_name} > Policy versions > {version_id} > Set as default",
+					"aws iam set-default-policy-version --policy-arn {policy_arn} --version-id {version_id}", ""})),
 	}
 }
 
@@ -211,6 +325,35 @@ func RuleActions() []domain.RuleAction {
 		add(r, SetSessionDuration, true, `{"target_arn":"$.evidence.role_arn|$.finding.credential_arn","new_max_session":3600}`)
 	}
 	add("KMS-03", EnableKeyRotation, true, `{"key_id":"$.evidence.key_arn|$.evidence.key_id|$.evidence.key|$.finding.credential_arn"}`)
+
+	// ---- Reme4 / Reme5 / Reme10 / Reme11 / Reme12 / Reme14 ----
+	// The finding names the resource in different evidence keys depending on the scanner table, so
+	// each template lists the usual ones; the AWS provider also searches the finding for an id of the
+	// right shape (ami-, snap-, i-, an S3 / SQS / SNS / RDS ARN) when the template finds none.
+	region := `"region":"$.evidence.region|$.evidence.aws_region"`
+	external := `"remove_principals":"$.evidence.external_accounts|$.evidence.external_principals|$.evidence.shared_with|$.evidence.shared_accounts|$.evidence.user_ids"`
+	add("S3-01", BlockS3PublicAccess, true, `{"target_arn":"$.evidence.bucket_arn|$.evidence.resource_arn|$.finding.credential_arn","bucket":"$.evidence.bucket|$.evidence.bucket_name|$.evidence.resource_name",`+external+`}`)
+	add("S3-01", UpdateBucketPolicy, false, `{"target_arn":"$.evidence.bucket_arn|$.evidence.resource_arn|$.finding.credential_arn","bucket":"$.evidence.bucket|$.evidence.bucket_name|$.evidence.resource_name",`+external+`}`)
+	add("EC2-07", UnshareAMI, true, `{"image_id":"$.evidence.image_id|$.evidence.ami_id|$.evidence.ami|$.evidence.resource_id|$.finding.credential_arn",`+region+`,`+external+`}`)
+	add("EC2-08", UnshareSnapshot, true, `{"snapshot_id":"$.evidence.snapshot_id|$.evidence.snapshot|$.evidence.resource_id|$.finding.credential_arn",`+region+`,`+external+`}`)
+	add("RDS-02", UnshareRDSSnapshot, true, `{"snapshot_id":"$.evidence.snapshot_arn|$.evidence.snapshot_id|$.evidence.snapshot|$.evidence.resource_arn|$.finding.credential_arn",`+region+`,`+external+`}`)
+	for _, r := range []string{"EC2-01", "EC2-02"} {
+		add(r, EnforceIMDS, true, `{"instance_id":"$.evidence.instance_id|$.evidence.instance_arn|$.evidence.resource_id|$.finding.identity_name|$.finding.identity_id",`+region+`,"hop_limit":1}`)
+	}
+	add("SQS-01", UpdateQueuePolicy, true, `{"target_arn":"$.evidence.queue_arn|$.evidence.resource_arn|$.finding.credential_arn","queue_url":"$.evidence.queue_url",`+external+`}`)
+	add("SNS-01", UpdateTopicPolicy, true, `{"target_arn":"$.evidence.topic_arn|$.evidence.resource_arn|$.finding.credential_arn",`+external+`}`)
+	for _, r := range []string{"IAM-22", "IAM-23"} {
+		add(r, QuarantineRole, true, role)
+	}
+	// IAM-11 keeps scope_policy as its default fix (the existing mapping); the Deny is an alternative.
+	add("IAM-11", DenyIAMEscalation, false, role)
+	escalation := `{"target_arn":"$.evidence.role_arn|$.evidence.execution_role_arn|$.finding.credential_arn","actions":"$.evidence.escalation_actions|$.evidence.dangerous_actions|$.evidence.actions"}`
+	for _, r := range []string{"IAM-12", "IAM-13"} {
+		add(r, DenyIAMEscalation, true, role)
+		add(r, DenyEscalation, false, escalation)
+	}
+	// BEH-09 is not one of the posture rules today; the mapping is here for when it is added.
+	add("BEH-09", RestorePolicyVersion, true, `{"policy_arn":"$.evidence.policy_arn|$.finding.credential_arn","version_id":"$.evidence.approved_version|$.evidence.previous_version"}`)
 	return out
 }
 
@@ -239,6 +382,24 @@ func TargetType(actionType string) string {
 		return "kms_key"
 	case UpdateSecretPolicy, RotateSecret:
 		return "secret"
+	case QuarantineRole, DenyIAMEscalation, DenyEscalation:
+		return "iam_role"
+	case RestorePolicyVersion:
+		return "iam_policy"
+	case BlockS3PublicAccess, UpdateBucketPolicy:
+		return "s3_bucket"
+	case UpdateQueuePolicy:
+		return "sqs_queue"
+	case UpdateTopicPolicy:
+		return "sns_topic"
+	case UnshareAMI:
+		return "ami"
+	case UnshareSnapshot:
+		return "ebs_snapshot"
+	case UnshareRDSSnapshot:
+		return "rds_snapshot"
+	case EnforceIMDS:
+		return "ec2_instance"
 	}
 	return "unknown"
 }

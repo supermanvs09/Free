@@ -2,7 +2,6 @@ import { Component, useEffect, useMemo } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Dna, Fingerprint, GitCompareArrows, ShieldCheck, Waypoints } from 'lucide-react';
 import { accessGraphRoute, genomeRouteFor } from '../../lib/identityLinks';
-import { ApiCallsCard } from './ApiCallsCard';
 import { BehaviourBaseline } from './BehaviourBaseline';
 import { EntityChangesTab } from '../changes/EntityChangesTab';
 import { PageHeader } from '../../shell/PageHeader';
@@ -161,7 +160,6 @@ export default function IdentityPage() {
 
       {tab === 'overview' && (
         <div className="flex flex-col gap-4">
-          <ApiCallsCard identityId={identity.id} />
           <BehaviourBaseline identity={identity} />
         </div>
       )}

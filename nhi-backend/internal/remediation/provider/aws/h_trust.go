@@ -64,6 +64,30 @@ func setCond(s map[string]any, operator, key, value string) {
 	s["Condition"] = cond
 }
 
+// pinCond sets key to value under operator and first removes the same key (condition keys are
+// case-insensitive) from every other operator of the statement, so an old, looser condition
+// such as StringLike <oidc>:sub = system:serviceaccount:default:* does not stay next to the pin.
+// An operator left with no keys is removed.
+func pinCond(s map[string]any, operator, key, value string) {
+	if cond, ok := s["Condition"].(map[string]any); ok {
+		for name, v := range cond {
+			op, ok := v.(map[string]any)
+			if !ok {
+				continue
+			}
+			for k := range op {
+				if strings.EqualFold(k, key) {
+					delete(op, k)
+				}
+			}
+			if len(op) == 0 {
+				delete(cond, name)
+			}
+		}
+	}
+	setCond(s, operator, key, value)
+}
+
 func principalMap(s map[string]any) map[string]any {
 	switch p := s["Principal"].(type) {
 	case string:
@@ -146,15 +170,17 @@ func transformTrust(d *policydoc.Doc, o trustOpts) (*policydoc.Doc, error) {
 					continue
 				}
 				host := f[i+len("oidc-provider/"):]
+				// pinCond replaces any earlier aud / sub condition of this provider (for example a
+				// StringLike wildcard sub) instead of adding the pin next to it.
 				if o.oidcAud != "" {
-					setCond(s, "StringEquals", host+":aud", o.oidcAud)
+					pinCond(s, "StringEquals", host+":aud", o.oidcAud)
 				}
 				if o.oidcSub != "" {
 					op := "StringEquals"
 					if policydoc.IsWildcard(o.oidcSub) {
 						op = "StringLike"
 					}
-					setCond(s, op, host+":sub", o.oidcSub)
+					pinCond(s, op, host+":sub", o.oidcSub)
 				}
 			}
 		}

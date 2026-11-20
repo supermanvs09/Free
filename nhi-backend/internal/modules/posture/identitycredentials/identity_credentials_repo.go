@@ -17,6 +17,10 @@ func NewIdentityCredentialsRepository() *IdentityCredentialsRepository {
 	return &IdentityCredentialsRepository{}
 }
 
+// tScannerCredentials is the scanner's credentials table, the one that holds
+// the attached and inline policies of a role.
+const tScannerCredentials = "credentials"
+
 // Get implements GET /identities/{id}/credentials: the BOUND_TO edges of
 // ispm_access_edges, joined on arn with the credential tables (see
 // credentialSource: the scanner's credentials, else the posture sample data in
@@ -25,6 +29,10 @@ func NewIdentityCredentialsRepository() *IdentityCredentialsRepository {
 // that credential that belong to this identity, or to no identity. A finding
 // owned by another identity that shares the role is not counted, so the number
 // agrees with the Alerts tab.
+//
+// The privileged flag comes from the edge attributes the worker wrote; when
+// the edge has none, it is worked out from the role's policies in the
+// credentials table (see privilegedFromPolicies).
 func (r *IdentityCredentialsRepository) Get(ctx context.Context, s *scope.DataScope, id string) ([]IdentityCredential, error) {
 	if err := common.Need(s); err != nil {
 		return nil, err
@@ -33,28 +41,65 @@ func (r *IdentityCredentialsRepository) Get(ctx context.Context, s *scope.DataSc
 	if err != nil {
 		return nil, err
 	}
-	out := make([]IdentityCredential, 0)
 	if ref.ARN == "" {
-		return out, nil
+		return make([]IdentityCredential, 0), nil
 	}
 	src, err := common.CredentialSource(ctx, s)
 	if err != nil {
 		return nil, err
 	}
-	// The worker has written the binding and privilege under more than one key.
+	var hasPolicies bool
+	if err := s.DB.QueryRowContext(ctx, `SELECT to_regclass($1) IS NOT NULL`, s.Table(tScannerCredentials)).
+		Scan(&hasPolicies); err != nil {
+		return nil, fmt.Errorf("check credentials table: %w", err)
+	}
+	out, err := r.list(ctx, s, id, ref.ARN, src, hasPolicies)
+	if err != nil && hasPolicies && common.IsUndefinedColumn(err) {
+		// credentials exists but without the policy columns: no fallback.
+		out, err = r.list(ctx, s, id, ref.ARN, src, false)
+	}
+	return out, err
+}
+
+// privilegedFromPolicies is the SQL fallback for the privileged flag when the
+// BOUND_TO edge does not carry one. The newest live row of the credential in
+// the credentials table is privileged ('true') when it has an AWS admin-level
+// managed policy attached (AdministratorAccess, IAMFullAccess,
+// PowerUserAccess) or an inline policy statement with "Action": "*";
+// otherwise 'false'. It is NULL (unknown) when the credential is not in that
+// table. The match is on the JSON text, so it works for either shape of
+// attached_policies (names, ARNs, or objects holding them).
+func privilegedFromPolicies(table string) string {
+	return `(SELECT (COALESCE(p.attached_policies::text, '') ~* '(policy/|")(AdministratorAccess|IAMFullAccess|PowerUserAccess)\\?"'
+            OR COALESCE(p.inline_policies::text, '') ~ '[^A-Za-z]Action\W{0,4}:\W{0,6}\*\W')::text
+        FROM ` + table + ` p
+        WHERE p.arn = e.target_arn AND p.deleted_at IS NULL
+        ORDER BY p.last_seen_at DESC NULLS LAST, p.updated_at DESC NULLS LAST
+        LIMIT 1)`
+}
+
+func (r *IdentityCredentialsRepository) list(ctx context.Context, s *scope.DataScope, id, identityARN, src string,
+	hasPolicies bool) ([]IdentityCredential, error) {
+	out := make([]IdentityCredential, 0)
+	fallback := "NULL::text"
+	if hasPolicies {
+		fallback = privilegedFromPolicies(s.Table(tScannerCredentials))
+	}
+	// The worker has written the binding and privilege under more than one key;
+	// when it wrote no privilege, the role's policies decide it.
 	q := fmt.Sprintf(`SELECT e.target_arn, COALESCE(e.target_type, ''),
-			COALESCE(e.attributes->>'binding_type', e.attributes->>'binding', e.attributes->>'bound_via', ''),
-			COALESCE(e.attributes->>'target_privileged', e.attributes->>'privileged', e.attributes->>'is_privileged'),
-			COALESCE(c.credential_type, ''), COALESCE(c.status, ''), c.created_at_aws, c.last_used_at,
-			c.permission_boundary_arn, c.max_session_duration,
-			(SELECT count(*)::int FROM %s f
-			  WHERE f.tenant_id = e.tenant_id AND f.credential_arn = e.target_arn
-			    AND (f.identity_id = $3 OR f.identity_id IS NULL) AND f.status = 'OPEN')
-		FROM %s e
-		%s
-		WHERE e.tenant_id = $1 AND e.source_arn = $2 AND e.edge_type = 'BOUND_TO'
-		ORDER BY e.target_arn`, s.Table(common.TFindings), s.Table(common.TAccessEdges), common.LatestCredential(src))
-	rows, err := s.DB.QueryContext(ctx, q, s.TenantID, ref.ARN, id)
+            COALESCE(e.attributes->>'binding_type', e.attributes->>'binding', e.attributes->>'bound_via', ''),
+            COALESCE(e.attributes->>'target_privileged', e.attributes->>'privileged', e.attributes->>'is_privileged', %s),
+            COALESCE(c.credential_type, ''), COALESCE(c.status, ''), c.created_at_aws, c.last_used_at,
+            c.permission_boundary_arn, c.max_session_duration,
+            (SELECT count(*)::int FROM %s f
+              WHERE f.tenant_id = e.tenant_id AND f.credential_arn = e.target_arn
+                AND (f.identity_id = $3 OR f.identity_id IS NULL) AND f.status = 'OPEN')
+        FROM %s e
+        %s
+        WHERE e.tenant_id = $1 AND e.source_arn = $2 AND e.edge_type = 'BOUND_TO'
+        ORDER BY e.target_arn`, fallback, s.Table(common.TFindings), s.Table(common.TAccessEdges), common.LatestCredential(src))
+	rows, err := s.DB.QueryContext(ctx, q, s.TenantID, identityARN, id)
 	if err != nil {
 		return nil, fmt.Errorf("query identity credentials: %w", err)
 	}

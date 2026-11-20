@@ -54,6 +54,11 @@ func fromEngineSnapshot(action string, s map[string]any) (map[string]any, error)
 		return nil
 	}
 	switch action {
+	case catalog.BlockS3PublicAccess, catalog.UpdateBucketPolicy, catalog.UpdateQueuePolicy, catalog.UpdateTopicPolicy,
+		catalog.UnshareAMI, catalog.UnshareSnapshot, catalog.UnshareRDSSnapshot, catalog.EnforceIMDS,
+		catalog.QuarantineRole, catalog.DenyIAMEscalation, catalog.DenyEscalation, catalog.RestorePolicyVersion:
+		// the engine's snapshot format of these actions is not mapped yet: refuse instead of guessing
+		return nil, fmt.Errorf("rollback of an automatic-remediation plan for %s is not supported by the dashboard yet: undo it in AWS by hand", action)
 	case catalog.SetSessionDuration, catalog.RewriteTrust:
 		if err := roleFromARN(); err != nil {
 			return nil, err

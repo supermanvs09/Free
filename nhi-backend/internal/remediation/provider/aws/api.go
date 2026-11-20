@@ -4,9 +4,14 @@ import (
 	"context"
 
 	"github.com/aws/aws-sdk-go-v2/service/accessanalyzer"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
+	"github.com/aws/aws-sdk-go-v2/service/rds"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	"github.com/aws/aws-sdk-go-v2/service/sns"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 )
 
 // The interfaces list only the calls the provider uses, so tests can fake
@@ -38,6 +43,7 @@ type IAMAPI interface {
 	GenerateServiceLastAccessedDetails(ctx context.Context, in *iam.GenerateServiceLastAccessedDetailsInput, opts ...func(*iam.Options)) (*iam.GenerateServiceLastAccessedDetailsOutput, error)
 	GetServiceLastAccessedDetails(ctx context.Context, in *iam.GetServiceLastAccessedDetailsInput, opts ...func(*iam.Options)) (*iam.GetServiceLastAccessedDetailsOutput, error)
 	ListRoles(ctx context.Context, in *iam.ListRolesInput, opts ...func(*iam.Options)) (*iam.ListRolesOutput, error)
+	DeleteRolePolicy(ctx context.Context, in *iam.DeleteRolePolicyInput, opts ...func(*iam.Options)) (*iam.DeleteRolePolicyOutput, error)
 }
 
 type KMSAPI interface {
@@ -74,5 +80,55 @@ type Clients struct {
 	KMS      KMSAPI
 	Secrets  SecretsAPI
 	Analyzer AnalyzerAPI
+	S3       S3API
+	EC2      EC2API
+	RDS      RDSAPI
+	SQS      SQSAPI
+	SNS      SNSAPI
 	Region   string
+}
+
+// S3API: Block Public Access and bucket policies (block_s3_public_access, update_bucket_policy).
+// Every call takes the bucket's own region as an option (s3RegionOpt), so one client serves
+// buckets of any region.
+type S3API interface {
+	GetBucketLocation(ctx context.Context, in *s3.GetBucketLocationInput, opts ...func(*s3.Options)) (*s3.GetBucketLocationOutput, error)
+	GetPublicAccessBlock(ctx context.Context, in *s3.GetPublicAccessBlockInput, opts ...func(*s3.Options)) (*s3.GetPublicAccessBlockOutput, error)
+	PutPublicAccessBlock(ctx context.Context, in *s3.PutPublicAccessBlockInput, opts ...func(*s3.Options)) (*s3.PutPublicAccessBlockOutput, error)
+	DeletePublicAccessBlock(ctx context.Context, in *s3.DeletePublicAccessBlockInput, opts ...func(*s3.Options)) (*s3.DeletePublicAccessBlockOutput, error)
+	GetBucketPolicy(ctx context.Context, in *s3.GetBucketPolicyInput, opts ...func(*s3.Options)) (*s3.GetBucketPolicyOutput, error)
+	PutBucketPolicy(ctx context.Context, in *s3.PutBucketPolicyInput, opts ...func(*s3.Options)) (*s3.PutBucketPolicyOutput, error)
+	DeleteBucketPolicy(ctx context.Context, in *s3.DeleteBucketPolicyInput, opts ...func(*s3.Options)) (*s3.DeleteBucketPolicyOutput, error)
+	GetBucketWebsite(ctx context.Context, in *s3.GetBucketWebsiteInput, opts ...func(*s3.Options)) (*s3.GetBucketWebsiteOutput, error)
+}
+
+// EC2API: AMI / snapshot sharing and instance metadata options (unshare_ami, unshare_snapshot, enforce_imds).
+type EC2API interface {
+	DescribeImageAttribute(ctx context.Context, in *ec2.DescribeImageAttributeInput, opts ...func(*ec2.Options)) (*ec2.DescribeImageAttributeOutput, error)
+	ModifyImageAttribute(ctx context.Context, in *ec2.ModifyImageAttributeInput, opts ...func(*ec2.Options)) (*ec2.ModifyImageAttributeOutput, error)
+	DescribeSnapshotAttribute(ctx context.Context, in *ec2.DescribeSnapshotAttributeInput, opts ...func(*ec2.Options)) (*ec2.DescribeSnapshotAttributeOutput, error)
+	ModifySnapshotAttribute(ctx context.Context, in *ec2.ModifySnapshotAttributeInput, opts ...func(*ec2.Options)) (*ec2.ModifySnapshotAttributeOutput, error)
+	DescribeInstances(ctx context.Context, in *ec2.DescribeInstancesInput, opts ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error)
+	ModifyInstanceMetadataOptions(ctx context.Context, in *ec2.ModifyInstanceMetadataOptionsInput, opts ...func(*ec2.Options)) (*ec2.ModifyInstanceMetadataOptionsOutput, error)
+}
+
+// RDSAPI: snapshot sharing (unshare_rds_snapshot), DB and Aurora cluster snapshots.
+type RDSAPI interface {
+	DescribeDBSnapshotAttributes(ctx context.Context, in *rds.DescribeDBSnapshotAttributesInput, opts ...func(*rds.Options)) (*rds.DescribeDBSnapshotAttributesOutput, error)
+	ModifyDBSnapshotAttribute(ctx context.Context, in *rds.ModifyDBSnapshotAttributeInput, opts ...func(*rds.Options)) (*rds.ModifyDBSnapshotAttributeOutput, error)
+	DescribeDBClusterSnapshotAttributes(ctx context.Context, in *rds.DescribeDBClusterSnapshotAttributesInput, opts ...func(*rds.Options)) (*rds.DescribeDBClusterSnapshotAttributesOutput, error)
+	ModifyDBClusterSnapshotAttribute(ctx context.Context, in *rds.ModifyDBClusterSnapshotAttributeInput, opts ...func(*rds.Options)) (*rds.ModifyDBClusterSnapshotAttributeOutput, error)
+}
+
+// SQSAPI: queue policies (update_queue_policy).
+type SQSAPI interface {
+	GetQueueUrl(ctx context.Context, in *sqs.GetQueueUrlInput, opts ...func(*sqs.Options)) (*sqs.GetQueueUrlOutput, error)
+	GetQueueAttributes(ctx context.Context, in *sqs.GetQueueAttributesInput, opts ...func(*sqs.Options)) (*sqs.GetQueueAttributesOutput, error)
+	SetQueueAttributes(ctx context.Context, in *sqs.SetQueueAttributesInput, opts ...func(*sqs.Options)) (*sqs.SetQueueAttributesOutput, error)
+}
+
+// SNSAPI: topic policies (update_topic_policy).
+type SNSAPI interface {
+	GetTopicAttributes(ctx context.Context, in *sns.GetTopicAttributesInput, opts ...func(*sns.Options)) (*sns.GetTopicAttributesOutput, error)
+	SetTopicAttributes(ctx context.Context, in *sns.SetTopicAttributesInput, opts ...func(*sns.Options)) (*sns.SetTopicAttributesOutput, error)
 }

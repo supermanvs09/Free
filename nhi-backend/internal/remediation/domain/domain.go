@@ -9,9 +9,10 @@ import (
 type Risk string
 
 const (
-	RiskLow    Risk = "LOW"
-	RiskMedium Risk = "MEDIUM"
-	RiskHigh   Risk = "HIGH"
+	RiskLow      Risk = "LOW"
+	RiskMedium   Risk = "MEDIUM"
+	RiskHigh     Risk = "HIGH"
+	RiskCritical Risk = "CRITICAL" // rule severity copied from remediation_guides into the plan
 )
 
 type Mode string

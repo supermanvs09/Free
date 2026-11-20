@@ -2,7 +2,6 @@ import { Panel } from '../../ui/Panel';
 import { Tabs } from '../../ui/Tabs';
 import {
   ActivitySummary,
-  GenomeActivitySummary,
   CredentialsUsedSection,
   CrossAccountSection,
   ErrorsSection,
@@ -13,8 +12,6 @@ import {
 } from './ActivitySections';
 import { EventFilters, EventTimeline, RangePicker } from './EventTimeline';
 import { useEventState } from './eventState';
-import { GenomeEvents } from './GenomeEvents';
-import { canonicalGenomeName, genomeSourceType } from '../../lib/identityLinks';
 
 const SECTIONS = [
   { value: 'events', label: 'Events' },
@@ -37,29 +34,21 @@ const DEFAULTS = { range: '7d' };
  * filters by it and opens the event list. Range, section, filters and the
  * open event are all in the URL.
  */
-export function IdentityActivity({ identityId, identity }) {
-  /* A workload the genome watches lists its calls from the same API as
-     Genome → Activity, so the two pages show the same calls. */
-  const genomeFamily = genomeSourceType(identity?.identity_type);
-  const genomeKey = genomeFamily && identity?.arn ? { sourceType: genomeFamily, identityName: canonicalGenomeName(identity.identity_type, identity.arn) } : null;
+export function IdentityActivity({ identityId }) {
   const { state, patch, clearFilters } = useEventState({ urlBacked: true, defaults: DEFAULTS });
   const section = SECTIONS.some((entry) => entry.value === state.section) ? state.section : 'events';
   const filterEvents = (changes) => patch({ ...changes, section: 'events' });
 
   return (
     <div className="flex flex-col gap-5">
-      {genomeKey ? <GenomeActivitySummary genomeKey={genomeKey} state={state} /> : <ActivitySummary identityId={identityId} state={state} />}
+      <ActivitySummary identityId={identityId} state={state} />
 
       <Panel prominence="lead" flush className="animate-rise overflow-hidden">
         <div className="border-b border-line px-4 pt-2 sm:px-5">
           <Tabs size="sm" tabs={SECTIONS} value={section} onChange={(value) => patch({ section: value, event: '' })} />
         </div>
         {section === 'events' ? (
-          genomeKey ? (
-            <GenomeEvents genomeKey={genomeKey} state={state} patch={patch} />
-          ) : (
-            <EventTimeline identityId={identityId} state={state} patch={patch} clearFilters={clearFilters} />
-          )
+          <EventTimeline identityId={identityId} state={state} patch={patch} clearFilters={clearFilters} />
         ) : (
           <>
             <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-3 sm:px-5">

@@ -120,4 +120,73 @@ client.interceptors.response.use(
   },
 );
 
+/*
+ * Identical GETs in flight at the same time share one request. A screen often
+ * mounts several panels that ask for the same thing (the activity summary and
+ * the event filters both read the window's totals and source IPs), and each
+ * used to reach the database on its own. Each caller keeps its own abort
+ * signal: the shared request is cancelled only when every caller has gone.
+ * Callers after the first get their own copy of the data, so one panel
+ * changing a list in place cannot change another's. Nothing is kept after the
+ * response, so a refetch always asks again.
+ */
+const rawGet = client.get.bind(client);
+const sharedGets = new Map();
+
+function sharedKey(url, config) {
+  return `${url}|${JSON.stringify(config?.params ?? {})}|${config?.responseType ?? ''}`;
+}
+
+client.get = (url, config = {}) => {
+  /* Downloads and explicit opt-outs go straight through. */
+  if (config.responseType === 'blob' || config.share === false) return rawGet(url, config);
+  const key = sharedKey(url, config);
+  let entry = sharedGets.get(key);
+  if (!entry) {
+    const controller = new AbortController();
+    const { signal: _ignored, share: _share, ...rest } = config;
+    entry = { controller, users: 0, served: 0, promise: null };
+    entry.promise = rawGet(url, { ...rest, signal: controller.signal }).finally(() => {
+      if (sharedGets.get(key) === entry) sharedGets.delete(key);
+    });
+    sharedGets.set(key, entry);
+  }
+  entry.users += 1;
+  const own = config.signal;
+  return new Promise((resolve, reject) => {
+    let done = false;
+    const leave = () => {
+      if (done) return;
+      done = true;
+      entry.users -= 1;
+      if (entry.users === 0) {
+        entry.controller.abort();
+        if (sharedGets.get(key) === entry) sharedGets.delete(key);
+      }
+      reject(new axios.CanceledError());
+    };
+    if (own?.aborted) {
+      leave();
+      return;
+    }
+    own?.addEventListener('abort', leave, { once: true });
+    entry.promise.then(
+      (res) => {
+        if (done) return;
+        done = true;
+        own?.removeEventListener('abort', leave);
+        const first = entry.served === 0;
+        entry.served += 1;
+        resolve(first ? res : { ...res, data: structuredClone(res.data) });
+      },
+      (err) => {
+        if (done) return;
+        done = true;
+        own?.removeEventListener('abort', leave);
+        reject(err);
+      },
+    );
+  });
+};
+
 export default client;

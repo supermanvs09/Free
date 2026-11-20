@@ -51,6 +51,19 @@ Resources:
                   - secretsmanager:GetResourcePolicy
                   - secretsmanager:List*
                   - access-analyzer:ValidatePolicy
+                  # exposure / workload actions (Reme4, Reme5, Reme10)
+                  - s3:GetBucketLocation
+                  - s3:GetBucketPublicAccessBlock
+                  - s3:GetBucketPolicy
+                  - s3:GetBucketWebsite
+                  - ec2:DescribeImageAttribute
+                  - ec2:DescribeSnapshotAttribute
+                  - ec2:DescribeInstances
+                  - rds:DescribeDBSnapshotAttributes
+                  - rds:DescribeDBClusterSnapshotAttributes
+                  - sqs:GetQueueUrl
+                  - sqs:GetQueueAttributes
+                  - sns:GetTopicAttributes
                 Resource: "*"
               # The only changes the platform can make. At run time every change is further limited
               # to the one resource of the approved plan (session policy), and only after your
@@ -94,6 +107,31 @@ Resources:
                   - secretsmanager:PutSecretValue
                   - secretsmanager:UpdateSecretVersionStage
                 Resource: "*"
+              - Sid: R6PublicAndCrossAccountExposure
+                Effect: Allow
+                Action:
+                  - s3:PutBucketPublicAccessBlock
+                  - s3:PutBucketPolicy
+                  - s3:DeleteBucketPolicy
+                  - sqs:SetQueueAttributes
+                  - sns:SetTopicAttributes
+                  - ec2:ModifyImageAttribute
+                  - ec2:ModifySnapshotAttribute
+                  - rds:ModifyDBSnapshotAttribute
+                  - rds:ModifyDBClusterSnapshotAttribute
+                Resource: "*"
+              - Sid: R7WorkloadConfiguration
+                Effect: Allow
+                Action:
+                  - ec2:ModifyInstanceMetadataOptions
+                Resource: "*"
+              # R8 (quarantine_role, deny_iam_escalation, deny_escalation, restore_policy_version) uses
+              # iam:PutRolePolicy and iam:SetDefaultPolicyVersion from R1, and iam:DeleteRolePolicy for its rollback.
+              - Sid: R8RoleQuarantineAndEscalation
+                Effect: Allow
+                Action:
+                  - iam:DeleteRolePolicy
+                Resource: "*"
               # Hard limits that no approval can override.
               - Sid: NeverTouchAwsManagedRoles
                 Effect: Deny
@@ -110,3 +148,4 @@ Outputs:
   RoleArn:
     Description: Paste this into the dashboard (Settings > Remediation) and press "Validate access".
     Value: !GetAtt RemediationRole.Arn
+

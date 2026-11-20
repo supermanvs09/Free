@@ -15,9 +15,14 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/service/accessanalyzer"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
+	"github.com/aws/aws-sdk-go-v2/service/rds"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	"github.com/aws/aws-sdk-go-v2/service/sns"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	smithymw "github.com/aws/smithy-go/middleware"
 
 	"nhi-backend-api/internal/platform/awsconnect"
@@ -57,7 +62,8 @@ func New(f *awsconnect.Factory, opts Options) *Provider {
 		}
 		return &Clients{
 			IAM: iam.NewFromConfig(cfg), KMS: kms.NewFromConfig(cfg), Secrets: secretsmanager.NewFromConfig(cfg),
-			Analyzer: accessanalyzer.NewFromConfig(cfg), Region: cfg.Region,
+			Analyzer: accessanalyzer.NewFromConfig(cfg), S3: s3.NewFromConfig(cfg), EC2: ec2.NewFromConfig(cfg),
+			RDS: rds.NewFromConfig(cfg), SQS: sqs.NewFromConfig(cfg), SNS: sns.NewFromConfig(cfg), Region: cfg.Region,
 		}, nil
 	}
 	return p
@@ -98,6 +104,21 @@ func newProvider(opts Options) *Provider {
 		catalog.EnableKeyRotation:    &keyRotation{},
 		catalog.UpdateSecretPolicy:   &secretPolicy{},
 		catalog.RotateSecret:         &rotateSecret{},
+		// restrict public cloud resource exposure (Reme4) / unintended cross-account access (Reme10)
+		catalog.BlockS3PublicAccess: &s3PublicAccess{},
+		catalog.UpdateBucketPolicy:  &resourcePolicy{kind: catalog.UpdateBucketPolicy},
+		catalog.UpdateQueuePolicy:   &resourcePolicy{kind: catalog.UpdateQueuePolicy},
+		catalog.UpdateTopicPolicy:   &resourcePolicy{kind: catalog.UpdateTopicPolicy},
+		catalog.UnshareAMI:          &ec2Sharing{kind: catalog.UnshareAMI},
+		catalog.UnshareSnapshot:     &ec2Sharing{kind: catalog.UnshareSnapshot},
+		catalog.UnshareRDSSnapshot:  &rdsSharing{},
+		// secure workload configuration (Reme5)
+		catalog.EnforceIMDS: &imdsOptions{},
+		// unused roles (Reme11) and privilege escalation (Reme12)
+		catalog.QuarantineRole:       &denyInline{kind: catalog.QuarantineRole},
+		catalog.DenyIAMEscalation:    &denyInline{kind: catalog.DenyIAMEscalation},
+		catalog.DenyEscalation:       &denyInline{kind: catalog.DenyEscalation},
+		catalog.RestorePolicyVersion: &restoreVersion{},
 	}
 	return p
 }
@@ -161,6 +182,10 @@ func (p *Provider) regionOf(t provider.Target) string {
 			}
 		}
 	}
+	// a target without a regional ARN (EC2 / RDS ids, S3 buckets): the region the plan resolved
+	if r := str(t.Params, "region"); r != "" {
+		return r
+	}
 	if t.Region != "" {
 		return t.Region
 	}
@@ -176,7 +201,11 @@ func (p *Provider) regionOf(t provider.Target) string {
 func sessionPolicy(writeActions, resources []string) string {
 	stmts := []map[string]any{
 		{"Effect": "Allow", "Action": []string{"iam:Get*", "iam:List*", "iam:Generate*", "kms:Describe*", "kms:Get*", "kms:List*",
-			"secretsmanager:Describe*", "secretsmanager:GetResourcePolicy", "secretsmanager:List*", "access-analyzer:ValidatePolicy"}, "Resource": "*"},
+			"secretsmanager:Describe*", "secretsmanager:GetResourcePolicy", "secretsmanager:List*", "access-analyzer:ValidatePolicy",
+			"s3:GetBucketLocation", "s3:GetBucketPublicAccessBlock", "s3:GetBucketPolicy", "s3:GetBucketWebsite",
+			"ec2:DescribeImageAttribute", "ec2:DescribeSnapshotAttribute", "ec2:DescribeInstances",
+			"rds:DescribeDBSnapshotAttributes", "rds:DescribeDBClusterSnapshotAttributes",
+			"sqs:GetQueueUrl", "sqs:GetQueueAttributes", "sns:GetTopicAttributes"}, "Resource": "*"},
 	}
 	if len(writeActions) > 0 && len(resources) > 0 {
 		stmts = append(stmts, map[string]any{"Effect": "Allow", "Action": writeActions, "Resource": resources})
