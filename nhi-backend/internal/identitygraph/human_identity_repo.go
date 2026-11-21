@@ -483,6 +483,21 @@ func (r *HumanIdentityRepository) Detail(ctx context.Context, resolved *scope.Da
 	d.SignIn = signIn
 	d.RiskSignals = humanSignalsFromFlags(flags)
 
+	// Permissions boundary of the user: from the collector's details when it
+	// records one, else from the IAM credential row with the same ARN. A
+	// tenant without a credentials table simply has none recorded.
+	boundaryQ := fmt.Sprintf(`SELECT COALESCE(%[2]s, %[3]s,
+		(SELECT c.permission_boundary_arn FROM %[1]s.credentials c
+		  WHERE $1 <> '' AND c.arn = $1 AND c.deleted_at IS NULL AND c.permission_boundary_arn IS NOT NULL
+		  ORDER BY c.updated_at DESC NULLS LAST LIMIT 1))
+		FROM %[1]s.human_identities h WHERE h.id::text = $2`,
+		schema, hiBoundary("h.details->'permissions_boundary'"), hiBoundary("h.details->'permission_boundary_arn'"))
+	var boundary sql.NullString
+	if err := resolved.DB.QueryRowContext(ctx, boundaryQ, d.ARN, d.ID).Scan(&boundary); err != nil && !IsMissingRelation(err) {
+		return nil, fmt.Errorf("query human identity boundary: %w", err)
+	}
+	d.PermissionsBoundary = hiNullString(boundary)
+
 	// Access rows, with each policy document and its admin and escalation flags.
 	accessQ := fmt.Sprintf(`
 		SELECT a.id::text, a.account_id, a.access_type,
@@ -492,6 +507,7 @@ func (r *HumanIdentityRepository) Detail(ctx context.Context, resolved *scope.Da
 		       COALESCE((%[2]s), false),
 		       COALESCE((%[3]s), false),
 		       to_jsonb(a)->>'policy_name',
+		       COALESCE(%[4]s, %[5]s),
 		       (SELECT g.group_name FROM %[1]s.human_identity_groups g
 		         WHERE g.human_id = a.human_id AND a.group_id IS NOT NULL
 		           AND (g.group_id = a.group_id OR g.id::text = a.group_id)
@@ -499,7 +515,8 @@ func (r *HumanIdentityRepository) Detail(ctx context.Context, resolved *scope.Da
 		FROM %[1]s.human_identity_access a
 		WHERE a.human_id = $1
 		ORDER BY a.access_type, a.account_id`,
-		schema, adminAccessCond("a"), escalationAccessCond("a"))
+		schema, adminAccessCond("a"), escalationAccessCond("a"),
+		hiBoundary("to_jsonb(a)->'permissions_boundary'"), hiBoundary("to_jsonb(a)->'permissions_boundary_arn'"))
 
 	d.Access = make([]HumanAccessItem, 0)
 	accessRows, err := resolved.DB.QueryContext(ctx, accessQ, d.ID)
@@ -511,13 +528,13 @@ func (r *HumanIdentityRepository) Detail(ctx context.Context, resolved *scope.Da
 		var it HumanAccessItem
 		var pName, pARN, role, policy, group, session sql.NullString
 		var lastUsed sql.NullTime
-		var policyDoc, policyName, groupName sql.NullString
+		var policyDoc, policyName, groupName, accessBoundary sql.NullString
 		if err := accessRows.Scan(
 			&it.ID, &it.AccountID, &it.AccessType,
 			&pName, &pARN, &role, &policy,
 			&it.GrantedVia, &group, &session, &lastUsed,
 			&policyDoc, &it.IsAdmin, &it.HasEscalation,
-			&policyName, &groupName,
+			&policyName, &accessBoundary, &groupName,
 		); err != nil {
 			return nil, fmt.Errorf("scan human identity access: %w", err)
 		}
@@ -528,6 +545,7 @@ func (r *HumanIdentityRepository) Detail(ctx context.Context, resolved *scope.Da
 		it.GroupID = hiNullString(group)
 		it.PolicyName = hiNullString(policyName)
 		it.GroupName = hiNullString(groupName)
+		it.PermissionsBoundary = hiNullString(accessBoundary)
 		it.SessionDuration = hiNullString(session)
 		it.LastUsedAt = hiNullTime(lastUsed)
 		if policyDoc.Valid {
@@ -697,4 +715,14 @@ func (r *HumanIdentityRepository) PostureRef(ctx context.Context, resolved *scop
 		return "", "", fmt.Errorf("human posture ref: %w", err)
 	}
 	return arn, name, nil
+}
+
+// hiBoundary reads a permissions boundary from a JSON value the collector may
+// write as a plain ARN string or as an object ({"arn"} / {"name"} or the AWS
+// shapes PermissionsBoundaryArn / ManagedPolicyArn / CustomerManagedPolicyReference.Name).
+func hiBoundary(expr string) string {
+	return fmt.Sprintf(`(CASE jsonb_typeof(%[1]s)
+		WHEN 'string' THEN NULLIF(%[1]s #>> '{}', '')
+		WHEN 'object' THEN COALESCE(%[1]s->>'arn', %[1]s->>'PermissionsBoundaryArn', %[1]s->>'ManagedPolicyArn',
+			%[1]s->'CustomerManagedPolicyReference'->>'Name', %[1]s->>'name') END)`, expr)
 }

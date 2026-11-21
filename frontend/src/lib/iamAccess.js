@@ -104,14 +104,17 @@ export function summarisePolicy(doc) {
       const text = String(raw).trim();
       const [service, action] = text === '*' ? ['*', '*'] : text.includes(':') ? [text.slice(0, text.indexOf(':')).toLowerCase(), text.slice(text.indexOf(':') + 1)] : ['', text];
       const key = `${effect}|${service}`;
-      if (!rows.has(key)) rows.set(key, { effect, service, name: serviceName(service), levels: new Map(), resources: new Set(), conditions: false, actions: [] });
+      if (!rows.has(key)) rows.set(key, { effect, service, name: serviceName(service), levels: new Map(), resources: new Set(), conditions: false, conditionList: [], actions: [] });
       const row = rows.get(key);
       const level = accessLevelOf(service, action);
       if (level === '*' || action === '*') for (const l of ACCESS_LEVELS) row.levels.set(l, 'Full');
       else if (level !== 'mixed') row.levels.set(level, row.levels.get(level) === 'Full' ? 'Full' : 'Limited');
       else row.levels.set('Write', row.levels.get('Write') === 'Full' ? 'Full' : 'Limited');
       for (const r of resources.length ? resources : ['*']) row.resources.add(r);
-      if (hasCondition) row.conditions = true;
+      if (hasCondition) {
+        row.conditions = true;
+        for (const c of describeConditions(st.Condition)) if (!row.conditionList.includes(c)) row.conditionList.push(c);
+      }
       row.actions.push({ action: action === '*' ? '* (every action)' : action, level: level === '*' ? 'All levels' : level === 'mixed' ? 'Several levels' : level });
     }
   }
@@ -126,4 +129,64 @@ function levelText(levels) {
   const limited = ACCESS_LEVELS.filter((l) => levels.get(l) === 'Limited');
   if (full.length === ACCESS_LEVELS.length) return 'Full access';
   return [full.length && `Full: ${full.join(', ')}`, limited.length && `Limited: ${limited.join(', ')}`].filter(Boolean).join(' · ') || 'No access';
+}
+
+const OPERATORS = {
+  StringEquals: 'is',
+  StringNotEquals: 'is not',
+  StringEqualsIgnoreCase: 'is',
+  StringNotEqualsIgnoreCase: 'is not',
+  StringLike: 'matches',
+  StringNotLike: 'does not match',
+  ArnEquals: 'is',
+  ArnLike: 'matches',
+  ArnNotEquals: 'is not',
+  ArnNotLike: 'does not match',
+  IpAddress: 'is in',
+  NotIpAddress: 'is not in',
+  NumericEquals: 'equals',
+  NumericNotEquals: 'does not equal',
+  NumericLessThan: 'is below',
+  NumericLessThanEquals: 'is at most',
+  NumericGreaterThan: 'is above',
+  NumericGreaterThanEquals: 'is at least',
+  DateEquals: 'is',
+  DateNotEquals: 'is not',
+  DateLessThan: 'is before',
+  DateLessThanEquals: 'is on or before',
+  DateGreaterThan: 'is after',
+  DateGreaterThanEquals: 'is on or after',
+  Bool: 'is',
+  BinaryEquals: 'is',
+};
+
+/**
+ * A statement's Condition block as plain sentences:
+ * {"IpAddress": {"aws:SourceIp": ["10.0.0.0/8"]}} -> "aws:SourceIp is in 10.0.0.0/8".
+ */
+export function describeConditions(condition) {
+  if (!condition || typeof condition !== 'object') return [];
+  const out = [];
+  for (const [rawOp, keys] of Object.entries(condition)) {
+    let op = rawOp;
+    let quantifier = '';
+    const set = /^(ForAnyValue|ForAllValues):(.*)$/.exec(op);
+    if (set) {
+      quantifier = set[1] === 'ForAnyValue' ? 'any of ' : 'all of ';
+      op = set[2];
+    }
+    const ifExists = op.endsWith('IfExists');
+    if (ifExists) op = op.slice(0, -'IfExists'.length);
+    for (const [key, raw] of Object.entries(keys ?? {})) {
+      const values = asList(raw).map(String);
+      if (op === 'Null') {
+        out.push(`${key} ${values[0] === 'true' ? 'is not set' : 'is set'}`);
+        continue;
+      }
+      const verb = OPERATORS[op] ?? op;
+      const list = values.length > 1 ? `${quantifier || 'one of '}${values.join(', ')}` : values[0] ?? '';
+      out.push(`${key} ${verb} ${list}${ifExists ? ' (when present)' : ''}`);
+    }
+  }
+  return out;
 }

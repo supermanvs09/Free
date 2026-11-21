@@ -65,9 +65,11 @@ export function EntityChangesTab({ kind, id }) {
               Everything this scan changed
             </Link>
           </div>
-          <ol className="flex flex-col gap-3">
+          <ol className="flex flex-col divide-y divide-line">
             {group.items.map((change) => (
-              <ChangeCard key={change.id} change={change} />
+              <li key={change.id} className="py-4 first:pt-1">
+                <ChangeCard change={change} />
+              </li>
             ))}
           </ol>
         </section>

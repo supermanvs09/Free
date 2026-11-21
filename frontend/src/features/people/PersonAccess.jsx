@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ChevronDown, KeyRound, SearchX } from 'lucide-react';
+import { ChevronDown, FileJson, KeyRound, SearchX, ShieldHalf } from 'lucide-react';
 import { formatNumber, formatRelative } from '../../lib/format';
 import { summarisePolicy } from '../../lib/iamAccess';
 import { SearchInput } from '../../ui/Field';
@@ -45,7 +45,7 @@ const isAdmin = (a) => a.is_admin ?? /admin/i.test(`${a.permission_set_name ?? '
  * "Limited: Read, Write" - and on which resources. A service opens to its
  * actions. One search filters grants, services and actions at once.
  */
-export function PersonAccess({ access }) {
+export function PersonAccess({ access, boundary = null, source = '' }) {
   const [search, setSearch] = useState('');
   const grants = useMemo(() => access.map((a) => ({ a, title: accessTitle(a), services: summarisePolicy(a.policy_document) })), [access]);
   const term = search.trim().toLowerCase();
@@ -81,6 +81,8 @@ export function PersonAccess({ access }) {
         <Figure label="Admin-level" value={admin} tone={admin > 0 ? 'text-high' : undefined} caption={admin ? 'full control' : 'none'} />
         <Figure label="Escalation risk" value={escalation} tone={escalation > 0 ? 'text-critical' : undefined} caption={escalation ? 'can raise own access' : 'none'} />
       </section>
+
+      <BoundaryNote boundary={boundary} source={source} />
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <SectionLabel>What this person can do</SectionLabel>
@@ -126,6 +128,12 @@ function GrantCard({ grant, forceOpen }) {
             {a.session_duration ? ` · ${sessionLength(a.session_duration)} sessions` : ''}
             {a.last_used_at ? ` · last used ${formatRelative(a.last_used_at)}` : ''}
           </span>
+          {a.permissions_boundary && (
+            <span className="mt-1 flex items-center gap-1 text-[11.5px] text-ink-2">
+              <ShieldHalf aria-hidden="true" className="size-3.5 text-ink-3" />
+              Capped by boundary <span className="font-mono">{lastSegment(a.permissions_boundary)}</span>
+            </span>
+          )}
         </span>
         <span className="flex shrink-0 items-center gap-1.5">
           {admin && (
@@ -170,6 +178,7 @@ function GrantCard({ grant, forceOpen }) {
               </tbody>
             </table>
           )}
+          {a.policy_document && <PolicyJson doc={a.policy_document} />}
         </div>
       )}
     </li>
@@ -198,7 +207,11 @@ function ServiceRow({ row, open: forced }) {
         </td>
         <td className="px-2 py-2">
           <span className={cn('text-[12.5px]', deny ? 'text-ink-3 line-through' : row.admin ? 'font-semibold text-high' : 'text-ink-2')}>{row.levelText}</span>
-          {row.conditions && <span className="mt-0.5 block text-[11px] text-ink-3">With conditions</span>}
+          {row.conditions && (
+            <button type="button" onClick={() => setOpen(true)} className="mt-0.5 block text-[11px] font-medium text-brand hover:underline">
+              Only under {row.conditionList.length === 1 ? '1 condition' : `${formatNumber(row.conditionList.length)} conditions`}
+            </button>
+          )}
         </td>
         <td className="px-2 py-2 pr-3.5">
           {anyResource ? (
@@ -216,6 +229,18 @@ function ServiceRow({ row, open: forced }) {
       {expanded && (
         <tr className="border-b border-line bg-surface-2/40">
           <td colSpan={3} className="px-3.5 py-2.5 pl-9">
+            {row.conditionList.length > 0 && (
+              <div className="mb-2.5">
+                <p className="text-[12px] font-medium text-ink-2">{deny ? 'Denied only when' : 'Allowed only when'}</p>
+                <ul className="mt-1 flex flex-col gap-0.5">
+                  {row.conditionList.map((c) => (
+                    <li key={c} className="font-mono text-[11.5px] [overflow-wrap:anywhere] text-ink-2">
+                      {c}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <ul className="flex flex-wrap gap-1.5">
               {row.actions.map((x, i) => (
                 <li key={`${x.action}-${i}`} className="rounded border border-line bg-surface px-1.5 py-0.5 text-[11.5px]" title={x.level}>
@@ -228,6 +253,58 @@ function ServiceRow({ row, open: forced }) {
         </tr>
       )}
     </>
+  );
+}
+
+/**
+ * The user's permissions boundary: the most any grant below can allow. A
+ * grant reaching past it is cut back to it, so it is shown above the grants.
+ */
+function BoundaryNote({ boundary, source }) {
+  if (source === 'identity_center' || source === 'sso') return null;
+  return (
+    <div className="flex items-start gap-2.5 rounded-[var(--radius-control)] border border-line px-3.5 py-2.5">
+      <ShieldHalf aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-ink-3" />
+      <p className="min-w-0 text-[12.5px] text-ink-2">
+        {boundary ? (
+          <>
+            <span className="font-medium text-ink">Permissions boundary </span>
+            <span className="font-mono [overflow-wrap:anywhere]">{lastSegment(boundary)}</span>
+            <span className="text-ink-3"> caps everything below: an action the boundary does not allow is refused even when a grant allows it.</span>
+          </>
+        ) : (
+          <>
+            <span className="font-medium text-ink">No permissions boundary recorded </span>
+            <span className="text-ink-3">for this user, so the grants below are shown as written.</span>
+          </>
+        )}
+      </p>
+    </div>
+  );
+}
+
+/** The grant's policy document, on request. */
+function PolicyJson({ doc }) {
+  const [open, setOpen] = useState(false);
+  const text = useMemo(() => {
+    try {
+      return JSON.stringify(typeof doc === 'string' ? JSON.parse(doc) : doc, null, 2);
+    } catch {
+      return String(doc);
+    }
+  }, [doc]);
+  return (
+    <div className="border-t border-line px-3.5 py-2">
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="inline-flex items-center gap-1.5 text-[12px] font-medium text-ink-2 hover:text-brand">
+        <FileJson aria-hidden="true" className="size-3.5" />
+        {open ? 'Hide policy JSON' : 'View policy JSON'}
+      </button>
+      {open && (
+        <pre className="mt-2 max-h-72 overflow-auto rounded-[var(--radius-control)] border border-line bg-surface-2 p-3 font-mono text-[11.5px] leading-relaxed text-ink-2">
+          {text}
+        </pre>
+      )}
+    </div>
   );
 }
 

@@ -305,7 +305,7 @@ export function PersonDrawer({ id, onClose }) {
 
             {tab === "posture" && <PersonPosture id={d.id} />}
 
-            {tab === "access" && <PersonAccess access={d.access} />}
+            {tab === "access" && <PersonAccess access={d.access} boundary={d.permissions_boundary} source={d.source} />}
 
             {tab === "groups" && (
               <section aria-label="Groups">

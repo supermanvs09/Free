@@ -15,7 +15,6 @@ import { Panel } from '../../ui/Panel';
 import { ListSkeleton, Skeleton } from '../../ui/Skeleton';
 import { EmptyState, ErrorState } from '../../ui/States';
 import { SegmentedControl } from '../../ui/Tabs';
-import { Tag } from '../../ui/Tag';
 import { cn } from '../../ui/cn';
 import { useSync } from '../sync/SyncContext';
 import { CHANGE_META, CHANGE_TYPES, ENTITY_META, ENTITY_TYPES } from './parts';
@@ -30,22 +29,6 @@ function scanDuration(scan) {
   const end = parseDate(scan?.completedAt);
   return start && end && end > start ? formatDuration(start, end) : null;
 }
-
-/* The chart palette: entity types are categories, so they must not borrow
-   the green / red / amber that mean created / deleted / modified here. */
-const ENTITY_COLOR = {
-  identity: SERIES_TOKENS[0],
-  credential: SERIES_TOKENS[1],
-  permission: SERIES_TOKENS[2],
-  binding: SERIES_TOKENS[3],
-  trust_edge: SERIES_TOKENS[4],
-};
-
-const STAT_STYLE = {
-  CREATED: { box: 'border-low/30 bg-low-soft/60', active: 'ring-2 ring-low/40', text: 'text-low' },
-  DELETED: { box: 'border-critical/30 bg-critical-soft/60', active: 'ring-2 ring-critical/40', text: 'text-critical' },
-  MODIFIED: { box: 'border-medium/35 bg-medium-soft/60', active: 'ring-2 ring-medium/40', text: 'text-medium' },
-};
 
 /**
  * `/scans/:scanId/changes` - everything one discovery scan found had changed
@@ -100,8 +83,6 @@ export default function ScanChangesPage() {
     return summary.total;
   };
   const listRef = useRef(null);
-  const showList = () =>
-    window.requestAnimationFrame(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   const data = query.data;
   const scan = data?.scan;
   const summary = data?.summary;
@@ -206,21 +187,7 @@ export default function ScanChangesPage() {
           </span>
         </Panel>
       ) : (
-        <SummaryPanel
-          scan={scan}
-          summary={summary}
-          changeType={changeType}
-          entityType={entityType}
-          countFor={countFor}
-          onChangeType={(value) => {
-            setParams({ change_type: value === changeType ? '' : value });
-            showList();
-          }}
-          onEntityType={(value) => {
-            setParams({ entity_type: value === entityType ? '' : value });
-            showList();
-          }}
-        />
+        <SummaryPanel scan={scan} summary={summary} />
       )}
 
 
@@ -320,142 +287,48 @@ export default function ScanChangesPage() {
   );
 }
 
-function SummaryPanel({ scan, summary, changeType, entityType, countFor, onChangeType, onEntityType }) {
+/**
+ * The scan in one line: when it finished, what it was compared with, and how
+ * many changes it found. The counts per change and entity type live on the
+ * filters above the list, so they are not repeated here as tiles.
+ */
+function SummaryPanel({ scan, summary }) {
   const first = !scan?.previousScanId;
   const duration = scanDuration(scan);
-  const entityTotal = ENTITY_TYPES.reduce((sum, type) => sum + (summary.byEntityType[type] ?? 0), 0);
-
+  const fact = 'flex min-w-0 flex-col gap-0.5';
   return (
-    <Panel prominence="lead" className="animate-rise">
-      <div className="grid gap-6 @min-[60rem]:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
-        <div className="flex flex-col gap-4">
-          <div>
-            <p className="text-[10.5px] font-semibold tracking-[0.1em] text-ink-3 uppercase">Scan completed</p>
-            <p className="mt-1 text-[14px] font-semibold text-ink">{formatDateTime(scan.completedAt)}</p>
-            {scan.status === 'partial' && (
-              <Tag tone="medium" size="sm" dot className="mt-1.5">
-                Partial scan
-              </Tag>
-            )}
-            <p className="text-[12px] text-ink-3">
-              {formatRelative(scan.completedAt)}
-              {duration ? ` · ran ${duration}` : ''}
-            </p>
-          </div>
-          {scan.accountId && (
-            <div>
-              <p className="text-[10.5px] font-semibold tracking-[0.1em] text-ink-3 uppercase">Account</p>
-              <p className="mt-1 font-mono text-[13px] text-ink">{scan.accountId}</p>
-            </div>
-          )}
-          <div>
-            <p className="flex items-center gap-1.5 text-[10.5px] font-semibold tracking-[0.1em] text-ink-3 uppercase">
-              <GitCompareArrows aria-hidden="true" className="size-3.5" />
-              Compared with
-            </p>
-            {first ? (
-              <p className="mt-1 text-[12.5px] text-ink-2">Nothing - this is the first scan.</p>
-            ) : (
-              <>
-                <p className="mt-1 text-[13px] font-medium text-ink">{formatDateTime(scan.previousScanAt)}</p>
-                <p className="text-[12px] text-ink-3">the previous scan</p>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="flex min-w-0 flex-col gap-5">
-          <div className="grid gap-3 @min-[40rem]:grid-cols-[minmax(0,0.8fr)_repeat(3,minmax(0,1fr))]">
-            {/* Every card is a filter: Total shows them all again. */}
-            <button
-              type="button"
-              aria-pressed={!changeType}
-              onClick={() => onChangeType(changeType || '')}
-              title="Show every change type"
-              className={cn(
-                'rounded-[var(--radius-control)] border px-4 py-3 text-left transition-shadow hover:shadow-sm',
-                !changeType ? 'border-brand/45 bg-info-soft ring-1 ring-brand/25' : 'border-line bg-surface-2',
-              )}
-            >
-              <p className="text-[11px] font-medium text-ink-3">
-                {entityType ? `All ${ENTITY_META[entityType].plural.toLowerCase()} changes` : 'Total changes'}
-              </p>
-              <p data-numeric="" className="mt-1 text-[26px] leading-none font-bold text-ink">
-                {formatNumber(countFor('', entityType))}
-              </p>
-            </button>
-            {CHANGE_TYPES.map((type) => {
-              const meta = CHANGE_META[type];
-              const Icon = meta.icon;
-              const style = STAT_STYLE[type];
-              const count = countFor(type, entityType) ?? summary.byChangeType[type] ?? 0;
-              const active = changeType === type;
-              return (
-                <button
-                  key={type}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => onChangeType(type)}
-                  disabled={count === 0 && !active}
-                  className={cn(
-                    'rounded-[var(--radius-control)] border px-4 py-3 text-left transition-shadow enabled:hover:shadow-sm disabled:cursor-default',
-                    style.box,
-                    active && style.active,
-                  )}
-                  title={active ? 'Show every change type' : `Show only ${meta.label.toLowerCase()} changes`}
-                >
-                  <p className={cn('flex items-center gap-1.5 text-[11px] font-semibold', style.text)}>
-                    <Icon aria-hidden="true" className="size-3.5" />
-                    {meta.label}
-                  </p>
-                  <p data-numeric="" className={cn('mt-1 text-[26px] leading-none font-bold', style.text)}>
-                    {formatNumber(count)}
-                  </p>
-                </button>
-              );
-            })}
-          </div>
-
-          <div>
-            <p className="text-[11px] font-medium text-ink-3">By entity type</p>
-            <div className="mt-2 flex h-2 w-full overflow-hidden rounded-full bg-line" aria-hidden="true">
-              {entityTotal > 0 &&
-                ENTITY_TYPES.map((type) =>
-                  summary.byEntityType[type] ? (
-                    <span key={type} className="h-full" style={{ width: `${(summary.byEntityType[type] / entityTotal) * 100}%`, background: ENTITY_COLOR[type] }} />
-                  ) : null,
-                )}
-            </div>
-            <ul className="mt-2.5 flex flex-wrap gap-x-1 gap-y-1">
-              {ENTITY_TYPES.map((type) => {
-                const count = countFor(changeType, type) ?? summary.byEntityType[type] ?? 0;
-                const active = entityType === type;
-                return (
-                  <li key={type}>
-                    <button
-                      type="button"
-                      aria-pressed={active}
-                      disabled={count === 0 && !active}
-                      onClick={() => onEntityType(type)}
-                      className={cn(
-                        'inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[12px] text-ink-2 transition-colors enabled:hover:bg-surface-3 disabled:text-ink-3',
-                        active && 'bg-surface-3 font-medium text-ink',
-                      )}
-                    >
-                      <span aria-hidden="true" className="size-2 rounded-sm" style={{ background: ENTITY_COLOR[type] }} />
-                      {ENTITY_META[type].plural}
-                      <span data-numeric="" className="font-semibold text-ink">
-                        {formatNumber(count)}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </div>
+    <section aria-label="Scan" className="animate-rise flex flex-wrap items-stretch gap-x-10 gap-y-4 rounded-[var(--radius-panel)] border border-line bg-surface px-5 py-4">
+      <div className={fact}>
+        <span className="text-[12px] text-ink-3">Scan finished</span>
+        <span className="text-[14px] font-semibold text-ink" title={formatDateTime(scan.completedAt)}>
+          {formatDateTime(scan.completedAt)}
+        </span>
+        <span className="text-[12px] text-ink-3">
+          {formatRelative(scan.completedAt)}
+          {duration ? ` · ran ${duration}` : ''}
+          {scan.status === 'partial' ? ' · partial scan' : ''}
+        </span>
       </div>
-    </Panel>
+      <div className={fact}>
+        <span className="flex items-center gap-1.5 text-[12px] text-ink-3">
+          <GitCompareArrows aria-hidden="true" className="size-3.5" /> Compared with
+        </span>
+        <span className="text-[14px] font-medium text-ink">{first ? 'Nothing: first scan' : formatDateTime(scan.previousScanAt)}</span>
+        {!first && <span className="text-[12px] text-ink-3">the previous scan</span>}
+      </div>
+      {scan.accountId && (
+        <div className={fact}>
+          <span className="text-[12px] text-ink-3">Account</span>
+          <span className="font-mono text-[13.5px] text-ink">{scan.accountId}</span>
+        </div>
+      )}
+      <div className={cn(fact, 'ml-auto text-right')}>
+        <span className="text-[12px] text-ink-3">Changes found</span>
+        <span data-numeric="" className="text-[22px] leading-tight font-semibold text-ink">
+          {formatNumber(summary.total)}
+        </span>
+      </div>
+    </section>
   );
 }
 

@@ -40,25 +40,14 @@ export const ENTITY_META = {
 export const CHANGE_TYPES = ['CREATED', 'DELETED', 'MODIFIED'];
 export const ENTITY_TYPES = ['identity', 'credential', 'permission', 'binding', 'trust_edge'];
 
-const TONE_CHIP = {
-  low: 'border-low/30 bg-low-soft text-low',
-  critical: 'border-critical/30 bg-critical-soft text-critical',
-  medium: 'border-medium/35 bg-medium-soft text-medium',
-};
+const TONE_DOT = { low: 'bg-low', critical: 'bg-critical', medium: 'bg-medium' };
 
-/** CREATED / DELETED / MODIFIED as a coloured badge with its icon. */
+/** Created / Deleted / Modified as a quiet label: a small coloured dot and the word. */
 export function ChangeBadge({ type, className, short = false }) {
   const meta = CHANGE_META[type] ?? CHANGE_META.MODIFIED;
-  const Icon = meta.icon;
   return (
-    <span
-      className={cn(
-        'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold tracking-wide uppercase',
-        TONE_CHIP[meta.tone],
-        className,
-      )}
-    >
-      <Icon aria-hidden="true" className="size-3" />
+    <span className={cn('inline-flex shrink-0 items-center gap-1.5 text-[12px] font-medium text-ink-2', className)}>
+      <span aria-hidden="true" className={cn('size-1.5 rounded-full', TONE_DOT[meta.tone])} />
       {short ? meta.badge : meta.label}
     </span>
   );
@@ -288,30 +277,27 @@ function FieldDiff({ field, label, before, after }) {
 
 function ActionList({ title, actions, tone }) {
   if (!actions?.length) return null;
+  const gained = tone === 'low';
   return (
     <div className="min-w-0">
-      <p className={cn('text-[11px] font-semibold tracking-[0.08em] uppercase', tone === 'low' ? 'text-low' : 'text-critical')}>
-        {title} · {actions.length}
+      <p className="text-[12px] font-medium text-ink-2">
+        {title} <span className="font-normal text-ink-3">{actions.length}</span>
       </p>
       <ul className="mt-1.5 flex flex-wrap gap-1.5">
         {actions.map((action) => {
-          const risky = tone === 'low' && isRiskyAction(action);
+          const risky = gained && isRiskyAction(action);
           return (
             <li
               key={action}
               title={risky ? 'Risky: grants admin or lets it act as someone else' : undefined}
               className={cn(
-                'rounded border px-1.5 py-0.5 font-mono text-[11.5px]',
-                risky
-                  ? 'border-critical/50 bg-critical-soft font-semibold text-critical'
-                  : tone === 'low'
-                    ? 'border-low/30 bg-low-soft text-low'
-                    : 'border-line bg-surface-2 text-ink-3 line-through decoration-ink-3/60',
+                'rounded-md border px-1.5 py-0.5 font-mono text-[11.5px]',
+                risky ? 'border-critical/40 text-critical' : gained ? 'border-line bg-surface text-ink' : 'border-line bg-surface-2 text-ink-3 line-through decoration-ink-3/50',
               )}
             >
-              {tone === 'low' ? '+ ' : '− '}
+              {gained ? '+ ' : '− '}
               {action}
-              {risky && <span className="ml-1 font-sans text-[10px] tracking-wide uppercase">risky</span>}
+              {risky && <span className="ml-1.5 font-sans text-[10.5px] font-medium">risky</span>}
             </li>
           );
         })}
@@ -341,7 +327,7 @@ export function ChangeDetails({ change }) {
     <div className="flex flex-col gap-4">
       {fields.length > 0 && (
         <div>
-          <p className="text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">What changed</p>
+          <p className="text-[12px] font-medium text-ink-2">What changed</p>
           <ul className="mt-1 divide-y divide-line">
             {fields.map((entry, index) => (
               /* The API documents {field, old, new}; the scanner writes
@@ -366,13 +352,13 @@ export function ChangeDetails({ change }) {
 
       {hasTrust && (
         <div>
-          <p className="text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">Relationship</p>
+          <p className="text-[12px] font-medium text-ink-2">Relationship</p>
           <p className="mt-1.5 flex min-w-0 flex-wrap items-center gap-2 text-[12.5px]">
             <span className="min-w-0 font-mono text-[11.5px] break-all text-ink-2">{details.source}</span>
             <ArrowRight aria-hidden="true" className="size-3.5 shrink-0 text-ink-3" />
             <span className="min-w-0 font-mono text-[11.5px] break-all text-ink-2">{details.target}</span>
             {details.external && (
-              <span className="rounded-full border border-high/30 bg-high-soft px-2 py-0.5 text-[11px] font-medium text-high">
+              <span className="rounded-full border border-line px-2 py-0.5 text-[11px] font-medium text-high">
                 Outside your accounts
               </span>
             )}
@@ -405,10 +391,10 @@ export function EvidenceCard({ evidence, changeType }) {
   if (!evidence) return null;
   const verb = changeType === 'DELETED' ? 'Deleted by' : 'Created by';
   return (
-    <div className="rounded-[var(--radius-control)] border border-info/25 bg-info-soft/50 px-3 py-2.5">
-      <p className="flex items-center gap-1.5 text-[10.5px] font-semibold tracking-[0.1em] text-info uppercase">
-        <ScrollText aria-hidden="true" className="size-3.5" />
-        CloudTrail
+    <div className="rounded-[var(--radius-control)] border border-line px-3 py-2.5">
+      <p className="flex items-center gap-1.5 text-[12px] font-medium text-ink-2">
+        <ScrollText aria-hidden="true" className="size-3.5 text-ink-3" />
+        Who made it <span className="font-normal text-ink-3">· from CloudTrail</span>
       </p>
       <dl className="mt-1.5 grid gap-x-5 gap-y-1.5 text-[12px] @min-[34rem]:grid-cols-[auto_minmax(0,1fr)]">
         <dt className="text-ink-3">{verb}</dt>
@@ -435,15 +421,9 @@ export function RiskBadge({ risk }) {
   if (!risk) return null;
   const critical = risk.level === 'critical';
   return (
-    <span
-      title={risk.reasons.join(' · ')}
-      className={cn(
-        'inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10.5px] font-semibold',
-        critical ? 'border-critical/40 bg-critical-soft text-critical' : 'border-high/40 bg-high-soft text-high',
-      )}
-    >
-      <ShieldAlert aria-hidden="true" className="size-3" />
-      {critical ? 'Critical risk' : 'High risk'}
+    <span title={risk.reasons.join(' · ')} className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-surface px-2 py-0.5 text-[11.5px] font-medium text-ink">
+      <ShieldAlert aria-hidden="true" className={cn('size-3.5', critical ? 'text-critical' : 'text-high')} />
+      {critical ? 'Critical' : 'High risk'}
     </span>
   );
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { CheckCircle2, CircleAlert, ShieldCheck, ShieldQuestion } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { CheckCircle2, CircleAlert, ShieldCheck, ShieldQuestion, Wrench } from 'lucide-react';
 import { fetchHumanPosture } from '../../lib/api/humanIdentities';
 import { severityMeta } from '../../lib/domain';
 import { formatNumber, formatRelative, titleCaseEnum } from '../../lib/format';
@@ -9,6 +10,7 @@ import { DetailSkeleton } from '../../ui/Skeleton';
 import { EmptyState, ErrorState } from '../../ui/States';
 import { SegmentedControl } from '../../ui/Tabs';
 import { Tag } from '../../ui/Tag';
+import { Button } from '../../ui/Button';
 import { cn } from '../../ui/cn';
 import { BandTag, ScoreRing } from '../posture/parts';
 
@@ -136,6 +138,18 @@ function CheckRow({ check: c }) {
             {fail && c.failing_since ? ` · failing since ${formatRelative(c.failing_since)}` : ''}
             {covered ? ' · covered by another control' : ''}
           </p>
+          {fail && c.finding_id && (
+            <Button
+              as={Link}
+              to={`/remediation/findings/${encodeURIComponent(c.finding_id)}`}
+              size="sm"
+              variant="secondary"
+              icon={Wrench}
+              className="mt-2"
+            >
+              Open in Remediation
+            </Button>
+          )}
         </div>
         <span className="flex shrink-0 flex-col items-end gap-1">
           {c.severity && (

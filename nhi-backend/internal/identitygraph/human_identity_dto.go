@@ -132,22 +132,24 @@ type HumanIdentityListResponse struct {
 
 // HumanAccessItem is one row of human_identity_access.
 type HumanAccessItem struct {
-	ID                string          `json:"id"`
-	AccountID         string          `json:"account_id"`
-	AccessType        string          `json:"access_type"`
-	PermissionSetName *string         `json:"permission_set_name"`
-	PermissionSetARN  *string         `json:"permission_set_arn"`
-	RoleARN           *string         `json:"role_arn"`
-	PolicyARN         *string         `json:"policy_arn"`
-	PolicyName        *string         `json:"policy_name"`
-	GrantedVia        string          `json:"granted_via"`
-	GroupID           *string         `json:"group_id"`
-	GroupName         *string         `json:"group_name"`
-	SessionDuration   *string         `json:"session_duration"`
-	LastUsedAt        *time.Time      `json:"last_used_at"`
-	PolicyDocument    json.RawMessage `json:"policy_document"`
-	IsAdmin           bool            `json:"is_admin"`
-	HasEscalation     bool            `json:"has_escalation"`
+	ID                string  `json:"id"`
+	AccountID         string  `json:"account_id"`
+	AccessType        string  `json:"access_type"`
+	PermissionSetName *string `json:"permission_set_name"`
+	PermissionSetARN  *string `json:"permission_set_arn"`
+	RoleARN           *string `json:"role_arn"`
+	PolicyARN         *string `json:"policy_arn"`
+	PolicyName        *string `json:"policy_name"`
+	GrantedVia        string  `json:"granted_via"`
+	GroupID           *string `json:"group_id"`
+	GroupName         *string `json:"group_name"`
+	// PermissionsBoundary is the permission set's boundary (SSO), when recorded.
+	PermissionsBoundary *string         `json:"permissions_boundary"`
+	SessionDuration     *string         `json:"session_duration"`
+	LastUsedAt          *time.Time      `json:"last_used_at"`
+	PolicyDocument      json.RawMessage `json:"policy_document"`
+	IsAdmin             bool            `json:"is_admin"`
+	HasEscalation       bool            `json:"has_escalation"`
 }
 
 // HumanGroupItem is one row of human_identity_groups.
@@ -224,4 +226,6 @@ type HumanIdentityDetail struct {
 	Credentials      []HumanCredentialItem `json:"credentials"`
 	SignIn           *HumanSignIn          `json:"sign_in"`
 	RiskSignals      []HumanRiskSignal     `json:"risk_signals"`
+	// PermissionsBoundary is the user's boundary policy ARN, when recorded.
+	PermissionsBoundary *string `json:"permissions_boundary"`
 }
