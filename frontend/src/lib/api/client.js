@@ -149,6 +149,9 @@ client.get = (url, config = {}) => {
     entry.promise = rawGet(url, { ...rest, signal: controller.signal }).finally(() => {
       if (sharedGets.get(key) === entry) sharedGets.delete(key);
     });
+    /* Every caller may have left (aborted) before it settles; the rejection
+       then has no listener and must not surface as an unhandled error. */
+    entry.promise.catch(() => {});
     sharedGets.set(key, entry);
   }
   entry.users += 1;

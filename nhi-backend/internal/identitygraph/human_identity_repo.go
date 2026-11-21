@@ -490,7 +490,12 @@ func (r *HumanIdentityRepository) Detail(ctx context.Context, resolved *scope.Da
 		       a.granted_via, a.group_id, a.session_duration, a.last_used_at,
 		       a.policy_document::jsonb::text,
 		       COALESCE((%[2]s), false),
-		       COALESCE((%[3]s), false)
+		       COALESCE((%[3]s), false),
+		       to_jsonb(a)->>'policy_name',
+		       (SELECT g.group_name FROM %[1]s.human_identity_groups g
+		         WHERE g.human_id = a.human_id AND a.group_id IS NOT NULL
+		           AND (g.group_id = a.group_id OR g.id::text = a.group_id)
+		         LIMIT 1)
 		FROM %[1]s.human_identity_access a
 		WHERE a.human_id = $1
 		ORDER BY a.access_type, a.account_id`,
@@ -506,12 +511,13 @@ func (r *HumanIdentityRepository) Detail(ctx context.Context, resolved *scope.Da
 		var it HumanAccessItem
 		var pName, pARN, role, policy, group, session sql.NullString
 		var lastUsed sql.NullTime
-		var policyDoc sql.NullString
+		var policyDoc, policyName, groupName sql.NullString
 		if err := accessRows.Scan(
 			&it.ID, &it.AccountID, &it.AccessType,
 			&pName, &pARN, &role, &policy,
 			&it.GrantedVia, &group, &session, &lastUsed,
 			&policyDoc, &it.IsAdmin, &it.HasEscalation,
+			&policyName, &groupName,
 		); err != nil {
 			return nil, fmt.Errorf("scan human identity access: %w", err)
 		}
@@ -520,6 +526,8 @@ func (r *HumanIdentityRepository) Detail(ctx context.Context, resolved *scope.Da
 		it.RoleARN = hiNullString(role)
 		it.PolicyARN = hiNullString(policy)
 		it.GroupID = hiNullString(group)
+		it.PolicyName = hiNullString(policyName)
+		it.GroupName = hiNullString(groupName)
 		it.SessionDuration = hiNullString(session)
 		it.LastUsedAt = hiNullTime(lastUsed)
 		if policyDoc.Valid {
@@ -587,59 +595,6 @@ func (r *HumanIdentityRepository) Detail(ctx context.Context, resolved *scope.Da
 	}
 
 	return &d, nil
-}
-
-// PermissionSets returns one row per SSO permission set, with its assigned
-// accounts, users and policies. SSO identities only.
-func (r *HumanIdentityRepository) PermissionSets(ctx context.Context, resolved *scope.DataScope) ([]HumanPermissionSetItem, error) {
-	if resolved == nil || resolved.DB == nil {
-		return nil, ErrScopeRequired
-	}
-	a := &humanArgs{}
-	whereSQL := strings.Join(humanWhere(resolved, a, "sso", "", nil, nil, "", ""), " AND ")
-	q := fmt.Sprintf(`
-		SELECT
-			a.permission_set_arn,
-			COALESCE(MAX(a.permission_set_name), ''),
-			MAX(a.session_duration),
-			COUNT(DISTINCT h.id)::int,
-			COUNT(DISTINCT a.account_id)::int,
-			COALESCE(ARRAY_AGG(DISTINCT a.account_id), '{}'),
-			COALESCE(ARRAY_AGG(DISTINCT a.policy_arn) FILTER (WHERE a.policy_arn IS NOT NULL), '{}'),
-			COALESCE(ARRAY_AGG(DISTINCT COALESCE(h.user_name, h.id::text)), '{}')
-		FROM %[1]s.human_identity_access a
-		JOIN %[1]s.human_identities h ON h.id = a.human_id
-		WHERE %[2]s AND a.permission_set_arn IS NOT NULL
-		GROUP BY a.permission_set_arn
-		ORDER BY COALESCE(MAX(a.permission_set_name), ''), a.permission_set_arn`,
-		resolved.QSchema(), whereSQL)
-	rows, err := resolved.DB.QueryContext(ctx, q, a.values...)
-	if err != nil {
-		return nil, fmt.Errorf("query permission sets: %w", err)
-	}
-	defer rows.Close()
-	items := make([]HumanPermissionSetItem, 0)
-	for rows.Next() {
-		var it HumanPermissionSetItem
-		var session sql.NullString
-		var accounts, policies, users pq.StringArray
-		if err := rows.Scan(
-			&it.PermissionSetARN, &it.PermissionSetName, &session,
-			&it.AssignedUserCount, &it.AccountCount,
-			&accounts, &policies, &users,
-		); err != nil {
-			return nil, fmt.Errorf("scan permission set: %w", err)
-		}
-		it.SessionDuration = hiNullString(session)
-		it.AccountIDs = stringsOrEmpty(accounts)
-		it.Policies = stringsOrEmpty(policies)
-		it.AssignedUsers = stringsOrEmpty(users)
-		items = append(items, it)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate permission sets: %w", err)
-	}
-	return items, nil
 }
 
 // humanConsoleLoginRaw is one console sign-in event as stored in details.

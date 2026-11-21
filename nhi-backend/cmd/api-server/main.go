@@ -404,7 +404,7 @@ func main() {
 		NewAPICredentialsHandler:       credentialsHandler,
 		NewAPICredentialDetailHandler:  credentialDetailHandler,
 		CorrelationHandler:             corrApp.handlers(),
-		HumanIdentities:                humanidentities.New(resolver),
+		HumanIdentities:                humanidentities.New(resolver, activityService),
 		AlertsHandler: alerts.NewHandler(resolver, ceFindingsRepo,
 			anomalylist.NewService(genomefullcommon.NewMonitoredIdentityLookup(resolver), anomalylist.NewRepository(), genomeAlertEvents)),
 		IdentitySubjects:              identitysubjects.NewHandler(resolver),

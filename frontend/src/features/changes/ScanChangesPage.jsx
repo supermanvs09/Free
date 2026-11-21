@@ -19,7 +19,8 @@ import { Tag } from '../../ui/Tag';
 import { TableSettings } from '../../ui/TableTools';
 import { cn } from '../../ui/cn';
 import { useSync } from '../sync/SyncContext';
-import { CHANGE_GRID, CHANGE_META, CHANGE_TYPES, ChangeRow, ENTITY_META, ENTITY_TYPES } from './parts';
+import { CHANGE_GRID, CHANGE_META, CHANGE_TYPES, ChangeGroup, ChangeRow, ENTITY_META, ENTITY_TYPES } from './parts';
+import { groupChanges, groupRisk } from './story';
 
 const PAGE_SIZE = 25;
 
@@ -61,7 +62,12 @@ export default function ScanChangesPage() {
   const changeType = CHANGE_TYPES.includes(searchParams.get('change_type')) ? searchParams.get('change_type') : '';
   const entityType = ENTITY_TYPES.includes(searchParams.get('entity_type')) ? searchParams.get('entity_type') : '';
   const page = Math.max(1, Number.parseInt(searchParams.get('page') || '1', 10) || 1);
-  const limit = [10, 25, 50, 100].includes(Number(searchParams.get('limit'))) ? Number(searchParams.get('limit')) : PAGE_SIZE;
+  const pageLimit = [10, 25, 50, 100].includes(Number(searchParams.get('limit'))) ? Number(searchParams.get('limit')) : PAGE_SIZE;
+  /* Risk is read from each change's details in the browser, so "High risk
+     only" reads the largest page the API serves and filters that.
+     ponytail: page-local filter; move risk into the query if scans exceed 100 changes routinely. */
+  const highRisk = searchParams.get('risk') === 'high';
+  const limit = highRisk ? 100 : pageLimit;
 
   const query = useQuery(
     (signal) => fetchScanChanges({ scanId, changeType, entityType, page, limit }, signal),
@@ -79,7 +85,7 @@ export default function ScanChangesPage() {
     if (!('page' in patch)) next.delete('page');
     setSearchParams(next, { replace: true });
   };
-  const clearFilters = () => setParams({ change_type: '', entity_type: '' });
+  const clearFilters = () => setParams({ change_type: '', entity_type: '', risk: '' });
 
   /* Counts that follow the other filter. With the list narrowed to one
      entity type (the Identities page's "Review the changes" opens it that
@@ -116,7 +122,13 @@ export default function ScanChangesPage() {
   const data = query.data;
   const scan = data?.scan;
   const summary = data?.summary;
-  const filtered = Boolean(changeType || entityType);
+  const filtered = Boolean(changeType || entityType || highRisk);
+  const groups = useMemo(() => {
+    const list = data?.changes ?? [];
+    /* A risky group is kept whole, so a binding move still reads as one story. */
+    const all = groupChanges(list);
+    return highRisk ? all.filter((g) => groupRisk(g.changes)) : all;
+  }, [data, highRisk]);
 
   const back = (
     <Button variant="secondary" as={Link} to="/overview" icon={ArrowLeft}>
@@ -261,6 +273,14 @@ export default function ScanChangesPage() {
                 }),
               ]}
             />
+            <Button
+              variant={highRisk ? 'primary' : 'secondary'}
+              size="sm"
+              aria-pressed={highRisk}
+              onClick={() => setParams({ risk: highRisk ? '' : 'high' })}
+            >
+              High risk only
+            </Button>
             <TableSettings density={density} onDensityChange={setDensityPref} />
             {filtered && (
               <Button variant="ghost" size="sm" onClick={clearFilters}>
@@ -286,14 +306,37 @@ export default function ScanChangesPage() {
           <div className="p-5">
             <ListSkeleton rows={6} />
           </div>
-        ) : data.changes.length === 0 ? (
-          <NoChanges scan={scan} summary={summary} filtered={filtered} onClear={clearFilters} />
+        ) : groups.length === 0 ? (
+          highRisk && data.changes.length > 0 ? (
+            <EmptyState
+              compact
+              icon={SearchX}
+              title="No high-risk change on this page"
+              description="No wildcard, risky action, new role or key, or deleted role among these changes."
+              action={
+                <Button variant="secondary" size="sm" onClick={() => setParams({ risk: '' })}>
+                  Show every change
+                </Button>
+              }
+            />
+          ) : (
+            <NoChanges scan={scan} summary={summary} filtered={filtered} onClear={clearFilters} />
+          )
         ) : (
           <ul aria-busy={query.isRefreshing || undefined} className={cn('transition-opacity', (query.isRefreshing || query.isLoading) && 'opacity-60')}>
-            {data.changes.map((change) => (
-              <ChangeRow key={change.id} change={change} density={density} />
-            ))}
+            {groups.map((group) =>
+              group.changes.length === 1 ? (
+                <ChangeRow key={group.changes[0].id} change={group.changes[0]} density={density} />
+              ) : (
+                <ChangeGroup key={group.key} changes={group.changes} density={density} />
+              ),
+            )}
           </ul>
+        )}
+        {highRisk && data && data.pagination.total > data.pagination.limit && (
+          <p className="border-t border-line px-4 py-2 text-[12px] text-ink-3 sm:px-5">
+            High-risk changes among the {formatNumber(data.pagination.limit)} changes on this page; use the pages below for the rest.
+          </p>
         )}
 
         {data && data.pagination.total > 0 && (

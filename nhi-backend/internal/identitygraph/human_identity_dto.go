@@ -139,8 +139,10 @@ type HumanAccessItem struct {
 	PermissionSetARN  *string         `json:"permission_set_arn"`
 	RoleARN           *string         `json:"role_arn"`
 	PolicyARN         *string         `json:"policy_arn"`
+	PolicyName        *string         `json:"policy_name"`
 	GrantedVia        string          `json:"granted_via"`
 	GroupID           *string         `json:"group_id"`
+	GroupName         *string         `json:"group_name"`
 	SessionDuration   *string         `json:"session_duration"`
 	LastUsedAt        *time.Time      `json:"last_used_at"`
 	PolicyDocument    json.RawMessage `json:"policy_document"`
@@ -222,17 +224,4 @@ type HumanIdentityDetail struct {
 	Credentials      []HumanCredentialItem `json:"credentials"`
 	SignIn           *HumanSignIn          `json:"sign_in"`
 	RiskSignals      []HumanRiskSignal     `json:"risk_signals"`
-}
-
-// HumanPermissionSetItem is one SSO permission set with its assignments.
-// Created date is not included: no permission-set table exists yet.
-type HumanPermissionSetItem struct {
-	PermissionSetARN  string   `json:"permission_set_arn"`
-	PermissionSetName string   `json:"permission_set_name"`
-	SessionDuration   *string  `json:"session_duration"`
-	AssignedUserCount int      `json:"assigned_user_count"`
-	AccountCount      int      `json:"account_count"`
-	AccountIDs        []string `json:"account_ids"`
-	Policies          []string `json:"policies"`
-	AssignedUsers     []string `json:"assigned_users"`
 }

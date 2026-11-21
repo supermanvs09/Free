@@ -23,6 +23,10 @@ type Filter struct {
 	SourceType   string
 	IdentityName string
 	EventID      string
+	// Accounts is the caller's account scope. The summary cards and the
+	// identity list count only these accounts' alerts, so the list does too;
+	// without it the list counted every account in the tenant.
+	Accounts []string
 
 	Search     string
 	SearchKeys []common.MonitoringKey
@@ -41,6 +45,7 @@ func filterSQL(f Filter, includeCursor bool) ([]string, []any) {
 		return "$" + strconv.Itoa(len(args))
 	}
 
+	where = append(where, "a.account_id = ANY("+arg(pq.Array(f.Accounts))+"::text[])")
 	if f.Dimension != "" {
 		where = append(where, "a.dimension = "+arg(f.Dimension))
 	}

@@ -12,11 +12,11 @@ import { EmptyState, ErrorState } from "../../ui/States";
 import { Tag } from "../../ui/Tag";
 import { cn } from "../../ui/cn";
 import { Avatar } from "./parts";
+import { PersonAccess } from "./PersonAccess";
 import {
   SOURCE_LABEL,
   humanTypeLabel,
   personName,
-  sessionLength,
   statusMeta,
 } from "./peopleMeta";
 
@@ -301,93 +301,7 @@ export function PersonDrawer({ id, onClose }) {
               </>
             )}
 
-            {tab === "access" && (
-              <section aria-label="Access">
-                <SectionLabel>
-                  Access{" "}
-                  <span data-numeric="" className="font-normal text-ink-3">
-                    {formatNumber(d.access.length)}
-                  </span>
-                </SectionLabel>
-                {d.access.length === 0 ? (
-                  <p className="mt-2 text-[12.5px] text-ink-3">
-                    No access recorded.
-                  </p>
-                ) : (
-                  <ul className="mt-2 flex flex-col gap-1.5">
-                    {d.access.map((a) => {
-                      const name =
-                        a.permission_set_name ||
-                        a.role_arn ||
-                        a.policy_arn ||
-                        a.access_type;
-                      /* The API flags admin and escalation from the policy document too; older answers without the flags fall back to the name. */
-                      const admin =
-                        a.is_admin ??
-                        /admin/i.test(
-                          `${a.permission_set_name ?? ""} ${a.policy_arn ?? ""}`,
-                        );
-                      return (
-                        <li
-                          key={a.id}
-                          className="rounded-[var(--radius-control)] border border-line px-3 py-2.5"
-                        >
-                          <div className="flex items-start gap-2.5">
-                            <KeyRound
-                              aria-hidden="true"
-                              className="mt-0.5 size-3.5 shrink-0 text-ink-3"
-                            />
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[12.5px] font-semibold [overflow-wrap:anywhere] text-ink">
-                                {name}
-                              </p>
-                              <p className="mt-0.5 text-[11.5px] text-ink-3">
-                                Account{" "}
-                                <span className="font-mono">
-                                  {a.account_id}
-                                </span>{" "}
-                                · {String(a.access_type).replace(/_/g, " ")} ·
-                                via {a.granted_via}
-                                {a.session_duration
-                                  ? ` · ${sessionLength(a.session_duration)} sessions`
-                                  : ""}
-                              </p>
-                              <p className="mt-0.5 text-[11.5px] text-ink-3">
-                                {a.last_used_at
-                                  ? `Last used ${formatRelative(a.last_used_at)}`
-                                  : "Never used"}
-                              </p>
-                              {a.policy_document && (
-                                <details className="mt-1.5">
-                                  <summary className="cursor-pointer text-[11.5px] font-medium text-brand">
-                                    Policy document
-                                  </summary>
-                                  <pre className="mt-1.5 max-h-56 overflow-auto rounded-[var(--radius-control)] bg-surface-2 p-2.5 font-mono text-[11px] leading-relaxed text-ink-2">
-                                    {JSON.stringify(a.policy_document, null, 2)}
-                                  </pre>
-                                </details>
-                              )}
-                            </div>
-                            <span className="flex shrink-0 flex-col items-end gap-1">
-                              {admin && (
-                                <Tag tone="high" size="sm">
-                                  Admin-level
-                                </Tag>
-                              )}
-                              {a.has_escalation && (
-                                <Tag tone="critical" size="sm">
-                                  Escalation risk
-                                </Tag>
-                              )}
-                            </span>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </section>
-            )}
+            {tab === "access" && <PersonAccess access={d.access} />}
 
             {tab === "groups" && (
               <section aria-label="Groups">

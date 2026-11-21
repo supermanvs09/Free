@@ -12,6 +12,7 @@ import { DetailList, DetailRow, SectionLabel } from '../../ui/Panel';
 import { Code, Tag } from '../../ui/Tag';
 import { CopyableValue } from '../../ui/Copyable';
 import { DataGrid } from '../../ui/DataGrid';
+import { SearchInput } from '../../ui/Field';
 import { Meter } from '../../ui/Meter';
 import { DetailSkeleton, Skeleton } from '../../ui/Skeleton';
 import { JsonBlock } from '../../ui/RawJson';
@@ -376,13 +377,17 @@ const USE_FILTERS = [
 function PermissionsPanel({ identityId }) {
   const query = useIdentityTab(identityId, 'permissions');
   const [use, setUse] = useState('all');
+  const [search, setSearch] = useState('');
   const data = query.data;
   const rows = useMemo(() => {
     const list = data?.permissions ?? [];
-    if (use === 'used') return list.filter((row) => row.used);
-    if (use === 'unused') return list.filter((row) => !row.used);
-    return list;
-  }, [data, use]);
+    const term = search.trim().toLowerCase();
+    return list.filter(
+      (row) =>
+        (use === 'all' || (use === 'used') === Boolean(row.used)) &&
+        (!term || [row.action, row.service, row.resource_arn, row.policy_source].some((v) => String(v ?? '').toLowerCase().includes(term))),
+    );
+  }, [data, use, search]);
 
   if (query.isError && !data) return <TabError query={query} label="Permissions unavailable" />;
   if (!data) return <DetailSkeleton rows={6} />;
@@ -441,7 +446,10 @@ function PermissionsPanel({ identityId }) {
       <div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <SectionLabel>Allowed actions</SectionLabel>
-          <SegmentedControl label="Show" options={USE_FILTERS} value={use} onChange={setUse} />
+          <span className="flex flex-wrap items-center gap-2">
+            <SearchInput size="sm" value={search} onChange={setSearch} placeholder="Search actions, resources, policies" aria-label="Search allowed actions" className="w-64" />
+            <SegmentedControl label="Show" options={USE_FILTERS} value={use} onChange={setUse} />
+          </span>
         </div>
         <DataGrid
           className="mt-2"
@@ -488,7 +496,6 @@ function PermissionsPanel({ identityId }) {
             },
             {
               key: 'used',
-      none: 'resources it used',
               header: 'Used (90 days)',
               width: '16%',
               cell: (row) =>
@@ -509,6 +516,8 @@ function PermissionsPanel({ identityId }) {
           emptyState={
             (data.permissions ?? []).length === 0 ? (
               <EmptyState compact icon={ListChecks} title="No allowed actions recorded" description="The discovery scan found no permissions on this identity's credentials." />
+            ) : search.trim() ? (
+              <EmptyState compact icon={ListChecks} title="No allowed action matches your search" description="Try another action, service, resource or policy name." />
             ) : (
               <EmptyState compact icon={ListChecks} title={use === 'used' ? 'None of its allowed actions were used' : 'Every allowed action was used'} description="Choose All to see the rest." />
             )

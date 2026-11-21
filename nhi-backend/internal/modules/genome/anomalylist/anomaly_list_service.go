@@ -95,6 +95,7 @@ func (s *Service) List(
 		From:         p.From,
 		To:           p.To,
 		After:        after,
+		Accounts:     sc.AccountIDs,
 	}
 
 	if p.Cursor == "" {

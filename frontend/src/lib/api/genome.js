@@ -163,6 +163,27 @@ export async function fetchGenomeListNames(sourceType, identityName, signal) {
   return names;
 }
 
+/**
+ * The genome identity an anomaly belongs to. The anomaly names its identity
+ * as the event recorded it ("ec2:eks-ap-south-2-..."), which is not always the
+ * genome page's key, so the list is searched by that name and the matching
+ * row's own key and links open the page. Exact name matches win; a search
+ * with one result is taken as the match. null when nothing matches.
+ */
+export async function resolveGenomeForAnomaly(identityName, signal) {
+  const name = String(identityName ?? '').trim();
+  if (!name) return null;
+  await loadWorkloadTypes();
+  const { data } = unwrapGenome(await client.get(`${BASE}/identities`, { params: params({ search: name, limit: 100 }), signal }));
+  const rows = list(data?.items);
+  const row =
+    rows.find((r) => [r.identity_name, r.event_identity_name, r.workload_key, r.display_name].includes(name)) ??
+    (rows.length === 1 ? rows[0] : null);
+  if (!row) return null;
+  const shaped = fleetRow(row);
+  return shaped.openable ? { sourceType: shaped.sourceType, identityName: shaped.identityName } : null;
+}
+
 function fleetRow(row) {
   const baseline = row.baseline ?? {};
   const risk = row.risk ?? {};
@@ -382,10 +403,10 @@ export async function fetchGenomePeers(sourceType, identityName, signal) {
  * `identityName` is an exact match on the alert's identity name (the list's
  * event_identity_name).
  */
-export async function fetchAnomalies({ state, dimension, sourceType, identityName, severity, search, limit = 25, page = 1 } = {}, signal) {
+export async function fetchAnomalies({ state, dimension, sourceType, identityName, severity, search, from, to, eventId, limit = 25, page = 1 } = {}, signal) {
   const { data } = unwrapGenome(
     await client.get(`${BASE}/anomalies`, {
-      params: params({ state, dimension, source_type: sourceType, identity_name: identityName, severity, search, limit, page }),
+      params: params({ state, dimension, source_type: sourceType, identity_name: identityName, severity, search, from, to, event_id: eventId, limit, page }),
       signal,
     }),
   );
@@ -419,8 +440,13 @@ async function fetchAnomalyPages(query, maxPages, signal) {
  * so the Anomalies tab can group and filter without a request per filter.
  * `total` is the real count whatever was loaded; `complete` is false beyond.
  */
-export function fetchAllAnomalies({ state, sourceType, search } = {}, signal) {
-  return fetchAnomalyPages({ state, sourceType, search }, 10, signal);
+export function fetchAllAnomalies({ state, sourceType, search, from } = {}, signal) {
+  return fetchAnomalyPages({ state, sourceType, search, from }, 10, signal);
+}
+
+/** How many anomalies the list API counts for a filter, without reading them. */
+export async function countAnomalies(query = {}, signal) {
+  return (await fetchAnomalies({ ...query, limit: 1, page: 1 }, signal)).total;
 }
 
 /**

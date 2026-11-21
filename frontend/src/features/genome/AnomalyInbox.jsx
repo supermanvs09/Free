@@ -4,6 +4,8 @@ import { ArrowLeft, CheckCircle2, Dna, Repeat2 } from 'lucide-react';
 import { severityMeta } from '../../lib/domain';
 import { formatDateTime, formatNumber, formatRelative } from '../../lib/format';
 import { genomeRoute } from '../../lib/identityLinks';
+import { resolveGenomeForAnomaly } from '../../lib/api/genome';
+import { useQuery } from '../../lib/hooks';
 import { Button } from '../../ui/Button';
 import { Tag } from '../../ui/Tag';
 import { cn } from '../../ui/cn';
@@ -103,11 +105,7 @@ function Investigation({ group, priority, onOpen, canAct, onClose, onBack }) {
             <p className="mt-0.5 truncate text-[12.5px] text-ink-3">{sourceTypeLabel(group.identity?.source_type, group.identity?.identity_name)}</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            {group.identity?.monitored !== false && (
-              <Button as={Link} to={genomeRoute(group.identity?.source_type, group.identity?.identity_name)} size="sm" variant="secondary" icon={Dna}>
-                Genome
-              </Button>
-            )}
+            {group.identity?.monitored !== false && <GenomeButton identityName={group.identity?.identity_name} />}
             <Button size="sm" variant="primary" onClick={() => onOpen(latest, worst)}>
               Review latest
             </Button>
@@ -300,5 +298,27 @@ export function AnomalyInbox({ items, onOpen, canAct, onChanged, emptyState, onS
       </div>
       {modal}
     </>
+  );
+}
+
+/**
+ * Opens the anomaly's genome page. The page key is looked up by searching the
+ * genome list for the anomaly's identity name and using that row's links, so
+ * an event-style name ("ec2:eks-...") still lands on the right page.
+ */
+function GenomeButton({ identityName }) {
+  const target = useQuery((signal) => resolveGenomeForAnomaly(identityName, signal), [identityName]);
+  const found = target.data;
+  if (target.data === null || (target.isError && !found)) {
+    return (
+      <Button size="sm" variant="secondary" icon={Dna} disabled title={target.isError ? 'The genome list could not be searched' : 'No genome page matches this identity'}>
+        Genome
+      </Button>
+    );
+  }
+  return (
+    <Button as={found ? Link : undefined} to={found ? genomeRoute(found.sourceType, found.identityName) : undefined} size="sm" variant="secondary" icon={Dna} disabled={!found} loading={!found}>
+      Genome
+    </Button>
   );
 }

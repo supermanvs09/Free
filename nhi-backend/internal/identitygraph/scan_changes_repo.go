@@ -371,12 +371,15 @@ func (r *ScanChangesRepository) EntityChanges(ctx context.Context, sc *scope.Dat
 	if column == "credential_id" {
 		kind = "lower(c.entity_type) = 'credential'"
 	}
+	// History follows the ARN: a deleted entity's entity_id points at a row
+	// that no longer exists, and a re-created one gets a new id. The id is
+	// used only for an entity with no ARN.
 	var idArg any
-	if uuidLike(id) {
+	if uuidLike(id) && strings.TrimSpace(arn) == "" {
 		idArg = id
 	}
 	q := fmt.Sprintf(`SELECT %s FROM %s
-		WHERE %s AND %s AND (c.entity_id = $3::uuid OR c.entity_arn = $4)
+		WHERE %s AND %s AND ((NULLIF($4, '') IS NOT NULL AND c.entity_arn = $4) OR c.entity_id = $3::uuid)
 		ORDER BY s.scan_end DESC, c.detected_at DESC, c.id DESC
 		LIMIT $5`, changeColumns(sc), changesFrom(sc), changeScope, kind)
 	rows, err := sc.DB.QueryContext(ctx, q, pq.Array(sc.AccountIDs), pq.Array(sc.Regions), idArg, arn, limit+1)

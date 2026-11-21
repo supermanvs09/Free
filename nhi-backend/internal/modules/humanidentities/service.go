@@ -10,10 +10,11 @@ import (
 type HumanIdentityService struct {
 	repo     *identitygraph.HumanIdentityRepository
 	resolver *scope.Resolver
+	activity *identitygraph.ActivityService
 }
 
-func NewHumanIdentityService(repo *identitygraph.HumanIdentityRepository, resolver *scope.Resolver) *HumanIdentityService {
-	return &HumanIdentityService{repo: repo, resolver: resolver}
+func NewHumanIdentityService(repo *identitygraph.HumanIdentityRepository, resolver *scope.Resolver, activity *identitygraph.ActivityService) *HumanIdentityService {
+	return &HumanIdentityService{repo: repo, resolver: resolver, activity: activity}
 }
 
 func (s *HumanIdentityService) GetOverview(ctx context.Context, userID, tenantID, dbName, source string) (*identitygraph.HumanIdentityOverview, error) {
@@ -42,19 +43,16 @@ func (s *HumanIdentityService) GetDetail(ctx context.Context, userID, tenantID, 
 	return s.repo.Detail(ctx, resolved, id)
 }
 
-// GetPermissionSets returns the SSO permission sets. It never returns nil, so
-// the response is [] when there are none.
-func (s *HumanIdentityService) GetPermissionSets(ctx context.Context, userID, tenantID, dbName string) ([]identitygraph.HumanPermissionSetItem, error) {
+// GetPermissionSetCatalog returns IAM policy groups and SSO permission sets,
+// trimmed to the usage view (all, used, unused). Never nil.
+func (s *HumanIdentityService) GetPermissionSetCatalog(ctx context.Context, userID, tenantID, dbName, source, usage string) ([]identitygraph.HumanPermissionSet, error) {
 	resolved, err := s.resolver.Resolve(ctx, userID, tenantID, dbName)
 	if err != nil {
 		return nil, err
 	}
-	items, err := s.repo.PermissionSets(ctx, resolved)
+	sets, err := s.repo.PermissionSetCatalog(ctx, resolved, source, s.activity)
 	if err != nil {
 		return nil, err
 	}
-	if items == nil {
-		items = []identitygraph.HumanPermissionSetItem{}
-	}
-	return items, nil
+	return identitygraph.ApplyPermissionSetUsageFilter(sets, usage), nil
 }

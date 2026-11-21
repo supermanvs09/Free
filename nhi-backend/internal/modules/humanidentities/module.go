@@ -1,6 +1,6 @@
 // Package humanidentities serves the Human Identities API: the overview
 // counts, the paginated identity list, the per-identity detail, and the
-// SSO permission sets.
+// IAM and SSO permission sets.
 package humanidentities
 
 import (
@@ -18,9 +18,9 @@ type Module struct {
 }
 
 // New builds the module.
-func New(resolver *scope.Resolver) *Module {
+func New(resolver *scope.Resolver, activity *identitygraph.ActivityService) *Module {
 	repo := identitygraph.NewHumanIdentityRepository()
-	svc := NewHumanIdentityService(repo, resolver)
+	svc := NewHumanIdentityService(repo, resolver, activity)
 	return &Module{handler: NewHumanIdentityHandler(svc)}
 }
 

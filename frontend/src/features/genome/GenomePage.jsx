@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Download, SearchX, ShieldCheck, ShieldQuestion } from 'lucide-react';
-import { fetchAllAnomalies, fetchGenomeFleet, fetchGenomeSummary } from '../../lib/api/genome';
+import { WINDOW_MS, countAnomalies, fetchAllAnomalies, fetchGenomeFleet, fetchGenomeSummary } from '../../lib/api/genome';
 import { genomeRoute } from '../../lib/identityLinks';
 import { useDebouncedValue, useQuery } from '../../lib/hooks';
 import { SERIES_TOKENS, severityMeta } from '../../lib/domain';
@@ -98,9 +98,11 @@ export default function GenomePage() {
 
   const summary = useQuery((signal) => fetchGenomeSummary({ window }, signal), [window]);
   const fleet = useQuery((signal) => fetchGenomeFleet({}, signal), []);
-  /* The tab badge counts what the tab lists: every open anomaly, any age
-     (the summary card counts only the selected window). */
-  const openTotal = fleet.data ? fleet.data.items.reduce((sum, row) => sum + (Number(row.openAnomalies) || 0), 0) : undefined;
+  /* The tab badge counts what the tab lists: every open anomaly, any age,
+     from the same list API and scope the tab reads (not a sum of the identity
+     rows, which leaves out anomalies of identities not in the list). */
+  const openCount = useQuery((signal) => countAnomalies({ state: 'open' }, signal), []);
+  const openTotal = openCount.data;
 
   const tabs = [
     { value: 'overview', label: 'Overview' },
@@ -259,7 +261,7 @@ function SummaryCards({ cards, window, learningCount, openTab }) {
       key="open"
       as="button"
       type="button"
-      onClick={() => openTab('anomalies')}
+      onClick={() => openTab('anomalies', { since: window })}
       label="Open anomalies"
       value={open}
       tone="high"
@@ -269,7 +271,7 @@ function SummaryCards({ cards, window, learningCount, openTab }) {
       key="critical"
       as="button"
       type="button"
-      onClick={() => openTab('anomalies', { sev: 'CRITICAL' })}
+      onClick={() => openTab('anomalies', { sev: 'CRITICAL', since: window })}
       label="Critical anomalies"
       value={critical}
       tone="critical"
@@ -808,7 +810,14 @@ function AnomaliesTab({ searchParams, setParams }) {
   const view = searchParams.get('view') === 'list' ? 'list' : 'groups';
   const { can } = useAccess();
 
-  const query = useQuery((signal) => fetchAllAnomalies({ state: state === 'all' ? '' : 'open' }, signal), [state]);
+  /* Opened from a summary card, the tab lists what that card counted: the
+     anomalies raised in the card's window (`since`). */
+  const since = WINDOW_WORDS[searchParams.get('since')] ? searchParams.get('since') : '';
+  const query = useQuery(
+    (signal) =>
+      fetchAllAnomalies({ state: state === 'all' ? '' : 'open', from: since ? new Date(Date.now() - WINDOW_MS[since]).toISOString() : undefined }, signal),
+    [state, since],
+  );
   const all = useMemo(() => query.data?.items ?? [], [query.data]);
   const sevOf = (item) => String(item.severity ?? '').toUpperCase();
   /* An anomaly names its identity by ARN; the 12 digits in it are its AWS account. */
@@ -997,6 +1006,17 @@ function AnomaliesTab({ searchParams, setParams }) {
             className="w-full min-w-0 sm:w-72"
             aria-label="Search anomalies"
           />
+          {since && (
+            <button
+              type="button"
+              onClick={() => setParams({ since: '', page: '' })}
+              className="inline-flex items-center gap-1 rounded-full border border-line bg-surface-2 px-2 py-0.5 text-[11.5px] text-ink-2 hover:border-ink-3/50"
+              title="Show every anomaly, any age"
+            >
+              Raised in the last {WINDOW_WORDS[since]} <span aria-hidden="true">×</span>
+              <span className="sr-only">, remove</span>
+            </button>
+          )}
           <ResultCount
             shown={formatNumber(filtered.length)}
             total={formatNumber(query.data && !query.data.complete && query.data.total > all.length ? query.data.total : all.length)}

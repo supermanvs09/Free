@@ -7,6 +7,7 @@ import {
   fetchGenomeListNames,
   fetchGenomeProfile,
   fetchGenomeTimeline,
+  fetchGenomeBaseline,
   genomeLinks,
   resolveDiscoveryIdentity,
   WINDOW_MS,
@@ -445,7 +446,7 @@ function GenomeTab({ sourceType, identityName, window, summary, timeline }) {
             description="The genome is drawn from this identity's own calls. Widen the window, or check back once it has been active."
           />
         </Panel>
-        <BaselineProvenance summary={summary} timeline={timeline} span={span} />
+        <BaselineProvenance sourceType={sourceType} identityName={identityName} summary={summary} timeline={timeline} span={span} />
       </div>
     );
   }
@@ -458,7 +459,7 @@ function GenomeTab({ sourceType, identityName, window, summary, timeline }) {
         <NormalBehaviour dimensions={dimensions} schedule={activitySchedule} span={span} />
         <div className="flex min-w-0 flex-col gap-4">
           <BehaviourRadar dimensions={dimensions} span={span} />
-          <BaselineProvenance summary={summary} timeline={timeline} span={span} />
+          <BaselineProvenance sourceType={sourceType} identityName={identityName} summary={summary} timeline={timeline} span={span} />
         </div>
       </div>
 
@@ -606,7 +607,13 @@ function BehaviourRadar({ dimensions, span }) {
         </ResponsiveContainer>
       </div>
       <p className="text-[12px] text-ink-3">
-        Steadiest: <span className="text-ink-2">{steadiest.trait}</span> ({steadiest.score}%). Most varied: <span className="text-ink-2">{loosest.trait}</span> ({loosest.score}%).
+        {loosest.score === steadiest.score ? (
+          <>Every trait shows the same value {steadiest.score}% of the time{steadiest.score === 100 ? ': nothing varies' : ''}.</>
+        ) : (
+          <>
+            Steadiest: <span className="text-ink-2">{steadiest.trait}</span> ({steadiest.score}%). Most varied: <span className="text-ink-2">{loosest.trait}</span> ({loosest.score}%).
+          </>
+        )}
       </p>
     </Panel>
   );
@@ -755,24 +762,39 @@ function ProfileRow({ label, values, badge, more = 0 }) {
 }
 
 /**
- * What this identity's verdicts are built from: the baselines row (learning
- * period, days learned), the timeline's milestones and versions, and the
- * calls the genome read. Rows the stores have not filled are left out.
+ * What this identity's verdicts are built from, read from the baseline API
+ * (learning period, days learned, data points, model confidence, last
+ * update) and the timeline's versions. Only fields the API fills are shown:
+ * model confidence is left out while the API marks it unavailable, and there
+ * is no drift, VPC or ASN row because the baseline API does not return them.
  */
-function BaselineProvenance({ summary, timeline, span }) {
-  const baseline = summary?.baseline;
-  const at = (type) => timeline.find((item) => item.type === type)?.occurred_at;
+function BaselineProvenance({ sourceType, identityName, summary, timeline, span }) {
+  const query = useQuery((signal) => fetchGenomeBaseline(sourceType, identityName, signal), [sourceType, identityName]);
+  const b = query.data?.status ? query.data : null;
+  const fallback = summary?.baseline;
   const versions = timeline.filter((item) => item.type === 'baseline_version_published');
   const latest = versions.length ? /(\d+)/.exec(versions[0].description ?? '')?.[1] : null;
   const date = (iso) => <span title={formatDateTime(iso)}>{formatDate(iso)}</span>;
+  const num = (v) => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
+  const required = b?.required_days ?? fallback?.required_days;
+  const built = b?.built_days ?? fallback?.built_days;
+  const status = b?.status ?? fallback?.status;
+  const active = String(status ?? '').toLowerCase() === 'active';
+  const established = b?.active_since ?? timeline.find((item) => item.type === 'baseline_established')?.occurred_at;
   const rows = [
-    baseline && ['Learning period', `${formatNumber(baseline.required_days)} ${baseline.required_days === 1 ? 'day' : 'days'}`],
-    baseline && ['Days learned', `${formatNumber(baseline.built_days)} (${titleCaseEnum(baseline.status).toLowerCase()})`],
-    at('learning_started') && ['Learning started', date(at('learning_started'))],
-    at('baseline_established') && ['Baseline established', date(at('baseline_established'))],
+    num(required) && ['Learning period', `${formatNumber(required)} ${Number(required) === 1 ? 'day' : 'days'}`],
+    num(built) && [
+      'Days learned',
+      `${formatNumber(built)}${active ? ' (established)' : num(b?.days_remaining) && b.days_remaining > 0 ? `, ${formatNumber(b.days_remaining)} to go` : ' (learning)'}`,
+    ],
+    num(b?.data_points) && ['Data points', formatNumber(b.data_points)],
+    b?.model_confidence_available === true && num(b.model_confidence_percent) && ['Model confidence', `${Math.round(Number(b.model_confidence_percent))}%`],
+    b?.updated_at && ['Last model update', <span key="u" title={formatDateTime(b.updated_at)}>{formatRelative(b.updated_at)}</span>],
+    established && ['Baseline established', date(established)],
+    b?.first_seen_date && ['First seen', date(b.first_seen_date)],
     latest && ['Current version', `Version ${latest}, published ${formatRelative(versions[0].occurred_at)}`],
     summary?.callsInWindow !== null && summary?.callsInWindow !== undefined && [`Calls, last ${span}`, formatNumber(summary.callsInWindow)],
-    summary?.identity?.region && ['Region', summary.identity.region],
+    summary?.identity?.region && ['Primary region', summary.identity.region],
     summary?.identity?.role_arn && [
       'Runs as',
       <CopyableValue key="role" value={summary.identity.role_arn} className="text-[12.5px]">
@@ -783,7 +805,9 @@ function BaselineProvenance({ summary, timeline, span }) {
   return (
     <Panel prominence="quiet" className="animate-rise" data-stagger="" style={{ '--stagger': 1 }}>
       <PanelHeader prominence="quiet" title="Baseline provenance" subtitle="What the verdicts on this identity are built from." />
-      {rows.length === 0 ? (
+      {query.isLoading && !query.data ? (
+        <p className="mt-3 text-[12.5px] text-ink-3">Loading…</p>
+      ) : rows.length === 0 ? (
         <p className="mt-3 text-[12.5px] text-ink-3">No baseline has been recorded for this identity yet.</p>
       ) : (
         <dl className="mt-2 flex flex-col">

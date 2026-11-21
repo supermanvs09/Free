@@ -235,15 +235,43 @@ func (h *HumanIdentityHandler) Get(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// PermissionSets handles GET /api/v1/human-identities/permission-sets.
-// It returns SSO permission sets only, with their assigned users and accounts.
+// humanPermissionSetsAllowed lists the query parameters GET /human-identities/permission-sets accepts.
+var humanPermissionSetsAllowed = map[string]struct{}{"source": {}, "usage": {}}
+
+func parseUsageParam(raw string) (string, bool) {
+	u := strings.ToLower(strings.TrimSpace(raw))
+	switch u {
+	case "", "all":
+		return "all", true
+	case "used", "unused":
+		return u, true
+	}
+	return "", false
+}
+
+// PermissionSets handles GET /api/v1/human-identities/permission-sets?source=all|iam|sso&usage=all|used|unused.
+// It returns IAM policy groups and SSO permission sets with their actions and assigned identities.
 func (h *HumanIdentityHandler) PermissionSets(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.GetClaims(r)
 	if claims == nil {
 		writeHumanError(w, http.StatusUnauthorized, "Unauthorized", "UNAUTHORIZED")
 		return
 	}
-	result, err := h.service.GetPermissionSets(r.Context(), claims.UserID, claims.TenantID, claims.DBName)
+	if httpx.RejectUnknownQuery(w, r, humanPermissionSetsAllowed) {
+		return
+	}
+	q := r.URL.Query()
+	src, ok := parseSourceParam(q.Get("source"))
+	if !ok {
+		writeHumanError(w, http.StatusBadRequest, "source must be all, iam, or sso", "INVALID_SOURCE")
+		return
+	}
+	usage, ok := parseUsageParam(q.Get("usage"))
+	if !ok {
+		writeHumanError(w, http.StatusBadRequest, "usage must be all, used, or unused", "INVALID_USAGE")
+		return
+	}
+	result, err := h.service.GetPermissionSetCatalog(r.Context(), claims.UserID, claims.TenantID, claims.DBName, src, usage)
 	if err != nil {
 		logging.FromContext(r.Context()).Error("human permission sets failed", "err", err)
 		writeHumanError(w, http.StatusInternalServerError, "Failed to retrieve permission sets", "HUMAN_PERMISSION_SETS_FAILED")

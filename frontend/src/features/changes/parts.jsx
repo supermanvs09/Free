@@ -13,6 +13,7 @@ import {
   ListChecks,
   PencilLine,
   ScrollText,
+  ShieldAlert,
 } from 'lucide-react';
 import { changeEntityRoute, fetchScanChanges, scanChangesRoute } from '../../lib/api/changes';
 import { useQuery } from '../../lib/hooks';
@@ -20,6 +21,7 @@ import { formatDateTime, formatNumber, formatRelative, humanizeToken } from '../
 import { CopyableValue } from '../../ui/Copyable';
 import { cn, TONE_BG } from '../../ui/cn';
 import { DIFF_LIMIT, diffValues, isPlainObject, parseJsonish } from '../../lib/jsonDiff';
+import { asActions, changeRisk, changeStory, groupRisk, groupStory, isRiskyAction, shortName } from './story';
 
 /* ── Vocabulary ──────────────────────────────────────────────────────────── */
 
@@ -294,18 +296,27 @@ function ActionList({ title, actions, tone }) {
         {title} · {actions.length}
       </p>
       <ul className="mt-1.5 flex flex-wrap gap-1.5">
-        {actions.map((action) => (
-          <li
-            key={action}
-            className={cn(
-              'rounded border px-1.5 py-0.5 font-mono text-[11.5px]',
-              tone === 'low' ? 'border-low/30 bg-low-soft text-low' : 'border-critical/30 bg-critical-soft text-critical line-through decoration-critical/60',
-            )}
-          >
-            {tone === 'low' ? '+ ' : '− '}
-            {action}
-          </li>
-        ))}
+        {actions.map((action) => {
+          const risky = tone === 'low' && isRiskyAction(action);
+          return (
+            <li
+              key={action}
+              title={risky ? 'Risky: grants admin or lets it act as someone else' : undefined}
+              className={cn(
+                'rounded border px-1.5 py-0.5 font-mono text-[11.5px]',
+                risky
+                  ? 'border-critical/50 bg-critical-soft font-semibold text-critical'
+                  : tone === 'low'
+                    ? 'border-low/30 bg-low-soft text-low'
+                    : 'border-line bg-surface-2 text-ink-3 line-through decoration-ink-3/60',
+              )}
+            >
+              {tone === 'low' ? '+ ' : '− '}
+              {action}
+              {risky && <span className="ml-1 font-sans text-[10px] tracking-wide uppercase">risky</span>}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
@@ -323,8 +334,8 @@ const SHOWN_ELSEWHERE = new Set(['fields_changed', 'actions_added', 'actions_rem
 export function ChangeDetails({ change }) {
   const details = change.details ?? {};
   const fields = Array.isArray(details.fields_changed) ? details.fields_changed : [];
-  const added = Array.isArray(details.actions_added) ? details.actions_added : [];
-  const removed = Array.isArray(details.actions_removed) ? details.actions_removed : [];
+  const added = asActions(details.actions_added);
+  const removed = asActions(details.actions_removed);
   const facts = Object.entries(details).filter(([key, value]) => !SHOWN_ELSEWHERE.has(key) && value !== undefined);
   const hasTrust = details.source || details.target;
 
@@ -350,8 +361,8 @@ export function ChangeDetails({ change }) {
 
       {(added.length > 0 || removed.length > 0) && (
         <div className="grid gap-4 @min-[34rem]:grid-cols-2">
-          <ActionList title="Added" actions={added} tone="low" />
-          <ActionList title="Removed" actions={removed} tone="critical" />
+          <ActionList title="Gained" actions={added} tone="low" />
+          <ActionList title="Lost" actions={removed} tone="critical" />
         </div>
       )}
 
@@ -440,8 +451,9 @@ export function ChangeRow({ change, layout = 'table', density = 'comfortable' })
         <div className="flex flex-wrap items-center gap-2">
           <ChangeBadge type={change.changeType} />
           <EntityLabel type={change.entityType} />
+          <RiskBadge risk={changeRisk(change)} />
         </div>
-        <p className="mt-1.5 text-[13px] font-medium text-ink">{change.summary}</p>
+        <p className="mt-1.5 text-[13px] font-medium text-ink">{changeStory(change) ?? change.summary}</p>
         {change.arn && (
           <p className="mt-0.5 min-w-0 text-[11.5px] text-ink-3">
             <CopyableValue value={change.arn} className="max-w-full" />
@@ -486,8 +498,9 @@ export function ChangeRow({ change, layout = 'table', density = 'comfortable' })
           open && 'bg-surface-2/70',
         )}
       >
-        <span className="flex items-center gap-2">
+        <span className="flex flex-wrap items-center gap-1.5">
           <ChangeBadge type={change.changeType} />
+          <RiskBadge risk={changeRisk(change)} />
         </span>
         <EntityLabel type={change.entityType} />
         <span className="min-w-0">
@@ -498,7 +511,7 @@ export function ChangeRow({ change, layout = 'table', density = 'comfortable' })
             onClick={() => setOpen((value) => !value)}
             className="block text-left text-[13px] font-medium text-ink after:absolute after:inset-0 after:content-['']"
           >
-            {change.summary}
+            {changeStory(change) ?? change.summary}
           </button>
           <span className="change-meta mt-0.5 block truncate text-[11.5px] text-ink-3">
             {entityTo && change.name ? (
@@ -532,6 +545,102 @@ export function ChangeRow({ change, layout = 'table', density = 'comfortable' })
             {evidence && <EvidenceCard evidence={evidence} changeType={change.changeType} />}
           </div>
         </div>
+      )}
+    </li>
+  );
+}
+
+/* ── Risk and grouped stories ────────────────────────────────────────────── */
+
+/** Critical or High, with the reasons on hover. Nothing for an ordinary change. */
+export function RiskBadge({ risk }) {
+  if (!risk) return null;
+  const critical = risk.level === 'critical';
+  return (
+    <span
+      title={risk.reasons.join(' · ')}
+      className={cn(
+        'inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10.5px] font-semibold',
+        critical ? 'border-critical/40 bg-critical-soft text-critical' : 'border-high/40 bg-high-soft text-high',
+      )}
+    >
+      <ShieldAlert aria-hidden="true" className="size-3" />
+      {critical ? 'Critical risk' : 'High risk'}
+    </span>
+  );
+}
+
+/**
+ * Several changes one scan made to one ARN, as one row that opens to the
+ * individual changes: "3 related changes" instead of three unconnected rows.
+ */
+export function ChangeGroup({ changes, density }) {
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+  const lead = changes[0];
+  const risk = groupRisk(changes);
+  const story = groupStory(changes);
+  const lines = changes.map((c) => changeStory(c) ?? c.summary);
+  const types = [...new Set(changes.map((c) => c.changeType))];
+  const entityTo = changeEntityRoute(lead);
+  return (
+    <li className="border-b border-line last:border-b-0">
+      <div
+        className={cn(
+          'relative grid w-full items-center gap-x-4 gap-y-2 px-4 text-left transition-colors hover:bg-surface-2/70 sm:px-5',
+          density === 'compact' ? 'py-1.5' : 'py-3.5',
+          CHANGE_GRID,
+          open && 'bg-surface-2/70',
+        )}
+      >
+        <span className="flex flex-wrap items-center gap-1.5">
+          {types.length === 1 ? (
+            <ChangeBadge type={types[0]} />
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-full border border-medium/35 bg-medium-soft px-2 py-0.5 text-[11px] font-semibold tracking-wide text-medium uppercase">
+              <GitCompareArrows aria-hidden="true" className="size-3" />
+              Related
+            </span>
+          )}
+          <RiskBadge risk={risk} />
+        </span>
+        <span className="text-[12px] text-ink-2">{formatNumber(changes.length)} changes</span>
+        <span className="min-w-0">
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-controls={panelId}
+            onClick={() => setOpen((value) => !value)}
+            className="block text-left text-[13px] font-medium text-ink after:absolute after:inset-0 after:content-['']"
+          >
+            {story ?? lines[0]}
+          </button>
+          <span className="mt-0.5 block truncate text-[11.5px] text-ink-3">
+            {entityTo && lead.name ? (
+              <Link to={entityTo} className="relative z-[1] font-medium text-ink-2 hover:text-brand hover:underline">
+                {lead.name}
+              </Link>
+            ) : (
+              lead.name || shortName(lead.arn)
+            )}
+            {' · '}
+            {story ? lines.join(' · ') : `and ${formatNumber(changes.length - 1)} more in the same scan`}
+          </span>
+        </span>
+        <span className="hidden min-w-0 truncate font-mono text-[11.5px] text-ink-3 @min-[56rem]:block" title={lead.arn}>
+          {lead.arn}
+        </span>
+        <span className="text-[12px] whitespace-nowrap text-ink-3" title={formatDateTime(lead.detectedAt)}>
+          {formatRelative(lead.detectedAt)}
+        </span>
+        <ChevronDown aria-hidden="true" className={cn('hidden size-4 justify-self-end text-ink-3 transition-transform @min-[56rem]:block', open && 'rotate-180')} />
+      </div>
+      {open && (
+        <ul id={panelId} className="border-t border-line bg-surface-2/30 pl-4 sm:pl-6">
+          {changes.map((change) => (
+            <ChangeRow key={change.id} change={change} density={density} />
+          ))}
+        </ul>
       )}
     </li>
   );

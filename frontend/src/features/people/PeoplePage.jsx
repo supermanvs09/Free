@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ArrowDownWideNarrow, ArrowUpNarrowWide, Clock3, Crown, Link2Off, ShieldOff, UserRoundX, UsersRound } from 'lucide-react';
-import { fetchHumanIdentities, fetchHumanOverview, fetchPermissionSets } from '../../lib/api/humanIdentities';
+import { fetchHumanIdentities, fetchHumanOverview } from '../../lib/api/humanIdentities';
 import { useDebouncedValue, useQuery } from '../../lib/hooks';
 import { formatNumber, formatRelative, formatRelativeShort } from '../../lib/format';
 import { DiscoveryTabs, PageHeader } from '../../shell/PageHeader';
@@ -22,8 +22,9 @@ import { cn } from '../../ui/cn';
 import { fetchPostureScoreIndex } from '../../lib/api/posture';
 import { BandTag, ScoreRing } from '../posture/parts';
 import { PersonDrawer } from './PersonDrawer';
+import { PermissionSets } from './PermissionSets';
 import { Avatar, CoverageRing, LegendRow } from './parts';
-import { HUMAN_TYPE_LABEL, COLUMN_SORT, DEFAULT_SORT, MFA_OPTIONS, RISK_OPTIONS, sessionLength, SORT_FIELDS, SOURCE_LABEL, SOURCE_OPTIONS, STATUS_OPTIONS, daysSince, humanTypeLabel, personName, readSort, statusMeta } from './peopleMeta';
+import { HUMAN_TYPE_LABEL, COLUMN_SORT, DEFAULT_SORT, MFA_OPTIONS, RISK_OPTIONS, SORT_FIELDS, SOURCE_LABEL, SOURCE_OPTIONS, STATUS_OPTIONS, daysSince, humanTypeLabel, personName, readSort, statusMeta } from './peopleMeta';
 
 /**
  * Human identities: the people who sign in to AWS, next to the workloads in
@@ -361,7 +362,7 @@ export default function PeoplePage() {
         </Panel>
       </WorkArea>
 
-      {source === 'sso' && <PermissionSets />}
+      <PermissionSets source={source} />
 
       <PersonDrawer id={personId} onClose={() => update({ person: '' }, { keepPage: true })} />
     </div>
@@ -463,64 +464,6 @@ function RiskTile({ label, value, icon, bad, caption }) {
   const known = Number.isFinite(value);
   return (
     <MetricTile label={label} value={known ? value : null} tone={known && value > 0 ? bad : 'low'} icon={icon} caption={known && value === 0 ? 'None' : caption} className="animate-rise" />
-  );
-}
-
-/* ── Permission sets (single sign-on) ────────────────────────────────────── */
-
-/** What each SSO permission set grants and to whom. Shown under "Single sign-on". */
-function PermissionSets() {
-  const query = useQuery((signal) => fetchPermissionSets(signal), []);
-  const sets = query.data ?? [];
-  return (
-    <Panel prominence="quiet" className="animate-rise">
-      <PanelHeader prominence="quiet" title="Permission sets" subtitle="What single sign-on users can do in your accounts, and who holds each set." />
-      {query.isError && !query.data ? (
-        <ErrorState compact error={query.error} onRetry={query.refetch} title="Permission sets could not be loaded" />
-      ) : !query.data ? (
-        <p className="mt-3 text-[12.5px] text-ink-3">Loading…</p>
-      ) : sets.length === 0 ? (
-        <p className="mt-3 text-[12.5px] text-ink-3">No permission set is assigned to a single sign-on user.</p>
-      ) : (
-        <ul className="mt-3 divide-y divide-line">
-          {sets.map((set) => (
-            <li key={set.permission_set_arn} className="py-2.5">
-              <details>
-                <summary className="flex cursor-pointer list-none items-center gap-3">
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[12.5px] font-semibold text-ink">{set.permission_set_name || set.permission_set_arn}</span>
-                    <span className="block text-[11.5px] text-ink-3">
-                      {formatNumber(set.assigned_user_count)} {set.assigned_user_count === 1 ? 'user' : 'users'} · {formatNumber(set.account_count)}{' '}
-                      {set.account_count === 1 ? 'account' : 'accounts'}
-                      {set.session_duration ? ` · ${sessionLength(set.session_duration)} sessions` : ''}
-                    </span>
-                  </span>
-                  {/admin/i.test(`${set.permission_set_name} ${(set.policies ?? []).join(' ')}`) && (
-                    <Tag tone="high" size="sm">
-                      Admin-level
-                    </Tag>
-                  )}
-                </summary>
-                <div className="mt-2 grid gap-2 text-[11.5px] text-ink-2 sm:grid-cols-3">
-                  <p>
-                    <span className="block font-semibold text-ink-3">Policies</span>
-                    {(set.policies ?? []).length ? set.policies.map((p) => <span key={p} className="block truncate font-mono" title={p}>{p.split('/').pop()}</span>) : 'Inline only'}
-                  </p>
-                  <p>
-                    <span className="block font-semibold text-ink-3">Accounts</span>
-                    {(set.account_ids ?? []).map((a) => <span key={a} className="block font-mono">{a}</span>)}
-                  </p>
-                  <p>
-                    <span className="block font-semibold text-ink-3">Users</span>
-                    {(set.assigned_users ?? []).map((u) => <span key={u} className="block truncate" title={u}>{u}</span>)}
-                  </p>
-                </div>
-              </details>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Panel>
   );
 }
 
