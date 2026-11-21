@@ -1,9 +1,7 @@
-import { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowLeftRight,
   ArrowRight,
-  ChevronDown,
   GitCompareArrows,
   CircleMinus,
   CirclePlus,
@@ -15,13 +13,13 @@ import {
   ScrollText,
   ShieldAlert,
 } from 'lucide-react';
-import { changeEntityRoute, fetchScanChanges, scanChangesRoute } from '../../lib/api/changes';
+import { fetchScanChanges, scanChangesRoute } from '../../lib/api/changes';
 import { useQuery } from '../../lib/hooks';
 import { formatDateTime, formatNumber, formatRelative, humanizeToken } from '../../lib/format';
 import { CopyableValue } from '../../ui/Copyable';
-import { cn, TONE_BG } from '../../ui/cn';
+import { cn } from '../../ui/cn';
 import { DIFF_LIMIT, diffValues, isPlainObject, parseJsonish } from '../../lib/jsonDiff';
-import { asActions, changeRisk, changeStory, groupRisk, groupStory, isRiskyAction, shortName } from './story';
+import { asActions, isRiskyAction } from './story';
 
 /* ── Vocabulary ──────────────────────────────────────────────────────────── */
 
@@ -211,7 +209,7 @@ export function fieldLabel(field) {
 }
 
 /** A JSON value as words: never raw JSON on screen. */
-function Value({ value, mono = false }) {
+export function Value({ value, mono = false }) {
   if (value === null || value === undefined || value === '') return <span className="text-ink-3 italic">none</span>;
   if (typeof value === 'boolean') return <span>{value ? 'Yes' : 'No'}</span>;
   if (Array.isArray(value)) {
@@ -430,126 +428,6 @@ export function EvidenceCard({ evidence, changeType }) {
   );
 }
 
-/* ── One change ──────────────────────────────────────────────────────────── */
-
-/** Row grid for the scan changes list (header and rows share it). */
-export const CHANGE_GRID = '@min-[56rem]:grid-cols-[7.25rem_8.5rem_minmax(0,1fr)_minmax(0,15rem)_7.5rem_2rem]';
-
-/**
- * One change as a row: type, entity, the sentence, the ARN and when, with
- * the details and CloudTrail evidence behind a disclosure.
- */
-export function ChangeRow({ change, layout = 'table', density = 'comfortable' }) {
-  const [open, setOpen] = useState(false);
-  const panelId = useId();
-  const evidence = change.evidence;
-
-  if (layout === 'timeline') {
-    return (
-      <li className="relative pl-6">
-        <span aria-hidden="true" className={cn('absolute top-1.5 left-0 size-2.5 rounded-full border-2 border-surface', TONE_BG[CHANGE_META[change.changeType]?.tone ?? 'medium'])} />
-        <div className="flex flex-wrap items-center gap-2">
-          <ChangeBadge type={change.changeType} />
-          <EntityLabel type={change.entityType} />
-          <RiskBadge risk={changeRisk(change)} />
-        </div>
-        <p className="mt-1.5 text-[13px] font-medium text-ink">{changeStory(change) ?? change.summary}</p>
-        {change.arn && (
-          <p className="mt-0.5 min-w-0 text-[11.5px] text-ink-3">
-            <CopyableValue value={change.arn} className="max-w-full" />
-          </p>
-        )}
-        {evidence && (
-          <div className="mt-2.5 max-w-2xl">
-            <EvidenceCard evidence={evidence} changeType={change.changeType} />
-          </div>
-        )}
-        <button
-          type="button"
-          aria-expanded={open}
-          aria-controls={panelId}
-          onClick={() => setOpen((value) => !value)}
-          className="mt-2 inline-flex items-center gap-1 text-[12px] font-medium text-brand hover:underline"
-        >
-          {open ? 'Hide details' : 'Show details'}
-          <ChevronDown aria-hidden="true" className={cn('size-3.5 transition-transform', open && 'rotate-180')} />
-        </button>
-        {open && (
-          <div id={panelId} className="@container mt-2.5 max-w-3xl rounded-[var(--radius-control)] border border-line bg-surface-2 p-3.5">
-            <ChangeDetails change={change} />
-          </div>
-        )}
-      </li>
-    );
-  }
-
-  const entityTo = changeEntityRoute(change);
-  const place = [change.accountId, change.region].filter(Boolean).join(' · ');
-
-  /* The whole row toggles the details (the summary button's ::after covers
-     it), while the entity name above that layer is its own link. */
-  return (
-    <li className="border-b border-line last:border-b-0">
-      <div
-        className={cn(
-          'relative grid w-full items-center gap-x-4 gap-y-2 px-4 text-left transition-colors hover:bg-surface-2/70 sm:px-5',
-          density === 'compact' ? 'py-1.5 [&_.change-meta]:hidden' : 'py-3.5',
-          CHANGE_GRID,
-          open && 'bg-surface-2/70',
-        )}
-      >
-        <span className="flex flex-wrap items-center gap-1.5">
-          <ChangeBadge type={change.changeType} />
-          <RiskBadge risk={changeRisk(change)} />
-        </span>
-        <EntityLabel type={change.entityType} />
-        <span className="min-w-0">
-          <button
-            type="button"
-            aria-expanded={open}
-            aria-controls={panelId}
-            onClick={() => setOpen((value) => !value)}
-            className="block text-left text-[13px] font-medium text-ink after:absolute after:inset-0 after:content-['']"
-          >
-            {changeStory(change) ?? change.summary}
-          </button>
-          <span className="change-meta mt-0.5 block truncate text-[11.5px] text-ink-3">
-            {entityTo && change.name ? (
-              <Link to={entityTo} className="relative z-[1] font-medium text-ink-2 hover:text-brand hover:underline">
-                {change.name}
-              </Link>
-            ) : (
-              change.name
-            )}
-            {change.name && place ? ' · ' : ''}
-            {place}
-          </span>
-        </span>
-        <span className="hidden min-w-0 truncate font-mono text-[11.5px] text-ink-3 @min-[56rem]:block" title={change.arn}>
-          {change.arn}
-        </span>
-        <span className="text-[12px] whitespace-nowrap text-ink-3" title={formatDateTime(change.detectedAt)}>
-          {formatRelative(change.detectedAt)}
-        </span>
-        <ChevronDown aria-hidden="true" className={cn('hidden size-4 justify-self-end text-ink-3 transition-transform @min-[56rem]:block', open && 'rotate-180')} />
-      </div>
-      {open && (
-        <div id={panelId} className="@container border-t border-line bg-surface-2/40 px-4 py-4 sm:px-5">
-          <div className="grid gap-5 @min-[60rem]:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]">
-            <div className="min-w-0">
-              <p className="mb-3 min-w-0 text-[12px] text-ink-3">
-                <CopyableValue value={change.arn} />
-              </p>
-              <ChangeDetails change={change} />
-            </div>
-            {evidence && <EvidenceCard evidence={evidence} changeType={change.changeType} />}
-          </div>
-        </div>
-      )}
-    </li>
-  );
-}
-
 /* ── Risk and grouped stories ────────────────────────────────────────────── */
 
 /** Critical or High, with the reasons on hover. Nothing for an ordinary change. */
@@ -567,81 +445,5 @@ export function RiskBadge({ risk }) {
       <ShieldAlert aria-hidden="true" className="size-3" />
       {critical ? 'Critical risk' : 'High risk'}
     </span>
-  );
-}
-
-/**
- * Several changes one scan made to one ARN, as one row that opens to the
- * individual changes: "3 related changes" instead of three unconnected rows.
- */
-export function ChangeGroup({ changes, density }) {
-  const [open, setOpen] = useState(false);
-  const panelId = useId();
-  const lead = changes[0];
-  const risk = groupRisk(changes);
-  const story = groupStory(changes);
-  const lines = changes.map((c) => changeStory(c) ?? c.summary);
-  const types = [...new Set(changes.map((c) => c.changeType))];
-  const entityTo = changeEntityRoute(lead);
-  return (
-    <li className="border-b border-line last:border-b-0">
-      <div
-        className={cn(
-          'relative grid w-full items-center gap-x-4 gap-y-2 px-4 text-left transition-colors hover:bg-surface-2/70 sm:px-5',
-          density === 'compact' ? 'py-1.5' : 'py-3.5',
-          CHANGE_GRID,
-          open && 'bg-surface-2/70',
-        )}
-      >
-        <span className="flex flex-wrap items-center gap-1.5">
-          {types.length === 1 ? (
-            <ChangeBadge type={types[0]} />
-          ) : (
-            <span className="inline-flex items-center gap-1 rounded-full border border-medium/35 bg-medium-soft px-2 py-0.5 text-[11px] font-semibold tracking-wide text-medium uppercase">
-              <GitCompareArrows aria-hidden="true" className="size-3" />
-              Related
-            </span>
-          )}
-          <RiskBadge risk={risk} />
-        </span>
-        <span className="text-[12px] text-ink-2">{formatNumber(changes.length)} changes</span>
-        <span className="min-w-0">
-          <button
-            type="button"
-            aria-expanded={open}
-            aria-controls={panelId}
-            onClick={() => setOpen((value) => !value)}
-            className="block text-left text-[13px] font-medium text-ink after:absolute after:inset-0 after:content-['']"
-          >
-            {story ?? lines[0]}
-          </button>
-          <span className="mt-0.5 block truncate text-[11.5px] text-ink-3">
-            {entityTo && lead.name ? (
-              <Link to={entityTo} className="relative z-[1] font-medium text-ink-2 hover:text-brand hover:underline">
-                {lead.name}
-              </Link>
-            ) : (
-              lead.name || shortName(lead.arn)
-            )}
-            {' · '}
-            {story ? lines.join(' · ') : `and ${formatNumber(changes.length - 1)} more in the same scan`}
-          </span>
-        </span>
-        <span className="hidden min-w-0 truncate font-mono text-[11.5px] text-ink-3 @min-[56rem]:block" title={lead.arn}>
-          {lead.arn}
-        </span>
-        <span className="text-[12px] whitespace-nowrap text-ink-3" title={formatDateTime(lead.detectedAt)}>
-          {formatRelative(lead.detectedAt)}
-        </span>
-        <ChevronDown aria-hidden="true" className={cn('hidden size-4 justify-self-end text-ink-3 transition-transform @min-[56rem]:block', open && 'rotate-180')} />
-      </div>
-      {open && (
-        <ul id={panelId} className="border-t border-line bg-surface-2/30 pl-4 sm:pl-6">
-          {changes.map((change) => (
-            <ChangeRow key={change.id} change={change} density={density} />
-          ))}
-        </ul>
-      )}
-    </li>
   );
 }

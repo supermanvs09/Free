@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, GitCompareArrows, History, SearchX } from 'lucide-react';
 import { fetchScanChanges, fetchScans, scanChangesRoute } from '../../lib/api/changes';
@@ -16,13 +16,12 @@ import { ListSkeleton, Skeleton } from '../../ui/Skeleton';
 import { EmptyState, ErrorState } from '../../ui/States';
 import { SegmentedControl } from '../../ui/Tabs';
 import { Tag } from '../../ui/Tag';
-import { TableSettings } from '../../ui/TableTools';
 import { cn } from '../../ui/cn';
 import { useSync } from '../sync/SyncContext';
-import { CHANGE_GRID, CHANGE_META, CHANGE_TYPES, ChangeGroup, ChangeRow, ENTITY_META, ENTITY_TYPES } from './parts';
+import { CHANGE_META, CHANGE_TYPES, ENTITY_META, ENTITY_TYPES } from './parts';
+import { ChangesExplorer } from './ChangesExplorer';
 import { groupChanges, groupRisk } from './story';
 
-const PAGE_SIZE = 25;
 
 /* How long the scan ran; null unless both ends are recorded and differ (the
    scanner stamps both with one time when it does not track the start). */
@@ -62,7 +61,7 @@ export default function ScanChangesPage() {
   const changeType = CHANGE_TYPES.includes(searchParams.get('change_type')) ? searchParams.get('change_type') : '';
   const entityType = ENTITY_TYPES.includes(searchParams.get('entity_type')) ? searchParams.get('entity_type') : '';
   const page = Math.max(1, Number.parseInt(searchParams.get('page') || '1', 10) || 1);
-  const pageLimit = [10, 25, 50, 100].includes(Number(searchParams.get('limit'))) ? Number(searchParams.get('limit')) : PAGE_SIZE;
+  const pageLimit = [10, 25, 50, 100].includes(Number(searchParams.get('limit'))) ? Number(searchParams.get('limit')) : 100;
   /* Risk is read from each change's details in the browser, so "High risk
      only" reads the largest page the API serves and filters that.
      ponytail: page-local filter; move risk into the query if scans exceed 100 changes routinely. */
@@ -103,22 +102,6 @@ export default function ScanChangesPage() {
   const listRef = useRef(null);
   const showList = () =>
     window.requestAnimationFrame(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-  const [density, setDensity] = useState(() => {
-    try {
-      return localStorage.getItem('dna.changes.density') === 'compact' ? 'compact' : 'comfortable';
-    } catch {
-      return 'comfortable';
-    }
-  });
-  const setDensityPref = (value) => {
-    setDensity(value);
-    try {
-      localStorage.setItem('dna.changes.density', value);
-    } catch {
-      /* per-viewer convenience */
-    }
-  };
-
   const data = query.data;
   const scan = data?.scan;
   const summary = data?.summary;
@@ -240,9 +223,6 @@ export default function ScanChangesPage() {
         />
       )}
 
-      {(scansQuery.data?.length ?? 0) >= 2 && (
-        <ScanHistory scans={scansQuery.data} currentId={scan?.id} onOpen={(id) => navigate(scanChangesRoute(id))} />
-      )}
 
       <Panel ref={listRef} prominence="lead" flush className="scroll-mt-28 overflow-hidden" data-list-top="">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
@@ -281,7 +261,6 @@ export default function ScanChangesPage() {
             >
               High risk only
             </Button>
-            <TableSettings density={density} onDensityChange={setDensityPref} />
             {filtered && (
               <Button variant="ghost" size="sm" onClick={clearFilters}>
                 Clear filters
@@ -290,17 +269,6 @@ export default function ScanChangesPage() {
           </div>
         </div>
 
-        <div
-          aria-hidden="true"
-          className={cn('hidden items-center gap-x-4 border-b border-line bg-surface-2 px-4 py-2 text-[11px] font-medium text-ink-3 sm:px-5 @min-[56rem]:grid', CHANGE_GRID)}
-        >
-          <span>Change</span>
-          <span>Entity</span>
-          <span>What changed</span>
-          <span>ARN</span>
-          <span>Detected</span>
-          <span />
-        </div>
 
         {!data ? (
           <div className="p-5">
@@ -323,15 +291,9 @@ export default function ScanChangesPage() {
             <NoChanges scan={scan} summary={summary} filtered={filtered} onClear={clearFilters} />
           )
         ) : (
-          <ul aria-busy={query.isRefreshing || undefined} className={cn('transition-opacity', (query.isRefreshing || query.isLoading) && 'opacity-60')}>
-            {groups.map((group) =>
-              group.changes.length === 1 ? (
-                <ChangeRow key={group.changes[0].id} change={group.changes[0]} density={density} />
-              ) : (
-                <ChangeGroup key={group.key} changes={group.changes} density={density} />
-              ),
-            )}
-          </ul>
+          <div aria-busy={query.isRefreshing || undefined} className={cn('@container transition-opacity', (query.isRefreshing || query.isLoading) && 'opacity-60')}>
+            <ChangesExplorer changes={groups.flatMap((group) => group.changes)} />
+          </div>
         )}
         {highRisk && data && data.pagination.total > data.pagination.limit && (
           <p className="border-t border-line px-4 py-2 text-[12px] text-ink-3 sm:px-5">
@@ -346,10 +308,14 @@ export default function ScanChangesPage() {
             total={data.pagination.total}
             unit={data.pagination.total === 1 ? 'change' : 'changes'}
             onPageChange={(value) => setParams({ page: value })}
-            onPageSizeChange={(value) => setParams({ limit: value === PAGE_SIZE ? '' : value, page: '' })}
+            onPageSizeChange={(value) => setParams({ limit: value === 100 ? '' : value, page: '' })}
           />
         )}
       </Panel>
+
+      {(scansQuery.data?.length ?? 0) >= 2 && (
+        <ScanHistory scans={scansQuery.data} currentId={scan?.id} onOpen={(id) => navigate(scanChangesRoute(id))} />
+      )}
     </div>
   );
 }

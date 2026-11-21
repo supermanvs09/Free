@@ -5,7 +5,7 @@ import { formatNumber, formatRelative } from '../../lib/format';
 import { useQuery } from '../../lib/hooks';
 import { DetailSkeleton } from '../../ui/Skeleton';
 import { EmptyState, InlineError } from '../../ui/States';
-import { ChangeRow } from './parts';
+import { ChangeCard } from './ChangesExplorer';
 import { scanTimeLabel } from './RecentChangesCard';
 
 /**
@@ -65,9 +65,9 @@ export function EntityChangesTab({ kind, id }) {
               Everything this scan changed
             </Link>
           </div>
-          <ol className="relative flex flex-col gap-5 before:absolute before:top-2 before:bottom-2 before:left-[4px] before:w-px before:bg-line">
+          <ol className="flex flex-col gap-3">
             {group.items.map((change) => (
-              <ChangeRow key={change.id} change={change} layout="timeline" />
+              <ChangeCard key={change.id} change={change} />
             ))}
           </ol>
         </section>

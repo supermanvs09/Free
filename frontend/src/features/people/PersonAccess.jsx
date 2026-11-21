@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { KeyRound, ListChecks } from 'lucide-react';
+import { ChevronDown, KeyRound, SearchX } from 'lucide-react';
 import { formatNumber, formatRelative } from '../../lib/format';
-import { DataGrid } from '../../ui/DataGrid';
+import { summarisePolicy } from '../../lib/iamAccess';
 import { SearchInput } from '../../ui/Field';
 import { SectionLabel } from '../../ui/Panel';
 import { EmptyState } from '../../ui/States';
@@ -36,160 +36,85 @@ export function accessTypeLabel(type) {
   return text ? text[0].toUpperCase() + text.slice(1) : 'Access';
 }
 
-const asList = (value) => (Array.isArray(value) ? value : value == null ? [] : [value]);
-
-/** One row per action and resource in the Allow statements of a policy document. */
-export function allowedActions(doc, source) {
-  let parsed = doc;
-  if (typeof doc === 'string') {
-    try {
-      parsed = JSON.parse(doc);
-    } catch {
-      return [];
-    }
-  }
-  const out = [];
-  for (const st of asList(parsed?.Statement)) {
-    if (String(st?.Effect ?? '').toLowerCase() !== 'allow') continue;
-    const resources = asList(st.Resource);
-    for (const action of asList(st.Action)) {
-      const text = String(action);
-      const [service, name] = text === '*' ? ['*', '*'] : text.includes(':') ? text.split(/:(.*)/s) : ['', text];
-      for (const resource of resources.length ? resources : ['']) {
-        out.push({ action: text, service, name, resource: String(resource), source });
-      }
-    }
-  }
-  return out;
-}
+const isAdmin = (a) => a.is_admin ?? /admin/i.test(`${a.permission_set_name ?? ''} ${a.policy_arn ?? ''}`);
 
 /**
- * The Access tab: the same shape as the non-human Permissions tab. Figures,
- * where the access comes from (one card per grant), then every allowed action
- * with a search. Usage per action is not collected for people, so no "used"
- * column is shown rather than one that would read "never used" for everything.
+ * The Access tab, laid out like the AWS console's policy summary: one card
+ * per grant (permission set, managed or inline policy) and, inside it, one
+ * row per service with the access levels it grants - "Full access" or
+ * "Limited: Read, Write" - and on which resources. A service opens to its
+ * actions. One search filters grants, services and actions at once.
  */
 export function PersonAccess({ access }) {
   const [search, setSearch] = useState('');
-  const actions = useMemo(
-    () => access.flatMap((a) => allowedActions(a.policy_document, accessTitle(a))),
-    [access],
-  );
-  const rows = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return actions;
-    return actions.filter((row) => [row.action, row.resource, row.source].some((v) => v.toLowerCase().includes(term)));
-  }, [actions, search]);
+  const grants = useMemo(() => access.map((a) => ({ a, title: accessTitle(a), services: summarisePolicy(a.policy_document) })), [access]);
+  const term = search.trim().toLowerCase();
 
-  const admin = access.filter((a) => a.is_admin ?? /admin/i.test(`${a.permission_set_name ?? ''} ${a.policy_arn ?? ''}`)).length;
-  const escalation = access.filter((a) => a.has_escalation).length;
-  const wildcard = actions.filter((row) => row.resource === '*').length;
+  const shown = useMemo(() => {
+    if (!term) return grants;
+    const hit = (v) => String(v ?? '').toLowerCase().includes(term);
+    return grants
+      .map((g) => {
+        if (hit(g.title) || hit(g.a.group_name) || hit(g.a.account_id) || hit(g.a.policy_arn)) return g;
+        const services = g.services
+          .map((s) => (hit(s.name) || hit(s.service) ? s : { ...s, actions: s.actions.filter((x) => hit(x.action) || hit(`${s.service}:${x.action}`)) }))
+          .filter((s) => hit(s.name) || hit(s.service) || s.actions.length > 0 || s.resources.some(hit));
+        return services.length ? { ...g, services, matched: true } : null;
+      })
+      .filter(Boolean);
+  }, [grants, term]);
 
   if (access.length === 0) {
     return <EmptyState compact icon={KeyRound} title="No access recorded" description="The discovery scan found no policy or permission set for this person." />;
   }
 
+  const admin = access.filter(isAdmin).length;
+  const escalation = access.filter((a) => a.has_escalation).length;
+  const services = new Set(grants.flatMap((g) => g.services.filter((s) => s.effect === 'Allow').map((s) => s.service)));
+  const viaGroup = access.filter((a) => a.granted_via === 'group' || a.group_id).length;
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <section aria-label="Access summary" className="grid grid-cols-2 gap-4 rounded-[var(--radius-control)] border border-line bg-surface-2 p-4 sm:grid-cols-4">
-        <Figure label="Grants" value={access.length} />
-        <Figure label="Actions allowed" value={actions.length} />
-        <Figure label="Admin-level" value={admin} tone={admin > 0 ? 'text-high' : undefined} />
-        <Figure label="Escalation risk" value={escalation} tone={escalation > 0 ? 'text-critical' : undefined} />
+        <Figure label="Grants" value={access.length} caption={viaGroup ? `${formatNumber(viaGroup)} through groups` : 'All assigned directly'} />
+        <Figure label="Services" value={services.size} caption="it can call" />
+        <Figure label="Admin-level" value={admin} tone={admin > 0 ? 'text-high' : undefined} caption={admin ? 'full control' : 'none'} />
+        <Figure label="Escalation risk" value={escalation} tone={escalation > 0 ? 'text-critical' : undefined} caption={escalation ? 'can raise own access' : 'none'} />
       </section>
 
-      <div>
-        <SectionLabel>Where the access comes from</SectionLabel>
-        <ul className="mt-2 flex flex-col gap-1.5">
-          {access.map((a) => (
-            <AccessCard key={a.id} access={a} />
-          ))}
-        </ul>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <SectionLabel>What this person can do</SectionLabel>
+        <SearchInput size="sm" value={search} onChange={setSearch} placeholder="Search a service, action or policy" aria-label="Search access" className="w-72" />
       </div>
 
-      <div>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <SectionLabel>
-            Allowed actions{' '}
-            {wildcard > 0 && (
-              <span className="font-normal text-high">
-                · {formatNumber(wildcard)} on every resource
-              </span>
-            )}
-          </SectionLabel>
-          <SearchInput size="sm" value={search} onChange={setSearch} placeholder="Search actions, resources, policies" aria-label="Search allowed actions" className="w-64" />
-        </div>
-        <DataGrid
-          className="mt-2"
-          caption="Allowed actions"
-          rows={rows}
-          rowKey={(row, index) => `${row.source}-${row.action}-${row.resource}-${index}`}
-          density="compact"
-          columns={[
-            {
-              key: 'action',
-              header: 'Action',
-              primary: true,
-              width: '38%',
-              cell: (row) => (
-                <span className="block min-w-0">
-                  <span className="block truncate font-mono text-[12.5px] text-ink" title={row.action}>
-                    {row.name || row.action}
-                  </span>
-                  <span className="block truncate text-[11px] text-ink-3">{row.service === '*' ? 'Every service' : row.service || 'Service not recorded'}</span>
-                </span>
-              ),
-            },
-            {
-              key: 'resource',
-              header: 'Resource',
-              width: '34%',
-              cell: (row) => (
-                <span className={cn('block truncate font-mono text-[12px]', row.resource === '*' ? 'text-high' : 'text-ink-2')} title={row.resource}>
-                  {row.resource === '*' ? '* (every resource)' : row.resource || 'Not recorded'}
-                </span>
-              ),
-            },
-            {
-              key: 'source',
-              header: 'Allowed by',
-              width: '28%',
-              cell: (row) => (
-                <span className="block truncate text-[12.5px] text-ink-2" title={row.source}>
-                  {row.source}
-                </span>
-              ),
-            },
-          ]}
-          emptyState={
-            actions.length === 0 ? (
-              <EmptyState
-                compact
-                icon={ListChecks}
-                title="No policy document recorded"
-                description="The grants are listed above; their policy text was not collected, so the actions cannot be listed."
-              />
-            ) : (
-              <EmptyState compact icon={ListChecks} title="No allowed action matches your search" description="Try another action, resource or policy name." />
-            )
-          }
-        />
-      </div>
+      {shown.length === 0 ? (
+        <EmptyState compact icon={SearchX} title="Nothing matches" description="No grant, service or action matches your search." />
+      ) : (
+        <ul className="flex flex-col gap-3">
+          {shown.map((g) => (
+            <GrantCard key={g.a.id} grant={g} forceOpen={Boolean(term)} />
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
 
-function AccessCard({ access: a }) {
-  /* The API flags admin and escalation from the policy document too; older answers without the flags fall back to the name. */
-  const admin = a.is_admin ?? /admin/i.test(`${a.permission_set_name ?? ''} ${a.policy_arn ?? ''}`);
+function GrantCard({ grant, forceOpen }) {
+  const { a, title, services } = grant;
+  const [open, setOpen] = useState(true);
+  const expanded = open || forceOpen;
+  const admin = isAdmin(a);
   const viaGroup = a.granted_via === 'group' || a.group_id;
+  const allows = services.filter((s) => s.effect === 'Allow');
+  const denies = services.filter((s) => s.effect === 'Deny');
   return (
-    <li className="rounded-[var(--radius-control)] border border-line px-3 py-2.5">
-      <div className="flex items-start gap-2.5">
-        <KeyRound aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-ink-3" />
-        <div className="min-w-0 flex-1">
-          <p className="text-[12.5px] font-semibold [overflow-wrap:anywhere] text-ink">{accessTitle(a)}</p>
-          <p className="mt-0.5 text-[11.5px] text-ink-3">
+    <li className="overflow-hidden rounded-[var(--radius-control)] border border-line">
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={expanded} className="flex w-full items-start gap-2.5 bg-surface-2/60 px-3.5 py-3 text-left hover:bg-surface-2">
+        <KeyRound aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-ink-3" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-[13px] font-semibold [overflow-wrap:anywhere] text-ink">{title}</span>
+          <span className="mt-0.5 block text-[11.5px] text-ink-3">
             {accessTypeLabel(a.access_type)} · Account <span className="font-mono">{a.account_id}</span> ·{' '}
             {viaGroup ? (
               <>
@@ -199,18 +124,10 @@ function AccessCard({ access: a }) {
               'assigned directly'
             )}
             {a.session_duration ? ` · ${sessionLength(a.session_duration)} sessions` : ''}
-          </p>
-          <p className="mt-0.5 text-[11.5px] text-ink-3">{a.last_used_at ? `Last used ${formatRelative(a.last_used_at)}` : 'No use recorded'}</p>
-          {a.policy_document && (
-            <details className="mt-1.5">
-              <summary className="cursor-pointer text-[11.5px] font-medium text-brand">Policy document</summary>
-              <pre className="mt-1.5 max-h-56 overflow-auto rounded-[var(--radius-control)] bg-surface-2 p-2.5 font-mono text-[11px] leading-relaxed text-ink-2">
-                {JSON.stringify(a.policy_document, null, 2)}
-              </pre>
-            </details>
-          )}
-        </div>
-        <span className="flex shrink-0 flex-col items-end gap-1">
+            {a.last_used_at ? ` · last used ${formatRelative(a.last_used_at)}` : ''}
+          </span>
+        </span>
+        <span className="flex shrink-0 items-center gap-1.5">
           {admin && (
             <Tag tone="high" size="sm">
               Admin-level
@@ -221,19 +138,107 @@ function AccessCard({ access: a }) {
               Escalation risk
             </Tag>
           )}
+          <ChevronDown aria-hidden="true" className={cn('size-4 text-ink-3 transition-transform', expanded && 'rotate-180')} />
         </span>
-      </div>
+      </button>
+      {expanded && (
+        <div className="border-t border-line">
+          {services.length === 0 ? (
+            <p className="px-3.5 py-3 text-[12px] text-ink-3">
+              {a.policy_arn ? (
+                <>
+                  Uses the AWS managed policy <span className="font-mono text-ink-2">{lastSegment(a.policy_arn)}</span>. Its actions are defined by AWS and were not
+                  collected with the scan.
+                </>
+              ) : (
+                'The policy text was not collected, so its actions cannot be listed.'
+              )}
+            </p>
+          ) : (
+            <table className="w-full table-fixed text-left">
+              <thead>
+                <tr className="border-b border-line text-[10.5px] font-semibold tracking-[0.08em] text-ink-3 uppercase">
+                  <th className="w-[30%] px-3.5 py-2 font-semibold">Service</th>
+                  <th className="w-[36%] px-2 py-2 font-semibold">Access level</th>
+                  <th className="px-2 py-2 pr-3.5 font-semibold">Resources</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...allows, ...denies].map((s) => (
+                  <ServiceRow key={`${s.effect}|${s.service}`} row={s} open={forceOpen && grant.matched} />
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
     </li>
   );
 }
 
-function Figure({ label, value, tone }) {
+function ServiceRow({ row, open: forced }) {
+  const [open, setOpen] = useState(false);
+  const expanded = open || forced;
+  const deny = row.effect === 'Deny';
+  const anyResource = row.resources.includes('*');
+  return (
+    <>
+      <tr className={cn('border-b border-line align-top last:border-b-0', deny && 'bg-surface-2/50')}>
+        <td className="px-3.5 py-2">
+          <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={expanded} className="flex items-start gap-1 text-left">
+            <ChevronDown aria-hidden="true" className={cn('mt-0.5 size-3.5 shrink-0 text-ink-3 transition-transform', !expanded && '-rotate-90')} />
+            <span className="min-w-0">
+              <span className="block text-[12.5px] font-medium text-ink">{row.name}</span>
+              <span className="block text-[11px] text-ink-3">
+                {formatNumber(row.actions.length)} {row.actions.length === 1 ? 'action' : 'actions'}
+                {deny ? ' · denied' : ''}
+              </span>
+            </span>
+          </button>
+        </td>
+        <td className="px-2 py-2">
+          <span className={cn('text-[12.5px]', deny ? 'text-ink-3 line-through' : row.admin ? 'font-semibold text-high' : 'text-ink-2')}>{row.levelText}</span>
+          {row.conditions && <span className="mt-0.5 block text-[11px] text-ink-3">With conditions</span>}
+        </td>
+        <td className="px-2 py-2 pr-3.5">
+          {anyResource ? (
+            <span className={cn('text-[12px]', deny ? 'text-ink-3' : 'font-medium text-high')}>All resources</span>
+          ) : (
+            row.resources.slice(0, 2).map((r) => (
+              <span key={r} className="block truncate font-mono text-[11.5px] text-ink-2" title={r}>
+                {lastSegment(r) || r}
+              </span>
+            ))
+          )}
+          {!anyResource && row.resources.length > 2 && <span className="text-[11px] text-ink-3">+{formatNumber(row.resources.length - 2)} more</span>}
+        </td>
+      </tr>
+      {expanded && (
+        <tr className="border-b border-line bg-surface-2/40">
+          <td colSpan={3} className="px-3.5 py-2.5 pl-9">
+            <ul className="flex flex-wrap gap-1.5">
+              {row.actions.map((x, i) => (
+                <li key={`${x.action}-${i}`} className="rounded border border-line bg-surface px-1.5 py-0.5 text-[11.5px]" title={x.level}>
+                  <span className="font-mono text-ink">{x.action}</span>
+                  <span className="ml-1.5 text-ink-3">{x.level}</span>
+                </li>
+              ))}
+            </ul>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+function Figure({ label, value, tone, caption }) {
   return (
     <div>
       <p className="text-[10.5px] font-semibold tracking-[0.1em] text-ink-3 uppercase">{label}</p>
       <p data-numeric="" className={cn('mt-1 text-[22px] font-bold', tone || 'text-ink')}>
         {formatNumber(value)}
       </p>
+      {caption && <p className="text-[11px] text-ink-3">{caption}</p>}
     </div>
   );
 }

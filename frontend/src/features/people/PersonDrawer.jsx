@@ -13,6 +13,7 @@ import { Tag } from "../../ui/Tag";
 import { cn } from "../../ui/cn";
 import { Avatar } from "./parts";
 import { PersonAccess } from "./PersonAccess";
+import { PersonPosture } from "./PersonPosture";
 import {
   SOURCE_LABEL,
   humanTypeLabel,
@@ -49,6 +50,7 @@ export function PersonDrawer({ id, onClose }) {
           label: "Overview",
           count: d.risk_signals.length || undefined,
         },
+        { value: "posture", label: "Posture" },
         {
           value: "credentials",
           label: "Sign-in & credentials",
@@ -300,6 +302,8 @@ export function PersonDrawer({ id, onClose }) {
                 </section>
               </>
             )}
+
+            {tab === "posture" && <PersonPosture id={d.id} />}
 
             {tab === "access" && <PersonAccess access={d.access} />}
 

@@ -283,3 +283,39 @@ func (h *HumanIdentityHandler) PermissionSets(w http.ResponseWriter, r *http.Req
 		Data:    result,
 	})
 }
+
+// Posture handles GET /api/v1/human-identities/{id}/posture?window=30d: the
+// person's posture score and checks ({"scored": false} when not scored).
+func (h *HumanIdentityHandler) Posture(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetClaims(r)
+	if claims == nil {
+		writeHumanError(w, http.StatusUnauthorized, "Unauthorized", "UNAUTHORIZED")
+		return
+	}
+	if httpx.RejectUnknownQuery(w, r, map[string]struct{}{"window": {}}) {
+		return
+	}
+	id := mux.Vars(r)["id"]
+	if !humanIDPattern.MatchString(id) {
+		writeHumanError(w, http.StatusBadRequest, "id must be a UUID", "INVALID_ID")
+		return
+	}
+	window := r.URL.Query().Get("window")
+	if window == "" {
+		window = "30d"
+	}
+	result, err := h.service.GetPosture(r.Context(), claims.UserID, claims.TenantID, claims.DBName, id, window)
+	switch {
+	case errors.Is(err, identitygraph.ErrHumanIdentityNotFound):
+		writeHumanError(w, http.StatusNotFound, "Human identity not found", "HUMAN_NOT_FOUND")
+		return
+	case errors.Is(err, errInvalidWindow):
+		writeHumanError(w, http.StatusBadRequest, err.Error(), "INVALID_WINDOW")
+		return
+	case err != nil:
+		logging.FromContext(r.Context()).Error("human posture failed", "err", err)
+		writeHumanError(w, http.StatusInternalServerError, "Failed to retrieve posture", "HUMAN_POSTURE_FAILED")
+		return
+	}
+	httpx.SendJSONResponse(w, http.StatusOK, httpx.APIResponse{Success: true, Message: "Posture retrieved successfully", Data: result})
+}

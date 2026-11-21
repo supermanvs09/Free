@@ -31,5 +31,6 @@ func (m *Module) Register(r *mux.Router) {
 	r.HandleFunc("/human-identities/overview", m.handler.Overview).Methods(http.MethodGet)
 	r.HandleFunc("/human-identities/permission-sets", m.handler.PermissionSets).Methods(http.MethodGet)
 	r.HandleFunc("/human-identities", m.handler.List).Methods(http.MethodGet)
+	r.HandleFunc("/human-identities/{id}/posture", m.handler.Posture).Methods(http.MethodGet)
 	r.HandleFunc("/human-identities/{id}", m.handler.Get).Methods(http.MethodGet)
 }

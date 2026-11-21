@@ -675,3 +675,26 @@ func hiNullTime(v sql.NullTime) *time.Time {
 	t := v.Time
 	return &t
 }
+
+// PostureRef returns the ARN and user name of one human identity in scope,
+// for matching it to its posture row. ErrHumanIdentityNotFound when it is
+// not visible to the caller.
+func (r *HumanIdentityRepository) PostureRef(ctx context.Context, resolved *scope.DataScope, id string) (string, string, error) {
+	if resolved == nil || resolved.DB == nil {
+		return "", "", ErrScopeRequired
+	}
+	a := &humanArgs{}
+	whereSQL := strings.Join(humanWhere(resolved, a, "", "", nil, nil, "", ""), " AND ")
+	idPh := a.add(id)
+	q := fmt.Sprintf(`SELECT COALESCE(h.arn, ''), COALESCE(h.user_name, '') FROM %s.human_identities h WHERE %s AND h.id::text = %s`,
+		resolved.QSchema(), whereSQL, idPh)
+	var arn, name string
+	err := resolved.DB.QueryRowContext(ctx, q, a.values...).Scan(&arn, &name)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", "", ErrHumanIdentityNotFound
+	}
+	if err != nil {
+		return "", "", fmt.Errorf("human posture ref: %w", err)
+	}
+	return arn, name, nil
+}

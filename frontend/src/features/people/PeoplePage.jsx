@@ -12,7 +12,7 @@ import { ProportionBar } from '../../ui/Meter';
 import { MetricTile } from '../../ui/Stat';
 import { SegmentedControl } from '../../ui/Tabs';
 import { Pagination } from '../../ui/Pagination';
-import { Panel, PanelHeader } from '../../ui/Panel';
+import { Panel } from '../../ui/Panel';
 import { EmptyState, ErrorState } from '../../ui/States';
 import { IconButton } from '../../ui/Button';
 import { RefreshButton, TableToolbar } from '../../ui/TableTools';
@@ -22,7 +22,6 @@ import { cn } from '../../ui/cn';
 import { fetchPostureScoreIndex } from '../../lib/api/posture';
 import { BandTag, ScoreRing } from '../posture/parts';
 import { PersonDrawer } from './PersonDrawer';
-import { PermissionSets } from './PermissionSets';
 import { Avatar, CoverageRing, LegendRow } from './parts';
 import { HUMAN_TYPE_LABEL, COLUMN_SORT, DEFAULT_SORT, MFA_OPTIONS, RISK_OPTIONS, SORT_FIELDS, SOURCE_LABEL, SOURCE_OPTIONS, STATUS_OPTIONS, daysSince, humanTypeLabel, personName, readSort, statusMeta } from './peopleMeta';
 
@@ -361,8 +360,6 @@ export default function PeoplePage() {
           )}
         </Panel>
       </WorkArea>
-
-      <PermissionSets source={source} />
 
       <PersonDrawer id={personId} onClose={() => update({ person: '' }, { keepPage: true })} />
     </div>

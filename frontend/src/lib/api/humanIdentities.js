@@ -10,7 +10,7 @@ import { params, unwrapMain } from './http';
  *                                                              source, status, mfa, search,
  *                                                              sort_by, sort_order
  *   GET /api/v1/human-identities/{id}                          profile, access, groups, risk signals
- *   GET /api/v1/human-identities/permission-sets               source, usage=all|used|unused
+ *   GET /api/v1/human-identities/{id}/posture                  posture score card and checks
  *
  * Responses are { success, message, data }; the list's data is { data: rows, pagination }.
  */
@@ -84,14 +84,8 @@ export async function fetchHumanIdentity(id, signal) {
   return unwrapMain(await client.get(`${BASE}/${encodeURIComponent(id)}`, { signal }));
 }
 
-/**
- * IAM policies and SSO permission sets, each with its allowed actions and the
- * people who hold it. usage = all | used | unused trims the actions; usage
- * counts are null where usage is not collected (SSO, or no activity store).
- */
-export async function fetchPermissionSets({ source = 'all', usage = 'all' } = {}, signal) {
-  const d = unwrapMain(
-    await client.get(`${BASE}/permission-sets`, { params: params({ source: source === 'all' ? undefined : source, usage: usage === 'all' ? undefined : usage }), signal }),
-  );
-  return Array.isArray(d) ? d : [];
+/** The person's posture score card and checks: { scored, posture, checks }. */
+export async function fetchHumanPosture(id, { window = '30d' } = {}, signal) {
+  const d = unwrapMain(await client.get(`${BASE}/${encodeURIComponent(id)}/posture`, { params: { window }, signal }));
+  return { scored: Boolean(d?.scored), postureId: d?.posture_identity_id ?? null, posture: d?.posture ?? null, checks: Array.isArray(d?.checks) ? d.checks : [] };
 }
