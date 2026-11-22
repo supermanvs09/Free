@@ -8,6 +8,7 @@ import (
 	"nhi-backend-api/internal/modules/humanidentities"
 	"nhi-backend-api/internal/modules/identityanomalies"
 	"nhi-backend-api/internal/modules/identitysubjects"
+	"nhi-backend-api/internal/modules/reports"
 	"nhi-backend-api/internal/platform/datasource"
 	"nhi-backend-api/internal/platform/scope"
 
@@ -62,6 +63,8 @@ type HandlerContainer struct {
 
 	// HumanIdentities serves /human-identities (the people, as opposed to the NHIs).
 	HumanIdentities *humanidentities.Module
+	// Reports serves /reports (downloadable posture report).
+	Reports *reports.Module
 	// AlertsHandler serves the Alerts page (score drops, exposed credentials).
 	AlertsHandler *alerts.Handler
 	// IdentityAnomalies lists one genome identity's anomalies (its page's tab).
@@ -239,6 +242,9 @@ func registerProtected(router *mux.Router, h HandlerContainer, versioned bool) {
 		router.HandleFunc("/credentials/{id}", h.NewAPICredentialDetailHandler.Get).Methods(http.MethodGet)
 	}
 	registerCorrelation(router, h.CorrelationHandler)
+	if h.Reports != nil {
+		h.Reports.Register(router)
+	}
 	if h.HumanIdentities != nil {
 		h.HumanIdentities.Register(router)
 	}

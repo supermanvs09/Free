@@ -781,15 +781,10 @@ function BaselineProvenance({ sourceType, identityName, summary, timeline, span 
   const num = (v) => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
   const required = b?.required_days ?? fallback?.required_days;
   const built = b?.built_days ?? fallback?.built_days;
-  const status = b?.status ?? fallback?.status;
-  const active = String(status ?? '').toLowerCase() === 'active';
   const established = b?.active_since ?? timeline.find((item) => item.type === 'baseline_established')?.occurred_at;
   const rows = [
     num(required) && ['Learning period', `${formatNumber(required)} ${Number(required) === 1 ? 'day' : 'days'}`],
-    num(built) && [
-      'Days learned',
-      `${formatNumber(built)}${active ? ' (established)' : num(b?.days_remaining) && b.days_remaining > 0 ? `, ${formatNumber(b.days_remaining)} to go` : ' (learning)'}`,
-    ],
+    num(built) && ['Days learned', formatNumber(built)],
     num(b?.data_points) && ['Data points', formatNumber(b.data_points)],
     b?.model_confidence_available === true && num(b.model_confidence_percent) && ['Model confidence', `${Math.round(Number(b.model_confidence_percent))}%`],
     b?.updated_at && ['Last model update', <span key="u" title={formatDateTime(b.updated_at)}>{formatRelative(b.updated_at)}</span>],

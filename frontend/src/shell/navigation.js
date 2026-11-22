@@ -1,5 +1,6 @@
 import {
   Activity,
+  FileText,
   BellRing,
   Dna,
   Waypoints,
@@ -42,6 +43,7 @@ export const NAV_GROUPS = [
       { to: '/remediation', label: 'Remediation', icon: Wrench },
       { to: '/genome', label: 'NHI Genome', icon: Dna },
       { to: '/activity', label: 'Activity', icon: Activity },
+      { to: '/reports', label: 'Reports', icon: FileText },
       /* Shown once a code source is switched on (`feature: 'exposure'`). */
       { to: '/exposure', label: 'Credential exposure', icon: FileWarning, permission: 'exposure.view', feature: 'exposure' },
     ],
@@ -102,6 +104,7 @@ export const BREADCRUMBS = {
   '/access-graph': ['Overview', 'Access graph'],
   '/genome': ['Overview', 'NHI Genome'],
   '/activity': ['Overview', 'Activity'],
+  '/reports': ['Overview', 'Reports'],
   '/integrations': ['Settings', 'Integrations'],
   '/settings/users': ['Settings', 'Users & roles'],
   '/audit-log': ['Settings', 'Audit log'],

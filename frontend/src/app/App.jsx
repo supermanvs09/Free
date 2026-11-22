@@ -28,6 +28,7 @@ const PeoplePage = lazy(() => import('../features/people/PeoplePage'));
 const FindingsPage = lazy(() => import('../features/exposure/FindingsPage'));
 const DismissedPage = lazy(() => import('../features/exposure/DismissedPage'));
 const ActivityPage = lazy(() => import('../features/activity/ActivityPage'));
+const ReportsPage = lazy(() => import('../features/reports/ReportsPage'));
 const AccessGraphPage = lazy(() => import('../features/access/AccessGraphPage'));
 const AccessDetailPage = lazy(() => import('../features/access/AccessDetailPage'));
 const GenomePage = lazy(() => import('../features/genome/GenomePage'));
@@ -103,6 +104,7 @@ export default function App() {
                   }
                 />
                 <Route path="/activity" element={<Screen><ActivityPage /></Screen>} />
+                <Route path="/reports" element={<Screen><ReportsPage /></Screen>} />
                 <Route path="/remediation" element={<Screen><RemediationPage /></Screen>} />
                 <Route path="/remediation/findings/:findingId" element={<Screen><FindingFixPage /></Screen>} />
                 <Route path="/remediation/plans/:planId" element={<Screen><PlanPage /></Screen>} />

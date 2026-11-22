@@ -598,6 +598,7 @@ func (r *IdentityDetailRepository) GetPermissions(ctx context.Context, resolved 
 		Tab:             "permissions",
 		Permissions:     []IdentityPermissionItem{},
 		PolicyBreakdown: []IdentityPolicyBreakdownItem{},
+		Boundaries:      []IdentityPermissionBoundary{},
 	}
 
 	credIDs, keysByCred, err := r.boundCredentialKeys(ctx, tenantDB, resolved.QSchema(), ci)
@@ -606,6 +607,9 @@ func (r *IdentityDetailRepository) GetPermissions(ctx context.Context, resolved 
 	}
 	if len(credIDs) == 0 {
 		return resp, nil
+	}
+	if resp.Boundaries, err = loadPermissionBoundaries(ctx, tenantDB, resolved.QSchema(), credIDs); err != nil {
+		return nil, err
 	}
 
 	// What each credential actually used comes from CloudTrail. A granted
@@ -684,6 +688,7 @@ func (r *IdentityDetailRepository) GetPermissions(ctx context.Context, resolved 
 				Service: svc, Action: action, ResourceARN: resourceArn, Effect: effect,
 				PolicySource: policySource, PolicyType: policyType, Used: used,
 				LastUsedAt: lastUsedPtr, SourceIPs: sourceIPs,
+				Condition: permissionCondition(e),
 			})
 
 			granted++
@@ -1059,4 +1064,49 @@ func ownerReasonOf(ci *coreIdentity) *string {
 		return nil
 	}
 	return ci.OwnerReason
+}
+
+// permissionCondition returns an entry's Condition block, under whichever key
+// the scanner used, or nil when the entry has none.
+func permissionCondition(e map[string]interface{}) json.RawMessage {
+	for _, k := range []string{"condition", "Condition", "conditions", "Conditions"} {
+		v, ok := e[k]
+		if !ok || v == nil {
+			continue
+		}
+		if m, isMap := v.(map[string]interface{}); isMap && len(m) == 0 {
+			continue
+		}
+		if str, isStr := v.(string); isStr && strings.TrimSpace(str) == "" {
+			continue
+		}
+		raw, err := json.Marshal(v)
+		if err == nil {
+			return raw
+		}
+	}
+	return nil
+}
+
+// loadPermissionBoundaries returns the boundary policy of each of the given
+// credentials that has one.
+func loadPermissionBoundaries(ctx context.Context, tenantDB *sql.DB, schema string, credIDs []string) ([]IdentityPermissionBoundary, error) {
+	q := fmt.Sprintf(`SELECT COALESCE(name, ''), COALESCE(arn, ''), permission_boundary_arn
+		FROM %s.credentials
+		WHERE id::text = ANY($1::text[]) AND permission_boundary_arn IS NOT NULL AND permission_boundary_arn <> ''
+		ORDER BY name`, schema)
+	rows, err := tenantDB.QueryContext(ctx, q, pq.Array(credIDs))
+	if err != nil {
+		return nil, fmt.Errorf("query permission boundaries: %w", err)
+	}
+	defer rows.Close()
+	out := []IdentityPermissionBoundary{}
+	for rows.Next() {
+		var b IdentityPermissionBoundary
+		if err := rows.Scan(&b.CredentialName, &b.CredentialARN, &b.BoundaryARN); err != nil {
+			return nil, fmt.Errorf("scan permission boundary: %w", err)
+		}
+		out = append(out, b)
+	}
+	return out, rows.Err()
 }

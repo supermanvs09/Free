@@ -1,6 +1,7 @@
 package identitygraph
 
 import (
+	"encoding/json"
 	"time"
 )
 
@@ -117,6 +118,16 @@ type IdentityPermissionsResponse struct {
 	Summary         IdentityPermissionsSummary    `json:"summary"`
 	Permissions     []IdentityPermissionItem      `json:"permissions"`
 	PolicyBreakdown []IdentityPolicyBreakdownItem `json:"policy_breakdown"`
+	// Boundaries lists the permissions boundary of each credential the
+	// identity signs in with; a credential without one is not listed.
+	Boundaries []IdentityPermissionBoundary `json:"permissions_boundaries"`
+}
+
+// IdentityPermissionBoundary is the boundary policy that caps one credential.
+type IdentityPermissionBoundary struct {
+	CredentialName string `json:"credential_name"`
+	CredentialARN  string `json:"credential_arn"`
+	BoundaryARN    string `json:"boundary_arn"`
 }
 
 type IdentityPermissionsSummary struct {
@@ -136,6 +147,9 @@ type IdentityPermissionItem struct {
 	Used         bool       `json:"used"`
 	LastUsedAt   *time.Time `json:"last_used_at"`
 	SourceIPs    []string   `json:"source_ips"` // always empty — permission_usage has no source_ip column
+	// Condition is the statement's Condition block as the scanner recorded
+	// it (an IAM condition object, or a string), or null when there is none.
+	Condition json.RawMessage `json:"condition"`
 }
 
 type IdentityPolicyBreakdownItem struct {

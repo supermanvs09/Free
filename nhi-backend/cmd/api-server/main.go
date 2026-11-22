@@ -59,6 +59,7 @@ import (
 	"nhi-backend-api/internal/modules/posture/identityroleuse"
 	"nhi-backend-api/internal/modules/posture/overview"
 	"nhi-backend-api/internal/modules/posture/quickwins"
+	"nhi-backend-api/internal/modules/reports"
 	"nhi-backend-api/internal/modules/scanchanges"
 	"nhi-backend-api/internal/modules/settings"
 	"nhi-backend-api/internal/modules/users"
@@ -405,6 +406,7 @@ func main() {
 		NewAPICredentialDetailHandler:  credentialDetailHandler,
 		CorrelationHandler:             corrApp.handlers(),
 		HumanIdentities:                humanidentities.New(resolver, activityService),
+		Reports:                        reports.New(resolver),
 		AlertsHandler: alerts.NewHandler(resolver, ceFindingsRepo,
 			anomalylist.NewService(genomefullcommon.NewMonitoredIdentityLookup(resolver), anomalylist.NewRepository(), genomeAlertEvents)),
 		IdentitySubjects:              identitysubjects.NewHandler(resolver),

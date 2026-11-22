@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowDownWideNarrow, ArrowUpNarrowWide, Clock3, Crown, Link2Off, ShieldOff, UserRoundX, UsersRound } from 'lucide-react';
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, Crown, KeyRound, ShieldOff, TrendingUp, UserRoundX, UsersRound } from 'lucide-react';
 import { fetchHumanIdentities, fetchHumanOverview } from '../../lib/api/humanIdentities';
 import { useDebouncedValue, useQuery } from '../../lib/hooks';
 import { formatNumber, formatRelative, formatRelativeShort } from '../../lib/format';
@@ -263,7 +263,7 @@ export default function PeoplePage() {
         title="Discovery"
         lede="The people who sign in to your AWS accounts: IAM users and single sign-on users. See who has MFA, who has gone quiet and who holds admin-level access."
         sections={<DiscoveryTabs />}
-        meta={o ? <p className="text-[11.5px] text-ink-3">{formatNumber(o.total)} human identities in your scope.</p> : null}
+        meta={o ? <p className="text-[11.5px] text-ink-3">{formatNumber(o.total)} human {o.total === 1 ? "identity" : "identities"} in your scope.</p> : null}
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -276,7 +276,7 @@ export default function PeoplePage() {
           <ErrorState compact error={overview.error} onRetry={overview.refetch} title="Human identity figures could not be loaded" />
         </Panel>
       ) : (
-        <Tiles overview={o} onMfaOff={() => update({ mfa: 'false' })} />
+        <Tiles overview={o} source={source} onMfaOff={() => update({ mfa: 'false' })} onRisk={(key) => update({ risk: key })} />
       )}
 
       <WorkArea
@@ -368,55 +368,112 @@ export default function PeoplePage() {
 
 /* ── Tiles ───────────────────────────────────────────────────────────────── */
 
-function Tiles({ overview: o, onMfaOff }) {
+/* Risk cards, each one a filter on the list below. `iamOnly` cards measure
+   things single sign-on users do not have in AWS (a console password, access
+   keys, an IAM sign-in date), so the single sign-on view leaves them out
+   instead of showing a zero that means "not applicable". */
+const RISK_CARDS = [
+  { key: 'console_no_mfa', label: 'Console without MFA', icon: ShieldOff, bad: 'critical', caption: 'Can sign in to the console with a password alone', iamOnly: true, value: (o) => o.consoleWithoutMfa },
+  {
+    key: 'old_access_key',
+    label: 'Old access keys',
+    icon: KeyRound,
+    bad: 'high',
+    iamOnly: true,
+    value: (o) => o.risks.old_access_key,
+    caption: (o) => `Active key older than 90 days · ${formatNumber(o.accessKeys.withActiveKey)} ${o.accessKeys.withActiveKey === 1 ? 'person has' : 'people have'} a key`,
+  },
+  { key: 'never_used', label: 'Never signed in', icon: UserRoundX, bad: 'medium', caption: 'Created, never used', iamOnly: true, value: (o) => o.neverUsed },
+  { key: 'admin', label: 'Admin-level access', icon: Crown, bad: 'high', caption: 'Administrator permission set or policy', value: (o) => o.privileged },
+  { key: 'escalation', label: 'Privilege escalation risk', icon: TrendingUp, bad: 'high', caption: 'Can grant themselves more access', value: (o) => o.risks.escalation },
+];
+
+function Tiles({ overview: o, source, onMfaOff, onRisk }) {
   const loading = !o;
+  const sso = source === 'sso';
   const known = o ? o.mfa.enabled + o.mfa.disabled : 0;
   const statusTotal = o ? o.byStatus.active + o.byStatus.inactive + o.byStatus.suspended + o.byStatus.disabled : 0;
+  const cards = RISK_CARDS.filter((c) => !(sso && c.iamOnly));
+  /* With one source chosen, the source mix is 100% of one thing; the card
+     shows what those people are instead (console users, programmatic, root). */
+  const types = o
+    ? Object.entries(o.byHumanType)
+        .filter(([, v]) => v > 0)
+        .sort((a, b) => b[1] - a[1])
+    : [];
+  const TYPE_COLORS = ['var(--t-series-1)', 'var(--t-series-2)', 'var(--t-series-3)', 'var(--t-series-4)'];
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid gap-3 @container lg:grid-cols-3">
+      <div className={cn('grid gap-3 @container', sso ? 'lg:grid-cols-2' : 'lg:grid-cols-3')}>
         <Panel prominence="quiet" className="animate-rise">
-          <p className="text-[12.5px] font-medium text-ink-2">Human identities</p>
+          <p className="text-[12.5px] font-medium text-ink-2">{source === 'iam' ? 'IAM users' : sso ? 'Single sign-on users' : 'Human identities'}</p>
           <p data-numeric="" className={cn('mt-1 font-display text-[34px] leading-none font-extrabold tracking-[-0.03em] text-ink', loading && 'opacity-40')}>
             {loading ? '-' : formatNumber(o.total)}
           </p>
-          <ProportionBar
-            className="mt-4"
-            height={8}
-            total={o?.total}
-            ariaLabel="Where people sign in"
-            segments={[
-              { key: 'iam', label: 'AWS IAM', value: o?.bySource.iam ?? 0, color: 'var(--t-series-1)' },
-              { key: 'sso', label: 'Single sign-on', value: o?.bySource.sso ?? 0, color: 'var(--t-series-2)' },
-              { key: 'both', label: 'Both', value: o?.bySource.both ?? 0, color: 'var(--t-series-3)' },
-            ]}
-          />
-          <div className="mt-3 flex flex-col gap-1">
-            <LegendRow color="var(--t-series-1)" label="AWS IAM" value={loading ? '-' : formatNumber(o.bySource.iam)} />
-            <LegendRow color="var(--t-series-2)" label="Single sign-on" value={loading ? '-' : formatNumber(o.bySource.sso)} />
-            <LegendRow color="var(--t-series-3)" label="In both" value={loading ? '-' : formatNumber(o.bySource.both)} />
-          </div>
+          {source === 'all' ? (
+            <>
+              <ProportionBar
+                className="mt-4"
+                height={8}
+                total={o?.total}
+                ariaLabel="Where people sign in"
+                segments={[
+                  { key: 'iam', label: 'AWS IAM', value: o?.bySource.iam ?? 0, color: 'var(--t-series-1)' },
+                  { key: 'sso', label: 'Single sign-on', value: o?.bySource.sso ?? 0, color: 'var(--t-series-2)' },
+                  { key: 'both', label: 'Both', value: o?.bySource.both ?? 0, color: 'var(--t-series-3)' },
+                ]}
+              />
+              <div className="mt-3 flex flex-col gap-1">
+                <LegendRow color="var(--t-series-1)" label="AWS IAM" value={loading ? '-' : formatNumber(o.bySource.iam)} />
+                <LegendRow color="var(--t-series-2)" label="Single sign-on" value={loading ? '-' : formatNumber(o.bySource.sso)} />
+                <LegendRow color="var(--t-series-3)" label="In both" value={loading ? '-' : formatNumber(o.bySource.both)} />
+              </div>
+            </>
+          ) : types.length > 1 ? (
+            <>
+              <ProportionBar
+                className="mt-4"
+                height={8}
+                total={o?.total}
+                ariaLabel="By type"
+                segments={types.map(([t, v], i) => ({ key: t, label: humanTypeLabel(t), value: v, color: TYPE_COLORS[i % TYPE_COLORS.length] }))}
+              />
+              <div className="mt-3 flex flex-col gap-1">
+                {types.map(([t, v], i) => (
+                  <LegendRow key={t} color={TYPE_COLORS[i % TYPE_COLORS.length]} label={humanTypeLabel(t)} value={formatNumber(v)} />
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="mt-3 text-[12px] leading-relaxed text-ink-3">
+              {sso
+                ? 'People who sign in through IAM Identity Center. Their MFA is enforced by your identity provider, and their access comes from permission sets.'
+                : 'People with an IAM user in your accounts.'}
+            </p>
+          )}
         </Panel>
 
-        <Panel prominence="quiet" className="animate-rise" data-stagger="" style={{ '--stagger': 1 }}>
-          <p className="text-[12.5px] font-medium text-ink-2">MFA coverage</p>
-          <div className="mt-2 flex items-center gap-5">
-            <CoverageRing value={o?.mfa.enabled ?? 0} total={known} tone={known > 0 && o.mfa.enabled / known < 0.8 ? 'var(--t-medium)' : 'var(--t-low)'} label={known ? `${o.mfa.enabled} of ${known} people with a known setting have MFA on` : 'MFA coverage unknown'} />
-            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-              <LegendRow color="var(--t-low)" label="MFA on" value={loading ? '-' : formatNumber(o.mfa.enabled)} />
-              <LegendRow color="var(--t-high)" label="MFA off" value={loading ? '-' : formatNumber(o.mfa.disabled)} />
-              <LegendRow color="var(--t-track)" label="Not reported" value={loading ? '-' : formatNumber(o.mfa.unknown)} />
+        {!sso && (
+          <Panel prominence="quiet" className="animate-rise" data-stagger="" style={{ '--stagger': 1 }}>
+            <p className="text-[12.5px] font-medium text-ink-2">MFA coverage</p>
+            <div className="mt-2 flex items-center gap-5">
+              <CoverageRing value={o?.mfa.enabled ?? 0} total={known} tone={known > 0 && o.mfa.enabled / known < 0.8 ? 'var(--t-medium)' : 'var(--t-low)'} label={known ? `${o.mfa.enabled} of ${known} people with a known setting have MFA on` : 'MFA coverage unknown'} />
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <LegendRow color="var(--t-low)" label="MFA on" value={loading ? '-' : formatNumber(o.mfa.enabled)} />
+                <LegendRow color="var(--t-high)" label="MFA off" value={loading ? '-' : formatNumber(o.mfa.disabled)} />
+                <LegendRow color="var(--t-track)" label="Not reported" value={loading ? '-' : formatNumber(o.mfa.unknown)} />
+              </div>
             </div>
-          </div>
-          <p className="mt-3 text-[11.5px] leading-relaxed text-ink-3">
-            Of the {formatNumber(known)} people whose setting is known.{' '}
-            {o && o.mfa.disabled > 0 && (
-              <button type="button" onClick={onMfaOff} className="font-medium text-brand hover:underline">
-                Show who has it off
-              </button>
-            )}
-          </p>
-        </Panel>
+            <p className="mt-3 text-[11.5px] leading-relaxed text-ink-3">
+              Of the {formatNumber(known)} people whose setting is known.{' '}
+              {o && o.mfa.disabled > 0 && (
+                <button type="button" onClick={onMfaOff} className="font-medium text-brand hover:underline">
+                  Show who has it off
+                </button>
+              )}
+            </p>
+          </Panel>
+        )}
 
         <Panel prominence="quiet" className="animate-rise" data-stagger="" style={{ '--stagger': 2 }}>
           <p className="text-[12.5px] font-medium text-ink-2">Account status</p>
@@ -445,22 +502,40 @@ function Tiles({ overview: o, onMfaOff }) {
         </Panel>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <RiskTile label="Console without MFA" value={o?.consoleWithoutMfa} icon={ShieldOff} bad="critical" caption="Can sign in to the console with a password alone" />
-        <RiskTile label="Inactive 90+ days" value={o?.inactiveOver90} icon={Clock3} bad="high" caption="Signed in once, then went quiet" />
-        <RiskTile label="Never signed in" value={o?.neverUsed} icon={UserRoundX} bad="medium" caption="Created, never used" />
-        <RiskTile label="Admin-level access" value={o?.privileged} icon={Crown} bad="high" caption="Administrator permission set or policy" />
-        <RiskTile label="Not tied to a person" value={o?.unlinked} icon={Link2Off} bad="medium" caption="Cannot be matched across IAM and SSO" />
+      <div className={cn('grid gap-3 sm:grid-cols-2', { 2: 'xl:grid-cols-2', 3: 'xl:grid-cols-3', 4: 'xl:grid-cols-4' }[cards.length] ?? 'xl:grid-cols-5')}>
+        {cards.map((c) => (
+          <RiskTile
+            key={c.key}
+            label={c.label}
+            value={o ? c.value(o) : undefined}
+            icon={c.icon}
+            bad={c.bad}
+            caption={o ? (typeof c.caption === 'function' ? c.caption(o) : c.caption) : ''}
+            onClick={() => onRisk(c.key)}
+          />
+        ))}
       </div>
     </div>
   );
 }
 
 /** A risk count: loud when above zero, quiet green when it is clear. */
-function RiskTile({ label, value, icon, bad, caption }) {
+function RiskTile({ label, value, icon, bad, caption, onClick }) {
   const known = Number.isFinite(value);
+  const clickable = known && value > 0;
   return (
-    <MetricTile label={label} value={known ? value : null} tone={known && value > 0 ? bad : 'low'} icon={icon} caption={known && value === 0 ? 'None' : caption} className="animate-rise" />
+    <MetricTile
+      as={clickable ? 'button' : 'div'}
+      type={clickable ? 'button' : undefined}
+      onClick={clickable ? onClick : undefined}
+      title={clickable ? `Show these ${formatNumber(value)} in the list` : undefined}
+      label={label}
+      value={known ? value : null}
+      tone={known && value > 0 ? bad : 'low'}
+      icon={icon}
+      caption={known && value === 0 ? 'None' : caption}
+      className="animate-rise text-left"
+    />
   );
 }
 

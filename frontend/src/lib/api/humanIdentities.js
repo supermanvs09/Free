@@ -48,6 +48,7 @@ export async function fetchHumanOverview({ source } = {}, signal) {
     consoleWithoutMfa: n(d.console_access_without_mfa),
     privileged: n(d.privileged_count),
     unlinked: n(d.unlinked_count),
+    accessKeys: { withActiveKey: n(d.access_keys?.users_with_active_key) },
   };
 }
 

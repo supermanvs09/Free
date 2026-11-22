@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Activity, ArrowLeftRight, ArrowUpRight, Info, KeyRound, ListChecks, ShieldAlert, Waypoints } from 'lucide-react';
+import { Activity, ArrowLeftRight, ArrowUpRight, Info, KeyRound, ListChecks, ShieldAlert, ShieldHalf, Waypoints } from 'lucide-react';
 import { fetchIdentity } from '../../lib/api/inventory';
 import { useQuery } from '../../lib/hooks';
 import { OwnerCell } from './OwnerCell';
@@ -13,6 +13,7 @@ import { Code, Tag } from '../../ui/Tag';
 import { CopyableValue } from '../../ui/Copyable';
 import { DataGrid } from '../../ui/DataGrid';
 import { SearchInput } from '../../ui/Field';
+import { describeConditions, serviceName } from '../../lib/iamAccess';
 import { Meter } from '../../ui/Meter';
 import { DetailSkeleton, Skeleton } from '../../ui/Skeleton';
 import { JsonBlock } from '../../ui/RawJson';
@@ -382,11 +383,17 @@ function PermissionsPanel({ identityId }) {
   const rows = useMemo(() => {
     const list = data?.permissions ?? [];
     const term = search.trim().toLowerCase();
-    return list.filter(
-      (row) =>
-        (use === 'all' || (use === 'used') === Boolean(row.used)) &&
-        (!term || [row.action, row.service, row.resource_arn, row.policy_source].some((v) => String(v ?? '').toLowerCase().includes(term))),
-    );
+    return list
+      .filter(
+        (row) =>
+          (use === 'all' || (use === 'used') === Boolean(row.used)) &&
+          (!term ||
+            [row.action, row.service, serviceName(row.service), row.resource_arn, row.policy_source, conditionText(row.condition).join(' ')].some((v) =>
+              String(v ?? '').toLowerCase().includes(term),
+            )),
+      )
+      /* Denies last: they read as guard rails under what is allowed. */
+      .sort((a, b) => Number(a.effect === 'Deny') - Number(b.effect === 'Deny'));
   }, [data, use, search]);
 
   if (query.isError && !data) return <TabError query={query} label="Permissions unavailable" />;
@@ -394,12 +401,16 @@ function PermissionsPanel({ identityId }) {
 
   const summary = data.summary ?? {};
   const breakdown = data.policy_breakdown ?? [];
+  const boundaries = data.permissions_boundaries ?? [];
+  const all = data.permissions ?? [];
+  const conditioned = all.filter((row) => conditionText(row.condition).length > 0).length;
+  const everyResource = all.filter((row) => row.effect !== 'Deny' && row.resource_arn === '*').length;
 
   return (
     <div className="flex flex-col gap-6">
       <TabIntro>
-        What the policies on this identity&apos;s credentials allow, and which of those actions it was seen using in the AWS
-        activity log (CloudTrail) over the last 90 days. An action allowed but never used is access an attacker would get for
+        What the policies on this identity&apos;s credentials allow, on which resources and under which conditions, and which of those actions it was
+        seen using in the AWS activity log (CloudTrail) over the last 90 days. An action allowed but never used is access an attacker would get for
         free, so it is the first thing to remove.
       </TabIntro>
 
@@ -416,6 +427,8 @@ function PermissionsPanel({ identityId }) {
         </div>
       </section>
 
+      <BoundaryLine boundaries={boundaries} />
+
       <div>
         <SectionLabel>Where the permissions come from</SectionLabel>
         {breakdown.length === 0 ? (
@@ -431,7 +444,7 @@ function PermissionsPanel({ identityId }) {
                 <span>
                   <span className="flex justify-between text-[11.5px] text-ink-3">
                     <span>
-                      {formatNumber(policy.used_permissions)} of {formatNumber(policy.total_permissions)} actions used
+                      {formatNumber(policy.used_permissions)} of {formatNumber(policy.total_permissions)} {policy.total_permissions === 1 ? 'action' : 'actions'} used
                     </span>
                     <span data-numeric="">{shareText(policy.used_permissions, policy.total_permissions)}</span>
                   </span>
@@ -444,16 +457,25 @@ function PermissionsPanel({ identityId }) {
       </div>
 
       <div>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <SectionLabel>Allowed actions</SectionLabel>
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <SectionLabel>Permissions</SectionLabel>
+            {all.length > 0 && (
+              <p className="mt-1 text-[12px] text-ink-3">
+                {formatNumber(all.length)} {all.length === 1 ? 'statement' : 'statements'}
+                {everyResource > 0 && <span className="text-high"> · {formatNumber(everyResource)} on every resource</span>}
+                {conditioned > 0 && ` · ${formatNumber(conditioned)} only under conditions`}
+              </p>
+            )}
+          </div>
           <span className="flex flex-wrap items-center gap-2">
-            <SearchInput size="sm" value={search} onChange={setSearch} placeholder="Search actions, resources, policies" aria-label="Search allowed actions" className="w-64" />
+            <SearchInput size="sm" value={search} onChange={setSearch} placeholder="Search actions, resources, conditions" aria-label="Search allowed actions" className="w-72" />
             <SegmentedControl label="Show" options={USE_FILTERS} value={use} onChange={setUse} />
           </span>
         </div>
         <DataGrid
           className="mt-2"
-          caption="Allowed actions"
+          caption="Permissions"
           rows={rows}
           rowKey={(row, index) => `${row.policy_source}-${row.action}-${row.resource_arn}-${index}`}
           density="compact"
@@ -462,44 +484,67 @@ function PermissionsPanel({ identityId }) {
               key: 'action',
               header: 'Action',
               primary: true,
-              width: '30%',
+              width: '22%',
               cell: (row) => (
                 <span className="block min-w-0">
-                  <span className="block truncate font-mono text-[12.5px] text-ink">{row.action || 'No action recorded'}</span>
-                  <span className="block truncate text-[11px] text-ink-3">{row.service || 'Service not recorded'}</span>
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <span className={cn('truncate font-mono text-[12.5px]', row.effect === 'Deny' ? 'text-ink-3 line-through decoration-ink-3/50' : 'text-ink')} title={`${row.service}:${row.action}`}>
+                      {row.action === '*' ? '* (every action)' : row.action || 'No action recorded'}
+                    </span>
+                  </span>
+                  <span className="block truncate text-[11px] text-ink-3">{row.service === '*' ? 'Every service' : serviceName(row.service) || 'Service not recorded'}</span>
                 </span>
               ),
+            },
+            {
+              key: 'effect',
+              header: 'Effect',
+              width: '9%',
+              cell: (row) =>
+                row.effect === 'Deny' ? (
+                  <Tag tone="critical" size="sm">
+                    Deny
+                  </Tag>
+                ) : (
+                  <span className="text-[12.5px] text-ink-2">Allow</span>
+                ),
             },
             {
               key: 'resource',
               header: 'Resource',
-              width: '24%',
-              cell: (row) => (
-                <span className={cn('block truncate font-mono text-[12px]', row.resource_arn === '*' ? 'text-high' : 'text-ink-2')} title={row.resource_arn}>
-                  {row.resource_arn === '*' ? '* (every resource)' : row.resource_arn || 'Not recorded'}
-                </span>
-              ),
+              width: '21%',
+              cell: (row) => <ResourceCell arn={row.resource_arn} deny={row.effect === 'Deny'} />,
+            },
+            {
+              key: 'condition',
+              header: 'Condition',
+              width: '20%',
+              priority: 'wide',
+              cell: (row) => <ConditionCell condition={row.condition} />,
             },
             {
               key: 'policy',
               header: 'Allowed by',
-              width: '20%',
+              width: '15%',
               priority: 'wide',
+              hideWithRail: true,
               cell: (row) => (
                 <span className="block min-w-0">
-                  <span className="block truncate text-[12.5px] text-ink-2">{policyName(row.policy_source)}</span>
-                  <span className="block truncate text-[11px] text-ink-3">
-                    {titleCaseEnum(row.policy_type)} policy · {row.effect === 'Deny' ? 'denies' : 'allows'}
+                  <span className="block truncate text-[12.5px] text-ink-2" title={row.policy_source}>
+                    {policyName(row.policy_source)}
                   </span>
+                  <span className="block truncate text-[11px] text-ink-3">{titleCaseEnum(row.policy_type)} policy</span>
                 </span>
               ),
             },
             {
               key: 'used',
               header: 'Used (90 days)',
-              width: '16%',
+              width: '13%',
               cell: (row) =>
-                row.used ? (
+                row.effect === 'Deny' ? (
+                  <span className="text-[12px] text-ink-3">-</span>
+                ) : row.used ? (
                   <span className="block min-w-0">
                     <Tag tone="low" size="sm" dot>
                       Used
@@ -514,15 +559,92 @@ function PermissionsPanel({ identityId }) {
             },
           ]}
           emptyState={
-            (data.permissions ?? []).length === 0 ? (
+            all.length === 0 ? (
               <EmptyState compact icon={ListChecks} title="No allowed actions recorded" description="The discovery scan found no permissions on this identity's credentials." />
             ) : search.trim() ? (
-              <EmptyState compact icon={ListChecks} title="No allowed action matches your search" description="Try another action, service, resource or policy name." />
+              <EmptyState compact icon={ListChecks} title="No permission matches your search" description="Try another action, service, resource, policy or condition." />
             ) : (
               <EmptyState compact icon={ListChecks} title={use === 'used' ? 'None of its allowed actions were used' : 'Every allowed action was used'} description="Choose All to see the rest." />
             )
           }
         />
+      </div>
+    </div>
+  );
+}
+
+/** A Condition block as plain sentences; a string is shown as recorded. */
+function conditionText(condition) {
+  if (!condition) return [];
+  if (typeof condition === 'string') return condition.trim() ? [condition.trim()] : [];
+  return describeConditions(condition);
+}
+
+function ConditionCell({ condition }) {
+  const lines = conditionText(condition);
+  if (!lines.length) return <span className="text-[12px] text-ink-3">None</span>;
+  return (
+    <span className="block min-w-0" title={lines.join('\n')}>
+      {lines.slice(0, 3).map((line) => (
+        <span key={line} className="block font-mono text-[11.5px] leading-snug [overflow-wrap:anywhere] text-ink-2">
+          {line}
+        </span>
+      ))}
+      {lines.length > 3 && <span className="text-[11px] text-ink-3">+{formatNumber(lines.length - 3)} more</span>}
+    </span>
+  );
+}
+
+/** The resource by its readable end, the full ARN on hover; "*" is called out. */
+function ResourceCell({ arn, deny }) {
+  if (!arn || arn === '*') {
+    return <span className={cn('text-[12.5px]', deny ? 'text-ink-3' : 'font-medium text-high')}>Every resource (*)</span>;
+  }
+  const tail = String(arn).split(':').slice(5).join(':') || arn;
+  return (
+    <span className="block min-w-0" title={arn}>
+      <span className="block truncate font-mono text-[12px] text-ink-2">{tail}</span>
+      <span className="block truncate text-[11px] text-ink-3">{arnServiceLabel(arn)}</span>
+    </span>
+  );
+}
+
+const arnServiceLabel = (arn) => {
+  const parts = String(arn).split(':');
+  const region = parts[3];
+  const account = parts[4];
+  return [serviceName(parts[2]), account && `account ${account}`, region].filter(Boolean).join(' · ');
+};
+
+/** The credentials' permissions boundaries, above the grants they cap. */
+function BoundaryLine({ boundaries }) {
+  return (
+    <div className="flex items-start gap-2.5 rounded-[var(--radius-control)] border border-line px-3.5 py-2.5">
+      <ShieldHalf aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-ink-3" />
+      <div className="min-w-0 text-[12.5px] text-ink-2">
+        {boundaries.length === 0 ? (
+          <p>
+            <span className="font-medium text-ink">No permissions boundary </span>
+            <span className="text-ink-3">on its credentials, so the permissions below apply as written.</span>
+          </p>
+        ) : (
+          <>
+            <p className="text-ink-3">
+              A permissions boundary caps what a credential can do: an action the boundary does not allow is refused even when a policy below allows it.
+            </p>
+            <ul className="mt-1 flex flex-col gap-0.5">
+              {boundaries.map((b) => (
+                <li key={`${b.credential_arn}-${b.boundary_arn}`}>
+                  <span className="font-mono text-ink" title={b.boundary_arn}>
+                    {String(b.boundary_arn).split('/').pop()}
+                  </span>
+                  <span className="text-ink-3"> caps </span>
+                  <span className="font-mono text-ink-2">{b.credential_name || String(b.credential_arn).split('/').pop()}</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </div>
     </div>
   );
