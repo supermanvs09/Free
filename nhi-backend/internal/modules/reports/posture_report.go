@@ -46,7 +46,8 @@ type PostureReport struct {
 	FailingCount    int // identities with at least one failing check in the report
 	CheckCount      int // failing checks in the report
 	BySeverity      map[string]int
-	TopChecks       []TopCheck
+	TopChecks       []TopCheck // at most 10, see sortTopChecks
+	CheckKinds      int        // distinct failing checks before the cut to 10
 	Identities      []ReportIdentity
 	AccountsCovered int
 }
@@ -204,16 +205,10 @@ func LoadPosture(ctx context.Context, s *scope.DataScope, o PostureOptions) (*Po
 	for k, ids := range top {
 		rep.TopChecks = append(rep.TopChecks, TopCheck{Title: k.title, Severity: k.sev, Identities: len(ids)})
 	}
-	sort.Slice(rep.TopChecks, func(i, j int) bool {
-		a, b := rep.TopChecks[i], rep.TopChecks[j]
-		if a.Identities != b.Identities {
-			return a.Identities > b.Identities
-		}
-		if sevRank(a.Severity) != sevRank(b.Severity) {
-			return sevRank(a.Severity) < sevRank(b.Severity)
-		}
-		return a.Title < b.Title
-	})
+	// Most severe first, then the widest spread: the order an auditor, the
+	// security team or a CISO reads a findings summary in.
+	sortTopChecks(rep.TopChecks)
+	rep.CheckKinds = len(rep.TopChecks)
 	if len(rep.TopChecks) > 10 {
 		rep.TopChecks = rep.TopChecks[:10]
 	}
@@ -255,4 +250,17 @@ func AreaLabel(code string) string {
 		return ""
 	}
 	return strings.ToUpper(t[:1]) + strings.ToLower(t[1:])
+}
+
+func sortTopChecks(checks []TopCheck) {
+	sort.Slice(checks, func(i, j int) bool {
+		a, b := checks[i], checks[j]
+		if sevRank(a.Severity) != sevRank(b.Severity) {
+			return sevRank(a.Severity) < sevRank(b.Severity)
+		}
+		if a.Identities != b.Identities {
+			return a.Identities > b.Identities
+		}
+		return a.Title < b.Title
+	})
 }

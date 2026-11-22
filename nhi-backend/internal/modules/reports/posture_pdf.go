@@ -132,11 +132,14 @@ func WritePosturePDF(w io.Writer, rep *PostureReport) error {
 		return finish(pdf, w)
 	}
 
-	// The checks failing most often.
+	// The failing checks, most severe first.
 	pdf.SetFont("Helvetica", "B", 10)
 	setText(pdf, inkRGB)
-	pdf.CellFormat(bodyW, 6, "Checks failing most often", "", 1, "L", false, 0, "")
-	pdf.Ln(1)
+	pdf.CellFormat(bodyW, 6, "Checks to fix first", "", 1, "L", false, 0, "")
+	setText(pdf, ink3RGB)
+	pdf.SetFont("Helvetica", "", 8.5)
+	pdf.CellFormat(bodyW, 4.5, "Most severe first, then by how many identities fail the check.", "", 1, "L", false, 0, "")
+	pdf.Ln(1.5)
 	cols := []float64{bodyW - 50, 26, 24}
 	tableHeader(pdf, t, cols, []string{"Check", "Severity", "Identities"})
 	for _, c := range rep.TopChecks {
@@ -149,6 +152,12 @@ func WritePosturePDF(w io.Writer, rep *PostureReport) error {
 		setText(pdf, inkRGB)
 		pdf.SetFont("Helvetica", "", 9)
 		pdf.CellFormat(cols[2], 6.5, strconv.Itoa(c.Identities), "B", 1, "R", false, 0, "")
+	}
+	if more := rep.CheckKinds - len(rep.TopChecks); more > 0 {
+		pdf.Ln(1.5)
+		setText(pdf, ink3RGB)
+		pdf.SetFont("Helvetica", "", 8.5)
+		pdf.CellFormat(bodyW, 4.5, fmt.Sprintf("And %d more %s, listed with each identity in the pages that follow.", more, plural(more, "check", "checks")), "", 1, "L", false, 0, "")
 	}
 
 	// Each identity, worst first.

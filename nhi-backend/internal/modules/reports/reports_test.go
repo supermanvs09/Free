@@ -101,3 +101,19 @@ func TestPDF(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestSortTopChecksSeverityFirst(t *testing.T) {
+	checks := []TopCheck{
+		{Title: "Session too long", Severity: "medium", Identities: 5},
+		{Title: "Admin access", Severity: "critical", Identities: 1},
+		{Title: "Cross-account trust", Severity: "high", Identities: 1},
+		{Title: "Old key", Severity: "high", Identities: 3},
+	}
+	sortTopChecks(checks)
+	want := []string{"Admin access", "Old key", "Cross-account trust", "Session too long"}
+	for i, w := range want {
+		if checks[i].Title != w {
+			t.Fatalf("position %d: got %q, want %q", i, checks[i].Title, w)
+		}
+	}
+}

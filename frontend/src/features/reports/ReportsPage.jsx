@@ -49,7 +49,7 @@ export default function ReportsPage() {
         title="Reports"
         lede="Download what the console found as a file to share or keep. Reports are built from the latest scan and cover every connected account."
       />
-      <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),26rem))] gap-4">
         <PostureCard onOpen={() => setOpen('posture')} />
       </div>
       <PostureReportDialog open={open === 'posture'} onClose={() => setOpen(null)} />
