@@ -242,7 +242,7 @@ function SummaryCards({ cards, window, learningCount, openTab }) {
       value={established}
       tone="brand"
       meter={coverage}
-      meterLabel="Share of watched identities with an established baseline"
+      meterLabel="With an established baseline"
       caption={Number.isFinite(watched) ? `of ${formatNumber(watched)} identities watched` : 'Normal behaviour learned and watched'}
     />,
     <MetricTile

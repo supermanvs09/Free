@@ -191,6 +191,10 @@ export default function ScanChangesPage() {
       )}
 
 
+      {(scansQuery.data?.length ?? 0) >= 2 && (
+        <ScanHistory scans={scansQuery.data} currentId={scan?.id} onOpen={(id) => navigate(scanChangesRoute(id))} />
+      )}
+
       <Panel ref={listRef} prominence="lead" flush className="scroll-mt-28 overflow-hidden" data-list-top="">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
           <SegmentedControl
@@ -280,9 +284,6 @@ export default function ScanChangesPage() {
         )}
       </Panel>
 
-      {(scansQuery.data?.length ?? 0) >= 2 && (
-        <ScanHistory scans={scansQuery.data} currentId={scan?.id} onOpen={(id) => navigate(scanChangesRoute(id))} />
-      )}
     </div>
   );
 }

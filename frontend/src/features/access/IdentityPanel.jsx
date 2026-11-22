@@ -259,7 +259,16 @@ function SummaryPane({ node, isFocusNode, detail, posture, discoveryId, onFocus 
               <>
                 <Row label="Status" value={humanizeToken(record.status)} warn={record.status && record.status !== 'active'} />
                 {record.region && <Row label="Region" value={record.region} />}
-                {'owner' in record && <Row label="Owner" value={record.owner} fallback="No owner recorded" warn={!record.owner} />}
+                {'owner' in record && (
+                  /* An owner recorded as an ARN reads by its name; the full ARN is on hover. */
+                  <Row
+                    label="Owner"
+                    value={String(record.owner ?? '').startsWith('arn:') ? String(record.owner).split('/').pop() : record.owner}
+                    title={record.owner || undefined}
+                    fallback="No owner recorded"
+                    warn={!record.owner}
+                  />
+                )}
                 {record.created_by && <Row label="Created by" value={record.created_by.split('/').pop()} title={record.created_by} />}
                 {record.last_activity_at !== undefined && (
                   <Row

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from './cn';
+import { zoomOf } from './zoom';
 
 const GAP = 6; // px between the trigger and the panel
 const EDGE = 8; // px the panel keeps from the window's edges
@@ -26,18 +27,20 @@ export function FloatingPanel({ anchorRef, open, onClose, align = 'end', gap = G
     const panel = panelRef.current;
     if (!anchor || !panel) return;
     const viewportH = window.visualViewport?.height ?? window.innerHeight;
-    if (minWidthOfAnchor) panel.style.minWidth = `${Math.round(anchor.width)}px`;
-    const width = panel.offsetWidth;
+    /* Measured in screen pixels; written back in the panel's zoomed pixels. */
+    const z = zoomOf(panel);
+    if (minWidthOfAnchor) panel.style.minWidth = `${Math.round(anchor.width / z)}px`;
+    const width = panel.offsetWidth * z;
     let left = align === 'end' ? anchor.right - width : anchor.left;
     left = Math.max(EDGE, Math.min(left, window.innerWidth - width - EDGE));
     const below = viewportH - anchor.bottom - gap - EDGE;
     const above = anchor.top - gap - EDGE;
-    const natural = panel.scrollHeight;
+    const natural = panel.scrollHeight * z;
     if (natural <= below || below >= MIN_USABLE || below >= above) {
-      setBox({ left, top: anchor.bottom + gap, maxHeight: Math.max(MIN_USABLE, below) });
+      setBox({ left: left / z, top: (anchor.bottom + gap) / z, maxHeight: Math.max(MIN_USABLE, below) / z });
     } else {
       const h = Math.min(natural, above);
-      setBox({ left, top: anchor.top - gap - h, maxHeight: above });
+      setBox({ left: left / z, top: (anchor.top - gap - h) / z, maxHeight: above / z });
     }
   }, [anchorRef, align, gap, minWidthOfAnchor]);
 

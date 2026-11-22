@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { zoomOf } from '../../ui/zoom';
 
 /**
  * Popover behaviour: dismissal, and placement against the space available.
@@ -38,12 +39,14 @@ export function usePopover(open, onDismiss) {
     const below = viewportHeight - rect.bottom - MARGIN;
     const above = rect.top - MARGIN;
 
+    /* The budget is in screen pixels; max-height is applied zoomed. */
+    const z = zoomOf(trigger);
     if (below >= MIN_USABLE || below >= above) {
       setPlacement('bottom');
-      setMaxHeight(Math.max(MIN_USABLE, Math.floor(below)));
+      setMaxHeight(Math.max(MIN_USABLE, Math.floor(below / z)));
     } else {
       setPlacement('top');
-      setMaxHeight(Math.max(MIN_USABLE, Math.floor(above)));
+      setMaxHeight(Math.max(MIN_USABLE, Math.floor(above / z)));
     }
   }, []);
 

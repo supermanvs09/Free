@@ -72,7 +72,7 @@ func (b *queryBuilder) BuildFragments(s *scope.DataScope, f common.IdentityFilte
 		out = append(out, fragment{FacetClass, common.ClassExpr("p.identity_class") + " = ANY(" + b.add(pq.Array(f.Classes)) + "::text[])"})
 	}
 	if len(f.Bands) > 0 {
-		out = append(out, fragment{FacetBand, "p.band = ANY(" + b.add(pq.Array(f.Bands)) + "::text[])"})
+		out = append(out, fragment{FacetBand, "upper(p.band) = ANY(" + b.add(pq.Array(upperAll(f.Bands))) + "::text[])"})
 	}
 	if len(f.Severities) > 0 {
 		var parts []string
@@ -330,4 +330,14 @@ func (row IdentityRow) toItem(w common.Window) common.IdentityListItem {
 		item.Credential = &common.CredentialBrief{Type: row.CredType.String, AgeDays: common.NullInt(row.CredAgeDays)}
 	}
 	return item
+}
+
+// upperAll upper-cases band filter values: the engine stores bands in lower
+// case ("fair") while the API accepts the upper-case enum ("FAIR").
+func upperAll(values []string) []string {
+	out := make([]string, len(values))
+	for i, v := range values {
+		out[i] = strings.ToUpper(v)
+	}
+	return out
 }

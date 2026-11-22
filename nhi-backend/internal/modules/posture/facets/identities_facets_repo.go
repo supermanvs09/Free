@@ -38,7 +38,7 @@ func (r *IdentitiesFacetsRepository) Get(ctx context.Context, s *scope.DataScope
 		common.ClassExpr("p.identity_class"), table, identitylist.WhereExcept(frags, identitylist.FacetClass)))
 	// band
 	branches = append(branches, fmt.Sprintf(
-		`SELECT 'band', p.band::text, ''::text, count(*)::bigint FROM %s p WHERE %s AND p.band IS NOT NULL GROUP BY p.band`,
+		`SELECT 'band', upper(p.band::text), ''::text, count(*)::bigint FROM %s p WHERE %s AND p.band IS NOT NULL GROUP BY upper(p.band::text)`,
 		table, identitylist.WhereExcept(frags, identitylist.FacetBand)))
 	// severity: identities failing at least one check of that severity
 	for _, sev := range common.Severities {

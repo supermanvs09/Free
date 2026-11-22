@@ -15,6 +15,7 @@ import { Tag } from '../../ui/Tag';
 import { cn } from '../../ui/cn';
 import { identityTypeLabel } from '../posture/parts';
 import { ScoreShift, actorOf, dropSeverity, shortRef } from './parts';
+import { changeStory } from '../changes/story';
 
 const TONE_BG = { low: 'bg-low', medium: 'bg-medium', high: 'bg-high', critical: 'bg-critical' };
 
@@ -89,7 +90,16 @@ function ChangeItem({ c }) {
       <span aria-hidden="true" className="absolute top-1 left-0 grid size-[15px] place-items-center rounded-full border border-line-strong bg-surface">
         <span className="size-[5px] rounded-full bg-ink-2" />
       </span>
-      <p className="text-[13.5px] font-medium text-ink">{c.summary || `${c.change_type} ${c.entity_type}`}</p>
+      <p className="text-[13.5px] font-medium text-ink">
+        {changeStory({
+          entityType: String(c.entity_type ?? '').toLowerCase(),
+          changeType: String(c.change_type ?? '').toUpperCase(),
+          name: c.entity_name || '',
+          arn: c.entity_arn || '',
+          details: c.details ?? {},
+        }) ??
+          (c.summary || `${c.change_type} ${c.entity_type}`)}
+      </p>
       <p className="mt-0.5 text-[12px] text-ink-3">
         {by ? <>by <span className="font-medium text-ink-2">{by}</span> · </> : null}
         <span title={formatDateTime(c.detected_at)}>{formatRelative(c.detected_at)}</span>

@@ -81,19 +81,29 @@
     zoom: var(--app-zoom);
   }
 
+  /* Desktop runs at 90%: at 100% the px-built layout read one size too large
+     on common laptop screens (people were zooming the browser out). Phones
+     and tablets keep 100% for legibility. The large-display steps below are
+     the earlier factors times 0.9. Anything positioned from a measured
+     rectangle divides by the zoom (see ui/zoom.js). */
+  @media (min-width: 1024px) {
+    html {
+      --app-zoom: 0.9;
+    }
+  }
   @media (min-width: 1800px) {
     html {
-      --app-zoom: 1.08;
+      --app-zoom: 0.97;
     }
   }
   @media (min-width: 2300px) {
     html {
-      --app-zoom: 1.18;
+      --app-zoom: 1.06;
     }
   }
   @media (min-width: 3000px) {
     html {
-      --app-zoom: 1.32;
+      --app-zoom: 1.19;
     }
   }
 
@@ -110,14 +120,11 @@
     --content-zoom: 1;
   }
 
-  @media (min-width: 1024px) and (max-width: 1279.98px) {
-    :root {
-      --content-zoom: 0.9;
-    }
-  }
+  /* The page is already at 90% on desktop (see --app-zoom), so the content
+     column needs only a small extra step on the narrowest desktops. */
   @media (min-width: 1024px) and (max-width: 1099.98px) {
     :root {
-      --content-zoom: 0.85;
+      --content-zoom: 0.95;
     }
   }
 

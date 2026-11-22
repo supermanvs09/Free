@@ -86,7 +86,7 @@ export function MetricTile({
         <div className="mt-3" title={`${meterLabel || label}: ${Math.round(Number(meter) || 0)}%`}>
           <Meter value={meter} tone={tone} height={4} label={meterLabel || label} />
           <p className="mt-1 flex items-center justify-between gap-2 text-[10.5px] text-ink-3">
-            <span className="truncate">{meterLabel || 'Share'}</span>
+            <span className="min-w-0">{meterLabel || 'Share'}</span>
             <span data-numeric="" className="shrink-0 font-semibold text-ink-2">
               {formatPercent(meter)}
             </span>

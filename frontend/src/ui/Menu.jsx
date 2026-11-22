@@ -2,6 +2,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { MoreHorizontal } from 'lucide-react';
 import { cn } from './cn';
+import { zoomOf } from './zoom';
 
 const GAP = 4; // px between the button and the menu
 const EDGE = 8; // px the menu keeps from the window's edges
@@ -37,14 +38,17 @@ export function Menu({ items, label = 'Row actions', icon: Icon = MoreHorizontal
     const anchor = buttonRef.current?.getBoundingClientRect();
     const menu = menuRef.current;
     if (!anchor || !menu) return;
-    const { offsetWidth: width, offsetHeight: height } = menu;
+    /* Measured in screen pixels; written back in the menu's zoomed pixels. */
+    const z = zoomOf(menu);
+    const width = menu.offsetWidth * z;
+    const height = menu.offsetHeight * z;
     let left = align === 'end' ? anchor.right - width : anchor.left;
     left = Math.max(EDGE, Math.min(left, window.innerWidth - width - EDGE));
     let top = anchor.bottom + GAP;
     if (top + height > window.innerHeight - EDGE && anchor.top - GAP - height >= EDGE) {
       top = anchor.top - GAP - height;
     }
-    setPosition({ top, left });
+    setPosition({ top: top / z, left: left / z });
   }, [open, align]);
 
   /* Once placed, the first item takes focus so the keyboard can carry on. */
