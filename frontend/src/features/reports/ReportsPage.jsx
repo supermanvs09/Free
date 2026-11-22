@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Download, FileSpreadsheet, FileText, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Download, FileSpreadsheet, FileText, ShieldCheck } from 'lucide-react';
 import { downloadPostureReport, fetchPostureReportPreview } from '../../lib/api/reports';
 import { useDebouncedValue, useQuery } from '../../lib/hooks';
 import { formatNumber } from '../../lib/format';
 import { PageHeader } from '../../shell/PageHeader';
 import { Button } from '../../ui/Button';
-import { Panel } from '../../ui/Panel';
+import { Modal } from '../../ui/Overlay';
 import { InlineError } from '../../ui/States';
 import { SegmentedControl } from '../../ui/Tabs';
 import { useToast } from '../../ui/Toast';
@@ -37,26 +37,78 @@ const FORMATS = [
 
 /**
  * Reports: files built from what the console already stores, to share with
- * people who do not use it (an auditor, a team lead, a ticket). One report for
- * now, the posture report. Every choice updates a plain-language preview of
- * what the file will hold before anything is downloaded.
+ * people who do not use it (an auditor, a team lead, a ticket). Each report is
+ * a small card saying what it holds right now; Download opens the builder in a
+ * dialog, where every choice updates a preview before anything is downloaded.
  */
 export default function ReportsPage() {
+  const [open, setOpen] = useState(null);
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Reports"
         lede="Download what the console found as a file to share or keep. Reports are built from the latest scan and cover every connected account."
       />
-      <PostureReport />
+      <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+        <PostureCard onOpen={() => setOpen('posture')} />
+      </div>
+      <PostureReportDialog open={open === 'posture'} onClose={() => setOpen(null)} />
     </div>
   );
 }
 
-function PostureReport() {
+const ALL_SEVERITIES = SEVERITIES.map((s) => s.value);
+
+/** The report as a card: what it is, what it would hold today, and the way in. */
+function PostureCard({ onOpen }) {
+  const preview = useQuery((signal) => fetchPostureReportPreview({ identityClass: 'all', severities: ALL_SEVERITIES }, signal), []);
+  const p = preview.data;
+  return (
+    <article className="animate-rise group flex flex-col rounded-[var(--radius-panel)] border border-line bg-surface p-5 transition-[border-color,box-shadow] hover:border-ink-3/40 hover:shadow-sm">
+      <div className="flex items-start gap-3">
+        <span className="grid size-10 shrink-0 place-items-center rounded-[var(--radius-control)] border border-brand/20 bg-info-soft">
+          <ShieldCheck aria-hidden="true" className="size-5 text-brand" />
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-[15px] font-semibold text-ink">Posture report</h2>
+          <p className="mt-0.5 text-[12.5px] leading-relaxed text-ink-3">Which identities fail which security checks, how serious each one is and how to fix it.</p>
+        </div>
+      </div>
+
+      <dl className="mt-4 grid grid-cols-3 gap-3 border-t border-line pt-4">
+        <CardFigure label="Identities failing" value={p?.failing} loading={!p && !preview.isError} />
+        <CardFigure label="Failing checks" value={p?.checks} loading={!p && !preview.isError} />
+        <CardFigure label="Critical" value={p?.bySeverity?.critical ?? (p ? 0 : undefined)} loading={!p && !preview.isError} tone={p?.bySeverity?.critical ? 'text-critical' : undefined} />
+      </dl>
+
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+        <span className="flex items-center gap-1.5 text-[12px] text-ink-3">
+          <FileText aria-hidden="true" className="size-3.5" /> PDF
+          <FileSpreadsheet aria-hidden="true" className="ml-1.5 size-3.5" /> CSV
+        </span>
+        <Button variant="primary" size="sm" icon={Download} onClick={onOpen}>
+          Download
+        </Button>
+      </div>
+    </article>
+  );
+}
+
+function CardFigure({ label, value, loading, tone }) {
+  return (
+    <div className="min-w-0">
+      <dt className="truncate text-[11.5px] text-ink-3">{label}</dt>
+      <dd data-numeric="" className={cn('mt-0.5 text-[18px] leading-tight font-semibold', tone ?? 'text-ink')}>
+        {loading ? <span className="inline-block h-4 w-8 animate-pulse rounded bg-surface-2" /> : value === undefined || value === null ? '-' : formatNumber(value)}
+      </dd>
+    </div>
+  );
+}
+
+function PostureReportDialog({ open, onClose }) {
   const { notify } = useToast();
   const [identityClass, setIdentityClass] = useState('all');
-  const [severities, setSeverities] = useState(SEVERITIES.map((s) => s.value));
+  const [severities, setSeverities] = useState(ALL_SEVERITIES);
   const [parts, setParts] = useState(PARTS.map((p) => p.value));
   const [format, setFormat] = useState('pdf');
   const [busy, setBusy] = useState(false);
@@ -66,12 +118,18 @@ function PostureReport() {
   const preview = useQuery(
     (signal) => fetchPostureReportPreview({ identityClass, severities: sevKey ? sevKey.split(',') : [] }, signal),
     [identityClass, sevKey],
-    { enabled: sevKey !== '' },
+    { enabled: open && sevKey !== '', keepPrevious: true },
   );
 
   const toggle = (list, setList, value) => setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
   const p = preview.data;
   const nothingChosen = severities.length === 0;
+
+  const close = () => {
+    if (busy) return;
+    setError(null);
+    onClose();
+  };
 
   const download = async () => {
     setBusy(true);
@@ -79,6 +137,7 @@ function PostureReport() {
     try {
       const { filename } = await downloadPostureReport({ identityClass, severities, include: parts, format });
       notify({ variant: 'success', title: 'Report downloaded', description: filename });
+      onClose();
     } catch (err) {
       setError(err);
     } finally {
@@ -87,20 +146,31 @@ function PostureReport() {
   };
 
   return (
-    <Panel prominence="lead" flush className="animate-rise overflow-hidden">
-      <div className="flex items-start gap-3 border-b border-line px-5 py-4">
-        <span className="grid size-9 shrink-0 place-items-center rounded-[var(--radius-control)] border border-line bg-surface-2">
-          <ShieldCheck aria-hidden="true" className="size-4.5 text-brand" />
-        </span>
-        <div className="min-w-0">
-          <h2 className="text-[15px] font-semibold text-ink">Posture report</h2>
-          <p className="mt-0.5 max-w-[70ch] text-[12.5px] leading-relaxed text-ink-3">
-            Which identities fail which security checks, how serious each one is and how to fix it. The same data as the Posture page, as a file.
-          </p>
-        </div>
-      </div>
-
-      <div className="grid @container lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
+    <Modal
+      open={open}
+      onClose={close}
+      size="xl"
+      flush
+      icon={ShieldCheck}
+      title="Posture report"
+      description="Choose what goes in the file. The summary updates as you choose."
+      footer={
+        <>
+          {error && (
+            <div className="mr-auto min-w-0">
+              <InlineError error={error} onRetry={download} label="The report could not be downloaded" />
+            </div>
+          )}
+          <Button variant="secondary" onClick={close} disabled={busy}>
+            Cancel
+          </Button>
+          <Button variant="primary" icon={Download} onClick={download} loading={busy} disabled={nothingChosen || busy}>
+            {busy ? 'Preparing…' : `Download ${format.toUpperCase()}`}
+          </Button>
+        </>
+      }
+    >
+      <div className="grid md:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]">
         <div className="flex flex-col gap-6 px-5 py-5">
           <Step n={1} title="Which identities">
             <SegmentedControl label="Which identities" options={CLASSES} value={identityClass} onChange={setIdentityClass} />
@@ -156,7 +226,7 @@ function PostureReport() {
                   <label
                     key={f.value}
                     className={cn(
-                      'flex cursor-pointer items-start gap-3 rounded-[var(--radius-control)] border p-3 transition-colors',
+                      'flex cursor-pointer items-start gap-3 rounded-[var(--radius-control)] border p-3 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/40',
                       on ? 'border-brand/50 bg-brand-soft/30 shadow-[0_0_0_1px_var(--t-brand)]' : 'border-line hover:border-ink-3/50',
                     )}
                   >
@@ -173,7 +243,7 @@ function PostureReport() {
           </Step>
         </div>
 
-        <aside aria-label="What the report holds" className="flex flex-col gap-4 border-t border-line bg-surface-2/50 px-5 py-5 lg:border-t-0 lg:border-l">
+        <aside aria-label="What the report holds" className="flex flex-col gap-4 border-t border-line bg-surface-2/50 px-5 py-5 md:border-t-0 md:border-l">
           <p className="text-[13px] font-semibold text-ink">This report will hold</p>
           {nothingChosen ? (
             <p className="text-[12.5px] text-ink-3">Nothing yet: choose at least one severity.</p>
@@ -183,7 +253,7 @@ function PostureReport() {
             <p className="text-[12.5px] text-ink-3">Counting…</p>
           ) : (
             <>
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
+              <dl className={cn('grid grid-cols-2 gap-x-4 gap-y-3 transition-opacity', preview.isRefreshing && 'opacity-60')}>
                 <Figure label="Identities scored" value={p.scored} />
                 <Figure label="With failing checks" value={p.failing} />
                 <Figure label="Failing checks" value={p.checks} />
@@ -209,29 +279,27 @@ function PostureReport() {
                   ? 'No identity fails a check of the chosen severity. The report will say so.'
                   : `Covers ${formatNumber(p.accounts)} ${p.accounts === 1 ? 'account' : 'accounts'}. Identities are listed worst score first, each with its most severe check first.`}
               </p>
+              <p className="mt-auto flex items-center gap-1.5 border-t border-line pt-3 text-[12px] text-ink-3">
+                <ArrowRight aria-hidden="true" className="size-3.5" />
+                {format === 'pdf' ? 'A summary page, then one section per identity.' : 'One row per failing check, ready to sort and filter.'}
+              </p>
             </>
           )}
-
-          {error && <InlineError error={error} onRetry={download} label="The report could not be downloaded" />}
-
-          <Button variant="primary" icon={Download} onClick={download} loading={busy} disabled={nothingChosen || busy} className="mt-auto w-full justify-center">
-            {busy ? 'Preparing…' : `Download ${format.toUpperCase()}`}
-          </Button>
         </aside>
       </div>
-    </Panel>
+    </Modal>
   );
 }
 
 function Step({ n, title, hint, children }) {
   return (
     <section aria-label={title}>
-      <div className="mb-2.5 flex items-baseline gap-2.5">
+      <div className="mb-2.5 flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
         <span aria-hidden="true" className="grid size-5 shrink-0 place-items-center rounded-full border border-line text-[11px] font-semibold text-ink-3">
           {n}
         </span>
         <h3 className="text-[13.5px] font-semibold text-ink">{title}</h3>
-        {hint && <span className="text-[12px] text-ink-3">{hint}</span>}
+        {hint && <span className="basis-full pl-7.5 text-[12px] text-ink-3 sm:basis-auto sm:pl-0">{hint}</span>}
       </div>
       <div className="pl-7.5">{children}</div>
     </section>
