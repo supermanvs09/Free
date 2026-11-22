@@ -159,3 +159,21 @@ export function groupStory(changes) {
   }
   return null;
 }
+
+/**
+ * Whether a change only takes access away: actions lost and none gained, a
+ * trust or binding removed, a credential deleted. Shown as reduced exposure.
+ */
+export function changeReduces(change) {
+  const d = change.details ?? {};
+  if (change.entityType === 'permission') return asActions(d.actions_removed).length > 0 && asActions(d.actions_added).length === 0;
+  if (['trust_edge', 'binding', 'credential'].includes(change.entityType)) return change.changeType === 'DELETED';
+  return false;
+}
+
+/** raised | reduced | other, for a group of changes to one resource. */
+export function groupImpact(changes) {
+  if (groupRisk(changes)) return 'raised';
+  if (changes.length && changes.every(changeReduces)) return 'reduced';
+  return 'other';
+}

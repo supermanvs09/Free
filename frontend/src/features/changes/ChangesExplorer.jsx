@@ -1,209 +1,183 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ChevronRight, ShieldAlert } from 'lucide-react';
+import { ArrowDownRight, ArrowRight, ChevronDown, ShieldAlert } from 'lucide-react';
 import { changeEntityRoute } from '../../lib/api/changes';
 import { formatDateTime, formatNumber, formatRelative } from '../../lib/format';
 import { DIFF_LIMIT, diffValues, isPlainObject, parseJsonish } from '../../lib/jsonDiff';
 import { CopyableValue } from '../../ui/Copyable';
-import { SearchInput } from '../../ui/Field';
 import { cn } from '../../ui/cn';
-import { CHANGE_META, ChangeBadge, ChangeDetails, ENTITY_META, EvidenceCard, RiskBadge, Value, fieldLabel } from './parts';
-import { changeRisk, changeStory, groupChanges, groupRisk, groupStory, shortName } from './story';
+import { ChangeBadge, ChangeDetails, ENTITY_META, ENTITY_TYPES, EvidenceCard, RiskBadge, Value, fieldLabel } from './parts';
+import { changeRisk, changeStory, groupChanges, groupImpact, groupRisk, groupStory, shortName } from './story';
 
 /*
- * Scan changes as an audit history, the way cloud security tools show it
- * (Wiz Audit History, the AWS Config resource timeline): what needs attention
- * first, then one row per changed resource and, beside it, everything this
- * scan changed on the selected resource, each field as Before / After and who
- * made the change when CloudTrail recorded it.
- *
- * Colour is kept for meaning only: a red or amber mark for risk, a small dot
- * for created / deleted / modified, red for a risky action. Everything else is
- * ink on the surface, so the risky lines are the ones that stand out.
+ * Scan changes as a digest: the question a security engineer opens this page
+ * with is "did this scan make us riskier?", so the changes that raised risk
+ * come first, then those that took access away, then everything else by
+ * kind. Each line is one resource and reads as a sentence; it opens in place
+ * to the field-by-field Before / After and who made the change. This follows
+ * how change history reads in cloud security tools: impact first (Orca, Wiz
+ * Audit History), which resources changed and which attributes (Terraform
+ * drift), who / what / when per change (Wiz, AWS Config timeline).
  */
 
-const RISK_ORDER = { critical: 0, high: 1 };
 const latest = (changes) => changes.reduce((a, c) => (new Date(c.detectedAt) > new Date(a.detectedAt) ? c : a), changes[0]);
-const riskTone = (risk) => (risk?.level === 'critical' ? 'text-critical' : 'text-high');
 
-export function ChangesExplorer({ changes }) {
-  const [search, setSearch] = useState('');
-  const groups = useMemo(() => {
+/** Groups of one scan's changes, each with its story and impact. */
+export function useChangeGroups(changes, search) {
+  return useMemo(() => {
     const term = search.trim().toLowerCase();
     return groupChanges(changes)
-      .map((g) => ({ ...g, risk: groupRisk(g.changes), lead: g.changes[0], story: groupStory(g.changes) ?? changeStory(g.changes[0]) ?? g.changes[0].summary }))
-      .filter((g) => !term || [g.lead.name, g.lead.arn, g.story, ...g.changes.map((c) => changeStory(c) ?? c.summary)].some((v) => String(v ?? '').toLowerCase().includes(term)))
-      .sort((a, b) => (RISK_ORDER[a.risk?.level] ?? 9) - (RISK_ORDER[b.risk?.level] ?? 9));
+      .map((g) => ({
+        ...g,
+        lead: g.changes[0],
+        risk: groupRisk(g.changes),
+        impact: groupImpact(g.changes),
+        story: groupStory(g.changes) ?? changeStory(g.changes[0]) ?? g.changes[0].summary,
+      }))
+      .filter((g) => !term || [g.lead.name, g.lead.arn, g.story, ...g.changes.map((c) => changeStory(c) ?? c.summary)].some((v) => String(v ?? '').toLowerCase().includes(term)));
   }, [changes, search]);
+}
 
-  const [selected, setSelected] = useState(null);
-  useEffect(() => {
-    if (!groups.some((g) => g.key === selected)) setSelected(groups[0]?.key ?? null);
-  }, [groups, selected]);
-  const current = groups.find((g) => g.key === selected) ?? null;
-  const attention = groups.filter((g) => g.risk);
-  const critical = attention.filter((g) => g.risk.level === 'critical').length;
+export function ChangesExplorer({ groups }) {
+  const raised = groups.filter((g) => g.impact === 'raised').sort((a, b) => Number(b.risk?.level === 'critical') - Number(a.risk?.level === 'critical'));
+  const reduced = groups.filter((g) => g.impact === 'reduced');
+  const other = groups.filter((g) => g.impact === 'other');
 
   return (
     <div className="flex flex-col">
-      {attention.length > 0 && !search && (
-        <section aria-label="Needs attention" className="border-b border-line px-4 py-4 sm:px-5">
-          <h3 className="text-[13px] font-semibold text-ink">
-            Needs attention
-            <span className="ml-2 font-normal text-ink-3">
-              {critical > 0 && `${formatNumber(critical)} critical`}
-              {critical > 0 && attention.length > critical && ' · '}
-              {attention.length > critical && `${formatNumber(attention.length - critical)} high risk`}
-            </span>
-          </h3>
-          <ul className="mt-2.5 divide-y divide-line rounded-[var(--radius-control)] border border-line">
-            {attention.slice(0, 5).map((g) => (
-              <li key={g.key}>
-                <button
-                  type="button"
-                  onClick={() => setSelected(g.key)}
-                  aria-current={selected === g.key || undefined}
-                  className={cn('grid w-full grid-cols-[1rem_minmax(0,1fr)_auto] items-start gap-x-3 px-3.5 py-2.5 text-left transition-colors hover:bg-surface-2', selected === g.key && 'bg-surface-2')}
-                >
-                  <ShieldAlert aria-hidden="true" className={cn('mt-0.5 size-4', riskTone(g.risk))} />
-                  <span className="min-w-0">
-                    <span className="block text-[13px] font-medium text-ink">{g.story}</span>
-                    <span className="mt-0.5 block text-[12px] text-ink-3">{g.risk.reasons.join(' · ')}</span>
-                  </span>
-                  <span className="flex items-center gap-1 text-[12px] whitespace-nowrap text-ink-3">
-                    {formatRelative(latest(g.changes).detectedAt)}
-                    <ChevronRight aria-hidden="true" className="size-4" />
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-          {attention.length > 5 && <p className="mt-2 text-[12px] text-ink-3">{formatNumber(attention.length - 5)} more below, marked with a shield.</p>}
-        </section>
+      {raised.length > 0 && (
+        <Section title="Raised risk" count={raised.length} note="Wildcard access or trust, risky actions, new roles or keys, deleted roles. Review these first.">
+          {raised.map((g) => (
+            <ChangeLine key={g.key} group={g} />
+          ))}
+        </Section>
       )}
-
-      <div className="grid min-h-[28rem] @min-[64rem]:grid-cols-[minmax(0,21rem)_minmax(0,1fr)]">
-        <aside className="border-b border-line bg-surface-2/40 @min-[64rem]:border-r @min-[64rem]:border-b-0">
-          <div className="border-b border-line p-3">
-            <SearchInput size="sm" value={search} onChange={setSearch} placeholder="Search resources and changes" aria-label="Search changes" />
-          </div>
-          <p className="px-4 pt-3 pb-1.5 text-[12px] text-ink-3">
-            {formatNumber(groups.length)} {groups.length === 1 ? 'resource' : 'resources'} changed
-          </p>
-          {groups.length === 0 ? (
-            <p className="px-4 py-6 text-[13px] text-ink-3">No change matches your search.</p>
-          ) : (
-            <ul className="max-h-[40rem] overflow-y-auto px-2 pb-2">
-              {groups.map((g) => (
-                <ResourceRow key={g.key} group={g} active={g.key === selected} onSelect={() => setSelected(g.key)} />
-              ))}
-            </ul>
-          )}
-        </aside>
-        <section aria-label="Selected resource" className="min-w-0">
-          {current ? <ResourceDetail group={current} /> : <p className="p-6 text-[13px] text-ink-3">Select a resource to see what changed.</p>}
-        </section>
-      </div>
+      {reduced.length > 0 && (
+        <Section title="Reduced exposure" count={reduced.length} note="Access that was taken away: actions removed, trust or bindings deleted, credentials deleted.">
+          {reduced.map((g) => (
+            <ChangeLine key={g.key} group={g} />
+          ))}
+        </Section>
+      )}
+      {other.length > 0 && (
+        <Section title="Other changes" count={other.length} note="Changes that neither add nor remove access, by kind.">
+          {ENTITY_TYPES.map((type) => {
+            const list = other.filter((g) => g.lead.entityType === type);
+            return list.length ? <KindGroup key={type} type={type} groups={list} /> : null;
+          })}
+        </Section>
+      )}
     </div>
   );
 }
 
-function ResourceRow({ group: g, active, onSelect }) {
-  const Icon = ENTITY_META[g.lead.entityType]?.icon;
-  const types = [...new Set(g.changes.map((c) => CHANGE_META[c.changeType]?.label ?? c.changeType))];
+function Section({ title, count, note, children }) {
+  return (
+    <section aria-label={title} className="border-b border-line last:border-b-0">
+      <header className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 px-5 pt-5 pb-2">
+        <h3 className="text-[14px] font-semibold text-ink">
+          {title} <span className="font-normal text-ink-3">{formatNumber(count)}</span>
+        </h3>
+        <p className="text-[12.5px] text-ink-3">{note}</p>
+      </header>
+      <ul className="pb-3">{children}</ul>
+    </section>
+  );
+}
+
+const SHOW_FIRST = 6;
+
+function KindGroup({ type, groups }) {
+  const [all, setAll] = useState(false);
+  const meta = ENTITY_META[type];
+  const Icon = meta?.icon;
+  const shown = all ? groups : groups.slice(0, SHOW_FIRST);
   return (
     <li>
-      <button
-        type="button"
-        onClick={onSelect}
-        aria-current={active || undefined}
-        className={cn(
-          'flex w-full items-start gap-2.5 rounded-[var(--radius-control)] px-2.5 py-2 text-left transition-colors',
-          active ? 'bg-surface shadow-[0_0_0_1px_var(--t-line)]' : 'hover:bg-surface/70',
-        )}
-      >
-        {Icon && <Icon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-ink-3" />}
-        <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-1.5">
-            <span className="truncate text-[13px] font-medium text-ink" title={g.lead.arn}>
-              {g.lead.name || shortName(g.lead.arn)}
-            </span>
-            {g.risk && <ShieldAlert aria-label={g.risk.level === 'critical' ? 'Critical risk' : 'High risk'} className={cn('size-3.5 shrink-0', riskTone(g.risk))} />}
-          </span>
-          <span className="mt-0.5 block truncate text-[12px] text-ink-2">{g.story}</span>
-          <span className="mt-0.5 block text-[11.5px] text-ink-3">
-            {types.join(', ')} · {formatNumber(g.changes.length)} {g.changes.length === 1 ? 'change' : 'changes'}
-          </span>
-        </span>
-      </button>
+      <p className="flex items-center gap-1.5 px-5 pt-2 pb-1 text-[12px] font-medium text-ink-2">
+        {Icon && <Icon aria-hidden="true" className="size-3.5 text-ink-3" />}
+        {meta?.plural ?? type} <span className="font-normal text-ink-3">{formatNumber(groups.length)}</span>
+      </p>
+      <ul>
+        {shown.map((g) => (
+          <ChangeLine key={g.key} group={g} />
+        ))}
+      </ul>
+      {groups.length > SHOW_FIRST && (
+        <button type="button" onClick={() => setAll((v) => !v)} className="mx-5 mb-1 text-[12.5px] font-medium text-brand hover:underline">
+          {all ? 'Show fewer' : `Show ${formatNumber(groups.length - SHOW_FIRST)} more`}
+        </button>
+      )}
     </li>
   );
 }
 
-function ResourceDetail({ group: g }) {
+/** One resource's changes as one line; opens in place. */
+function ChangeLine({ group: g }) {
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
   const lead = g.lead;
+  const last = latest(g.changes);
+  const actor = g.changes.map((c) => c.evidence?.callerArn).find(Boolean);
   const to = changeEntityRoute(lead);
   const place = [lead.accountId, lead.region].filter(Boolean).join(' · ');
-  const last = latest(g.changes);
-  const story = g.changes.length > 1 ? groupStory(g.changes) : null;
   return (
-    <div className="@container flex flex-col gap-6 p-5 sm:p-6">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="text-[18px] font-semibold text-balance text-ink">{lead.name || shortName(lead.arn)}</h3>
-          <p className="mt-1 text-[12.5px] text-ink-3">
-            {ENTITY_META[lead.entityType]?.label ?? 'Resource'}
-            {place ? ` · ${place}` : ''} · detected <span title={formatDateTime(last.detectedAt)}>{formatRelative(last.detectedAt)}</span>
-          </p>
-          <p className="mt-1.5 min-w-0 text-[12px] text-ink-2">
-            <CopyableValue value={lead.arn} />
-          </p>
-        </div>
-        {to && (
-          <Link to={to} className="inline-flex items-center gap-1 rounded-[var(--radius-control)] border border-line px-2.5 py-1.5 text-[12.5px] font-medium text-ink hover:bg-surface-2">
-            Open {ENTITY_META[lead.entityType]?.label?.toLowerCase() ?? 'record'} <ArrowRight aria-hidden="true" className="size-3.5" />
-          </Link>
-        )}
-      </header>
-
-      {g.risk && (
-        <div className="flex items-start gap-2.5">
-          <ShieldAlert aria-hidden="true" className={cn('mt-0.5 size-4 shrink-0', riskTone(g.risk))} />
-          <div className="min-w-0">
-            <p className={cn('text-[13px] font-semibold', riskTone(g.risk))}>{g.risk.level === 'critical' ? 'Critical risk' : 'High risk'}</p>
-            <ul className="mt-0.5 text-[13px] text-ink-2">
-              {g.risk.reasons.map((r) => (
-                <li key={r}>{r}</li>
-              ))}
-            </ul>
+    <li>
+      <div className={cn('group relative mx-2 rounded-[var(--radius-control)] transition-colors hover:bg-surface-2', open && 'bg-surface-2')}>
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={panelId}
+          onClick={() => setOpen((v) => !v)}
+          className="grid w-full grid-cols-[1.25rem_minmax(0,1fr)_auto] items-start gap-x-3 px-3 py-2.5 text-left"
+        >
+          <ImpactGlyph group={g} />
+          <span className="min-w-0">
+            <span className="block text-[13.5px] leading-snug font-medium text-ink">{g.story}</span>
+            <span className="mt-0.5 block truncate text-[12px] text-ink-3">
+              <span className="text-ink-2">{lead.name || shortName(lead.arn)}</span>
+              {' · '}
+              {ENTITY_META[lead.entityType]?.label ?? 'Resource'}
+              {g.changes.length > 1 ? ` · ${formatNumber(g.changes.length)} changes` : ''}
+              {place ? ` · ${place}` : ''}
+              {actor ? ` · by ${shortName(actor)}` : ''}
+            </span>
+            {g.risk && <span className={cn('mt-0.5 block text-[12px]', g.risk.level === 'critical' ? 'text-critical' : 'text-high')}>{g.risk.reasons.join(' · ')}</span>}
+          </span>
+          <span className="flex items-center gap-2 pt-0.5 text-[12px] whitespace-nowrap text-ink-3">
+            <span title={formatDateTime(last.detectedAt)}>{formatRelative(last.detectedAt)}</span>
+            <ChevronDown aria-hidden="true" className={cn('size-4 transition-transform', open && 'rotate-180')} />
+          </span>
+        </button>
+        {open && (
+          <div id={panelId} className="@container flex flex-col gap-5 border-t border-line px-3 pt-4 pb-4 pl-11">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="min-w-0 text-[12px] text-ink-2">
+                <CopyableValue value={lead.arn} />
+              </span>
+              {to && (
+                <Link to={to} className="inline-flex items-center gap-1 text-[12.5px] font-medium text-brand hover:underline">
+                  Open {ENTITY_META[lead.entityType]?.label?.toLowerCase() ?? 'record'} <ArrowRight aria-hidden="true" className="size-3.5" />
+                </Link>
+              )}
+            </div>
+            {g.changes.map((c) => (
+              <ChangeCard key={c.id} change={c} />
+            ))}
           </div>
-        </div>
-      )}
-
-      {story && <p className="text-[14px] font-medium text-ink">{story}</p>}
-
-      <ol className="flex flex-col">
-        {g.changes.map((c, i) => (
-          <ChangeEntry key={c.id} change={c} last={i === g.changes.length - 1} />
-        ))}
-      </ol>
-    </div>
-  );
-}
-
-/** One change in a resource's history: a dot on the timeline, the sentence, then the evidence. */
-function ChangeEntry({ change: c, last }) {
-  return (
-    <li className="grid grid-cols-[1rem_minmax(0,1fr)] gap-x-3">
-      <span aria-hidden="true" className="relative flex justify-center">
-        <span className="mt-1.5 size-2 rounded-full border border-ink-3/60 bg-surface" />
-        {!last && <span className="absolute top-4 bottom-0 w-px bg-line" />}
-      </span>
-      <div className={cn('min-w-0', !last && 'pb-6')}>
-        <ChangeCard change={c} />
+        )}
       </div>
     </li>
   );
+}
+
+function ImpactGlyph({ group: g }) {
+  if (g.impact === 'raised') {
+    return <ShieldAlert aria-label={g.risk?.level === 'critical' ? 'Critical risk' : 'High risk'} className={cn('mt-0.5 size-4.5', g.risk?.level === 'critical' ? 'text-critical' : 'text-high')} />;
+  }
+  if (g.impact === 'reduced') return <ArrowDownRight aria-label="Reduced exposure" className="mt-0.5 size-4.5 text-low" />;
+  const Icon = ENTITY_META[g.lead.entityType]?.icon;
+  return Icon ? <Icon aria-hidden="true" className="mt-0.5 size-4 text-ink-3" /> : <span />;
 }
 
 /** One change: what happened, the Before / After of each field, and who did it. */
@@ -243,7 +217,7 @@ function BeforeAfter({ fields }) {
       .map((leaf) => ({ label: [fieldLabel(field), ...leaf.path.map((p) => (typeof p === 'number' ? `#${p + 1}` : fieldLabel(String(p))))].join(' › '), before: leaf.before, after: leaf.after }));
   });
   return (
-    <div className="overflow-hidden rounded-[var(--radius-control)] border border-line">
+    <div className="overflow-hidden rounded-[var(--radius-control)] border border-line bg-surface">
       <table className="w-full table-fixed text-left text-[12.5px]">
         <thead>
           <tr className="border-b border-line bg-surface-2 text-[12px] text-ink-3">

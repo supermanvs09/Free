@@ -1,6 +1,6 @@
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, GitCompareArrows, History, SearchX } from 'lucide-react';
+import { ArrowDownRight, ArrowLeft, GitCompareArrows, History, SearchX, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { fetchScanChanges, fetchScans, scanChangesRoute } from '../../lib/api/changes';
 import { formatDateTime, formatDuration, formatNumber, formatRelative, parseDate } from '../../lib/format';
 import { NEUTRAL_SERIES, SERIES_TOKENS } from '../../lib/domain';
@@ -9,7 +9,7 @@ import { TooltipCard } from '../../charts/ChartTooltip';
 import { useQuery } from '../../lib/hooks';
 import { PageHeader } from '../../shell/PageHeader';
 import { Button } from '../../ui/Button';
-import { Select } from '../../ui/Field';
+import { SearchInput, Select } from '../../ui/Field';
 import { Pagination } from '../../ui/Pagination';
 import { Panel } from '../../ui/Panel';
 import { ListSkeleton, Skeleton } from '../../ui/Skeleton';
@@ -18,9 +18,7 @@ import { SegmentedControl } from '../../ui/Tabs';
 import { cn } from '../../ui/cn';
 import { useSync } from '../sync/SyncContext';
 import { CHANGE_META, CHANGE_TYPES, ENTITY_META, ENTITY_TYPES } from './parts';
-import { ChangesExplorer } from './ChangesExplorer';
-import { groupChanges, groupRisk } from './story';
-
+import { ChangesExplorer, useChangeGroups } from './ChangesExplorer';
 
 /* How long the scan ran; null unless both ends are recorded and differ (the
    scanner stamps both with one time when it does not track the start). */
@@ -83,16 +81,15 @@ export default function ScanChangesPage() {
     return summary.total;
   };
   const listRef = useRef(null);
+  const showList = () => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const data = query.data;
   const scan = data?.scan;
   const summary = data?.summary;
   const filtered = Boolean(changeType || entityType || highRisk);
-  const groups = useMemo(() => {
-    const list = data?.changes ?? [];
-    /* A risky group is kept whole, so a binding move still reads as one story. */
-    const all = groupChanges(list);
-    return highRisk ? all.filter((g) => groupRisk(g.changes)) : all;
-  }, [data, highRisk]);
+  const [search, setSearch] = useState('');
+  /* A risky group is kept whole, so a binding move still reads as one story. */
+  const allGroups = useChangeGroups(data?.changes ?? [], search);
+  const groups = highRisk ? allGroups.filter((g) => g.impact === 'raised') : allGroups;
 
   const back = (
     <Button variant="secondary" as={Link} to="/overview" icon={ArrowLeft}>
@@ -177,22 +174,24 @@ export default function ScanChangesPage() {
 
       {!data ? (
         <Panel prominence="lead">
-          <div className="grid gap-4 @min-[52rem]:grid-cols-4">
-            {[0, 1, 2, 3].map((index) => (
-              <Skeleton key={index} className="h-20 rounded-[var(--radius-control)]" />
-            ))}
-          </div>
+          <Skeleton className="h-28 rounded-[var(--radius-control)]" />
           <span role="status" className="sr-only">
             Loading scan changes
           </span>
         </Panel>
       ) : (
-        <SummaryPanel scan={scan} summary={summary} />
-      )}
-
-
-      {(scansQuery.data?.length ?? 0) >= 2 && (
-        <ScanHistory scans={scansQuery.data} currentId={scan?.id} onOpen={(id) => navigate(scanChangesRoute(id))} />
+        <Verdict
+          scan={scan}
+          summary={summary}
+          groups={allGroups}
+          partial={data.pagination.total > data.changes.length}
+          scans={scansQuery.data ?? []}
+          onOpenScan={(id) => navigate(scanChangesRoute(id))}
+          onRaised={() => {
+            setParams({ risk: 'high' });
+            showList();
+          }}
+        />
       )}
 
       <Panel ref={listRef} prominence="lead" flush className="scroll-mt-28 overflow-hidden" data-list-top="">
@@ -210,6 +209,7 @@ export default function ScanChangesPage() {
             ]}
           />
           <div className="flex flex-wrap items-center gap-2">
+            <SearchInput size="sm" value={search} onChange={setSearch} placeholder="Search resources and changes" aria-label="Search changes" className="w-60" />
             <Select
               size="sm"
               value={entityType}
@@ -230,7 +230,7 @@ export default function ScanChangesPage() {
               aria-pressed={highRisk}
               onClick={() => setParams({ risk: highRisk ? '' : 'high' })}
             >
-              High risk only
+              Raised risk only
             </Button>
             {filtered && (
               <Button variant="ghost" size="sm" onClick={clearFilters}>
@@ -240,17 +240,28 @@ export default function ScanChangesPage() {
           </div>
         </div>
 
-
         {!data ? (
           <div className="p-5">
             <ListSkeleton rows={6} />
           </div>
         ) : groups.length === 0 ? (
-          highRisk && data.changes.length > 0 ? (
+          search.trim() && data.changes.length > 0 ? (
             <EmptyState
               compact
               icon={SearchX}
-              title="No high-risk change on this page"
+              title="No change matches your search"
+              description="Search looks at resource names, ARNs and what changed."
+              action={
+                <Button variant="secondary" size="sm" onClick={() => setSearch('')}>
+                  Clear search
+                </Button>
+              }
+            />
+          ) : highRisk && data.changes.length > 0 ? (
+            <EmptyState
+              compact
+              icon={SearchX}
+              title="No change on this page raised risk"
               description="No wildcard, risky action, new role or key, or deleted role among these changes."
               action={
                 <Button variant="secondary" size="sm" onClick={() => setParams({ risk: '' })}>
@@ -263,12 +274,12 @@ export default function ScanChangesPage() {
           )
         ) : (
           <div aria-busy={query.isRefreshing || undefined} className={cn('@container transition-opacity', (query.isRefreshing || query.isLoading) && 'opacity-60')}>
-            <ChangesExplorer changes={groups.flatMap((group) => group.changes)} />
+            <ChangesExplorer groups={groups} />
           </div>
         )}
         {highRisk && data && data.pagination.total > data.pagination.limit && (
           <p className="border-t border-line px-4 py-2 text-[12px] text-ink-3 sm:px-5">
-            High-risk changes among the {formatNumber(data.pagination.limit)} changes on this page; use the pages below for the rest.
+            Changes that raised risk among the {formatNumber(data.pagination.limit)} on this page; use the pages below for the rest.
           </p>
         )}
 
@@ -283,53 +294,103 @@ export default function ScanChangesPage() {
           />
         )}
       </Panel>
-
     </div>
   );
 }
 
 /**
- * The scan in one line: when it finished, what it was compared with, and how
- * many changes it found. The counts per change and entity type live on the
- * filters above the list, so they are not repeated here as tiles.
+ * The answer first: did this scan make us riskier? One sentence, the three
+ * impact counts (each opens what it counts), the facts that frame the
+ * comparison, and the changes-per-scan chart beside it so a spike stands out.
  */
-function SummaryPanel({ scan, summary }) {
+function Verdict({ scan, summary, groups, partial, scans, onOpenScan, onRaised }) {
+  const raised = groups.filter((g) => g.impact === 'raised');
+  const critical = raised.filter((g) => g.risk?.level === 'critical').length;
+  const reduced = groups.filter((g) => g.impact === 'reduced').length;
+  const other = groups.length - raised.length - reduced;
   const first = !scan?.previousScanId;
   const duration = scanDuration(scan);
-  const fact = 'flex min-w-0 flex-col gap-0.5';
+  const where = partial ? ' on this page' : '';
+  const plural = (n, one, many) => `${formatNumber(n)} ${n === 1 ? one : many}`;
+
+  let headline;
+  if (first) headline = 'First scan: nothing to compare with yet';
+  else if (summary.total === 0) headline = 'Nothing changed since the previous scan';
+  else if (raised.length) headline = `${plural(raised.length, 'resource', 'resources')} gained risk in this scan${where}`;
+  else headline = `No change raised risk${where}`;
+  const Icon = raised.length ? ShieldAlert : ShieldCheck;
+
   return (
-    <section aria-label="Scan" className="animate-rise flex flex-wrap items-stretch gap-x-10 gap-y-4 rounded-[var(--radius-panel)] border border-line bg-surface px-5 py-4">
-      <div className={fact}>
-        <span className="text-[12px] text-ink-3">Scan finished</span>
-        <span className="text-[14px] font-semibold text-ink" title={formatDateTime(scan.completedAt)}>
-          {formatDateTime(scan.completedAt)}
-        </span>
-        <span className="text-[12px] text-ink-3">
-          {formatRelative(scan.completedAt)}
-          {duration ? ` · ran ${duration}` : ''}
-          {scan.status === 'partial' ? ' · partial scan' : ''}
-        </span>
-      </div>
-      <div className={fact}>
-        <span className="flex items-center gap-1.5 text-[12px] text-ink-3">
-          <GitCompareArrows aria-hidden="true" className="size-3.5" /> Compared with
-        </span>
-        <span className="text-[14px] font-medium text-ink">{first ? 'Nothing: first scan' : formatDateTime(scan.previousScanAt)}</span>
-        {!first && <span className="text-[12px] text-ink-3">the previous scan</span>}
-      </div>
-      {scan.accountId && (
-        <div className={fact}>
-          <span className="text-[12px] text-ink-3">Account</span>
-          <span className="font-mono text-[13.5px] text-ink">{scan.accountId}</span>
+    <section aria-label="Scan verdict" className="animate-rise grid gap-x-8 gap-y-5 rounded-[var(--radius-panel)] border border-line bg-surface px-5 py-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
+      <div className="flex min-w-0 flex-col gap-4">
+        <div className="flex items-start gap-3">
+          <Icon aria-hidden="true" className={cn('mt-0.5 size-5 shrink-0', raised.length ? (critical ? 'text-critical' : 'text-high') : 'text-low')} />
+          <div className="min-w-0">
+            <h2 className="text-[17px] leading-snug font-semibold text-ink">{headline}</h2>
+            <p className="mt-1 text-[12.5px] text-ink-3">
+              {formatNumber(summary.total)} {summary.total === 1 ? 'change' : 'changes'} found
+              {critical ? ` · ${plural(critical, 'critical', 'critical')}` : ''}
+              {raised.length ? ' · review the changes that raised risk first' : ''}
+            </p>
+          </div>
         </div>
-      )}
-      <div className={cn(fact, 'ml-auto text-right')}>
-        <span className="text-[12px] text-ink-3">Changes found</span>
-        <span data-numeric="" className="text-[22px] leading-tight font-semibold text-ink">
-          {formatNumber(summary.total)}
-        </span>
+
+        {groups.length > 0 && (
+          <dl className="grid grid-cols-3 divide-x divide-line overflow-hidden rounded-[var(--radius-control)] border border-line">
+            <Impact
+              label="Raised risk"
+              value={raised.length}
+              icon={ShieldAlert}
+              tone={raised.length ? (critical ? 'text-critical' : 'text-high') : 'text-ink-3'}
+              onClick={raised.length ? onRaised : undefined}
+            />
+            <Impact label="Reduced exposure" value={reduced} icon={ArrowDownRight} tone={reduced ? 'text-low' : 'text-ink-3'} />
+            <Impact label="Other changes" value={other} />
+          </dl>
+        )}
+
+        <p className="flex flex-wrap gap-x-5 gap-y-1 text-[12.5px] text-ink-3">
+          <span>
+            Finished <span className="text-ink-2" title={formatDateTime(scan.completedAt)}>{formatRelative(scan.completedAt)}</span>
+            {duration ? `, ran ${duration}` : ''}
+            {scan.status === 'partial' ? ' · partial scan' : ''}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <GitCompareArrows aria-hidden="true" className="size-3.5" />
+            {first ? 'No previous scan' : <>Compared with <span className="text-ink-2">{formatDateTime(scan.previousScanAt)}</span></>}
+          </span>
+          {scan.accountId && (
+            <span>
+              Account <span className="font-mono text-ink-2">{scan.accountId}</span>
+            </span>
+          )}
+        </p>
       </div>
+
+      {scans.length > 1 && <ScanHistory scans={scans} currentId={scan.id} onOpen={onOpenScan} />}
     </section>
+  );
+}
+
+function Impact({ label, value, icon: Icon, tone = 'text-ink', onClick }) {
+  const body = (
+    <>
+      <dt className="flex items-center gap-1.5 text-[12px] text-ink-3">
+        {Icon && <Icon aria-hidden="true" className={cn('size-3.5', tone)} />}
+        {label}
+      </dt>
+      <dd data-numeric="" className={cn('mt-1 text-[22px] leading-none font-semibold', value ? 'text-ink' : 'text-ink-3')}>
+        {formatNumber(value)}
+        <span className="ml-1 text-[11.5px] font-normal text-ink-3">{value === 1 ? 'resource' : 'resources'}</span>
+      </dd>
+    </>
+  );
+  return onClick ? (
+    <button type="button" onClick={onClick} className="px-4 py-3 text-left transition-colors hover:bg-surface-2" title={`Show only: ${label.toLowerCase()}`}>
+      {body}
+    </button>
+  ) : (
+    <div className="px-4 py-3">{body}</div>
   );
 }
 
@@ -353,14 +414,14 @@ function ScanHistory({ scans, currentId, onOpen }) {
   );
   const total = data.reduce((sum, row) => sum + row.changes, 0);
   return (
-    <Panel prominence="quiet" className="animate-rise">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-[13px] font-semibold text-ink">Changes per scan</p>
-        <p className="text-[12px] text-ink-3" data-numeric="">
-          {formatNumber(total)} changes across the last {formatNumber(data.length)} scans · select a bar to open that scan
+    <div className="min-w-0 border-t border-line pt-4 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+        <p className="text-[12.5px] font-semibold text-ink">Changes per scan</p>
+        <p className="text-[11.5px] text-ink-3" data-numeric="">
+          {formatNumber(total)} across the last {formatNumber(data.length)} · select a bar to open it
         </p>
       </div>
-      <div className="mt-3 h-[150px] w-full">
+      <div className="mt-2 h-[128px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 6, right: 6, bottom: 0, left: 0 }}>
             <CartesianGrid stroke="var(--t-chart-grid)" strokeDasharray="2 4" vertical={false} />
@@ -388,7 +449,7 @@ function ScanHistory({ scans, currentId, onOpen }) {
           </BarChart>
         </ResponsiveContainer>
       </div>
-    </Panel>
+    </div>
   );
 }
 
