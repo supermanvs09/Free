@@ -335,12 +335,25 @@ function finish() {
   emit('done');
 }
 
+/**
+ * Score posture only: "Run checks again" on the Posture page. It is a sync's
+ * own scoring step (POST /api/v1/ispm/scans, its job followed, every page
+ * reloaded at the end) without reading the AWS accounts again, so it scores
+ * the latest inventory. Nothing starts while a sync or another run is going.
+ */
+export async function scoreOnly() {
+  if (isActive(state.run)) return false;
+  set({ notice: null, run: { ...newRun(), postureOnly: true, stage: 'posture', discovery: { state: 'skipped', scanId: '' } } });
+  await beginPosture();
+  return true;
+}
+
 /* ── Recovery and housekeeping ────────────────────────────────────────── */
 
 /** Score again after a failed scoring step; the inventory step is not repeated. */
 export async function retryPosture() {
   const run = state.run;
-  if (!run || run.stage !== 'failed' || run.discovery.state !== 'completed') return;
+  if (!run || run.stage !== 'failed' || (run.discovery.state !== 'completed' && !run.postureOnly)) return;
   patchRun({ stage: 'posture', error: null, failedStep: null, postureRetry: false, finishedAt: null, startedAt: Date.now() });
   await beginPosture();
 }
@@ -348,7 +361,7 @@ export async function retryPosture() {
 /** Score again after a run that finished but scored nothing (the inventory step is not repeated). */
 export async function rescore() {
   const run = state.run;
-  if (!run || run.stage !== 'done' || run.discovery.state !== 'completed') return;
+  if (!run || run.stage !== 'done' || (run.discovery.state !== 'completed' && !run.postureOnly)) return;
   patchRun({ stage: 'posture', error: null, finishedAt: null, startedAt: Date.now(), posture: { state: 'starting', jobId: '' } });
   await beginPosture();
 }

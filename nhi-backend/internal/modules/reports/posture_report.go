@@ -48,8 +48,7 @@ type PostureReport struct {
 	ScoredCount     int // identities in the chosen class with a score
 	AverageScore    *float64
 	Change30d       *float64 // change in the average score over 30 days, as on the Posture page; nil when not tracked
-	FleetScore      bool     // AverageScore and Change30d are the Posture page's cached fleet score
-	FleetScope      string   // "NHI" when an all-identities report shows the non-human score, as the Posture page does
+	FleetScore      bool     // the score figures are the engine's, from the dashboard cache
 	FailingCount    int      // identities with at least one failing check in the report
 	NewChecks       int      // failing checks that started failing in the last 7 days
 	OldChecks       int      // failing checks failing for more than 30 days
@@ -200,10 +199,10 @@ func LoadPosture(ctx context.Context, s *scope.DataScope, o PostureOptions) (*Po
 		v := avg.Float64
 		rep.AverageScore = &v
 	}
-	if err := loadFleet(ctx, s, rep, change); err != nil {
+	if err := loadBreakdowns(ctx, s, rep, classWhere); err != nil {
 		return nil, err
 	}
-	if err := loadBreakdowns(ctx, s, rep, classWhere); err != nil {
+	if err := applyCache(ctx, s, rep, change); err != nil {
 		return nil, err
 	}
 
@@ -429,33 +428,98 @@ func summarise(rep *PostureReport) {
 	})
 }
 
-// loadFleet sets the average score and its 30-day change. For a report on
-// every account they are the Posture page's fleet score and change, read from
-// the same cache row. For chosen accounts nothing is stored, so they are the
-// mean of those identities' scores and of their own 30-day changes, as in the
-// Posture page's account table. A tenant whose cache is not computed yet gets
-// the identities' mean as well.
-func loadFleet(ctx context.Context, s *scope.DataScope, rep *PostureReport, identityMean sql.NullFloat64) error {
+// applyCache puts the engine's own figures in the report: the average score,
+// its 30-day change, how many identities were scored, the bands, the human and
+// non-human scores and each account's mean all come from the dashboard cache
+// (ispm_nhi_dashboard_cache), the rows the Posture page shows: ALL, HUMAN or
+// NHI for the class. A report on chosen accounts takes those accounts' cached
+// means (by_account_mean), weighted by how many identities each scored; the
+// cache keeps no human / non-human split per account, so that report leaves
+// it out. Only a tenant whose cache is not computed yet keeps the figures read
+// from the identities themselves.
+func applyCache(ctx context.Context, s *scope.DataScope, rep *PostureReport, identityChange sql.NullFloat64) error {
+	repo := overview.NewPostureOverviewRepository()
+	snap, err := repo.Snapshot(ctx, s, cacheClass[rep.Options.Class], 30)
+	if err != nil {
+		return fmt.Errorf("posture report fleet score: %w", err)
+	}
+	if snap == nil {
+		if rep.AverageScore != nil {
+			v := round1(*rep.AverageScore)
+			rep.AverageScore = &v
+		}
+		if identityChange.Valid {
+			v := round1(identityChange.Float64)
+			rep.Change30d = &v
+		}
+		return nil
+	}
+	rep.FleetScore = true
+
 	if len(rep.Options.Accounts) == 0 {
-		class := map[string]string{ClassHuman: "HI", ClassNHI: "NHI"}[rep.Options.Class]
-		score, change, scope, err := overview.NewPostureOverviewRepository().Fleet(ctx, s, class, 30)
-		if err != nil {
-			return fmt.Errorf("posture report fleet score: %w", err)
+		rep.AverageScore, rep.Change30d, rep.ScoredCount = snap.Score, snap.Change, snap.Scored
+		rep.Bands = bandCounts(snap.Bands)
+		for i := range rep.Classes {
+			class := "NHI"
+			if rep.Classes[i].Human {
+				class = "HI"
+			}
+			cs, err := repo.Snapshot(ctx, s, class, 30)
+			if err != nil {
+				return fmt.Errorf("posture report class fleet score: %w", err)
+			}
+			if cs != nil {
+				rep.Classes[i].Average, rep.Classes[i].Scored = cs.Score, cs.Scored
+			}
 		}
-		if score != nil {
-			rep.AverageScore, rep.Change30d, rep.FleetScore, rep.FleetScope = score, change, true, scope
-			return nil
+	} else {
+		var sum, n, csum, cn float64
+		for _, id := range rep.Options.Accounts {
+			a, ok := snap.Accounts[id]
+			if !ok || a.Mean == nil {
+				continue
+			}
+			w := float64(a.Count)
+			if w <= 0 {
+				w = 1
+			}
+			sum, n = sum+*a.Mean*w, n+w
+			if a.Change != nil {
+				csum, cn = csum+*a.Change*w, cn+w
+			}
 		}
+		rep.AverageScore, rep.Change30d = nil, nil
+		if n > 0 {
+			v := round1(sum / n)
+			rep.AverageScore, rep.ScoredCount = &v, int(n)
+		}
+		if cn > 0 {
+			v := round1(csum / cn)
+			rep.Change30d = &v
+		}
+		rep.Classes = nil
 	}
-	if rep.AverageScore != nil {
-		v := round1(*rep.AverageScore)
-		rep.AverageScore = &v
-	}
-	if identityMean.Valid {
-		v := round1(identityMean.Float64)
-		rep.Change30d = &v
+
+	for i := range rep.Accounts {
+		if a, ok := snap.Accounts[rep.Accounts[i].ID]; ok && a.Mean != nil {
+			rep.Accounts[i].Average, rep.Accounts[i].Scored = a.Mean, a.Count
+		}
 	}
 	return nil
+}
+
+// cacheClass is the report's identity choice as the cache's class.
+var cacheClass = map[string]string{ClassAll: "", ClassHuman: "HI", ClassNHI: "NHI"}
+
+// bandCounts lists the cached band counts in report order, empty bands left out.
+func bandCounts(b overview.BandDistribution) []BandCount {
+	var out []BandCount
+	for _, bc := range []BandCount{{"critical", b.Critical}, {"poor", b.Poor}, {"fair", b.Fair}, {"healthy", b.Healthy}} {
+		if bc.Count > 0 {
+			out = append(out, bc)
+		}
+	}
+	return out
 }
 
 func round1(v float64) float64 { return math.Round(v*10) / 10 }
@@ -594,24 +658,6 @@ func loadBreakdowns(ctx context.Context, s *scope.DataScope, rep *PostureReport,
 			rep.Classes = append(rep.Classes, c)
 		}
 		rows.Close()
-	}
-
-	// Human and non-human on a report for every account: the Posture page's
-	// fleet score of each class, from the cache, like the headline.
-	if len(rep.Options.Accounts) == 0 {
-		for i := range rep.Classes {
-			class := "NHI"
-			if rep.Classes[i].Human {
-				class = "HI"
-			}
-			score, _, _, err := overview.NewPostureOverviewRepository().Fleet(ctx, s, class, 30)
-			if err != nil {
-				return fmt.Errorf("posture report class fleet score: %w", err)
-			}
-			if score != nil {
-				rep.Classes[i].Average = score
-			}
-		}
 	}
 
 	rows, err = s.DB.QueryContext(ctx, fmt.Sprintf(`SELECT COALESCE(p.account_id, ''), COALESCE(max(NULLIF(p.account_name, '')), ''),

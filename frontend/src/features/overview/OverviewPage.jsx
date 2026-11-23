@@ -941,7 +941,6 @@ function PostureBanner({ query }) {
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-[10.5px] font-semibold tracking-[0.1em] text-ink-3 uppercase">Security score (0-100)</p>
-            {fleet.scope === 'NHI' && <p className="mt-0.5 text-[11px] text-ink-3">Non-human identities</p>}
             <p className="mt-1 text-[13px] font-semibold text-ink">No score yet</p>
             <p className="mt-0.5 text-[12.5px] text-ink-3">
               This workspace's identities have not been scored yet. The score appears after the next discovery scan is
@@ -972,7 +971,6 @@ function PostureBanner({ query }) {
           <ScoreRing score={score} size={76} grade={fleet.grade} />
           <div className="min-w-0">
             <p className="text-[10.5px] font-semibold tracking-[0.1em] text-ink-3 uppercase">Security score (0-100)</p>
-            {fleet.scope === 'NHI' && <p className="mt-0.5 text-[11px] text-ink-3">Non-human identities</p>}
             <p className="mt-1.5 flex flex-wrap items-center gap-2 text-[12.5px] text-ink-2">
               <BandTag score={score} />
               {fleet.grade && <span className="font-medium">Grade {fleet.grade}</span>}

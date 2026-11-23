@@ -37,7 +37,7 @@ function buildSteps(run) {
   const stateOf = (key, finished, active) => (failed === key ? 'failed' : finished ? 'done' : active ? 'active' : 'pending');
 
   const fields = (rows) => rows.filter((row) => row.value !== null && row.value !== undefined && row.value !== '');
-  return [
+  const steps = [
     {
       key: 'start',
       title: 'Start the sync',
@@ -88,10 +88,16 @@ function buildSteps(run) {
       key: 'refresh',
       title: 'Update your dashboard',
       state: done ? 'done' : 'pending',
-      text: done ? 'Dashboard, identities, credentials, access graph, genome and posture now show this sync.' : 'Reloading every page with the new data.',
+      text: done
+        ? run.postureOnly
+          ? 'Every page now shows the new posture scores.'
+          : 'Dashboard, identities, credentials, access graph, genome and posture now show this sync.'
+        : 'Reloading every page with the new data.',
       fields: [],
     },
   ];
+  /* "Run checks again" scores only: the AWS accounts are not read. */
+  return run.postureOnly ? steps.filter((step) => step.key === 'posture' || step.key === 'refresh') : steps;
 }
 
 const ICON = { done: CheckCircle2, active: Loader2, failed: XCircle, pending: Circle, skipped: MinusCircle };
@@ -149,12 +155,13 @@ export function SyncPanel({ open, onClose }) {
   const finished = run?.stage === 'done';
   const doneStep = steps.filter((step) => step.state === 'done').length;
 
+  const scoreOnly = Boolean(run?.postureOnly);
   let subtitle = 'Reads your AWS accounts, then scores what it finds. About 5 to 10 minutes.';
-  if (running) subtitle = `Step ${Math.min(4, doneStep + 1)} of 4 · running for ${clock(now - run.startedAt)}`;
+  if (running) subtitle = `Step ${Math.min(steps.length, doneStep + 1)} of ${steps.length} · running for ${clock(now - run.startedAt)}`;
   if (running && run.slow) {
     subtitle = `Still running after ${clock(now - run.startedAt)}. Large accounts take longer; nothing has failed. Checked every 30 seconds.`;
   }
-  if (failed) subtitle = 'The sync did not finish.';
+  if (failed) subtitle = scoreOnly ? 'The posture checks did not finish.' : 'The sync did not finish.';
   if (finished) subtitle = `Finished in ${clock((run.finishedAt ?? now) - run.startedAt)}.`;
   const ids = run?.accountIds ?? [];
   if (ids.length) subtitle = `${ids.length === 1 ? `Account ${ids[0]}` : `${ids.length} accounts`} · ${subtitle}`;
@@ -176,12 +183,12 @@ export function SyncPanel({ open, onClose }) {
       open={open}
       onClose={onClose}
       width="md"
-      eyebrow="Sync"
-      title="Sync your AWS accounts"
+      eyebrow={scoreOnly ? 'Posture' : 'Sync'}
+      title={scoreOnly ? 'Run the posture checks again' : 'Sync your AWS accounts'}
       subtitle={subtitle}
       footer={
         <>
-          {running && <p className="mr-auto text-[12px] text-ink-3">You can close this. The sync keeps running.</p>}
+          {running && <p className="mr-auto text-[12px] text-ink-3">You can close this. {scoreOnly ? 'The checks keep running.' : 'The sync keeps running.'}</p>}
           {running && (
             <Button variant="ghost" onClick={() => engine.stopFollowing()} title="Stop waiting for this sync and free the Sync button">
               Stop waiting
@@ -200,7 +207,12 @@ export function SyncPanel({ open, onClose }) {
               Score again
             </Button>
           )}
-          {finished && (
+          {finished && scoreOnly && (
+            <Button variant="primary" onClick={() => go('/posture')}>
+              View posture
+            </Button>
+          )}
+          {finished && !scoreOnly && (
             <>
               <Button variant="secondary" onClick={() => go('/scans/latest/changes')}>
                 See what changed

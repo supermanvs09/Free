@@ -158,9 +158,6 @@ func (x *book) summary() error {
 	if rep.AverageScore != nil {
 		avg = score1(*rep.AverageScore)
 		avgSub = "out of 100 · " + bandLabel(bandFor(*rep.AverageScore)) + " band"
-		if rep.FleetScope == "NHI" {
-			avgSub = "non-human identities' fleet score, as on the Posture page · " + avgSub
-		}
 		if t := trend(rep.Change30d); t != "" {
 			avgSub += " · " + t
 		}

@@ -53,7 +53,7 @@ export function SyncButton() {
     return (
       <button type="button" onClick={openPanel} className={cn(base, 'border-brand/40 bg-info-soft text-brand hover:border-brand')} aria-label="Sync in progress. Show progress.">
         <Loader2 aria-hidden="true" className="size-4 motion-safe:animate-spin" />
-        <span>{run.slow ? 'Still syncing · large accounts take longer' : `Syncing · step ${STEP_OF[run.stage] ?? 1} of 4`}</span>
+        <span>{run.postureOnly ? 'Running posture checks' : run.slow ? 'Still syncing · large accounts take longer' : `Syncing · step ${STEP_OF[run.stage] ?? 1} of 4`}</span>
       </button>
     );
   }
@@ -219,7 +219,7 @@ export function SyncNowButton() {
   if (running) {
     return (
       <Button variant="secondary" icon={RefreshCw} loading onClick={openPanel} aria-label="Sync in progress. Show progress.">
-        Syncing · step {STEP_OF[run.stage] ?? 1} of 4
+        {run.postureOnly ? 'Running posture checks' : `Syncing · step ${STEP_OF[run.stage] ?? 1} of 4`}
       </Button>
     );
   }

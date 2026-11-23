@@ -24,9 +24,6 @@ type FleetScore struct {
 	Band             string      `json:"band"`
 	IdentitiesScored int         `json:"identities_scored"`
 	Change           FleetChange `json:"change"`
-	// Scope is "NHI" when the "All" view shows the non-human score: the
-	// cache has no all-identities row. Empty when the score is the class asked for.
-	Scope string `json:"scope,omitempty"`
 }
 
 type FleetChange struct {

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/lib/pq"
@@ -66,7 +67,7 @@ func (r *PostureOverviewRepository) Get(ctx context.Context, s *scope.DataScope,
 	}
 	meta := common.Meta{Window: w.Label}
 
-	row, fleetClass, err := r.fleetRow(ctx, s, class)
+	row, filter, err := r.fleetRow(ctx, s, class)
 	if errors.Is(err, sql.ErrNoRows) || (err != nil && common.IsUndefinedTable(err)) {
 		return out, meta, nil // nothing computed yet
 	}
@@ -85,12 +86,9 @@ func (r *PostureOverviewRepository) Get(ctx context.Context, s *scope.DataScope,
 		Healthy: common.IntVal(row.healthy), Fair: common.IntVal(row.fair), Poor: common.IntVal(row.poor), Critical: common.IntVal(row.critical),
 	}
 	out.IdentitiesWith = parseIdentitiesWith(row.with)
-	if class == "" && fleetClass != "" {
-		out.Fleet.Scope = fleetClass
-	}
 
 	if out.Fleet.Score != nil && row.snapshot.Valid {
-		prev, err := r.previousFleetScore(ctx, s, row.snapshot.Time, w.Days, fleetClass)
+		prev, err := r.previousFleetScore(ctx, s, row.snapshot.Time, w.Days, filter)
 		if err != nil {
 			return nil, meta, err
 		}
@@ -101,11 +99,7 @@ func (r *PostureOverviewRepository) Get(ctx context.Context, s *scope.DataScope,
 		}
 	}
 
-	out.Trend, err = r.trend(ctx, s, w, row.snapshot, fleetClass)
-	if err != nil && fleetClass != class && common.IsUndefinedColumn(err) {
-		out.Trend, err = r.trend(ctx, s, w, row.snapshot, class) // snapshots kept without a class
-	}
-	if err != nil {
+	if out.Trend, err = r.trend(ctx, s, w, row.snapshot, class, filter); err != nil {
 		return nil, meta, err
 	}
 	if out.Pillars, err = r.pillars(ctx, s, row.pillars); err != nil {
@@ -134,36 +128,45 @@ func (r *PostureOverviewRepository) Get(ctx context.Context, s *scope.DataScope,
 	return out, meta, nil
 }
 
-// fleetRow is the cached fleet row the page shows, and the class it was read
-// for. The worker writes one row per class (NHI, HUMAN) and none for all
-// identities, so "All" reads the non-human row. Reading the newest row of any
-// class let "All" jump between the two classes' scores from one load to the
-// next, and its comparison and trend mix them. A cache kept without a class
-// column holds one row per day, which "All" reads as it is.
+// fleetRow is the cached fleet row for the class, and the filter it was read
+// with, for the comparison and the trend to read the same rows. The engine
+// writes one row per class per day: ALL (every identity), HUMAN and NHI.
+// "All" reads the ALL row; a cache from before the engine wrote it (no ALL
+// row, or no class column) is read as it was, the newest row of the day.
 func (r *PostureOverviewRepository) fleetRow(ctx context.Context, s *scope.DataScope, class string) (*cacheRow, string, error) {
-	use := class
-	if use == "" {
-		use = "NHI"
+	filter := cacheClassSQL(class)
+	row, err := r.latestCacheRow(ctx, s, filter)
+	if class == "" && (errors.Is(err, sql.ErrNoRows) || (err != nil && common.IsUndefinedColumn(err))) {
+		filter = ""
+		row, err = r.latestCacheRow(ctx, s, filter)
 	}
-	row, err := r.latestCacheRow(ctx, s, use)
-	if err != nil && class == "" && common.IsUndefinedColumn(err) {
-		use = ""
-		row, err = r.latestCacheRow(ctx, s, "")
-	}
-	return row, use, err
+	return row, filter, err
 }
 
-func (r *PostureOverviewRepository) latestCacheRow(ctx context.Context, s *scope.DataScope, class string) (*cacheRow, error) {
+// cacheClassSQL selects the cache and snapshot rows of a class: "" the ALL
+// row, "HI" the human row (HUMAN or HI), "NHI" the non-human one. The class
+// values are fixed here, so the clause takes no bind parameter.
+func cacheClassSQL(class string) string {
+	switch class {
+	case "HI":
+		return " AND upper(identity_class) IN ('HI', 'HUMAN')"
+	case "NHI":
+		return " AND upper(identity_class) NOT IN ('HI', 'HUMAN', 'ALL')"
+	}
+	return " AND upper(identity_class) = 'ALL'"
+}
+
+func (r *PostureOverviewRepository) latestCacheRow(ctx context.Context, s *scope.DataScope, filter string) (*cacheRow, error) {
 	q := fmt.Sprintf(`SELECT snapshot_date, computed_at, last_scan_id::text,
 			fleet_score, fleet_grade, fleet_band, identities_scored,
 			band_healthy, band_fair, band_poor, band_critical,
 			identities_with, pillar_summary, quick_wins, by_functional_class, by_account_mean
 		FROM %s
-		WHERE tenant_id = $1`+classSQL(class, 2)+`
+		WHERE tenant_id = $1`+filter+`
 		ORDER BY snapshot_date DESC, computed_at DESC
 		LIMIT 1`, s.Table(common.TDashboardCache))
 	var c cacheRow
-	err := s.DB.QueryRowContext(ctx, q, classArgs(s.TenantID, class)...).Scan(
+	err := s.DB.QueryRowContext(ctx, q, s.TenantID).Scan(
 		&c.snapshot, &c.computed, &c.scanID,
 		&c.score, &c.grade, &c.band, &c.scored,
 		&c.healthy, &c.fair, &c.poor, &c.critical,
@@ -177,46 +180,86 @@ func (r *PostureOverviewRepository) latestCacheRow(ctx context.Context, s *scope
 	return &c, nil
 }
 
-// Fleet is the fleet score the Posture page shows for class ("", "HI" or
-// "NHI") and its change over `days`, read from the dashboard cache exactly as
-// Get reads them. Both are nil while nothing has been computed.
-// scope is "NHI" when class "" read the non-human row, as the page does.
-func (r *PostureOverviewRepository) Fleet(ctx context.Context, s *scope.DataScope, class string, days int) (score, change *float64, scope string, err error) {
+// FleetSnapshot is one class's cached fleet figures, as the Posture page
+// shows them: the score and its change, how many identities were scored, the
+// band counts and each account's mean (by_account_mean).
+type FleetSnapshot struct {
+	Score    *float64
+	Change   *float64 // over the days asked for; nil while the history is shorter
+	Scored   int
+	Bands    BandDistribution
+	Accounts map[string]AccountMean // by account ID
+}
+
+// AccountMean is one account's cached mean score.
+type AccountMean struct {
+	Name   string
+	Mean   *float64
+	Count  int
+	Change *float64 // over the days asked for, when the engine recorded it
+}
+
+// Snapshot reads the cached fleet figures for class ("" = the ALL row, "HI",
+// "NHI") exactly as Get reads them. nil while nothing has been computed.
+func (r *PostureOverviewRepository) Snapshot(ctx context.Context, s *scope.DataScope, class string, days int) (*FleetSnapshot, error) {
 	if err := common.Need(s); err != nil {
-		return nil, nil, "", err
+		return nil, err
 	}
-	row, fleetClass, err := r.fleetRow(ctx, s, class)
+	row, filter, err := r.fleetRow(ctx, s, class)
 	if errors.Is(err, sql.ErrNoRows) || (err != nil && (common.IsUndefinedTable(err) || common.IsUndefinedColumn(err))) {
-		return nil, nil, "", nil
+		return nil, nil
 	}
 	if err != nil {
-		return nil, nil, "", err
+		return nil, err
 	}
-	if class == "" {
-		scope = fleetClass
+	out := &FleetSnapshot{
+		Score:    common.NullFloat(row.score),
+		Scored:   common.IntVal(row.scored),
+		Bands:    BandDistribution{Healthy: common.IntVal(row.healthy), Fair: common.IntVal(row.fair), Poor: common.IntVal(row.poor), Critical: common.IntVal(row.critical)},
+		Accounts: map[string]AccountMean{},
 	}
-	score = common.NullFloat(row.score)
-	if score != nil && row.snapshot.Valid {
-		prev, err := r.previousFleetScore(ctx, s, row.snapshot.Time, days, fleetClass)
+	if out.Score != nil && row.snapshot.Valid {
+		prev, err := r.previousFleetScore(ctx, s, row.snapshot.Time, days, filter)
 		if err != nil {
-			return nil, nil, "", err
+			return nil, err
 		}
 		if prev != nil {
-			d := common.Round1(*score - *prev)
-			change = &d
+			d := common.Round1(*out.Score - *prev)
+			out.Change = &d
 		}
 	}
-	return score, change, scope, nil
+	w, _ := common.ParseWindow(fmt.Sprintf("%dd", days))
+	if m, ok := common.DecodeAny(row.byAccount).(map[string]any); ok {
+		for key, v := range m {
+			obj, ok := v.(map[string]any)
+			if !ok {
+				continue
+			}
+			id := common.StringOf(obj, "account_id")
+			if id == "" {
+				id = key
+			}
+			a := AccountMean{Name: common.StringOf(obj, "account_name", "name"), Mean: common.FloatOf(obj, "mean", "mean_score", "avg", "score")}
+			if n := common.IntOf(obj, "count", "identities", "total"); n != nil {
+				a.Count = *n
+			}
+			if a.Change = common.PickWindow(obj["change"], w); a.Change == nil {
+				a.Change = common.FloatOf(obj, fmt.Sprintf("change_%dd", days))
+			}
+			out.Accounts[id] = a
+		}
+	}
+	return out, nil
 }
 
 // previousFleetScore is the daily fleet score from `days` days before the
 // current snapshot, or nil when the history is not that long yet.
-func (r *PostureOverviewRepository) previousFleetScore(ctx context.Context, s *scope.DataScope, current time.Time, days int, class string) (*float64, error) {
+func (r *PostureOverviewRepository) previousFleetScore(ctx context.Context, s *scope.DataScope, current time.Time, days int, filter string) (*float64, error) {
 	q := fmt.Sprintf(`SELECT fleet_score FROM %s
-		WHERE tenant_id = $1 AND snapshot_date <= $2::date - $3::int AND fleet_score IS NOT NULL`+classSQL(class, 4)+`
-		ORDER BY snapshot_date DESC LIMIT 1`, s.Table(common.TDashboardCache))
+		WHERE tenant_id = $1 AND snapshot_date <= $2::date - $3::int AND fleet_score IS NOT NULL`+filter+`
+		ORDER BY snapshot_date DESC, computed_at DESC LIMIT 1`, s.Table(common.TDashboardCache))
 	var v sql.NullFloat64
-	err := s.DB.QueryRowContext(ctx, q, classArgs(s.TenantID, class, current, days)...).Scan(&v)
+	err := s.DB.QueryRowContext(ctx, q, s.TenantID, current, days).Scan(&v)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -227,13 +270,19 @@ func (r *PostureOverviewRepository) previousFleetScore(ctx context.Context, s *s
 }
 
 // trend: one point per scan for 24h/3d/7d, one per day for 30d/60d/90d.
-func (r *PostureOverviewRepository) trend(ctx context.Context, s *scope.DataScope, w common.Window, current sql.NullTime, class string) ([]TrendPoint, error) {
+func (r *PostureOverviewRepository) trend(ctx context.Context, s *scope.DataScope, w common.Window, current sql.NullTime, class, filter string) ([]TrendPoint, error) {
 	out := make([]TrendPoint, 0, 64)
 	if w.PerScan {
+		snapFilter := cacheClassSQL(class)
 		q := fmt.Sprintf(`SELECT captured_at, fleet_score FROM %s
-			WHERE tenant_id = $1 AND captured_at >= $2 AND fleet_score IS NOT NULL`+classSQL(class, 3)+`
+			WHERE tenant_id = $1 AND captured_at >= $2 AND fleet_score IS NOT NULL`+snapFilter+`
 			ORDER BY captured_at`, s.Table(common.TSnapshots))
-		rows, err := s.DB.QueryContext(ctx, q, classArgs(s.TenantID, class, time.Now().Add(-w.Duration))...)
+		rows, err := s.DB.QueryContext(ctx, q, s.TenantID, time.Now().Add(-w.Duration))
+		if err != nil && class == "" && common.IsUndefinedColumn(err) {
+			// Snapshots kept without a class: one per scan, read as they are.
+			q = strings.Replace(q, snapFilter, "", 1)
+			rows, err = s.DB.QueryContext(ctx, q, s.TenantID, time.Now().Add(-w.Duration))
+		}
 		if err != nil {
 			return nil, fmt.Errorf("load posture snapshots: %w", err)
 		}
@@ -254,9 +303,9 @@ func (r *PostureOverviewRepository) trend(ctx context.Context, s *scope.DataScop
 		anchor = current.Time
 	}
 	q := fmt.Sprintf(`SELECT snapshot_date, fleet_score FROM %s
-		WHERE tenant_id = $1 AND snapshot_date >= $2::date - $3::int AND fleet_score IS NOT NULL`+classSQL(class, 4)+`
+		WHERE tenant_id = $1 AND snapshot_date >= $2::date - $3::int AND fleet_score IS NOT NULL`+filter+`
 		ORDER BY snapshot_date`, s.Table(common.TDashboardCache))
-	rows, err := s.DB.QueryContext(ctx, q, classArgs(s.TenantID, class, anchor, w.Days)...)
+	rows, err := s.DB.QueryContext(ctx, q, s.TenantID, anchor, w.Days)
 	if err != nil {
 		return nil, fmt.Errorf("load daily fleet scores: %w", err)
 	}

@@ -2,10 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Download, Gauge, Loader2, RefreshCw, SearchX, ShieldCheck, Sparkles, Wrench } from 'lucide-react';
 import { useAccess } from '../../app/useAccess';
+import { useSync } from '../sync/SyncContext';
 import {
   exportPostureCsv,
-  fetchPostureScanJob,
-  startPostureScan,
   fetchPostureFacets,
   fetchPostureIdentities,
   fetchPostureOverview,
@@ -241,38 +240,12 @@ export default function PosturePage() {
     }
   };
 
-  /* Run the posture checks again: starts a scan on the rule engine, then polls
-     the job every few seconds (it usually takes under a minute) and reloads
-     the page's figures when it finishes. */
-  const [scanning, setScanning] = useState(false);
-  const onScan = async () => {
-    setScanning(true);
-    try {
-      const { jobId, alreadyRunning } = await startPostureScan();
-      notify({ variant: 'info', title: alreadyRunning ? 'A scan is already running' : 'Posture scan started', description: 'The figures refresh when it finishes.' });
-      let status = 'RUNNING';
-      for (let attempt = 0; attempt < 60 && ['QUEUED', 'RUNNING', ''].includes(status); attempt += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 4000));
-        ({ status } = await fetchPostureScanJob(jobId));
-      }
-      if (status === 'COMPLETED' || status === 'PARTIAL') {
-        notify({ variant: 'success', title: status === 'PARTIAL' ? 'Scan finished, with some gaps' : 'Posture scan finished', description: 'Showing the new results.' });
-        refresh();
-      } else if (status === 'FAILED' || status === 'SKIPPED') {
-        notify({ variant: 'error', title: 'The scan did not finish', description: 'Try again in a few minutes.' });
-      } else {
-        notify({ variant: 'info', title: 'Still scanning', description: 'It is taking longer than usual. Refresh this page in a few minutes.' });
-      }
-    } catch (error) {
-      notify({
-        variant: 'error',
-        title: 'Could not start the scan',
-        description: error?.status === 503 ? 'Scanning is not set up on this server yet.' : error?.status === 403 ? 'Your role may not start a scan.' : error?.message,
-      });
-    } finally {
-      setScanning(false);
-    }
-  };
+  /* Run the posture checks again: the Sync panel's own scoring step, shown in
+     the same panel (start, scoring, findings counts, retry) and reloading
+     every page when it finishes. Busy while any sync or check run is going. */
+  const sync = useSync();
+  const checking = Boolean(sync.run?.postureOnly) && sync.active;
+  const onScan = () => (sync.active ? sync.openPanel() : sync.scoreOnly());
 
   const refresh = () => {
     overviewQuery.refetch();
@@ -534,9 +507,9 @@ export default function PosturePage() {
               variant="secondary"
               icon={RefreshCw}
               onClick={onScan}
-              loading={scanning}
+              loading={checking}
               locked={lock('posture.findings')}
-              title="Run the posture checks again on every identity"
+              title={sync.active && !checking ? 'A sync is running: it scores posture at the end. Open it.' : 'Run the posture checks again on every identity'}
             >
               Run checks again
             </Button>
@@ -857,13 +830,8 @@ function FleetScore({ overview, meta, window }) {
       <PanelHeader
         prominence="lead"
         title="Fleet posture score"
-        subtitle={`The average score of ${formatNumber(fleet.identities_scored)} scored ${fleet.scope === 'NHI' ? 'non-human ' : ''}${fleet.identities_scored === 1 ? 'identity' : 'identities'}.`}
+        subtitle={`The average score of ${formatNumber(fleet.identities_scored)} scored ${fleet.identities_scored === 1 ? 'identity' : 'identities'}.`}
       />
-      {/* The score is kept per class (human, non-human) with none for all
-          identities together, so "All" shows the non-human score and says so. */}
-      {fleet.scope === 'NHI' && (
-        <p className="mt-1 text-[11.5px] text-ink-3">Non-human identities' score and trend: there is no combined score for all identities yet.</p>
-      )}
       <div className="mt-4 flex flex-wrap items-center gap-5">
         <ScoreRing score={fleet.score} band={fleet.band} size={112} grade={fleet.grade} />
         <div className="min-w-0 flex-1">
@@ -902,7 +870,7 @@ function FleetScore({ overview, meta, window }) {
           className="mt-4"
           data={trend}
           dataKey="score"
-          label={fleet.scope === 'NHI' ? 'Non-human fleet score' : 'Fleet score'}
+          label="Fleet score"
           height={176}
           color={TONE_VAR[band.tone]}
           valueFormatter={formatScore}

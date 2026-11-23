@@ -735,9 +735,19 @@
        time, so it is cancelled here - zoom is multiplicative, and this subtree
        has no fixed-position chrome that could be disturbed by it. */
     zoom: calc(1 / var(--app-zoom));
-    /* Viewport units ignore zoom, so the cancelled factor has to be put back
-       for the canvas to fill the screen exactly. */
-    min-height: calc(100dvh * var(--app-zoom));
+    /* Pinned to the window's edges rather than sized in viewport units:
+       browsers disagree on whether vh/dvh follow `zoom`, and sizing it as
+       100dvh x zoom left a white band under the canvas (90px at 1440x900).
+       The canvas scrolls itself when the content is taller than the window. */
+    position: fixed;
+    inset: 0;
+    overflow-y: auto;
+  }
+  /* Behind the pinned canvas the page needs no height of its own: the body's
+     100vh minimum, scaled by the root zoom above 100%, scrolled an empty page. */
+  body:has(.auth-canvas) {
+    min-height: 0;
+    overflow: hidden;
   }
 
   .hairline-grid {

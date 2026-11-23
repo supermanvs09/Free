@@ -38,7 +38,15 @@ export function SyncProvider({ children }) {
   useEffect(
     () =>
       engine.onEvent(({ type, run }) => {
-        if (type === 'done' && !panelOpenRef.current) {
+        if (type === 'done' && !panelOpenRef.current && run.postureOnly) {
+          notify({
+            variant: run.posture?.state === 'skipped' ? 'info' : 'success',
+            title: run.posture?.state === 'skipped' ? 'Posture checks did not run' : 'Posture checks finished',
+            description: run.posture?.state === 'skipped' ? run.posture.reason : 'Every page now shows the new scores.',
+            action: { label: 'Open Posture', onSelect: () => navigate('/posture') },
+            duration: 10000,
+          });
+        } else if (type === 'done' && !panelOpenRef.current) {
           const d = run.discovery;
           notify({
             variant: 'success',
@@ -53,7 +61,7 @@ export function SyncProvider({ children }) {
             duration: 12000,
           });
         } else if (type === 'failed' && !panelOpenRef.current) {
-          notify({ variant: 'error', title: "The sync didn't finish", description: run.error, action: { label: 'Open', onSelect: () => setPanelOpen(true) }, duration: 12000 });
+          notify({ variant: 'error', title: run.postureOnly ? "The posture checks didn't finish" : "The sync didn't finish", description: run.error, action: { label: 'Open', onSelect: () => setPanelOpen(true) }, duration: 12000 });
         }
       }),
     [notify, navigate],
@@ -77,6 +85,12 @@ export function SyncProvider({ children }) {
     [connected],
   );
 
+  /* "Run checks again" on the Posture page: a sync's scoring step on its own, followed in the same panel. */
+  const scoreOnly = useCallback(async () => {
+    setPanelOpen(true);
+    await engine.scoreOnly();
+  }, []);
+
   const value = useMemo(
     () => ({
       ...snapshot,
@@ -87,11 +101,12 @@ export function SyncProvider({ children }) {
       canScan: can('scan.run'),
       active: engine.isRunActive(),
       start,
+      scoreOnly,
       openPanel: () => setPanelOpen(true),
       closePanel: () => setPanelOpen(false),
       panelOpen,
     }),
-    [snapshot, can, start, panelOpen, connected],
+    [snapshot, can, start, scoreOnly, panelOpen, connected],
   );
 
   return (
