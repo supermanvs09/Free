@@ -44,8 +44,11 @@ type PostureReport struct {
 	Options         PostureOptions
 	ScoredCount     int // identities in the chosen class with a score
 	AverageScore    *float64
-	FailingCount    int // identities with at least one failing check in the report
-	CheckCount      int // failing checks in the report
+	Change30d       *float64 // average score change over 30 days, as on the Posture page; nil when not tracked
+	FailingCount    int      // identities with at least one failing check in the report
+	NewChecks       int      // failing checks that started failing in the last 7 days
+	OldChecks       int      // failing checks failing for more than 30 days
+	CheckCount      int      // failing checks in the report
 	BySeverity      map[string]int
 	IdentitiesBySev map[string]int // identities whose most severe failing check has this severity
 	Bands           []BandCount    // scored identities per score band, worst band first
@@ -93,6 +96,7 @@ type CheckGroup struct {
 	FixFrom  string // when Fix is one finding's and not every identity's: who it was found on ("web-1", "3 of 59 identities")
 	Items    []GroupItem
 	Accounts []AccountCount // where the identities failing it are, most first
+	Since    *time.Time     // when the longest-failing identity started failing it
 }
 
 // AccountCount is how many identities failing a check sit in one account.
@@ -178,10 +182,10 @@ func LoadPosture(ctx context.Context, s *scope.DataScope, o PostureOptions) (*Po
 	}
 
 	// Identities in the class: the denominator of the summary.
-	var avg sql.NullFloat64
+	var avg, change sql.NullFloat64
 	if err := s.DB.QueryRowContext(ctx, fmt.Sprintf(`SELECT count(*) FILTER (WHERE p.score IS NOT NULL), avg(p.score),
-			count(DISTINCT p.account_id)
-		FROM %s p WHERE p.tenant_id = $1`+classWhere, s.Table(common.TIdentityPosture)), s.TenantID).Scan(&rep.ScoredCount, &avg, &rep.AccountsCovered); err != nil {
+			count(DISTINCT p.account_id), avg(p.score_change_30d)
+		FROM %s p WHERE p.tenant_id = $1`+classWhere, s.Table(common.TIdentityPosture)), s.TenantID).Scan(&rep.ScoredCount, &avg, &rep.AccountsCovered, &change); err != nil {
 		if common.IsUndefinedTable(err) {
 			return rep, nil
 		}
@@ -190,6 +194,10 @@ func LoadPosture(ctx context.Context, s *scope.DataScope, o PostureOptions) (*Po
 	if avg.Valid {
 		v := avg.Float64
 		rep.AverageScore = &v
+	}
+	if change.Valid {
+		v := change.Float64
+		rep.Change30d = &v
 	}
 	if err := loadBreakdowns(ctx, s, rep, classWhere); err != nil {
 		return nil, err
@@ -334,6 +342,17 @@ func summarise(rep *PostureReport) {
 			g := &rep.Groups[gi]
 			if sevRank(c.Severity) < sevRank(g.Severity) {
 				g.Severity = c.Severity
+			}
+			if c.FailingSince != nil {
+				if g.Since == nil || c.FailingSince.Before(*g.Since) {
+					g.Since = c.FailingSince
+				}
+				switch age := rep.GeneratedAt.Sub(*c.FailingSince); {
+				case age <= 7*24*time.Hour:
+					rep.NewChecks++
+				case age > 30*24*time.Hour:
+					rep.OldChecks++
+				}
 			}
 			if g.About == "" {
 				g.About = c.About

@@ -3,6 +3,7 @@ package reports
 import (
 	"fmt"
 	"io"
+	"math"
 	"strconv"
 	"strings"
 
@@ -49,23 +50,48 @@ type doc struct {
 	pdf   *fpdf.Fpdf
 	t     func(string) string // UTF-8 to the core fonts' Windows-1252
 	rep   *PostureReport
-	links []int // per check group: where its details start
+	links []int                                 // per check group: where its details start
+	sect  struct{ risk, priority, details int } // links to the sections
+	pages pageMap                               // where things landed in this pass
+	known *pageMap                              // where they landed in the first pass; nil during it
 }
 
-// WritePosturePDF writes the report for reading and sharing. It is built to
-// stay readable however many identities fail:
+// pageMap is the page each section and each check's details start on.
+type pageMap struct {
+	risk, priority, details int
+	groups                  []int
+}
+
+// WritePosturePDF writes the report for reading and sharing, printed or on
+// screen. It is built to stay readable however many identities fail:
 //
-//  1. Summary: the figures, key points in sentences, failing checks by
-//     severity and identities by score band, and the checks to fix first
-//     (each links to its details).
+//  1. Summary: the figures with the 30-day trend, key points in sentences,
+//     failing checks by severity and identities by score band, contents, and
+//     the checks to fix first with the page of each one's details.
 //  2. Where the risk is: human and non-human, the accounts with the most
 //     severe failing checks, and the identities to fix first.
-//  3. Failing checks in detail: each check once, with what it looks at and
-//     how to fix it, then the identities that fail it, lowest score first,
-//     up to maxRowsPerCheck; the Excel workbook lists every identity.
+//  3. Failing checks in detail: each check once, with what it looks at, how
+//     to fix it, where it fails and for how long, then the identities that
+//     fail it, lowest score first, up to maxRowsPerCheck; the Excel workbook
+//     lists every identity.
 //
-// PDF bookmarks mirror the sections and every check.
+// Contents entries and checks link to their pages, and PDF bookmarks mirror
+// the sections and every check. The document is laid out twice: the first
+// pass learns which page each part lands on, the second prints those page
+// numbers. Both passes lay out the same lines, so nothing moves between them.
 func WritePosturePDF(w io.Writer, rep *PostureReport) error {
+	first := render(rep, nil)
+	if err := first.pdf.Error(); err != nil {
+		return err
+	}
+	final := render(rep, &first.pages)
+	if err := final.pdf.Error(); err != nil {
+		return err
+	}
+	return final.pdf.Output(w)
+}
+
+func render(rep *PostureReport, known *pageMap) *doc {
 	pdf := fpdf.New("P", "mm", "A4", "")
 	pdf.SetMargins(marginX, 16, marginX)
 	pdf.SetAutoPageBreak(true, bottom)
@@ -73,10 +99,12 @@ func WritePosturePDF(w io.Writer, rep *PostureReport) error {
 	pdf.SetSubject(ClassLabel(rep.Options.Class), true)
 	pdf.SetCreator("NHI console", true)
 	tr := pdf.UnicodeTranslatorFromDescriptor("")
-	d := &doc{pdf: pdf, t: func(s string) string { return tr(plain(s)) }, rep: rep}
+	d := &doc{pdf: pdf, t: func(s string) string { return tr(plain(s)) }, rep: rep, known: known}
 	for range rep.Groups {
 		d.links = append(d.links, pdf.AddLink())
 	}
+	d.pages.groups = make([]int, len(rep.Groups))
+	d.sect.risk, d.sect.priority, d.sect.details = pdf.AddLink(), pdf.AddLink(), pdf.AddLink()
 
 	pdf.SetFooterFunc(func() {
 		pdf.SetY(-12)
@@ -92,10 +120,15 @@ func WritePosturePDF(w io.Writer, rep *PostureReport) error {
 		d.whereTheRiskIs()
 		d.details()
 	}
-	if err := pdf.Error(); err != nil {
-		return err
+	return d
+}
+
+// pageOf is a page number from the first pass, as text.
+func (d *doc) pageOf(pick func(*pageMap) int) string {
+	if d.known == nil {
+		return "00" // the first pass only needs the width
 	}
-	return pdf.Output(w)
+	return strconv.Itoa(pick(d.known))
 }
 
 // ---- page 1 --------------------------------------------------------------
@@ -120,6 +153,9 @@ func (d *doc) summary() {
 	d.font("", 8.5, ink3RGB)
 	pdf.CellFormat(bodyW, 5, d.t(fmt.Sprintf("Generated %s UTC from the latest posture scan · %s covered",
 		rep.GeneratedAt.Format("2 Jan 2006, 15:04"), count(rep.AccountsCovered, "account", "accounts"))), "", 1, "L", false, 0, "")
+	if rep.CheckCount > 0 {
+		d.contents()
+	}
 	pdf.Ln(5)
 
 	// Figures.
@@ -127,6 +163,9 @@ func (d *doc) summary() {
 	if rep.AverageScore != nil {
 		avg = strconv.Itoa(int(*rep.AverageScore+0.5)) + " / 100"
 		avgSub = bandLabel(bandFor(*rep.AverageScore)) + " band"
+		if t := trend(rep.Change30d); t != "" {
+			avgSub = bandLabel(bandFor(*rep.AverageScore)) + " · " + t
+		}
 	}
 	failSub := ""
 	if rep.ScoredCount > 0 {
@@ -182,8 +221,8 @@ func (d *doc) summary() {
 	// Checks to fix first.
 	d.heading("Checks to fix first", 10.5)
 	d.note("Most severe first, then by how many identities fail the check. Select a check to go to its details.")
-	cols := []col{{w: bodyW - 64, align: "L"}, {w: 24, align: "L"}, {w: 40, align: "R"}}
-	d.header(cols, []string{"Check", "Severity", "Identities"})
+	cols := []col{{w: bodyW - 76, align: "L"}, {w: 24, align: "L"}, {w: 38, align: "R"}, {w: 14, align: "R"}}
+	d.header(cols, []string{"Check", "Severity", "Identities", "Page"})
 	for i, g := range rep.Groups {
 		if i == maxTopChecks {
 			break
@@ -197,6 +236,7 @@ func (d *doc) summary() {
 			{text: g.Title, color: linkRGB},
 			{text: SeverityLabel(g.Severity), bold: true, color: sevColor(g.Severity)},
 			{text: ids},
+			{text: d.pageOf(func(m *pageMap) int { return m.groups[i] }), color: linkRGB},
 		}, 1, nil)
 		pdf.Link(marginX, y, bodyW, h, d.links[i])
 	}
@@ -241,6 +281,15 @@ func keyPoints(rep *PostureReport) []string {
 	if rep.ScoredCount > 0 {
 		out = append(out, fmt.Sprintf("%s of %s scored identities (%s) fail at least one check.", num(rep.FailingCount), num(rep.ScoredCount), pct(rep.FailingCount, rep.ScoredCount)))
 	}
+	switch {
+	case rep.NewChecks > 0 && rep.OldChecks > 0:
+		out = append(out, fmt.Sprintf("%s started failing in the last 7 days; %s been failing for more than 30 days.",
+			count(rep.NewChecks, "check", "checks"), count(rep.OldChecks, "has", "have")))
+	case rep.NewChecks > 0:
+		out = append(out, fmt.Sprintf("%s started failing in the last 7 days.", count(rep.NewChecks, "check", "checks")))
+	case rep.OldChecks > 0:
+		out = append(out, fmt.Sprintf("%s %s been failing for more than 30 days.", count(rep.OldChecks, "check", "checks"), plural(rep.OldChecks, "has", "have")))
+	}
 	if len(rep.Accounts) > 1 && rep.Accounts[0].Checks > 0 {
 		a := rep.Accounts[0]
 		parts := []string{}
@@ -273,6 +322,8 @@ func keyPoints(rep *PostureReport) []string {
 func (d *doc) whereTheRiskIs() {
 	pdf, rep := d.pdf, d.rep
 	pdf.AddPage()
+	d.pages.risk = pdf.PageNo()
+	pdf.SetLink(d.sect.risk, -1, -1)
 	pdf.Bookmark(d.t("Where the risk is"), 0, -1)
 	d.title("Where the risk is")
 
@@ -317,6 +368,11 @@ func (d *doc) whereTheRiskIs() {
 	}
 	pdf.Ln(7)
 
+	if pdf.GetY() > pageH-bottom-50 { // the heading and a few rows, or a new page
+		pdf.AddPage()
+	}
+	d.pages.priority = pdf.PageNo()
+	pdf.SetLink(d.sect.priority, -1, -1)
 	pdf.Bookmark(d.t("Identities to fix first"), 0, -1)
 	d.heading("Identities to fix first", 10.5)
 	prio := rep.PriorityIdentities()
@@ -348,6 +404,8 @@ func (d *doc) whereTheRiskIs() {
 func (d *doc) details() {
 	pdf, rep, o := d.pdf, d.rep, d.rep.Options
 	pdf.AddPage()
+	d.pages.details = pdf.PageNo()
+	pdf.SetLink(d.sect.details, -1, -1)
 	pdf.Bookmark(d.t("Failing checks in detail"), 0, -1)
 	d.title("Failing checks in detail")
 	intro := "Each check once: what it looks at, how to fix it and the identities that fail it, lowest score first."
@@ -364,6 +422,7 @@ func (d *doc) details() {
 		}
 		top := pdf.GetY()
 		pdf.SetLink(d.links[gi], top, pdf.PageNo())
+		d.pages.groups[gi] = pdf.PageNo()
 		pdf.Bookmark(d.t(g.Title), 1, top)
 
 		// Heading: severity, the check, how many identities fail it.
@@ -383,6 +442,11 @@ func (d *doc) details() {
 		d.font("B", 11, inkRGB)
 		pdf.MultiCell(bodyW-48, 5.6, d.t(g.Title), "", "L", false)
 		meta := nonEmpty(AreaLabel(g.Area), g.RuleID)
+		if g.Since != nil {
+			if days := int(rep.GeneratedAt.Sub(*g.Since).Hours() / 24); days >= 1 {
+				meta = append(meta, fmt.Sprintf("failing for up to %s", count(days, "day", "days")))
+			}
+		}
 		if len(meta) > 0 {
 			pdf.SetX(x)
 			d.font("", 8, ink3RGB)
@@ -400,11 +464,14 @@ func (d *doc) details() {
 				}
 				top = append(top, fmt.Sprintf("%s (%s)", a.Name, num(a.Count)))
 			}
-			label := "Accounts"
-			if len(g.Accounts) > 3 {
-				label = fmt.Sprintf("In %d accounts, most in", len(g.Accounts))
+			switch {
+			case len(g.Accounts) > 3 && g.Accounts[0].Count == 1:
+				d.labelled(x, "Accounts", fmt.Sprintf("one identity in each of %d accounts", len(g.Accounts)))
+			case len(g.Accounts) > 3:
+				d.labelled(x, fmt.Sprintf("In %d accounts, most in", len(g.Accounts)), strings.Join(top, ", "))
+			default:
+				d.labelled(x, "Accounts", strings.Join(top, ", "))
 			}
-			d.labelled(x, label, strings.Join(top, ", "))
 		}
 		if o.IncludeFix {
 			label := "How to fix"
@@ -453,6 +520,49 @@ func (d *doc) longest() int {
 		}
 	}
 	return n
+}
+
+// contents is one line of links to the sections, with their pages.
+func (d *doc) contents() {
+	pdf := d.pdf
+	pdf.Ln(2.5)
+	d.font("B", 8.5, ink2RGB)
+	pdf.CellFormat(pdf.GetStringWidth("Contents")+4, 5, "Contents", "", 0, "L", false, 0, "")
+	entries := []struct {
+		label string
+		page  func(*pageMap) int
+		link  int
+	}{
+		{"Where the risk is", func(m *pageMap) int { return m.risk }, d.sect.risk},
+		{"Identities to fix first", func(m *pageMap) int { return m.priority }, d.sect.priority},
+		{"Failing checks in detail", func(m *pageMap) int { return m.details }, d.sect.details},
+	}
+	for i, e := range entries {
+		text := fmt.Sprintf("%s  p. %s", e.label, d.pageOf(e.page))
+		if i > 0 {
+			d.font("", 8.5, ink3RGB)
+			pdf.CellFormat(5, 5, d.t("·"), "", 0, "C", false, 0, "")
+		}
+		d.font("", 8.5, linkRGB)
+		w := pdf.GetStringWidth(d.t(text)) + 2
+		pdf.CellFormat(w, 5, d.t(text), "", 0, "L", false, e.link, "")
+	}
+	pdf.Ln(5)
+}
+
+// trend reads the average 30-day score change: "up 4 in 30 days".
+func trend(change *float64) string {
+	if change == nil {
+		return ""
+	}
+	n := int(math.Round(*change))
+	switch {
+	case n > 0:
+		return fmt.Sprintf("up %d in 30 days", n)
+	case n < 0:
+		return fmt.Sprintf("down %d in 30 days", -n)
+	}
+	return "no change in 30 days"
 }
 
 // ---- building blocks -----------------------------------------------------

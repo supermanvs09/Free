@@ -187,7 +187,8 @@ func TestLargeReport(t *testing.T) {
 		id := ReportIdentity{ID: fmt.Sprint(i), Name: fmt.Sprintf("workload-%05d", i), Type: "iam_role", AccountID: fmt.Sprintf("1000000000%02d", i%40), Score: &score}
 		for j, r := range rules {
 			if (i+j)%(j+2) == 0 {
-				id.Checks = append(id.Checks, ReportCheck{RuleID: r.id, Check: "Check " + r.id, Title: fmt.Sprintf("%s fails %s", id.Name, r.id), Severity: r.sev,
+				since := time.Now().Add(-time.Duration(i%60) * 24 * time.Hour)
+				id.Checks = append(id.Checks, ReportCheck{RuleID: r.id, Check: "Check " + r.id, Title: fmt.Sprintf("%s fails %s", id.Name, r.id), Severity: r.sev, FailingSince: &since,
 					Found: strings.Repeat("Long evidence text that wraps over more than one line in the table. ", 3), About: "About " + r.id, Fix: "Fix " + r.id})
 				rep.BySeverity[r.sev]++
 				rep.CheckCount++
@@ -199,6 +200,14 @@ func TestLargeReport(t *testing.T) {
 	}
 	rep.FailingCount = len(rep.Identities)
 	summarise(rep)
+
+	// Page numbers printed on page 1 come from a first layout pass: the
+	// second pass must put every section and check on the same page.
+	first := render(rep, nil)
+	final := render(rep, &first.pages)
+	if fmt.Sprint(first.pages) != fmt.Sprint(final.pages) {
+		t.Fatalf("pages moved between passes: %v vs %v", first.pages, final.pages)
+	}
 
 	start := time.Now()
 	var buf bytes.Buffer

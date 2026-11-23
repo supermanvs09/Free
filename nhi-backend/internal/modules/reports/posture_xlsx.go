@@ -108,7 +108,7 @@ func (x *book) styles() error {
 func (x *book) summary() error {
 	f, rep, o := x.f, x.rep, x.rep.Options
 	sh := sheetSummary
-	widths := map[string]float64{"A": 46, "B": 16, "C": 16, "D": 18, "E": 14, "F": 14, "G": 60, "H": 60, "I": 14}
+	widths := map[string]float64{"A": 46, "B": 16, "C": 16, "D": 18, "E": 14, "F": 14, "G": 60, "H": 60, "I": 16}
 	for c, w := range widths {
 		if err := f.SetColWidth(sh, c, c, w); err != nil {
 			return err
@@ -158,6 +158,9 @@ func (x *book) summary() error {
 	if rep.AverageScore != nil {
 		avg = int(*rep.AverageScore + 0.5)
 		avgSub = "out of 100 · " + bandLabel(bandFor(*rep.AverageScore)) + " band"
+		if t := trend(rep.Change30d); t != "" {
+			avgSub += " · " + t
+		}
 	}
 	figs := [][3]interface{}{
 		{"Average score", avg, avgSub},
@@ -282,11 +285,15 @@ func (x *book) summary() error {
 				fix += "\n(Some identities have steps of their own: see the Failing checks sheet.)"
 			}
 		}
-		row = append(row, strings.TrimSpace(about), strings.TrimSpace(fix))
+		since := ""
+		if g.Since != nil {
+			since = g.Since.UTC().Format("2006-01-02")
+		}
+		row = append(row, strings.TrimSpace(about), strings.TrimSpace(fix), since)
 		checkRows = append(checkRows, row)
 	}
 	table("Checks to fix first", "Most severe first, then by how many identities fail the check. Filter the Failing checks sheet on a check to see every identity.",
-		[]string{"Check", "Check ID", "Severity", "Area", "Identities failing", "Share of scored", "What the check looks at", "How to fix"}, checkRows,
+		[]string{"Check", "Check ID", "Severity", "Area", "Identities failing", "Share of scored", "What the check looks at", "How to fix", "Failing since (earliest)"}, checkRows,
 		func(row, c int) int {
 			switch c {
 			case 2:
