@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowRight, Download, Gauge, Loader2, RefreshCw, SearchX, ShieldCheck, Sparkles, Wrench } from 'lucide-react';
+import { Download, Gauge, Loader2, RefreshCw, SearchX, ShieldCheck, Sparkles, Wrench } from 'lucide-react';
 import { useAccess } from '../../app/useAccess';
 import {
   exportPostureCsv,
@@ -20,7 +20,7 @@ import { useDebouncedValue, useQuery } from '../../lib/hooks';
 import { BANDS, bandMeta } from '../../lib/posture';
 import { PageHeader } from '../../shell/PageHeader';
 import { TrendChart } from '../../charts/TrendChart';
-import { Button, IconButton } from '../../ui/Button';
+import { Button } from '../../ui/Button';
 import { DataGrid } from '../../ui/DataGrid';
 import { SearchInput } from '../../ui/Field';
 import { AppliedFilters, FacetRail, useFacetRail } from '../../ui/FacetRail';
@@ -423,6 +423,9 @@ export default function PosturePage() {
             <span className="truncate font-mono text-[12.5px] font-semibold text-ink" title={row.name}>
               {row.name}
             </span>
+            {opening === row.identity_id && (
+              <Loader2 aria-label={`Opening ${row.name}`} role="status" className="size-3.5 shrink-0 animate-spin text-ink-3" />
+            )}
             {!identityClass && row.identity_class === 'HI' && (
               <Tag tone="brand" size="sm" className="shrink-0">
                 HI
@@ -715,23 +718,6 @@ export default function PosturePage() {
               onRowClick={(row) => open({ postureId: row.identity_id, name: row.name, arn: row.arn })}
               sort={gridSort}
               onSortChange={onSortChange}
-              rowActions={(row) =>
-                opening === row.identity_id ? (
-                  <span className="grid size-8 place-items-center" role="status" aria-label={`Opening ${row.name}`}>
-                    <Loader2 aria-hidden="true" className="size-4 animate-spin text-ink-3" />
-                  </span>
-                ) : (
-                  <IconButton
-                    icon={ArrowRight}
-                    size="sm"
-                    label={`Open ${row.name}`}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      open({ postureId: row.identity_id, name: row.name, arn: row.arn });
-                    }}
-                  />
-                )
-              }
               emptyState={
                 chips.length > 0 ? (
                   <EmptyState
@@ -871,8 +857,13 @@ function FleetScore({ overview, meta, window }) {
       <PanelHeader
         prominence="lead"
         title="Fleet posture score"
-        subtitle={`The average score of ${formatNumber(fleet.identities_scored)} scored ${fleet.identities_scored === 1 ? 'identity' : 'identities'}.`}
+        subtitle={`The average score of ${formatNumber(fleet.identities_scored)} scored ${fleet.scope === 'NHI' ? 'non-human ' : ''}${fleet.identities_scored === 1 ? 'identity' : 'identities'}.`}
       />
+      {/* The score is kept per class (human, non-human) with none for all
+          identities together, so "All" shows the non-human score and says so. */}
+      {fleet.scope === 'NHI' && (
+        <p className="mt-1 text-[11.5px] text-ink-3">Non-human identities' score and trend: there is no combined score for all identities yet.</p>
+      )}
       <div className="mt-4 flex flex-wrap items-center gap-5">
         <ScoreRing score={fleet.score} band={fleet.band} size={112} grade={fleet.grade} />
         <div className="min-w-0 flex-1">
@@ -911,7 +902,7 @@ function FleetScore({ overview, meta, window }) {
           className="mt-4"
           data={trend}
           dataKey="score"
-          label="Fleet score"
+          label={fleet.scope === 'NHI' ? 'Non-human fleet score' : 'Fleet score'}
           height={176}
           color={TONE_VAR[band.tone]}
           valueFormatter={formatScore}

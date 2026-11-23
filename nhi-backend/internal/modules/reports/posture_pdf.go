@@ -163,8 +163,11 @@ func (d *doc) summary() {
 	if rep.AverageScore != nil {
 		avg = score1(*rep.AverageScore) + " / 100"
 		avgSub = bandLabel(bandFor(*rep.AverageScore)) + " band"
+		if rep.FleetScope == "NHI" {
+			avgSub = "Non-human identities · " + avgSub
+		}
 		if t := trend(rep.Change30d); t != "" {
-			avgSub = bandLabel(bandFor(*rep.AverageScore)) + " · " + t
+			avgSub = strings.TrimSuffix(avgSub, " band") + " · " + t
 		}
 	}
 	failSub := ""

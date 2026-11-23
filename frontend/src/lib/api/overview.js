@@ -143,6 +143,8 @@ export async function fetchPostureSummary({ window = '30d' } = {}, signal) {
       scored: num(fleet.identities_scored),
       delta: numOrNull(fleet.change?.delta),
       changeWindow: fleet.change?.window || window,
+      /* "NHI": the cache has no all-identities score, so this is the non-human one. */
+      scope: fleet.scope || '',
     },
     trend: list(data?.trend).map((p) => ({ at: p.at, score: num(p.score) })),
     distribution: {

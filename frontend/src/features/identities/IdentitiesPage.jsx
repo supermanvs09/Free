@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowDownWideNarrow, ArrowUpNarrowWide, Copy, Fingerprint, SearchX } from 'lucide-react';
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, Fingerprint, SearchX } from 'lucide-react';
 import { countIdentities, fetchFilters, fetchIdentities, fetchTopOwners } from '../../lib/api/inventory';
 import { fetchPostureScoreIndex } from '../../lib/api/posture';
 import { ScoreRing } from '../posture/parts';
@@ -598,18 +598,6 @@ export default function IdentitiesPage() {
                 density={density}
                 rowAccent={(row) => functionalClassMeta(row.functional_class).color}
                 skeletonRows={10}
-                rowActions={(row) => (
-                  <IconButton
-                    icon={Copy}
-                    label={`Copy ARN for ${row.name || row.arn}`}
-                    size="sm"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      navigator.clipboard?.writeText(row.arn);
-                      notify({ variant: 'success', title: 'ARN copied', duration: 2200 });
-                    }}
-                  />
-                )}
                 emptyState={
                   filtered ? (
                     <EmptyState

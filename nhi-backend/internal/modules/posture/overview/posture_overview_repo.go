@@ -66,7 +66,7 @@ func (r *PostureOverviewRepository) Get(ctx context.Context, s *scope.DataScope,
 	}
 	meta := common.Meta{Window: w.Label}
 
-	row, err := r.latestCacheRow(ctx, s, class)
+	row, fleetClass, err := r.fleetRow(ctx, s, class)
 	if errors.Is(err, sql.ErrNoRows) || (err != nil && common.IsUndefinedTable(err)) {
 		return out, meta, nil // nothing computed yet
 	}
@@ -85,9 +85,12 @@ func (r *PostureOverviewRepository) Get(ctx context.Context, s *scope.DataScope,
 		Healthy: common.IntVal(row.healthy), Fair: common.IntVal(row.fair), Poor: common.IntVal(row.poor), Critical: common.IntVal(row.critical),
 	}
 	out.IdentitiesWith = parseIdentitiesWith(row.with)
+	if class == "" && fleetClass != "" {
+		out.Fleet.Scope = fleetClass
+	}
 
 	if out.Fleet.Score != nil && row.snapshot.Valid {
-		prev, err := r.previousFleetScore(ctx, s, row.snapshot.Time, w.Days, class)
+		prev, err := r.previousFleetScore(ctx, s, row.snapshot.Time, w.Days, fleetClass)
 		if err != nil {
 			return nil, meta, err
 		}
@@ -98,7 +101,11 @@ func (r *PostureOverviewRepository) Get(ctx context.Context, s *scope.DataScope,
 		}
 	}
 
-	if out.Trend, err = r.trend(ctx, s, w, row.snapshot, class); err != nil {
+	out.Trend, err = r.trend(ctx, s, w, row.snapshot, fleetClass)
+	if err != nil && fleetClass != class && common.IsUndefinedColumn(err) {
+		out.Trend, err = r.trend(ctx, s, w, row.snapshot, class) // snapshots kept without a class
+	}
+	if err != nil {
 		return nil, meta, err
 	}
 	if out.Pillars, err = r.pillars(ctx, s, row.pillars); err != nil {
@@ -125,6 +132,25 @@ func (r *PostureOverviewRepository) Get(ctx context.Context, s *scope.DataScope,
 		}
 	}
 	return out, meta, nil
+}
+
+// fleetRow is the cached fleet row the page shows, and the class it was read
+// for. The worker writes one row per class (NHI, HUMAN) and none for all
+// identities, so "All" reads the non-human row. Reading the newest row of any
+// class let "All" jump between the two classes' scores from one load to the
+// next, and its comparison and trend mix them. A cache kept without a class
+// column holds one row per day, which "All" reads as it is.
+func (r *PostureOverviewRepository) fleetRow(ctx context.Context, s *scope.DataScope, class string) (*cacheRow, string, error) {
+	use := class
+	if use == "" {
+		use = "NHI"
+	}
+	row, err := r.latestCacheRow(ctx, s, use)
+	if err != nil && class == "" && common.IsUndefinedColumn(err) {
+		use = ""
+		row, err = r.latestCacheRow(ctx, s, "")
+	}
+	return row, use, err
 }
 
 func (r *PostureOverviewRepository) latestCacheRow(ctx context.Context, s *scope.DataScope, class string) (*cacheRow, error) {
@@ -154,29 +180,33 @@ func (r *PostureOverviewRepository) latestCacheRow(ctx context.Context, s *scope
 // Fleet is the fleet score the Posture page shows for class ("", "HI" or
 // "NHI") and its change over `days`, read from the dashboard cache exactly as
 // Get reads them. Both are nil while nothing has been computed.
-func (r *PostureOverviewRepository) Fleet(ctx context.Context, s *scope.DataScope, class string, days int) (score, change *float64, err error) {
+// scope is "NHI" when class "" read the non-human row, as the page does.
+func (r *PostureOverviewRepository) Fleet(ctx context.Context, s *scope.DataScope, class string, days int) (score, change *float64, scope string, err error) {
 	if err := common.Need(s); err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
-	row, err := r.latestCacheRow(ctx, s, class)
+	row, fleetClass, err := r.fleetRow(ctx, s, class)
 	if errors.Is(err, sql.ErrNoRows) || (err != nil && (common.IsUndefinedTable(err) || common.IsUndefinedColumn(err))) {
-		return nil, nil, nil
+		return nil, nil, "", nil
 	}
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
+	}
+	if class == "" {
+		scope = fleetClass
 	}
 	score = common.NullFloat(row.score)
 	if score != nil && row.snapshot.Valid {
-		prev, err := r.previousFleetScore(ctx, s, row.snapshot.Time, days, class)
+		prev, err := r.previousFleetScore(ctx, s, row.snapshot.Time, days, fleetClass)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, "", err
 		}
 		if prev != nil {
 			d := common.Round1(*score - *prev)
 			change = &d
 		}
 	}
-	return score, change, nil
+	return score, change, scope, nil
 }
 
 // previousFleetScore is the daily fleet score from `days` days before the

@@ -317,7 +317,7 @@ function PostureReportDialog({ open, onClose }) {
                 <Figure label="Identities scored" value={p.scored} />
                 <Figure label="With failing checks" value={p.failing} />
                 <Figure label="Failing checks" value={p.checks} />
-                <Figure label="Average score" value={p.averageScore} decimals suffix=" / 100" />
+                <Figure label={p.averageScope === 'NHI' ? 'Average score (non-human)' : 'Average score'} value={p.averageScore} decimals suffix=" / 100" />
               </dl>
               {p.checks > 0 && (
                 <ul className="flex flex-col gap-1.5 border-t border-line pt-3">

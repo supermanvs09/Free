@@ -49,6 +49,7 @@ type PostureReport struct {
 	AverageScore    *float64
 	Change30d       *float64 // change in the average score over 30 days, as on the Posture page; nil when not tracked
 	FleetScore      bool     // AverageScore and Change30d are the Posture page's cached fleet score
+	FleetScope      string   // "NHI" when an all-identities report shows the non-human score, as the Posture page does
 	FailingCount    int      // identities with at least one failing check in the report
 	NewChecks       int      // failing checks that started failing in the last 7 days
 	OldChecks       int      // failing checks failing for more than 30 days
@@ -437,12 +438,12 @@ func summarise(rep *PostureReport) {
 func loadFleet(ctx context.Context, s *scope.DataScope, rep *PostureReport, identityMean sql.NullFloat64) error {
 	if len(rep.Options.Accounts) == 0 {
 		class := map[string]string{ClassHuman: "HI", ClassNHI: "NHI"}[rep.Options.Class]
-		score, change, err := overview.NewPostureOverviewRepository().Fleet(ctx, s, class, 30)
+		score, change, scope, err := overview.NewPostureOverviewRepository().Fleet(ctx, s, class, 30)
 		if err != nil {
 			return fmt.Errorf("posture report fleet score: %w", err)
 		}
 		if score != nil {
-			rep.AverageScore, rep.Change30d, rep.FleetScore = score, change, true
+			rep.AverageScore, rep.Change30d, rep.FleetScore, rep.FleetScope = score, change, true, scope
 			return nil
 		}
 	}
@@ -603,7 +604,7 @@ func loadBreakdowns(ctx context.Context, s *scope.DataScope, rep *PostureReport,
 			if rep.Classes[i].Human {
 				class = "HI"
 			}
-			score, _, err := overview.NewPostureOverviewRepository().Fleet(ctx, s, class, 30)
+			score, _, _, err := overview.NewPostureOverviewRepository().Fleet(ctx, s, class, 30)
 			if err != nil {
 				return fmt.Errorf("posture report class fleet score: %w", err)
 			}

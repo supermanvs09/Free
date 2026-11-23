@@ -161,6 +161,7 @@ type PreviewData struct {
 	BySeverity        map[string]int `json:"by_severity"`
 	Accounts          int            `json:"accounts"`
 	AverageScore      *float64       `json:"average_score"`
+	AverageScope      string         `json:"average_scope,omitempty"` // "NHI": the non-human fleet score, as on the Posture page
 }
 
 func (m *Module) preview(w http.ResponseWriter, r *http.Request) {
@@ -181,7 +182,7 @@ func (m *Module) preview(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.SendJSONResponse(w, http.StatusOK, httpx.APIResponse{Success: true, Message: "Report preview", Data: PreviewData{
 		IdentitiesScored: rep.ScoredCount, IdentitiesFailing: rep.FailingCount, FailingChecks: rep.CheckCount,
-		BySeverity: by, Accounts: rep.AccountsCovered, AverageScore: rep.AverageScore,
+		BySeverity: by, Accounts: rep.AccountsCovered, AverageScore: rep.AverageScore, AverageScope: rep.FleetScope,
 	}})
 }
 

@@ -37,6 +37,7 @@ export async function fetchPostureReportPreview({ identityClass, severities, acc
     bySeverity: d.by_severity ?? {},
     accounts: n(d.accounts),
     averageScore: d.average_score ?? null,
+    averageScope: d.average_scope ?? '',
   };
 }
 
