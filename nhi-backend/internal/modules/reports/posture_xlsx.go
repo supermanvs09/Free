@@ -156,7 +156,7 @@ func (x *book) summary() error {
 	var avg interface{} = "-"
 	avgSub := ""
 	if rep.AverageScore != nil {
-		avg = int(*rep.AverageScore + 0.5)
+		avg = score1(*rep.AverageScore)
 		avgSub = "out of 100 · " + bandLabel(bandFor(*rep.AverageScore)) + " band"
 		if t := trend(rep.Change30d); t != "" {
 			avgSub += " · " + t
@@ -252,7 +252,7 @@ func (x *book) summary() error {
 			if c.Human {
 				name = "Human"
 			}
-			rows = append(rows, []interface{}{name, c.Scored, c.Failing, shareOf(c.Failing, c.Scored), scoreCell(c.Average)})
+			rows = append(rows, []interface{}{name, c.Scored, c.Failing, shareOf(c.Failing, c.Scored), avgCell(c.Average)})
 		}
 		table("Human and non-human", "", []string{"Identities", "Scored", "With failing checks", "Share failing", "Average score"}, rows, nil)
 	}
@@ -263,7 +263,7 @@ func (x *book) summary() error {
 		if name == "" {
 			name = a.ID
 		}
-		acctRows = append(acctRows, []interface{}{name, a.ID, a.Scored, a.Failing, a.BySev["critical"], a.BySev["high"], a.BySev["medium"], a.BySev["low"], scoreCell(a.Average)})
+		acctRows = append(acctRows, []interface{}{name, a.ID, a.Scored, a.Failing, a.BySev["critical"], a.BySev["high"], a.BySev["medium"], a.BySev["low"], avgCell(a.Average)})
 	}
 	table("By account", "Accounts with the most severe failing checks first.",
 		[]string{"Account", "Account ID", "Scored", "With failing checks", "Critical", "High", "Medium", "Low", "Average score"}, acctRows, nil)
@@ -483,6 +483,14 @@ func text(s string) string {
 }
 
 func boolPtr(b bool) *bool { return &b }
+
+// avgCell is an average to one decimal, as a number; empty when none.
+func avgCell(v *float64) interface{} {
+	if v == nil {
+		return ""
+	}
+	return round1(*v)
+}
 
 // share is a fraction written as an Excel percentage, so it sorts as a number.
 type share float64

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Download, FileSpreadsheet, FileText, Sheet, ShieldCheck } from 'lucide-react';
 import { fetchPostureFacets } from '../../lib/api/posture';
+import { formatScore } from '../posture/parts';
 import { downloadPostureReport, fetchPostureReportPreview } from '../../lib/api/reports';
 import { useDebouncedValue, useQuery } from '../../lib/hooks';
 import { formatNumber } from '../../lib/format';
@@ -316,7 +317,7 @@ function PostureReportDialog({ open, onClose }) {
                 <Figure label="Identities scored" value={p.scored} />
                 <Figure label="With failing checks" value={p.failing} />
                 <Figure label="Failing checks" value={p.checks} />
-                <Figure label="Average score" value={p.averageScore === null ? null : Math.round(p.averageScore)} suffix=" / 100" />
+                <Figure label="Average score" value={p.averageScore} decimals suffix=" / 100" />
               </dl>
               {p.checks > 0 && (
                 <ul className="flex flex-col gap-1.5 border-t border-line pt-3">
@@ -415,12 +416,12 @@ function Step({ n, title, hint, children }) {
   );
 }
 
-function Figure({ label, value, suffix = '' }) {
+function Figure({ label, value, suffix = '', decimals = false }) {
   return (
     <div>
       <dt className="text-[11.5px] text-ink-3">{label}</dt>
       <dd data-numeric="" className="mt-0.5 text-[20px] leading-tight font-bold text-ink">
-        {value === null || value === undefined ? '-' : formatNumber(value)}
+        {value === null || value === undefined ? '-' : decimals ? formatScore(value) : formatNumber(value)}
         {value !== null && value !== undefined && suffix && <span className="text-[12px] font-medium text-ink-3">{suffix}</span>}
       </dd>
     </div>

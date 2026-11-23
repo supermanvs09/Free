@@ -8,6 +8,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"github.com/lib/pq"
 
 	"nhi-backend-api/internal/modules/posture/common"
+	"nhi-backend-api/internal/modules/posture/overview"
 	"nhi-backend-api/internal/platform/scope"
 )
 
@@ -45,7 +47,8 @@ type PostureReport struct {
 	Options         PostureOptions
 	ScoredCount     int // identities in the chosen class with a score
 	AverageScore    *float64
-	Change30d       *float64 // average score change over 30 days, as on the Posture page; nil when not tracked
+	Change30d       *float64 // change in the average score over 30 days, as on the Posture page; nil when not tracked
+	FleetScore      bool     // AverageScore and Change30d are the Posture page's cached fleet score
 	FailingCount    int      // identities with at least one failing check in the report
 	NewChecks       int      // failing checks that started failing in the last 7 days
 	OldChecks       int      // failing checks failing for more than 30 days
@@ -196,9 +199,8 @@ func LoadPosture(ctx context.Context, s *scope.DataScope, o PostureOptions) (*Po
 		v := avg.Float64
 		rep.AverageScore = &v
 	}
-	if change.Valid {
-		v := change.Float64
-		rep.Change30d = &v
+	if err := loadFleet(ctx, s, rep, change); err != nil {
+		return nil, err
 	}
 	if err := loadBreakdowns(ctx, s, rep, classWhere); err != nil {
 		return nil, err
@@ -426,6 +428,37 @@ func summarise(rep *PostureReport) {
 	})
 }
 
+// loadFleet sets the average score and its 30-day change. For a report on
+// every account they are the Posture page's fleet score and change, read from
+// the same cache row. For chosen accounts nothing is stored, so they are the
+// mean of those identities' scores and of their own 30-day changes, as in the
+// Posture page's account table. A tenant whose cache is not computed yet gets
+// the identities' mean as well.
+func loadFleet(ctx context.Context, s *scope.DataScope, rep *PostureReport, identityMean sql.NullFloat64) error {
+	if len(rep.Options.Accounts) == 0 {
+		class := map[string]string{ClassHuman: "HI", ClassNHI: "NHI"}[rep.Options.Class]
+		score, change, err := overview.NewPostureOverviewRepository().Fleet(ctx, s, class, 30)
+		if err != nil {
+			return fmt.Errorf("posture report fleet score: %w", err)
+		}
+		if score != nil {
+			rep.AverageScore, rep.Change30d, rep.FleetScore = score, change, true
+			return nil
+		}
+	}
+	if rep.AverageScore != nil {
+		v := round1(*rep.AverageScore)
+		rep.AverageScore = &v
+	}
+	if identityMean.Valid {
+		v := round1(identityMean.Float64)
+		rep.Change30d = &v
+	}
+	return nil
+}
+
+func round1(v float64) float64 { return math.Round(v*10) / 10 }
+
 // accountWhere limits the posture rows (alias p) to the chosen accounts. The
 // IDs are written as quoted SQL literals, so the clause composes with each
 // query's own placeholders; they are length-checked when the request is read.
@@ -560,6 +593,24 @@ func loadBreakdowns(ctx context.Context, s *scope.DataScope, rep *PostureReport,
 			rep.Classes = append(rep.Classes, c)
 		}
 		rows.Close()
+	}
+
+	// Human and non-human on a report for every account: the Posture page's
+	// fleet score of each class, from the cache, like the headline.
+	if len(rep.Options.Accounts) == 0 {
+		for i := range rep.Classes {
+			class := "NHI"
+			if rep.Classes[i].Human {
+				class = "HI"
+			}
+			score, _, err := overview.NewPostureOverviewRepository().Fleet(ctx, s, class, 30)
+			if err != nil {
+				return fmt.Errorf("posture report class fleet score: %w", err)
+			}
+			if score != nil {
+				rep.Classes[i].Average = score
+			}
+		}
 	}
 
 	rows, err = s.DB.QueryContext(ctx, fmt.Sprintf(`SELECT COALESCE(p.account_id, ''), COALESCE(max(NULLIF(p.account_name, '')), ''),

@@ -161,7 +161,7 @@ func (d *doc) summary() {
 	// Figures.
 	avg, avgSub := "-", ""
 	if rep.AverageScore != nil {
-		avg = strconv.Itoa(int(*rep.AverageScore+0.5)) + " / 100"
+		avg = score1(*rep.AverageScore) + " / 100"
 		avgSub = bandLabel(bandFor(*rep.AverageScore)) + " band"
 		if t := trend(rep.Change30d); t != "" {
 			avgSub = bandLabel(bandFor(*rep.AverageScore)) + " · " + t
@@ -312,7 +312,7 @@ func keyPoints(rep *PostureReport) []string {
 				n = c
 			}
 		}
-		out = append(out, fmt.Sprintf("Human identities average %d / 100 and non-human identities %d / 100.", int(*h.Average+0.5), int(*n.Average+0.5)))
+		out = append(out, fmt.Sprintf("Human identities score %s / 100 and non-human identities %s / 100.", score1(*h.Average), score1(*n.Average)))
 	}
 	return out
 }
@@ -336,7 +336,7 @@ func (d *doc) whereTheRiskIs() {
 			if c.Human {
 				name = "Human"
 			}
-			d.row(cols, []cell{{text: name, bold: true}, {text: num(c.Scored)}, {text: withPct(c.Failing, c.Scored)}, {text: scoreOf(c.Average)}}, 1, nil)
+			d.row(cols, []cell{{text: name, bold: true}, {text: num(c.Scored)}, {text: withPct(c.Failing, c.Scored)}, {text: avgOf(c.Average)}}, 1, nil)
 		}
 		pdf.Ln(7)
 	}
@@ -359,7 +359,7 @@ func (d *doc) whereTheRiskIs() {
 			{text: withPct(a.Failing, a.Scored)},
 			{text: num(a.BySev["critical"]), bold: a.BySev["critical"] > 0, color: zeroGrey(a.BySev["critical"], sevRGB["critical"])},
 			{text: num(a.BySev["high"]), bold: a.BySev["high"] > 0, color: zeroGrey(a.BySev["high"], sevRGB["high"])},
-			{text: scoreOf(a.Average)},
+			{text: avgOf(a.Average)},
 		}, 1, nil)
 	}
 	if more := len(rep.Accounts) - maxAccounts; more > 0 {
@@ -555,12 +555,12 @@ func trend(change *float64) string {
 	if change == nil {
 		return ""
 	}
-	n := int(math.Round(*change))
+	n := math.Round(*change*10) / 10
 	switch {
 	case n > 0:
-		return fmt.Sprintf("up %d in 30 days", n)
+		return "up " + score1(n) + " in 30 days"
 	case n < 0:
-		return fmt.Sprintf("down %d in 30 days", -n)
+		return "down " + score1(-n) + " in 30 days"
 	}
 	return "no change in 30 days"
 }
@@ -923,6 +923,19 @@ func scoreOf(v *float64) string {
 		return "-"
 	}
 	return strconv.Itoa(int(*v + 0.5))
+}
+
+// score1 writes an average as the Posture page does: one decimal, none when
+// it is whole (66.3, 66).
+func score1(v float64) string {
+	return strconv.FormatFloat(math.Round(v*10)/10, 'f', -1, 64)
+}
+
+func avgOf(v *float64) string {
+	if v == nil {
+		return "-"
+	}
+	return score1(*v)
 }
 
 func orDash(s string) string {

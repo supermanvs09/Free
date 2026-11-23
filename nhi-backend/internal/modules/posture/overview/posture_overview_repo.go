@@ -151,6 +151,34 @@ func (r *PostureOverviewRepository) latestCacheRow(ctx context.Context, s *scope
 	return &c, nil
 }
 
+// Fleet is the fleet score the Posture page shows for class ("", "HI" or
+// "NHI") and its change over `days`, read from the dashboard cache exactly as
+// Get reads them. Both are nil while nothing has been computed.
+func (r *PostureOverviewRepository) Fleet(ctx context.Context, s *scope.DataScope, class string, days int) (score, change *float64, err error) {
+	if err := common.Need(s); err != nil {
+		return nil, nil, err
+	}
+	row, err := r.latestCacheRow(ctx, s, class)
+	if errors.Is(err, sql.ErrNoRows) || (err != nil && (common.IsUndefinedTable(err) || common.IsUndefinedColumn(err))) {
+		return nil, nil, nil
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	score = common.NullFloat(row.score)
+	if score != nil && row.snapshot.Valid {
+		prev, err := r.previousFleetScore(ctx, s, row.snapshot.Time, days, class)
+		if err != nil {
+			return nil, nil, err
+		}
+		if prev != nil {
+			d := common.Round1(*score - *prev)
+			change = &d
+		}
+	}
+	return score, change, nil
+}
+
 // previousFleetScore is the daily fleet score from `days` days before the
 // current snapshot, or nil when the history is not that long yet.
 func (r *PostureOverviewRepository) previousFleetScore(ctx context.Context, s *scope.DataScope, current time.Time, days int, class string) (*float64, error) {
