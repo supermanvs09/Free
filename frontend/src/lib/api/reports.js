@@ -5,11 +5,17 @@ import { params, unwrapMain } from './http';
  * Reports: files built from data the console already stores.
  *
  *   GET /api/v1/reports/posture/preview?class=&severity=          what the report would hold
- *   GET /api/v1/reports/posture/export?format=pdf|csv&class=&severity=&include=
+ *   GET /api/v1/reports/posture/export?format=pdf|xlsx|csv&class=&severity=&include=
  *
  * class: all | human | nhi; severity and include are comma lists.
  */
 const BASE = '/api/v1/reports/posture';
+
+const ACCEPT = {
+  pdf: 'application/pdf',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  csv: 'text/csv',
+};
 
 const query = ({ identityClass, severities, include, format } = {}) =>
   params({
@@ -41,7 +47,7 @@ export async function downloadPostureReport({ identityClass, severities, include
   const response = await client.get(`${BASE}/export`, {
     params: p,
     responseType: 'blob',
-    headers: { Accept: format === 'csv' ? 'text/csv' : 'application/pdf' },
+    headers: { Accept: ACCEPT[format] ?? 'application/pdf' },
     timeout: 120000,
   });
   const disposition = response.headers?.['content-disposition'] ?? '';

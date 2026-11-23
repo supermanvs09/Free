@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRight, Download, FileSpreadsheet, FileText, ShieldCheck } from 'lucide-react';
+import { Download, FileSpreadsheet, FileText, Sheet, ShieldCheck } from 'lucide-react';
 import { downloadPostureReport, fetchPostureReportPreview } from '../../lib/api/reports';
 import { useDebouncedValue, useQuery } from '../../lib/hooks';
 import { formatNumber } from '../../lib/format';
@@ -31,9 +31,29 @@ const PARTS = [
 ];
 
 const FORMATS = [
-  { value: 'pdf', label: 'PDF', hint: 'To read and share: a summary page, then each identity with what it fails', icon: FileText },
-  { value: 'csv', label: 'CSV', hint: 'To sort and filter in a spreadsheet: one row per failing check', icon: FileSpreadsheet },
+  {
+    value: 'pdf',
+    label: 'PDF',
+    hint: 'To read and share',
+    holds: 'A summary and where the risk is, then each failing check once: how to fix it and the identities that fail it.',
+    icon: FileText,
+  },
+  {
+    value: 'xlsx',
+    label: 'Excel',
+    hint: 'To work through, with filters',
+    holds: 'Three sheets: Summary, Identities (every scored identity) and Failing checks (one row each). Both lists can be filtered.',
+    icon: Sheet,
+  },
+  {
+    value: 'csv',
+    label: 'CSV',
+    hint: 'To import into another tool',
+    holds: 'One row per failing check, to import into a ticketing or GRC tool.',
+    icon: FileSpreadsheet,
+  },
 ];
+const FORMAT_LABEL = Object.fromEntries(FORMATS.map((f) => [f.value, f.label]));
 
 /**
  * Reports: files built from what the console already stores, to share with
@@ -84,6 +104,7 @@ function PostureCard({ onOpen }) {
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
         <span className="flex items-center gap-1.5 text-[12px] text-ink-3">
           <FileText aria-hidden="true" className="size-3.5" /> PDF
+          <Sheet aria-hidden="true" className="ml-1.5 size-3.5" /> Excel
           <FileSpreadsheet aria-hidden="true" className="ml-1.5 size-3.5" /> CSV
         </span>
         <Button variant="primary" size="sm" icon={Download} onClick={onOpen}>
@@ -165,7 +186,7 @@ function PostureReportDialog({ open, onClose }) {
             Cancel
           </Button>
           <Button variant="primary" icon={Download} onClick={download} loading={busy} disabled={nothingChosen || busy}>
-            {busy ? 'Preparing…' : `Download ${format.toUpperCase()}`}
+            {busy ? 'Preparing…' : `Download ${FORMAT_LABEL[format]}`}
           </Button>
         </>
       }
@@ -218,7 +239,7 @@ function PostureReportDialog({ open, onClose }) {
           </Step>
 
           <Step n={4} title="Format">
-            <div role="radiogroup" aria-label="Format" className="grid gap-2 sm:grid-cols-2">
+            <div role="radiogroup" aria-label="Format" className="grid gap-2 sm:grid-cols-3">
               {FORMATS.map((f) => {
                 const on = format === f.value;
                 const Icon = f.icon;
@@ -247,7 +268,7 @@ function PostureReportDialog({ open, onClose }) {
           <p className="text-[13px] font-semibold text-ink">This report will hold</p>
           {nothingChosen ? (
             <p className="text-[12.5px] text-ink-3">Nothing yet: choose at least one severity.</p>
-          ) : preview.isError && !p ? (
+          ) : preview.isError ? (
             <InlineError error={preview.error} onRetry={preview.refetch} label="Could not count what the report holds" />
           ) : !p ? (
             <p className="text-[12.5px] text-ink-3">Counting…</p>
@@ -277,11 +298,11 @@ function PostureReportDialog({ open, onClose }) {
               <p className="text-[12px] leading-relaxed text-ink-3">
                 {p.checks === 0
                   ? 'No identity fails a check of the chosen severity. The report will say so.'
-                  : `Covers ${formatNumber(p.accounts)} ${p.accounts === 1 ? 'account' : 'accounts'}. Identities are listed worst score first, each with its most severe check first.`}
+                  : `Covers ${formatNumber(p.accounts)} ${p.accounts === 1 ? 'account' : 'accounts'}, most severe checks first.`}
               </p>
-              <p className="mt-auto flex items-center gap-1.5 border-t border-line pt-3 text-[12px] text-ink-3">
-                <ArrowRight aria-hidden="true" className="size-3.5" />
-                {format === 'pdf' ? 'A summary page, then one section per identity.' : 'One row per failing check, ready to sort and filter.'}
+              <p className="mt-auto border-t border-line pt-3 text-[12px] leading-relaxed text-ink-3">
+                <span className="font-medium text-ink-2">{FORMAT_LABEL[format]}: </span>
+                {FORMATS.find((f) => f.value === format)?.holds}
               </p>
             </>
           )}

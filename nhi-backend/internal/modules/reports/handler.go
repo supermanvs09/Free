@@ -2,6 +2,8 @@ package reports
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -17,7 +19,7 @@ import (
 // Module serves the Reports page:
 //
 //	GET /reports/posture/preview?class=&severity=          what the report would hold (JSON)
-//	GET /reports/posture/export?format=pdf|csv&class=&severity=&include=
+//	GET /reports/posture/export?format=pdf|xlsx|csv&class=&severity=&include=
 //
 // class: all | human | nhi. severity: comma list of critical,high,medium,low
 // (absent: all). include: comma list of about,fix,severity (absent: all).
@@ -112,6 +114,9 @@ func (m *Module) load(w http.ResponseWriter, r *http.Request, o PostureOptions) 
 		return nil, false
 	}
 	rep, err := LoadPosture(r.Context(), resolved, o)
+	if errors.Is(err, context.Canceled) {
+		return nil, false // the person changed a choice or left; nobody reads the answer
+	}
 	if err != nil {
 		logging.FromContext(r.Context()).Error("posture report failed", "err", err)
 		fail(w, http.StatusInternalServerError, "Could not build the report", "REPORT_FAILED")
@@ -160,14 +165,16 @@ func (m *Module) export(w http.ResponseWriter, r *http.Request) {
 	if format == "" {
 		format = "pdf"
 	}
-	if format != "pdf" && format != "csv" {
-		fail(w, http.StatusBadRequest, "format must be pdf or csv", "INVALID_FORMAT")
+	if format != "pdf" && format != "xlsx" && format != "csv" {
+		fail(w, http.StatusBadRequest, "format must be pdf, xlsx or csv", "INVALID_FORMAT")
 		return
 	}
 	o, ok := options(w, r)
 	if !ok {
 		return
 	}
+	// The workbook's Identities sheet lists passing identities too.
+	o.Population = format == "xlsx"
 	rep, ok := m.load(w, r, o)
 	if !ok {
 		return
@@ -175,11 +182,16 @@ func (m *Module) export(w http.ResponseWriter, r *http.Request) {
 	// Built in memory first so a failure is an error response, not a cut file.
 	var buf bytes.Buffer
 	var err error
-	ctype := "text/csv; charset=utf-8"
-	if format == "pdf" {
+	var ctype string
+	switch format {
+	case "pdf":
 		ctype = "application/pdf"
 		err = WritePosturePDF(&buf, rep)
-	} else {
+	case "xlsx":
+		ctype = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+		err = WritePostureXLSX(&buf, rep)
+	default:
+		ctype = "text/csv; charset=utf-8"
 		buf.WriteString("\ufeff") // so Excel opens the UTF-8 file correctly
 		err = WritePostureCSV(&buf, rep)
 	}

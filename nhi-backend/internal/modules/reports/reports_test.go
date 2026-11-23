@@ -3,10 +3,14 @@ package reports
 import (
 	"bytes"
 	"encoding/csv"
+	"fmt"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/xuri/excelize/v2"
 )
 
 func TestOptions(t *testing.T) {
@@ -49,17 +53,19 @@ func TestOptions(t *testing.T) {
 func sample() *PostureReport {
 	score := 41.0
 	since := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
-	return &PostureReport{
+	rep := &PostureReport{
 		GeneratedAt: time.Now().UTC(), Options: PostureOptions{Class: ClassAll, IncludeInfo: true, IncludeFix: true, IncludeSev: true},
 		ScoredCount: 2, AverageScore: &score, FailingCount: 1, CheckCount: 2, AccountsCovered: 1,
 		BySeverity: map[string]int{"critical": 1, "high": 1},
-		TopChecks:  []TopCheck{{Title: "Workload role has administrator access", Severity: "critical", Identities: 1}},
-		Identities: []ReportIdentity{{Name: "=web-1", ARN: "arn:aws:iam::111111111111:role/web-1", Type: "ec2_instance", AccountID: "111111111111", Account: "acme-prod", Score: &score, Band: "poor",
+		Bands:      []BandCount{{"poor", 1}, {"healthy", 1}},
+		Identities: []ReportIdentity{{ID: "1", Name: "=web-1", ARN: "arn:aws:iam::111111111111:role/web-1", Type: "ec2_instance", AccountID: "111111111111", Account: "acme-prod", Score: &score, Band: "poor",
 			Checks: []ReportCheck{
-				{RuleID: "ADM-01", Title: "Workload role has administrator access", Severity: "critical", Area: "least_privilege", Found: "AdministratorAccess attached → web-role", About: "Admin policy check", Fix: "Detach it", FailingSince: &since},
-				{RuleID: "X", Title: "Role trusts another account", Severity: "high", Found: "", About: "", Fix: ""},
+				{RuleID: "ADM-01", Check: "Administrator access on a workload role", Title: "Workload role has administrator access", Severity: "critical", Area: "least_privilege", Found: "AdministratorAccess attached → web-role", About: "Admin policy check", Fix: "Detach it", FailingSince: &since},
+				{RuleID: "X", Check: "Role trusts another account", Title: "Role trusts another account", Severity: "high", Found: "", About: "", Fix: ""},
 			}}},
 	}
+	summarise(rep)
+	return rep
 }
 
 func TestCSV(t *testing.T) {
@@ -102,18 +108,121 @@ func TestPDF(t *testing.T) {
 	}
 }
 
-func TestSortTopChecksSeverityFirst(t *testing.T) {
-	checks := []TopCheck{
-		{Title: "Session too long", Severity: "medium", Identities: 5},
-		{Title: "Admin access", Severity: "critical", Identities: 1},
-		{Title: "Cross-account trust", Severity: "high", Identities: 1},
-		{Title: "Old key", Severity: "high", Identities: 3},
+func TestSortGroupsSeverityFirst(t *testing.T) {
+	g := func(title, sev string, n int) CheckGroup {
+		return CheckGroup{Title: title, Severity: sev, Items: make([]GroupItem, n)}
 	}
-	sortTopChecks(checks)
+	groups := []CheckGroup{g("Session too long", "medium", 5), g("Admin access", "critical", 1), g("Cross-account trust", "high", 1), g("Old key", "high", 3)}
+	sortGroups(groups)
 	want := []string{"Admin access", "Old key", "Cross-account trust", "Session too long"}
 	for i, w := range want {
-		if checks[i].Title != w {
-			t.Fatalf("position %d: got %q, want %q", i, checks[i].Title, w)
+		if groups[i].Title != w {
+			t.Fatalf("position %d: got %q, want %q", i, groups[i].Title, w)
 		}
+	}
+}
+
+// Findings name the identity in their title ("User bob can pass any role"),
+// so checks group by rule, not by title: one row per check, not per identity.
+func TestGroupsByRule(t *testing.T) {
+	s1, s2 := 30.0, 70.0
+	rep := &PostureReport{BySeverity: map[string]int{}, Identities: []ReportIdentity{
+		{ID: "a", Name: "alice", AccountID: "1", Score: &s1, Checks: []ReportCheck{{RuleID: "PASS-01", Check: "Can pass any role", Title: "User alice can pass any role", Severity: "high", Fix: "Scope PassRole"}}},
+		{ID: "b", Name: "bob", AccountID: "2", Score: &s2, Checks: []ReportCheck{
+			{RuleID: "PASS-01", Check: "Can pass any role", Title: "User bob can pass any role", Severity: "high", Fix: "Scope PassRole for bob"},
+			{RuleID: "ADM-01", Check: "Admin", Title: "Admin", Severity: "critical"},
+		}},
+	}}
+	summarise(rep)
+	if len(rep.Groups) != 2 || rep.Groups[0].RuleID != "ADM-01" || len(rep.Groups[1].Items) != 2 || !rep.Groups[1].ManyFix {
+		t.Fatalf("groups: %+v", rep.Groups)
+	}
+	if rep.Accounts[0].ID != "2" { // the account holding the critical check first
+		t.Fatalf("accounts: %+v", rep.Accounts)
+	}
+	if p := rep.PriorityIdentities(); p[0].Name != "bob" { // critical beats a lower score
+		t.Fatalf("priority: %v", p[0].Name)
+	}
+}
+
+func TestXLSX(t *testing.T) {
+	rep := sample()
+	rep.Population = append(append([]ReportIdentity{}, rep.Identities...), ReportIdentity{ID: "2", Name: "clean-role", Type: "iam_role"})
+	var buf bytes.Buffer
+	if err := WritePostureXLSX(&buf, rep); err != nil {
+		t.Fatal(err)
+	}
+	f, err := excelize.OpenReader(&buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(f.GetSheetList(), "|"); got != "Summary|Identities|Failing checks" {
+		t.Fatalf("sheets %q", got)
+	}
+	if f.GetActiveSheetIndex() != 0 {
+		t.Fatal("the workbook must open on Summary")
+	}
+	ids, _ := f.GetRows("Identities")
+	if len(ids) != 3 || ids[1][0] != "=web-1" || ids[2][0] != "clean-role" { // text, not a formula; passing identities after
+		t.Fatalf("identities: %v", ids)
+	}
+	if formula, _ := f.GetCellFormula("Identities", "A2"); formula != "" {
+		t.Fatalf("a name became a formula: %q", formula)
+	}
+	checks, _ := f.GetRows("Failing checks")
+	if len(checks) != 3 || checks[0][6] != "Check" || checks[1][6] != "Administrator access on a workload role" {
+		t.Fatalf("checks: %v", checks[0])
+	}
+}
+
+// A tenant with thousands of identities: the PDF must stay a document
+// someone reads, and every identity must still reach the workbook.
+func TestLargeReport(t *testing.T) {
+	const n = 6500
+	rep := &PostureReport{GeneratedAt: time.Now().UTC(), Options: PostureOptions{Class: ClassAll, IncludeInfo: true, IncludeFix: true, IncludeSev: true},
+		BySeverity: map[string]int{}, ScoredCount: n, AccountsCovered: 40}
+	rules := []struct{ id, sev string }{{"ADM-01", "critical"}, {"PASS-01", "high"}, {"XACCT-02", "high"}, {"KEY-01", "medium"}, {"SESS-01", "medium"}, {"TAG-01", "low"}}
+	for i := 0; i < n; i++ {
+		score := float64(20 + i%80)
+		id := ReportIdentity{ID: fmt.Sprint(i), Name: fmt.Sprintf("workload-%05d", i), Type: "iam_role", AccountID: fmt.Sprintf("1000000000%02d", i%40), Score: &score}
+		for j, r := range rules {
+			if (i+j)%(j+2) == 0 {
+				id.Checks = append(id.Checks, ReportCheck{RuleID: r.id, Check: "Check " + r.id, Title: fmt.Sprintf("%s fails %s", id.Name, r.id), Severity: r.sev,
+					Found: strings.Repeat("Long evidence text that wraps over more than one line in the table. ", 3), About: "About " + r.id, Fix: "Fix " + r.id})
+				rep.BySeverity[r.sev]++
+				rep.CheckCount++
+			}
+		}
+		if len(id.Checks) > 0 {
+			rep.Identities = append(rep.Identities, id)
+		}
+	}
+	rep.FailingCount = len(rep.Identities)
+	summarise(rep)
+
+	start := time.Now()
+	var buf bytes.Buffer
+	if err := WritePosturePDF(&buf, rep); err != nil {
+		t.Fatal(err)
+	}
+	pages := len(regexp.MustCompile(`/Type /Page\b`).FindAll(buf.Bytes(), -1))
+	t.Logf("pdf: %d identities failing, %d checks -> %d pages, %d KB, %s", rep.FailingCount, rep.CheckCount, pages, buf.Len()/1024, time.Since(start))
+	if pages > 30 {
+		t.Fatalf("PDF has %d pages; it should summarise, not list every identity", pages)
+	}
+
+	start = time.Now()
+	buf.Reset()
+	if err := WritePostureXLSX(&buf, rep); err != nil {
+		t.Fatal(err)
+	}
+	f, err := excelize.OpenReader(&buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, _ := f.GetRows("Failing checks")
+	t.Logf("xlsx: %d failing-check rows, %d KB, %s", len(rows)-1, buf.Len()/1024, time.Since(start))
+	if len(rows)-1 != rep.CheckCount {
+		t.Fatalf("workbook has %d rows, want %d", len(rows)-1, rep.CheckCount)
 	}
 }

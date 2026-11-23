@@ -12,8 +12,19 @@ import (
 // A4 portrait, millimetres.
 const (
 	pageW   = 210.0
+	pageH   = 297.0
 	marginX = 16.0
+	bottom  = 18.0
 	bodyW   = pageW - 2*marginX
+)
+
+// What the PDF lists in full and what it leaves to the Excel workbook, so a
+// report on thousands of identities stays a document someone reads.
+const (
+	maxRowsPerCheck = 20 // identities listed under each failing check
+	maxPriority     = 25 // identities in "Identities to fix first"
+	maxAccounts     = 12 // accounts in "By account"
+	maxTopChecks    = 10 // checks on the summary page
 )
 
 var (
@@ -22,41 +33,81 @@ var (
 	ink3RGB  = [3]int{107, 114, 128}
 	lineRGB  = [3]int{229, 231, 235}
 	panelRGB = [3]int{248, 250, 252}
+	linkRGB  = [3]int{29, 78, 216}
 	sevRGB   = map[string][3]int{
 		"critical": {185, 28, 28},
 		"high":     {194, 65, 12},
 		"medium":   {161, 98, 7},
 		"low":      {21, 128, 61},
 	}
+	// Score bands share the severity colours: critical band red ... healthy green.
+	bandRGB = map[string][3]int{"critical": sevRGB["critical"], "poor": sevRGB["high"], "fair": sevRGB["medium"], "healthy": sevRGB["low"]}
 )
 
-// WritePosturePDF writes the report for reading and sharing: a one-page
-// summary (score, counts by severity, the checks failing most often), then
-// each identity with its failing checks, worst identity first.
+// doc is one PDF being written.
+type doc struct {
+	pdf   *fpdf.Fpdf
+	t     func(string) string // UTF-8 to the core fonts' Windows-1252
+	rep   *PostureReport
+	links []int // per check group: where its details start
+}
+
+// WritePosturePDF writes the report for reading and sharing. It is built to
+// stay readable however many identities fail:
+//
+//  1. Summary: the figures, key points in sentences, failing checks by
+//     severity and identities by score band, and the checks to fix first
+//     (each links to its details).
+//  2. Where the risk is: human and non-human, the accounts with the most
+//     severe failing checks, and the identities to fix first.
+//  3. Failing checks in detail: each check once, with what it looks at and
+//     how to fix it, then the identities that fail it, lowest score first,
+//     up to maxRowsPerCheck; the Excel workbook lists every identity.
+//
+// PDF bookmarks mirror the sections and every check.
 func WritePosturePDF(w io.Writer, rep *PostureReport) error {
 	pdf := fpdf.New("P", "mm", "A4", "")
 	pdf.SetMargins(marginX, 16, marginX)
-	pdf.SetAutoPageBreak(true, 18)
+	pdf.SetAutoPageBreak(true, bottom)
+	pdf.SetTitle("Posture report", true)
+	pdf.SetSubject(ClassLabel(rep.Options.Class), true)
+	pdf.SetCreator("NHI console", true)
 	tr := pdf.UnicodeTranslatorFromDescriptor("")
-	t := func(s string) string { return tr(plain(s)) }
-	o := rep.Options
+	d := &doc{pdf: pdf, t: func(s string) string { return tr(plain(s)) }, rep: rep}
+	for range rep.Groups {
+		d.links = append(d.links, pdf.AddLink())
+	}
 
 	pdf.SetFooterFunc(func() {
 		pdf.SetY(-12)
-		setText(pdf, ink3RGB)
-		pdf.SetFont("Helvetica", "", 8)
-		pdf.CellFormat(bodyW/2, 5, t("Posture report · "+ClassLabel(o.Class)), "", 0, "L", false, 0, "")
+		d.font("", 7.5, ink3RGB)
+		left := fmt.Sprintf("Posture report · %s · %s", ClassLabel(rep.Options.Class), rep.GeneratedAt.Format("2 Jan 2006"))
+		pdf.CellFormat(bodyW/2, 5, d.t(left), "", 0, "L", false, 0, "")
 		pdf.CellFormat(bodyW/2, 5, fmt.Sprintf("Page %d of {nb}", pdf.PageNo()), "", 0, "R", false, 0, "")
 	})
 	pdf.AliasNbPages("")
-	pdf.AddPage()
 
-	// Title.
-	setText(pdf, inkRGB)
-	pdf.SetFont("Helvetica", "B", 20)
+	d.summary()
+	if rep.CheckCount > 0 {
+		d.whereTheRiskIs()
+		d.details()
+	}
+	if err := pdf.Error(); err != nil {
+		return err
+	}
+	return pdf.Output(w)
+}
+
+// ---- page 1 --------------------------------------------------------------
+
+func (d *doc) summary() {
+	pdf, rep, o := d.pdf, d.rep, d.rep.Options
+	pdf.AddPage()
+	pdf.Bookmark(d.t("Summary"), 0, -1)
+
+	d.font("B", 20, inkRGB)
 	pdf.CellFormat(bodyW, 10, "Posture report", "", 1, "L", false, 0, "")
-	setText(pdf, ink2RGB)
-	pdf.SetFont("Helvetica", "", 10)
+	d.font("", 10, ink2RGB)
 	sevs := "every severity"
 	if len(o.Severities) > 0 && len(o.Severities) < len(Severities) {
 		names := make([]string, 0, len(o.Severities))
@@ -65,218 +116,610 @@ func WritePosturePDF(w io.Writer, rep *PostureReport) error {
 		}
 		sevs = strings.Join(names, ", ") + " severity"
 	}
-	pdf.CellFormat(bodyW, 6, t(fmt.Sprintf("%s · failing checks of %s", ClassLabel(o.Class), sevs)), "", 1, "L", false, 0, "")
-	setText(pdf, ink3RGB)
-	pdf.SetFont("Helvetica", "", 8.5)
-	pdf.CellFormat(bodyW, 5, t(fmt.Sprintf("Generated %s UTC from the latest posture scan · %d %s covered",
-		rep.GeneratedAt.Format("2 Jan 2006, 15:04"), rep.AccountsCovered, plural(rep.AccountsCovered, "account", "accounts"))), "", 1, "L", false, 0, "")
+	pdf.CellFormat(bodyW, 6, d.t(fmt.Sprintf("%s · failing checks of %s", ClassLabel(o.Class), sevs)), "", 1, "L", false, 0, "")
+	d.font("", 8.5, ink3RGB)
+	pdf.CellFormat(bodyW, 5, d.t(fmt.Sprintf("Generated %s UTC from the latest posture scan · %s covered",
+		rep.GeneratedAt.Format("2 Jan 2006, 15:04"), count(rep.AccountsCovered, "account", "accounts"))), "", 1, "L", false, 0, "")
 	pdf.Ln(5)
 
-	// Summary figures.
-	avg := "-"
+	// Figures.
+	avg, avgSub := "-", ""
 	if rep.AverageScore != nil {
 		avg = strconv.Itoa(int(*rep.AverageScore+0.5)) + " / 100"
+		avgSub = bandLabel(bandFor(*rep.AverageScore)) + " band"
 	}
-	figures := []struct{ label, value string }{
-		{"Average score", avg},
-		{"Identities scored", strconv.Itoa(rep.ScoredCount)},
-		{"With failing checks", strconv.Itoa(rep.FailingCount)},
-		{"Failing checks", strconv.Itoa(rep.CheckCount)},
+	failSub := ""
+	if rep.ScoredCount > 0 {
+		failSub = pct(rep.FailingCount, rep.ScoredCount) + " of scored"
 	}
+	d.figures([]figure{
+		{"Average score", avg, avgSub},
+		{"Identities scored", num(rep.ScoredCount), "in " + count(rep.AccountsCovered, "account", "accounts")},
+		{"With failing checks", num(rep.FailingCount), failSub},
+		{"Failing checks", num(rep.CheckCount), "across " + count(len(rep.Groups), "check", "checks")},
+	})
+
+	if rep.CheckCount == 0 {
+		d.font("", 10, ink2RGB)
+		pdf.MultiCell(bodyW, 5.5, d.t("No identity in this report fails a check of the chosen severity. Nothing to fix."), "", "L", false)
+		return
+	}
+
+	// Key points.
+	d.heading("Key points", 10.5)
+	for _, p := range keyPoints(rep) {
+		x := pdf.GetX()
+		setFill(pdf, ink3RGB)
+		pdf.Circle(x+1.4, pdf.GetY()+2.6, 0.7, "F")
+		pdf.SetX(x + 4.5)
+		d.font("", 9.5, ink2RGB)
+		pdf.MultiCell(bodyW-4.5, 5.2, d.t(p), "", "L", false)
+		pdf.Ln(0.6)
+	}
+	pdf.Ln(4)
+
+	// Two distributions side by side.
+	half := (bodyW - 10) / 2
+	y := pdf.GetY()
+	sevParts := []part{}
+	for _, s := range shownSeverities(o) {
+		sevParts = append(sevParts, part{SeverityLabel(s), rep.BySeverity[s], sevColor(s)})
+	}
+	end := d.stackedBar(marginX, y, half, "Failing checks by severity", sevParts)
+	bandParts := []part{}
+	for _, b := range rep.Bands {
+		c, ok := bandRGB[b.Band]
+		if !ok {
+			c = ink3RGB
+		}
+		bandParts = append(bandParts, part{bandLabel(b.Band), b.Count, c})
+	}
+	if e := d.stackedBar(marginX+half+10, y, half, "Scored identities by score band", bandParts); e > end {
+		end = e
+	}
+	pdf.SetY(end + 8)
+
+	// Checks to fix first.
+	d.heading("Checks to fix first", 10.5)
+	d.note("Most severe first, then by how many identities fail the check. Select a check to go to its details.")
+	cols := []col{{w: bodyW - 64, align: "L"}, {w: 24, align: "L"}, {w: 40, align: "R"}}
+	d.header(cols, []string{"Check", "Severity", "Identities"})
+	for i, g := range rep.Groups {
+		if i == maxTopChecks {
+			break
+		}
+		y := pdf.GetY()
+		ids := num(len(g.Items))
+		if rep.ScoredCount > 0 {
+			ids += "  (" + pct(len(g.Items), rep.ScoredCount) + ")"
+		}
+		h := d.row(cols, []cell{
+			{text: g.Title, color: linkRGB},
+			{text: SeverityLabel(g.Severity), bold: true, color: sevColor(g.Severity)},
+			{text: ids},
+		}, 1, nil)
+		pdf.Link(marginX, y, bodyW, h, d.links[i])
+	}
+	if more := len(rep.Groups) - maxTopChecks; more > 0 {
+		pdf.Ln(1.5)
+		d.note(fmt.Sprintf("And %s more, in Failing checks in detail.", count(more, "check", "checks")))
+	}
+}
+
+// keyPoints are the summary in sentences, most important first.
+func keyPoints(rep *PostureReport) []string {
+	var out []string
+	chosen := shownSeverities(rep.Options)
+	for _, s := range chosen {
+		n := rep.BySeverity[s]
+		if n == 0 || (s != "critical" && s != "high") {
+			continue
+		}
+		ids := 0
+		for _, id := range rep.Identities {
+			if id.CountSev(s) > 0 {
+				ids++
+			}
+		}
+		var of []CheckGroup
+		for _, g := range rep.Groups {
+			if g.Severity == s {
+				of = append(of, g)
+			}
+		}
+		sev := strings.ToLower(SeverityLabel(s))
+		if len(of) == 1 {
+			out = append(out, fmt.Sprintf("%s a %s check: “%s”. Fix this first.", count(ids, "identity fails", "identities fail"), sev, of[0].Title))
+		} else {
+			out = append(out, fmt.Sprintf("%s fail %s %s checks. Start with “%s”, on %s.", count(ids, "identity", "identities"), num(len(of)), sev, of[0].Title, count(len(of[0].Items), "identity", "identities")))
+		}
+		break
+	}
+	if len(out) == 0 && (has(chosen, "critical") || has(chosen, "high")) {
+		out = append(out, "No critical or high severity check fails.")
+	}
+	if rep.ScoredCount > 0 {
+		out = append(out, fmt.Sprintf("%s of %s scored identities (%s) fail at least one check.", num(rep.FailingCount), num(rep.ScoredCount), pct(rep.FailingCount, rep.ScoredCount)))
+	}
+	if len(rep.Accounts) > 1 && rep.Accounts[0].Checks > 0 {
+		a := rep.Accounts[0]
+		parts := []string{}
+		for _, s := range Severities {
+			if a.BySev[s] > 0 {
+				parts = append(parts, fmt.Sprintf("%s %s", num(a.BySev[s]), strings.ToLower(SeverityLabel(s))))
+			}
+			if len(parts) == 2 {
+				break
+			}
+		}
+		out = append(out, fmt.Sprintf("Account %s holds the most severe failing checks: %s, across %s.", accountName(a), strings.Join(parts, " and "), count(a.Failing, "identity", "identities")))
+	}
+	if len(rep.Classes) == 2 && rep.Classes[0].Average != nil && rep.Classes[1].Average != nil {
+		var h, n ClassRow
+		for _, c := range rep.Classes {
+			if c.Human {
+				h = c
+			} else {
+				n = c
+			}
+		}
+		out = append(out, fmt.Sprintf("Human identities average %d / 100 and non-human identities %d / 100.", int(*h.Average+0.5), int(*n.Average+0.5)))
+	}
+	return out
+}
+
+// ---- page 2 --------------------------------------------------------------
+
+func (d *doc) whereTheRiskIs() {
+	pdf, rep := d.pdf, d.rep
+	pdf.AddPage()
+	pdf.Bookmark(d.t("Where the risk is"), 0, -1)
+	d.title("Where the risk is")
+
+	if len(rep.Classes) == 2 {
+		d.heading("Human and non-human", 10.5)
+		cols := []col{{w: bodyW - 114, align: "L"}, {w: 38, align: "R"}, {w: 42, align: "R"}, {w: 34, align: "R"}}
+		d.header(cols, []string{"Identities", "Scored", "With failing checks", "Average score"})
+		for _, c := range rep.Classes {
+			name := "Non-human"
+			if c.Human {
+				name = "Human"
+			}
+			d.row(cols, []cell{{text: name, bold: true}, {text: num(c.Scored)}, {text: withPct(c.Failing, c.Scored)}, {text: scoreOf(c.Average)}}, 1, nil)
+		}
+		pdf.Ln(7)
+	}
+
+	d.heading("By account", 10.5)
+	d.note("Accounts with the most severe failing checks first.")
+	cols := []col{{w: bodyW - 118, align: "L"}, {w: 22, align: "R"}, {w: 34, align: "R"}, {w: 20, align: "R"}, {w: 16, align: "R"}, {w: 26, align: "R"}}
+	d.header(cols, []string{"Account", "Scored", "With failing checks", "Critical", "High", "Average score"})
+	for i, a := range rep.Accounts {
+		if i == maxAccounts {
+			break
+		}
+		name := accountName(a)
+		if a.Name != "" && a.ID != "" && a.Name != a.ID {
+			name += " (" + a.ID + ")"
+		}
+		d.row(cols, []cell{
+			{text: name},
+			{text: num(a.Scored)},
+			{text: withPct(a.Failing, a.Scored)},
+			{text: num(a.BySev["critical"]), bold: a.BySev["critical"] > 0, color: zeroGrey(a.BySev["critical"], sevRGB["critical"])},
+			{text: num(a.BySev["high"]), bold: a.BySev["high"] > 0, color: zeroGrey(a.BySev["high"], sevRGB["high"])},
+			{text: scoreOf(a.Average)},
+		}, 1, nil)
+	}
+	if more := len(rep.Accounts) - maxAccounts; more > 0 {
+		pdf.Ln(1.5)
+		d.note(fmt.Sprintf("And %s more. The Excel report has every account.", count(more, "account", "accounts")))
+	}
+	pdf.Ln(7)
+
+	pdf.Bookmark(d.t("Identities to fix first"), 0, -1)
+	d.heading("Identities to fix first", 10.5)
+	prio := rep.PriorityIdentities()
+	if len(prio) > maxPriority {
+		d.note(fmt.Sprintf("The %d identities with the most severe failing checks, of %s. The Excel report lists every identity.", maxPriority, num(len(prio))))
+		prio = prio[:maxPriority]
+	} else {
+		d.note("Most severe failing check first, then the lowest score.")
+	}
+	cols = []col{{w: bodyW - 128, align: "L"}, {w: 30, align: "L"}, {w: 40, align: "L"}, {w: 14, align: "R"}, {w: 16, align: "R"}, {w: 12, align: "R"}, {w: 16, align: "R"}}
+	head := func() { d.header(cols, []string{"Identity", "Type", "Account", "Score", "Critical", "High", "Checks"}) }
+	head()
+	for _, id := range prio {
+		crit, high := id.CountSev("critical"), id.CountSev("high")
+		d.row(cols, []cell{
+			{text: id.Name, bold: true},
+			{text: typeLabel(id.Type)},
+			{text: accountName(AccountRow{ID: id.AccountID, Name: id.Account})},
+			{text: scoreOf(id.Score)},
+			{text: num(crit), bold: crit > 0, color: zeroGrey(crit, sevRGB["critical"])},
+			{text: num(high), bold: high > 0, color: zeroGrey(high, sevRGB["high"])},
+			{text: num(len(id.Checks))},
+		}, 1, head)
+	}
+}
+
+// ---- detail pages --------------------------------------------------------
+
+func (d *doc) details() {
+	pdf, rep, o := d.pdf, d.rep, d.rep.Options
+	pdf.AddPage()
+	pdf.Bookmark(d.t("Failing checks in detail"), 0, -1)
+	d.title("Failing checks in detail")
+	intro := "Each check once: what it looks at, how to fix it and the identities that fail it, lowest score first."
+	if d.longest() > maxRowsPerCheck {
+		intro += fmt.Sprintf(" Up to %d identities are listed per check; the Excel report lists all of them.", maxRowsPerCheck)
+	}
+	d.note(intro)
+	pdf.Ln(3)
+
+	cols := []col{{w: 46, align: "L"}, {w: 40, align: "L"}, {w: 14, align: "R"}, {w: bodyW - 100, align: "L"}}
+	for gi, g := range rep.Groups {
+		if pdf.GetY() > pageH-bottom-55 {
+			pdf.AddPage()
+		}
+		top := pdf.GetY()
+		pdf.SetLink(d.links[gi], top, pdf.PageNo())
+		pdf.Bookmark(d.t(g.Title), 1, top)
+
+		// Heading: severity, the check, how many identities fail it.
+		x := marginX + 4
+		if o.IncludeSev {
+			d.pill(marginX+4, top+0.6, SeverityLabel(g.Severity), sevColor(g.Severity))
+		}
+		d.font("", 8.5, ink3RGB)
+		right := count(len(g.Items), "identity", "identities")
+		pdf.SetXY(marginX+bodyW-40, top+0.6)
+		pdf.CellFormat(40, 5, d.t(right), "", 0, "R", false, 0, "")
+		titleY := top
+		if o.IncludeSev {
+			titleY += 7 // under the severity pill
+		}
+		pdf.SetXY(x, titleY)
+		d.font("B", 11, inkRGB)
+		pdf.MultiCell(bodyW-48, 5.6, d.t(g.Title), "", "L", false)
+		meta := nonEmpty(AreaLabel(g.Area), g.RuleID)
+		if len(meta) > 0 {
+			pdf.SetX(x)
+			d.font("", 8, ink3RGB)
+			pdf.CellFormat(bodyW-8, 4.5, d.t(strings.Join(meta, " · ")), "", 1, "L", false, 0, "")
+		}
+		pdf.Ln(1.2)
+		if o.IncludeInfo {
+			d.labelled(x, "About this check", g.About)
+		}
+		if len(g.Accounts) > 1 {
+			top := []string{}
+			for i, a := range g.Accounts {
+				if i == 3 {
+					break
+				}
+				top = append(top, fmt.Sprintf("%s (%s)", a.Name, num(a.Count)))
+			}
+			label := "Accounts"
+			if len(g.Accounts) > 3 {
+				label = fmt.Sprintf("In %d accounts, most in", len(g.Accounts))
+			}
+			d.labelled(x, label, strings.Join(top, ", "))
+		}
+		if o.IncludeFix {
+			label := "How to fix"
+			if g.FixFrom != "" {
+				label += " (as found on " + g.FixFrom + ")"
+			}
+			d.labelled(x, label, g.Fix)
+			if g.ManyFix {
+				pdf.SetX(x)
+				d.font("I", 8, ink3RGB)
+				pdf.CellFormat(bodyW-8, 4.5, d.t("Some identities have fix steps of their own; the Excel report has each one."), "", 1, "L", false, 0, "")
+			}
+		}
+		// A coloured rule down the left of the heading ties it to its severity.
+		setFill(pdf, sevColor(g.Severity))
+		pdf.Rect(marginX, top, 1.2, pdf.GetY()-top, "F")
+		pdf.Ln(2)
+
+		head := func() { d.header(cols, []string{"Identity", "Account", "Score", "What was found"}) }
+		head()
+		for i, it := range g.Items {
+			if i == maxRowsPerCheck {
+				break
+			}
+			id := rep.Identities[it.Identity]
+			d.row(cols, []cell{
+				{text: id.Name, bold: true, sub: typeLabel(id.Type)},
+				{text: accountLabel(id)},
+				{text: scoreOf(id.Score)},
+				{text: orDash(it.Found)},
+			}, 2, head)
+		}
+		if more := len(g.Items) - maxRowsPerCheck; more > 0 {
+			pdf.Ln(1.5)
+			d.note(fmt.Sprintf("%s more %s this check. The Excel report lists every one.", num(more), plural(more, "identity fails", "identities fail")))
+		}
+		pdf.Ln(8)
+	}
+}
+
+func (d *doc) longest() int {
+	n := 0
+	for _, g := range d.rep.Groups {
+		if len(g.Items) > n {
+			n = len(g.Items)
+		}
+	}
+	return n
+}
+
+// ---- building blocks -----------------------------------------------------
+
+type figure struct{ label, value, sub string }
+
+func (d *doc) figures(figs []figure) {
+	pdf := d.pdf
 	boxW := (bodyW - 3*4) / 4
 	y := pdf.GetY()
-	for i, f := range figures {
+	for i, f := range figs {
 		x := marginX + float64(i)*(boxW+4)
 		setFill(pdf, panelRGB)
 		setDraw(pdf, lineRGB)
-		pdf.RoundedRect(x, y, boxW, 20, 2, "1234", "FD")
+		pdf.RoundedRect(x, y, boxW, 23, 2, "1234", "FD")
 		pdf.SetXY(x+4, y+3)
-		setText(pdf, ink3RGB)
-		pdf.SetFont("Helvetica", "", 8)
-		pdf.CellFormat(boxW-8, 4, t(f.label), "", 0, "L", false, 0, "")
-		pdf.SetXY(x+4, y+9)
-		setText(pdf, inkRGB)
-		pdf.SetFont("Helvetica", "B", 15)
-		pdf.CellFormat(boxW-8, 8, t(f.value), "", 0, "L", false, 0, "")
-	}
-	pdf.SetY(y + 26)
-
-	// Failing checks by severity.
-	pdf.SetFont("Helvetica", "B", 10)
-	setText(pdf, inkRGB)
-	pdf.CellFormat(bodyW, 6, "Failing checks by severity", "", 1, "L", false, 0, "")
-	pdf.Ln(1)
-	shown := Severities
-	if len(o.Severities) > 0 {
-		shown = o.Severities
-	}
-	for _, s := range shown {
-		c := sevRGB[s]
-		setFill(pdf, c)
-		pdf.Rect(pdf.GetX(), pdf.GetY()+1.3, 2.6, 2.6, "F")
-		pdf.SetX(pdf.GetX() + 4)
-		setText(pdf, ink2RGB)
-		pdf.SetFont("Helvetica", "", 9.5)
-		label := fmt.Sprintf("%s  ", SeverityLabel(s))
-		pdf.CellFormat(pdf.GetStringWidth(label), 5, label, "", 0, "L", false, 0, "")
-		pdf.SetFont("Helvetica", "B", 9.5)
-		n := strconv.Itoa(rep.BySeverity[s])
-		pdf.CellFormat(pdf.GetStringWidth(n)+9, 5, n, "", 0, "L", false, 0, "")
-	}
-	pdf.Ln(10)
-
-	if rep.CheckCount == 0 {
-		setText(pdf, ink2RGB)
-		pdf.SetFont("Helvetica", "", 10)
-		pdf.MultiCell(bodyW, 5.5, t("No identity in this report fails a check of the chosen severity. Nothing to fix."), "", "L", false)
-		return finish(pdf, w)
-	}
-
-	// The failing checks, most severe first.
-	pdf.SetFont("Helvetica", "B", 10)
-	setText(pdf, inkRGB)
-	pdf.CellFormat(bodyW, 6, "Checks to fix first", "", 1, "L", false, 0, "")
-	setText(pdf, ink3RGB)
-	pdf.SetFont("Helvetica", "", 8.5)
-	pdf.CellFormat(bodyW, 4.5, "Most severe first, then by how many identities fail the check.", "", 1, "L", false, 0, "")
-	pdf.Ln(1.5)
-	cols := []float64{bodyW - 50, 26, 24}
-	tableHeader(pdf, t, cols, []string{"Check", "Severity", "Identities"})
-	for _, c := range rep.TopChecks {
-		setText(pdf, inkRGB)
-		pdf.SetFont("Helvetica", "", 9)
-		pdf.CellFormat(cols[0], 6.5, t(truncate(pdf, c.Title, cols[0]-2)), "B", 0, "L", false, 0, "")
-		setText(pdf, sevColor(c.Severity))
-		pdf.SetFont("Helvetica", "B", 9)
-		pdf.CellFormat(cols[1], 6.5, SeverityLabel(c.Severity), "B", 0, "L", false, 0, "")
-		setText(pdf, inkRGB)
-		pdf.SetFont("Helvetica", "", 9)
-		pdf.CellFormat(cols[2], 6.5, strconv.Itoa(c.Identities), "B", 1, "R", false, 0, "")
-	}
-	if more := rep.CheckKinds - len(rep.TopChecks); more > 0 {
-		pdf.Ln(1.5)
-		setText(pdf, ink3RGB)
-		pdf.SetFont("Helvetica", "", 8.5)
-		pdf.CellFormat(bodyW, 4.5, fmt.Sprintf("And %d more %s, listed with each identity in the pages that follow.", more, plural(more, "check", "checks")), "", 1, "L", false, 0, "")
-	}
-
-	// Each identity, worst first.
-	pdf.AddPage()
-	setText(pdf, inkRGB)
-	pdf.SetFont("Helvetica", "B", 14)
-	pdf.CellFormat(bodyW, 8, "Identities and what they fail", "", 1, "L", false, 0, "")
-	setText(pdf, ink3RGB)
-	pdf.SetFont("Helvetica", "", 8.5)
-	pdf.CellFormat(bodyW, 5, "Lowest score first. Within an identity, the most severe check first.", "", 1, "L", false, 0, "")
-	pdf.Ln(3)
-
-	for _, id := range rep.Identities {
-		if pdf.GetY() > 250 {
-			pdf.AddPage()
+		d.font("", 8, ink3RGB)
+		pdf.CellFormat(boxW-8, 4, d.t(f.label), "", 0, "L", false, 0, "")
+		pdf.SetXY(x+4, y+8.5)
+		d.font("B", 15, inkRGB)
+		pdf.CellFormat(boxW-8, 8, d.t(f.value), "", 0, "L", false, 0, "")
+		if f.sub != "" {
+			pdf.SetXY(x+4, y+16.5)
+			d.font("", 7.5, ink3RGB)
+			pdf.CellFormat(boxW-8, 4, d.t(f.sub), "", 0, "L", false, 0, "")
 		}
-		// Identity header band.
-		y := pdf.GetY()
-		setFill(pdf, panelRGB)
-		setDraw(pdf, lineRGB)
-		pdf.Rect(marginX, y, bodyW, 13, "FD")
-		pdf.SetXY(marginX+3, y+2)
-		setText(pdf, inkRGB)
-		pdf.SetFont("Helvetica", "B", 10.5)
-		pdf.CellFormat(bodyW-50, 5, t(truncate(pdf, id.Name, bodyW-56)), "", 0, "L", false, 0, "")
-		score := "Not scored"
-		if id.Score != nil {
-			score = fmt.Sprintf("Score %d", int(*id.Score+0.5))
-			if id.Band != "" {
-				score += " · " + bandLabel(id.Band)
-			}
-		}
-		pdf.SetFont("Helvetica", "B", 9.5)
-		pdf.CellFormat(44, 5, t(score), "", 0, "R", false, 0, "")
-		pdf.SetXY(marginX+3, y+7.5)
-		setText(pdf, ink3RGB)
-		pdf.SetFont("Helvetica", "", 8)
-		kind := "Non-human"
-		if id.Human {
-			kind = "Human"
-		}
-		meta := strings.Join(nonEmpty(typeLabel(id.Type), kind, accountLabel(id),
-			fmt.Sprintf("%d failing %s", len(id.Checks), plural(len(id.Checks), "check", "checks"))), " · ")
-		pdf.CellFormat(bodyW-6, 4, t(truncate(pdf, meta, bodyW-8)), "", 0, "L", false, 0, "")
-		pdf.SetY(y + 15)
-
-		for i, c := range id.Checks {
-			if pdf.GetY() > 262 {
-				pdf.AddPage()
-			}
-			x := marginX + 3
-			if o.IncludeSev {
-				setText(pdf, sevColor(c.Severity))
-				pdf.SetFont("Helvetica", "B", 8.5)
-				pdf.SetX(x)
-				pdf.CellFormat(18, 5.5, SeverityLabel(c.Severity), "", 0, "L", false, 0, "")
-				x += 18
-			}
-			setText(pdf, inkRGB)
-			pdf.SetFont("Helvetica", "B", 9.5)
-			pdf.SetX(x)
-			pdf.MultiCell(bodyW-(x-marginX)-2, 5.5, t(c.Title), "", "L", false)
-			labelled(pdf, t, x, "Found", c.Found)
-			if o.IncludeInfo {
-				labelled(pdf, t, x, "About this check", c.About)
-			}
-			if o.IncludeFix {
-				labelled(pdf, t, x, "How to fix", c.Fix)
-			}
-			pdf.Ln(1.5)
-			if i < len(id.Checks)-1 {
-				setDraw(pdf, lineRGB)
-				pdf.Line(x, pdf.GetY(), marginX+bodyW-2, pdf.GetY())
-				pdf.Ln(2)
-			}
-		}
-		pdf.Ln(5)
 	}
-	return finish(pdf, w)
+	pdf.SetY(y + 30)
+}
+
+type part struct {
+	label string
+	n     int
+	rgb   [3]int
+}
+
+// stackedBar draws a labelled 100% bar with a legend under it.
+func (d *doc) stackedBar(x, y, w float64, title string, parts []part) (bottomY float64) {
+	pdf := d.pdf
+	pdf.SetXY(x, y)
+	d.font("B", 9.5, inkRGB)
+	pdf.CellFormat(w, 5, d.t(title), "", 0, "L", false, 0, "")
+	total := 0
+	for _, p := range parts {
+		total += p.n
+	}
+	by := y + 7
+	if total == 0 {
+		setFill(pdf, lineRGB)
+		pdf.Rect(x, by, w, 4, "F")
+	} else {
+		cx := x
+		for _, p := range parts {
+			if p.n == 0 {
+				continue
+			}
+			pw := w * float64(p.n) / float64(total)
+			setFill(pdf, p.rgb)
+			pdf.Rect(cx, by, pw, 4, "F")
+			cx += pw
+		}
+	}
+	lx, ly := x, by+7
+	for _, p := range parts {
+		d.font("", 8, ink2RGB)
+		itemW := 3.4 + pdf.GetStringWidth(d.t(p.label+" "))
+		d.font("B", 8, inkRGB)
+		itemW += pdf.GetStringWidth(num(p.n)) + 5
+		if lx > x && lx+itemW > x+w { // next line rather than past the edge
+			lx, ly = x, ly+5
+		}
+		setFill(pdf, p.rgb)
+		pdf.Rect(lx, ly+1.1, 2.4, 2.4, "F")
+		d.font("", 8, ink2RGB)
+		label := p.label + " "
+		pdf.SetXY(lx+3.4, ly)
+		pdf.CellFormat(pdf.GetStringWidth(d.t(label)), 4.6, d.t(label), "", 0, "L", false, 0, "")
+		d.font("B", 8, inkRGB)
+		n := num(p.n)
+		pdf.CellFormat(pdf.GetStringWidth(n)+5, 4.6, n, "", 0, "L", false, 0, "")
+		lx = pdf.GetX()
+	}
+	return ly + 4.6
+}
+
+func (d *doc) pill(x, y float64, text string, rgb [3]int) {
+	pdf := d.pdf
+	d.font("B", 7.5, [3]int{255, 255, 255})
+	w := pdf.GetStringWidth(text) + 5
+	setFill(pdf, rgb)
+	pdf.RoundedRect(x, y, w, 4.8, 1.2, "1234", "F")
+	pdf.SetXY(x, y)
+	pdf.CellFormat(w, 4.8, text, "", 0, "C", false, 0, "")
+}
+
+func (d *doc) title(s string) {
+	d.font("B", 15, inkRGB)
+	d.pdf.CellFormat(bodyW, 8, d.t(s), "", 1, "L", false, 0, "")
+	d.pdf.Ln(2)
+}
+
+func (d *doc) heading(s string, size float64) {
+	d.font("B", size, inkRGB)
+	d.pdf.CellFormat(bodyW, 6, d.t(s), "", 1, "L", false, 0, "")
+}
+
+func (d *doc) note(s string) {
+	d.font("", 8.5, ink3RGB)
+	d.pdf.MultiCell(bodyW, 4.4, d.t(s), "", "L", false)
+	d.pdf.Ln(1)
 }
 
 // labelled writes "Label: text" as one wrapped paragraph; nothing when empty.
-func labelled(pdf *fpdf.Fpdf, t func(string) string, x float64, label, text string) {
+func (d *doc) labelled(x float64, label, text string) {
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return
 	}
+	pdf := d.pdf
 	pdf.SetX(x)
-	setText(pdf, ink3RGB)
-	pdf.SetFont("Helvetica", "B", 8.5)
-	lw := pdf.GetStringWidth(label+": ") + 0.5
-	pdf.CellFormat(lw, 4.8, t(label+":"), "", 0, "L", false, 0, "")
-	setText(pdf, ink2RGB)
-	pdf.SetFont("Helvetica", "", 8.5)
-	pdf.MultiCell(bodyW-(x-marginX)-2-lw, 4.8, t(text), "", "L", false)
+	d.font("B", 8.5, ink2RGB)
+	lw := pdf.GetStringWidth(d.t(label+": ")) + 0.5
+	pdf.CellFormat(lw, 4.8, d.t(label+":"), "", 0, "L", false, 0, "")
+	d.font("", 8.5, ink2RGB)
+	pdf.MultiCell(bodyW-(x-marginX)-2-lw, 4.8, d.t(text), "", "L", false)
+	pdf.Ln(0.4)
 }
 
-func tableHeader(pdf *fpdf.Fpdf, t func(string) string, cols []float64, names []string) {
+type col struct {
+	w     float64
+	align string
+}
+
+type cell struct {
+	text  string
+	sub   string // a second, smaller grey line
+	bold  bool
+	color [3]int
+}
+
+const (
+	cellPad = 1.6
+	lineH   = 4.2
+)
+
+func (d *doc) header(cols []col, names []string) {
+	pdf := d.pdf
 	setFill(pdf, panelRGB)
-	setText(pdf, ink3RGB)
-	pdf.SetFont("Helvetica", "B", 8)
+	setDraw(pdf, lineRGB)
+	d.font("B", 7.5, ink3RGB)
+	pdf.SetX(marginX)
 	for i, n := range names {
-		align := "L"
-		if i == len(names)-1 {
-			align = "R"
-		}
 		ln := 0
 		if i == len(names)-1 {
 			ln = 1
 		}
-		pdf.CellFormat(cols[i], 6.5, t(n), "B", ln, align, true, 0, "")
+		pdf.CellFormat(cols[i].w, 6.2, " "+d.t(n)+" ", "B", ln, cols[i].align, true, 0, "")
 	}
 }
 
-func finish(pdf *fpdf.Fpdf, w io.Writer) error {
-	if err := pdf.Error(); err != nil {
-		return err
+// row draws one table row, each cell wrapped to at most maxLines lines, and
+// returns its height. A row that would cross the page end starts a new page
+// and repeats the header (head) there.
+func (d *doc) row(cols []col, cells []cell, maxLines int, head func()) float64 {
+	pdf := d.pdf
+	lines := make([][]string, len(cells))
+	h := 0.0
+	for i, c := range cells {
+		d.font(boldStyle(c.bold), 8.5, inkRGB)
+		lines[i] = d.wrap(c.text, cols[i].w-2*cellPad, maxLines)
+		ch := float64(len(lines[i])) * lineH
+		if c.sub != "" {
+			ch += 3.8
+		}
+		if ch > h {
+			h = ch
+		}
 	}
-	return pdf.Output(w)
+	h += 2 * cellPad
+	if pdf.GetY()+h > pageH-bottom {
+		pdf.AddPage()
+		if head != nil {
+			head()
+		}
+	}
+	y := pdf.GetY()
+	x := marginX
+	for i, c := range cells {
+		rgb := c.color
+		if rgb == ([3]int{}) {
+			rgb = inkRGB
+		}
+		d.font(boldStyle(c.bold), 8.5, rgb)
+		for li, l := range lines[i] {
+			pdf.SetXY(x+cellPad, y+cellPad+float64(li)*lineH)
+			pdf.CellFormat(cols[i].w-2*cellPad, lineH, d.t(l), "", 0, cols[i].align, false, 0, "")
+		}
+		if c.sub != "" {
+			d.font("", 7, ink3RGB)
+			pdf.SetXY(x+cellPad, y+cellPad+float64(len(lines[i]))*lineH)
+			pdf.CellFormat(cols[i].w-2*cellPad, 3.8, d.t(truncate(pdf, c.sub, cols[i].w-2*cellPad)), "", 0, cols[i].align, false, 0, "")
+		}
+		x += cols[i].w
+	}
+	setDraw(pdf, lineRGB)
+	pdf.Line(marginX, y+h, marginX+bodyW, y+h)
+	pdf.SetXY(marginX, y+h)
+	return h
+}
+
+// wrap splits s into lines no wider than w at the current font, at most max
+// lines; the last kept line ends in "..." when text was cut.
+func (d *doc) wrap(s string, w float64, max int) []string {
+	words := strings.Fields(plain(s))
+	if len(words) == 0 {
+		return []string{""}
+	}
+	fits := func(x string) bool { return d.pdf.GetStringWidth(d.t(x)) <= w }
+	var out []string
+	cur := ""
+	for i := 0; i < len(words); i++ {
+		next := words[i]
+		if cur != "" {
+			next = cur + " " + words[i]
+		}
+		if fits(next) {
+			cur = next
+			continue
+		}
+		if cur == "" { // one word wider than the cell
+			cur = truncate(d.pdf, words[i], w)
+			out = append(out, cur)
+			cur = ""
+		} else {
+			out = append(out, cur)
+			cur = words[i]
+			if !fits(cur) {
+				cur = truncate(d.pdf, cur, w)
+			}
+		}
+		if len(out) == max {
+			rest := strings.Join(append([]string{cur}, words[i+1:]...), " ")
+			if strings.TrimSpace(rest) != "" {
+				out[max-1] = truncate(d.pdf, out[max-1]+" "+rest, w)
+			}
+			return out
+		}
+	}
+	if cur != "" {
+		out = append(out, cur)
+	}
+	if len(out) > max {
+		out = out[:max]
+	}
+	return out
+}
+
+func (d *doc) font(style string, size float64, rgb [3]int) {
+	d.pdf.SetFont("Helvetica", style, size)
+	setText(d.pdf, rgb)
+}
+
+func boldStyle(b bool) string {
+	if b {
+		return "B"
+	}
+	return ""
 }
 
 func sevColor(s string) [3]int {
@@ -284,6 +727,13 @@ func sevColor(s string) [3]int {
 		return c
 	}
 	return ink3RGB
+}
+
+func zeroGrey(n int, rgb [3]int) [3]int {
+	if n == 0 {
+		return ink3RGB
+	}
+	return rgb
 }
 
 func setText(pdf *fpdf.Fpdf, c [3]int) { pdf.SetTextColor(c[0], c[1], c[2]) }
@@ -299,7 +749,7 @@ func truncate(pdf *fpdf.Fpdf, s string, width float64) string {
 	for len(r) > 1 && pdf.GetStringWidth(string(r)+"...") > width {
 		r = r[:len(r)-1]
 	}
-	return string(r) + "..."
+	return strings.TrimRight(string(r), " ") + "..."
 }
 
 // plain swaps characters the PDF core fonts cannot draw for close ASCII.
@@ -309,7 +759,7 @@ func plain(s string) string {
 }
 
 func nonEmpty(v ...string) []string {
-	out := v[:0]
+	out := make([]string, 0, len(v))
 	for _, s := range v {
 		if strings.TrimSpace(s) != "" {
 			out = append(out, s)
@@ -323,4 +773,80 @@ func plural(n int, one, many string) string {
 		return one
 	}
 	return many
+}
+
+// num writes 6512 as "6,512".
+func num(n int) string {
+	s := strconv.Itoa(n)
+	if n < 0 {
+		return "-" + num(-n)
+	}
+	for i := len(s) - 3; i > 0; i -= 3 {
+		s = s[:i] + "," + s[i:]
+	}
+	return s
+}
+
+func count(n int, one, many string) string { return num(n) + " " + plural(n, one, many) }
+
+// pct is n of total as a whole percentage; "<1%" rather than a misleading 0%.
+func pct(n, total int) string {
+	if total == 0 {
+		return "0%"
+	}
+	p := float64(n) * 100 / float64(total)
+	if p > 0 && p < 1 {
+		return "<1%"
+	}
+	return strconv.Itoa(int(p+0.5)) + "%"
+}
+
+func withPct(n, total int) string {
+	if total == 0 {
+		return num(n)
+	}
+	return num(n) + "  (" + pct(n, total) + ")"
+}
+
+func scoreOf(v *float64) string {
+	if v == nil {
+		return "-"
+	}
+	return strconv.Itoa(int(*v + 0.5))
+}
+
+func orDash(s string) string {
+	if strings.TrimSpace(s) == "" {
+		return "-"
+	}
+	return s
+}
+
+// bandFor is the Posture page's band for a score.
+func bandFor(score float64) string {
+	switch {
+	case score >= 80:
+		return "healthy"
+	case score >= 60:
+		return "fair"
+	case score >= 40:
+		return "poor"
+	}
+	return "critical"
+}
+
+func shownSeverities(o PostureOptions) []string {
+	if len(o.Severities) > 0 {
+		return o.Severities
+	}
+	return Severities
+}
+
+func has(list []string, v string) bool {
+	for _, s := range list {
+		if s == v {
+			return true
+		}
+	}
+	return false
 }

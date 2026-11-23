@@ -16,7 +16,7 @@ func WritePostureCSV(w io.Writer, rep *PostureReport) error {
 	if o.IncludeSev {
 		header = append(header, "Severity")
 	}
-	header = append(header, "Failing check", "What was found")
+	header = append(header, checkColumns...)
 	if o.IncludeInfo {
 		header = append(header, "What the check looks at")
 	}
@@ -37,7 +37,7 @@ func WritePostureCSV(w io.Writer, rep *PostureReport) error {
 			if o.IncludeSev {
 				row = append(row, SeverityLabel(c.Severity))
 			}
-			row = append(row, safeCell(c.Title), safeCell(c.Found))
+			row = append(row, safeCell(c.Check), safeCell(c.RuleID), safeCell(c.Title), safeCell(c.Found))
 			if o.IncludeInfo {
 				row = append(row, safeCell(c.About))
 			}
@@ -57,6 +57,11 @@ func WritePostureCSV(w io.Writer, rep *PostureReport) error {
 	cw.Flush()
 	return cw.Error()
 }
+
+// checkColumns name the check twice: the check itself, the same on every
+// identity so it can be grouped and filtered on, and the problem as found on
+// this identity.
+var checkColumns = []string{"Check", "Check ID", "Problem on this identity", "What was found"}
 
 // safeCell stops spreadsheet formula injection: a cell that starts with
 // =, +, -, @, tab or carriage return is prefixed with a quote.
