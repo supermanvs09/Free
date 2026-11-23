@@ -140,7 +140,7 @@ func (h *Handler) inbox(ctx context.Context, ds *scope.DataScope, userID, tenant
 		out.Alerts = append(out.Alerts, Alert{
 			Key: SourcePosture + ":" + d.IdentityID, Source: SourcePosture, Severity: dropSeverity(d), Title: title, Summary: summary,
 			Subject: d.IdentityName, SubjectType: d.IdentityType, AccountID: d.AccountID, DetectedAt: d.DetectedAt, Count: d.NewFailing,
-			Link: "/alerts/identities/" + url.PathEscape(d.IdentityID), ScoreBefore: &before, ScoreNow: &now,
+			Link: "/posture/" + url.PathEscape(d.IdentityID), ScoreBefore: &before, ScoreNow: &now,
 			Facts: dropFacts(d),
 		})
 	}

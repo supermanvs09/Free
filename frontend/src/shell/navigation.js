@@ -115,7 +115,6 @@ export const BREADCRUMBS = {
  * table misses, so a record screen still says where it sits.
  */
 export const BREADCRUMB_PREFIXES = [
-  { prefix: '/alerts/', trail: ['Overview', 'Alerts', 'Score drop'] },
   { prefix: '/posture/', trail: ['Overview', 'Posture', 'Identity'] },
   { prefix: '/scans/', trail: ['Overview', 'Dashboard', 'Scan changes'] },
   { prefix: '/identities/', trail: ['Overview', 'Discovery', 'Identity'] },

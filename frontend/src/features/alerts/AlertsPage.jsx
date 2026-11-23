@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, CheckCheck, Dna, FileWarning, Fingerprint, GitCommitVertical, ShieldAlert, ShieldX } from 'lucide-react';
 import { fetchAlerts, fetchIdentityAlert } from '../../lib/api/alerts';
+import { resolveGenomeForAnomaly } from '../../lib/api/genome';
 import { useQuery } from '../../lib/hooks/useQuery';
 import { formatDateTime, formatNumber, formatRelative } from '../../lib/format';
 import { genomeRoute } from '../../lib/identityLinks';
@@ -51,13 +52,6 @@ const VERIFIED = {
 
 /* A genome alert for an identity discovery no longer sees (or that is out of
    scope) has no identity page; its anomalies are still listed, so link there. */
-const genomeMonitored = (a) => a.facts?.monitored !== 'false';
-const linkOf = (a) =>
-  a.source === 'genome' && a.facts
-    ? genomeMonitored(a)
-      ? `${genomeRoute(a.facts.source_type, a.facts.identity_name)}?tab=anomalies`
-      : `/genome?tab=anomalies&q=${encodeURIComponent(a.facts.identity_name)}`
-    : a.link;
 const postureId = (a) => (a.source === 'posture' || a.source === 'posture_critical' ? a.key.slice(a.key.indexOf(':') + 1) : null);
 
 /* ── One row ────────────────────────────────────────────────────────────── */
@@ -176,8 +170,8 @@ function PostureWhy({ a }) {
         )}
       </section>
       <Actions>
-        <Button as={Link} to={a.link} size="sm" variant="primary" iconRight={ArrowUpRight}>
-          Why it dropped, in full
+        <Button as={Link} to={`/posture/${encodeURIComponent(postureId(a))}`} size="sm" variant="primary" iconRight={ArrowUpRight}>
+          Open in Posture
         </Button>
         {d?.discovery_id && (
           <>
@@ -256,6 +250,15 @@ function CriticalWhy({ a }) {
 }
 
 function GenomeWhy({ a }) {
+  /* The alert names the identity as its calls do (the event identity name,
+     e.g. an ECS task); the genome page is keyed by its baseline. Look it up in
+     the genome list the way the Genome page's anomaly list does, rather than
+     building a route from the alert's name, which opened "not monitored". */
+  const name = a.facts?.identity_name || a.subject;
+  const target = useQuery((signal) => resolveGenomeForAnomaly(name, signal), [name]);
+  const found = target.data;
+  const looking = !found && target.data === undefined && !target.isError;
+  const fleetSearch = `/genome?tab=anomalies&q=${encodeURIComponent(name ?? '')}`;
   return (
     <>
       <section className="rounded-[14px] border border-line p-4">
@@ -274,14 +277,29 @@ function GenomeWhy({ a }) {
         <p className="mt-3 text-[12px] text-ink-3">Each departure is behaviour this identity had never shown before. Check whether a deploy or config change explains it; if not, treat it as a possible takeover.</p>
       </section>
       <Actions>
-        <Button as={Link} to={linkOf(a)} size="sm" variant="primary" iconRight={ArrowUpRight}>
+        <Button
+          as={looking ? undefined : Link}
+          to={looking ? undefined : found ? `${genomeRoute(found.sourceType, found.identityName)}?tab=anomalies` : fleetSearch}
+          size="sm"
+          variant="primary"
+          iconRight={ArrowUpRight}
+          loading={looking}
+          title={!looking && !found ? 'No genome page matches this identity: opens the anomaly list searched for it' : undefined}
+        >
           Investigate the departures
         </Button>
-        {a.facts?.identity_name && genomeMonitored(a) && (
-          <Button as={Link} to={genomeRoute(a.facts.source_type, a.facts.identity_name)} size="sm" variant="secondary" icon={Dna}>
-            Its normal behaviour
-          </Button>
-        )}
+        <Button
+          as={found ? Link : undefined}
+          to={found ? genomeRoute(found.sourceType, found.identityName) : undefined}
+          size="sm"
+          variant="secondary"
+          icon={Dna}
+          loading={looking}
+          disabled={!found}
+          title={!looking && !found ? (target.isError ? 'The genome list could not be searched' : 'No genome page matches this identity') : undefined}
+        >
+          Its normal behaviour
+        </Button>
       </Actions>
     </>
   );
@@ -322,7 +340,7 @@ function ExposureWhy({ a, pageOn }) {
       </section>
       {pageOn && (
         <Actions>
-          <Button as={Link} to={linkOf(a)} size="sm" variant="primary" iconRight={ArrowUpRight}>
+          <Button as={Link} to={a.link} size="sm" variant="primary" iconRight={ArrowUpRight}>
             Open the finding
           </Button>
         </Actions>

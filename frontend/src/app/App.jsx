@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext';
 import { homeFor } from '../lib/roles';
 import { ThemeProvider } from './ThemeContext';
@@ -17,7 +17,6 @@ import LoginPage from '../features/auth/LoginPage';
    with the screens that draw them, so first paint after sign-in stays small. */
 const OverviewPage = lazy(() => import('../features/overview/OverviewPage'));
 const AlertsPage = lazy(() => import('../features/alerts/AlertsPage'));
-const AlertDetailPage = lazy(() => import('../features/alerts/AlertDetailPage'));
 const PosturePage = lazy(() => import('../features/posture/PosturePage'));
 const PostureIdentityPage = lazy(() => import('../features/posture/PostureIdentityPage'));
 const ScanChangesPage = lazy(() => import('../features/changes/ScanChangesPage'));
@@ -40,6 +39,12 @@ const RemediationPage = lazy(() => import('../features/remediation/RemediationPa
 const FindingFixPage = lazy(() => import('../features/remediation/FindingFixPage'));
 const PlanPage = lazy(() => import('../features/remediation/PlanPage'));
 const NotFoundPage = lazy(() => import('../features/NotFoundPage'));
+
+/** An old score-drop link (/alerts/identities/:id) opens the identity in Posture. */
+function ScoreDropRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/posture/${encodeURIComponent(id)}`} replace />;
+}
 
 function Screen({ children }) {
   return <Suspense fallback={<RouteFallback />}>{children}</Suspense>;
@@ -67,7 +72,8 @@ export default function App() {
                 <Route index element={<HomeRedirect />} />
                 <Route path="/overview" element={<Screen><OverviewPage /></Screen>} />
                 <Route path="/alerts" element={<Screen><AlertsPage /></Screen>} />
-                <Route path="/alerts/identities/:id" element={<Screen><AlertDetailPage /></Screen>} />
+                {/* The score-drop page is gone: its old links open the identity in Posture. */}
+                <Route path="/alerts/identities/:id" element={<ScoreDropRedirect />} />
                 <Route path="/posture" element={<Screen><PosturePage /></Screen>} />
                 {/* Posture detail is the Posture tab of the identity page;
                     old links still land on it. */}

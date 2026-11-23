@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Download, Gauge, Loader2, RefreshCw, SearchX, ShieldCheck, Sparkles, Wrench } from 'lucide-react';
+import { Download, Gauge, Loader2, SearchX, ShieldCheck, Sparkles, Wrench } from 'lucide-react';
 import { useAccess } from '../../app/useAccess';
-import { useSync } from '../sync/SyncContext';
 import {
   exportPostureCsv,
   fetchPostureFacets,
@@ -239,13 +238,6 @@ export default function PosturePage() {
       setExporting(false);
     }
   };
-
-  /* Run the posture checks again: the Sync panel's own scoring step, shown in
-     the same panel (start, scoring, findings counts, retry) and reloading
-     every page when it finishes. Busy while any sync or check run is going. */
-  const sync = useSync();
-  const checking = Boolean(sync.run?.postureOnly) && sync.active;
-  const onScan = () => (sync.active ? sync.openPanel() : sync.scoreOnly());
 
   const refresh = () => {
     overviewQuery.refetch();
@@ -503,16 +495,6 @@ export default function PosturePage() {
               value={window}
               onChange={(value) => setParams({ window: value === DEFAULT_WINDOW ? '' : value })}
             />
-            <Button
-              variant="secondary"
-              icon={RefreshCw}
-              onClick={onScan}
-              loading={checking}
-              locked={lock('posture.findings')}
-              title={sync.active && !checking ? 'A sync is running: it scores posture at the end. Open it.' : 'Run the posture checks again on every identity'}
-            >
-              Run checks again
-            </Button>
             <Button
               variant="secondary"
               icon={Download}

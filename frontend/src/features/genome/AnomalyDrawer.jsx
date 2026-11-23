@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Archive, CheckCircle2, ChevronDown, HelpCircle, MessageSquarePlus, Repeat2, RotateCcw, ShieldAlert } from 'lucide-react';
 import { fetchAnomaly, fetchAnomalyEvidence, saveAnomalyFeedback, setAnomalyDisposition } from '../../lib/api/genome';
 import { useAccess } from '../../app/useAccess';
@@ -105,6 +105,13 @@ export function AnomalyDrawer({ anomaly, pattern, onClose, onReviewed }) {
   const dispose = useMutation((input) => setAnomalyDisposition(id, input));
   const { can } = useAccess();
   const canAct = can('anomalies.review');
+  /* Another anomaly starts with its sections folded and an empty note. */
+  useEffect(() => {
+    setMoreOpen(false);
+    setNoteOpen(false);
+    setReason('');
+    setApprove(false);
+  }, [id]);
 
   const setState = async (disposition) => {
     const outcome = await dispose.mutate({ disposition, reason: reason.trim() });
@@ -135,6 +142,12 @@ export function AnomalyDrawer({ anomaly, pattern, onClose, onReviewed }) {
     evidence.refetch();
     onReviewed?.();
   };
+
+  /* Closed: nothing to draw. The body below reads the anomaly directly
+     (its id under More details, its dimension and time as fallbacks), and
+     on the close render the queries still hold the last answers - drawing
+     it then threw on the missing anomaly and took the whole screen down. */
+  if (!anomaly) return null;
 
   const e = evidence.data;
   const d = detail.data;

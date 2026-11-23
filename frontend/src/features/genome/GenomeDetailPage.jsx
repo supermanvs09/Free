@@ -164,10 +164,11 @@ function baselineState(baseline, items, lastSeen) {
   if (String(baseline?.status ?? '').toLowerCase() === 'active') {
     return { key: 'active', label: 'Baseline established', tone: 'low', at: established?.occurred_at ?? null };
   }
-  /* A baseline row that is not active yet is learning, whether or not a call
-     landed in the window; "No activity yet" is only for an identity with
-     neither a baseline nor a call. */
-  if (lastSeen || baseline?.status || learning) return { key: 'learning', label: 'Learning', tone: 'medium', at: learning?.occurred_at ?? null };
+  /* Learning needs something to learn from: a call seen, or days already
+     learned. A baseline row with no call and 0 days learned is an identity
+     that has not acted yet, whatever status the row carries. */
+  const daysLearned = Number(baseline?.built_days ?? baseline?.builtDays);
+  if (lastSeen || daysLearned > 0) return { key: 'learning', label: 'Learning', tone: 'medium', at: learning?.occurred_at ?? null };
   return { key: 'none', label: 'No activity yet', tone: 'neutral', at: null };
 }
 
@@ -280,7 +281,7 @@ function GenomeIdentity({ sourceType, identityName }) {
             <Button variant="secondary" as={Link} to="/genome" icon={ArrowLeft}>
               Fleet
             </Button>
-            {discoveryId ? (
+            {discoveryId && (
               <>
                 <Button variant="ghost" as={Link} to={identityRoute(discoveryId)} icon={FingerprintIcon}>
                   Identity record
@@ -289,10 +290,6 @@ function GenomeIdentity({ sourceType, identityName }) {
                   Access graph
                 </Button>
               </>
-            ) : (
-              <Button variant="ghost" as={Link} to={`/identities?search=${encodeURIComponent(inventoryName || identityName)}`} icon={Boxes}>
-                Open in inventory
-              </Button>
             )}
           </>
         }
