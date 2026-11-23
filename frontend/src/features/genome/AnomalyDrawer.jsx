@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Archive, CheckCircle2, ChevronDown, HelpCircle, MessageSquarePlus, Repeat2, RotateCcw, ShieldAlert } from 'lucide-react';
+import { CheckCircle2, ChevronDown, HelpCircle, MessageSquarePlus, Repeat2, RotateCcw, ShieldAlert } from 'lucide-react';
 import { fetchAnomaly, fetchAnomalyEvidence, saveAnomalyFeedback, setAnomalyDisposition } from '../../lib/api/genome';
 import { useAccess } from '../../app/useAccess';
 import { severityMeta } from '../../lib/domain';
@@ -196,16 +196,7 @@ export function AnomalyDrawer({ anomaly, pattern, onClose, onReviewed }) {
         ))}
         {!noteOpen && <Button size="sm" variant="ghost" icon={MessageSquarePlus} onClick={() => setNoteOpen(true)}>Note</Button>}
         <span className="ml-auto flex gap-2">
-          {isOpen ? (
-            <>
-              <Button size="sm" variant="ghost" icon={Archive} onClick={() => setState('dismissed')} loading={dispose.pending} locked={canAct ? undefined : 'Your role cannot close anomalies.'}>
-                Dismiss
-              </Button>
-              <Button size="sm" variant="primary" icon={CheckCircle2} onClick={() => setState('resolved')} loading={dispose.pending} locked={canAct ? undefined : 'Your role cannot close anomalies.'}>
-                Resolve
-              </Button>
-            </>
-          ) : (
+          {isOpen ? null : (
             <Button size="sm" variant="secondary" icon={RotateCcw} onClick={() => setState('open')} loading={dispose.pending} locked={canAct ? undefined : 'Your role cannot reopen anomalies.'}>
               Open again
             </Button>
