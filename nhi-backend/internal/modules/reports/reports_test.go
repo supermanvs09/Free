@@ -30,6 +30,8 @@ func TestOptions(t *testing.T) {
 		{"class=robots", false, "", nil, false, false, false},
 		{"severity=urgent", false, "", nil, false, false, false},
 		{"include=everything", false, "", nil, false, false, false},
+		{"account=" + strings.Repeat("9", 129), false, "", nil, false, false, false},
+		{"account=" + manyAccounts(101), false, "", nil, false, false, false},
 	}
 	for _, c := range cases {
 		w := httptest.NewRecorder()
@@ -234,4 +236,31 @@ func TestLargeReport(t *testing.T) {
 	if len(rows)-1 != rep.CheckCount {
 		t.Fatalf("workbook has %d rows, want %d", len(rows)-1, rep.CheckCount)
 	}
+}
+
+func TestAccountFilter(t *testing.T) {
+	w := httptest.NewRecorder()
+	o, ok := options(w, httptest.NewRequest("GET", "/reports/posture/export?account=111111111111,%20222222222222,111111111111", nil))
+	if !ok || strings.Join(o.Accounts, ",") != "111111111111,222222222222" {
+		t.Fatalf("accounts: %v %v", ok, o.Accounts)
+	}
+	// IDs reach SQL as quoted literals: a quote in one cannot end the string.
+	if got := accountWhere([]string{"1' OR '1'='1"}); got != " AND p.account_id IN ('1'' OR ''1''=''1')" {
+		t.Fatalf("accountWhere: %s", got)
+	}
+	if accountWhere(nil) != "" {
+		t.Fatal("no accounts must mean no clause")
+	}
+	rep := &PostureReport{Options: PostureOptions{Class: ClassHuman, Accounts: []string{"1", "2"}}, Accounts: []AccountRow{{ID: "1", Name: "team-a"}, {ID: "2"}}}
+	if got := rep.ScopeLabel(); got != "Human identities in team-a and 2" {
+		t.Fatalf("scope label: %q", got)
+	}
+}
+
+func manyAccounts(n int) string {
+	ids := make([]string, n)
+	for i := range ids {
+		ids[i] = fmt.Sprintf("%012d", i)
+	}
+	return strings.Join(ids, ",")
 }

@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -18,11 +20,12 @@ import (
 
 // Module serves the Reports page:
 //
-//	GET /reports/posture/preview?class=&severity=          what the report would hold (JSON)
-//	GET /reports/posture/export?format=pdf|xlsx|csv&class=&severity=&include=
+//	GET /reports/posture/preview?class=&severity=&account=          what the report would hold (JSON)
+//	GET /reports/posture/export?format=pdf|xlsx|csv&class=&severity=&account=&include=
 //
 // class: all | human | nhi. severity: comma list of critical,high,medium,low
-// (absent: all). include: comma list of about,fix,severity (absent: all).
+// (absent: all). account: comma list of account IDs (absent: every account).
+// include: comma list of about,fix,severity (absent: all).
 // The download path contains /export, so it needs the export permission and
 // is written to the audit log like every other export.
 type Module struct {
@@ -37,9 +40,15 @@ func (m *Module) Register(r *mux.Router) {
 }
 
 var (
-	previewAllowed = map[string]struct{}{"class": {}, "severity": {}}
-	exportAllowed  = map[string]struct{}{"class": {}, "severity": {}, "include": {}, "format": {}}
+	previewAllowed = map[string]struct{}{"class": {}, "severity": {}, "account": {}}
+	exportAllowed  = map[string]struct{}{"class": {}, "severity": {}, "account": {}, "include": {}, "format": {}}
 )
+
+// safeName is an account ID that can go into a file name as it is.
+var safeName = regexp.MustCompile(`^[A-Za-z0-9._-]{1,64}$`)
+
+// maxAccountsPerReport bounds the account filter, like the Posture page's lists.
+const maxAccountsPerReport = 100
 
 func fail(w http.ResponseWriter, status int, msg, code string) {
 	httpx.SendJSONResponse(w, status, httpx.APIResponse{Success: false, Message: msg, Error: code})
@@ -77,6 +86,25 @@ func options(w http.ResponseWriter, r *http.Request) (PostureOptions, bool) {
 		}
 		if len(o.Severities) == 0 {
 			fail(w, http.StatusBadRequest, "choose at least one severity", "INVALID_SEVERITY")
+			return o, false
+		}
+	}
+	if raw := strings.TrimSpace(q.Get("account")); raw != "" {
+		seen := map[string]bool{}
+		for _, a := range strings.Split(raw, ",") {
+			a = strings.TrimSpace(a)
+			if a == "" || seen[a] {
+				continue
+			}
+			if len(a) > 128 || strings.ContainsAny(a, "\x00\n\r") {
+				fail(w, http.StatusBadRequest, "account contains a value that is not an account ID", "INVALID_ACCOUNT")
+				return o, false
+			}
+			seen[a] = true
+			o.Accounts = append(o.Accounts, a)
+		}
+		if len(o.Accounts) > maxAccountsPerReport {
+			fail(w, http.StatusBadRequest, fmt.Sprintf("account accepts at most %d values", maxAccountsPerReport), "INVALID_ACCOUNT")
 			return o, false
 		}
 	}
@@ -200,7 +228,14 @@ func (m *Module) export(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusInternalServerError, "Could not build the report", "REPORT_FAILED")
 		return
 	}
-	name := "posture-report-" + o.Class + "-" + time.Now().UTC().Format("2006-01-02") + "." + format
+	name := "posture-report-" + o.Class
+	switch {
+	case len(o.Accounts) == 1 && safeName.MatchString(o.Accounts[0]):
+		name += "-" + o.Accounts[0]
+	case len(o.Accounts) > 1:
+		name += fmt.Sprintf("-%d-accounts", len(o.Accounts))
+	}
+	name += "-" + time.Now().UTC().Format("2006-01-02") + "." + format
 	w.Header().Set("Content-Type", ctype)
 	w.Header().Set("Content-Disposition", `attachment; filename="`+name+`"`)
 	w.Header().Set("Cache-Control", "private, no-store")

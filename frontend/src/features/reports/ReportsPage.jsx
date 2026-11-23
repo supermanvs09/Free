@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Download, FileSpreadsheet, FileText, Sheet, ShieldCheck } from 'lucide-react';
+import { fetchPostureFacets } from '../../lib/api/posture';
 import { downloadPostureReport, fetchPostureReportPreview } from '../../lib/api/reports';
 import { useDebouncedValue, useQuery } from '../../lib/hooks';
 import { formatNumber } from '../../lib/format';
 import { PageHeader } from '../../shell/PageHeader';
 import { Button } from '../../ui/Button';
 import { Modal } from '../../ui/Overlay';
+import { SearchInput } from '../../ui/Field';
 import { InlineError } from '../../ui/States';
 import { SegmentedControl } from '../../ui/Tabs';
 import { useToast } from '../../ui/Toast';
@@ -79,6 +81,9 @@ export default function ReportsPage() {
 
 const ALL_SEVERITIES = SEVERITIES.map((s) => s.value);
 
+/* The report's identity choice as the Posture page's identity_class filter. */
+const CLASS_PARAM = { all: undefined, human: 'HI', nhi: 'NHI' };
+
 /** The report as a card: what it is, what it would hold today, and the way in. */
 function PostureCard({ onOpen }) {
   const preview = useQuery((signal) => fetchPostureReportPreview({ identityClass: 'all', severities: ALL_SEVERITIES }, signal), []);
@@ -135,16 +140,33 @@ function PostureReportDialog({ open, onClose }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
+  const [accountMode, setAccountMode] = useState('all');
+  const [chosen, setChosen] = useState([]);
+
+  /* The accounts and how many identities of the chosen kind each holds: the
+     Posture page's own account list. */
+  const facets = useQuery((signal) => fetchPostureFacets({ identity_class: CLASS_PARAM[identityClass] }, signal), [identityClass], { enabled: open, keepPrevious: true });
+  const accounts = useMemo(
+    () =>
+      Object.entries(facets.data?.facets?.account ?? {})
+        .map(([id, entry]) => ({ id, name: entry?.name || id, count: Number(entry?.count) || 0 }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [facets.data],
+  );
+  const accountIds = accountMode === 'some' ? chosen : [];
+
   const sevKey = useDebouncedValue(severities.join(','), 200);
+  const acctKey = useDebouncedValue(accountIds.join(','), 250);
   const preview = useQuery(
-    (signal) => fetchPostureReportPreview({ identityClass, severities: sevKey ? sevKey.split(',') : [] }, signal),
-    [identityClass, sevKey],
-    { enabled: open && sevKey !== '', keepPrevious: true },
+    (signal) => fetchPostureReportPreview({ identityClass, severities: sevKey ? sevKey.split(',') : [], accounts: acctKey ? acctKey.split(',') : [] }, signal),
+    [identityClass, sevKey, acctKey],
+    { enabled: open && sevKey !== '' && !(accountMode === 'some' && acctKey === ''), keepPrevious: true },
   );
 
   const toggle = (list, setList, value) => setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
   const p = preview.data;
-  const nothingChosen = severities.length === 0;
+  const noAccount = accountMode === 'some' && chosen.length === 0;
+  const nothingChosen = severities.length === 0 || noAccount;
 
   const close = () => {
     if (busy) return;
@@ -156,7 +178,7 @@ function PostureReportDialog({ open, onClose }) {
     setBusy(true);
     setError(null);
     try {
-      const { filename } = await downloadPostureReport({ identityClass, severities, include: parts, format });
+      const { filename } = await downloadPostureReport({ identityClass, severities, accounts: accountIds, include: parts, format });
       notify({ variant: 'success', title: 'Report downloaded', description: filename });
       onClose();
     } catch (err) {
@@ -193,8 +215,24 @@ function PostureReportDialog({ open, onClose }) {
     >
       <div className="grid md:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]">
         <div className="flex flex-col gap-6 px-5 py-5">
-          <Step n={1} title="Which identities">
-            <SegmentedControl label="Which identities" options={CLASSES} value={identityClass} onChange={setIdentityClass} />
+          <Step n={1} title="Who it covers">
+            <div className="flex flex-col gap-3">
+              <SegmentedControl label="Which identities" options={CLASSES} value={identityClass} onChange={setIdentityClass} />
+              {accounts.length > 1 && (
+                <div className="flex flex-col gap-2">
+                  <SegmentedControl
+                    label="Which accounts"
+                    options={[
+                      { value: 'all', label: `All ${formatNumber(accounts.length)} accounts` },
+                      { value: 'some', label: 'Choose accounts' },
+                    ]}
+                    value={accountMode}
+                    onChange={setAccountMode}
+                  />
+                  {accountMode === 'some' && <AccountChooser accounts={accounts} chosen={chosen} onChange={setChosen} />}
+                </div>
+              )}
+            </div>
           </Step>
 
           <Step n={2} title="Which failing checks" hint="By severity. Leave all on for the full picture.">
@@ -267,7 +305,7 @@ function PostureReportDialog({ open, onClose }) {
         <aside aria-label="What the report holds" className="flex flex-col gap-4 border-t border-line bg-surface-2/50 px-5 py-5 md:border-t-0 md:border-l">
           <p className="text-[13px] font-semibold text-ink">This report will hold</p>
           {nothingChosen ? (
-            <p className="text-[12.5px] text-ink-3">Nothing yet: choose at least one severity.</p>
+            <p className="text-[12.5px] text-ink-3">Nothing yet: choose at least one {noAccount ? 'account' : 'severity'}.</p>
           ) : preview.isError ? (
             <InlineError error={preview.error} onRetry={preview.refetch} label="Could not count what the report holds" />
           ) : !p ? (
@@ -309,6 +347,56 @@ function PostureReportDialog({ open, onClose }) {
         </aside>
       </div>
     </Modal>
+  );
+}
+
+/**
+ * The accounts to cover, as a checklist in the dialog itself (a popover here
+ * would close the dialog with it on Escape). Each line names the account and
+ * how many identities of the chosen kind it holds; search appears once the
+ * list is long.
+ */
+function AccountChooser({ accounts, chosen, onChange }) {
+  const [search, setSearch] = useState('');
+  const term = search.trim().toLowerCase();
+  const shown = term ? accounts.filter((a) => a.name.toLowerCase().includes(term) || a.id.includes(term)) : accounts;
+  const allShown = shown.length > 0 && shown.every((a) => chosen.includes(a.id));
+  const toggle = (id) => onChange(chosen.includes(id) ? chosen.filter((v) => v !== id) : [...chosen, id]);
+  const toggleShown = () =>
+    onChange(allShown ? chosen.filter((id) => !shown.some((a) => a.id === id)) : [...new Set([...chosen, ...shown.map((a) => a.id)])]);
+  return (
+    <div className="overflow-hidden rounded-[var(--radius-control)] border border-line">
+      <div className="flex flex-wrap items-center gap-2 border-b border-line bg-surface-2 px-2.5 py-2">
+        {accounts.length > 6 && (
+          <SearchInput size="sm" value={search} onChange={setSearch} placeholder="Search accounts" aria-label="Search accounts" className="min-w-0 flex-1 basis-48" />
+        )}
+        <span className="text-[12px] text-ink-3" data-numeric="">
+          {formatNumber(chosen.length)} of {formatNumber(accounts.length)} chosen
+        </span>
+        <span className="ml-auto flex gap-3 text-[12px] font-medium">
+          {shown.length > 0 && (
+            <button type="button" onClick={toggleShown} className="text-brand hover:underline">
+              {allShown ? (term ? 'Clear these' : 'Clear all') : term ? 'Choose these' : 'Choose all'}
+            </button>
+          )}
+        </span>
+      </div>
+      <ul className="max-h-44 overflow-y-auto py-1" aria-label="Accounts">
+        {shown.map((a) => (
+          <li key={a.id}>
+            <label className="flex cursor-pointer items-center gap-2.5 px-2.5 py-1.5 hover:bg-surface-2">
+              <input type="checkbox" checked={chosen.includes(a.id)} onChange={() => toggle(a.id)} className="size-3.5 shrink-0 accent-[var(--t-brand)]" />
+              <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{a.name}</span>
+              {a.name !== a.id && <span className="hidden shrink-0 font-mono text-[11.5px] text-ink-3 sm:inline">{a.id}</span>}
+              <span className="w-24 shrink-0 text-right text-[12px] text-ink-3" data-numeric="">
+                {formatNumber(a.count)} {a.count === 1 ? 'identity' : 'identities'}
+              </span>
+            </label>
+          </li>
+        ))}
+        {shown.length === 0 && <li className="px-2.5 py-3 text-[12.5px] text-ink-3">No account matches “{search.trim()}”.</li>}
+      </ul>
+    </div>
   );
 }
 

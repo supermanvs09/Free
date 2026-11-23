@@ -96,7 +96,7 @@ func render(rep *PostureReport, known *pageMap) *doc {
 	pdf.SetMargins(marginX, 16, marginX)
 	pdf.SetAutoPageBreak(true, bottom)
 	pdf.SetTitle("Posture report", true)
-	pdf.SetSubject(ClassLabel(rep.Options.Class), true)
+	pdf.SetSubject(rep.ScopeLabel(), true)
 	pdf.SetCreator("NHI console", true)
 	tr := pdf.UnicodeTranslatorFromDescriptor("")
 	d := &doc{pdf: pdf, t: func(s string) string { return tr(plain(s)) }, rep: rep, known: known}
@@ -109,9 +109,9 @@ func render(rep *PostureReport, known *pageMap) *doc {
 	pdf.SetFooterFunc(func() {
 		pdf.SetY(-12)
 		d.font("", 7.5, ink3RGB)
-		left := fmt.Sprintf("Posture report · %s · %s", ClassLabel(rep.Options.Class), rep.GeneratedAt.Format("2 Jan 2006"))
-		pdf.CellFormat(bodyW/2, 5, d.t(left), "", 0, "L", false, 0, "")
-		pdf.CellFormat(bodyW/2, 5, fmt.Sprintf("Page %d of {nb}", pdf.PageNo()), "", 0, "R", false, 0, "")
+		left := fmt.Sprintf("Posture report · %s · %s", rep.ScopeLabel(), rep.GeneratedAt.Format("2 Jan 2006"))
+		pdf.CellFormat(bodyW*0.75, 5, d.t(truncate(pdf, left, bodyW*0.75)), "", 0, "L", false, 0, "")
+		pdf.CellFormat(bodyW*0.25, 5, fmt.Sprintf("Page %d of {nb}", pdf.PageNo()), "", 0, "R", false, 0, "")
 	})
 	pdf.AliasNbPages("")
 
@@ -149,7 +149,7 @@ func (d *doc) summary() {
 		}
 		sevs = strings.Join(names, ", ") + " severity"
 	}
-	pdf.CellFormat(bodyW, 6, d.t(fmt.Sprintf("%s · failing checks of %s", ClassLabel(o.Class), sevs)), "", 1, "L", false, 0, "")
+	pdf.CellFormat(bodyW, 6, d.t(fmt.Sprintf("%s · failing checks of %s", rep.ScopeLabel(), sevs)), "", 1, "L", false, 0, "")
 	d.font("", 8.5, ink3RGB)
 	pdf.CellFormat(bodyW, 5, d.t(fmt.Sprintf("Generated %s UTC from the latest posture scan · %s covered",
 		rep.GeneratedAt.Format("2 Jan 2006, 15:04"), count(rep.AccountsCovered, "account", "accounts"))), "", 1, "L", false, 0, "")

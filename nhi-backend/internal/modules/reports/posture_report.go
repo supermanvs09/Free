@@ -35,6 +35,7 @@ type PostureOptions struct {
 	IncludeInfo bool     // what each check looks at
 	IncludeFix  bool     // how to fix it
 	IncludeSev  bool     // severity column
+	Accounts    []string // account IDs to cover; empty = every account
 	Population  bool     // also load every scored identity, passing ones too (Excel)
 }
 
@@ -173,12 +174,12 @@ func LoadPosture(ctx context.Context, s *scope.DataScope, o PostureOptions) (*Po
 	}
 	rep := &PostureReport{GeneratedAt: time.Now().UTC(), Options: o, BySeverity: map[string]int{}}
 
-	classWhere := ""
+	classWhere := accountWhere(o.Accounts)
 	switch o.Class {
 	case ClassHuman:
-		classWhere = " AND " + common.ClassExpr("p.identity_class") + " = 'HI'"
+		classWhere += " AND " + common.ClassExpr("p.identity_class") + " = 'HI'"
 	case ClassNHI:
-		classWhere = " AND " + common.ClassExpr("p.identity_class") + " = 'NHI'"
+		classWhere += " AND " + common.ClassExpr("p.identity_class") + " = 'NHI'"
 	}
 
 	// Identities in the class: the denominator of the summary.
@@ -425,6 +426,48 @@ func summarise(rep *PostureReport) {
 	})
 }
 
+// accountWhere limits the posture rows (alias p) to the chosen accounts. The
+// IDs are written as quoted SQL literals, so the clause composes with each
+// query's own placeholders; they are length-checked when the request is read.
+func accountWhere(ids []string) string {
+	if len(ids) == 0 {
+		return ""
+	}
+	quoted := make([]string, len(ids))
+	for i, id := range ids {
+		quoted[i] = pq.QuoteLiteral(id)
+	}
+	return " AND p.account_id IN (" + strings.Join(quoted, ", ") + ")"
+}
+
+// ScopeLabel names who the report covers: "All identities", or
+// "Human identities in team-4 and team-6".
+func (rep *PostureReport) ScopeLabel() string {
+	label := ClassLabel(rep.Options.Class)
+	if len(rep.Options.Accounts) == 0 {
+		return label
+	}
+	names := map[string]string{}
+	for _, a := range rep.Accounts {
+		names[a.ID] = accountName(a)
+	}
+	var shown []string
+	for _, id := range rep.Options.Accounts {
+		if n := names[id]; n != "" {
+			shown = append(shown, n)
+		} else {
+			shown = append(shown, id)
+		}
+	}
+	switch {
+	case len(shown) == 1:
+		return label + " in " + shown[0]
+	case len(shown) <= 3:
+		return label + " in " + strings.Join(shown[:len(shown)-1], ", ") + " and " + shown[len(shown)-1]
+	}
+	return fmt.Sprintf("%s in %s and %d more accounts", label, strings.Join(shown[:2], ", "), len(shown)-2)
+}
+
 // mostCommon is the value counted most often; ties go to the first in order.
 func mostCommon(counts map[string]int) string {
 	best, n := "", 0
@@ -499,7 +542,7 @@ func loadBreakdowns(ctx context.Context, s *scope.DataScope, rep *PostureReport,
 
 	if rep.Options.Class == ClassAll || rep.Options.Class == "" {
 		rows, err = s.DB.QueryContext(ctx, fmt.Sprintf(`SELECT %[2]s = 'HI', count(*), avg(p.score)
-			FROM %[1]s p WHERE p.tenant_id = $1 AND p.score IS NOT NULL GROUP BY 1 ORDER BY 1`, t, common.ClassExpr("p.identity_class")), s.TenantID)
+			FROM %[1]s p WHERE p.tenant_id = $1 AND p.score IS NOT NULL`+accountWhere(rep.Options.Accounts)+` GROUP BY 1 ORDER BY 1`, t, common.ClassExpr("p.identity_class")), s.TenantID)
 		if err != nil {
 			return fmt.Errorf("posture report classes: %w", err)
 		}

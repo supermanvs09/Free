@@ -4,10 +4,10 @@ import { params, unwrapMain } from './http';
 /*
  * Reports: files built from data the console already stores.
  *
- *   GET /api/v1/reports/posture/preview?class=&severity=          what the report would hold
- *   GET /api/v1/reports/posture/export?format=pdf|xlsx|csv&class=&severity=&include=
+ *   GET /api/v1/reports/posture/preview?class=&severity=&account=          what the report would hold
+ *   GET /api/v1/reports/posture/export?format=pdf|xlsx|csv&class=&severity=&account=&include=
  *
- * class: all | human | nhi; severity and include are comma lists.
+ * class: all | human | nhi; severity, account and include are comma lists.
  */
 const BASE = '/api/v1/reports/posture';
 
@@ -17,16 +17,18 @@ const ACCEPT = {
   csv: 'text/csv',
 };
 
-const query = ({ identityClass, severities, include, format } = {}) =>
+const query = ({ identityClass, severities, accounts, include, format } = {}) =>
   params({
     class: identityClass && identityClass !== 'all' ? identityClass : undefined,
     severity: severities?.length && severities.length < 4 ? severities : undefined,
+    /* None chosen = every account. */
+    account: accounts?.length ? accounts : undefined,
     include: include === undefined ? undefined : include.length ? include : '',
     format,
   });
 
-export async function fetchPostureReportPreview({ identityClass, severities }, signal) {
-  const d = unwrapMain(await client.get(`${BASE}/preview`, { params: query({ identityClass, severities }), signal })) ?? {};
+export async function fetchPostureReportPreview({ identityClass, severities, accounts }, signal) {
+  const d = unwrapMain(await client.get(`${BASE}/preview`, { params: query({ identityClass, severities, accounts }), signal })) ?? {};
   const n = (v) => Number(v) || 0;
   return {
     scored: n(d.identities_scored),
@@ -39,8 +41,8 @@ export async function fetchPostureReportPreview({ identityClass, severities }, s
 }
 
 /** Downloads the report file; resolves with its name. */
-export async function downloadPostureReport({ identityClass, severities, include, format }) {
-  const p = query({ identityClass, severities, include, format });
+export async function downloadPostureReport({ identityClass, severities, accounts, include, format }) {
+  const p = query({ identityClass, severities, accounts, include, format });
   /* An empty include list means "none of the optional parts", which params()
      would drop; it is sent explicitly. */
   if (include && include.length === 0) p.include = '';

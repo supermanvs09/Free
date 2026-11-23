@@ -52,7 +52,7 @@ func WritePostureXLSX(w io.Writer, rep *PostureReport) error {
 		return err
 	}
 	f.SetActiveSheet(0)
-	_ = f.SetDocProps(&excelize.DocProperties{Title: "Posture report", Subject: ClassLabel(rep.Options.Class), Creator: "NHI console"})
+	_ = f.SetDocProps(&excelize.DocProperties{Title: "Posture report", Subject: rep.ScopeLabel(), Creator: "NHI console"})
 	return f.Write(w)
 }
 
@@ -147,7 +147,7 @@ func (x *book) summary() error {
 		}
 		sevs = strings.Join(names, ", ") + " severity"
 	}
-	put(at("A"), fmt.Sprintf("%s · failing checks of %s", ClassLabel(o.Class), sevs), x.st.sub)
+	put(at("A"), fmt.Sprintf("%s · failing checks of %s", rep.ScopeLabel(), sevs), x.st.sub)
 	r++
 	put(at("A"), fmt.Sprintf("Generated %s UTC from the latest posture scan · %s covered", rep.GeneratedAt.Format("2 Jan 2006, 15:04"), count(rep.AccountsCovered, "account", "accounts")), x.st.sub)
 	r += 2
