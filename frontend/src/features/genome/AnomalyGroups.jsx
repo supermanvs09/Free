@@ -1,12 +1,9 @@
-import { useMemo, useState } from 'react';
-import { Archive, CheckCircle2, Layers, Repeat2 } from 'lucide-react';
-import { setAnomalyDisposition } from '../../lib/api/genome';
+import { useMemo } from 'react';
+import { Layers, Repeat2 } from 'lucide-react';
 import { severityMeta } from '../../lib/domain';
 import { formatDateTime, formatNumber, formatRelative } from '../../lib/format';
 import { Button } from '../../ui/Button';
-import { Modal } from '../../ui/Overlay';
 import { Tag } from '../../ui/Tag';
-import { useToast } from '../../ui/Toast';
 import { TONE_BG, cn } from '../../ui/cn';
 import { dimensionLabel } from './meta';
 
@@ -219,31 +216,9 @@ export function AnomalyOverview({ items, onSeverity, activeSeverities = [], real
   );
 }
 
-/* Close many anomalies at once, a few requests at a time. */
-async function closeMany(items, disposition, onProgress) {
-  const queue = [...items];
-  let done = 0;
-  let failed = 0;
-  const worker = async () => {
-    while (queue.length) {
-      const item = queue.shift();
-      try {
-        await setAnomalyDisposition(item.id, { disposition, reason: 'Closed together with its repeating pattern' });
-      } catch {
-        failed += 1;
-      }
-      done += 1;
-      onProgress(done);
-    }
-  };
-  await Promise.all(Array.from({ length: 6 }, worker));
-  return { failed };
-}
-
-function PatternRow({ pattern, onOpen, canAct, onClose }) {
+function PatternRow({ pattern, onOpen }) {
   const count = pattern.items.length;
   const latest = pattern.items.reduce((a, b) => (new Date(b.detected_at) > new Date(a.detected_at) ? b : a));
-  const open = pattern.items.filter((item) => String(item.state).toLowerCase() === 'open');
   const meta = severityMeta(pattern.worst === 'UNRATED' ? '' : pattern.worst);
   const range = rangeText(pattern);
   return (
@@ -291,77 +266,19 @@ function PatternRow({ pattern, onOpen, canAct, onClose }) {
         <Button size="sm" variant="secondary" onClick={() => onOpen(latest, pattern)}>
           {count > 1 ? 'Review latest' : 'Review'}
         </Button>
-        {count > 1 && open.length > 0 && canAct && (
-          <Button size="sm" variant="ghost" icon={CheckCircle2} onClick={() => onClose(pattern, open)}>
-            Close {formatNumber(open.length)}
-          </Button>
-        )}
       </span>
     </li>
   );
 }
 
-/* Asking to close every open repeat of a pattern: the confirmation, the
-   progress while it runs, and the result. Shared by both anomaly lists. */
-export function useCloseMany(onChanged) {
-  const [closing, setClosing] = useState(null); // { pattern, open }
-  const [progress, setProgress] = useState(null);
-  const { notify } = useToast();
-
-  const run = async (disposition) => {
-    const { open } = closing;
-    setProgress(0);
-    const { failed } = await closeMany(open, disposition, setProgress);
-    setProgress(null);
-    setClosing(null);
-    notify(
-      failed
-        ? { variant: 'error', title: `${formatNumber(open.length - failed)} closed, ${formatNumber(failed)} failed`, description: 'Try the rest again.' }
-        : { variant: 'success', title: `${formatNumber(open.length)} ${disposition === 'resolved' ? 'resolved' : 'dismissed'}`, description: 'They no longer count as open.' },
-    );
-    onChanged?.();
-  };
-
-  const modal = (
-    <Modal
-      open={Boolean(closing)}
-      onClose={() => progress === null && setClosing(null)}
-      title={closing ? `Close ${formatNumber(closing.open.length)} repeats of “${dimensionLabel(closing.pattern.dimension)}”?` : ''}
-      description="Resolve if it has been dealt with; dismiss if it needs nothing. A new occurrence is raised again as usual."
-      footer={
-        progress !== null ? (
-          <span data-numeric="" className="text-[12.5px] text-ink-2">
-            Closing {formatNumber(progress)} of {formatNumber(closing?.open.length ?? 0)}…
-          </span>
-        ) : (
-          <>
-            <Button onClick={() => setClosing(null)}>Cancel</Button>
-            <Button icon={Archive} onClick={() => run('dismissed')}>
-              Dismiss all
-            </Button>
-            <Button variant="primary" icon={CheckCircle2} onClick={() => run('resolved')}>
-              Resolve all
-            </Button>
-          </>
-        )
-      }
-    />
-  );
-  return { ask: (pattern, open) => setClosing({ pattern, open }), modal };
-}
-
 /** One identity's anomalies as repeating patterns (the identity page's tab). */
-export function AnomalyPatterns({ items, onOpen, canAct, onChanged }) {
+export function AnomalyPatterns({ items, onOpen }) {
   const patterns = useMemo(() => groupAnomalies(items)[0]?.patterns ?? [], [items]);
-  const { ask, modal } = useCloseMany(onChanged);
   return (
-    <>
-      <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface shadow-[var(--t-shadow-sm)]">
+    <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface shadow-[var(--t-shadow-sm)]">
         {patterns.map((pattern) => (
-          <PatternRow key={pattern.key} pattern={pattern} onOpen={onOpen} canAct={canAct} onClose={ask} />
+          <PatternRow key={pattern.key} pattern={pattern} onOpen={onOpen} />
         ))}
       </ul>
-      {modal}
-    </>
   );
 }

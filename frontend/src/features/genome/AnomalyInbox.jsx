@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, Dna, Repeat2 } from 'lucide-react';
+import { ArrowLeft, Dna, Repeat2 } from 'lucide-react';
 import { severityMeta } from '../../lib/domain';
 import { formatDateTime, formatNumber, formatRelative } from '../../lib/format';
 import { genomeRoute } from '../../lib/identityLinks';
@@ -9,7 +9,7 @@ import { useQuery } from '../../lib/hooks';
 import { Button } from '../../ui/Button';
 import { Tag } from '../../ui/Tag';
 import { cn } from '../../ui/cn';
-import { AnomalyOverview, groupAnomalies, useCloseMany } from './AnomalyGroups';
+import { AnomalyOverview, groupAnomalies } from './AnomalyGroups';
 import { dimensionLabel, sourceTypeLabel } from './meta';
 
 const DAY = 86400000;
@@ -70,7 +70,7 @@ const numbersIn = (text) => (String(text ?? '').match(/-?\d+(?:\.\d+)?/g) ?? [])
 
 /* ── The selected identity ──────────────────────────────────────────────── */
 
-function Investigation({ group, priority, onOpen, canAct, onClose, onBack }) {
+function Investigation({ group, priority, onOpen, onBack }) {
   const worst = group.patterns[0];
   const worstSev = severityMeta(worst?.worst === 'UNRATED' ? '' : worst?.worst);
   const kinds = new Set(group.items.map((i) => i.dimension)).size;
@@ -140,7 +140,6 @@ function Investigation({ group, priority, onOpen, canAct, onClose, onBack }) {
             <ol className="relative flex flex-col gap-3 border-l border-line pl-5">
               {day.items.map((p) => {
                 const sev = severityMeta(p.worst === 'UNRATED' ? '' : p.worst);
-                const open = p.items.filter((i) => String(i.state).toLowerCase() === 'open');
                 const nums = p.items.flatMap((i) => numbersIn(i.what_changed));
                 const moved = p.items.length > 1 && nums.length ? `${formatNumber(Math.min(...nums))} → ${formatNumber(Math.max(...nums))}` : null;
                 const newest = p.items.reduce((a, b) => (new Date(b.detected_at) > new Date(a.detected_at) ? b : a));
@@ -175,11 +174,6 @@ function Investigation({ group, priority, onOpen, canAct, onClose, onBack }) {
                         <Button size="sm" variant="secondary" onClick={() => onOpen(newest, p)}>
                           {p.items.length > 1 ? 'Review latest' : 'Review'}
                         </Button>
-                        {p.items.length > 1 && open.length > 0 && canAct && (
-                          <Button size="sm" variant="ghost" icon={CheckCircle2} onClick={() => onClose(p, open)}>
-                            Close {formatNumber(open.length)}
-                          </Button>
-                        )}
                       </div>
                     </article>
                   </li>
@@ -199,7 +193,7 @@ function Investigation({ group, priority, onOpen, canAct, onClose, onBack }) {
  * Anomalies as an investigation inbox: identities ranked by priority on the
  * left (j / k to move), the selected one's story on the right.
  */
-export function AnomalyInbox({ items, onOpen, canAct, onChanged, emptyState, onSeverity, activeSeverities, realTotal }) {
+export function AnomalyInbox({ items, onOpen, emptyState, onSeverity, activeSeverities, realTotal }) {
   const groups = useMemo(() => groupAnomalies(items), [items]);
   const ranked = useMemo(
     () =>
@@ -210,7 +204,6 @@ export function AnomalyInbox({ items, onOpen, canAct, onChanged, emptyState, onS
   );
   const [selectedKey, setSelectedKey] = useState(null);
   const [mobileDetail, setMobileDetail] = useState(false);
-  const { ask, modal } = useCloseMany(onChanged);
   const listRef = useRef(null);
   const current = ranked.find((r) => r.group.key === selectedKey) ?? ranked[0];
 
@@ -290,13 +283,10 @@ export function AnomalyInbox({ items, onOpen, canAct, onChanged, emptyState, onS
             group={current.group}
             priority={current.priority}
             onOpen={onOpen}
-            canAct={canAct}
-            onClose={ask}
             onBack={() => setMobileDetail(false)}
           />
         </div>
       </div>
-      {modal}
     </>
   );
 }

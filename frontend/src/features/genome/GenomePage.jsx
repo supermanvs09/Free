@@ -28,7 +28,6 @@ import { CompositionDonut } from '../../charts/CompositionDonut';
 import { TrendChart } from '../../charts/TrendChart';
 import { AnomalyDrawer } from './AnomalyDrawer';
 import { AnomalyInbox } from './AnomalyInbox';
-import { useAccess } from '../../app/useAccess';
 import { anomalyStatusMeta, dimensionLabel, roleKindLabel, sourceTypeLabel } from './meta';
 
 const PAGE_SIZES = [10, 25, 50, 100];
@@ -808,7 +807,6 @@ function AnomaliesTab({ searchParams, setParams }) {
   const [selected, setSelected] = useState(null);
   const [selectedPattern, setSelectedPattern] = useState(null);
   const view = searchParams.get('view') === 'list' ? 'list' : 'groups';
-  const { can } = useAccess();
 
   /* Opened from a summary card, the tab lists what that card counted: the
      anomalies raised in the card's window (`since`). */
@@ -1064,8 +1062,6 @@ function AnomaliesTab({ searchParams, setParams }) {
             return (
               <AnomalyInbox
                 items={filtered}
-                canAct={can('anomalies.review')}
-                onChanged={query.refetch}
                 onOpen={(item, pattern) => {
                   setSelected(item);
                   setSelectedPattern(pattern ?? null);

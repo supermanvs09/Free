@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
 import { fetchIdentityAnomalies } from '../../lib/api/genome';
 import { formatNumber } from '../../lib/format';
-import { useAccess } from '../../app/useAccess';
 import { useQuery } from '../../lib/hooks';
 import { Panel } from '../../ui/Panel';
 import { ListSkeleton } from '../../ui/Skeleton';
@@ -29,7 +28,6 @@ export function IdentityAnomalies({ eventIdentityName, loading = false }) {
   const [state, setState] = useState('open');
   const [selected, setSelected] = useState(null);
   const [pattern, setPattern] = useState(null);
-  const { can } = useAccess();
   const query = useQuery(
     (signal) => (loading ? new Promise(() => {}) : fetchIdentityAnomalies({ state: state === 'all' ? '' : 'open', eventIdentityName }, signal)),
     [state, eventIdentityName, loading],
@@ -80,8 +78,6 @@ export function IdentityAnomalies({ eventIdentityName, loading = false }) {
       ) : (
         <AnomalyPatterns
           items={items}
-          canAct={can('anomalies.review')}
-          onChanged={query.refetch}
           onOpen={(item, pattern) => {
             setSelected(item);
             setPattern(pattern ?? null);
