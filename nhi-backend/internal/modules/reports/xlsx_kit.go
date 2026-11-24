@@ -50,7 +50,7 @@ func newWB(rep *PostureReport) (*wb, error) {
 }
 
 const (
-	xFont   = "Calibri"
+	xFont   = "Aptos" // Microsoft 365 default; older Office substitutes its own
 	xInk    = "0A0A0A"
 	xInk2   = "404040"
 	xInk3   = "737373"
@@ -109,6 +109,36 @@ func (x *wb) styles() error {
 	mk("kpiSub", &excelize.Style{Font: font(9, false, xInk3), Fill: solid(xPanel), Alignment: &excelize.Alignment{Vertical: "top", Indent: 1}})
 	mk("input", &excelize.Style{Font: font(10.5, false, xInk), Fill: solid("FFFBEA"), Alignment: top, Border: []excelize.Border{{Type: "bottom", Color: "E6D48A", Style: 1}}})
 	mk("inputDate", &excelize.Style{Font: font(10.5, false, xInk), Fill: solid("FFFBEA"), CustomNumFmt: strPtr("yyyy-mm-dd"), Alignment: top, Border: []excelize.Border{{Type: "bottom", Color: "E6D48A", Style: 1}}})
+	// Front-page styles: the navy band, figure cards, sections, contents
+	// rows and the document-control panel.
+	navy := solid(xDeep)
+	mk("band", &excelize.Style{Fill: navy})
+	mk("bandTitle", &excelize.Style{Font: font(24, true, "FFFFFF"), Fill: navy, Alignment: &excelize.Alignment{Vertical: "center"}})
+	mk("bandTag", &excelize.Style{Font: font(12, false, "BEDBFF"), Fill: navy, Alignment: &excelize.Alignment{Vertical: "top"}})
+	mk("bandSub", &excelize.Style{Font: font(14, true, "FFFFFF"), Fill: navy, Alignment: &excelize.Alignment{Vertical: "bottom"}})
+	mk("bandMeta", &excelize.Style{Font: font(10, false, "CBD5E1"), Fill: navy, Alignment: &excelize.Alignment{Vertical: "top"}})
+	mk("bandConf", &excelize.Style{Font: font(8, true, "94A3B8"), Fill: navy, Alignment: &excelize.Alignment{Horizontal: "right", Vertical: "center"}})
+	gap := []excelize.Border{{Type: "left", Color: "FFFFFF", Style: 5}, {Type: "right", Color: "FFFFFF", Style: 5}}
+	card := solid("F5F7FA")
+	mk("tileLabel", &excelize.Style{Font: font(9, false, xInk3), Fill: card, Border: gap, Alignment: &excelize.Alignment{Vertical: "bottom", Indent: 1}})
+	mk("tileInt", &excelize.Style{Font: font(22, true, xInk), Fill: card, Border: gap, NumFmt: 3, Alignment: &excelize.Alignment{Horizontal: "left", Vertical: "center", Indent: 1}})
+	mk("tileDec", &excelize.Style{Font: font(22, true, xInk), Fill: card, Border: gap, CustomNumFmt: strPtr("0.0"), Alignment: &excelize.Alignment{Horizontal: "left", Vertical: "center", Indent: 1}})
+	mk("tileText", &excelize.Style{Font: font(22, true, xInk), Fill: card, Border: gap, Alignment: &excelize.Alignment{Horizontal: "left", Vertical: "center", Indent: 1}})
+	mk("tileSub", &excelize.Style{Font: font(9, false, xInk3), Fill: card, Border: gap, Alignment: &excelize.Alignment{Vertical: "top", Indent: 1}})
+	mk("tileSubUp", &excelize.Style{Font: font(9, true, "008236"), Fill: card, Border: gap, Alignment: &excelize.Alignment{Vertical: "top", Indent: 1}})
+	mk("tileSubDown", &excelize.Style{Font: font(9, true, "E7000B"), Fill: card, Border: gap, Alignment: &excelize.Alignment{Vertical: "top", Indent: 1}})
+	mk("sec", &excelize.Style{Font: font(13, true, xInk), Alignment: &excelize.Alignment{Vertical: "bottom"}})
+	mk("secCap", &excelize.Style{Font: font(9.5, false, xInk3), Alignment: &excelize.Alignment{Vertical: "top"}})
+	rule := []excelize.Border{{Type: "bottom", Color: xLine, Style: 1}}
+	mk("navName", &excelize.Style{Font: font(11, true, xInk), Border: rule, Alignment: &excelize.Alignment{Vertical: "center"}})
+	mk("navDesc", &excelize.Style{Font: font(9.5, false, xInk3), Border: rule, Alignment: &excelize.Alignment{Vertical: "center", WrapText: true}})
+	mk("navGo", &excelize.Style{Font: font(10, true, xBrand), Border: rule, Alignment: &excelize.Alignment{Horizontal: "right", Vertical: "center"}})
+	panel := solid("F5F7FA")
+	prule := []excelize.Border{{Type: "bottom", Color: "FFFFFF", Style: 2}}
+	mk("dcLabel", &excelize.Style{Font: font(9, false, xInk3), Fill: panel, Border: prule, Alignment: &excelize.Alignment{Vertical: "center", Indent: 1}})
+	mk("dcValue", &excelize.Style{Font: font(10, false, xInk), Fill: panel, Border: prule, Alignment: &excelize.Alignment{Vertical: "center", Indent: 1}})
+	mk("dcMono", &excelize.Style{Font: &excelize.Font{Family: "Consolas", Size: 9.5, Color: xInk}, Fill: panel, Border: prule, Alignment: &excelize.Alignment{Vertical: "center", Indent: 1}})
+	mk("foot", &excelize.Style{Font: &excelize.Font{Family: xFont, Size: 8.5, Color: xInk3}, Alignment: &excelize.Alignment{Vertical: "top", WrapText: true}})
 	for _, s := range Severities {
 		if err != nil {
 			break
@@ -338,71 +368,73 @@ func (x *wb) cover(title string, sheets []sheetInfo, extra func(row int) int) er
 	if err := f.SetSheetName("Sheet1", sh); err != nil {
 		return err
 	}
-	_ = f.SetSheetView(sh, 0, &excelize.ViewOptions{ShowGridLines: boolPtr(false)})
-	_ = f.SetColWidth(sh, "A", "A", 2.5)
-	_ = f.SetColWidth(sh, "B", "B", 26)
-	_ = f.SetColWidth(sh, "C", "C", 70)
-	_ = f.SetColWidth(sh, "D", "D", 24)
-	_ = f.SetRowHeight(sh, 2, 44)
-	_ = f.AddPictureFromBytes(sh, "B2", &excelize.Picture{Extension: ".png", File: logoPNG, Format: &excelize.GraphicOptions{ScaleX: 0.22, ScaleY: 0.22, OffsetY: 6, AltText: "Deep Algorithms", LockAspectRatio: true}})
-	set := func(cell string, v interface{}, style string) {
-		_ = f.SetCellValue(sh, cell, v)
-		if style != "" {
-			_ = f.SetCellStyle(sh, cell, cell, x.st[style])
-		}
-	}
-	_ = f.MergeCell(sh, "B1", "D1")
-	set("B1", "CONFIDENTIAL · INTERNAL USE ONLY", "banner")
-	_ = f.SetRowHeight(sh, 1, 18)
-	set("B4", BrandTitle, "brand")
-	_ = f.SetRowHeight(sh, 4, 30)
-	set("B5", BrandTagline, "tagline")
-	set("B7", title, "title")
-	set("B8", rep.ScopeLabel()+" · "+rep.GeneratedAt.UTC().Format("2 January 2006"), "sub")
+	x.brandTheme()
+	x.canvas(sh)
+	meta := "Prepared for " + orDash(rep.PreparedFor) + "  ·  " + rep.ScopeLabel() + "  ·  " + rep.GeneratedAt.UTC().Format("2 January 2006")
 	if rep.Sample {
-		_ = f.MergeCell(sh, "B9", "D9")
-		set("B9", "Sample workbook built from illustrative data, not from a real environment.", "note")
+		meta += "  ·  sample data"
 	}
-	r := 11
-	set(fmt.Sprintf("B%d", r), "Document control", "h")
-	set(fmt.Sprintf("C%d", r), "", "h")
+	r := x.header(sh, title, meta, true)
+
+	// At a glance.
+	r = x.section(sh, r, 0, 11, "At a glance", "Where things stand at the last posture scan.")
+	_ = f.SetRowHeight(sh, r, 6)
 	r++
-	rows := append([][2]string{{"Prepared for", orDash(rep.PreparedFor)}}, controlLines(rep)...)
-	for _, kv := range append(rows, scopeLines(rep)...) {
-		if kv[0] == "Prepared for" && r > 12 {
-			continue
-		}
-		set(fmt.Sprintf("B%d", r), kv[0], "k")
-		style := "v"
-		if kv[0] == "Report ID" {
-			style = "vmono"
-		}
-		set(fmt.Sprintf("C%d", r), kv[1], style)
-		r++
+	overdue := 0
+	for _, n := range rep.Overdue() {
+		overdue += n
 	}
-	r++
-	set(fmt.Sprintf("B%d", r), "Contents", "h")
-	set(fmt.Sprintf("C%d", r), "", "h")
-	r++
+	score, sub, trend := interface{}("-"), "not scored yet", 0
+	if rep.AverageScore != nil {
+		score = round1(*rep.AverageScore)
+		sub = bandLabel(bandFor(*rep.AverageScore)) + " band"
+		if c := rep.Change30d; c != nil {
+			sub += ",  " + map[bool]string{true: "↗ ", false: "↘ "}[*c >= 0] + changeText(c) + " in 30 days"
+			trend = map[bool]int{true: 1, false: -1}[*c >= 0]
+		}
+	}
+	r = x.tiles(sh, r, 3, []tile{
+		{"Average security score", score, "dec", sub, trend},
+		{"Identities with failing checks", rep.FailingCount, "int", pct(rep.FailingCount, rep.ScoredCount) + " of " + num(rep.ScoredCount) + " scored", 0},
+		{"Critical and high findings open", rep.BySeverity["critical"] + rep.BySeverity["high"], "int", "of " + num(rep.CheckCount) + " open findings", 0},
+		{"Past remediation target", overdue, "int", pct(overdue, rep.CheckCount) + " of open findings", map[bool]int{true: -1, false: 0}[overdue > 0]},
+	})
+
+	// Contents on the left, document control on the right.
+	top := r
+	r = x.section(sh, r, 0, 6, "In this workbook", "Select a sheet name or Open to go there.")
 	for _, s := range sheets {
-		cell := fmt.Sprintf("B%d", r)
-		set(cell, s.name, "link")
-		_ = f.SetCellHyperLink(sh, cell, fmt.Sprintf("'%s'!A1", s.name), "Location", excelize.HyperlinkOpts{Tooltip: strPtr("Go to " + s.name)})
-		set(fmt.Sprintf("C%d", r), s.about, "v")
+		x.navRow(sh, r, 0, 6, s.name, s.about)
 		r++
+	}
+	dr := x.section(sh, top, 8, 11, "Document control", "")
+	_ = f.SetRowHeight(sh, dr, 14)
+	dr++
+	for _, kv := range append(controlLines(rep), scopeLines(rep)...) {
+		_ = f.SetRowHeight(sh, dr, 24)
+		x.put(sh, dr, 8, 8, kv[0], "dcLabel")
+		style := "dcValue"
+		if kv[0] == "Report ID" {
+			style = "dcMono"
+		}
+		x.put(sh, dr, 9, 11, kv[1], style)
+		dr++
+	}
+	if dr > r {
+		r = dr
 	}
 	if extra != nil {
 		r = extra(r + 1)
 	}
 	r++
-	_ = f.MergeCell(sh, fmt.Sprintf("B%d", r), fmt.Sprintf("D%d", r))
-	set(fmt.Sprintf("B%d", r), "This workbook holds security-sensitive information about your cloud identities. Share it only with people who need it. Values are written as text and numbers, never as formulas, except where a sheet says it calculates.", "note")
 	_ = f.SetRowHeight(sh, r, 30)
+	x.put(sh, r, 0, 11, "This workbook holds security-sensitive information about your cloud identities. Share it only with people who need it. Figures are values, not formulas, except on sheets that say they calculate.", "foot")
+	_ = f.SetCellValue(sh, "A1", "")
+	_ = f.SetSheetView(sh, 0, &excelize.ViewOptions{TopLeftCell: strPtr("A1")})
 	x.printSetup(sh, false)
 	return nil
 }
 
-// dictionary writes the data dictionary from every data sheet's columns.
 func (x *wb) dictionary() error {
 	rows := x.dict
 	_, err := x.dataSheet("Data dictionary", "Dictionary", "TableStyleLight1", []xcol{
@@ -430,6 +462,7 @@ func (x *wb) finish(title string) {
 		Category: Classification, Identifier: rep.ID(), ContentStatus: "Final", Language: "en-GB",
 		Created: rep.GeneratedAt.UTC().Format(time.RFC3339), Modified: rep.GeneratedAt.UTC().Format(time.RFC3339),
 	})
+	x.tabColors()
 	x.f.SetActiveSheet(0)
 }
 

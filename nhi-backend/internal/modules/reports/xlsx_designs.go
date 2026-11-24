@@ -107,13 +107,13 @@ func WriteExecutiveXLSX(w io.Writer, rep *PostureReport) error {
 	}
 	defer x.f.Close()
 	sheets := []sheetInfo{
-		{"Dashboard", "The score, trend, what changed in the period, severities, score bands, accounts, security areas and the OWASP NHI Top 10, with charts."},
-		{"Remediation", "By severity: open and overdue findings against the remediation targets, their age, and new, fixed and days to fix against the previous period."},
-		{"Findings", "Every failing check once: severity, priority, how many identities, owners, overdue, why it matters and how to fix it."},
-		{"Identities", "Every scored identity, lowest score first, with its failing checks by severity."},
-		{"Compliance", "OWASP NHI Top 10 risks and framework controls the failing checks bear on."},
-		{"Accepted risks", "Findings accepted or suppressed, with the reason and who decided."},
-		{"Data dictionary", "What every column means."},
+		{"Dashboard", "Score, trend, severities, accounts and OWASP NHI Top 10"},
+		{"Remediation", "Open, overdue and fixed by severity, against targets"},
+		{"Findings", "Every failing check: priority, owners, how to fix"},
+		{"Identities", "Every scored identity, lowest score first"},
+		{"Compliance", "OWASP NHI Top 10 and framework controls affected"},
+		{"Accepted risks", "Accepted or suppressed findings and who decided"},
+		{"Data dictionary", "What every column means"},
 	}
 	if err := x.cover("Identity Security Posture Report · Executive workbook", sheets, nil); err != nil {
 		return err
@@ -149,217 +149,179 @@ func (x *wb) dashboard() error {
 	if _, err := f.NewSheet(sh); err != nil {
 		return err
 	}
-	_ = f.SetSheetView(sh, 0, &excelize.ViewOptions{ShowGridLines: boolPtr(false), ZoomScale: fptr(90)})
-	_ = f.SetColWidth(sh, "A", "A", 2.5)
-	_ = f.SetColWidth(sh, "B", "M", 13.5)
-	_ = f.SetColWidth(sh, "B", "B", 26)
-	_ = f.SetColWidth(sh, "O", "P", 12)
-	set := func(cell string, v interface{}, style string) {
-		_ = f.SetCellValue(sh, cell, v)
-		if style != "" {
-			_ = f.SetCellStyle(sh, cell, cell, x.st[style])
-		}
-	}
-	set("B1", "Posture dashboard", "title")
-	_ = f.SetRowHeight(sh, 1, 24)
-	set("B2", rep.ScopeLabel()+" · data as of "+controlLines(rep)[3][1], "sub")
+	x.canvas(sh)
+	r := x.header(sh, "Posture dashboard", rep.ScopeLabel()+"  ·  data as of "+controlLines(rep)[3][1], false)
 
-	// KPI tiles, two columns each.
-	type tile struct {
-		label string
-		v     interface{}
-		sub   string
-		isInt bool
-	}
-	avg := 0.0
-	if rep.AverageScore != nil {
-		avg = round1(*rep.AverageScore)
-	}
+	// Figure cards.
 	overdue := 0
 	for _, n := range rep.Overdue() {
 		overdue += n
 	}
-	tiles := []tile{
-		{"AVERAGE SCORE", avg, changeText(rep.Change30d) + " in 30 days", false},
-		{"WITH FAILING CHECKS", rep.FailingCount, pct(rep.FailingCount, rep.ScoredCount) + " of " + num(rep.ScoredCount) + " scored", true},
-		{"OPEN CRITICAL + HIGH", rep.BySeverity["critical"] + rep.BySeverity["high"], "of " + num(rep.CheckCount) + " open findings", true},
-		{"OVERDUE", overdue, "past their remediation target", true},
+	score, sub, trend := interface{}("-"), "not scored yet", 0
+	if rep.AverageScore != nil {
+		score = round1(*rep.AverageScore)
+		sub = bandLabel(bandFor(*rep.AverageScore)) + " band"
+		if c := rep.Change30d; c != nil {
+			sub = map[bool]string{true: "↗ ", false: "↘ "}[*c >= 0] + changeText(c) + " in 30 days"
+			trend = map[bool]int{true: 1, false: -1}[*c >= 0]
+		}
+	}
+	cards := []tile{
+		{"Average score", score, "dec", sub, trend},
+		{"Identities failing", rep.FailingCount, "int", pct(rep.FailingCount, rep.ScoredCount) + " of " + num(rep.ScoredCount), 0},
+		{"Critical and high", rep.BySeverity["critical"] + rep.BySeverity["high"], "int", "of " + num(rep.CheckCount) + " open", 0},
+		{"Past target", overdue, "int", pct(overdue, rep.CheckCount) + " of open", map[bool]int{true: -1, false: 0}[overdue > 0]},
 	}
 	if h := rep.History; h != nil {
-		tiles = append(tiles,
-			tile{"NEW IN PERIOD", h.Current.New, wasText(rep, h.Previous.New), true},
-			tile{"FIXED IN PERIOD", h.Current.Resolved, wasText(rep, h.Previous.Resolved), true})
-	}
-	for i, t := range tiles {
-		c1 := colLetter(2 + i*2)
-		c2 := colLetter(3 + i*2)
-		for r := 4; r <= 6; r++ {
-			_ = f.MergeCell(sh, fmt.Sprintf("%s%d", c1, r), fmt.Sprintf("%s%d", c2, r))
+		ng, fg := 0, 0
+		if hasPrevious(rep) {
+			ng = map[bool]int{true: 1, false: -1}[h.Current.New <= h.Previous.New]
+			fg = map[bool]int{true: 1, false: -1}[h.Current.Resolved >= h.Previous.Resolved]
 		}
-		x.kpi(sh, c1+"4", t.label, t.v, t.sub, t.isInt)
+		cards = append(cards, tile{"New in the period", h.Current.New, "int", wasText(rep, h.Previous.New), ng},
+			tile{"Fixed in the period", h.Current.Resolved, "int", wasText(rep, h.Previous.Resolved), fg})
+	} else {
+		_, un := rep.Owners()
+		cards = append(cards, tile{"Without an owner", un, "int", "open findings", 0}, tile{"Accounts", rep.AccountsCovered, "int", "connected", 0})
 	}
-	_ = f.SetRowHeight(sh, 4, 18)
-	_ = f.SetRowHeight(sh, 5, 34)
-	_ = f.SetRowHeight(sh, 6, 18)
+	r = x.tiles(sh, r, 2, cards)
 
-	// Severity table and chart.
-	set("B9", "Findings by severity", "h")
-	set("B10", "Severity", "k")
-	set("C10", "Findings", "k")
-	set("D10", "Share", "k")
-	r := 11
+	// Doughnuts: severity and score band, counts in the legend.
+	var sevLabels []string
+	var sevVals []float64
 	for _, s := range Severities {
-		set(fmt.Sprintf("B%d", r), SeverityLabel(s), "")
-		_ = f.SetCellStyle(sh, fmt.Sprintf("B%d", r), fmt.Sprintf("B%d", r), x.sev[s])
-		set(fmt.Sprintf("C%d", r), rep.BySeverity[s], "int")
-		share := 0.0
-		if rep.CheckCount > 0 {
-			share = float64(rep.BySeverity[s]) / float64(rep.CheckCount)
-		}
-		set(fmt.Sprintf("D%d", r), share, "pct")
-		r++
+		sevLabels = append(sevLabels, fmt.Sprintf("%s  %s  (%s)", SeverityLabel(s), num(rep.BySeverity[s]), pct(rep.BySeverity[s], rep.CheckCount)))
+		sevVals = append(sevVals, float64(rep.BySeverity[s]))
 	}
-	var sevSeries []excelize.ChartSeries
-	for i, s := range Severities {
-		sevSeries = append(sevSeries, excelize.ChartSeries{Name: fmt.Sprintf("Dashboard!$B$%d", 11+i), Categories: "Dashboard!$C$10", Values: fmt.Sprintf("Dashboard!$C$%d", 11+i), Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{xSevFill[s]}}})
-	}
-	_ = f.AddChart(sh, "F9", &excelize.Chart{Type: excelize.Col, Series: sevSeries, Title: []excelize.RichTextRun{{Text: "Findings by severity"}},
-		Legend: excelize.ChartLegend{Position: "bottom"}, Dimension: excelize.ChartDimension{Width: 480, Height: 260}, PlotArea: excelize.ChartPlotArea{ShowVal: true}})
-
-	set("B17", "Identities by score band", "h")
-	set("B18", "Band", "k")
-	set("C18", "Identities", "k")
-	set("D18", "Score range", "k")
-	r = 19
-	bandColors := []string{}
+	sevCats, sevRanges := x.chartRows(1, "Severity", sevLabels, [][]float64{sevVals}, []string{"Findings"})
+	var bandLabels []string
+	var bandVals []float64
 	for _, b := range rep.Bands {
-		set(fmt.Sprintf("B%d", r), bandLabel(b.Band), "bold")
-		set(fmt.Sprintf("C%d", r), b.Count, "int")
-		set(fmt.Sprintf("D%d", r), BandRange[b.Band], "text")
-		bandColors = append(bandColors, map[string]string{"critical": xSevFill["critical"], "poor": xSevFill["high"], "fair": xSevFill["medium"], "healthy": xGood}[b.Band])
-		r++
+		bandLabels = append(bandLabels, fmt.Sprintf("%s %s  %s  (%s)", bandLabel(b.Band), strings.ReplaceAll(BandRange[b.Band], " to ", "–"), num(b.Count), pct(b.Count, rep.ScoredCount)))
+		bandVals = append(bandVals, float64(b.Count))
 	}
-	var bandSeries []excelize.ChartSeries
-	for i := range rep.Bands {
-		bandSeries = append(bandSeries, excelize.ChartSeries{Name: fmt.Sprintf("Dashboard!$B$%d", 19+i), Categories: "Dashboard!$C$18", Values: fmt.Sprintf("Dashboard!$C$%d", 19+i), Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{bandColors[i]}}})
+	bandCats, bandRanges := x.chartRows(4, "Band", bandLabels, [][]float64{bandVals}, []string{"Identities"})
+	x.section(sh, r, 0, 5, "Findings by severity", num(rep.CheckCount)+" open findings. Darker is more severe.")
+	x.section(sh, r, 6, 11, "Identities by score band", num(rep.ScoredCount)+" scored identities. Darker is a lower score.")
+	r += 2
+	donut := func(cell, cats, vals, name string) {
+		_ = f.AddChart(sh, cell, cleanChart(&excelize.Chart{Type: excelize.Doughnut, HoleSize: 62, VaryColors: boolPtr(true),
+			Series:    []excelize.ChartSeries{{Name: name, Categories: cats, Values: vals}},
+			Legend:    excelize.ChartLegend{Position: "right"},
+			Dimension: excelize.ChartDimension{Width: 548, Height: 240}}))
 	}
-	_ = f.AddChart(sh, "J9", &excelize.Chart{Type: excelize.Col, Series: bandSeries, Title: []excelize.RichTextRun{{Text: "Identities by score band"}},
-		Legend: excelize.ChartLegend{Position: "bottom"}, Dimension: excelize.ChartDimension{Width: 440, Height: 260}, PlotArea: excelize.ChartPlotArea{ShowVal: true}})
+	donut(fmt.Sprintf("B%d", r), sevCats, sevRanges[0], "Findings")
+	donut(fmt.Sprintf("H%d", r), bandCats, bandRanges[0], "Identities")
+	r += 13
 
-	// Trend, with its data beside the chart.
-	set("B25", "Average score, last 30 days", "h")
-	set("O25", "Day", "k")
-	set("P25", "Score", "k")
-	for i, p := range rep.Trend {
-		set(fmt.Sprintf("O%d", 26+i), excelDay(p.Day), "date")
-		set(fmt.Sprintf("P%d", 26+i), p.Score, "dec1")
-	}
+	// Trend.
+	r = x.section(sh, r, 0, 11, "Average security score, day by day", "From the daily posture snapshots; the axis fits the data so small changes show.")
 	if len(rep.Trend) > 1 {
-		end := 25 + len(rep.Trend)
-		// The axis fits the data (rounded to 5, at least 10 points tall) so
-		// a few points of change are visible, as in the PDF.
+		var days []string
+		var vals []float64
 		lo, hi := 100.0, 0.0
 		for _, p := range rep.Trend {
+			days = append(days, p.Day.Format("2 Jan"))
+			vals = append(vals, round1(p.Score))
 			lo, hi = math.Min(lo, p.Score), math.Max(hi, p.Score)
 		}
 		lo, hi = math.Max(0, math.Floor((lo-2)/5)*5), math.Min(100, math.Ceil((hi+2)/5)*5)
 		if hi-lo < 10 {
 			lo = math.Max(0, hi-10)
 		}
-		_ = f.AddChart(sh, "B26", &excelize.Chart{Type: excelize.Line,
-			Series: []excelize.ChartSeries{{Name: "Dashboard!$P$25", Categories: fmt.Sprintf("Dashboard!$O$26:$O$%d", end), Values: fmt.Sprintf("Dashboard!$P$26:$P$%d", end),
-				Line: excelize.ChartLine{Width: 2, Smooth: false}, Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{xBrand}}, Marker: excelize.ChartMarker{Symbol: "none"}}},
-			Title:     []excelize.RichTextRun{{Text: "Average security score"}},
+		cats, rs := x.chartRows(7, "Day", days, [][]float64{vals}, []string{"Average score"})
+		_ = f.AddChart(sh, fmt.Sprintf("B%d", r), cleanChart(&excelize.Chart{Type: excelize.Line,
+			Series: []excelize.ChartSeries{{Name: "Average score", Categories: cats, Values: rs[0],
+				Line: excelize.ChartLine{Width: 2.25, Smooth: true}, Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{xBrand}}, Marker: excelize.ChartMarker{Symbol: "none"}}},
 			Legend:    excelize.ChartLegend{Position: "none"},
+			XAxis:     excelize.ChartAxis{TickLabelSkip: 7},
 			YAxis:     excelize.ChartAxis{Minimum: fptr(lo), Maximum: fptr(hi), MajorUnit: 5, MajorGridLines: true},
-			Dimension: excelize.ChartDimension{Width: 1060, Height: 260}})
+			Dimension: excelize.ChartDimension{Width: 1110, Height: 230}}))
+		r += 12
+	} else {
+		x.put(sh, r, 0, 11, "The trend starts after a few days of scans.", "secCap")
+		r += 2
 	}
 
-	// Accounts.
-	r = 42
-	set(fmt.Sprintf("B%d", r), "Accounts", "h")
-	r++
-	heads := []string{"Account", "Account ID", "Avg score", "Scored", "Failing", "Critical", "High", "Medium", "Low"}
-	for i, h := range heads {
-		set(fmt.Sprintf("%s%d", colLetter(2+i), r), h, "head")
-	}
-	first := r + 1
-	for _, a := range rep.Accounts {
-		r++
-		vals := []interface{}{accountName(a), a.ID, a.Average, a.Scored, a.Failing, a.BySev["critical"], a.BySev["high"], a.BySev["medium"], a.BySev["low"]}
-		kinds := []int{kBold, kMono, kDec1, kInt, kInt, kInt, kInt, kInt, kInt}
-		for i, v := range vals {
-			c := x.value(kinds[i], v)
-			cell := fmt.Sprintf("%s%d", colLetter(2+i), r)
-			_ = f.SetCellValue(sh, cell, c.Value)
-			_ = f.SetCellStyle(sh, cell, cell, c.StyleID)
+	// Age of open findings and the OWASP NHI Top 10, side by side.
+	x.section(sh, r, 0, 5, "Age of open findings", "Days since first detection, by severity.")
+	x.section(sh, r, 6, 11, "OWASP Non-Human Identities Top 10", "Identities failing a check that is evidence of each risk.")
+	r += 2
+	var ageLabels []string
+	ageVals := make([][]float64, len(Severities))
+	for _, b := range rep.Aging() {
+		ageLabels = append(ageLabels, b.Label)
+		for i, s := range Severities {
+			ageVals[i] = append(ageVals[i], float64(b.BySev[s]))
 		}
 	}
-	if r >= first {
-		_ = f.SetConditionalFormat(sh, fmt.Sprintf("D%d:D%d", first, r), []excelize.ConditionalFormatOptions{
-			{Type: "3_color_scale", MinType: "num", MinValue: "0", MinColor: "#F4B6B0", MidType: "num", MidValue: "60", MidColor: "#FBE7A1", MaxType: "num", MaxValue: "100", MaxColor: "#B7E1CD"}})
-		_ = f.SetConditionalFormat(sh, fmt.Sprintf("F%d:F%d", first, r), []excelize.ConditionalFormatOptions{{Type: "data_bar", BarColor: "#" + xSevFill["high"], MinType: "num", MinValue: "0", MaxType: "max", BarSolid: true}})
-		_ = f.SetConditionalFormat(sh, fmt.Sprintf("G%d:G%d", first, r), []excelize.ConditionalFormatOptions{{Type: "data_bar", BarColor: "#" + xSevFill["critical"], MinType: "num", MinValue: "0", MaxType: "max", BarSolid: true}})
+	var sevNames []string
+	for _, s := range Severities {
+		sevNames = append(sevNames, SeverityLabel(s))
 	}
-
-	// Security areas.
-	r += 3
-	set(fmt.Sprintf("B%d", r), "Security areas", "h")
-	r++
-	for i, h := range []string{"Security area", "Checks", "Identities", "Findings", "Critical", "High", "Medium", "Low"} {
-		set(fmt.Sprintf("%s%d", colLetter(2+i), r), h, "head")
-	}
-	first = r + 1
-	for _, a := range rep.Areas() {
-		r++
-		vals := []interface{}{a.Area, a.Checks, a.Identities, a.Findings, a.BySev["critical"], a.BySev["high"], a.BySev["medium"], a.BySev["low"]}
-		for i, v := range vals {
-			k := kInt
-			if i == 0 {
-				k = kBold
-			}
-			c := x.value(k, v)
-			cell := fmt.Sprintf("%s%d", colLetter(2+i), r)
-			_ = f.SetCellValue(sh, cell, c.Value)
-			_ = f.SetCellStyle(sh, cell, cell, c.StyleID)
-		}
-	}
-	if r >= first {
-		_ = f.SetConditionalFormat(sh, fmt.Sprintf("E%d:E%d", first, r), []excelize.ConditionalFormatOptions{{Type: "data_bar", BarColor: "#" + xBrand, MinType: "num", MinValue: "0", MaxType: "max", BarSolid: true}})
-	}
-
-	// Age of open findings: a stacked chart of the Remediation sheet.
-	r += 3
-	set(fmt.Sprintf("B%d", r), "Age of open findings, by severity", "h")
+	ageCats, ageRanges := x.chartRows(10, "Age", ageLabels, ageVals, sevNames)
 	var ageSeries []excelize.ChartSeries
-	for i, sv := range Severities {
-		ageSeries = append(ageSeries, excelize.ChartSeries{Name: fmt.Sprintf("Remediation!$A$%d", i+2), Categories: "Remediation!$E$1:$I$1",
-			Values: fmt.Sprintf("Remediation!$E$%d:$I$%d", i+2, i+2), Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{xSevFill[sv]}}})
+	for i, s := range Severities {
+		ageSeries = append(ageSeries, excelize.ChartSeries{Name: fmt.Sprintf("'%s'!$%s$1", chartData, colLetter(11+i)), Categories: ageCats, Values: ageRanges[i],
+			Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{xSevFill[s]}}})
 	}
-	_ = f.AddChart(sh, fmt.Sprintf("B%d", r+1), &excelize.Chart{Type: excelize.ColStacked, Series: ageSeries,
-		Title: []excelize.RichTextRun{{Text: "Open findings by age"}}, Legend: excelize.ChartLegend{Position: "bottom"},
-		Dimension: excelize.ChartDimension{Width: 720, Height: 280}})
-	r += 17
-
-	// OWASP NHI Top 10.
-	set(fmt.Sprintf("B%d", r), "OWASP Non-Human Identities Top 10", "h")
-	r++
-	for i, h := range []string{"Risk", "Identities", "Findings", "Highest severity"} {
-		set(fmt.Sprintf("%s%d", colLetter(2+i), r), h, "head")
-	}
+	_ = f.AddChart(sh, fmt.Sprintf("B%d", r), cleanChart(&excelize.Chart{Type: excelize.ColStacked, Series: ageSeries, GapWidth: uintPtr(55),
+		Legend: excelize.ChartLegend{Position: "bottom"}, YAxis: excelize.ChartAxis{MajorGridLines: true},
+		Dimension: excelize.ChartDimension{Width: 548, Height: 290}}))
+	var nhiLabels []string
+	var nhiVals []float64
 	for _, n := range rep.NHITop10() {
-		r++
-		set(fmt.Sprintf("B%d", r), n.ID+" "+n.Title, "bold")
-		set(fmt.Sprintf("C%d", r), n.Identities, "int")
-		set(fmt.Sprintf("D%d", r), n.Findings, "int")
-		if n.Worst != "" {
-			set(fmt.Sprintf("E%d", r), SeverityLabel(n.Worst), "")
-			_ = f.SetCellStyle(sh, fmt.Sprintf("E%d", r), fmt.Sprintf("E%d", r), x.sev[n.Worst])
-		} else {
-			set(fmt.Sprintf("E%d", r), "None failing", "sub")
-		}
+		nhiLabels = append(nhiLabels, n.ID+"  "+n.Title)
+		nhiVals = append(nhiVals, float64(n.Identities))
 	}
-	_ = f.SetConditionalFormat(sh, fmt.Sprintf("C%d:C%d", r-9, r), []excelize.ConditionalFormatOptions{{Type: "data_bar", BarColor: "#" + xBrand, MinType: "num", MinValue: "0", MaxType: "max", BarSolid: true}})
+	nhiCats, nhiRanges := x.chartRows(16, "Risk", nhiLabels, [][]float64{nhiVals}, []string{"Identities"})
+	_ = f.AddChart(sh, fmt.Sprintf("H%d", r), cleanChart(&excelize.Chart{Type: excelize.Bar, GapWidth: uintPtr(45),
+		Series:    []excelize.ChartSeries{{Name: "Identities", Categories: nhiCats, Values: nhiRanges[0], Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{xBrand}}}},
+		Legend:    excelize.ChartLegend{Position: "none"},
+		PlotArea:  excelize.ChartPlotArea{ShowVal: true},
+		XAxis:     excelize.ChartAxis{ReverseOrder: true},
+		YAxis:     excelize.ChartAxis{None: true},
+		Dimension: excelize.ChartDimension{Width: 548, Height: 290}}))
+	r += 16
+
+	// Tables: accounts and security areas.
+	table := func(title, caption string, heads []string, rows [][]interface{}, kinds []int, bar int) {
+		r = x.section(sh, r, 0, 11, title, caption)
+		x.put(sh, r, 0, 2, heads[0], "head")
+		for i, h := range heads[1:] {
+			x.put(sh, r, i+3, i+3, h, "head")
+		}
+		_ = f.SetRowHeight(sh, r, 20)
+		first := r + 1
+		for _, row := range rows {
+			r++
+			c := x.value(kinds[0], row[0])
+			x.put(sh, r, 0, 2, c.Value, "bold")
+			for i, v := range row[1:] {
+				c := x.value(kinds[i+1], v)
+				a, _ := span(r, i+3, i+3)
+				_ = f.SetCellValue(sh, a, c.Value)
+				_ = f.SetCellStyle(sh, a, a, c.StyleID)
+			}
+		}
+		if r >= first && bar > 0 {
+			col := colLetter(canvasFirst + bar + 2)
+			_ = f.SetConditionalFormat(sh, fmt.Sprintf("%s%d:%s%d", col, first, col, r), []excelize.ConditionalFormatOptions{{Type: "data_bar", BarColor: "#" + xSevFill["medium"], MinType: "num", MinValue: "0", MaxType: "max", BarSolid: true}})
+		}
+		r += 3
+	}
+	var accRows [][]interface{}
+	for _, a := range rep.Accounts {
+		accRows = append(accRows, []interface{}{accountName(a), a.ID, a.Average, a.Scored, a.Failing, a.BySev["critical"], a.BySev["high"], a.BySev["medium"], a.BySev["low"]})
+	}
+	table("Accounts", "Every connected account in scope, with its findings by severity.", []string{"Account", "Account ID", "Avg score", "Scored", "Failing", "Critical", "High", "Medium", "Low"},
+		accRows, []int{kBold, kMono, kDec1, kInt, kInt, kInt, kInt, kInt, kInt}, 4)
+	var areaRows [][]interface{}
+	for _, a := range rep.Areas() {
+		areaRows = append(areaRows, []interface{}{a.Area, a.Checks, a.Identities, a.Findings, a.BySev["critical"], a.BySev["high"], a.BySev["medium"], a.BySev["low"]})
+	}
+	table("Security areas", "Where the findings sit, with their severities.", []string{"Security area", "Checks", "Identities", "Findings", "Critical", "High", "Medium", "Low"},
+		areaRows, []int{kBold, kInt, kInt, kInt, kInt, kInt, kInt, kInt}, 3)
 	x.printSetup(sh, false)
 	return nil
 }
@@ -558,17 +520,17 @@ func WriteAnalystXLSX(w io.Writer, rep *PostureReport) error {
 	}
 	defer x.f.Close()
 	sheets := []sheetInfo{
-		{"Summary", "Figures calculated from the Facts table: they follow any change you make there."},
-		{"Pivot", "A pivot table of findings by account and severity, ready to rearrange."},
-		{"Facts", "Table tblFacts: one row per finding, with every key and measure."},
-		{"Identities", "Table tblIdentities: every scored identity (key: Identity key)."},
-		{"Checks", "Table tblChecks: every failing check (key: Check ID)."},
-		{"Accounts", "Table tblAccounts: every account (key: Account ID)."},
-		{"Control map", "Table tblControlMap: check to framework control or OWASP NHI risk, one row per pair."},
-		{"Remediation", "Table tblRemediation: by severity, open, overdue and age now, and new, fixed and days to fix in this period and the previous one."},
-		{"Accepted risks", "Table tblExceptions: findings accepted or suppressed, with the reason and who decided."},
-		{"Trend", "Table tblTrend: the average score per day."},
-		{"Data dictionary", "What every column means."},
+		{"Summary", "Figures calculated live from the Facts table"},
+		{"Pivot", "Findings by account and severity, ready to pivot"},
+		{"Facts", "tblFacts: one row per finding, every key and measure"},
+		{"Identities", "tblIdentities: every scored identity"},
+		{"Checks", "tblChecks: every failing check"},
+		{"Accounts", "tblAccounts: every account in scope"},
+		{"Control map", "tblControlMap: check to control or OWASP risk"},
+		{"Remediation", "tblRemediation: open, overdue and fixed by severity"},
+		{"Accepted risks", "tblExceptions: accepted or suppressed findings"},
+		{"Trend", "tblTrend: average score per day"},
+		{"Data dictionary", "What every column means"},
 	}
 	if err := x.cover("Identity Security Posture Report · Analyst data model", sheets, nil); err != nil {
 		return err
@@ -786,8 +748,6 @@ func (x *wb) analystSummary(facts int) error {
 		_ = f.SetCellFormula(sh, cell, fx)
 		_ = f.SetCellStyle(sh, cell, cell, x.st[style])
 	}
-	set("B1", "Summary (calculated)", "title")
-	set("B2", "Every figure below is a formula over the Facts sheet.", "sub")
 	set("B4", "Findings", "k")
 	formula("C4", fmt.Sprintf("COUNTA(%s)", col("Finding ID")), "int")
 	set("B5", "Distinct identities with a finding", "k")
@@ -834,6 +794,10 @@ func (x *wb) analystSummary(facts int) error {
 		set(fmt.Sprintf("B%d", r), a.Area, "text")
 		formula(fmt.Sprintf("C%d", r), fmt.Sprintf(`COUNTIF(%s,B%d)`, col("Security area"), r), "int")
 	}
+	// The navy band on top: shift everything down, references follow.
+	_ = f.InsertRows(sh, 1, 5)
+	x.header(sh, "Summary", "Every figure is a live formula over the Facts table: edit Facts and it updates.", false)
+	_ = f.SetSheetView(sh, 0, &excelize.ViewOptions{ShowRowColHeaders: boolPtr(false)})
 	x.printSetup(sh, false)
 	return nil
 }
