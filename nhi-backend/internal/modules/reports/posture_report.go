@@ -39,6 +39,8 @@ type PostureOptions struct {
 	IncludeSev  bool     // severity column
 	Accounts    []string // account IDs to cover; empty = every account
 	Population  bool     // also load every scored identity, passing ones too (Excel)
+	PeriodDays  int      // the reporting period compared with the one before it; 0 = 30
+	PreparedFor string   // the client organisation named on the report
 }
 
 // PostureReport is everything one report shows.
@@ -70,6 +72,10 @@ type PostureReport struct {
 	DataAsOf    *time.Time // when the posture data was last computed
 	Trend       []TrendPoint
 	Sample      bool // built from sample data: every page says so
+
+	SLA        SLAPolicy   // remediation targets used for overdue and SLA figures
+	History    *History    // this period against the one before; nil when the findings table is missing
+	Exceptions []Exception // findings the client accepted or suppressed
 }
 
 // TrendPoint is the average score on one day.
@@ -145,6 +151,14 @@ type ReportIdentity struct {
 	Score     *float64
 	Band      string
 	Checks    []ReportCheck
+	Reach     *Reach // what the identity can get to, from blast radius
+}
+
+// Reach is an identity's blast radius: what an attacker holding it could use.
+type Reach struct {
+	Resources    int  // resources it can reach
+	CrossAccount int  // paths into other accounts
+	Secrets      bool // can read secrets
 }
 
 // Worst is the identity's most severe failing check severity, "" when none.
@@ -184,6 +198,7 @@ type ReportCheck struct {
 	Risk         string   // why it matters
 	Controls     []string // framework controls it maps to
 	Points       float64  // score points it takes off this identity
+	Owner        string   // who the finding is assigned to in the console
 }
 
 // Bands in report order, worst first; the Posture page's bands.
@@ -195,7 +210,8 @@ func LoadPosture(ctx context.Context, s *scope.DataScope, o PostureOptions) (*Po
 	if s == nil || s.DB == nil {
 		return nil, fmt.Errorf("posture report: no data scope")
 	}
-	rep := &PostureReport{GeneratedAt: time.Now().UTC(), Options: o, BySeverity: map[string]int{}}
+	rep := &PostureReport{GeneratedAt: time.Now().UTC(), Options: o, BySeverity: map[string]int{}, PreparedFor: strings.TrimSpace(o.PreparedFor)}
+	rep.SLA = loadSLA(ctx, s)
 
 	classWhere := accountWhere(o.Accounts)
 	switch o.Class {
@@ -239,6 +255,14 @@ func LoadPosture(ctx context.Context, s *scope.DataScope, o PostureOptions) (*Po
 		guideJoin = fmt.Sprintf(" LEFT JOIN %s g ON g.rule_id = c.rule_id", s.Table("remediation_guides"))
 		guideCol = "NULLIF(g.description, '')"
 	}
+	// Blast radius per identity, when the correlation engine has run.
+	reachJoin, reachCol := "", "NULL::int, NULL::int, NULL::int"
+	var br sql.NullString
+	if err := s.DB.QueryRowContext(ctx, `SELECT to_regclass($1)::text`, s.Table("nhi_blast_radius")).Scan(&br); err == nil && br.Valid {
+		reachJoin = fmt.Sprintf(` LEFT JOIN LATERAL (SELECT b.total_resources, b.cross_account_paths, b.secrets_access_found FROM %s b
+			WHERE b.source_arn = p.identity_arn ORDER BY b.computed_at DESC NULLS LAST LIMIT 1) br ON true`, s.Table("nhi_blast_radius"))
+		reachCol = "br.total_resources, br.cross_account_paths, br.secrets_access_found"
+	}
 	q := fmt.Sprintf(`SELECT p.identity_id::text, COALESCE(p.identity_name, ''), COALESCE(p.identity_arn, ''), COALESCE(p.identity_type, ''),
 			%[5]s = 'HI', COALESCE(p.account_id, ''), COALESCE(p.account_name, ''), p.score, COALESCE(p.band, ''),
 			c.rule_id, lower(COALESCE(c.severity, '')), COALESCE(c.pillar_code, ''), COALESCE(c.detail, ''), c.failing_since,
@@ -246,7 +270,9 @@ func LoadPosture(ctx context.Context, s *scope.DataScope, o PostureOptions) (*Po
 			COALESCE(NULLIF(w.rule_name, ''), NULLIF(w.check_title, ''), NULLIF(f.title, ''), c.rule_id),
 			COALESCE(NULLIF(w.description, ''), NULLIF(f.description, ''), ''),
 			COALESCE(NULLIF(f.remediation, ''), %[6]s, NULLIF(w.fix_label, ''), ''),
-			COALESCE(%[6]s, NULLIF(w.fix_label, ''), '')
+			COALESCE(%[6]s, NULLIF(w.fix_label, ''), ''),
+			COALESCE(c.points_lost, 0), COALESCE(f.risk_explanation, ''), COALESCE(f.compliance_tags, '{}'::text[]), COALESCE(f.assigned_to, ''),
+			%[7]s
 		FROM %[1]s p
 		JOIN %[2]s c ON c.tenant_id = p.tenant_id AND c.identity_id = p.identity_id
 		LEFT JOIN %[3]s w ON w.rule_id = c.rule_id
@@ -254,18 +280,18 @@ func LoadPosture(ctx context.Context, s *scope.DataScope, o PostureOptions) (*Po
 		   identity and rule: that is where the finding page's title, risk
 		   and "how to fix" text live. */
 		LEFT JOIN LATERAL (
-			SELECT f.title, f.description, f.remediation FROM %[4]s f
+			SELECT f.title, f.description, f.remediation, f.risk_explanation, f.compliance_tags, f.assigned_to FROM %[4]s f
 			WHERE f.tenant_id = c.tenant_id
 			  AND (f.finding_id = c.finding_id OR (c.finding_id IS NULL AND f.identity_id::text = c.identity_id::text AND f.rule_id = c.rule_id))
 			ORDER BY (f.finding_id = c.finding_id) DESC NULLS LAST, f.last_seen DESC NULLS LAST
-			LIMIT 1) f ON true`+guideJoin+`
+			LIMIT 1) f ON true`+guideJoin+reachJoin+`
 		WHERE p.tenant_id = $1 AND upper(c.status) IN ('FAIL', 'FAILED')
 		  AND lower(COALESCE(c.severity, '')) = ANY($2::text[])`+classWhere+`
 		ORDER BY p.score ASC NULLS LAST, p.identity_name, p.identity_id,
 			CASE lower(COALESCE(c.severity, '')) WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END,
 			COALESCE(c.points_lost, 0) DESC, c.rule_id`,
 		s.Table(common.TIdentityPosture), s.Table(common.TIdentityChecks), s.Table(common.TRuleWeights), s.Table(common.TFindings),
-		common.ClassExpr("p.identity_class"), guideCol)
+		common.ClassExpr("p.identity_class"), guideCol, reachCol)
 	rows, err := s.DB.QueryContext(ctx, q, s.TenantID, pq.Array(sev))
 	if err != nil {
 		if common.IsUndefinedTable(err) {
@@ -283,9 +309,16 @@ func LoadPosture(ctx context.Context, s *scope.DataScope, o PostureOptions) (*Po
 		var score sql.NullFloat64
 		var ck ReportCheck
 		var since sql.NullTime
+		var controls pq.StringArray
+		var reachRes, reachX, reachSec sql.NullInt64
 		if err := rows.Scan(&id, &ri.Name, &ri.ARN, &ri.Type, &ri.Human, &ri.AccountID, &ri.Account, &score, &ri.Band,
-			&ck.RuleID, &ck.Severity, &ck.Area, &ck.Found, &since, &ck.Title, &ck.Check, &ck.About, &ck.Fix, &ck.RuleFix); err != nil {
+			&ck.RuleID, &ck.Severity, &ck.Area, &ck.Found, &since, &ck.Title, &ck.Check, &ck.About, &ck.Fix, &ck.RuleFix,
+			&ck.Points, &ck.Risk, &controls, &ck.Owner, &reachRes, &reachX, &reachSec); err != nil {
 			return nil, fmt.Errorf("scan posture report row: %w", err)
+		}
+		ck.Controls = []string(controls)
+		if reachRes.Valid {
+			ri.Reach = &Reach{Resources: int(reachRes.Int64), CrossAccount: int(reachX.Int64), Secrets: reachSec.Int64 > 0}
 		}
 		if since.Valid {
 			t := since.Time
@@ -311,6 +344,13 @@ func LoadPosture(ctx context.Context, s *scope.DataScope, o PostureOptions) (*Po
 	}
 	rep.FailingCount = len(rep.Identities)
 	summarise(rep)
+	days := o.PeriodDays
+	if days <= 0 {
+		days = 30
+	}
+	if err := loadHistory(ctx, s, rep, days); err != nil {
+		return nil, err
+	}
 	if o.Population {
 		if err := loadPopulation(ctx, s, rep, classWhere); err != nil {
 			return nil, err

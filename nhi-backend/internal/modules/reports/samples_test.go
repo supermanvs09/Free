@@ -41,14 +41,14 @@ func sampleReport(t testing.TB, identities int) *PostureReport {
 	asOf := now.Add(-38 * time.Minute)
 	rep := &PostureReport{
 		GeneratedAt: now, Options: PostureOptions{Class: ClassAll, IncludeInfo: true, IncludeFix: true, IncludeSev: true, Population: true},
-		BySeverity: map[string]int{}, PreparedFor: "Northwind Financial Group", GeneratedBy: "Security operations (secops@northwind.example)",
-		DataAsOf: &asOf, Sample: true,
+		BySeverity: map[string]int{}, PreparedFor: "Bimasugam", GeneratedBy: "admin@bimasugam",
+		DataAsOf: &asOf, SLA: DefaultSLA(),
 	}
 	rep.ReportID = NewReportID(rep.PreparedFor, now)
 
 	accounts := []struct{ id, name string }{
-		{"411520983021", "northwind-payments-prod"}, {"583104772615", "northwind-core-prod"}, {"209847561203", "northwind-data-platform"},
-		{"730261948557", "northwind-shared-services"}, {"662019384410", "northwind-staging"}, {"118473920566", "northwind-sandbox"},
+		{"411520983021", "bimasugam-payments-prod"}, {"583104772615", "bimasugam-core-prod"}, {"209847561203", "bimasugam-data-platform"},
+		{"730261948557", "bimasugam-shared-services"}, {"662019384410", "bimasugam-staging"}, {"118473920566", "bimasugam-sandbox"},
 	}
 	// Weighted pick of checks: severe ones rarer, a few very common.
 	common := []string{}
@@ -106,18 +106,27 @@ func sampleReport(t testing.TB, identities int) *PostureReport {
 		}
 		lost := 0.0
 		riskier := 1.0
-		if a.name == "northwind-sandbox" || a.name == "northwind-staging" {
+		if a.name == "bimasugam-sandbox" || a.name == "bimasugam-staging" {
 			riskier = 1.5
 		}
 		for _, ru := range hot {
 			if r.Float64() < weight[ru.ID]*riskier {
-				since := now.Add(-time.Duration(r.Intn(95)+1) * 24 * time.Hour)
+				// Ages: most recent, a long tail up to eight months.
+				age := 1 + int(r.ExpFloat64()*45)
+				if age > 240 {
+					age = 240 - r.Intn(30)
+				}
+				since := now.Add(-time.Duration(age) * 24 * time.Hour)
+				owner := ""
+				if r.Float64() < 0.6 {
+					owner = []string{"Platform Engineering", "Payments SRE", "Data Platform", "Identity & Access", "DevOps"}[r.Intn(5)]
+				}
 				pts := penalty[ru.Severity]
 				lost += pts
 				id.Checks = append(id.Checks, ReportCheck{
 					RuleID: ru.ID, Check: ru.Name, Title: name + ": " + ru.Name, Severity: ru.Severity, Area: ru.Area,
 					Found: foundText(ru, name, a.id), About: ru.About, Fix: ru.Fix, RuleFix: ru.Fix, Risk: ru.Risk,
-					Controls: ru.Controls, Points: pts, FailingSince: &since,
+					Controls: ru.Controls, Points: pts, FailingSince: &since, Owner: owner,
 				})
 			}
 		}
@@ -128,6 +137,9 @@ func sampleReport(t testing.TB, identities int) *PostureReport {
 		s := score
 		id.Score = &s
 		id.Band = bandFor(s)
+		if !kind.human && r.Float64() < 0.8 {
+			id.Reach = &Reach{Resources: 3 + int(r.ExpFloat64()*60), CrossAccount: map[bool]int{true: 1 + r.Intn(3), false: 0}[r.Float64() < 0.15], Secrets: r.Float64() < 0.3}
+		}
 		scores = append(scores, s)
 		acctScores[a.id] = append(acctScores[a.id], s)
 		if kind.human {
@@ -179,6 +191,31 @@ func sampleReport(t testing.TB, identities int) *PostureReport {
 	}
 	rep.Trend[len(rep.Trend)-1].Score = round1(avg)
 	summarise(rep)
+
+	// What changed: this 30-day period against the one before.
+	hist := &History{Days: 30}
+	hist.Current = PeriodStats{Start: now.AddDate(0, 0, -30), End: now,
+		NewBySev: map[string]int{"critical": 9, "high": 96, "medium": 141, "low": 22}, ResolvedBySev: map[string]int{"critical": 12, "high": 131, "medium": 118, "low": 15},
+		MedianDays: map[string]float64{"critical": 9.5, "high": 24, "medium": 61, "low": 88}, FixedInSLA: map[string]int{"critical": 10, "high": 102, "medium": 97, "low": 15}, Accepted: 4}
+	hist.Previous = PeriodStats{Start: now.AddDate(0, 0, -60), End: now.AddDate(0, 0, -30),
+		NewBySev: map[string]int{"critical": 14, "high": 122, "medium": 160, "low": 30}, ResolvedBySev: map[string]int{"critical": 8, "high": 87, "medium": 95, "low": 11},
+		MedianDays: map[string]float64{"critical": 17, "high": 36, "medium": 74, "low": 102}, FixedInSLA: map[string]int{"critical": 4, "high": 51, "medium": 71, "low": 11}, Accepted: 2}
+	for _, p := range []*PeriodStats{&hist.Current, &hist.Previous} {
+		for _, sv := range Severities {
+			p.New += p.NewBySev[sv]
+			p.Resolved += p.ResolvedBySev[sv]
+		}
+	}
+	rep.History = hist
+	until := func(d int) *time.Time { t := now.AddDate(0, 0, d); return &t }
+	ago := func(d int) *time.Time { t := now.AddDate(0, 0, -d); return &t }
+	rep.Exceptions = []Exception{
+		{"Cross-acct trust without ExternalId", "high", "role-vendor-backup-sync", "bimasugam-shared-services", "Vendor does not support ExternalId; compensating control: SCP limits the role to the backup bucket.", "Identity & Access", ago(41), until(49)},
+		{"Wildcard resource (Resource:*)", "medium", "lambda-metrics-export", "bimasugam-data-platform", "CloudWatch PutMetricData does not support resource-level permissions.", "Data Platform", ago(73), nil},
+		{"Multiple active access keys", "medium", "svc-jenkins-legacy", "bimasugam-core-prod", "Key rotation in progress; second key retired after the December release.", "DevOps", ago(12), until(18)},
+		{"Unused IAM role", "low", "role-dr-failover", "bimasugam-core-prod", "Disaster-recovery role; used only during failover tests.", "Platform Engineering", ago(120), until(60)},
+		{"Off-hours activity", "low", "ecs-task-reconcile-job", "bimasugam-payments-prod", "Nightly reconciliation runs at 02:00 UTC by design.", "Payments SRE", ago(9), nil},
+	}
 	return rep
 }
 

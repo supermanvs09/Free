@@ -201,14 +201,15 @@ func (rep *PostureReport) Areas() []AreaRow {
 	return out
 }
 
-// Uplift is how much fixing a check everywhere could raise the average
-// score: its points spread over every scored identity. An identity already
-// at 0 regains less, so this is an upper bound.
+// Uplift is how much fixing one check everywhere would raise the average
+// score (GainIfFixed for that check).
 func (rep *PostureReport) Uplift(g CheckGroup) float64 {
-	if rep.ScoredCount == 0 {
-		return 0
+	for i := range rep.Groups {
+		if rep.Groups[i].RuleID == g.RuleID {
+			return rep.GainIfFixed(i)
+		}
 	}
-	return g.Points / float64(rep.ScoredCount)
+	return 0
 }
 
 // FindingRef is a check's stable reference in the report: F-001, F-002 ...
@@ -269,4 +270,166 @@ var BandRange = map[string]string{
 	"fair":     "60 to 79",
 	"poor":     "40 to 59",
 	"critical": "0 to 39",
+}
+
+// OWASP Non-Human Identities Top 10 (2025).
+var OWASPNHI = []struct{ ID, Title string }{
+	{"NHI1", "Improper Offboarding"}, {"NHI2", "Secret Leakage"}, {"NHI3", "Vulnerable Third-Party NHI"},
+	{"NHI4", "Insecure Authentication"}, {"NHI5", "Overprivileged NHI"}, {"NHI6", "Insecure Cloud Deployment Configurations"},
+	{"NHI7", "Long-Lived Secrets"}, {"NHI8", "Environment Isolation"}, {"NHI9", "NHI Reuse"}, {"NHI10", "Human Use of NHI"},
+}
+
+// nhiRisk maps each posture check to the OWASP NHI Top 10 risks it is
+// evidence of, by hand from the check's definition. Checks about general
+// cloud configuration (data exposure, workload hardening, behaviour) map to
+// none.
+var nhiRisk = map[string][]string{
+	"IAM-02": {"NHI1"}, "IAM-21": {"NHI1"}, "IAM-22": {"NHI1"}, "IAM-23": {"NHI1"}, "IAM-24": {"NHI1"}, "IAM-30": {"NHI1"},
+	"STS-02": {"NHI1"}, "STS-05": {"NHI1"}, "LC-010": {"NHI1"}, "I11": {"NHI1"},
+	"CR-006": {"NHI2"}, "ECR-02": {"NHI2"}, "ECS-01": {"NHI2"}, "LAM-01": {"NHI2"}, "S3-02": {"NHI2"}, "SSM-02": {"NHI2"}, "LAM-06": {"NHI2"},
+	"IAM-15": {"NHI3"}, "IAM-16": {"NHI3"}, "IAM-17": {"NHI3"}, "KMS-02": {"NHI3"},
+	"CH-005": {"NHI4", "NHI10"}, "IAM-04": {"NHI4"}, "I08": {"NHI4"}, "IAM-29": {"NHI4"}, "I01": {"NHI4"}, "CR-002": {"NHI4"}, "CR-003": {"NHI4"}, "I02": {"NHI4"},
+	"IAM-06": {"NHI5"}, "IAM-07": {"NHI5"}, "IAM-31": {"NHI5"}, "ECS-04": {"NHI5"}, "EKS-03": {"NHI5"}, "RDS-01": {"NHI5"}, "RS-01": {"NHI5"},
+	"SSM-03": {"NHI5"}, "ACM-02": {"NHI5"}, "E-I09": {"NHI5"}, "CICD-02": {"NHI5", "NHI6"}, "IAM-10": {"NHI5"}, "IAM-11": {"NHI5"}, "IAM-12": {"NHI5"},
+	"IAM-13": {"NHI5"}, "IAM-25": {"NHI5"}, "IAM-26": {"NHI5"}, "PE-010": {"NHI5"}, "PE-013": {"NHI5"}, "IAM-18": {"NHI5"}, "IAM-27": {"NHI5"},
+	"IAM-28": {"NHI5"}, "ORG-02": {"NHI5"}, "PATH-03": {"NHI5"}, "PATH-05": {"NHI5"}, "CB-01": {"NHI5", "NHI6"}, "SEC-02": {"NHI5"},
+	"CICD-01": {"NHI6"}, "CICD-03": {"NHI6", "NHI7"}, "STS-04": {"NHI6"}, "STS-01": {"NHI6"}, "EKS-04": {"NHI6"}, "STS-03": {"NHI6"},
+	"IAM-03": {"NHI7"}, "SEC-01": {"NHI7"}, "KMS-03": {"NHI7"}, "CH-009": {"NHI7"}, "CH-011": {"NHI7"}, "ACM-01": {"NHI7"}, "I06": {"NHI7"},
+	"IAM-19": {"NHI7"}, "I10": {"NHI7"},
+	"PATH-02": {"NHI8"},
+	"LAM-03": {"NHI9"}, "EKS-01": {"NHI9"}, "EKS-02": {"NHI9"}, "EKS-06": {"NHI9"},
+	"BEH-04": {"NHI10"},
+}
+
+// NHIRisks is the OWASP NHI Top 10 risks a check is evidence of.
+func NHIRisks(ruleID string) []string { return nhiRisk[strings.ToUpper(strings.TrimSpace(ruleID))] }
+
+// NHIRow is one OWASP NHI risk and the failing checks that evidence it.
+type NHIRow struct {
+	ID, Title  string
+	Checks     []int // indexes into Groups
+	Findings   int
+	Identities int
+	Worst      string
+}
+
+// NHITop10 is the report's failing checks against the OWASP NHI Top 10, in
+// list order; risks with no failing check are kept, with zeros.
+func (rep *PostureReport) NHITop10() []NHIRow {
+	out := make([]NHIRow, len(OWASPNHI))
+	ids := make([]map[int]bool, len(OWASPNHI))
+	for i, r := range OWASPNHI {
+		out[i] = NHIRow{ID: r.ID, Title: r.Title}
+		ids[i] = map[int]bool{}
+	}
+	for gi, g := range rep.Groups {
+		for _, risk := range NHIRisks(g.RuleID) {
+			for i := range out {
+				if out[i].ID != risk {
+					continue
+				}
+				out[i].Checks = append(out[i].Checks, gi)
+				out[i].Findings += len(g.Items)
+				if out[i].Worst == "" || sevRank(g.Severity) < sevRank(out[i].Worst) {
+					out[i].Worst = g.Severity
+				}
+				for _, it := range g.Items {
+					ids[i][it.Identity] = true
+				}
+			}
+		}
+	}
+	for i := range out {
+		out[i].Identities = len(ids[i])
+	}
+	return out
+}
+
+// GainIfFixed is how much the average score would rise if every check in
+// groups were fixed: each affected identity is re-scored without those
+// checks' points (a score cannot go above 100 or below 0), then averaged over
+// every scored identity. Unlike adding up each check's gain, this counts an
+// identity's floor at 0 once.
+func (rep *PostureReport) GainIfFixed(groups ...int) float64 {
+	if rep.ScoredCount == 0 || len(groups) == 0 {
+		return 0
+	}
+	fix := map[string]bool{}
+	for _, gi := range groups {
+		if gi >= 0 && gi < len(rep.Groups) {
+			fix[rep.Groups[gi].RuleID] = true
+		}
+	}
+	gain := 0.0
+	for _, id := range rep.Identities {
+		if id.Score == nil {
+			continue
+		}
+		lost, freed := 0.0, 0.0
+		for _, c := range id.Checks {
+			lost += c.Points
+			if fix[c.RuleID] {
+				freed += c.Points
+			}
+		}
+		if freed == 0 {
+			continue
+		}
+		// The engine scores 100 minus every point lost; checks outside this
+		// report (other severities) still count, so start from the score.
+		before := *id.Score
+		after := 100 - (lost - freed)
+		if before > 0 {
+			after = before + freed
+		}
+		if after > 100 {
+			after = 100
+		}
+		if after < 0 {
+			after = 0
+		}
+		gain += after - before
+	}
+	return gain / float64(rep.ScoredCount)
+}
+
+// GroupIndexes is every check's index, in report order.
+func (rep *PostureReport) GroupIndexes(keep func(CheckGroup) bool) []int {
+	var out []int
+	for i, g := range rep.Groups {
+		if keep == nil || keep(g) {
+			out = append(out, i)
+		}
+	}
+	return out
+}
+
+// Owners counts findings per owner; "" is unassigned.
+func (rep *PostureReport) Owners() (assigned map[string]int, unassigned int) {
+	assigned = map[string]int{}
+	for _, id := range rep.Identities {
+		for _, c := range id.Checks {
+			if strings.TrimSpace(c.Owner) == "" {
+				unassigned++
+			} else {
+				assigned[c.Owner]++
+			}
+		}
+	}
+	return assigned, unassigned
+}
+
+// ReachText says what an identity can get to, or "".
+func ReachText(r *Reach) string {
+	if r == nil || r.Resources == 0 {
+		return ""
+	}
+	parts := []string{fmt.Sprintf("can reach %s", count(r.Resources, "resource", "resources"))}
+	if r.Secrets {
+		parts = append(parts, "including secrets")
+	}
+	if r.CrossAccount > 0 {
+		parts = append(parts, fmt.Sprintf("%s into other accounts", count(r.CrossAccount, "path", "paths")))
+	}
+	return strings.Join(parts, ", ")
 }
