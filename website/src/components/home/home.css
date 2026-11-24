@@ -140,7 +140,6 @@
 
 /* ---------- threat stats ---------- */
 .why-stat { position: relative; overflow: hidden; }
-.why-stat::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 3px; background: linear-gradient(180deg, #ff6b5d, transparent); }
 
 /* ---------- product line cards ---------- */
 .pl-card { position: relative; display: flex; flex-direction: column; overflow: hidden; border-radius: 22px; color: #e8edf4; padding: 28px;
