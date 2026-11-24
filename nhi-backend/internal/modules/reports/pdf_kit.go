@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -13,20 +14,20 @@ import (
 	"github.com/go-pdf/fpdf"
 )
 
-// Fonts and the logo travel inside the binary. Inter and JetBrains Mono are
-// embedded (subset) in every PDF, so names in any Latin, Greek or Cyrillic
-// script print as they are, on any reader, and the report looks like the
-// console it came from.
+// Fonts and the logo travel inside the binary. The IBM Plex superfamily is
+// embedded (subset) in every PDF: Plex Sans for all text and figures (its
+// figures line up in columns) and Plex Mono for IDs. A family designed for
+// enterprise software, so the report reads as one voice on any reader.
 var (
-	//go:embed assets/Inter-Regular.ttf
+	//go:embed assets/IBMPlexSans-Regular.ttf
 	fontRegular []byte
-	//go:embed assets/Inter-Medium.ttf
+	//go:embed assets/IBMPlexSans-Medium.ttf
 	fontMedium []byte
-	//go:embed assets/Inter-SemiBold.ttf
+	//go:embed assets/IBMPlexSans-SemiBold.ttf
 	fontSemi []byte
-	//go:embed assets/Inter-Bold.ttf
+	//go:embed assets/IBMPlexSans-Bold.ttf
 	fontBold []byte
-	//go:embed assets/JetBrainsMono-Regular.ttf
+	//go:embed assets/IBMPlexMono-Regular.ttf
 	fontMono []byte
 	//go:embed assets/logo.png
 	logoPNG []byte
@@ -36,35 +37,42 @@ var (
 
 // Font faces.
 const (
-	fReg  = "inter"
-	fMed  = "inter-md"
-	fSemi = "inter-sb"
-	fBold = "inter-bd"
+	fReg  = "sans"
+	fMed  = "sans-md"
+	fSemi = "sans-sb"
+	fBold = "sans-bd"
 	fMono = "mono"
 )
 
 type rgb = [3]int
 
-// Palette: the console's tokens. Severity is never shown by colour alone:
-// every coloured mark carries its word.
+// Palette: shadcn/ui's neutral tokens for type and structure and its Blue
+// chart theme for data, so the report looks like the console's charts.
+// Darker blue always means worse. Severity is never shown by colour alone:
+// it is a labelled badge.
 var (
-	cBrand     = rgb{29, 99, 237}
-	cBrandDeep = rgb{11, 26, 51}
-	cBrandSoft = rgb{232, 239, 253}
-	cInk       = rgb{23, 23, 23}
-	cInk2      = rgb{64, 64, 72}
-	cInk3      = rgb{113, 113, 122}
-	cLine      = rgb{228, 228, 231}
-	cPanel     = rgb{248, 249, 251}
+	cBrand     = rgb{21, 93, 252}   // blue-600
+	cBrandDeep = rgb{23, 37, 84}    // blue-950
+	cBrandSoft = rgb{239, 246, 255} // blue-50
+	cInk       = rgb{10, 10, 10}    // foreground
+	cInk2      = rgb{64, 64, 64}    // neutral-700
+	cInk3      = rgb{115, 115, 115} // muted-foreground
+	cLine      = rgb{229, 229, 229} // border
+	cRule      = rgb{229, 229, 229}
+	cPanel     = rgb{250, 250, 250} // muted/50
+	cMuted     = rgb{245, 245, 245} // muted
 	cWhite     = rgb{255, 255, 255}
-	cSev       = map[string]rgb{"critical": {180, 35, 24}, "high": {181, 74, 7}, "medium": {143, 95, 2}, "low": {5, 115, 75}, "": {113, 113, 122}}
-	// Fills for bars and marks: brighter than the text colours and spaced in
-	// lightness, so the four severities stay apart in grey and for colour-blind
-	// readers; text always uses cSev on white.
-	cSevFill  = map[string]rgb{"critical": {196, 32, 32}, "high": {234, 106, 24}, "medium": {226, 172, 28}, "low": {46, 150, 100}, "": {161, 161, 170}}
-	cSevSoft  = map[string]rgb{"critical": {253, 236, 234}, "high": {254, 240, 228}, "medium": {253, 246, 225}, "low": {231, 246, 239}, "": {241, 241, 243}}
-	cBand     = map[string]rgb{"critical": {180, 35, 24}, "poor": {181, 74, 7}, "fair": {143, 95, 2}, "healthy": {5, 115, 75}}
-	cBandFill = map[string]rgb{"critical": {196, 32, 32}, "poor": {234, 106, 24}, "fair": {226, 172, 28}, "healthy": {46, 150, 100}}
+	cRed       = rgb{231, 0, 11} // destructive
+	cGreen     = rgb{0, 130, 54} // green-700, for improvements in text
+	// The Blue chart ramp, light to dark (Tailwind blue-200 to blue-900).
+	cBlue = []rgb{{190, 219, 255}, {142, 197, 255}, {81, 162, 255}, {43, 127, 255}, {21, 93, 252}, {20, 71, 230}, {25, 60, 184}, {28, 57, 142}}
+	// Severity text: destructive red for critical only.
+	cSev = map[string]rgb{"critical": cRed, "high": cInk, "medium": cInk2, "low": cInk2, "": cInk3}
+	// Severity in charts: darker is worse.
+	cSevFill  = map[string]rgb{"critical": {25, 60, 184}, "high": {21, 93, 252}, "medium": {81, 162, 255}, "low": {190, 219, 255}, "": {212, 212, 212}}
+	cSevSoft  = map[string]rgb{"critical": {254, 242, 242}, "high": cMuted, "medium": cMuted, "low": cMuted, "": cMuted}
+	cBand     = map[string]rgb{"critical": cRed, "poor": cInk, "fair": cInk2, "healthy": cGreen}
+	cBandFill = map[string]rgb{"critical": {25, 60, 184}, "poor": {21, 93, 252}, "fair": {81, 162, 255}, "healthy": {190, 219, 255}}
 )
 
 // kit is one PDF being laid out, with what every design shares: the fonts,
@@ -262,29 +270,47 @@ func clean(s string) string {
 
 // ---- marks ----------------------------------------------------------------
 
-// pill draws a rounded label and returns its width.
-func (k *kit) pill(x, y float64, text string, bg, fg rgb, size float64) float64 {
-	k.font(fSemi, size, fg)
-	w := k.width(text) + size*0.55
-	h := size * 0.52
+// pill is a shadcn outline badge in fg and returns its width.
+func (k *kit) pill(x, y float64, text string, _ rgb, fg rgb, size float64) float64 {
+	return k.badge(x, y, text, size, cWhite, fg, &cLine)
+}
+
+// badge draws a shadcn badge: a small rounded label, filled or outlined.
+func (k *kit) badge(x, y float64, text string, size float64, bg, fg rgb, border *rgb) float64 {
+	k.font(fMed, size, fg)
+	w := k.width(text) + size*0.62
+	h := size * 0.56
 	k.fill(bg)
-	k.pdf.RoundedRect(x, y, w, h, h/2, "1234", "F")
+	style := "F"
+	if border != nil {
+		k.draw(*border)
+		k.pdf.SetLineWidth(0.2)
+		style = "FD"
+	}
+	k.pdf.RoundedRect(x, y, w, h, h*0.3, "1234", style)
 	k.at(x, y, w, h, text, "C")
-	return w
+	return w + 1.5
 }
 
-// sevPill is a severity's word on its colour: readable without colour.
+// sevPill is severity as a badge whose weight follows the severity:
+// destructive for critical, solid for high, muted for medium, outline for
+// low. It reads the same in grey.
 func (k *kit) sevPill(x, y float64, sev string, size float64) float64 {
-	return k.pill(x, y, strings.ToUpper(SeverityLabel(sev)), cSevSoft[sev], cSev[sev], size)
+	label := SeverityLabel(sev)
+	switch sev {
+	case "critical":
+		return k.badge(x, y, label, size, cRed, cWhite, nil)
+	case "high":
+		return k.badge(x, y, label, size, rgb{23, 23, 23}, cWhite, nil)
+	case "medium":
+		return k.badge(x, y, label, size, cMuted, rgb{23, 23, 23}, nil)
+	}
+	return k.badge(x, y, label, size, cWhite, rgb{23, 23, 23}, &cLine)
 }
 
-// sevMark is a small square and the severity's word.
+// sevMark is the severity badge centred in a row h high.
 func (k *kit) sevMark(x, y, h float64, sev string, size float64) {
-	k.fill(cSevFill[sev])
-	s := size * 0.27
-	k.pdf.Rect(x, y+(h-s)/2, s, s, "F")
-	k.font(fSemi, size, cSev[sev])
-	k.at(x+s+1.4, y, 30, h, SeverityLabel(sev), "L")
+	k.sevPill(x, y+(h-size*0.56)/2, sev, size*0.88)
 }
 
 // part is one segment of a bar.
@@ -500,13 +526,12 @@ type table struct {
 	pad     float64 // vertical padding per row
 	maxLine int     // lines per cell
 	zebra   bool
-	headBg  rgb
 	headFg  rgb
 	rule    rgb
 }
 
 func (k *kit) newTable(cols []tcol) *table {
-	return &table{k: k, cols: cols, x: k.mx, size: 8, lh: 3.9, pad: 1.6, maxLine: 3, headBg: cPanel, headFg: cInk3, rule: cLine}
+	return &table{k: k, cols: cols, x: k.mx, size: 8, lh: 3.9, pad: 1.7, maxLine: 3, headFg: cInk3, rule: cLine}
 }
 
 func (t *table) header() {
@@ -514,18 +539,20 @@ func (t *table) header() {
 	h := t.lh + 2*t.pad
 	k.ensure(h + t.lh + 2*t.pad)
 	y := k.pdf.GetY()
-	k.fill(t.headBg)
 	total := 0.0
 	for _, c := range t.cols {
 		total += c.w
 	}
-	k.pdf.Rect(t.x, y, total, h, "F")
-	k.font(fSemi, t.size-0.8, t.headFg)
+	// shadcn TableHead: medium weight, muted, over the border.
+	k.font(fMed, t.size-0.6, t.headFg)
 	x := t.x
 	for _, c := range t.cols {
-		k.at(x+1.6, y+t.pad, c.w-3.2, t.lh, strings.ToUpper(c.head), c.align)
+		k.at(x+1.6, y+t.pad, c.w-3.2, t.lh, c.head, c.align)
 		x += c.w
 	}
+	k.draw(cLine)
+	k.pdf.SetLineWidth(0.25)
+	k.pdf.Line(t.x, y+h, t.x+total, y+h)
 	k.pdf.SetXY(t.x, y+h)
 }
 
@@ -562,10 +589,7 @@ func (t *table) row(cells []tcell, shade bool) float64 {
 	for _, c := range t.cols {
 		total += c.w
 	}
-	if shade {
-		k.fill(cPanel)
-		k.pdf.Rect(t.x, y, total, h, "F")
-	}
+	_ = shade // rows are divided by hairlines, not stripes
 	x := t.x
 	for i, c := range cells {
 		if i >= len(t.cols) {
@@ -683,3 +707,17 @@ var methodology = []string{
 
 // fpdfImage is how the embedded logos are placed.
 func fpdfImage() fpdf.ImageOptions { return fpdf.ImageOptions{ImageType: "PNG"} }
+
+func ptr(c rgb) *rgb { return &c }
+
+func sortItemsByScore(rep *PostureReport, items []GroupItem) {
+	sort.SliceStable(items, func(i, j int) bool {
+		return scoreOr(rep.Identities[items[i].Identity].Score) < scoreOr(rep.Identities[items[j].Identity].Score)
+	})
+}
+
+func sortedByScore(list []ReportIdentity) []ReportIdentity {
+	out := append([]ReportIdentity(nil), list...)
+	sort.SliceStable(out, func(i, j int) bool { return scoreOr(out[i].Score) < scoreOr(out[j].Score) })
+	return out
+}

@@ -3,6 +3,7 @@ package reports
 import (
 	"fmt"
 	"io"
+	"math"
 	"strings"
 )
 
@@ -62,254 +63,269 @@ func (b *brief) footer() {
 	b.at(b.W-b.mx-40, y, 40, 4, fmt.Sprintf("Page %d of {nb}", b.pdf.PageNo()), "R")
 }
 
-// sectionTitle starts a section on a new page with an eyebrow and a title.
+// sectionTitle starts a section on a new page.
 func (b *brief) sectionTitle(key, eyebrow, title string) {
 	b.pdf.AddPage()
 	b.mark(key)
 	b.pdf.Bookmark(title, 0, -1)
-	b.font(fSemi, 8, cBrand)
-	b.at(b.mx, b.pdf.GetY(), b.body, 4, strings.ToUpper(eyebrow), "L")
-	b.font(fBold, 19, cInk)
-	b.at(b.mx, b.pdf.GetY()+4.5, b.body, 9, title, "L")
-	b.pdf.SetY(b.pdf.GetY() + 13)
+	b.sectionHead(eyebrow, title)
 }
 
-func (b *brief) sub(title, note string) {
-	b.ensure(32)
-	b.font(fSemi, 11, cInk)
-	b.at(b.mx, b.pdf.GetY(), b.body, 6, title, "L")
-	b.pdf.SetY(b.pdf.GetY() + 6.5)
-	if note != "" {
-		b.font(fReg, 8, cInk3)
-		b.para(b.mx, b.body, 4, note)
-	}
-	b.pdf.SetY(b.pdf.GetY() + 1.5)
-}
+func (b *brief) sub(title, note string) { b.subHead(title, note) }
 
 // ---- cover ---------------------------------------------------------------
 
+// cover is a document cover, not a slide: white, the two brand lines each on
+// one line in serif, the report's name, and the document control below a
+// rule. A thin navy band at the foot carries the classification.
 func (b *brief) cover() {
 	pdf, rep := b.pdf, b.rep
 	pdf.AddPage()
 	pdf.Bookmark("Cover", 0, -1)
-	// Deep band with the brand lines.
-	bandH := 168.0
-	pdf.LinearGradient(0, 0, b.W, bandH, cBrandDeep[0], cBrandDeep[1], cBrandDeep[2], 16, 48, 112, 0, 0, 1, 1)
-	pdf.ImageOptions("logo-inv", b.mx, 16, 46, 0, false, fpdfImage(), 0, "")
-	b.font(fSemi, 7.5, rgb{191, 208, 245})
-	b.at(b.W-b.mx-80, 19, 80, 4, "CONFIDENTIAL · INTERNAL USE ONLY", "R")
+	pdf.ImageOptions("logo", b.mx, 18, 42, 0, false, fpdfImage(), 0, "")
+	b.font(fSemi, 7, cSev["critical"])
+	b.at(b.W-b.mx-80, 21, 80, 4, "CONFIDENTIAL  ·  INTERNAL USE ONLY", "R")
 
-	y := 62.0
+	y := 78.0
 	b.fill(cBrand)
-	pdf.Rect(b.mx, y, 14, 1.2, "F")
-	b.font(fBold, 27, cWhite)
-	pdf.SetXY(b.mx, y+6)
-	for _, line := range b.wrap(BrandTitle, b.body-10, 0) {
-		pdf.SetX(b.mx)
-		pdf.CellFormat(b.body, 11.5, line, "", 1, "L", false, 0, "")
-	}
-	b.font(fSemi, 14, rgb{176, 200, 250})
-	for _, line := range b.wrap(BrandTagline, b.body-30, 0) {
-		pdf.SetX(b.mx)
-		pdf.CellFormat(b.body, 7.5, line, "", 1, "L", false, 0, "")
-	}
-	pdf.SetY(pdf.GetY() + 10)
-	b.font(fSemi, 15, cWhite)
-	b.at(b.mx, pdf.GetY(), b.body, 7, ReportTitle, "L")
-	b.font(fReg, 10, rgb{191, 208, 245})
-	b.at(b.mx, pdf.GetY()+8, b.body, 5, rep.ScopeLabel()+"  ·  "+rep.GeneratedAt.UTC().Format("2 January 2006"), "L")
+	pdf.Rect(b.mx, y, 12, 0.9, "F")
+	size := b.fitSize(fSemi, 26, b.body, BrandTitle)
+	b.font(fSemi, size, cInk)
+	b.at(b.mx, y+6, b.body, size*0.48, BrandTitle, "L")
+	y += 6 + size*0.48 + 3
+	tsize := b.fitSize(fReg, 13, b.body, BrandTagline)
+	b.font(fReg, tsize, cInk2)
+	b.at(b.mx, y, b.body, tsize*0.5, BrandTagline, "L")
+	y += tsize*0.5 + 22
 
-	// Prepared for and document control.
-	y = bandH + 16
-	b.font(fSemi, 8, cInk3)
+	b.font(fSemi, 7.4, cInk3)
+	b.at(b.mx, y, b.body, 4, "REPORT", "L")
+	b.font(fSemi, 17, cInk)
+	b.at(b.mx, y+5, b.body, 8, ReportTitle, "L")
+	b.font(fReg, 9.5, cInk2)
+	b.at(b.mx, y+14, b.body, 5, rep.ScopeLabel()+"  ·  "+rep.GeneratedAt.UTC().Format("2 January 2006"), "L")
+
+	y = 178
+	b.font(fSemi, 7.4, cInk3)
 	b.at(b.mx, y, b.body, 4, "PREPARED FOR", "L")
-	b.font(fBold, 18, cInk)
+	b.font(fSemi, 20, cInk)
 	b.at(b.mx, y+5, b.body, 9, orDash(rep.PreparedFor), "L")
-	y += 22
-	b.draw(cLine)
-	pdf.SetLineWidth(0.2)
+	y += 19
+	b.draw(cRule)
+	pdf.SetLineWidth(0.35)
 	pdf.Line(b.mx, y, b.W-b.mx, y)
-	y += 5
+	y += 4
 	var rows [][2]string
 	for _, r := range append(controlLines(rep), scopeLines(rep)...) {
-		if r[0] != "Prepared for" {
+		if r[0] != "Prepared for" && r[0] != "Classification" {
 			rows = append(rows, r)
 		}
 	}
 	colW := b.body / 2
 	for i, r := range rows {
 		x := b.mx + float64(i%2)*colW
-		ry := y + float64(i/2)*11
-		b.font(fSemi, 7, cInk3)
+		ry := y + float64(i/2)*10.5
+		b.font(fSemi, 6.6, cInk3)
 		b.at(x, ry, colW-6, 3.5, strings.ToUpper(r[0]), "L")
-		face := fMed
+		face := fReg
 		if r[0] == "Report ID" {
 			face = fMono
 		}
-		b.font(face, 9.5, cInk)
-		b.at(x, ry+4, colW-6, 5, r[1], "L")
+		b.font(face, 9.2, cInk)
+		b.at(x, ry+3.8, colW-6, 5, r[1], "L")
 	}
-	b.font(fReg, 7, cInk3)
-	note := "This report contains security-sensitive information about your cloud identities. Share it only with people who need it."
+	b.fill(cBrandDeep)
+	pdf.Rect(0, b.H-14, b.W, 14, "F")
+	b.font(fReg, 7, rgb{196, 208, 226})
+	note := "Contains security-sensitive information about your cloud identities. Share it only with people who need it."
 	if rep.Sample {
-		note = "Sample report built from illustrative data, not from a real environment. " + note
+		note = "Sample report from illustrative data. " + note
 	}
-	b.font(fReg, 7, cInk3)
-	for i, line := range b.wrap(note, b.body, 0) {
-		b.at(b.mx, b.H-22+float64(i)*3.6, b.body, 3.6, line, "L")
-	}
+	b.at(b.mx, b.H-9, b.body, 4, note, "L")
 }
 
 // ---- executive summary ----------------------------------------------------
 
+// bottomLine is the answer in one or two sentences, for the top of the page.
+func bottomLine(rep *PostureReport, overdue int) string {
+	if rep.AverageScore == nil {
+		return "No identity in scope has been scored yet."
+	}
+	s := fmt.Sprintf("The average security score is %s out of 100, %s", score1(*rep.AverageScore), strings.ToLower(bandLabel(bandFor(*rep.AverageScore))))
+	if c := rep.Change30d; c != nil {
+		switch {
+		case *c > 0.05:
+			s += fmt.Sprintf(", up %.1f points in 30 days", *c)
+		case *c < -0.05:
+			s += fmt.Sprintf(", down %.1f points in 30 days", -*c)
+		default:
+			s += ", unchanged in 30 days"
+		}
+	}
+	s += "."
+	if rep.CheckCount == 0 {
+		return s + " No check of the chosen severity fails."
+	}
+	s += fmt.Sprintf(" %s of %s open findings are past their remediation target", num(overdue), num(rep.CheckCount))
+	if n := rep.BySeverity["critical"]; n > 0 {
+		s += "; " + num(n) + map[bool]string{true: " is critical", false: " are critical"}[n == 1]
+	}
+	return s + "."
+}
+
 func (b *brief) summary() {
 	pdf, rep := b.pdf, b.rep
-	b.sectionTitle("summary", "Section 1", "Executive summary")
+	b.sectionTitle("summary", "Section 01", "Executive summary")
 	if pt := periodText(rep); pt != "" {
-		b.font(fReg, 8.2, cInk3)
+		b.font(fReg, 8, cInk3)
 		b.at(b.mx, pdf.GetY()-3, b.body, 4, "Reporting period: "+pt+".", "L")
-		pdf.SetY(pdf.GetY() + 3)
+		pdf.SetY(pdf.GetY() + 5)
 	}
-
-	// Score dial and trend, side by side.
-	y := pdf.GetY()
-	cardH := 52.0
-	leftW := 62.0
-	b.fill(cPanel)
-	pdf.RoundedRect(b.mx, y, leftW, cardH, 2.5, "1234", "F")
-	pdf.RoundedRect(b.mx+leftW+5, y, b.body-leftW-5, cardH, 2.5, "1234", "F")
-	b.font(fSemi, 7.5, cInk3)
-	b.at(b.mx+5, y+4, leftW-10, 4, "AVERAGE SECURITY SCORE", "L")
-	cx, cy := b.mx+leftW/2, y+31
-	b.gauge(cx, cy, 15, rep.AverageScore, cLine)
-	b.font(fBold, 22, cInk)
-	b.at(cx-20, cy-6.5, 40, 10, fmtScore(rep.AverageScore), "C")
-	b.font(fReg, 7, cInk3)
-	b.at(cx-20, cy+3, 40, 4, "out of 100", "C")
-	if rep.AverageScore != nil {
-		band := bandFor(*rep.AverageScore)
-		label := strings.ToUpper(bandLabel(band))
-		b.font(fSemi, 7.5, cBand[band])
-		wl := b.width(label) + 5
-		b.fill(cWhite)
-		pdf.RoundedRect(cx-wl/2, y+cardH-11, wl, 5, 2.5, "1234", "F")
-		b.at(cx-wl/2, y+cardH-11, wl, 5, label, "C")
-	}
-	tx := b.mx + leftW + 10
-	tw := b.body - leftW - 15
-	b.font(fSemi, 7.5, cInk3)
-	b.at(tx, y+4, tw, 4, "AVERAGE SCORE, DAY BY DAY", "L")
-	b.font(fSemi, 9, cInk)
-	trendLabel := "30-day change: not tracked yet"
-	if rep.Change30d != nil {
-		trendLabel = changeText(rep.Change30d) + " points in 30 days"
-	}
-	b.at(tx, y+4, tw, 4, trendLabel, "R")
-	b.trendChart(tx, y+12, tw, cardH-22, rep.Trend, cBrand, cInk3, cLine)
-	pdf.SetY(y + cardH + 6)
-
-	// Figures: where things stand, then what changed in the period.
 	overdue := 0
 	for _, n := range rep.Overdue() {
 		overdue += n
 	}
+	b.statement(b.mx, b.body, bottomLine(rep, overdue))
+
+	// Score (radial) and trend (area), side by side as cards.
+	y := pdf.GetY()
+	ch := 62.0
+	lw := 62.0
+	b.card(b.mx, y, lw, ch)
+	b.cardHead(b.mx, y, lw, "Security score", "Average of every scored identity")
+	b.radial(b.mx+lw/2, y+32, 13, rep.AverageScore, "out of 100")
+	var up *bool
+	trend := "Change: not tracked yet"
+	if c := rep.Change30d; c != nil {
+		u := *c >= 0
+		up = &u
+		trend = fmt.Sprintf("%s %.1f points in 30 days", map[bool]string{true: "Up", false: "Down"}[u], math.Abs(*c))
+	}
+	band := ""
+	if rep.AverageScore != nil {
+		band = bandLabel(bandFor(*rep.AverageScore)) + " band (" + BandRange[bandFor(*rep.AverageScore)] + "). Healthy is 80+."
+	}
+	b.cardFoot(b.mx, y+ch, lw, trend, up, band)
+	tx, tw := b.mx+lw+5, b.body-lw-5
+	b.card(tx, y, tw, ch)
+	b.cardHead(tx, y, tw, "Score over time", "Average security score, day by day")
+	b.areaChart(tx+5, y+18, tw-10, 27, rep.Trend)
+	if n := len(rep.Trend); n > 1 {
+		lo, hi := rep.Trend[0].Score, rep.Trend[0].Score
+		for _, p := range rep.Trend {
+			lo, hi = math.Min(lo, p.Score), math.Max(hi, p.Score)
+		}
+		b.cardFoot(tx, y+ch, tw, "", nil, fmt.Sprintf("Range %s to %s over %d days", score1(lo), score1(hi), int(rep.Trend[n-1].Day.Sub(rep.Trend[0].Day).Hours()/24)))
+	}
+	pdf.SetY(y + ch + 5)
+
+	// Key figures as shadcn section cards: label, figure, change badge and
+	// a footer line.
 	_, unassigned := rep.Owners()
-	figs := []struct{ label, value, sub string }{
-		{"Identities with failing checks", num(rep.FailingCount), pct(rep.FailingCount, rep.ScoredCount) + " of " + num(rep.ScoredCount) + " scored"},
-		{"Critical + high findings open", num(rep.BySeverity["critical"] + rep.BySeverity["high"]), "of " + num(rep.CheckCount) + " open findings"},
-		{"Overdue against target", num(overdue), pct(overdue, rep.CheckCount) + " of open findings"},
+	type fig struct {
+		label, value, badge, foot string
+		good                      *bool
+	}
+	yes, no := true, false
+	figs := []fig{
+		{"Identities failing", num(rep.FailingCount), pct(rep.FailingCount, rep.ScoredCount), "of " + num(rep.ScoredCount) + " scored", nil},
+		{"Critical and high open", num(rep.BySeverity["critical"] + rep.BySeverity["high"]), pct(rep.BySeverity["critical"]+rep.BySeverity["high"], rep.CheckCount), "of " + num(rep.CheckCount) + " open findings", nil},
+		{"Past target", num(overdue), pct(overdue, rep.CheckCount), "open findings past their target", nil},
 	}
 	if h := rep.History; h != nil {
 		med, ok := h.Current.OverallMedian()
 		pmed, pok := h.Previous.OverallMedian()
-		medSub := "nothing fixed in the period"
+		delta := func(now, before int, lowerIsBetter bool) (string, *bool) {
+			if !hasPrevious(rep) || before == 0 {
+				return "", nil
+			}
+			d := float64(now-before) / float64(before) * 100
+			better := (d < 0) == lowerIsBetter
+			if d == 0 {
+				return "0%", nil
+			}
+			return fmt.Sprintf("%+.0f%%", d), map[bool]*bool{true: &yes, false: &no}[better]
+		}
+		nb, ng := delta(h.Current.New, h.Previous.New, true)
+		fb, fg := delta(h.Current.Resolved, h.Previous.Resolved, false)
+		medFoot, mb := "nothing fixed in the period", ""
+		var mg *bool
 		if ok {
-			medSub = "first period: no comparison yet"
+			medFoot = "first period"
 			if hasPrevious(rep) && pok {
-				medSub = "was " + medianText(pmed, true)
+				medFoot = "was " + medianText(pmed, true)
+				d := (med - pmed) / pmed * 100
+				mb = fmt.Sprintf("%+.0f%%", d)
+				mg = map[bool]*bool{true: &yes, false: &no}[d < 0]
 			}
 		}
-		figs = append(figs,
-			struct{ label, value, sub string }{"New findings", num(h.Current.New), wasText(rep, h.Previous.New)},
-			struct{ label, value, sub string }{"Findings fixed", num(h.Current.Resolved), wasText(rep, h.Previous.Resolved)},
-			struct{ label, value, sub string }{"Median time to fix", medianText(med, ok), medSub})
+		figs = append(figs, fig{"New in the period", num(h.Current.New), nb, wasText(rep, h.Previous.New), ng},
+			fig{"Fixed in the period", num(h.Current.Resolved), fb, wasText(rep, h.Previous.Resolved), fg},
+			fig{"Median time to fix", medianText(med, ok), mb, medFoot, mg})
 	} else {
-		figs = append(figs,
-			struct{ label, value, sub string }{"Unassigned findings", num(unassigned), pct(unassigned, rep.CheckCount) + " have no owner"},
-			struct{ label, value, sub string }{"Identities scored", num(rep.ScoredCount), "in " + count(rep.AccountsCovered, "account", "accounts")},
-			struct{ label, value, sub string }{"Failing for 30+ days", num(rep.OldChecks), "open findings"})
+		figs = append(figs, fig{"Without an owner", num(unassigned), pct(unassigned, rep.CheckCount), "open findings", nil},
+			fig{"Identities scored", num(rep.ScoredCount), "", "in " + count(rep.AccountsCovered, "account", "accounts"), nil},
+			fig{"Failing 30+ days", num(rep.OldChecks), "", "open findings", nil})
 	}
 	y = pdf.GetY()
-	fw := (b.body - 2*4) / 3
-	for i, f := range figs {
-		x := b.mx + float64(i%3)*(fw+4)
-		fy := y + float64(i/3)*23
-		b.draw(cLine)
-		pdf.SetLineWidth(0.25)
-		pdf.RoundedRect(x, fy, fw, 20, 2, "1234", "D")
-		b.font(fSemi, 6.8, cInk3)
-		b.at(x+3.5, fy+3, fw-7, 3.5, strings.ToUpper(f.label), "L")
-		b.font(fBold, 15, cInk)
-		b.at(x+3.5, fy+7.2, fw-7, 7, f.value, "L")
-		b.font(fReg, 7, cInk3)
-		b.at(x+3.5, fy+14.6, fw-7, 3.5, f.sub, "L")
+	gap := 4.0
+	fw := (b.body - 2*gap) / 3
+	for i, fg := range figs {
+		x := b.mx + float64(i%3)*(fw+gap)
+		fy := y + float64(i/3)*25
+		b.card(x, fy, fw, 22)
+		b.font(fReg, 7.6, cInk3)
+		b.at(x+4.5, fy+3.8, fw-26, 4, fg.label, "L")
+		if fg.badge != "" {
+			col := cInk
+			if fg.good != nil {
+				col = map[bool]rgb{true: cGreen, false: cRed}[*fg.good]
+				arrow := map[bool]string{true: "↗ ", false: "↘ "}[strings.HasPrefix(fg.badge, "+")]
+				fg.badge = arrow + fg.badge
+			}
+			b.font(fMed, 6.6, col)
+			bw := b.width(fg.badge) + 4
+			b.badge(x+fw-4.5-bw, fy+3.6, fg.badge, 6.6, cWhite, col, &cLine)
+		}
+		b.font(fSemi, 17, cInk)
+		b.at(x+4.5, fy+8.4, fw-9, 8, fg.value, "L")
+		b.font(fReg, 7.2, cInk3)
+		b.at(x+4.5, fy+17, fw-9, 3.6, fg.foot, "L")
 	}
-	pdf.SetY(y + 23*float64((len(figs)+2)/3) + 4)
+	pdf.SetY(y + 25*float64((len(figs)+2)/3) + 1)
 
 	if rep.CheckCount == 0 {
-		b.sub("Result", "")
-		b.font(fReg, 10, cInk2)
-		b.para(b.mx, b.body, 5, "No identity in scope fails a check of the chosen severity. Nothing needs fixing.")
 		return
 	}
-
 	b.sub("Key messages", "")
 	msgs := keyPoints(rep)
 	if cs := changeSentence(rep); cs != "" {
 		msgs = append([]string{cs}, msgs...)
 	}
-	if overdue > 0 {
-		msgs = append(msgs[:1], append([]string{fmt.Sprintf("%s (%s) are past their remediation target; see Remediation performance.", count(overdue, "open finding", "open findings"), pct(overdue, rep.CheckCount))}, msgs[1:]...)...)
+	if len(msgs) > 3 {
+		msgs = msgs[:3]
 	}
-	if len(msgs) > 5 {
-		msgs = msgs[:5]
-	}
-	for _, p := range msgs {
+	for i, m := range msgs {
 		b.ensure(10)
 		y := pdf.GetY()
-		b.fill(cBrand)
-		pdf.Rect(b.mx, y+1, 0.9, 3.4, "F")
-		b.font(fReg, 9.2, cInk2)
-		b.para(b.mx+4, b.body-4, 4.8, p)
-		pdf.SetY(pdf.GetY() + 1.6)
+		b.font(fSemi, 10, cBrand)
+		b.at(b.mx, y-0.2, 6, 5, fmt.Sprint(i+1), "L")
+		b.font(fReg, 9, cInk2)
+		b.para(b.mx+7, b.body-7, 4.7, m)
+		pdf.SetY(pdf.GetY() + 1.8)
 	}
 	pdf.SetY(pdf.GetY() + 3)
 
-	b.sub("Priority actions", "The fixes that remove the most risk, most severe first. Each one fixes the check on every identity it fails on.")
+	b.sub("Priority actions", "The fixes that remove the most risk. Each one clears the check on every identity it fails on.")
+	t := b.newTable([]tcol{{"", 8, "L"}, {"Action", b.body - 82, "L"}, {"Severity", 24, "L"}, {"Identities", 22, "R"}, {"Score gain", 28, "R"}})
+	t.maxLine = 2
+	t.header()
 	for i, g := range rep.Groups {
-		if i == 4 {
+		if i == 3 {
 			break
 		}
-		b.ensure(17)
-		y := pdf.GetY()
-		b.font(fBold, 15, cBrand)
-		b.at(b.mx, y, 9, 8, fmt.Sprint(i+1), "L")
-		pw := b.sevPill(b.mx+10, y+0.8, g.Severity, 6.8)
-		b.font(fSemi, 9.5, cInk)
-		b.at(b.mx+12+pw, y, b.body-50-pw, 5.5, g.Title, "L")
-		pdf.Link(b.mx, y, b.body, 14, b.link(fmt.Sprintf("g%d", i)))
-		b.font(fReg, 8, cInk3)
-		b.at(b.W-b.mx-40, y, 40, 5.5, count(len(g.Items), "identity", "identities")+fmt.Sprintf("  ·  score +%.1f", rep.Uplift(g)), "R")
-		b.font(fReg, 8.2, cInk2)
-		fix := g.Fix
-		if fix == "" {
-			fix = "See the finding for how to fix it."
-		}
-		lines := b.wrap(fix, b.body-12, 2)
-		for li, line := range lines {
-			b.at(b.mx+10, y+6+float64(li)*4, b.body-12, 4, line, "L")
-		}
-		pdf.SetY(y + 7 + float64(len(lines))*4 + 2.5)
+		t.row([]tcell{{text: fmt.Sprint(i + 1), face: fSemi, color: &cBrand}, {text: g.Title + "\n" + actionText(g), face: fMed, link: b.link(fmt.Sprintf("g%d", i))},
+			{sev: g.Severity}, {text: num(len(g.Items)), face: fSemi}, {text: fmt.Sprintf("+%.1f", rep.Uplift(g)), face: fSemi}}, false)
 	}
 }
 
@@ -317,46 +333,26 @@ func (b *brief) summary() {
 
 func (b *brief) remediation() {
 	pdf, rep := b.pdf, b.rep
-	b.sectionTitle("remediation", "Section 2", "Remediation performance")
+	b.sectionTitle("remediation", "Section 02", "Remediation performance")
 	b.font(fReg, 9, cInk2)
-	intro := "How fast findings are fixed against the remediation targets, and whether the backlog is growing. " + slaLine(rep)
-	b.para(b.mx, b.body, 4.6, intro)
+	b.para(b.mx, b.body, 4.6, "How fast findings are fixed against the remediation targets, and whether the backlog is growing. "+slaLine(rep))
 	pdf.SetY(pdf.GetY() + 4)
 	if cs := changeSentence(rep); cs != "" {
-		b.fill(cBrandSoft)
-		b.font(fMed, 9.4, cBrandDeep)
-		lines := b.wrap(cs, b.body-12, 0)
-		h := float64(len(lines))*4.8 + 7
-		y := pdf.GetY()
-		pdf.RoundedRect(b.mx, y, b.body, h, 2, "1234", "F")
-		b.font(fMed, 9.4, cBrandDeep)
-		for i, l := range lines {
-			b.at(b.mx+6, y+3.5+float64(i)*4.8, b.body-12, 4.8, l, "L")
-		}
-		pdf.SetY(y + h + 6)
+		b.statement(b.mx, b.body, cs)
 	}
 	b.sub("By severity", "Open and overdue now; new, fixed, median days to fix and the share fixed within target in this period, with the previous period in brackets.")
 	b.remediationTable(b.mx, b.body)
-	pdf.SetY(pdf.GetY() + 8)
-
-	half := (b.body - 10) / 2
-	b.ensure(60)
-	y := pdf.GetY()
-	b.font(fSemi, 11, cInk)
-	b.at(b.mx, y, half, 6, "How long open findings have been open", "L")
-	b.font(fReg, 8, cInk3)
-	b.at(b.mx, y+6.5, half, 4, "Each bar splits one age range by severity.", "L")
-	end := b.agingChart(b.mx, y+13, half)
-	b.font(fSemi, 11, cInk)
-	b.at(b.mx+half+10, y, half, 6, "Who owns the open findings", "L")
-	b.font(fReg, 8, cInk3)
-	b.at(b.mx+half+10, y+6.5, half, 4, "Findings are assigned in the console (Posture, Findings).", "L")
-	pdf.SetY(y + 13)
-	b.ownersTable(b.mx+half+10, half, 7)
-	if e := pdf.GetY(); e > end {
-		end = e
+	pdf.SetY(pdf.GetY() + 7)
+	if rep.History != nil {
+		b.daysToFix(b.mx, b.body)
 	}
-	pdf.SetY(end + 8)
+
+	half := (b.body - 5) / 2
+	b.ensure(76)
+	y := pdf.GetY()
+	end := b.agingChart(b.mx, y, half)
+	b.ownersCard(b.mx+half+5, y, half, 74)
+	pdf.SetY(end + 7)
 	if len(rep.Exceptions) > 0 {
 		b.sub("Accepted risks", "Findings the organisation decided to keep, with the reason and who decided. They are excluded from the score.")
 		b.exceptionsTable(b.mx, b.body, 12)
@@ -367,54 +363,84 @@ func (b *brief) remediation() {
 
 func (b *brief) overview() {
 	pdf, rep := b.pdf, b.rep
-	b.sectionTitle("overview", "Section 3", "Risk overview")
-	b.sub("OWASP Non-Human Identities Top 10", "Identities failing a check that is evidence of each risk in the OWASP NHI Top 10 (2025). The bar on each tile is the most severe failing check.")
-	pdf.SetY(b.nhiGrid(b.mx, pdf.GetY(), b.body) + 6)
+	b.sectionTitle("overview", "Section 03", "Risk overview")
+	pdf.SetY(b.nhiIndex(b.mx, pdf.GetY(), b.body) + 5)
 
-	half := (b.body - 8) / 2
+	half := (b.body - 5) / 2
+	b.ensure(64)
 	y := pdf.GetY()
-	b.distribution(b.mx, y, half, "Findings by severity", func() []segment {
-		var s []segment
-		for _, sev := range shownSeverities(rep.Options) {
-			s = append(s, segment{SeverityLabel(sev), rep.BySeverity[sev], cSevFill[sev]})
-		}
-		return s
-	}())
-	b.distribution(b.mx+half+8, y, half, "Identities by score band", func() []segment {
-		var s []segment
-		for _, bc := range rep.Bands {
-			s = append(s, segment{bandLabel(bc.Band) + " (" + BandRange[bc.Band] + ")", bc.Count, cBandFill[bc.Band]})
-		}
-		return s
-	}())
-	pdf.SetY(y + 44)
-
-	b.sub("By security area", "Where the findings sit. Each bar splits an area's findings by severity.")
-	t := b.newTable([]tcol{{"Security area", 52, "L"}, {"Checks", 18, "R"}, {"Identities", 22, "R"}, {"Findings", 20, "R"}, {"By severity", b.body - 112, "L"}})
-	t.header()
-	for i, a := range rep.Areas() {
-		y := pdf.GetY()
-		t.row([]tcell{{text: a.Area, face: fMed}, {text: num(a.Checks)}, {text: num(a.Identities)}, {text: num(a.Findings), face: fSemi}, {text: ""}}, i%2 == 1)
-		var segs []segment
-		for _, s := range Severities {
-			segs = append(segs, segment{"", a.BySev[s], cSevFill[s]})
-		}
-		b.bar(b.mx+113.6, y+2.6, b.body-115.2, 2.6, segs)
+	ch := 60.0
+	var sev, bands []segment
+	for _, s := range shownSeverities(rep.Options) {
+		sev = append(sev, segment{SeverityLabel(s), rep.BySeverity[s], cSevFill[s]})
 	}
-	pdf.SetY(pdf.GetY() + 7)
+	for _, bc := range rep.Bands {
+		bands = append(bands, segment{bandLabel(bc.Band) + " " + strings.ReplaceAll(BandRange[bc.Band], " to ", "–"), bc.Count, cBandFill[bc.Band]})
+	}
+	for i, d := range []struct {
+		title, desc, caption string
+		parts                []segment
+		total                int
+	}{
+		{"Findings by severity", "Open findings in scope", "findings", sev, rep.CheckCount},
+		{"Identities by score band", "Scored identities", "identities", bands, rep.ScoredCount},
+	} {
+		x := b.mx + float64(i)*(half+5)
+		b.card(x, y, half, ch)
+		b.cardHead(x, y, half, d.title, d.desc)
+		b.donut(x+22, y+37, 15, 10, d.parts, num(d.total), d.caption)
+		ly := y + 22
+		for _, p := range d.parts {
+			b.fill(p.c)
+			pdf.RoundedRect(x+43, ly+1.1, 2.3, 2.3, 0.5, "1234", "F")
+			b.font(fReg, 7.8, cInk2)
+			b.at(x+47, ly, half-70, 4.6, p.label, "L")
+			b.font(fMed, 7.8, cInk)
+			b.at(x+half-26, ly, 12, 4.6, num(p.n), "R")
+			b.font(fReg, 7.8, cInk3)
+			b.at(x+half-14, ly, 10, 4.6, pct(p.n, d.total), "R")
+			ly += 6
+		}
+	}
+	pdf.SetY(y + ch + 7)
+
+	b.sub("By security area", "Where the findings sit, with their severities.")
+	t := b.newTable([]tcol{{"Security area", 40, "L"}, {"Checks", 15, "R"}, {"Identities", 19, "R"}, {"Findings", b.body - 146, "R"}, {"Critical", 18, "R"}, {"High", 18, "R"}, {"Medium", 18, "R"}, {"Low", 18, "R"}})
+	t.header()
+	areas := rep.Areas()
+	maxF := 1
+	for _, a := range areas {
+		maxF = max(maxF, a.Findings)
+	}
+	for _, a := range areas {
+		y := pdf.GetY()
+		cells := []tcell{{text: a.Area, face: fMed}, {text: num(a.Checks)}, {text: num(a.Identities)}, {text: num(a.Findings), face: fSemi}}
+		for _, s := range Severities {
+			c := cInk3
+			if a.BySev[s] > 0 {
+				c = cSev[s]
+			}
+			cells = append(cells, tcell{text: num(a.BySev[s]), color: &c})
+		}
+		t.row(cells, false)
+		bw := (b.body - 146 - 16) * float64(a.Findings) / float64(maxF)
+		b.fill(cBlue[4])
+		pdf.RoundedRect(b.mx+76, y+2.4, math.Max(bw, 1.5), 2.6, 0.9, "1234", "F")
+	}
+	pdf.SetY(pdf.GetY() + 8)
 
 	if len(rep.Classes) > 0 {
 		b.sub("Human and non-human identities", "")
-		t := b.newTable([]tcol{{"Identities", 60, "L"}, {"Scored", 28, "R"}, {"Average score", 34, "R"}, {"With failing checks", b.body - 122, "R"}})
+		t := b.newTable([]tcol{{"Identities", 64, "L"}, {"Scored", 28, "R"}, {"Average score", 34, "R"}, {"With failing checks", b.body - 126, "R"}})
 		t.header()
-		for i, c := range rep.Classes {
+		for _, c := range rep.Classes {
 			name := "Non-human (workloads, roles, keys)"
 			if c.Human {
 				name = "Human (people with cloud access)"
 			}
-			t.row([]tcell{{text: name, face: fMed}, {text: num(c.Scored)}, {text: fmtScore(c.Average), face: fSemi}, {text: withPct(c.Failing, c.Scored)}}, i%2 == 1)
+			t.row([]tcell{{text: name, face: fMed}, {text: num(c.Scored)}, {text: fmtScore(c.Average), face: fSemi}, {text: withPct(c.Failing, c.Scored)}}, false)
 		}
-		pdf.SetY(pdf.GetY() + 7)
+		pdf.SetY(pdf.GetY() + 8)
 	}
 
 	b.sub("Accounts with the most severe findings", fmt.Sprintf("Top %d of %s.", min(8, len(rep.Accounts)), count(len(rep.Accounts), "account", "accounts")))
@@ -430,32 +456,9 @@ func (b *brief) overview() {
 			if a.BySev[s] > 0 {
 				c = cSev[s]
 			}
-			cells = append(cells, tcell{text: num(a.BySev[s]), face: fSemi, color: &c})
+			cells = append(cells, tcell{text: num(a.BySev[s]), color: &c})
 		}
-		t.row(cells, i%2 == 1)
-	}
-}
-
-// distribution is a titled stacked bar with a legend underneath.
-func (b *brief) distribution(x, y, w float64, title string, segs []segment) {
-	total := 0
-	for _, s := range segs {
-		total += s.n
-	}
-	b.font(fSemi, 10, cInk)
-	b.at(x, y, w, 5, title, "L")
-	b.font(fReg, 8, cInk3)
-	b.at(x, y, w, 5, num(total)+" total", "R")
-	b.bar(x, y+8, w, 5, segs)
-	ly := y + 17
-	for _, s := range segs {
-		b.fill(s.c)
-		b.pdf.Rect(x, ly+1, 2.6, 2.6, "F")
-		b.font(fReg, 8.2, cInk2)
-		b.at(x+4.5, ly, w-30, 4.6, s.label, "L")
-		b.font(fSemi, 8.2, cInk)
-		b.at(x+w-28, ly, 28, 4.6, num(s.n)+"   "+pct(s.n, total), "R")
-		ly += 5.4
+		t.row(cells, false)
 	}
 }
 
@@ -467,35 +470,16 @@ func (b *brief) compliance() {
 	if len(fws) == 0 {
 		return
 	}
-	b.sectionTitle("compliance", "Section 4", "Compliance impact")
+	b.sectionTitle("compliance", "Section 04", "Compliance impact")
 	b.font(fReg, 9, cInk2)
 	b.para(b.mx, b.body, 4.6, "Failing checks mapped to the controls they are evidence for. Use it to see which audits these findings would surface in; it is not a full compliance assessment.")
-	pdf.SetY(pdf.GetY() + 4)
-
-	// One tile per framework.
-	y := pdf.GetY()
-	n := len(fws)
-	if n > 4 {
-		n = 4
+	pdf.SetY(pdf.GetY() + 5)
+	t := b.newTable([]tcol{{"Framework", b.body - 108, "L"}, {"Controls affected", 30, "R"}, {"Failing checks", 26, "R"}, {"Identities", 24, "R"}, {"Worst", 28, "L"}})
+	t.header()
+	for _, f := range fws {
+		t.row([]tcell{{text: f.Name, face: fMed}, {text: num(f.Controls), face: fSemi}, {text: num(f.Checks)}, {text: num(f.Identities)}, {sev: f.Worst}}, false)
 	}
-	tw := (b.body - float64(n-1)*4) / float64(n)
-	for i, f := range fws[:n] {
-		x := b.mx + float64(i)*(tw+4)
-		b.fill(cPanel)
-		pdf.RoundedRect(x, y, tw, 27, 2, "1234", "F")
-		b.fill(cSevFill[f.Worst])
-		pdf.Rect(x, y+3, 0.9, 21, "F")
-		b.font(fSemi, 7.6, cInk2)
-		for li, line := range b.wrap(f.Name, tw-8, 2) {
-			b.at(x+4, y+3+float64(li)*3.6, tw-8, 3.6, line, "L")
-		}
-		b.font(fBold, 15, cInk)
-		b.at(x+4, y+11.5, tw-8, 7, num(f.Controls), "L")
-		b.font(fReg, 7, cInk3)
-		b.at(x+4, y+18.5, tw-8, 3.5, plural(f.Controls, "control affected", "controls affected"), "L")
-		b.at(x+4, y+22, tw-8, 3.5, count(f.Identities, "identity", "identities"), "L")
-	}
-	pdf.SetY(y + 33)
+	pdf.SetY(pdf.GetY() + 9)
 
 	for _, f := range fws {
 		b.sub(f.Name, fmt.Sprintf("%s, %s and %s affected.", count(f.Controls, "control", "controls"), count(f.Checks, "failing check", "failing checks"), count(f.Identities, "identity", "identities")))
@@ -510,14 +494,14 @@ func (b *brief) compliance() {
 			for _, gi := range r.Checks {
 				names = append(names, rep.Groups[gi].Title)
 			}
-			t.row([]tcell{{text: r.Control, face: fMono, size: 7.6}, {sev: r.Worst}, {text: strings.Join(names, "; ")}, {text: num(r.Identities), face: fSemi}}, i%2 == 1)
+			t.row([]tcell{{text: r.Control, face: fMono, size: 7.6}, {sev: r.Worst}, {text: strings.Join(names, "; ")}, {text: num(r.Identities), face: fSemi}}, false)
 		}
 		if len(f.Rows) > 8 {
 			b.font(fReg, 7.5, cInk3)
 			b.at(b.mx, pdf.GetY()+1, b.body, 4, fmt.Sprintf("And %s more in the Excel workbook.", count(len(f.Rows)-8, "control", "controls")), "L")
 			pdf.SetY(pdf.GetY() + 5)
 		}
-		pdf.SetY(pdf.GetY() + 5)
+		pdf.SetY(pdf.GetY() + 6)
 	}
 }
 
@@ -525,15 +509,15 @@ func (b *brief) compliance() {
 
 func (b *brief) findings() {
 	pdf, rep := b.pdf, b.rep
-	b.sectionTitle("findings", "Section 5", "Top findings")
+	b.sectionTitle("findings", "Section 05", "Top findings")
 	b.font(fReg, 9, cInk2)
 	b.para(b.mx, b.body, 4.6, fmt.Sprintf("The %s that matter most, most severe first. Every finding and every affected identity is in the Excel workbook.", count(min(briefTop, len(rep.Groups)), "finding", "findings")))
-	pdf.SetY(pdf.GetY() + 3)
+	pdf.SetY(pdf.GetY() + 4)
 	for i, g := range rep.Groups {
 		if i == briefTop {
 			break
 		}
-		b.card(i, g)
+		b.entry(i, g)
 	}
 	if len(rep.Groups) > briefTop {
 		b.sub("Other findings", "")
@@ -542,17 +526,19 @@ func (b *brief) findings() {
 		t.header()
 		for i := briefTop; i < len(rep.Groups); i++ {
 			g := rep.Groups[i]
-			t.row([]tcell{{text: FindingRef(i), face: fMono, size: 7.4}, {text: g.Title}, {sev: g.Severity}, {text: num(len(g.Items)), face: fSemi}, {text: daysText(rep.DaysFailing(g.Since))}}, i%2 == 1)
+			t.row([]tcell{{text: FindingRef(i), face: fMono, size: 7.4}, {text: g.Title}, {sev: g.Severity}, {text: num(len(g.Items)), face: fSemi}, {text: daysText(rep.DaysFailing(g.Since))}}, false)
 		}
 	}
 }
 
-// card is one finding: what, why, what to do, and who.
-func (b *brief) card(i int, g CheckGroup) {
+// entry is one finding set as a numbered entry, the way an assessment report
+// sets them: the reference in the margin, then criteria, condition, effect,
+// recommendation and owner. No box: a rule above separates entries.
+func (b *brief) entry(i int, g CheckGroup) {
 	pdf, rep := b.pdf, b.rep
-	pad := 5.0
-	inner := b.body - 2*pad
-	labelW := 30.0
+	margin := 24.0
+	inner := b.body - margin
+	labelW := 28.0
 	st := rep.State(g)
 	why := g.Risk
 	if why == "" {
@@ -593,57 +579,58 @@ func (b *brief) card(i int, g CheckGroup) {
 		lines[j] = b.wrap(bl.text, inner-labelW, 4)
 		total += len(lines[j])
 	}
-	h := 22 + float64(total)*4.1 + float64(len(blocks))*1.3 + 4
-	b.ensure(h + 4)
+	h := 20 + float64(total)*4.1 + float64(len(blocks))*1.4
+	b.ensure(h + 6)
 	y := pdf.GetY()
 	b.mark(fmt.Sprintf("g%d", i))
 	pdf.Bookmark(FindingRef(i)+" "+g.Title, 1, -1)
-	b.draw(cLine)
-	pdf.SetLineWidth(0.25)
-	pdf.RoundedRect(b.mx, y, b.body, h, 2.5, "1234", "D")
-	b.fill(cSevFill[g.Severity])
-	pdf.RoundedRect(b.mx, y, 1.6, h, 0.8, "14", "F")
+	b.draw(cRule)
+	pdf.SetLineWidth(0.35)
+	pdf.Line(b.mx, y, b.W-b.mx, y)
 
-	x := b.mx + pad
-	b.font(fMono, 7.5, cInk3)
-	b.at(x, y+4, 18, 4, FindingRef(i), "L")
-	pw := b.sevPill(x+17, y+3.6, g.Severity, 6.6)
-	b.font(fSemi, 7.2, cBrand)
-	b.at(x+19+pw, y+4, 40, 4, rep.Priority(g)+" · "+PriorityText(rep.Priority(g)), "L")
-	if st.Overdue > 0 {
-		b.pill(x+inner-62, y+3.6, fmt.Sprintf("%s OVERDUE", num(st.Overdue)), cSevSoft["critical"], cSev["critical"], 6.4)
-	}
-	b.font(fReg, 7.4, cInk3)
-	b.at(x, y+4, inner, 4, AreaLabel(g.Area), "R")
-	b.font(fSemi, 11, cInk)
-	b.at(x, y+9.5, inner, 6, g.Title, "L")
-	meta := []string{count(len(g.Items), "identity", "identities"), count(len(g.Accounts), "account", "accounts")}
+	// Margin: reference, severity, priority.
+	b.font(fSemi, 13, cBrand)
+	b.at(b.mx, y+3, margin-2, 6, FindingRef(i), "L")
+	b.sevPill(b.mx, y+11, g.Severity, 6.6)
+	p := rep.Priority(g)
+	b.font(fReg, 6.8, cInk3)
+	b.at(b.mx, y+15.5, margin-2, 3.4, p+" · "+PriorityText(p), "L")
+
+	x := b.mx + margin
+	b.font(fSemi, 12, cInk)
+	b.at(x, y+3, inner, 6, g.Title, "L")
+	meta := []string{AreaLabel(g.Area), count(len(g.Items), "identity", "identities"), count(len(g.Accounts), "account", "accounts")}
 	if d := rep.DaysFailing(g.Since); d >= 0 {
-		meta = append(meta, "oldest failing "+daysText(d))
+		meta = append(meta, "oldest "+daysText(d))
 	}
-	meta = append(meta, fmt.Sprintf("target %d days", rep.SLA.Due(g.Severity)), fmt.Sprintf("fixing it: score +%.1f", rep.Uplift(g)))
-	b.font(fReg, 7.6, cInk3)
-	b.at(x, y+15.5, inner, 4, strings.Join(meta, "  ·  "), "L")
+	meta = append(meta, fmt.Sprintf("target %d days", rep.SLA.Due(g.Severity)), fmt.Sprintf("score +%.1f if fixed", rep.Uplift(g)))
+	b.font(fReg, 7.4, cInk3)
+	metaText := strings.Join(meta, "  ·  ")
+	b.at(x, y+10, inner, 4, metaText, "L")
+	if st.Overdue > 0 {
+		b.font(fSemi, 7.4, cSev["critical"])
+		b.at(x, y+10, inner, 4, num(st.Overdue)+" overdue", "R")
+	}
 
-	ly := y + 22.0
+	ly := y + 17.0
 	for j, bl := range blocks {
-		b.font(fSemi, 7.1, cInk3)
-		b.at(x, ly, labelW, 4.1, strings.ToUpper(bl.label), "L")
-		face := fReg
+		b.font(fSemi, 6.6, cInk3)
+		b.at(x, ly+0.3, labelW, 4.1, strings.ToUpper(bl.label), "L")
+		face, col := fReg, cInk2
 		if bl.label == "Recommendation" {
-			face = fMed
+			face, col = fMed, cInk
 		}
-		b.font(face, 8.3, cInk2)
 		if bl.label == "Owner" && owner == "Unassigned" {
-			b.font(fSemi, 8.3, cSev["high"])
+			face, col = fSemi, cSev["high"]
 		}
+		b.font(face, 8.3, col)
 		for _, l := range lines[j] {
 			b.at(x+labelW, ly, inner-labelW, 4.1, l, "L")
 			ly += 4.1
 		}
-		ly += 1.3
+		ly += 1.4
 	}
-	pdf.SetY(y + h + 4)
+	pdf.SetY(ly + 5)
 }
 
 // ---- appendix ---------------------------------------------------------------
@@ -654,8 +641,8 @@ func (b *brief) appendix() {
 	b.sub("Scope", "")
 	t := b.newTable([]tcol{{"Item", 40, "L"}, {"Value", b.body - 40, "L"}})
 	t.header()
-	for i, r := range append(scopeLines(rep), controlLines(rep)...) {
-		t.row([]tcell{{text: r[0], face: fMed}, {text: r[1]}}, i%2 == 1)
+	for _, r := range append(scopeLines(rep), controlLines(rep)...) {
+		t.row([]tcell{{text: r[0], face: fMed}, {text: r[1]}}, false)
 	}
 	pdf.SetY(pdf.GetY() + 6)
 

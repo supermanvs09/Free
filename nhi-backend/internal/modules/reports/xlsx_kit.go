@@ -51,19 +51,23 @@ func newWB(rep *PostureReport) (*wb, error) {
 
 const (
 	xFont   = "Calibri"
-	xInk    = "171717"
-	xInk2   = "404048"
-	xInk3   = "71717A"
-	xLine   = "E4E4E7"
-	xPanel  = "F6F7F9"
-	xBrand  = "1D63ED"
-	xDeep   = "0B1A33"
-	xBrandS = "E8EFFD"
+	xInk    = "0A0A0A"
+	xInk2   = "404040"
+	xInk3   = "737373"
+	xLine   = "E5E5E5"
+	xPanel  = "FAFAFA"
+	xBrand  = "155DFC"
+	xDeep   = "172554"
+	xBrandS = "EFF6FF"
 )
 
-var xSevInk = map[string]string{"critical": "B42318", "high": "B54A07", "medium": "8F5F02", "low": "05734B"}
-var xSevSoft = map[string]string{"critical": "FDECEA", "high": "FEF0E4", "medium": "FDF6E1", "low": "E7F6EF"}
-var xSevFill = map[string]string{"critical": "C42020", "high": "EA6A18", "medium": "E2AC1C", "low": "2E9664"}
+// Severity as the PDF's badges: destructive for critical, solid for high,
+// muted for medium, plain for low. Charts use the blue ramp, darker = worse.
+var xSevInk = map[string]string{"critical": "E7000B", "high": "FFFFFF", "medium": "171717", "low": "171717"}
+var xSevSoft = map[string]string{"critical": "FEF2F2", "high": "171717", "medium": "F5F5F5", "low": "FFFFFF"}
+var xSevFill = map[string]string{"critical": "193CB8", "high": "155DFC", "medium": "51A2FF", "low": "BEDBFF"}
+
+const xGood = "BEDBFF" // healthy score band: the lightest blue
 
 func (x *wb) styles() error {
 	var err error
@@ -89,8 +93,8 @@ func (x *wb) styles() error {
 	mk("vmono", &excelize.Style{Font: &excelize.Font{Family: "Consolas", Size: 10, Color: xInk}, Alignment: top})
 	mk("link", &excelize.Style{Font: &excelize.Font{Family: xFont, Size: 10.5, Color: xBrand, Underline: "single"}, Alignment: top})
 	mk("note", &excelize.Style{Font: &excelize.Font{Family: xFont, Size: 9.5, Italic: true, Color: xInk3}, Alignment: topWrap})
-	mk("banner", &excelize.Style{Font: font(9, true, "B42318"), Fill: solid("FDECEA"), Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"}})
-	mk("head", &excelize.Style{Font: font(10, true, "FFFFFF"), Fill: solid(xDeep), Alignment: &excelize.Alignment{Vertical: "center", WrapText: true}})
+	mk("banner", &excelize.Style{Font: font(9, true, "E7000B"), Fill: solid("FEF2F2"), Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"}})
+	mk("head", &excelize.Style{Font: font(10, true, xInk2), Fill: solid("F5F5F5"), Border: []excelize.Border{{Type: "bottom", Color: xLine, Style: 1}}, Alignment: &excelize.Alignment{Vertical: "center", WrapText: true}})
 	mk("text", &excelize.Style{Font: font(10.5, false, xInk), Alignment: top})
 	mk("wrap", &excelize.Style{Font: font(10.5, false, xInk2), Alignment: topWrap})
 	mk("mono", &excelize.Style{Font: &excelize.Font{Family: "Consolas", Size: 9.5, Color: xInk2}, Alignment: top})
@@ -268,7 +272,7 @@ func (x *wb) dataSheet(sheet, table, style string, cols []xcol, rows func(emit f
 	}
 	last, _ := excelize.CoordinatesToCellName(len(cols), max(n, 1)+1)
 	if style == "" {
-		style = "TableStyleMedium2"
+		style = "TableStyleLight1"
 	}
 	if err := f.AddTable(sheet, &excelize.Table{Range: "A1:" + last, Name: table, StyleName: style, ShowRowStripes: boolPtr(true)}); err != nil {
 		return 0, err
@@ -401,7 +405,7 @@ func (x *wb) cover(title string, sheets []sheetInfo, extra func(row int) int) er
 // dictionary writes the data dictionary from every data sheet's columns.
 func (x *wb) dictionary() error {
 	rows := x.dict
-	_, err := x.dataSheet("Data dictionary", "Dictionary", "TableStyleLight9", []xcol{
+	_, err := x.dataSheet("Data dictionary", "Dictionary", "TableStyleLight1", []xcol{
 		{"Sheet", 22, kBold, "The sheet the column is on."},
 		{"Column", 26, kText, "The column header."},
 		{"Meaning", 80, kWrap, "What the column holds."},

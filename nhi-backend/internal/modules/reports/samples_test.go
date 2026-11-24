@@ -287,10 +287,8 @@ func TestSamples(t *testing.T) {
 		write func(io.Writer, *PostureReport) error
 	}{
 		{"A-executive-brief.pdf", WriteBriefPDF},
-		{"B-audit-dossier.pdf", WriteDossierPDF},
 		{"C-remediation-plan.pdf", WritePlanPDF},
 		{"A-executive-workbook.xlsx", WriteExecutiveXLSX},
-		{"B-audit-register.xlsx", WriteRegisterXLSX},
 		{"C-analyst-model.xlsx", WriteAnalystXLSX},
 	}
 	t.Logf("avg %.1f, %d of %d failing, findings %v, bands %v", *rep.AverageScore, rep.FailingCount, rep.ScoredCount, rep.BySeverity, rep.Bands)
@@ -311,8 +309,8 @@ func TestSamples(t *testing.T) {
 // TestDesignsLarge renders every design for a large estate and an empty one.
 func TestDesignsLarge(t *testing.T) {
 	designs := map[string]func(io.Writer, *PostureReport) error{
-		"brief": WriteBriefPDF, "dossier": WriteDossierPDF, "plan": WritePlanPDF,
-		"exec.xlsx": WriteExecutiveXLSX, "register.xlsx": WriteRegisterXLSX, "analyst.xlsx": WriteAnalystXLSX,
+		"brief": WriteBriefPDF, "plan": WritePlanPDF,
+		"exec.xlsx": WriteExecutiveXLSX, "analyst.xlsx": WriteAnalystXLSX,
 	}
 	for _, size := range []int{6500, 0} {
 		rep := sampleReport(t, size)

@@ -3,6 +3,7 @@ package reports
 import (
 	"fmt"
 	"io"
+	"math"
 	"sort"
 	"strings"
 
@@ -235,7 +236,7 @@ func (x *wb) dashboard() error {
 		set(fmt.Sprintf("B%d", r), bandLabel(b.Band), "bold")
 		set(fmt.Sprintf("C%d", r), b.Count, "int")
 		set(fmt.Sprintf("D%d", r), BandRange[b.Band], "text")
-		bandColors = append(bandColors, map[string]string{"critical": xSevFill["critical"], "poor": xSevFill["high"], "fair": xSevFill["medium"], "healthy": xSevFill["low"]}[b.Band])
+		bandColors = append(bandColors, map[string]string{"critical": xSevFill["critical"], "poor": xSevFill["high"], "fair": xSevFill["medium"], "healthy": xGood}[b.Band])
 		r++
 	}
 	var bandSeries []excelize.ChartSeries
@@ -255,11 +256,22 @@ func (x *wb) dashboard() error {
 	}
 	if len(rep.Trend) > 1 {
 		end := 25 + len(rep.Trend)
+		// The axis fits the data (rounded to 5, at least 10 points tall) so
+		// a few points of change are visible, as in the PDF.
+		lo, hi := 100.0, 0.0
+		for _, p := range rep.Trend {
+			lo, hi = math.Min(lo, p.Score), math.Max(hi, p.Score)
+		}
+		lo, hi = math.Max(0, math.Floor((lo-2)/5)*5), math.Min(100, math.Ceil((hi+2)/5)*5)
+		if hi-lo < 10 {
+			lo = math.Max(0, hi-10)
+		}
 		_ = f.AddChart(sh, "B26", &excelize.Chart{Type: excelize.Line,
-			Series:    []excelize.ChartSeries{{Name: "Dashboard!$P$25", Categories: fmt.Sprintf("Dashboard!$O$26:$O$%d", end), Values: fmt.Sprintf("Dashboard!$P$26:$P$%d", end), Line: excelize.ChartLine{Width: 2.25, Smooth: false}}},
+			Series: []excelize.ChartSeries{{Name: "Dashboard!$P$25", Categories: fmt.Sprintf("Dashboard!$O$26:$O$%d", end), Values: fmt.Sprintf("Dashboard!$P$26:$P$%d", end),
+				Line: excelize.ChartLine{Width: 2, Smooth: false}, Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{xBrand}}, Marker: excelize.ChartMarker{Symbol: "none"}}},
 			Title:     []excelize.RichTextRun{{Text: "Average security score"}},
 			Legend:    excelize.ChartLegend{Position: "none"},
-			YAxis:     excelize.ChartAxis{Minimum: fptr(0), Maximum: fptr(100)},
+			YAxis:     excelize.ChartAxis{Minimum: fptr(lo), Maximum: fptr(hi), MajorUnit: 5, MajorGridLines: true},
 			Dimension: excelize.ChartDimension{Width: 1060, Height: 260}})
 	}
 
@@ -533,333 +545,6 @@ func (x *wb) exceptionsSheet(name, table string) error {
 	return err
 }
 
-// ---- B: audit register and remediation tracker -------------------------------------
-
-// Remediation statuses the register's Status column offers.
-var registerStatuses = []string{"Open", "In progress", "Risk accepted", "Fixed - to verify", "Closed"}
-
-// WriteRegisterXLSX is workbook design B: a findings register an auditor can
-// sample and the security team can work through, one row per finding with
-// columns to assign, track and evidence its remediation.
-func WriteRegisterXLSX(w io.Writer, rep *PostureReport) error {
-	x, err := newWB(rep)
-	if err != nil {
-		return err
-	}
-	defer x.f.Close()
-	sheets := []sheetInfo{
-		{"Register", "One row per finding (a failing check on one identity) as an audit finding: criteria, condition, effect, recommendation, due date and owner, and yellow columns to track remediation."},
-		{"Remediation", "By severity: open and overdue against the targets, age, and new, fixed and days to fix against the previous period."},
-		{"Checks", "Every failing check once, with its reference, severity, priority, owners and overdue count."},
-		{"Controls", "Each OWASP NHI risk and framework control and the findings that bear on it."},
-		{"Accepted risks", "Findings accepted or suppressed, with the reason and who decided."},
-		{"Identities", "Every scored identity in scope: the population to sample from."},
-		{"Method", "Scope, scoring model, severities, score bands, remediation targets, priorities and statuses."},
-		{"Data dictionary", "What every column means."},
-	}
-	n := 0
-	for _, g := range rep.Groups {
-		n += len(g.Items)
-	}
-	progress := func(row int) int {
-		f, sh := x.f, "Cover"
-		set := func(cell string, v interface{}, style string) {
-			_ = f.SetCellValue(sh, cell, v)
-			_ = f.SetCellStyle(sh, cell, cell, x.st[style])
-		}
-		set(fmt.Sprintf("B%d", row), "Remediation progress", "h")
-		set(fmt.Sprintf("C%d", row), "Counts update as the Register's Status column is filled in.", "h")
-		row++
-		statusCol, dueCol, ownerCol := regCol("Status"), regCol("Due date"), regCol("Owner")
-		rng := fmt.Sprintf("Register!$%s$2:$%s$%d", statusCol, statusCol, n+1)
-		dueRng := fmt.Sprintf("Register!$%s$2:$%s$%d", dueCol, dueCol, n+1)
-		ownerRng := fmt.Sprintf("Register!$%s$2:$%s$%d", ownerCol, ownerCol, n+1)
-		for _, s := range registerStatuses {
-			set(fmt.Sprintf("B%d", row), s, "k")
-			formula := fmt.Sprintf(`COUNTIF(%s,"%s")`, rng, s)
-			_ = f.SetCellFormula(sh, fmt.Sprintf("C%d", row), formula)
-			_ = f.SetCellStyle(sh, fmt.Sprintf("C%d", row), fmt.Sprintf("C%d", row), x.st["int"])
-			row++
-		}
-		set(fmt.Sprintf("B%d", row), "Overdue today", "k")
-		_ = f.SetCellFormula(sh, fmt.Sprintf("C%d", row), fmt.Sprintf(`COUNTIFS(%s,"<"&TODAY(),%s,"<>Closed",%s,"<>Risk accepted")`, dueRng, rng, rng))
-		_ = f.SetCellStyle(sh, fmt.Sprintf("C%d", row), fmt.Sprintf("C%d", row), x.st["int"])
-		row++
-		set(fmt.Sprintf("B%d", row), "Without an owner", "k")
-		_ = f.SetCellFormula(sh, fmt.Sprintf("C%d", row), fmt.Sprintf(`COUNTBLANK(%s)`, ownerRng))
-		_ = f.SetCellStyle(sh, fmt.Sprintf("C%d", row), fmt.Sprintf("C%d", row), x.st["int"])
-		row++
-		set(fmt.Sprintf("B%d", row), "Closed or accepted", "k")
-		_ = f.SetCellFormula(sh, fmt.Sprintf("C%d", row), fmt.Sprintf(`IF(%d=0,0,(COUNTIF(%s,"Closed")+COUNTIF(%s,"Risk accepted"))/%d)`, n, rng, rng, max(n, 1)))
-		_ = f.SetCellStyle(sh, fmt.Sprintf("C%d", row), fmt.Sprintf("C%d", row), x.st["pct"])
-		return row + 1
-	}
-	if err := x.cover("Identity Security Posture Assessment · Findings register", sheets, progress); err != nil {
-		return err
-	}
-	if err := x.register(n); err != nil {
-		return err
-	}
-	if err := x.remediationSheet("Remediation", "Remediation"); err != nil {
-		return err
-	}
-	if err := x.checksSheet(); err != nil {
-		return err
-	}
-	if err := x.controlsSheet(); err != nil {
-		return err
-	}
-	if err := x.exceptionsSheet("Accepted risks", "AcceptedRisks"); err != nil {
-		return err
-	}
-	if _, err := x.identitiesSheet("Identities", "Population"); err != nil {
-		return err
-	}
-	if err := x.methodSheet(); err != nil {
-		return err
-	}
-	if err := x.dictionary(); err != nil {
-		return err
-	}
-	_ = x.f.SetCalcProps(&excelize.CalcPropsOptions{FullCalcOnLoad: boolPtr(true)})
-	x.finish("Identity Security Posture Assessment")
-	return x.f.Write(w)
-}
-
-// registerCols follow the elements of an audit finding (IIA Global Internal
-// Audit Standards 14.3: criteria, condition, cause, effect, recommendation),
-// then the remediation target, then the yellow columns the organisation
-// fills in.
-var registerCols = []xcol{
-	{"Finding ID", 13, kMono, "Unique reference of the finding: its check's reference and a number."},
-	{"Ref", 8, kMono, "The check's reference in this report (F-001 is the most severe)."},
-	{"Check ID", 11, kMono, "The posture check's ID."},
-	{"Check", 34, kBold, "The posture check that fails."},
-	{"Severity", 10, kSev, "How serious the failure is."},
-	{"Priority", 13, kText, "P1 fix now, P2 this sprint, P3 planned, P4 hygiene."},
-	{"Security area", 16, kText, "The area the check belongs to."},
-	{"Identity", 30, kBold, "The identity the check fails on."},
-	{"Type", 16, kText, "What kind of identity it is."},
-	{"Class", 10, kText, "Human or non-human."},
-	{"Account", 24, kText, "The AWS account's name."},
-	{"Account ID", 14, kMono, "The 12-digit AWS account ID."},
-	{"Score", 8, kDec1, "The identity's security score."},
-	{"First detected", 12, kDate, "When the check started failing on this identity."},
-	{"Days open", 9, kInt, "Days since then, at report time."},
-	{"Target (days)", 10, kInt, "Remediation target for the severity, in days from first detection."},
-	{"Due date", 12, kDate, "First detected plus the target. Red when past and the finding is not closed or accepted."},
-	{"Days overdue", 10, kInt, "Days past the due date at report time; blank when not overdue."},
-	{"Criteria", 48, kWrap, "What the check expects, and the controls and OWASP NHI risks it is evidence for."},
-	{"Condition", 52, kWrap, "What the scan found on this identity."},
-	{"Effect", 44, kWrap, "The risk if it stays."},
-	{"Recommendation", 52, kWrap, "How to fix it on this identity."},
-	{"OWASP NHI", 14, kText, "OWASP Non-Human Identities Top 10 (2025) risks it is evidence of."},
-	{"Controls", 24, kWrap, "Framework controls it maps to."},
-	{"ARN", 50, kMono, "The identity's Amazon Resource Name."},
-	{"Owner", 20, kText, "Who will fix it: from the console's assignment; change it here if needed."},
-	{"Status", 16, kText, "To keep up to date: Open, In progress, Risk accepted, Fixed - to verify or Closed."},
-	{"Agreed date", 12, kDate, "To fill in: the date the owner commits to, when it differs from the due date."},
-	{"Ticket", 14, kText, "To fill in: the change or ticket reference."},
-	{"Cause", 36, kWrap, "To fill in: why the condition arose (manual change, template default, missing guardrail ...)."},
-	{"Comments", 40, kWrap, "To fill in: notes, exception reason, verification evidence."},
-}
-
-// regCol is a register column's letter by name.
-func regCol(name string) string {
-	for i, c := range registerCols {
-		if c.name == name {
-			return colLetter(i + 1)
-		}
-	}
-	panic("register column " + name)
-}
-
-func (x *wb) register(n int) error {
-	rep, f := x.rep, x.f
-	got, err := x.dataSheet("Register", "Register", "TableStyleLight9", registerCols, func(emit func([]interface{}) error) error {
-		for gi, g := range rep.Groups {
-			items := append([]GroupItem(nil), g.Items...)
-			sortItemsByScore(rep, items)
-			for j, it := range items {
-				id := rep.Identities[it.Identity]
-				var since, due, days, late interface{}
-				owner := ""
-				for _, c := range id.Checks {
-					if c.RuleID != g.RuleID {
-						continue
-					}
-					owner = strings.TrimSpace(c.Owner)
-					if c.FailingSince != nil {
-						since = c.FailingSince
-						days = rep.DaysFailing(c.FailingSince)
-						due = rep.DueDate(c)
-						if ok, by := rep.OverdueCheck(c); ok {
-							late = by
-						}
-					}
-				}
-				fix := it.Fix
-				if fix == "" {
-					fix = g.Fix
-				}
-				why := g.Risk
-				if why == "" {
-					why = g.About
-				}
-				p := rep.Priority(g)
-				if err := emit([]interface{}{fmt.Sprintf("%s-%04d", FindingRef(gi), j+1), FindingRef(gi), g.RuleID, g.Title, g.Severity, p + " " + PriorityText(p), AreaLabel(g.Area),
-					id.Name, typeLabel(id.Type), classOf(id.Human), orDash(id.Account), id.AccountID, id.Score, since, days, rep.SLA.Due(g.Severity), due, late,
-					Criteria(g), it.Found, why, fix, strings.Join(NHIRisks(g.RuleID), ", "), strings.Join(g.Controls, ", "), id.ARN,
-					owner, "Open", nil, "", "", ""}); err != nil {
-					return err
-				}
-			}
-		}
-		return nil
-	})
-	if err != nil || got == 0 {
-		return err
-	}
-	last := got + 1
-	status, agreed, due := regCol("Status"), regCol("Agreed date"), regCol("Due date")
-	_ = f.SetCellStyle("Register", fmt.Sprintf("%s2", regCol("Owner")), fmt.Sprintf("%s%d", status, last), x.st["input"])
-	_ = f.SetCellStyle("Register", fmt.Sprintf("%s2", agreed), fmt.Sprintf("%s%d", agreed, last), x.st["inputDate"])
-	_ = f.SetCellStyle("Register", fmt.Sprintf("%s2", regCol("Ticket")), fmt.Sprintf("%s%d", regCol("Comments"), last), x.st["input"])
-	dv := excelize.NewDataValidation(true)
-	dv.Sqref = fmt.Sprintf("%s2:%s%d", status, status, last)
-	_ = dv.SetDropList(registerStatuses)
-	dv.SetError(excelize.DataValidationErrorStyleStop, "Status", "Choose a status from the list.")
-	_ = f.AddDataValidation("Register", dv)
-	dd := excelize.NewDataValidation(true)
-	dd.Sqref = fmt.Sprintf("%s2:%s%d", agreed, agreed, last)
-	_ = dd.SetRange(45658, 73050, excelize.DataValidationTypeDate, excelize.DataValidationOperatorBetween) // 2025-01-01 .. 2099-12-31
-	dd.SetError(excelize.DataValidationErrorStyleStop, "Agreed date", "Enter a date.")
-	_ = f.AddDataValidation("Register", dd)
-	// Overdue, live: a due (or agreed) date in the past on a finding that is
-	// not closed or accepted turns red when the workbook is opened later.
-	overdue, _ := f.NewConditionalStyle(&excelize.Style{Font: &excelize.Font{Color: "B42318", Bold: true}, Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{"FDECEA"}}})
-	for _, c := range []string{due, agreed} {
-		_ = f.SetConditionalFormat("Register", fmt.Sprintf("%s2:%s%d", c, c, last), []excelize.ConditionalFormatOptions{
-			{Type: "formula", Criteria: fmt.Sprintf(`AND(%s2<>"",%s2<TODAY(),$%s2<>"Closed",$%s2<>"Risk accepted")`, c, c, status, status), Format: &overdue}})
-	}
-	unassigned, _ := f.NewConditionalStyle(&excelize.Style{Font: &excelize.Font{Color: "B54A07", Italic: true}})
-	_ = f.SetConditionalFormat("Register", fmt.Sprintf("%s2:%s%d", regCol("Owner"), regCol("Owner"), last), []excelize.ConditionalFormatOptions{
-		{Type: "formula", Criteria: fmt.Sprintf(`%s2=""`, regCol("Owner")), Format: &unassigned}})
-	closed, _ := f.NewConditionalStyle(&excelize.Style{Font: &excelize.Font{Color: "71717A"}})
-	_ = f.SetConditionalFormat("Register", fmt.Sprintf("A2:%s%d", regCol("Comments"), last), []excelize.ConditionalFormatOptions{
-		{Type: "formula", Criteria: fmt.Sprintf(`$%s2="Closed"`, status), Format: &closed}})
-	_ = f.SetPanes("Register", &excelize.Panes{Freeze: true, XSplit: 1, YSplit: 1, TopLeftCell: "B2", ActivePane: "bottomRight"})
-	return nil
-}
-
-func (x *wb) checksSheet() error {
-	_, err := x.findingsSheet("Checks", "Checks")
-	return err
-}
-
-func (x *wb) controlsSheet() error {
-	rep := x.rep
-	_, err := x.dataSheet("Controls", "Controls", "", []xcol{
-		{"Framework", 30, kBold, "The security framework, or the OWASP NHI Top 10."},
-		{"Control", 30, kMono, "The control within the framework, or the OWASP risk."},
-		{"Ref", 8, kMono, "The failing check's reference."},
-		{"Check", 40, kText, "The failing check."},
-		{"Severity", 10, kSev, "The check's severity."},
-		{"Identities", 11, kInt, "Identities failing the check."},
-	}, func(emit func([]interface{}) error) error {
-		for _, r := range rep.NHITop10() {
-			for _, gi := range r.Checks {
-				g := rep.Groups[gi]
-				if err := emit([]interface{}{"OWASP NHI Top 10 (2025)", r.ID + " " + r.Title, FindingRef(gi), g.Title, g.Severity, len(g.Items)}); err != nil {
-					return err
-				}
-			}
-		}
-		for _, fw := range rep.Frameworks() {
-			for _, r := range fw.Rows {
-				for _, gi := range r.Checks {
-					g := rep.Groups[gi]
-					if err := emit([]interface{}{fw.Name, r.Control, FindingRef(gi), g.Title, g.Severity, len(g.Items)}); err != nil {
-						return err
-					}
-				}
-			}
-		}
-		return nil
-	})
-	return err
-}
-
-func (x *wb) methodSheet() error {
-	f, rep := x.f, x.rep
-	sh := "Method"
-	if _, err := f.NewSheet(sh); err != nil {
-		return err
-	}
-	_ = f.SetSheetView(sh, 0, &excelize.ViewOptions{ShowGridLines: boolPtr(false)})
-	_ = f.SetColWidth(sh, "A", "A", 2.5)
-	_ = f.SetColWidth(sh, "B", "B", 24)
-	_ = f.SetColWidth(sh, "C", "C", 100)
-	r := 1
-	put := func(k, v, ks, vs string) {
-		_ = f.SetCellValue(sh, fmt.Sprintf("B%d", r), k)
-		_ = f.SetCellStyle(sh, fmt.Sprintf("B%d", r), fmt.Sprintf("B%d", r), x.st[ks])
-		_ = f.SetCellValue(sh, fmt.Sprintf("C%d", r), v)
-		_ = f.SetCellStyle(sh, fmt.Sprintf("C%d", r), fmt.Sprintf("C%d", r), x.st[vs])
-		r++
-	}
-	put("Scope and method", "", "title", "v")
-	r++
-	put("Scope", "", "h", "h")
-	for _, kv := range scopeLines(rep) {
-		put(kv[0], kv[1], "k", "v")
-	}
-	r++
-	put("How the figures are made", "", "h", "h")
-	for i, m := range methodology {
-		put(fmt.Sprintf("%d", i+1), m, "k", "v")
-	}
-	r++
-	put("Severity", "", "h", "h")
-	for _, s := range Severities {
-		_ = f.SetCellValue(sh, fmt.Sprintf("B%d", r), SeverityLabel(s))
-		_ = f.SetCellStyle(sh, fmt.Sprintf("B%d", r), fmt.Sprintf("B%d", r), x.sev[s])
-		_ = f.SetCellValue(sh, fmt.Sprintf("C%d", r), SeverityMeaning[s])
-		_ = f.SetCellStyle(sh, fmt.Sprintf("C%d", r), fmt.Sprintf("C%d", r), x.st["v"])
-		r++
-	}
-	r++
-	put("Score bands", "", "h", "h")
-	for _, b := range []string{"healthy", "fair", "poor", "critical"} {
-		put(bandLabel(b), BandRange[b], "bold", "v")
-	}
-	r++
-	put("Remediation targets", "", "h", "h")
-	for _, sv := range Severities {
-		_ = f.SetCellValue(sh, fmt.Sprintf("B%d", r), SeverityLabel(sv))
-		_ = f.SetCellStyle(sh, fmt.Sprintf("B%d", r), fmt.Sprintf("B%d", r), x.sev[sv])
-		_ = f.SetCellValue(sh, fmt.Sprintf("C%d", r), fmt.Sprintf("%d days from first detection", rep.SLA.Due(sv)))
-		_ = f.SetCellStyle(sh, fmt.Sprintf("C%d", r), fmt.Sprintf("C%d", r), x.st["v"])
-		r++
-	}
-	put("Source", strings.TrimSuffix(rep.SLA.Source, ".")+". A finding is overdue when it is still open after its target; the Register's due dates turn red when that day passes.", "k", "v")
-	r++
-	put("Priorities", "", "h", "h")
-	put("P1 Fix now", "Critical checks, and high checks failing on 10% or more of scored identities.", "bold", "v")
-	put("P2 This sprint", "Other high checks, and medium checks failing on 10% or more.", "bold", "v")
-	put("P3 Planned", "Other medium checks.", "bold", "v")
-	put("P4 Hygiene", "Low checks.", "bold", "v")
-	r++
-	put("Statuses", "", "h", "h")
-	put("Open", "Not started.", "bold", "v")
-	put("In progress", "Someone is fixing it.", "bold", "v")
-	put("Risk accepted", "Kept on purpose, with the reason in Comments and the approver named. Not counted as overdue.", "bold", "v")
-	put("Fixed - to verify", "Changed; the next scan confirms it.", "bold", "v")
-	put("Closed", "The scan no longer finds it.", "bold", "v")
-	x.printSetup(sh, false)
-	return nil
-}
-
 // ---- C: analyst data model ------------------------------------------------------------
 
 // WriteAnalystXLSX is workbook design C: tidy tables for analysts and BI
@@ -995,7 +680,7 @@ func WriteAnalystXLSX(w io.Writer, rep *PostureReport) error {
 			Data:           []excelize.PivotTableField{{Data: "Finding ID", Subtotal: "Count", Name: "Findings"}},
 			Filter:         []excelize.PivotTableField{{Data: "Class"}},
 			RowGrandTotals: true, ColGrandTotals: true, ShowDrill: true, ShowRowHeaders: true, ShowColHeaders: true, ShowLastColumn: true,
-			PivotTableStyleName: "PivotStyleMedium2",
+			PivotTableStyleName: "PivotStyleLight1",
 		}); err != nil {
 			return err
 		}
@@ -1042,7 +727,7 @@ var factCols = []xcol{
 
 func (x *wb) factsSheet() (int, error) {
 	rep := x.rep
-	return x.dataSheet("Facts", "tblFacts", "TableStyleLight9", factCols, func(emit func([]interface{}) error) error {
+	return x.dataSheet("Facts", "tblFacts", "TableStyleLight1", factCols, func(emit func([]interface{}) error) error {
 		for gi, g := range rep.Groups {
 			for j, it := range g.Items {
 				id := rep.Identities[it.Identity]
