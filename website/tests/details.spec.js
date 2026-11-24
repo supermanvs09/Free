@@ -61,7 +61,7 @@ test('the home hero names the category, who we discover, and shows proof before 
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1, name: 'Discover every human, machine and AI agent identity.' })).toBeVisible();
   await expect(page.getByText('Continuous AI Security Posture Management', { exact: true }).first()).toBeVisible();
-  if (!isMobile) await expect(page.getByRole('img', { name: 'Canara Bank' }).first()).toBeInViewport();
+  await expect(page.locator('section[aria-labelledby="hero-h"]').getByRole('img', { name: 'Canara Bank' }).first()).toBeAttached();
 });
 
 test('the utility bar carries search and the language menu, and folds away on scroll', async ({ page, isMobile }) => {

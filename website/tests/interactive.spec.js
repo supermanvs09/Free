@@ -1,29 +1,23 @@
 import { test, expect } from '@playwright/test';
 import { hydrated } from './helpers.js';
 
-test('home: the platform explorer shows each of the four products, each with its own page', async ({ page, isMobile }) => {
-  test.skip(isMobile, 'phones get the accordion');
+test('home: each product line has a card that leads to its page', async ({ page }) => {
   await page.goto('/');
-  await hydrated(page);
-  const section = page.locator('#platform');
-  await section.scrollIntoViewIfNeeded();
-  for (const name of ['adapID AI', 'Zenstra AI', 'ICMS Compliance Suite']) {
-    await section.getByRole('tab', { name: new RegExp(`^${name}`) }).click();
-    await expect(section.getByRole('link', { name: `Explore ${name}` })).toHaveAttribute('href', /\//);
+  const lines = page.locator('section[aria-labelledby="lines-h"]');
+  for (const [name, href] of [['adapID AI', '/adapid-ai'], ['Zenstra AI', '/agentic-ai/agentic-identity'], ['ICMS Compliance Suite', '/dpdpa-compliance']]) {
+    await expect(lines.getByRole('link', { name: new RegExp(`Explore ${name}`) })).toHaveAttribute('href', href);
   }
-  await section.getByRole('tab', { name: /^Zenstra AI/ }).focus();
-  await page.keyboard.press('ArrowDown');
-  await expect(section.getByRole('tab', { name: /^ICMS Compliance Suite/ })).toHaveAttribute('aria-selected', 'true');
 });
-
-test('reduced motion still shows every product card and figure', async ({ page }) => {
+test('reduced motion still shows every product card, figure and core layer', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await hydrated(page);
-  await expect(page.locator('#platform').getByRole('tab')).toHaveCount(3);
-  await expect(page.getByText('₹25.5 Cr').first()).toBeVisible();
+  await expect(page.locator('section[aria-labelledby="lines-h"] .pl-card')).toHaveCount(3);
+  await expect(page.getByText('82:1').first()).toBeVisible();
+  // the pinned core becomes a list of its six steps
+  await expect(page.locator('.dc-list .dc-card')).toHaveCount(6);
+  await expect(page.locator('.dc-list .dc-card').first()).toBeVisible();
 });
-
 test('zenstra: before and after sit side by side, five moments each', async ({ page }) => {
   await page.goto('/agentic-ai/agentic-identity');
   const sec = page.locator('section:has(#chg-h)');
@@ -48,33 +42,31 @@ test('a hero takes the reader into the page instead of repeating Book a demo', a
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(300);
 });
 
-test('home: the hero leads with discovery under Continuous AI-SPM, with a demo and the overview', async ({ page }) => {
+test('home: the hero is one headline, one sentence and two actions under Continuous AI-SPM', async ({ page }) => {
   await page.goto('/');
   const hero = page.locator('section[aria-labelledby="hero-h"]');
   await expect(hero.locator('h1')).toHaveText('Discover every human, machine and AI agent identity.');
   await expect(hero).toContainText('Continuous AI Security Posture Management');
-  await expect(hero).toContainText('Securing your identities and digital ecosystem from AI-driven threats.');
+  await expect(hero).toContainText('secure your identities and your digital ecosystem from AI-driven threats');
   await expect(hero.getByRole('link', { name: 'Book a demo' })).toHaveAttribute('href', '/request-demo');
   await expect(hero.getByRole('button', { name: /Watch the overview/ })).toBeVisible();
+  await expect(hero.getByRole('img', { name: /continuous scan discovers people, machine identities and AI agents/ })).toBeVisible();
   await expect(page.locator('a[href="/product-tour"]')).toHaveCount(0);
 });
-
-test('home: the AI-SPM loop shows the evidence of each stage, and any stage can be picked', async ({ page }) => {
+test('home: the core shows what we protect from, one layer per step, and any step can be picked', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'on a phone the core is a list');
   await page.goto('/');
   await hydrated(page);
-  const loop = page.locator('#how');
-  await expect(loop.getByText('Evidence produced')).toHaveCount(4);
-  await loop.getByRole('button', { name: 'Stage 04: Prove' }).click();
-  await expect(loop.getByRole('button', { name: 'Stage 04: Prove' })).toHaveAttribute('aria-pressed', 'true');
+  const core = page.locator('#core .dc-track');
+  await core.scrollIntoViewIfNeeded();
+  await expect(core.locator('.dc-left')).toContainText('AI made every attack faster');
+  await expect(core.locator('.dc-threat')).toHaveCount(6);
+  await core.getByRole('button', { name: /Zenstra AI/ }).click();
+  await expect(core.locator('.dc-left')).toContainText('AI agents and the tools they call', { timeout: 8000 });
+  await expect(core.locator('.dc-left')).toContainText('Prompt injection');
+  await core.getByRole('button', { name: /The record/ }).click();
+  await expect(core.locator('.dc-left')).toContainText('Every decision, on one record.', { timeout: 8000 });
 });
-
-test('home: Zenstra AI agent discovery has its own band, linked to the capability', async ({ page }) => {
-  await page.goto('/');
-  const band = page.locator('section[aria-labelledby="agents-h"]');
-  await expect(band.locator('h2')).toHaveText('Find every AI agent before it acts on your data.');
-  await expect(band.getByRole('link', { name: /Explore agent discovery/ })).toHaveAttribute('href', '/agentic-ai/agent-discovery');
-});
-
 test('the retired product tour sends visitors to the products', async ({ page }) => {
   await page.goto('/product-tour');
   await expect(page).toHaveURL(/\/products$/);
@@ -141,8 +133,8 @@ test('fraud: three checks on one dial, each session with its own decision', asyn
 test('home has no blogs section, and the platform is one scroll away', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#orbit')).toHaveCount(0);
-  await page.locator('#platform-h').scrollIntoViewIfNeeded();
-  await expect(page.locator('#platform-h')).toBeInViewport({ timeout: 5000 });
+  await page.locator('#lines-h').scrollIntoViewIfNeeded();
+  await expect(page.locator('#lines-h')).toBeInViewport({ timeout: 5000 });
   // the blogs section is gone from home; blogs stay one click away in the menu
   await expect(page.locator('#res-h')).toHaveCount(0);
   await expect(page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Blogs' })).toHaveAttribute('href', '/blogs');
