@@ -46,7 +46,7 @@ function Duties() {
 
 const FAQ = [
   { title: 'Which regulations does ICMS cover?', body: 'It is built around the Digital Personal Data Protection Act 2023 and the DPDP Rules 2025, with evidence mapped to RBI and SEBI expectations. The same evidence model supports GDPR obligations.' },
-  { title: 'Does it include service accounts?', body: 'Yes. Every access is tied to an identity, human or machine, so service accounts and integrations are checked against purpose too.' },
+  { title: 'Does it include service accounts?', body: 'Yes. ICMS ties every access to an identity, human or machine, so it checks service accounts and integrations against purpose too.' },
   { title: 'How quickly can we produce an audit package?', body: 'Evidence is assembled continuously, so a package can be generated in minutes rather than collected over weeks.' },
 ];
 
@@ -110,7 +110,7 @@ export default function Icms() {
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'ICMS Compliance Suite', path: p.path }]} />
       <Hero glance={[['Protects', 'PII and sensitive personal data, where it already lives'], ['Stops', 'Access without consent or a lawful purpose'], ['Deploys', 'Connected to your data stores and identity sources'], ['Shows', 'DPDPA evidence, ready for the 72-hour breach report']]} acc="icms" crumbs={[{ name: 'Products', path: '/products' }, { name: 'ICMS Compliance Suite' }]} eyebrow="ICMS Compliance Suite · DPDPA"
         title={<>Protect every piece of PII. <span style={{ color: 'var(--acc)' }}>Prove DPDPA compliance.</span></>}
-        lead="ICMS finds the PII your organisation holds, from Aadhaar and PAN to account numbers and health records, masks it where it should not be seen, checks every access against purpose and consent, and keeps the evidence an auditor asks for."
+        lead="ICMS finds the PII your organisation holds, from Aadhaar and PAN to account numbers and health records, masks it wherever no one should see it, checks every access against purpose and consent, and keeps the evidence an auditor asks for."
         note="For customer data, patient records and employee data.">
         <Ledger />
       </Hero>
@@ -129,7 +129,7 @@ export default function Icms() {
       {/* the PII lifecycle, in one row: what ICMS does to personal data from the moment it is found */}
       <section className="sec-tight" aria-labelledby="pii-h">
         <div className="wrap">
-          <SectionHead align="left" id="pii-h" acc={A} eyebrow="PII protection" title="From the moment PII is found to the day it is erased." />
+          <SectionHead align="left" id="pii-h" acc={A} eyebrow="PII protection" title="From the moment ICMS finds PII to the day you erase it." />
           <ol className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             {[['MagnifyingGlass', 'Discover', 'Scan every store for PII and sensitive personal data'], ['Tag', 'Classify', 'Label Aadhaar, PAN, financial and health data by sensitivity'], ['EyeSlash', 'Mask', 'Mask or tokenise PII for people and apps that do not need it'], ['Fingerprint', 'Govern access', 'Check each access against identity, purpose and consent'], ['Trash', 'Retain and erase', 'Erase on request or at retention end, with proof']].map(([ic, h, d], i) => (
               <Reveal as="li" key={h} delay={i * 60} className="card relative p-5">
@@ -142,8 +142,8 @@ export default function Icms() {
         </div>
       </section>
 
-      <Split id="discover" acc="icms" eyebrow="PII discovery and classification" title="Find every piece of PII, even where it should not be." lead="Databases, buckets, warehouses and shared drives scanned and classified: Aadhaar, PAN, phone numbers, account numbers, health records. Each store gets an owner, and PII outside its approved place is flagged." visual={<DataMap />} />
-      <Split id="consent" className="stage" acc="icms" flip eyebrow="Purpose and consent" title="Who touched what, and why." lead="Every access is linked to an identity and checked against its declared purpose and the principal’s consent. Access outside consent is flagged the moment it happens." visual={<ConsentLedger />} />
+      <Split id="discover" acc="icms" eyebrow="PII discovery and classification" title="Find every piece of PII, even where it should not be." lead="ICMS scans and classifies databases, buckets, warehouses and shared drives: Aadhaar, PAN, phone numbers, account numbers, health records. Each store gets an owner, and ICMS flags PII outside its approved place." visual={<DataMap />} />
+      <Split id="consent" className="stage" acc="icms" flip eyebrow="Purpose and consent" title="Who touched what, and why." lead="ICMS links every access to an identity and checks it against its declared purpose and the principal’s consent. ICMS flags access outside consent the moment it happens." visual={<ConsentLedger />} />
       <Split id="breach" acc="icms" eyebrow="Breach response" title="Inside the 72 hours, with evidence in hand." lead="When a breach happens, ICMS scopes the affected records and data principals and drafts the report from evidence it already holds." visual={<BreachClock />} />
 
       <section className="sec" aria-labelledby="chg-h">

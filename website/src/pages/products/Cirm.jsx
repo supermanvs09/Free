@@ -68,8 +68,8 @@ const FAQ = [
   { title: 'How is this different from ITDR?', body: 'Identity threat detection tells you an attack happened. adapID scores every identity continuously and acts when behaviour changes, before the stolen login is used for anything that matters.' },
   { title: 'How long before it is useful?', body: 'Scoring starts on day one. Transfer learning means there is no long baselining period before detection begins.' },
   { title: 'What does it connect to?', body: 'Read-only connectors to your identity provider, IAM, HR systems, SaaS and application logs.' },
-  { title: 'Can my analysts see why a score changed?', body: 'Yes. Every point of risk comes with its reason in plain language, and every action is logged for review and audit.' },
-  { title: 'Does it cover machine identities too?', body: 'People are scored here. Machine identities in AWS are covered by NHI Security for AWS, part of the same adapID family.' },
+  { title: 'Can my analysts see why a score changed?', body: 'Yes. Every point of risk comes with its reason in plain language, and adapID AI logs every action for review and audit.' },
+  { title: 'Does it cover machine identities too?', body: 'adapID CIRM scores people. NHI Security for AWS covers machine identities in AWS, part of the same adapID family.' },
 ];
 
 export default function Cirm() {
@@ -109,7 +109,7 @@ export default function Cirm() {
 
       <section className="stage sec" aria-labelledby="blast-h">
         <div className="wrap">
-          <SectionHead id="blast-h" acc={ACC.adap} eyebrow="Identity graph and blast radius" title="See what a stolen identity can reach, before the attacker does." lead="Every identity is mapped to the systems it opens and the data behind them. When one is compromised, adapID shows the blast radius, the paths to admin, and closes them in one move." />
+          <SectionHead id="blast-h" acc={ACC.adap} eyebrow="Identity graph and blast radius" title="See what a stolen identity can reach, before the attacker does." lead="adapID AI maps every identity to the systems it opens and the data behind them. When one is compromised, adapID shows the blast radius, the paths to admin, and closes them in one move." />
           <Reveal up className="mx-auto mt-14 max-w-[1120px]"><IdentityGraph /></Reveal>
         </div>
       </section>
@@ -160,7 +160,7 @@ export default function Cirm() {
           <Reveal>
             <p className="eyebrow" style={{ '--acc': ACC.adap }}>From score to action</p>
             <h2 id="pol-h" className="t-h2 mt-6">Your policy decides what each score does.</h2>
-            <p className="t-lead mt-5">Low risk passes silently. Rising risk asks for proof. High risk is held or blocked, by policy, in seconds.</p>
+            <p className="t-lead mt-5">Low risk passes silently. Rising risk asks for proof. adapID AI holds or blocks high risk by policy, in seconds.</p>
           </Reveal>
           <Reveal delay={100}><RiskPolicy /></Reveal>
         </div>

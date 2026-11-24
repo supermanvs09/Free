@@ -9,7 +9,7 @@ import { Breadcrumb } from '../components/ui.jsx';
 
 const GROUPS = [
   { title: 'Company', links: [['Home', '/'], ['Why Deep Algorithms', '/why-deep-algorithms'], ['Leadership', '/why-deep-algorithms#leadership'], ['Careers', '/why-deep-algorithms#careers'], ['Contact', '/contact'], ['Book a demo', '/request-demo']] },
-  { title: 'Products', links: [['All products', '/products'], ...PRODUCT_MENU.flatMap((l) => (l.kind === 'products' ? [[l.name, l.path], ...l.items.filter((m) => m.path !== l.path).map((m) => [m.name, m.path])] : [[l.name, l.path]])), ['DDoS Protection', '/botshield-ai/ddos-protection']] },
+  { title: 'Products', links: [['All products', '/products'], ...PRODUCT_MENU.flatMap((l) => (l.kind === 'products' ? [[l.name, l.path], ...l.items.filter((m) => m.path !== l.path).map((m) => [m.name, m.path])] : [[l.name, l.path]]))] },
   { title: 'Zenstra AI capabilities', links: Object.values(ZCAPS).map((c) => [c.name, c.path]) },
   { title: 'Solutions', links: SOLUTIONS.map((s) => [s.name, `/solutions/${s.slug}`]) },
   { title: 'Blogs', links: [['All blogs', '/blogs'], ...POSTS.map((p) => [p.title, `/blogs/${p.slug}`])] },

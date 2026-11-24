@@ -23,7 +23,7 @@ const VERSUS = [
   ['What it judges', 'The payment, against fixed rules', 'The customer, their device and the payment, together', 'Fingerprint'],
   ['When it decides', 'After the transaction, in a review queue', 'Before the money moves, in under 80 ms', 'Lightning'],
   ['A scam where the real customer pays', 'Passes: right person, right OTP', 'Caught: a call in progress, a pasted account, a new payee', 'Phone'],
-  ['Why a payment was stopped', 'A score, with no reason', 'Every decision in plain words, for the analyst and the auditor', 'ChatCircleText'],
+  ['Why we stopped a payment', 'A score, with no reason', 'Every decision in plain words, for the analyst and the auditor', 'ChatCircleText'],
 ];
 
 function Versus() {
@@ -47,19 +47,19 @@ function Versus() {
 const MOBILE = [
   { key: 'biometrics', tab: 'Behavioural biometrics', gap: 'A fraudster with the customer’s password and OTP looks exactly like the customer.',
     how: ['Our SDK measures how the customer types, taps, holds and moves the phone, never what they type.', 'It learns each customer’s own normal from their first sessions.', 'Every new session is compared with that profile, and a risk score from 0 to 100 comes back in real time, with the reasons.'],
-    result: 'Account takeover is caught even when the password and OTP are correct, with no extra step for genuine customers.' },
+    result: 'adapID AI catches account takeover even when the password and OTP are correct, with no extra step for genuine customers.' },
   { key: 'totp', tab: 'Silent TOTP', gap: 'SMS OTPs are phished, forwarded by malware and stolen through SIM swaps.',
     how: ['The customer’s phone is registered and bound to the account once.', 'A one-time code is generated silently on that phone.', 'The platform verifies the code over an encrypted channel.'],
     result: 'No SMS to intercept, and nothing for the customer to type.' },
   { key: 'face', tab: 'Face verification', gap: 'High-risk actions need proof that the real customer is present.',
-    how: ['Face verification runs only at high-risk moments, such as a new device or a large payment.', 'Every attempt is logged with the session.'],
+    how: ['Face verification runs only at high-risk moments, such as a new device or a large payment.', 'adapID AI logs every attempt with the session.'],
     result: 'Strong proof of presence, only when it matters.' },
   { key: 'rasp', tab: 'Device security', gap: 'Fraudsters watch or control the customer’s phone through malware and remote-access apps.',
     how: ['The app checks the device continuously during the session.', 'It detects remote control (screen sharing, overlays), malware (banking trojans, SMS forwarders), tampering (rooting, hooking, cloned apps) and fake devices (emulators, failed attestation).', 'The bank’s policy decides the response: log, warn or block.'],
     result: 'The banking session runs only on a safe device.' },
   { key: 'scam', tab: 'Scam signals', gap: 'In a payment scam the real customer is paying, coached by a fraudster on the phone. Identity checks pass.',
     how: ['We collect evidence around the payment: behaviour (bursts of typing, long pauses), device (a call during the payment, a pasted account number), security (remote access, mule lists, SIM swap) and history (an unusual amount, a new payee).', 'Each piece adds points by how strongly it points to a scam, giving a scam risk score from 0 to 100.', 'The analyst sees the suspected scam type and why every point was added.'],
-    result: 'Scams are stopped before the money leaves, with a clear reason for every hold.' },
+    result: 'adapID AI stops scams before the money leaves and states the reason for every hold.' },
 ];
 
 function MobileCaps() {
@@ -205,7 +205,7 @@ export default function Fraud() {
 
       <section className="sec" aria-labelledby="txn-h">
         <div className="wrap">
-          <SectionHead align="left" id="txn-h" acc={A} eyebrow="Transaction intelligence" title="Each payment looks normal. The pattern does not." lead="In mobile and internet banking, fraudulent payments and mule accounts hide in ordinary traffic. Each is flagged with the reason why, and the models can run in shadow mode before going live." />
+          <SectionHead align="left" id="txn-h" acc={A} eyebrow="Transaction intelligence" title="Each payment looks normal. The pattern does not." lead="In mobile and internet banking, fraudulent payments and mule accounts hide in ordinary traffic. adapID AI flags each one and states the reason, and you can run the models in shadow mode before going live." />
           <div className="mt-12"><Points items={TXN} acc="adap" cols={4} /></div>
           <div className="mt-16 grid items-center gap-12 lg:grid-cols-[.78fr_1.22fr] lg:gap-16">
             <Reveal>

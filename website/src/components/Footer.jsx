@@ -63,7 +63,6 @@ export default function Footer() {
               <L to="/why-deep-algorithms#leadership">Leadership</L>
               <L to="/why-deep-algorithms#careers">Careers</L>
               <L to="/contact">Contact</L>
-              <L to="/product-tour">Product tour</L>
               <L to="/request-demo">Book a demo</L>
             </Col>
           </div>

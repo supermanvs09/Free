@@ -44,7 +44,7 @@ function useScrollProgress(ref, { start = 0.85, end = 0.25 } = {}) {
 
 const LINEUP = [
   ['zenstra', 'Zenstra AI', 'AI agents', '#93a2ff', 'Agent’s CRM export blocked', '4 ms', '/agentic-ai/agentic-identity', 'Security for AI agents: every action checked against its task before it runs.'],
-  ['adapid', 'adapID AI', 'People and machine identities', '#3cc8f6', 'Lagos sign-in held at risk 94', '1.4 s', '/adapid-ai', 'Security for people and machine identities: the one that starts behaving differently is stopped.'],
+  ['adapid', 'adapID AI', 'People and machine identities', '#3cc8f6', 'Lagos sign-in held at risk 94', '1.4 s', '/adapid-ai', 'Security for people and machine identities: adapID AI stops the one that starts behaving differently.'],
   ['icms', 'ICMS Compliance Suite', 'Personal data and DPDPA', '#f4c76c', 'Read without consent refused', 'now', '/dpdpa-compliance', 'DPDPA compliance: every access to personal data becomes evidence, ready before the auditor asks.'],
 ];
 

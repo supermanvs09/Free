@@ -1,6 +1,6 @@
 # deepalgorithms.io
 
-React 19 + Vite 8 + Tailwind 4, prerendered to static HTML (41 pages, a 404, sitemap.xml and robots.txt).
+React 19 + Vite 8 + Tailwind 4, prerendered to static HTML (40 pages, a 404, sitemap.xml and robots.txt).
 
 ```bash
 npm ci

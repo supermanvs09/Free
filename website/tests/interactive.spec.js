@@ -16,18 +16,6 @@ test('home: the platform explorer shows each of the four products, each with its
   await expect(section.getByRole('tab', { name: /^ICMS Compliance Suite/ })).toHaveAttribute('aria-selected', 'true');
 });
 
-test('home: the role tabs switch by click and by arrow keys', async ({ page }) => {
-  await page.goto('/');
-  await hydrated(page);
-  const tab = page.getByRole('tab', { name: 'Compliance and DPO' });
-  await tab.scrollIntoViewIfNeeded();
-  await tab.click();
-  await expect(tab).toHaveAttribute('aria-selected', 'true');
-  await expect(page.locator('#role-panel')).toContainText('DPDPA');
-  await page.keyboard.press('ArrowRight');
-  await expect(page.getByRole('tab', { name: 'Fraud and digital banking' })).toHaveAttribute('aria-selected', 'true');
-});
-
 test('reduced motion still shows every product card and figure', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
@@ -60,32 +48,36 @@ test('a hero takes the reader into the page instead of repeating Book a demo', a
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(300);
 });
 
-test('home: the pinned picture follows the story as you scroll', async ({ page, isMobile }) => {
-  test.skip(isMobile, 'on a phone each step carries its own picture');
-  await page.goto('/');
-  await hydrated(page);
-  const tab = (name) => page.getByRole('tab', { name, exact: true });
-  await page.locator('[data-i="1"]').evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
-  await expect(tab('People')).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByRole('link', { name: 'How adapID catches it' }).first()).toBeVisible();
-});
-
-test('home: the hero is one sentence, a demo button, and the film beside it', async ({ page }) => {
+test('home: the hero leads with discovery under Continuous AI-SPM, with a demo and the overview', async ({ page }) => {
   await page.goto('/');
   const hero = page.locator('section[aria-labelledby="hero-h"]');
+  await expect(hero.locator('h1')).toHaveText('Discover every human, machine and AI agent identity.');
+  await expect(hero).toContainText('Continuous AI Security Posture Management');
+  await expect(hero).toContainText('Securing your identities and digital ecosystem from AI-driven threats.');
   await expect(hero.getByRole('link', { name: 'Book a demo' })).toHaveAttribute('href', '/request-demo');
-  // a muted preview loops in the card until it is played
-  await expect(hero.locator('#film video source[src="/video/film-teaser.mp4"]')).toHaveCount(1);
-  await expect(page.locator('section[aria-labelledby="hero-h"]')).not.toContainText(/adapID|Zenstra|ICMS/);
+  await expect(hero.getByRole('button', { name: /Watch the overview/ })).toBeVisible();
+  await expect(page.locator('a[href="/product-tour"]')).toHaveCount(0);
 });
 
-test('home: "See how it works" scrolls to the CIRM platform view, whose stages can be picked', async ({ page }) => {
+test('home: the AI-SPM loop shows the evidence of each stage, and any stage can be picked', async ({ page }) => {
   await page.goto('/');
   await hydrated(page);
-  await page.locator('section[aria-labelledby="hero-h"]').getByRole('button', { name: /See how it works/ }).click();
-  await expect(page.locator('#how')).toBeInViewport();
-  await page.locator('#how').getByRole('button', { name: 'Stage 6: Contain' }).click();
-  await expect(page.locator('#how .pl-title')).toHaveText('Contain');
+  const loop = page.locator('#how');
+  await expect(loop.getByText('Evidence produced')).toHaveCount(4);
+  await loop.getByRole('button', { name: 'Stage 04: Prove' }).click();
+  await expect(loop.getByRole('button', { name: 'Stage 04: Prove' })).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('home: Zenstra AI agent discovery has its own band, linked to the capability', async ({ page }) => {
+  await page.goto('/');
+  const band = page.locator('section[aria-labelledby="agents-h"]');
+  await expect(band.locator('h2')).toHaveText('Find every AI agent before it acts on your data.');
+  await expect(band.getByRole('link', { name: /Explore agent discovery/ })).toHaveAttribute('href', '/agentic-ai/agent-discovery');
+});
+
+test('the retired product tour sends visitors to the products', async ({ page }) => {
+  await page.goto('/product-tour');
+  await expect(page).toHaveURL(/\/products$/);
 });
 
 test('every hero rolls the customer logos, with a pause control', async ({ page }) => {
@@ -97,20 +89,6 @@ test('every hero rolls the customer logos, with a pause control', async ({ page 
     await page.getByRole('button', { name: 'Pause customer logos' }).first().click();
     await expect(page.getByRole('button', { name: 'Play customer logos' }).first()).toBeVisible();
   }
-});
-
-test('product tour: steps by button, keyboard and link, and ends on a demo', async ({ page }) => {
-  await page.goto('/');
-  await page.getByRole('link', { name: 'Take the product tour' }).first().click();
-  await expect(page).toHaveURL(/\/product-tour/);
-  const frame = page.locator('.tour-frame');
-  await expect(frame).toContainText('Step 1 of 10');
-  await frame.getByRole('button', { name: 'Next' }).click();
-  await expect(frame).toContainText('Step 2 of 10');
-  await page.keyboard.press('ArrowRight');
-  await expect(page).toHaveURL(/#step-3$/);
-  await page.goto('/product-tour#step-11');
-  await expect(frame.getByRole('link', { name: 'Book a demo' })).toBeVisible();
 });
 
 test('product pictures keep their smallest text readable, phone or desktop', async ({ page }) => {

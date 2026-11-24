@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { ROUTES, PRODUCT_PAGES, watch, scrollThrough } from './helpers.js';
 
 test('the sitemap lists every page', () => {
-  expect(ROUTES.length).toBe(41);
+  expect(ROUTES.length).toBe(40); // the product tour was retired
 });
 
 for (const route of ROUTES) {

@@ -45,15 +45,15 @@ export const PRODUCTS = {
   ad: {
     path: '/ad-security', line: 'adapID AI', name: 'Active Directory Security', parent: '/adapid-ai',
     seoTitle: 'adapID Active Directory Security: Map and Close Attack Paths',
-    description: 'See every account, privilege and path through Active Directory, catch the accounts being abused and close attack paths before they are taken.',
+    description: 'See every account, privilege and path through Active Directory, catch the accounts being abused and close attack paths before an attacker takes them.',
     stats: [{ v: '6', l: 'hops from one compromised user to Domain Admins in a typical path', s: 'Deep Algorithms Blogs' }, { v: '10', l: 'core AD techniques covered, from Kerberoasting to DCSync', s: 'adapID AD Security' }, IBM],
     research: ['confessions-entry-01', 'identity-security', 'threat-intelligence'],
-    cta: { title: 'See the path before it is taken.', body: 'Run an attack path assessment on your directory with our engineers.' },
+    cta: { title: 'Close the path before an attacker takes it.', body: 'Run an attack path assessment on your directory with our engineers.' },
   },
   icms: {
     path: '/dpdpa-compliance', line: 'ICMS Compliance Suite', name: 'ICMS Compliance Suite',
     seoTitle: 'ICMS Compliance Suite: PII Protection and DPDPA Compliance',
-    description: 'ICMS discovers and classifies PII, masks it where it should not be seen, checks every access against purpose and consent, and generates audit-ready evidence for DPDPA 2023, RBI and SEBI.',
+    description: 'ICMS discovers and classifies PII, masks it wherever no one should see it, checks every access against purpose and consent, and generates audit-ready evidence for DPDPA 2023, RBI and SEBI.',
     stats: [{ v: '₹250 Cr', l: 'maximum penalty for failing to safeguard personal data', s: 'DPDPA 2023' }, { v: '72 hrs', l: 'to report a personal data breach in full to the Data Protection Board', s: 'DPDP Rules 2025' }, { v: '< 5 min', l: 'to generate an audit package', s: 'Deep Algorithms benchmark' }],
     research: ['ctem-dpdpa-india-2026', 'india-mule-account-crisis'],
     cta: { title: 'Be ready the day the Data Protection Board asks.', body: 'Book a DPDPA gap analysis with a compliance engineer.' },

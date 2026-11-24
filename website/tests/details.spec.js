@@ -57,10 +57,10 @@ test('a missing page names the address and offers search', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Search the site' }).last()).toBeVisible();
 });
 
-test('the home hero says what we stop, names who we secure and shows proof before any scroll', async ({ page, isMobile }) => {
+test('the home hero names the category, who we discover, and shows proof before any scroll', async ({ page, isMobile }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1, name: 'Identity security for the AI era.' })).toBeVisible();
-  await expect(page.getByText('Learn how each one should behave', { exact: false }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Discover every human, machine and AI agent identity.' })).toBeVisible();
+  await expect(page.getByText('Continuous AI Security Posture Management', { exact: true }).first()).toBeVisible();
   if (!isMobile) await expect(page.getByRole('img', { name: 'Canara Bank' }).first()).toBeInViewport();
 });
 

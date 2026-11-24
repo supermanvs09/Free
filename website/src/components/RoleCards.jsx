@@ -29,7 +29,7 @@ const ROLES = [
   {
     products: ['adapid'],
     id: 'iam', tab: 'Identity and cloud', h: 'Every role, key and service account, with what it can reach and what it uses.',
-    points: ['Unused access found and ready to remove', 'Leaked secrets in GitHub and CodeCommit triaged', 'Active Directory attack paths closed before they are taken'],
+    points: ['Unused access found and ready to remove', 'Leaked secrets in GitHub and CodeCommit triaged', 'Active Directory attack paths closed before an attacker takes them'],
     photo: '/img/roles/iam.webp', pos: '60% 30%', chips: ['Platform engineer', 'Owns 14 service accounts', '3 keys unused for 90 days'], alert: 2,
     apps: [['aws', 1], ['github', 1], ['entra', 1], ['ad', 0]],
     to: '/adapid-ai/nhi-security', cta: 'See NHI Security for AWS',

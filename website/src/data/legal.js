@@ -25,7 +25,7 @@ export const LEGAL = {
       h('4. Data Sharing and Storage'),
       p('We do not sell your personal data. Data is stored securely with encryption measures to prevent unauthorized access.'),
       h('5. User Rights'),
-      p('You have rights to access, modify, or delete your data as per applicable regulations (DPDPA, GDPR, CCPA, etc.). Requests can be made via our support team.'),
+      p('You have rights to access, modify, or delete your data as per applicable regulations (DPDPA, GDPR, CCPA, etc.). Contact our support team to make a request.'),
       h('6. Security Measures'),
       p('We implement advanced security protocols, including encryption, access controls, and continuous monitoring to ensure data safety.'),
       h('7. Changes to This Policy'),

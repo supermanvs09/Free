@@ -1,12 +1,13 @@
 import { test, expect } from '@playwright/test';
 
-test('the film plays from the poster, with captions available', async ({ page }) => {
+test('the overview opens in a lightbox from the hero, with captions, and closes with Escape', async ({ page }) => {
   await page.goto('/');
-  await page.locator('#film').scrollIntoViewIfNeeded();
-  await page.getByRole('button', { name: /Play the film/ }).click();
-  const video = page.locator('#film video');
-  await expect(video).toBeVisible();
-  await expect.poll(() => video.evaluate((v) => v.currentTime), { timeout: 15_000 }).toBeGreaterThan(1);
-  expect(await video.evaluate((v) => Math.round(v.duration))).toBeGreaterThanOrEqual(60);
-  expect(await video.evaluate((v) => v.textTracks.length)).toBe(1);
+  await page.locator('section[aria-labelledby="hero-h"]').getByRole('button', { name: /Watch the overview/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Deep Algorithms platform overview' });
+  await expect(dialog).toBeVisible();
+  // the film plays when its files are deployed; without them the lightbox offers a demo instead
+  await expect(dialog.locator('video track[kind="captions"], a[href="/request-demo"]').first()).toBeAttached();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect.poll(() => page.evaluate(() => document.documentElement.style.overflow)).toBe('');
 });

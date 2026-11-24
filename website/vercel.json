@@ -5,6 +5,8 @@
     { "source": "/svg-export", "destination": "/", "permanent": true },
     { "source": "/verify", "destination": "/", "permanent": true },
     { "source": "/about-us", "destination": "/why-deep-algorithms", "permanent": true },
-    { "source": "/platform", "destination": "/why-deep-algorithms", "permanent": true }
+    { "source": "/platform", "destination": "/why-deep-algorithms", "permanent": true },
+    { "source": "/product-tour", "destination": "/products", "permanent": true },
+    { "source": "/botshield-ai/:path*", "destination": "/products", "permanent": true }
   ]
 }

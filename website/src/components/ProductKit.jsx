@@ -54,7 +54,7 @@ export function Hero({ acc = 'brand', crumbs, eyebrow, title, lead, ctas, explor
           <h1 className={cx('t-h1 rise mt-6', stack && 'mx-auto max-w-[20ch]')} style={{ '--d': '80ms' }}>{title}</h1>
           {lead && <p className={cx('t-lead rise mt-6', stack ? 'mx-auto max-w-[680px]' : 'max-w-[560px] max-md:mx-auto')} style={{ '--d': '160ms' }}>{lead}</p>}
           <div className={cx('rise mt-9 flex flex-wrap gap-3 max-md:flex-col max-md:[&>*]:w-full', stack && 'justify-center')} style={{ '--d': '240ms' }}>
-            {ctas || <><Explore label={explore} /><Button to="/product-tour" variant="ghost" size="lg">Take the product tour</Button></>}
+            {ctas || <Explore label={explore} />}
           </div>
           {note && <p className={cx('rise mt-7 text-[14px] text-ink-3 max-md:text-center', stack && 'text-center')} style={{ '--d': '300ms' }}>{note}</p>}
         </div>

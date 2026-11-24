@@ -23,9 +23,9 @@ const TECH = [
 ];
 
 const FAQ = [
-  { title: 'What does the assessment need from us?', body: 'Read access to the directory. Users, groups, computers, service accounts, GPOs and trusts are mapped, and the paths to high-value identities ranked.' },
-  { title: 'Do you only report, or also respond?', body: 'Both. Weak access is removed at the source, and live abuse such as Kerberoasting or pass-the-hash is contained automatically by policy.' },
-  { title: 'Does it work with hybrid identity?', body: 'Yes. Active Directory is mapped alongside Microsoft 365, so paths that cross from the cloud into the domain are visible.' },
+  { title: 'What does the assessment need from us?', body: 'Read access to the directory. AD Security maps users, groups, computers, service accounts, GPOs and trusts, and ranks the paths to high-value identities.' },
+  { title: 'Do you only report, or also respond?', body: 'Both. AD Security removes weak access at the source, and contains live abuse such as Kerberoasting or pass-the-hash automatically, by policy.' },
+  { title: 'Does it work with hybrid identity?', body: 'Yes. AD Security maps Active Directory alongside Microsoft 365, so you see the paths that cross from the cloud into the domain.' },
   { title: 'How is the fix list ranked?', body: 'By how many paths a single change closes. The first item on the list is the one change that removes the most routes to Domain Admins.' },
 ];
 
@@ -51,7 +51,7 @@ export default function AdSecurity() {
 
       <section className="sec" aria-labelledby="tech-h">
         <div className="wrap">
-          <SectionHead id="tech-h" acc={A} eyebrow="Live detection" title="Caught mid-attack, not in the post-mortem." lead="Baselines for every identity across Kerberos, NTLM and LDAP, with automatic containment. Ten core techniques are covered, including:" />
+          <SectionHead id="tech-h" acc={A} eyebrow="Live detection" title="Caught mid-attack, not in the post-mortem." lead="Baselines for every identity across Kerberos, NTLM and LDAP, with automatic containment. It covers ten core techniques, including:" />
           <div className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
             {TECH.map(([t, d, r], i) => (
               <Reveal key={t} delay={i * 70} className="card flex flex-col p-6">
@@ -78,7 +78,7 @@ export default function AdSecurity() {
             <Reveal delay={100} className="card p-7 md:p-9">
               <span className="inline-flex h-12 w-12 items-center justify-center rounded-[14px] bg-ok/10 text-ok"><Gl g="shield" className="h-6 w-6" /></span>
               <h3 className="mt-6 text-[24px] font-semibold tracking-[-0.02em]">Contain in seconds</h3>
-              <p className="mt-2 text-[16px] text-ink-2">Each identity is profiled by when, where and against what. Abuse is stopped by policy.</p>
+              <p className="mt-2 text-[16px] text-ink-2">AD Security profiles each identity by when, where and against what, and stops abuse by policy.</p>
               <ul className="mt-6 space-y-3"><Check3 acc="var(--color-ok)">Passwords rotated, sessions revoked</Check3><Check3 acc="var(--color-ok)">Hosts isolated when a domain controller is targeted</Check3><Check3 acc="var(--color-ok)">Every action logged with its evidence</Check3></ul>
             </Reveal>
           </div>

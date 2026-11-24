@@ -85,7 +85,7 @@ export function CtaBand({ title = 'Find your riskiest identity before attackers 
             <p className="t-lead mx-auto mt-6 max-w-[600px] text-white/80">{body}</p>
             <div className="mt-10 flex flex-wrap justify-center gap-3">
               <Button to={primary.to} size="lg" arrow className="cta-primary">{primary.label}</Button>
-              <Button to="/product-tour" variant="ghost" size="lg" className="cta-ghost">Take the product tour</Button>
+              <Button to="/contact" variant="ghost" size="lg" className="cta-ghost">Talk to an engineer</Button>
             </div>
             {related?.length > 0 && (
               <nav aria-label={relatedTitle} className="mx-auto mt-12 max-w-[980px] border-t border-white/15 pt-8">

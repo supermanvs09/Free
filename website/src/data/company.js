@@ -43,7 +43,7 @@ export const TEAM_PHOTOS = [
 
 export const BELIEFS = [
   { icon: 'Clock', title: 'Continuous over periodic', body: 'Security that runs on a schedule gives attackers the gaps between. Everything we build operates in real time.' },
-  { icon: 'Eye', title: 'Behaviour over signatures', body: 'Signatures describe yesterday’s attacks. Behavioural intelligence catches attacks that have never been seen before.' },
+  { icon: 'Eye', title: 'Behaviour over signatures', body: 'Signatures describe yesterday’s attacks. Behavioural intelligence catches attacks no one has seen before.' },
   { icon: 'Lightning', title: 'Autonomous over manual', body: 'Human-speed response cannot match machine-speed attacks. Autonomous action is a requirement, not a feature.' },
   { icon: 'Target', title: 'Context first', body: 'Every environment has its own regulation, attack patterns and infrastructure. We build for the environment we protect.' },
   { icon: 'ClipboardText', title: 'Evidence over assertion', body: 'Every detection is explainable and every compliance claim is documented. Our customers can always show their work.' },

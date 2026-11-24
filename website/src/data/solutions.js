@@ -14,7 +14,7 @@ export const SOLUTION_PAGES = {
       { icon: 'Scales', v: '₹250 Cr', l: 'maximum DPDPA penalty for failing to safeguard personal data', s: 'DPDPA 2023' },
     ],
     help: [
-      { title: 'Stop mule accounts and account takeover', body: 'adapID scores every login, payee and payment on device, behaviour, identity graph and transaction context, so mule activity is stopped before money moves.' },
+      { title: 'Stop mule accounts and account takeover', body: 'adapID scores every login, payee and payment on device, behaviour, identity graph and transaction context, and stops mule activity before money moves.' },
       { title: 'Govern machine identities behind payments', body: 'Service accounts, API keys and cloud roles that run payment and KYC pipelines are discovered, scored and watched for behaviour that departs from baseline.' },
       { title: 'Deploy AI agents your risk committee can approve', body: 'Zenstra gives every AI agent an owner, scoped access and a decision record, and checks each action before it touches customer data.' },
       { title: 'Keep DPDPA and RBI evidence current', body: 'ICMS checks every access to personal data against purpose and consent and assembles audit packages continuously.' },
@@ -59,8 +59,8 @@ export const SOLUTION_PAGES = {
     ],
     help: [
       { title: 'Close the paths to Domain Admins', body: 'adapID maps how an attacker would move from any account to Tier 0, ranks the paths and closes the weakest links first.' },
-      { title: 'Catch the stolen administrator login', body: 'Administrators and service accounts are scored continuously, so the right password in the wrong hands is held.' },
-      { title: 'Protect citizen PII', body: 'ICMS finds personal data across departments, masks it where it should not be seen and checks every access against purpose.' },
+      { title: 'Catch the stolen administrator login', body: 'adapID AI scores administrators and service accounts continuously and holds the right password in the wrong hands.' },
+      { title: 'Protect citizen PII', body: 'ICMS finds personal data across departments, masks it wherever no one should see it and checks every access against purpose.' },
       { title: 'Govern the AI agents you deploy', body: 'Zenstra gives every agent an owner and scoped access, and checks every action before it runs.' },
     ],
     products: ['ad', 'adapid', 'icms', 'zenstra'],
@@ -81,7 +81,7 @@ export const SOLUTION_PAGES = {
     ],
     help: [
       { title: 'Catch account takeover at login', body: 'adapID knows how each user types, taps and moves, and holds the session when the right password arrives in the wrong hands.' },
-      { title: 'Find keys that ended up in code', body: 'Secrets in GitHub and CodeCommit are found and triaged so engineers see real exposures first.' },
+      { title: 'Find keys that ended up in code', body: 'NHI Security finds and triages secrets in GitHub and CodeCommit, so engineers fix real exposures first.' },
       { title: 'Secure cloud and CI/CD identities', body: 'Every IAM role, key and pipeline identity across AWS is discovered, scored and baselined.' },
       { title: 'Ship AI agents with guardrails', body: 'Zenstra checks every agent action against its task and keeps a decision record for each one.' },
     ],

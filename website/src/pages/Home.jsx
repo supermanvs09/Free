@@ -1,103 +1,133 @@
-import { useRef, useState } from 'react';
-import { KineticPill, Hud, useToastStack } from '../lib/nullmotion.jsx';
+import { useEffect, useRef, useState } from 'react';
+import { useToastStack } from '../lib/nullmotion.jsx';
 import { Link } from 'react-router';
 import { Seo } from '../lib/head.jsx';
 import { DEPLOY } from '../data/site.js';
 import { PRODUCT_MENU } from '../data/nav.js';
 import { Button, CountUp, Icon, Reveal, SectionHead, cx } from '../components/ui.jsx';
-import { CtaBand, FilmPlayer, TrustedRow } from '../components/blocks.jsx';
+import { CtaBand, TrustedRow } from '../components/blocks.jsx';
 import ProductMark from '../components/ProductMark.jsx';
-import CirmPipeline, { STAGES } from '../components/CirmPipeline.jsx';
-import Workforce from '../components/Workforce.jsx';
-import { PlatformOrbit } from '../components/viz/refs.jsx';
-import RoleCards from '../components/RoleCards.jsx';
 import { Logo, logoTitle } from '../components/viz/kit.jsx';
-import PerimeterStory from '../components/PerimeterStory.jsx';
-import { Explore, Faq } from '../components/ProductKit.jsx';
-import { HeistBanner } from '../components/challenge/Heist.jsx';
+import { PostureConsole } from '../components/viz/posture.jsx';
+import { ZenInventory } from '../components/viz/zenstra.jsx';
+import { WatchButton } from '../components/VideoModal.jsx';
+import { Faq } from '../components/ProductKit.jsx';
 
-/* The home page reads the way a security buyer scans a vendor: what it is,
-   who trusts it, what the platform covers, why it matters now, how it works,
-   who it is for, how it deploys, and the questions people ask before a call. */
-
+/* The home page reads the way a security buyer scans an enterprise vendor:
+   the category and the promise (Continuous AI Security Posture Management),
+   who trusts it, how the control loop works and what evidence it produces,
+   the AI agent problem in depth (Zenstra AI), the threats it answers, the
+   product lines, the questions asked before a call, and the next step. */
 
 /* one line per product: what it does, in the buyer's words */
 const PITCH = {
-  adapid: 'Scores every login and every key, and stops the identity that starts behaving differently.',
-  zenstra: 'Checks every AI agent action against its task before it runs, and records each decision.',
+  adapid: 'Scores every login, key and service account continuously, and stops the identity that starts behaving differently.',
+  zenstra: 'Discovers every AI agent and MCP server, checks each action against its task before it runs and records the decision.',
   icms: 'Turns every access to personal data into DPDPA evidence, ready before the auditor asks.',
 };
 
 const SHARED = [
-  { icon: 'Lightning', h: 'Decides before damage', p: 'Inline, before the action, login, payment or request completes.' },
-  { icon: 'ChatCircleText', h: 'Explains every decision', p: 'Reasons in plain language that analysts and auditors can follow.' },
-  { icon: 'Cloud', h: 'Runs where your data is', p: 'Read-only connectors, agentless roles and a gateway in your VPC.' },
-  { icon: 'Scales', h: 'Built for Indian regulation', p: 'Evidence mapped to DPDPA 2023, RBI and SEBI from the start.' },
+  { icon: 'Lightning', h: 'Blocks before the action completes', p: 'Decides inline, before a login, payment or agent request finishes.' },
+  { icon: 'ChatCircleText', h: 'States the reason for every decision', p: 'Writes each reason in plain language that analysts and auditors follow.' },
+  { icon: 'Cloud', h: 'Runs where your data lives', p: 'Connects read-only, without endpoint agents, and runs its gateway in your VPC.' },
+  { icon: 'Scales', h: 'Maps to Indian regulation', p: 'Maps evidence to DPDPA 2023, RBI and SEBI from the first day.' },
 ];
 
-/* Why now: the workforce changed. People are the smallest part of it; keys,
-   service accounts and AI agents act on your systems around the clock. Every
-   figure is sourced. */
-const ADAPT = [
-  { icon: 'Pulse', h: 'Catch risk as it starts.', p: 'Every identity is watched for the change in behaviour that comes before misuse, not the alert that comes after it.' },
-  { icon: 'LockKey', h: 'Change access in the moment.', p: 'Ask for proof, narrow a permission or hold a session, decided by risk and context while it happens.' },
-  { icon: 'Users', h: 'Cover every kind of identity.', p: 'Employees, customers, partners, keys, service accounts and AI agents, on-premises and in the cloud.' },
+/* the control loop: what Deep Algorithms does at each stage, and the
+   artifact that stage leaves behind for the security team and the auditor */
+const LOOP = [
+  { n: '01', icon: 'MagnifyingGlass', h: 'Discover', v: 'Inventories every identity',
+    p: 'Connects to your identity providers, clouds, SaaS and AI platforms, and lists every person, key, service account, AI agent and MCP server with its owner.',
+    out: 'Identity and AI agent inventory, each entry with an owner', by: ['adapid', 'zenstra'] },
+  { n: '02', icon: 'Gauge', h: 'Assess', v: 'Scores posture continuously',
+    p: 'Learns how each identity normally behaves, ranks standing privileges, misconfigurations and shadow agents by severity, and states why.',
+    out: 'Posture score and findings ranked by severity', by: ['adapid', 'zenstra'] },
+  { n: '03', icon: 'ShieldCheck', h: 'Enforce', v: 'Stops the risky action',
+    p: 'Steps up, holds or blocks a login, a key or an agent action inline, through the identity provider and gateway you already run.',
+    out: 'One logged decision per action, with its policy', by: ['adapid', 'zenstra'] },
+  { n: '04', icon: 'SealCheck', h: 'Prove', v: 'Produces audit evidence',
+    p: 'Signs every decision into a tamper-evident record and maps it to DPDPA 2023, RBI and SEBI directions and ISO/IEC 42001.',
+    out: 'Signed evidence record your auditors accept', by: ['zenstra', 'icms'] },
 ];
-const NOW_STATS = [
+
+const NAMES = { adapid: 'adapID AI', zenstra: 'Zenstra AI', icms: 'ICMS' };
+
+/* what Zenstra AI discovers, by where agents are built */
+const AGENT_SOURCES = ['copilotstudio', 'copilot', 'claude', 'cursor', 'n8n', 'zapier', 'langgraph', 'mcp'];
+const AGENT_POINTS = [
+  'Discovers sanctioned and shadow agents across copilots, workflow automations, cloud and coding agents, and MCP servers',
+  'Maps each agent to an owner, a credential, a declared task and the data it reaches',
+  'Flags agents with no owner, standing keys, broad scopes or changed MCP tool definitions',
+  'Checks every agent action against its task before it runs, from a gateway inside your VPC',
+];
+
+/* public figures, each with its source */
+const THREAT_STATS = [
   { v: '₹25.5 Cr', l: 'average cost of a data breach in India, the highest on record', s: 'IBM Cost of a Data Breach Report, 2026' },
   { v: '72 hrs', l: 'to report a personal data breach in full to the Data Protection Board', s: 'DPDP Rules, 2025' },
 ];
 
-/* public incidents, as reported by the organisations and researchers named */
+/* public incidents, as reported by the organisations and researchers named;
+   the AI integration first, since that is where attacks are moving */
 const INCIDENTS = [
-  { d: 'Feb 2024', h: 'Change Healthcare · one password, no MFA', p: 'Attackers signed in to a remote-access portal with stolen credentials; the portal had no multi-factor authentication. Ransomware followed nine days later, disrupting claims across US healthcare. About 190 million people were affected.', ctl: 'A valid login scored on behaviour, then held', to: '/adapid-ai', s: 'UnitedHealth Group testimony to the US Senate, May 2024; HHS, Jan 2025' },
-  { d: 'Sep 2023', h: 'MGM Resorts · a call to the help desk', p: 'An attacker called the IT help desk posing as an employee and had credentials reset. Hotel and casino systems were disrupted for days; MGM put the hit to its quarterly results at about $100 million.', ctl: 'A reset followed by unusual access is held', to: '/ad-security', s: 'MGM Resorts International, Form 8-K, Oct 2023' },
-  { d: 'Jan 2024', h: 'Microsoft · a forgotten test account', p: 'A password spray reached a legacy, non-production test account without MFA. The attacker then used an OAuth application to read the email of senior leadership and security staff.', ctl: 'Dormant accounts and OAuth apps found and scoped', to: '/adapid-ai/nhi-security', s: 'Microsoft Security Response Center, Jan 2024' },
-  { d: 'Apr–Jun 2024', h: 'Snowflake customer accounts · stolen by malware', p: 'Credentials taken from employee laptops by infostealer malware were used to sign in to customer accounts that had no MFA. About 165 organisations were notified.', ctl: 'Credentials used from new infrastructure flagged', to: '/adapid-ai', s: 'Mandiant (Google Cloud), UNC5537, Jun 2024' },
-  { d: 'Aug 2025', h: 'Salesloft Drift · an AI integration’s tokens', p: 'OAuth tokens held by an AI chat integration were used to export Salesforce data from customer instances between 8 and 18 August, and to search it for further credentials.', ctl: 'Scoped, expiring grants per agent', to: '/agentic-ai/agentic-identity', s: 'Google Threat Intelligence Group, Aug 2025' },
-  { d: '2024', h: 'India · “digital arrest” scams', p: 'Victims are held on video calls by people posing as police or regulators and pressured to transfer money themselves, through their own banking apps. Indians lost ₹120.3 crore this way in January to April 2024.', ctl: 'A coached payment held before it leaves', to: '/adapid-ai/fraud-prevention', s: 'Indian Cyber Crime Coordination Centre (I4C), MHA, 2024' },
+  { d: 'Aug 2025', h: 'Salesloft Drift · an AI integration’s tokens', p: 'Attackers used OAuth tokens held by an AI chat integration to export Salesforce data from customer instances between 8 and 18 August, then searched that data for further credentials.', ctl: 'Zenstra AI: scoped, expiring grants per agent', to: '/agentic-ai/agentic-identity', s: 'Google Threat Intelligence Group, Aug 2025' },
+  { d: 'Jan 2024', h: 'Microsoft · a forgotten test account', p: 'A password spray reached a legacy, non-production test account without MFA. The attacker then used an OAuth application to read the email of senior leadership and security staff.', ctl: 'adapID AI: dormant accounts and OAuth apps found and scoped', to: '/adapid-ai/nhi-security', s: 'Microsoft Security Response Center, Jan 2024' },
+  { d: 'Apr–Jun 2024', h: 'Snowflake customer accounts · stolen by malware', p: 'Attackers took credentials from employee laptops with infostealer malware and signed in to customer accounts that had no MFA. Snowflake customers notified about 165 organisations.', ctl: 'adapID AI: credentials used from new infrastructure flagged', to: '/adapid-ai', s: 'Mandiant (Google Cloud), UNC5537, Jun 2024' },
+  { d: 'Feb 2024', h: 'Change Healthcare · one password, no MFA', p: 'Attackers signed in to a remote-access portal with stolen credentials; the portal had no multi-factor authentication. Ransomware followed nine days later and disrupted claims across US healthcare, affecting about 190 million people.', ctl: 'adapID AI: a valid login scored on behaviour, then held', to: '/adapid-ai', s: 'UnitedHealth Group testimony to the US Senate, May 2024; HHS, Jan 2025' },
 ];
 
 const FAQ = [
-  { title: 'What does Deep Algorithms do?', body: 'We secure the identities attackers use to get in: people, machine identities and AI agents. adapID AI covers people, keys, service accounts and fraud. Zenstra AI covers AI agents. ICMS covers PII and DPDPA compliance.' },
-  // { title: 'Which product should we start with?', body: 'Start with the risk that costs you most today; each product runs on its own. Agents acting on your systems: Zenstra. Logins, cloud keys, Active Directory or fraud: adapID. Personal data and DPDPA: ICMS.' },
-  { title: 'Do we have to move our data?', body: 'No. adapID uses read-only connectors and one read-only role per AWS account, Zenstra runs as a gateway inside your VPC, and ICMS connects to the stores that already hold personal data.' },
-  { title: 'Which certifications do you hold?', body: 'ISO/IEC 27001, SOC 2 Type II, ISO/IEC 42001 for AI management and ISO/IEC 27701 for privacy. Compliance documentation is available on request.' },
-  // { title: 'Do you map to Indian regulation?', body: 'Yes. Evidence is mapped to the DPDP Act 2023 and the DPDP Rules 2025, and to RBI and SEBI expectations, from the start rather than added for an audit.' },
-  { title: 'What happens in a demo?', body: 'A 30-minute session with a Deep Algorithms engineer, on your own environment where you want it, with your own questions. For AWS, you can connect a sandbox account with a read-only role and walk through the results together.' },
+  { title: 'What is Continuous AI Security Posture Management?', body: 'It is the practice of keeping a live inventory of every identity that can act on your systems, people, machine identities and AI agents, scoring each one’s posture all the time rather than once a quarter, stopping the action that breaks policy, and keeping the evidence. Deep Algorithms delivers it across three product lines: adapID AI for people and machine identities, Zenstra AI for AI agents and ICMS for personal data and DPDPA.' },
+  { title: 'How does Zenstra AI find agents we do not know about?', body: 'Zenstra AI connects read-only to the platforms where agents are built and run, such as Microsoft Copilot Studio, n8n, Zapier, LangGraph and Cursor, and to MCP servers. It lists every agent with its owner, credentials and the data it reaches, and flags those no one has reviewed.' },
+  { title: 'Do we have to move our data?', body: 'No. adapID AI uses read-only connectors and one read-only role per AWS account, Zenstra AI runs as a gateway inside your VPC, and ICMS connects to the stores that already hold personal data.' },
+  { title: 'Which certifications do you hold?', body: 'ISO/IEC 27001, SOC 2 Type II, ISO/IEC 42001 for AI management and ISO/IEC 27701 for privacy. We share compliance documentation on request.' },
+  { title: 'What happens in a demo?', body: 'A Deep Algorithms engineer runs a 30-minute session on your own environment where you want it, and answers your own questions. For AWS, you can connect a sandbox account with a read-only role and review the findings together.' },
 ];
 
-
-function WhyNow() {
+/* The loop, as an audit-style table: stage, what we do, what evidence it
+   leaves. The active stage steps forward on its own while on screen, and
+   any stage can be picked. */
+function ControlLoop() {
+  const [on, setOn] = useState(0);
+  const [auto, setAuto] = useState(true);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!auto || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined;
+    let t; let seen = false;
+    const io = new IntersectionObserver(([e]) => { seen = e.isIntersecting; }, { threshold: 0.3 });
+    if (ref.current) io.observe(ref.current);
+    t = setInterval(() => { if (seen) setOn((i) => (i + 1) % LOOP.length); }, 3200);
+    return () => { clearInterval(t); io.disconnect(); };
+  }, [auto]);
+  const pick = (i) => { setAuto(false); setOn(i); };
   return (
-    <section className="sec wash relative" aria-labelledby="now-h">
-      <div className="wrap relative">
-        <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-16">
-          <Reveal up><Workforce /></Reveal>
-          <div>
-            <p className="eyebrow">Why identity, why now</p>
-            <h2 id="now-h" className="t-h2 mt-5">Your workforce has changed. Your identity security has to change with it.</h2>
-            <p className="t-lead mt-5">People are now the smallest part of it. Keys, service accounts and AI agents act on your systems day and night, and most were never reviewed by anyone. Deep Algorithms finds, governs and protects every one of them, from one place.</p>
-            <ul className="mt-9 grid gap-6">
-              {ADAPT.map((a) => (
-                <li key={a.h} className="flex gap-4">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[11px] bg-[#eef5fc] text-[#0a6dbb]"><Icon name={a.icon} size={20} /></span>
-                  <span><span className="block text-[16.5px] font-semibold tracking-[-0.01em] text-ink">{a.h}</span><span className="mt-1 block text-[15px] leading-relaxed text-ink-2">{a.p}</span></span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-        <div className="mt-14 grid gap-px overflow-hidden rounded-[18px] border border-line bg-line md:grid-cols-2">
-          {NOW_STATS.map((n) => (
-            <div key={n.v} className="flex items-center gap-6 bg-bg-1 p-6 md:p-7">
-              <p className="shrink-0 font-semibold tracking-[-0.04em] text-ink" style={{ fontSize: 'clamp(34px, 3.2vw, 46px)', lineHeight: 1 }}><CountUp value={n.v} /></p>
-              <p><span className="block text-[15px] leading-snug text-ink-2">{n.l}</span><span className="mt-1.5 block text-[12.5px] text-ink-3">Source: {n.s}</span></p>
-            </div>
-          ))}
-        </div>
+    <div ref={ref} className="mt-14">
+      {/* progress rail */}
+      <div aria-hidden="true" className="relative mb-6 hidden h-[3px] overflow-hidden rounded-full bg-line lg:block">
+        <span className="absolute inset-y-0 left-0 rounded-full bg-[#0a6dbb] transition-[width] duration-700 ease-out" style={{ width: `${((on + 1) / LOOP.length) * 100}%` }} />
       </div>
-    </section>
+      <ol className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {LOOP.map((s, i) => (
+          <li key={s.n}>
+            <button type="button" onClick={() => pick(i)} aria-pressed={i === on} aria-label={`Stage ${s.n}: ${s.h}`}
+              className={cx('loop-card card flex h-full w-full flex-col p-6 text-left transition-all duration-500', i === on ? 'is-on' : 'opacity-90 hover:opacity-100')}>
+              <span className="flex items-center justify-between">
+                <span className={cx('grid h-11 w-11 place-items-center rounded-[12px] transition-colors duration-500', i === on ? 'bg-[#0a6dbb] text-white' : 'bg-[#eef5fc] text-[#0a6dbb]')}><Icon name={s.icon} size={22} /></span>
+                <span className="mono text-[12.5px] font-medium text-ink-3">{s.n} / 04</span>
+              </span>
+              <span className="mt-6 block text-[13px] font-semibold uppercase tracking-[.12em] text-[#0a6dbb]">{s.h}</span>
+              <span className="mt-1.5 block text-[20px] font-semibold leading-tight tracking-[-0.02em] text-ink">{s.v}</span>
+              <span className="mt-3 block flex-1 text-[15px] leading-relaxed text-ink-2">{s.p}</span>
+              <span className="mt-6 block border-t border-line pt-4">
+                <span className="block text-[11.5px] font-semibold uppercase tracking-[.12em] text-ink-3">Evidence produced</span>
+                <span className="mt-1.5 flex items-start gap-2 text-[14.5px] font-medium leading-snug text-ink"><Icon name="FileText" size={17} className="mt-0.5 shrink-0 text-[#1f9d63]" />{s.out}</span>
+              </span>
+              <span className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5">{s.by.map((p) => <span key={p} className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-ink-3"><ProductMark p={p} size={20} />{NAMES[p]}</span>)}</span>
+            </button>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
 
@@ -109,7 +139,7 @@ const WORKS = {
   zenstra: { label: 'Connects to', logos: ['copilotstudio', 'claude', 'cursor', 'n8n', 'langgraph', 'zapier'] },
 };
 function PlatformExplorer() {
-  const [on, setOn] = useState(0);
+  const [on, setOn] = useState(1); // opens on Zenstra AI, the agent story told above
   const L = PRODUCT_MENU[on];
   const dep = DEPLOY.find(([n]) => n === L.name)?.[2];
   const key = (e) => {
@@ -191,7 +221,7 @@ function PlatformAccordion() {
   return (
     <div className="mt-10 overflow-hidden rounded-[16px] border border-line bg-bg-1 md:hidden">
       {PRODUCT_MENU.map((l, i) => (
-        <details key={l.key} open={i === 0} className="acc group border-b border-line last:border-0" style={{ '--acc': l.acc }}>
+        <details key={l.key} open={l.key === 'zenstra'} className="acc group border-b border-line last:border-0" style={{ '--acc': l.acc }}>
           <summary className="flex cursor-pointer list-none items-center gap-3.5 p-4 [&::-webkit-details-marker]:hidden">
             <ProductMark p={l.key} size={36} />
             <span className="min-w-0 flex-1">
@@ -215,130 +245,94 @@ function PlatformAccordion() {
   );
 }
 
-/* "Watch the film": scroll to it and start it */
 export default function Home() {
   const incRef = useRef(null);
   useToastStack(incRef);
   return (
     <>
-      <Seo path="/" description="Deep Algorithms is an identity security platform for people, machine identities and AI agents: products that stop identity attacks, fraud and data misuse before they become a breach. ISO 27001, SOC 2 Type II. Built in India for regulated industries." />
+      <Seo path="/" description="Deep Algorithms delivers Continuous AI Security Posture Management: it discovers every human, machine and AI agent identity, scores its posture, stops the risky action and produces audit evidence mapped to DPDPA, RBI, SEBI and ISO/IEC 42001." />
 
-      {/* hero: what we are, in one sentence, and the film beside it */}
+      {/* hero: the category, the promise, two actions, and the console */}
       <section className="stage band-brand hero-under relative overflow-hidden" aria-labelledby="hero-h">
-        <div className="wrap relative grid items-center gap-12 pb-14 pt-10 md:pt-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.02fr)] lg:gap-14 lg:pb-20 lg:pt-24">
+        <div className="wrap relative grid items-center gap-12 pb-14 pt-10 md:pt-16 lg:grid-cols-[minmax(0,.95fr)_minmax(0,1.15fr)] lg:gap-8 lg:pb-20 lg:pt-20">
           <div className="max-w-[620px] max-md:mx-auto max-md:text-center">
-            <h1 id="hero-h" className="t-hero rise" style={{ '--d': '60ms' }}>Identity security for the AI era.</h1>
-            <KineticPill className="rise mt-5" style={{ '--d': '100ms' }} lead="Verifies every" words={['person', 'service account', 'AI agent', 'cloud key', 'payment']} tail="before it acts." />
-            <p className="t-lead rise mt-6 max-w-[540px] max-md:mx-auto" style={{ '--d': '120ms' }}>Discover every human, machine and AI agent identity. Learn how each one should behave, and stop the one that doesn’t, in milliseconds, with the reason why.</p>
-            <div className="rise mt-9 flex flex-wrap gap-3 max-md:flex-col max-md:[&>*]:w-full" style={{ '--d': '180ms' }}>
-              <Button to="/request-demo" size="lg" arrow>Book a demo</Button>
-              <Explore label="See how it works" target="#how" variant="ghost" />
-            </div>
-            <p className="rise mt-5 text-[14px] text-ink-3 max-md:text-center" style={{ '--d': '220ms' }}>
-              or <Link to="/product-tour" className="font-medium text-ink underline decoration-line-2 underline-offset-4 hover:decoration-ink">take the product tour</Link>, in ten steps
+            <p className="rise inline-flex items-center gap-2.5 rounded-full border border-[#0a6dbb]/25 bg-[#0a6dbb]/[.07] py-1.5 pl-2 pr-4 text-[13.5px] font-semibold text-[#0a5ea3]">
+              <span className="relative flex h-2 w-2 ml-1"><span className="absolute inset-0 animate-ping rounded-full bg-[#0a6dbb]/50" /><span className="relative h-2 w-2 rounded-full bg-[#0a6dbb]" /></span>
+              Continuous AI Security Posture Management
             </p>
+            <h1 id="hero-h" className="t-hero rise mt-6" style={{ '--d': '60ms' }}>Discover every human, machine and AI agent identity.</h1>
+            <p className="rise mt-6 text-[clamp(19px,1.7vw,23px)] font-semibold leading-snug tracking-[-0.015em] text-ink" style={{ '--d': '100ms' }}>Securing your identities and digital ecosystem from AI-driven threats.</p>
+            <p className="t-lead rise mt-4 max-w-[560px] max-md:mx-auto" style={{ '--d': '140ms' }}>Deep Algorithms inventories every identity across your cloud, SaaS and AI platforms, scores its posture continuously and blocks the risky action before it runs, with audit-ready evidence for every decision.</p>
+            <div className="rise mt-9 flex flex-wrap gap-3 max-md:flex-col max-md:[&>*]:w-full max-md:[&>*]:justify-center" style={{ '--d': '180ms' }}>
+              <Button to="/request-demo" size="lg" arrow>Book a demo</Button>
+              <WatchButton />
+            </div>
+            <ul className="rise mt-9 flex flex-wrap gap-x-6 gap-y-2.5 text-[14px] font-medium text-ink-2 max-md:justify-center" style={{ '--d': '220ms' }}>
+              {['Agentless, read-only connectors', 'Gateway inside your VPC', 'ISO 27001 · SOC 2 Type II · ISO 42001'].map((t) => (
+                <li key={t} className="flex items-center gap-2"><Icon name="CheckCircle" size={17} weight="fill" className="text-[#1f9d63]" />{t}</li>
+              ))}
+            </ul>
           </div>
-          <div id="film" className="rise relative scroll-mt-28" style={{ '--d': '220ms' }}>
-            <Hud label="Live · Protected"><FilmPlayer compact teaser={{ src: '/video/film-teaser', poster: '/video/film-teaser-poster.webp' }} title="Every identity, verified before it acts." /></Hud>
-            {/* <p className="mt-2 text-[12px] text-ink-3">Situations based on public incident reports. Music: “Deliberate Thought” by Kevin MacLeod (incompetech.com), CC BY 4.0.</p> */}
+          <div className="rise tone-d relative lg:-mr-6" style={{ '--d': '200ms' }}>
+            <PostureConsole />
           </div>
         </div>
         <TrustedRow />
       </section>
 
-      {/* the Prompt Heist challenge, right under the hero */}
-      {/* <HeistBanner /> */}
-
-            {/* HOW IT WORKS SECTION - TEMPORARILY DISABLED
+      {/* how it works: the continuous loop, and the evidence each stage leaves */}
       <section id="how" className="sec scroll-mt-20" aria-labelledby="how-h">
         <div className="wrap">
-          <div className="island tone-d px-4 py-14 md:px-10 md:py-20">
-            <SectionHead
-              id="how-h"
-              eyebrow="How it works"
-              title="From first discovery to the auditor’s record. On every identity."
-              lead="adapID CIRM finds every identity you have, learns how each one behaves, and acts the moment one changes, through the tools you already run."
-            />
+          <SectionHead id="how-h" eyebrow="How Continuous AI-SPM works" title="Four controls. One continuous loop. Evidence at every step." lead="Deep Algorithms runs the same loop on every person, machine identity and AI agent, around the clock. Each stage produces an artifact your security team acts on and your auditors accept." />
+          <ControlLoop />
+        </div>
+      </section>
 
-            <Reveal up className="mx-auto mt-12 max-w-[1120px] max-md:hidden">
-              <CirmPipeline />
-            </Reveal>
-
-            <ol className="mt-8 divide-y divide-white/10 border-y border-white/10 md:hidden">
-              {STAGES.map((st, i) => (
-                <li key={st.n}>
-                  <details className="group">
-                    <summary className="flex cursor-pointer list-none items-center gap-4 py-4 text-left">
-                      <span className="mono text-[12px] text-white/50">
-                        {String(i + 1).padStart(2, '0')}
-                      </span>
-                      <span className="flex-1 text-[17px] font-semibold text-white">
-                        {st.n}
-                      </span>
-                      <span aria-hidden="true" className="text-[20px] text-white/60 transition-transform group-open:rotate-45">
-                        +
-                      </span>
-                    </summary>
-                    <p className="pb-4 pl-9 text-[15px] leading-relaxed text-white/75">
-                      {st.d}
-                    </p>
-                  </details>
-                </li>
-              ))}
-            </ol>
-
-            <p className="mt-8 text-center">
-              <Link to="/adapid-ai" className="link">
-                Explore adapID CIRM
-                <Icon name="ArrowRight" size={14} weight="bold" />
-              </Link>
-            </p>
+      {/* Zenstra AI: AI agent discovery, the problem in depth */}
+      <section id="agents" className="sec scroll-mt-20" aria-labelledby="agents-h">
+        <div className="wrap">
+          <div className="island tone-d px-5 py-14 md:px-12 md:py-20">
+            <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-12">
+              <div>
+                <p className="flex items-center gap-2.5 text-[13.5px] font-semibold text-[#b9c3ff]"><ProductMark p="zenstra" size={28} />Zenstra AI · AI agent discovery</p>
+                <h2 id="agents-h" className="t-h2 mt-6 text-white">Find every AI agent before it acts on your data.</h2>
+                <p className="t-lead mt-5 text-white/75">Employees build agents in Copilot Studio, n8n, Zapier and Cursor faster than security can review them, and each holds real credentials. Zenstra AI finds every one, assigns an owner and decides each action before it runs.</p>
+                <ul className="mt-8 grid gap-4">
+                  {AGENT_POINTS.map((t) => (
+                    <li key={t} className="flex gap-3 text-[15.5px] leading-relaxed text-white/85"><Icon name="CheckCircle" size={20} weight="fill" className="mt-0.5 shrink-0 text-[#93a2ff]" />{t}</li>
+                  ))}
+                </ul>
+                <div className="mt-10 flex flex-wrap gap-3 max-md:flex-col max-md:[&>*]:w-full">
+                  <Button to="/agentic-ai/agent-discovery" size="lg" arrow className="cta-primary">Explore agent discovery</Button>
+                  <Button to="/agentic-ai/agentic-identity" variant="ghost" size="lg" className="!border-white/35 !bg-transparent !text-white hover:!bg-white/10">See the Zenstra AI platform</Button>
+                </div>
+              </div>
+              <div>
+                <Reveal up><ZenInventory /></Reveal>
+                <div className="mt-6 border-t border-white/10 pt-5">
+                  <p className="text-[12px] font-semibold uppercase tracking-[.12em] text-white/55">Discovers agents built on</p>
+                  <ul className="mt-3 flex flex-wrap gap-2">
+                    {AGENT_SOURCES.map((k) => <li key={k} title={logoTitle(k)} className="flex h-10 w-10 items-center justify-center rounded-[10px] border border-white/10 bg-white/[.06] text-white"><Logo k={k} size={20} /><span className="sr-only">{logoTitle(k)}</span></li>)}
+                  </ul>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
-      */}
 
-      <WhyNow />
-
-      {/* the platform: three product lines, one standard */}
-      <section id="platform" className="sec scroll-mt-20" aria-labelledby="platform-h">
-        <div className="wrap">
-          <SectionHead id="platform-h" eyebrow="The platform" title="One platform. Three product lines. Every identity, human or machine." lead="Start with the risk that costs you most today. Each product runs on its own, connects to the identity providers, clouds, apps and AI tools you already run, and explains every decision it makes." />
-          <Reveal up className="mx-auto mt-6 max-w-[900px] md:mt-2"><PlatformOrbit /></Reveal>
-          <PlatformAccordion />
-          <PlatformExplorer />
-          <Reveal className="mt-6 grid gap-px overflow-hidden rounded-[16px] border border-line bg-line sm:grid-cols-2 xl:grid-cols-4">
-            {SHARED.map((w) => (
-              <div key={w.h} className="flex gap-4 bg-bg-1 p-5">
-                <Icon name={w.icon} size={22} className="mt-0.5 shrink-0 text-cyan-2" />
-                <span><span className="block text-[15px] font-semibold">{w.h}</span><span className="mt-1 block text-[14px] leading-snug text-ink-3">{w.p}</span></span>
-              </div>
-            ))}
-          </Reveal>
-        </div>
-      </section>
-
-
-      {/* how attacks begin now: the three identities, told one at a time */}
-      <section id="perimeter" className="sec scroll-mt-20" aria-labelledby="perimeter-h">
-        <div className="wrap">
-          <SectionHead align="left" id="perimeter-h" eyebrow="Where attacks begin now" title="Attackers don’t break in anymore. They log in." lead="Most access in your company no longer belongs to a person. Keys, service accounts and AI agents hold it now, and that is where attacks begin." />
-          <div className="mt-14 lg:mt-6"><PerimeterStory /></div>
-        </div>
-      </section>
-
-      {/* who it is for */}
-      <section className="sec" aria-labelledby="roles-h">
-        <div className="wrap">
-          <SectionHead id="roles-h" eyebrow="Who we help" title="Built for the people who answer for a breach." lead="The same platform, seen by the teams who buy it, run it and report on it." />
-          <RoleCards />
-        </div>
-      </section>
-
-      {/* already happening: public incidents, and the control for each */}
+      {/* the threats: sourced figures and public incidents, each mapped to a control */}
       <section className="sec wash" aria-labelledby="inc-h">
         <div className="wrap">
-          <SectionHead id="inc-h" eyebrow="Already happening" title="Every one of these began with an identity that looked legitimate." lead="Six public incidents, each with its source, and the Deep Algorithms control that applies to that kind of attack." />
+          <SectionHead id="inc-h" eyebrow="AI-driven threats" title="Attackers no longer break in. They sign in with identities you trust." lead="Attackers now steal tokens from AI integrations, spray forgotten accounts and replay credentials taken by malware. Each public incident below began with a legitimate identity, and each maps to a Deep Algorithms control." />
+          <div className="mx-auto mt-12 grid max-w-[1000px] gap-px overflow-hidden rounded-[18px] border border-line bg-line md:grid-cols-2">
+            {THREAT_STATS.map((n) => (
+              <div key={n.v} className="flex items-center gap-6 bg-bg-1 p-6 md:p-7">
+                <p className="shrink-0 font-semibold tracking-[-0.04em] text-ink" style={{ fontSize: 'clamp(34px, 3.2vw, 46px)', lineHeight: 1 }}><CountUp value={n.v} /></p>
+                <p><span className="block text-[15px] leading-snug text-ink-2">{n.l}</span><span className="mt-1.5 block text-[12.5px] text-ink-3">Source: {n.s}</span></p>
+              </div>
+            ))}
+          </div>
           <ol ref={incRef} className="inc mx-auto mt-14 max-w-[1000px]">
             {INCIDENTS.map((x) => (
               <li key={x.h}>
@@ -355,13 +349,30 @@ export default function Home() {
               </li>
             ))}
           </ol>
-          <p className="mx-auto mt-8 max-w-[1000px] text-[12.5px] text-ink-3">Public reports, summarised. Deep Algorithms was not involved in these incidents; each control shows how that class of attack is addressed.</p>
+          <p className="mx-auto mt-8 max-w-[1000px] text-[12.5px] text-ink-3">Public reports, summarised. Deep Algorithms was not involved in these incidents; each control shows how Deep Algorithms addresses that class of attack.</p>
         </div>
       </section>
 
-      <div className="alt"><Faq items={FAQ} title="What teams ask before a first call" /></div>
+      {/* the platform: three product lines, one posture */}
+      <section id="platform" className="sec scroll-mt-20" aria-labelledby="platform-h">
+        <div className="wrap">
+          <SectionHead id="platform-h" eyebrow="The platform" title="Three product lines. One posture view." lead="Start with the risk that costs you most today. Each product deploys on its own, connects to the identity providers, clouds, apps and AI tools you already run, and reports into one posture view." />
+          <PlatformAccordion />
+          <PlatformExplorer />
+          <Reveal className="mt-6 grid gap-px overflow-hidden rounded-[16px] border border-line bg-line sm:grid-cols-2 xl:grid-cols-4">
+            {SHARED.map((w) => (
+              <div key={w.h} className="flex gap-4 bg-bg-1 p-5">
+                <Icon name={w.icon} size={22} className="mt-0.5 shrink-0 text-cyan-2" />
+                <span><span className="block text-[15px] font-semibold">{w.h}</span><span className="mt-1 block text-[14px] leading-snug text-ink-3">{w.p}</span></span>
+              </div>
+            ))}
+          </Reveal>
+        </div>
+      </section>
 
-      <CtaBand />
+      <div className="alt"><Faq items={FAQ} title="What security teams ask before a first call" /></div>
+
+      <CtaBand title="See your AI security posture in 30 minutes." body="A Deep Algorithms engineer walks your team through every identity and AI agent the platform finds, on your own environment, with your own questions." />
     </>
   );
 }

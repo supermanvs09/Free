@@ -133,14 +133,14 @@ function GrantBars() {
           </div>
         </div>
       ))}
-      <p className="mt-6 text-[13.5px] text-ink-3">Illustrative identities. Unused permissions are listed for removal with the CloudTrail evidence behind each one.</p>
+      <p className="mt-6 text-[13.5px] text-ink-3">Illustrative identities. NHI Security lists unused permissions for removal with the CloudTrail evidence behind each one.</p>
     </div>
   );
 }
 
 const FAQ = [
-  { title: 'What access does adapID need?', body: 'One read-only IAM role per AWS account, assumed with an external ID. Nothing is installed on workloads and nothing is written to your accounts.' },
-  { title: 'Which identities are covered?', body: 'IAM roles, users, service-linked roles and workload identities across accounts and regions, with their credentials and trust relationships.' },
+  { title: 'What access does adapID need?', body: 'One read-only IAM role per AWS account, assumed with an external ID. NHI Security installs nothing on workloads and writes nothing to your accounts.' },
+  { title: 'Which identities does it cover?', body: 'IAM roles, users, service-linked roles and workload identities across accounts and regions, with their credentials and trust relationships.' },
   { title: 'How do you know what is used?', body: 'Granted permissions are compared with 90 days of CloudTrail activity, so unused access stands out for removal.' },
   { title: 'Where do you look for leaked secrets?', body: 'GitHub and AWS CodeCommit, with model-based triage so analysts see real exposures first, and full-history deep scans on demand.' },
 ];
@@ -200,7 +200,7 @@ export default function Nhi() {
 
       <section className="sec" aria-labelledby="gu-h">
         <div className="wrap">
-          <SectionHead id="gu-h" acc={A} eyebrow="Posture and access" title="Granted is not the same as used." lead="Each identity is scored from 100 down by the checks it fails. The access graph shows who can assume what, and 90 days of CloudTrail show what is actually used." />
+          <SectionHead id="gu-h" acc={A} eyebrow="Posture and access" title="Granted is not the same as used." lead="NHI Security scores each identity from 100 down, by the checks it fails. The access graph shows who can assume what, and 90 days of CloudTrail show what is actually used." />
           <Reveal className="mx-auto mt-14 max-w-[900px]"><GrantBars /></Reveal>
         </div>
       </section>
