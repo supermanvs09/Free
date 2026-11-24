@@ -627,3 +627,34 @@ func classArgs(tenant string, class string, rest ...any) []any {
 	}
 	return args
 }
+
+// DailyTrend is the fleet score per day over the last days, as the Posture
+// page draws it, and when the latest score was computed. Both empty when the
+// cache has no row for the class yet.
+func (r *PostureOverviewRepository) DailyTrend(ctx context.Context, s *scope.DataScope, class string, days int) ([]TrendPoint, *time.Time, error) {
+	if err := common.Need(s); err != nil {
+		return nil, nil, err
+	}
+	row, filter, err := r.fleetRow(ctx, s, class)
+	if errors.Is(err, sql.ErrNoRows) || (err != nil && (common.IsUndefinedTable(err) || common.IsUndefinedColumn(err))) {
+		return nil, nil, nil
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	w, ok := common.ParseWindow(fmt.Sprintf("%dd", days))
+	if !ok {
+		w, _ = common.ParseWindow("30d")
+	}
+	w.PerScan = false
+	pts, err := r.trend(ctx, s, w, row.snapshot, class, filter)
+	if err != nil {
+		return nil, nil, err
+	}
+	var at *time.Time
+	if row.computed.Valid {
+		t := row.computed.Time.UTC()
+		at = &t
+	}
+	return pts, at, nil
+}

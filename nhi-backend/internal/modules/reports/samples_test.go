@@ -76,7 +76,10 @@ func sampleReport(t testing.TB, identities int) *PostureReport {
 		weight[ru.ID] = w
 	}
 	penalty := map[string]float64{"critical": 30, "high": 16, "medium": 9, "low": 4}
-	kinds := []struct{ typ, prefix string; human bool }{
+	kinds := []struct {
+		typ, prefix string
+		human       bool
+	}{
 		{"lambda_function", "lambda", false}, {"ecs_task", "ecs-task", false}, {"ec2_instance", "ec2", false},
 		{"iam_role", "role", false}, {"iam_user", "svc", false}, {"codebuild_project", "codebuild", false}, {"iam_user", "", true},
 	}
@@ -196,10 +199,10 @@ func sampleReport(t testing.TB, identities int) *PostureReport {
 	hist := &History{Days: 30}
 	hist.Current = PeriodStats{Start: now.AddDate(0, 0, -30), End: now,
 		NewBySev: map[string]int{"critical": 9, "high": 96, "medium": 141, "low": 22}, ResolvedBySev: map[string]int{"critical": 12, "high": 131, "medium": 118, "low": 15},
-		MedianDays: map[string]float64{"critical": 9.5, "high": 24, "medium": 61, "low": 88}, FixedInSLA: map[string]int{"critical": 10, "high": 102, "medium": 97, "low": 15}, Accepted: 4}
+		MedianDays: map[string]float64{"critical": 9.5, "high": 24, "medium": 61, "low": 88}, FixedInSLA: map[string]int{"critical": 10, "high": 102, "medium": 97, "low": 15}, Accepted: 4, Median: fptr(31)}
 	hist.Previous = PeriodStats{Start: now.AddDate(0, 0, -60), End: now.AddDate(0, 0, -30),
 		NewBySev: map[string]int{"critical": 14, "high": 122, "medium": 160, "low": 30}, ResolvedBySev: map[string]int{"critical": 8, "high": 87, "medium": 95, "low": 11},
-		MedianDays: map[string]float64{"critical": 17, "high": 36, "medium": 74, "low": 102}, FixedInSLA: map[string]int{"critical": 4, "high": 51, "medium": 71, "low": 11}, Accepted: 2}
+		MedianDays: map[string]float64{"critical": 17, "high": 36, "medium": 74, "low": 102}, FixedInSLA: map[string]int{"critical": 4, "high": 51, "medium": 71, "low": 11}, Accepted: 2, Median: fptr(46)}
 	for _, p := range []*PeriodStats{&hist.Current, &hist.Previous} {
 		for _, sv := range Severities {
 			p.New += p.NewBySev[sv]
@@ -210,11 +213,11 @@ func sampleReport(t testing.TB, identities int) *PostureReport {
 	until := func(d int) *time.Time { t := now.AddDate(0, 0, d); return &t }
 	ago := func(d int) *time.Time { t := now.AddDate(0, 0, -d); return &t }
 	rep.Exceptions = []Exception{
-		{"Cross-acct trust without ExternalId", "high", "role-vendor-backup-sync", "bimasugam-shared-services", "Vendor does not support ExternalId; compensating control: SCP limits the role to the backup bucket.", "Identity & Access", ago(41), until(49)},
-		{"Wildcard resource (Resource:*)", "medium", "lambda-metrics-export", "bimasugam-data-platform", "CloudWatch PutMetricData does not support resource-level permissions.", "Data Platform", ago(73), nil},
-		{"Multiple active access keys", "medium", "svc-jenkins-legacy", "bimasugam-core-prod", "Key rotation in progress; second key retired after the December release.", "DevOps", ago(12), until(18)},
-		{"Unused IAM role", "low", "role-dr-failover", "bimasugam-core-prod", "Disaster-recovery role; used only during failover tests.", "Platform Engineering", ago(120), until(60)},
-		{"Off-hours activity", "low", "ecs-task-reconcile-job", "bimasugam-payments-prod", "Nightly reconciliation runs at 02:00 UTC by design.", "Payments SRE", ago(9), nil},
+		{"Cross-acct trust without ExternalId", "high", "role-vendor-backup-sync", "bimasugam-shared-services", "Vendor does not support ExternalId; compensating control: SCP limits the role to the backup bucket.", "Identity & Access", "ciso@bimasugam", ago(41), until(49)},
+		{"Wildcard resource (Resource:*)", "medium", "lambda-metrics-export", "bimasugam-data-platform", "CloudWatch PutMetricData does not support resource-level permissions.", "Data Platform", "admin@bimasugam", ago(73), nil},
+		{"Multiple active access keys", "medium", "svc-jenkins-legacy", "bimasugam-core-prod", "Key rotation in progress; second key retired after the December release.", "DevOps", "admin@bimasugam", ago(12), until(18)},
+		{"Unused IAM role", "low", "role-dr-failover", "bimasugam-core-prod", "Disaster-recovery role; used only during failover tests.", "Platform Engineering", "ciso@bimasugam", ago(120), until(60)},
+		{"Off-hours activity", "low", "ecs-task-reconcile-job", "bimasugam-payments-prod", "Nightly reconciliation runs at 02:00 UTC by design.", "Payments SRE", "secops@bimasugam", ago(9), nil},
 	}
 	return rep
 }

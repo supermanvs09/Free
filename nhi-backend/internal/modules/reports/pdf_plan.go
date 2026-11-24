@@ -22,6 +22,7 @@ func WritePlanPDF(w io.Writer, rep *PostureReport) error {
 		p.cover()
 		if rep.CheckCount > 0 {
 			p.actions()
+			p.pace()
 			p.heatmap()
 			p.packages()
 			p.evidence()
@@ -141,7 +142,7 @@ func (p *plan) cover() {
 		{"Average score", fmtScore(rep.AverageScore), changeText(rep.Change30d) + " in 30 days"},
 		{"Identities to fix", num(rep.FailingCount), "of " + num(rep.ScoredCount) + " scored"},
 		{"Actions", num(len(rep.Groups)), num(rep.CheckCount) + " findings"},
-		{"Fix-now actions (P1)", num(p.waveCount("P1")), "critical, or high and widespread"},
+		{"Overdue findings", num(p.overdueTotal()), fmt.Sprintf("past their %d/%d/%d/%d-day targets", rep.SLA.Due("critical"), rep.SLA.Due("high"), rep.SLA.Due("medium"), rep.SLA.Due("low"))},
 	}
 	fw := (rw - 3*4) / 4
 	for i, f := range figs {
@@ -166,7 +167,7 @@ func (p *plan) cover() {
 	p.font(fSemi, 10, cInk)
 	p.at(rx, ry, rw, 5, "Remediation waves", "L")
 	ry += 7
-	t := p.newTable([]tcol{{"Wave", 34, "L"}, {"When", 26, "L"}, {"Actions", 18, "R"}, {"Findings", 20, "R"}, {"Identities", 22, "R"}, {"Score gain (up to)", rw - 120, "R"}})
+	t := p.newTable([]tcol{{"Wave", 34, "L"}, {"When", 26, "L"}, {"Actions", 18, "R"}, {"Findings", 20, "R"}, {"Identities", 22, "R"}, {"Score gain", rw - 120, "R"}})
 	t.x = rx
 	pdf.SetY(ry)
 	t.header()
@@ -200,18 +201,17 @@ func (p *plan) headline() string {
 	if rep.CheckCount == 0 {
 		return "No failing checks in scope"
 	}
-	gain := 0.0
-	n := 0
-	for _, g := range rep.Groups {
+	var idx []int
+	for gi, g := range rep.Groups {
 		if rep.Priority(g) == "P1" {
-			gain += rep.Uplift(g)
-			n++
+			idx = append(idx, gi)
 		}
 	}
+	n, gain := len(idx), rep.GainIfFixed(idx...)
 	if n == 0 {
 		return fmt.Sprintf("%s to close; no fix-now items", count(len(rep.Groups), "action", "actions"))
 	}
-	return fmt.Sprintf("%s fix-now %s could lift the score by up to %.1f", num(n), plural(n, "action", "actions"), gain)
+	return fmt.Sprintf("%s fix-now %s would lift the score by %.1f points", num(n), plural(n, "action", "actions"), gain)
 }
 
 func (p *plan) waveCount(w string) int {
@@ -222,18 +222,19 @@ func (p *plan) waveCount(w string) int {
 // wave sums one priority wave.
 func (p *plan) wave(w string) (actions, findings, identities int, gain float64) {
 	ids := map[int]bool{}
-	for _, g := range p.rep.Groups {
+	var idx []int
+	for gi, g := range p.rep.Groups {
 		if p.rep.Priority(g) != w {
 			continue
 		}
 		actions++
 		findings += len(g.Items)
-		gain += p.rep.Uplift(g)
+		idx = append(idx, gi)
 		for _, it := range g.Items {
 			ids[it.Identity] = true
 		}
 	}
-	return actions, findings, len(ids), gain
+	return actions, findings, len(ids), p.rep.GainIfFixed(idx...)
 }
 
 // actionText is a check as a thing to do: its fix's first sentence, else
@@ -243,17 +244,34 @@ func actionText(g CheckGroup) string {
 	if fix == "" {
 		return "Fix: " + g.Title
 	}
-	if i := strings.Index(fix, ". "); i > 0 && i < 140 {
+	if i := sentenceEnd(fix); i > 0 && i < 140 {
 		fix = fix[:i+1]
 	}
 	return fix
+}
+
+// sentenceEnd is the index of the full stop ending s's first sentence, or -1.
+// Abbreviations such as "e.g." do not end a sentence.
+func sentenceEnd(s string) int {
+	for off := 0; ; {
+		i := strings.Index(s[off:], ". ")
+		if i < 0 {
+			return -1
+		}
+		i += off
+		low := strings.ToLower(s[:i+1])
+		if !strings.HasSuffix(low, "e.g.") && !strings.HasSuffix(low, "i.e.") && !strings.HasSuffix(low, "etc.") && !strings.HasSuffix(low, "vs.") {
+			return i
+		}
+		off = i + 2
+	}
 }
 
 // ---- action plan ---------------------------------------------------------------
 
 func (p *plan) actions() {
 	rep := p.rep
-	p.title("actions", "Action plan", "Every failing check as one action, grouped into waves. Fixing an action clears the check on every identity listed for it. Score gain is how much the average score could rise; it is an upper bound.")
+	p.title("actions", "Action plan", "Every failing check as one action, grouped into waves. Fixing an action clears the check on every identity listed for it. Score gain is how much the average score rises when that action is done everywhere, re-scoring each identity.")
 	for _, wv := range waves {
 		var list []int
 		for i, g := range rep.Groups {
@@ -275,17 +293,116 @@ func (p *plan) actions() {
 		p.font(fReg, 8, cInk3)
 		p.at(p.mx+4, y, p.body-4, 6, fmt.Sprintf("%s · %s · %s · up to +%.1f", count(acts, "action", "actions"), count(finds, "finding", "findings"), count(ids, "identity", "identities"), gain), "R")
 		p.pdf.SetY(y + 8)
-		t := p.newTable([]tcol{{"Ref", 15, "L"}, {"Action", 84, "L"}, {"Check", 50, "L"}, {"Severity", 22, "L"}, {"Identities", 19, "R"}, {"Accounts", 17, "R"}, {"Oldest", 17, "R"}, {"Gain", 13, "R"}, {"Controls", p.body - 237, "L"}})
+		t := p.newTable([]tcol{{"Ref", 15, "L"}, {"Action", 82, "L"}, {"Check", 46, "L"}, {"Severity", 22, "L"}, {"Identities", 18, "R"}, {"Overdue", 17, "R"}, {"Oldest", 17, "R"}, {"Gain", 13, "R"}, {"Owner", p.body - 230, "L"}})
 		t.maxLine = 3
 		t.header()
 		for j, gi := range list {
 			g := rep.Groups[gi]
-			ctl := strings.Join(g.Controls[:min(3, len(g.Controls))], ", ")
+			st := rep.State(g)
+			owner, oc := "Unassigned", cSev["high"]
+			if len(st.Owners) > 0 {
+				owner, oc = st.Owners[0], cInk2
+				if len(st.Owners) > 1 {
+					owner += fmt.Sprintf(" +%d", len(st.Owners)-1)
+				}
+			}
+			lc := cInk3
+			if st.Overdue > 0 {
+				lc = cSev["critical"]
+			}
 			t.row([]tcell{{text: FindingRef(gi), face: fMono, size: 7.2, link: p.link(fmt.Sprintf("g%d", gi))}, {text: actionText(g), face: fMed}, {text: g.Title, color: &cInk2},
-				{sev: g.Severity}, {text: num(len(g.Items)), face: fSemi}, {text: num(len(g.Accounts))}, {text: daysText(rep.DaysFailing(g.Since))},
-				{text: fmt.Sprintf("+%.1f", rep.Uplift(g)), face: fSemi}, {text: ctl, face: fMono, size: 6.8, color: &cInk3}}, j%2 == 1)
+				{sev: g.Severity}, {text: num(len(g.Items)), face: fSemi}, {text: num(st.Overdue), face: fSemi, color: &lc}, {text: daysText(rep.DaysFailing(g.Since))},
+				{text: fmt.Sprintf("+%.1f", rep.Uplift(g)), face: fSemi}, {text: owner, color: &oc}}, j%2 == 1)
 		}
 		p.pdf.SetY(p.pdf.GetY() + 6)
+	}
+}
+
+// ---- remediation pace -----------------------------------------------------------
+
+func (p *plan) overdueTotal() int {
+	n := 0
+	for _, v := range p.rep.Overdue() {
+		n += v
+	}
+	return n
+}
+
+func (p *plan) pace() {
+	pdf, rep := p.pdf, p.rep
+	note := "Whether fixes keep up with new findings, and what is already late. " + slaLine(rep)
+	p.title("pace", "Remediation pace", note)
+	if cs := changeSentence(rep); cs != "" {
+		p.font(fMed, 9.2, cBrandDeep)
+		p.para(p.mx, p.body, 4.6, cs)
+		pdf.SetY(pdf.GetY() + 3)
+	}
+	half := (p.body - 12) / 2
+	p.remediationTable(p.mx, p.body)
+	pdf.SetY(pdf.GetY() + 6)
+	p.ensure(52)
+	y := pdf.GetY()
+	p.font(fSemi, 10, cInk)
+	p.at(p.mx, y, half, 5, "Age of open findings", "L")
+	left := p.agingChart(p.mx, y+7, half)
+	p.font(fSemi, 10, cInk)
+	p.at(p.mx+half+12, y, half, 5, "Owners", "L")
+	pdf.SetY(y + 7)
+	p.ownersTable(p.mx+half+12, half, 6)
+	pdf.SetY(math.Max(left, pdf.GetY()) + 6)
+	pdf.AddPage()
+
+	// The late items, most late first: the list to chase.
+	type late struct {
+		id *ReportIdentity
+		c  ReportCheck
+		by int
+		gi int
+	}
+	var list []late
+	gidx := map[string]int{}
+	for gi, g := range rep.Groups {
+		gidx[g.RuleID] = gi
+	}
+	for i := range rep.Identities {
+		id := &rep.Identities[i]
+		for _, c := range id.Checks {
+			if ok, by := rep.OverdueCheck(c); ok {
+				list = append(list, late{id, c, by, gidx[c.RuleID]})
+			}
+		}
+	}
+	sort.SliceStable(list, func(i, j int) bool {
+		if sevRank(list[i].c.Severity) != sevRank(list[j].c.Severity) {
+			return sevRank(list[i].c.Severity) < sevRank(list[j].c.Severity)
+		}
+		return list[i].by > list[j].by
+	})
+	p.ensure(30)
+	p.font(fSemi, 10, cInk)
+	p.at(p.mx, pdf.GetY(), p.body, 5, fmt.Sprintf("Overdue now: %s", count(len(list), "finding", "findings")), "L")
+	pdf.SetY(pdf.GetY() + 7)
+	if len(list) == 0 {
+		p.font(fReg, 8.6, cInk2)
+		p.para(p.mx, p.body, 4.4, "No open finding is past its remediation target.")
+		return
+	}
+	t := p.newTable([]tcol{{"Severity", 22, "L"}, {"Check", 70, "L"}, {"Identity", 62, "L"}, {"Account", 44, "L"}, {"Owner", 36, "L"}, {"Late by", p.body - 234, "R"}})
+	t.maxLine = 1
+	t.header()
+	shown := min(20, len(list))
+	for j, l := range list[:shown] {
+		owner, oc := strings.TrimSpace(l.c.Owner), cInk2
+		if owner == "" {
+			owner, oc = "Unassigned", cSev["high"]
+		}
+		t.row([]tcell{{sev: l.c.Severity}, {text: l.c.Check, face: fMed, link: p.link(fmt.Sprintf("g%d", l.gi))}, {text: l.id.Name}, {text: orDash(l.id.Account), color: &cInk2},
+			{text: owner, color: &oc}, {text: daysText(l.by), face: fSemi, color: ptr(cSev["critical"])}}, j%2 == 1)
+	}
+	if len(list) > shown {
+		p.font(fReg, 7.4, cInk3)
+		p.at(p.mx, pdf.GetY()+1, p.body, 4, fmt.Sprintf("and %s more overdue findings in the workbook", num(len(list)-shown)), "L")
+		pdf.SetY(pdf.GetY() + 5)
 	}
 }
 
@@ -515,7 +632,7 @@ func (p *plan) evidence() {
 
 		items := append([]GroupItem(nil), g.Items...)
 		sortItemsByScore(rep, items)
-		t := p.newTable([]tcol{{"Identity", 64, "L"}, {"Type", 30, "L"}, {"Account", 46, "L"}, {"Score", 14, "R"}, {"Days", 14, "R"}, {"What the scan found", p.body - 168, "L"}})
+		t := p.newTable([]tcol{{"Identity", 58, "L"}, {"Account", 42, "L"}, {"Owner", 32, "L"}, {"Score", 13, "R"}, {"Due", 22, "R"}, {"What the scan found", p.body - 167, "L"}})
 		t.size, t.maxLine = 7.4, 2
 		t.header()
 		for j, it := range items {
@@ -523,13 +640,23 @@ func (p *plan) evidence() {
 				break
 			}
 			id := rep.Identities[it.Identity]
-			days := "-"
+			due, owner := "-", "Unassigned"
+			dc, oc := cInk2, cInk3
 			for _, ch := range id.Checks {
-				if ch.RuleID == g.RuleID && ch.FailingSince != nil {
-					days = num(rep.DaysFailing(ch.FailingSince))
+				if ch.RuleID != g.RuleID {
+					continue
+				}
+				if dd := rep.DueDate(ch); dd != nil {
+					due = dd.UTC().Format("2 Jan 06")
+				}
+				if late, by := rep.OverdueCheck(ch); late {
+					due, dc = daysText(by)+" late", cSev["critical"]
+				}
+				if o := strings.TrimSpace(ch.Owner); o != "" {
+					owner, oc = o, cInk2
 				}
 			}
-			t.row([]tcell{{text: id.Name, face: fMed}, {text: typeLabel(id.Type)}, {text: orDash(id.Account)}, {text: fmtScore(id.Score), face: fSemi}, {text: days}, {text: it.Found, color: &cInk2}}, j%2 == 1)
+			t.row([]tcell{{text: id.Name, face: fMed}, {text: orDash(id.Account)}, {text: owner, color: &oc}, {text: fmtScore(id.Score), face: fSemi}, {text: due, face: fSemi, color: &dc}, {text: it.Found, color: &cInk2}}, j%2 == 1)
 		}
 		if len(items) > planEvidenceRows {
 			p.font(fReg, 7.2, cInk3)
@@ -567,7 +694,13 @@ func (p *plan) method() {
 	p.at(p.mx, pdf.GetY(), half, 5, "Score gain", "L")
 	pdf.SetY(pdf.GetY() + 6)
 	p.font(fReg, 8.4, cInk2)
-	p.para(p.mx, half, 4.3, "The points an action's failing checks take off, summed over the identities it fixes and divided by every scored identity. An identity already at 0 regains less, so the gain is an upper bound.")
+	p.para(p.mx, half, 4.3, "Each identity an action fixes is re-scored without that action's points (a score stays between 0 and 100), and the change is averaged over every scored identity. A wave's gain re-scores with all its actions at once, so gains are not added up.")
+	pdf.SetY(pdf.GetY() + 4)
+	p.font(fSemi, 10, cInk)
+	p.at(p.mx, pdf.GetY(), half, 5, "Remediation targets", "L")
+	pdf.SetY(pdf.GetY() + 6)
+	p.font(fReg, 8.4, cInk2)
+	p.para(p.mx, half, 4.3, slaLine(p.rep)+" A finding is overdue once it has been open longer than its target.")
 
 	x := p.mx + half + 12
 	pdf.SetY(y)

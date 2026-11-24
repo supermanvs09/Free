@@ -13,11 +13,11 @@ import (
 // Excel tables (typed cells, filters, frozen header, print titles), the same
 // header and footer on every printed page, and a data dictionary.
 type wb struct {
-	f   *excelize.File
-	rep *PostureReport
-	st  map[string]int
-	sev map[string]int // severity cell style, by severity
-	dict [][4]string   // sheet, column, meaning, format
+	f    *excelize.File
+	rep  *PostureReport
+	st   map[string]int
+	sev  map[string]int // severity cell style, by severity
+	dict [][4]string    // sheet, column, meaning, format
 }
 
 // Column kinds: how a value is typed and formatted.

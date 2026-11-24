@@ -7,11 +7,12 @@ import (
 )
 
 // WriteBriefPDF is design A, the executive brief: for a CISO or a board.
-// It leads with the answer (score, trend, what to do), keeps detail to the
-// ten findings that matter most, and leaves the full lists to Excel.
+// It leads with the answer (score, trend, what changed, what to do), keeps
+// detail to the ten findings that matter most, and leaves the full lists to
+// Excel.
 //
-//	Cover · Executive summary · Risk overview · Compliance impact ·
-//	Top findings · Appendix: scope, method and definitions
+//	Cover · Executive summary · Remediation performance · Risk overview ·
+//	Compliance impact · Top findings · Appendix: scope, method, definitions
 func WriteBriefPDF(w io.Writer, rep *PostureReport) error {
 	return twoPass(w, func(known map[string]int) *kit {
 		k := newKit(rep, "P", 16, 22, 16, known)
@@ -21,6 +22,7 @@ func WriteBriefPDF(w io.Writer, rep *PostureReport) error {
 		b.cover()
 		b.summary()
 		if rep.CheckCount > 0 {
+			b.remediation()
 			b.overview()
 			b.compliance()
 			b.findings()
@@ -73,7 +75,7 @@ func (b *brief) sectionTitle(key, eyebrow, title string) {
 }
 
 func (b *brief) sub(title, note string) {
-	b.ensure(16)
+	b.ensure(32)
 	b.font(fSemi, 11, cInk)
 	b.at(b.mx, b.pdf.GetY(), b.body, 6, title, "L")
 	b.pdf.SetY(b.pdf.GetY() + 6.5)
@@ -163,10 +165,15 @@ func (b *brief) cover() {
 func (b *brief) summary() {
 	pdf, rep := b.pdf, b.rep
 	b.sectionTitle("summary", "Section 1", "Executive summary")
+	if pt := periodText(rep); pt != "" {
+		b.font(fReg, 8.2, cInk3)
+		b.at(b.mx, pdf.GetY()-3, b.body, 4, "Reporting period: "+pt+".", "L")
+		pdf.SetY(pdf.GetY() + 3)
+	}
 
 	// Score dial and trend, side by side.
 	y := pdf.GetY()
-	cardH := 58.0
+	cardH := 52.0
 	leftW := 62.0
 	b.fill(cPanel)
 	pdf.RoundedRect(b.mx, y, leftW, cardH, 2.5, "1234", "F")
@@ -191,34 +198,63 @@ func (b *brief) summary() {
 	tx := b.mx + leftW + 10
 	tw := b.body - leftW - 15
 	b.font(fSemi, 7.5, cInk3)
-	b.at(tx, y+4, tw, 4, "30-DAY TREND", "L")
+	b.at(tx, y+4, tw, 4, "AVERAGE SCORE, DAY BY DAY", "L")
 	b.font(fSemi, 9, cInk)
-	b.at(tx, y+4, tw, 4, changeText(rep.Change30d)+" points in 30 days", "R")
+	trendLabel := "30-day change: not tracked yet"
+	if rep.Change30d != nil {
+		trendLabel = changeText(rep.Change30d) + " points in 30 days"
+	}
+	b.at(tx, y+4, tw, 4, trendLabel, "R")
 	b.trendChart(tx, y+12, tw, cardH-22, rep.Trend, cBrand, cInk3, cLine)
 	pdf.SetY(y + cardH + 6)
 
-	// Figures.
+	// Figures: where things stand, then what changed in the period.
+	overdue := 0
+	for _, n := range rep.Overdue() {
+		overdue += n
+	}
+	_, unassigned := rep.Owners()
 	figs := []struct{ label, value, sub string }{
-		{"Identities scored", num(rep.ScoredCount), "in " + count(rep.AccountsCovered, "account", "accounts")},
-		{"With failing checks", num(rep.FailingCount), pct(rep.FailingCount, rep.ScoredCount) + " of scored"},
-		{"Critical + high findings", num(rep.BySeverity["critical"] + rep.BySeverity["high"]), "of " + num(rep.CheckCount) + " findings"},
-		{"Failing for 30+ days", num(rep.OldChecks), "findings not fixed in a month"},
+		{"Identities with failing checks", num(rep.FailingCount), pct(rep.FailingCount, rep.ScoredCount) + " of " + num(rep.ScoredCount) + " scored"},
+		{"Critical + high findings open", num(rep.BySeverity["critical"] + rep.BySeverity["high"]), "of " + num(rep.CheckCount) + " open findings"},
+		{"Overdue against target", num(overdue), pct(overdue, rep.CheckCount) + " of open findings"},
+	}
+	if h := rep.History; h != nil {
+		med, ok := h.Current.OverallMedian()
+		pmed, pok := h.Previous.OverallMedian()
+		medSub := "nothing fixed in the period"
+		if ok {
+			medSub = "first period: no comparison yet"
+			if hasPrevious(rep) && pok {
+				medSub = "was " + medianText(pmed, true)
+			}
+		}
+		figs = append(figs,
+			struct{ label, value, sub string }{"New findings", num(h.Current.New), wasText(rep, h.Previous.New)},
+			struct{ label, value, sub string }{"Findings fixed", num(h.Current.Resolved), wasText(rep, h.Previous.Resolved)},
+			struct{ label, value, sub string }{"Median time to fix", medianText(med, ok), medSub})
+	} else {
+		figs = append(figs,
+			struct{ label, value, sub string }{"Unassigned findings", num(unassigned), pct(unassigned, rep.CheckCount) + " have no owner"},
+			struct{ label, value, sub string }{"Identities scored", num(rep.ScoredCount), "in " + count(rep.AccountsCovered, "account", "accounts")},
+			struct{ label, value, sub string }{"Failing for 30+ days", num(rep.OldChecks), "open findings"})
 	}
 	y = pdf.GetY()
-	fw := (b.body - 3*4) / 4
+	fw := (b.body - 2*4) / 3
 	for i, f := range figs {
-		x := b.mx + float64(i)*(fw+4)
+		x := b.mx + float64(i%3)*(fw+4)
+		fy := y + float64(i/3)*23
 		b.draw(cLine)
 		pdf.SetLineWidth(0.25)
-		pdf.RoundedRect(x, y, fw, 22, 2, "1234", "D")
+		pdf.RoundedRect(x, fy, fw, 20, 2, "1234", "D")
 		b.font(fSemi, 6.8, cInk3)
-		b.at(x+3.5, y+3.5, fw-7, 3.5, strings.ToUpper(f.label), "L")
-		b.font(fBold, 16, cInk)
-		b.at(x+3.5, y+8, fw-7, 8, f.value, "L")
+		b.at(x+3.5, fy+3, fw-7, 3.5, strings.ToUpper(f.label), "L")
+		b.font(fBold, 15, cInk)
+		b.at(x+3.5, fy+7.2, fw-7, 7, f.value, "L")
 		b.font(fReg, 7, cInk3)
-		b.at(x+3.5, y+16.5, fw-7, 3.5, f.sub, "L")
+		b.at(x+3.5, fy+14.6, fw-7, 3.5, f.sub, "L")
 	}
-	pdf.SetY(y + 28)
+	pdf.SetY(y + 23*float64((len(figs)+2)/3) + 4)
 
 	if rep.CheckCount == 0 {
 		b.sub("Result", "")
@@ -228,7 +264,17 @@ func (b *brief) summary() {
 	}
 
 	b.sub("Key messages", "")
-	for _, p := range keyPoints(rep) {
+	msgs := keyPoints(rep)
+	if cs := changeSentence(rep); cs != "" {
+		msgs = append([]string{cs}, msgs...)
+	}
+	if overdue > 0 {
+		msgs = append(msgs[:1], append([]string{fmt.Sprintf("%s (%s) are past their remediation target; see Remediation performance.", count(overdue, "open finding", "open findings"), pct(overdue, rep.CheckCount))}, msgs[1:]...)...)
+	}
+	if len(msgs) > 5 {
+		msgs = msgs[:5]
+	}
+	for _, p := range msgs {
 		b.ensure(10)
 		y := pdf.GetY()
 		b.fill(cBrand)
@@ -241,7 +287,7 @@ func (b *brief) summary() {
 
 	b.sub("Priority actions", "The fixes that remove the most risk, most severe first. Each one fixes the check on every identity it fails on.")
 	for i, g := range rep.Groups {
-		if i == 5 {
+		if i == 4 {
 			break
 		}
 		b.ensure(17)
@@ -253,7 +299,7 @@ func (b *brief) summary() {
 		b.at(b.mx+12+pw, y, b.body-50-pw, 5.5, g.Title, "L")
 		pdf.Link(b.mx, y, b.body, 14, b.link(fmt.Sprintf("g%d", i)))
 		b.font(fReg, 8, cInk3)
-		b.at(b.W-b.mx-40, y, 40, 5.5, count(len(g.Items), "identity", "identities")+fmt.Sprintf("  ·  up to +%.1f", rep.Uplift(g)), "R")
+		b.at(b.W-b.mx-40, y, 40, 5.5, count(len(g.Items), "identity", "identities")+fmt.Sprintf("  ·  score +%.1f", rep.Uplift(g)), "R")
 		b.font(fReg, 8.2, cInk2)
 		fix := g.Fix
 		if fix == "" {
@@ -267,11 +313,63 @@ func (b *brief) summary() {
 	}
 }
 
+// ---- remediation performance -------------------------------------------------
+
+func (b *brief) remediation() {
+	pdf, rep := b.pdf, b.rep
+	b.sectionTitle("remediation", "Section 2", "Remediation performance")
+	b.font(fReg, 9, cInk2)
+	intro := "How fast findings are fixed against the remediation targets, and whether the backlog is growing. " + slaLine(rep)
+	b.para(b.mx, b.body, 4.6, intro)
+	pdf.SetY(pdf.GetY() + 4)
+	if cs := changeSentence(rep); cs != "" {
+		b.fill(cBrandSoft)
+		b.font(fMed, 9.4, cBrandDeep)
+		lines := b.wrap(cs, b.body-12, 0)
+		h := float64(len(lines))*4.8 + 7
+		y := pdf.GetY()
+		pdf.RoundedRect(b.mx, y, b.body, h, 2, "1234", "F")
+		b.font(fMed, 9.4, cBrandDeep)
+		for i, l := range lines {
+			b.at(b.mx+6, y+3.5+float64(i)*4.8, b.body-12, 4.8, l, "L")
+		}
+		pdf.SetY(y + h + 6)
+	}
+	b.sub("By severity", "Open and overdue now; new, fixed, median days to fix and the share fixed within target in this period, with the previous period in brackets.")
+	b.remediationTable(b.mx, b.body)
+	pdf.SetY(pdf.GetY() + 8)
+
+	half := (b.body - 10) / 2
+	b.ensure(60)
+	y := pdf.GetY()
+	b.font(fSemi, 11, cInk)
+	b.at(b.mx, y, half, 6, "How long open findings have been open", "L")
+	b.font(fReg, 8, cInk3)
+	b.at(b.mx, y+6.5, half, 4, "Each bar splits one age range by severity.", "L")
+	end := b.agingChart(b.mx, y+13, half)
+	b.font(fSemi, 11, cInk)
+	b.at(b.mx+half+10, y, half, 6, "Who owns the open findings", "L")
+	b.font(fReg, 8, cInk3)
+	b.at(b.mx+half+10, y+6.5, half, 4, "Findings are assigned in the console (Posture, Findings).", "L")
+	pdf.SetY(y + 13)
+	b.ownersTable(b.mx+half+10, half, 7)
+	if e := pdf.GetY(); e > end {
+		end = e
+	}
+	pdf.SetY(end + 8)
+	if len(rep.Exceptions) > 0 {
+		b.sub("Accepted risks", "Findings the organisation decided to keep, with the reason and who decided. They are excluded from the score.")
+		b.exceptionsTable(b.mx, b.body, 12)
+	}
+}
+
 // ---- risk overview ---------------------------------------------------------
 
 func (b *brief) overview() {
 	pdf, rep := b.pdf, b.rep
-	b.sectionTitle("overview", "Section 2", "Risk overview")
+	b.sectionTitle("overview", "Section 3", "Risk overview")
+	b.sub("OWASP Non-Human Identities Top 10", "Identities failing a check that is evidence of each risk in the OWASP NHI Top 10 (2025). The bar on each tile is the most severe failing check.")
+	pdf.SetY(b.nhiGrid(b.mx, pdf.GetY(), b.body) + 6)
 
 	half := (b.body - 8) / 2
 	y := pdf.GetY()
@@ -369,7 +467,7 @@ func (b *brief) compliance() {
 	if len(fws) == 0 {
 		return
 	}
-	b.sectionTitle("compliance", "Section 3", "Compliance impact")
+	b.sectionTitle("compliance", "Section 4", "Compliance impact")
 	b.font(fReg, 9, cInk2)
 	b.para(b.mx, b.body, 4.6, "Failing checks mapped to the controls they are evidence for. Use it to see which audits these findings would surface in; it is not a full compliance assessment.")
 	pdf.SetY(pdf.GetY() + 4)
@@ -427,7 +525,7 @@ func (b *brief) compliance() {
 
 func (b *brief) findings() {
 	pdf, rep := b.pdf, b.rep
-	b.sectionTitle("findings", "Section 4", "Top findings")
+	b.sectionTitle("findings", "Section 5", "Top findings")
 	b.font(fReg, 9, cInk2)
 	b.para(b.mx, b.body, 4.6, fmt.Sprintf("The %s that matter most, most severe first. Every finding and every affected identity is in the Excel workbook.", count(min(briefTop, len(rep.Groups)), "finding", "findings")))
 	pdf.SetY(pdf.GetY() + 3)
@@ -454,13 +552,12 @@ func (b *brief) card(i int, g CheckGroup) {
 	pdf, rep := b.pdf, b.rep
 	pad := 5.0
 	inner := b.body - 2*pad
-	why, fix := g.Risk, g.Fix
+	labelW := 30.0
+	st := rep.State(g)
+	why := g.Risk
 	if why == "" {
 		why = g.About
 	}
-	b.font(fReg, 8.4, cInk2)
-	whyL := b.wrap(why, inner-28, 3)
-	fixL := b.wrap(orDash(fix), inner-28, 4)
 	var names []string
 	for j, it := range g.Items {
 		if j == 6 {
@@ -472,8 +569,31 @@ func (b *brief) card(i int, g CheckGroup) {
 	if len(g.Items) > len(names) {
 		who += fmt.Sprintf(" and %s more", num(len(g.Items)-len(names)))
 	}
-	whoL := b.wrap(who, inner-28, 2)
-	h := 22 + float64(len(whyL)+len(fixL)+len(whoL))*4.2 + 6
+	if st.MostReach != nil {
+		who += ". Widest reach: " + st.MostReach.Name + " " + ReachText(st.MostReach.Reach) + "."
+	}
+	owner := "Unassigned"
+	if len(st.Owners) > 0 {
+		owner = strings.Join(st.Owners[:min(3, len(st.Owners))], ", ")
+		if st.Unassigned > 0 {
+			owner += fmt.Sprintf("; %s unassigned", num(st.Unassigned))
+		}
+	}
+	blocks := []struct{ label, text string }{
+		{"Criteria", Criteria(g)},
+		{"Condition", fmt.Sprintf("Fails on %s in %s. %s", count(len(g.Items), "identity", "identities"), count(len(g.Accounts), "account", "accounts"), who)},
+		{"Effect", orDash(why)},
+		{"Recommendation", orDash(g.Fix)},
+		{"Owner", owner},
+	}
+	b.font(fReg, 8.3, cInk2)
+	lines := make([][]string, len(blocks))
+	total := 0
+	for j, bl := range blocks {
+		lines[j] = b.wrap(bl.text, inner-labelW, 4)
+		total += len(lines[j])
+	}
+	h := 22 + float64(total)*4.1 + float64(len(blocks))*1.3 + 4
 	b.ensure(h + 4)
 	y := pdf.GetY()
 	b.mark(fmt.Sprintf("g%d", i))
@@ -490,36 +610,39 @@ func (b *brief) card(i int, g CheckGroup) {
 	pw := b.sevPill(x+17, y+3.6, g.Severity, 6.6)
 	b.font(fSemi, 7.2, cBrand)
 	b.at(x+19+pw, y+4, 40, 4, rep.Priority(g)+" · "+PriorityText(rep.Priority(g)), "L")
+	if st.Overdue > 0 {
+		b.pill(x+inner-62, y+3.6, fmt.Sprintf("%s OVERDUE", num(st.Overdue)), cSevSoft["critical"], cSev["critical"], 6.4)
+	}
 	b.font(fReg, 7.4, cInk3)
 	b.at(x, y+4, inner, 4, AreaLabel(g.Area), "R")
 	b.font(fSemi, 11, cInk)
 	b.at(x, y+9.5, inner, 6, g.Title, "L")
-
 	meta := []string{count(len(g.Items), "identity", "identities"), count(len(g.Accounts), "account", "accounts")}
 	if d := rep.DaysFailing(g.Since); d >= 0 {
-		meta = append(meta, "failing "+daysText(d))
+		meta = append(meta, "oldest failing "+daysText(d))
 	}
-	meta = append(meta, fmt.Sprintf("fixing it: up to +%.1f average score", rep.Uplift(g)))
-	if len(g.Controls) > 0 {
-		meta = append(meta, strings.Join(g.Controls[:min(4, len(g.Controls))], " "))
-	}
+	meta = append(meta, fmt.Sprintf("target %d days", rep.SLA.Due(g.Severity)), fmt.Sprintf("fixing it: score +%.1f", rep.Uplift(g)))
 	b.font(fReg, 7.6, cInk3)
 	b.at(x, y+15.5, inner, 4, strings.Join(meta, "  ·  "), "L")
 
 	ly := y + 22.0
-	block := func(label string, lines []string, face string) {
-		b.font(fSemi, 7.2, cInk3)
-		b.at(x, ly, 27, 4.2, strings.ToUpper(label), "L")
-		b.font(face, 8.4, cInk2)
-		for _, l := range lines {
-			b.at(x+28, ly, inner-28, 4.2, l, "L")
-			ly += 4.2
+	for j, bl := range blocks {
+		b.font(fSemi, 7.1, cInk3)
+		b.at(x, ly, labelW, 4.1, strings.ToUpper(bl.label), "L")
+		face := fReg
+		if bl.label == "Recommendation" {
+			face = fMed
 		}
-		ly += 1.4
+		b.font(face, 8.3, cInk2)
+		if bl.label == "Owner" && owner == "Unassigned" {
+			b.font(fSemi, 8.3, cSev["high"])
+		}
+		for _, l := range lines[j] {
+			b.at(x+labelW, ly, inner-labelW, 4.1, l, "L")
+			ly += 4.1
+		}
+		ly += 1.3
 	}
-	block("Why it matters", whyL, fReg)
-	block("What to do", fixL, fReg)
-	block("Identities", whoL, fReg)
 	pdf.SetY(y + h + 4)
 }
 
@@ -536,6 +659,10 @@ func (b *brief) appendix() {
 	}
 	pdf.SetY(pdf.GetY() + 6)
 
+	b.sub("Remediation targets", "")
+	b.font(fReg, 8.6, cInk2)
+	b.para(b.mx, b.body, 4.4, slaLine(rep)+" A finding is overdue once it has been open longer than its target. Recent federal guidance (CISA BOD 26-04, FedRAMP 2026) sets clocks by exposure and exploitability rather than severity alone; these targets sit within those ranges for findings that are not known to be exploited.")
+	pdf.SetY(pdf.GetY() + 5)
 	b.sub("How the figures are made", "")
 	for _, m := range methodology {
 		b.font(fReg, 8.6, cInk2)

@@ -24,6 +24,7 @@ func WriteDossierPDF(w io.Writer, rep *PostureReport) error {
 			d.results()
 			d.controls()
 			d.register()
+			d.acceptances()
 			d.appendixIdentities()
 		}
 		d.glossary()
@@ -41,7 +42,7 @@ type tocEntry struct {
 	level           int
 }
 
-const dossierIdentities = 12 // identities listed under each register entry
+const dossierIdentities = 6 // identities listed under each register entry
 
 var cNavy = rgb{16, 42, 84}
 
@@ -173,6 +174,10 @@ func (d *dossier) titlePage() {
 			rows = append(rows, r)
 		}
 	}
+	if pt := periodText(rep); pt != "" {
+		rows = append(rows, [2]string{"Reporting period", pt})
+	}
+	rows = append(rows, [2]string{"Remediation targets", fmt.Sprintf("Critical %d, high %d, medium %d, low %d days (%s)", rep.SLA.Due("critical"), rep.SLA.Due("high"), rep.SLA.Due("medium"), rep.SLA.Due("low"), strings.ToLower(strings.SplitN(rep.SLA.Source, ";", 2)[0]))})
 	rows = append(rows, [2]string{"Distribution", "Restricted to the people " + orDash(rep.PreparedFor) + " authorises. Do not forward outside the organisation."})
 	d.kv(rows, 36)
 	if rep.Sample {
@@ -224,21 +229,24 @@ func (d *dossier) plannedTOC() []tocEntry {
 	e := []tocEntry{
 		{"s1", "1", "Executive summary", 0},
 		{"s2", "2", "Scope and methodology", 0},
-		{"s2.1", "2.1", "Scope", 1}, {"s2.2", "2.2", "Data sources", 1}, {"s2.3", "2.3", "Scoring model", 1}, {"s2.4", "2.4", "Limitations", 1},
+		{"s2.1", "2.1", "Scope", 1}, {"s2.2", "2.2", "Data sources", 1}, {"s2.3", "2.3", "Scoring model", 1},
+		{"s2.4", "2.4", "Remediation targets", 1}, {"s2.5", "2.5", "Limitations", 1},
 	}
 	if rep.CheckCount > 0 {
 		e = append(e,
 			tocEntry{"s3", "3", "Results", 0},
 			tocEntry{"s3.1", "3.1", "Findings by severity", 1}, tocEntry{"s3.2", "3.2", "Findings by security area", 1}, tocEntry{"s3.3", "3.3", "Findings by account", 1},
+			tocEntry{"s3.4", "3.4", "Remediation in the period", 1}, tocEntry{"s3.5", "3.5", "Age of open findings", 1}, tocEntry{"s3.6", "3.6", "Ownership", 1},
+			tocEntry{"s4", "4", "Control mapping", 0}, tocEntry{"s4.1", "4.1", "OWASP Non-Human Identities Top 10", 1},
 		)
 		if len(rep.Frameworks()) > 0 {
-			e = append(e, tocEntry{"s4", "4", "Control mapping", 0})
+			e = append(e, tocEntry{"s4.2", "4.2", "Security frameworks", 1})
 		}
 		e = append(e, tocEntry{"s5", "5", "Findings register", 0})
 		for i, g := range rep.Groups {
 			e = append(e, tocEntry{fmt.Sprintf("g%d", i), FindingRef(i), g.Title, 1})
 		}
-		e = append(e, tocEntry{"aA", "A", "Identities with the lowest scores", 0})
+		e = append(e, tocEntry{"s6", "6", "Risk acceptances", 0}, tocEntry{"aA", "A", "Identities with the lowest scores", 0})
 	}
 	return append(e, tocEntry{"aB", "B", "Glossary", 0})
 }
@@ -262,6 +270,14 @@ func (d *dossier) execSummary() {
 		count(rep.ScoredCount, "identity", "identities"), num(rep.FailingCount), pct(rep.FailingCount, rep.ScoredCount),
 		count(rep.CheckCount, "finding", "findings"), count(len(rep.Groups), "distinct check", "distinct checks"),
 		num(rep.BySeverity["critical"]+rep.BySeverity["high"]), num(rep.OldChecks)))
+	overdue := 0
+	for _, n := range rep.Overdue() {
+		overdue += n
+	}
+	para := changeSentence(rep)
+	para += fmt.Sprintf(" Against the remediation targets (critical %d, high %d, medium %d, low %d days), %s of the open findings (%s) are overdue.",
+		rep.SLA.Due("critical"), rep.SLA.Due("high"), rep.SLA.Due("medium"), rep.SLA.Due("low"), num(overdue), pct(overdue, rep.CheckCount))
+	d.text(strings.TrimSpace(para))
 
 	d.h2("", "", "Key figures")
 	t := d.newTable([]tcol{{"Measure", 90, "L"}, {"Value", d.body - 90, "R"}})
@@ -276,6 +292,26 @@ func (d *dossier) execSummary() {
 		{"Critical findings", num(rep.BySeverity["critical"])},
 		{"High findings", num(rep.BySeverity["high"])},
 		{"Findings failing for more than 30 days", num(rep.OldChecks)},
+		{"Open findings past their remediation target", withPct(overdue, rep.CheckCount)},
+	}
+	_, unassigned := rep.Owners()
+	figs = append(figs, [2]string{"Open findings with no owner", withPct(unassigned, rep.CheckCount)})
+	if h := rep.History; h != nil {
+		was := func(n int) string {
+			if !hasPrevious(rep) {
+				return ""
+			}
+			return " (previous period " + num(n) + ")"
+		}
+		figs = append(figs,
+			[2]string{fmt.Sprintf("Findings raised in the last %d days", h.Days), num(h.Current.New) + was(h.Previous.New)},
+			[2]string{fmt.Sprintf("Findings fixed in the last %d days", h.Days), num(h.Current.Resolved) + was(h.Previous.Resolved)})
+		if m, ok := h.Current.OverallMedian(); ok {
+			figs = append(figs, [2]string{"Median days from detection to fix", medianText(m, true)})
+		}
+		if r, ok := h.Current.SLACompliance(); ok {
+			figs = append(figs, [2]string{"Fixes completed within target", fmt.Sprintf("%.0f%%", r*100)})
+		}
 	}
 	for i, f := range figs {
 		t.row([]tcell{{text: f[0]}, {text: f[1], face: fSemi}}, i%2 == 1)
@@ -328,8 +364,22 @@ func (d *dossier) method() {
 		t.row([]tcell{{text: bandLabel(b), face: fSemi, color: &c}, {text: BandRange[b]}, {text: meaning[b]}}, i%2 == 1)
 	}
 	d.pdf.SetY(d.pdf.GetY() + 4)
-	d.h2("s2.4", "2.4", "Limitations")
-	d.text(methodology[3] + " " + methodology[4] + " Findings accepted or suppressed in the console are excluded from the score at the next scan.")
+	d.h2("s2.4", "2.4", "Remediation targets")
+	d.text("A finding is overdue once it has been open longer than the target for its severity, counted from first detection. " + strings.TrimSuffix(rep.SLA.Source, ".") + ".")
+	t = d.newTable([]tcol{{"Severity", 30, "L"}, {"Target", 30, "R"}, {"Basis", d.body - 60, "L"}})
+	t.header()
+	basis := map[string]string{
+		"critical": "Within the 15-day federal remediation clock long used as the benchmark for critical issues.",
+		"high":     "Within the 30-day benchmark for high issues.",
+		"medium":   "Planned work; within FedRAMP 2026 ranges for issues not known to be exploited.",
+		"low":      "Routine hygiene; within the 192-day upper bound in FedRAMP 2026 for non-exploited issues.",
+	}
+	for i, s := range Severities {
+		t.row([]tcell{{sev: s}, {text: fmt.Sprintf("%d days", rep.SLA.Due(s)), face: fSemi}, {text: basis[s], color: &cInk2}}, i%2 == 1)
+	}
+	d.pdf.SetY(d.pdf.GetY() + 4)
+	d.h2("s2.5", "2.5", "Limitations")
+	d.text(methodology[3] + " " + methodology[4] + " " + methodology[6] + " Findings accepted or suppressed in the console are excluded from the score at the next scan and listed in section 6.")
 }
 
 // ---- 3 results -----------------------------------------------------------------
@@ -376,6 +426,23 @@ func (d *dossier) results() {
 		}
 		t.row(cells, i%2 == 1)
 	}
+	d.pdf.SetY(d.pdf.GetY() + 3)
+
+	d.h2("s3.4", "3.4", "Remediation in the period")
+	if pt := periodText(rep); pt != "" {
+		d.text("Reporting period: " + pt + ". " + changeSentence(rep))
+	}
+	d.remediationTable(d.mx, d.body)
+	d.pdf.SetY(d.pdf.GetY() + 4)
+
+	d.h2("s3.5", "3.5", "Age of open findings")
+	d.text("Open findings by how long they have been failing, against the remediation targets in 2.4.")
+	d.ensure(48)
+	d.pdf.SetY(d.agingChart(d.mx, d.pdf.GetY(), d.body*0.8) + 2)
+
+	d.h2("s3.6", "3.6", "Ownership")
+	d.text("Findings are assigned to an owner in the console. An unassigned finding has nobody accountable for fixing it.")
+	d.ownersTable(d.mx, d.body*0.8, 15)
 }
 
 // ---- 4 control mapping -------------------------------------------------------------
@@ -383,11 +450,27 @@ func (d *dossier) results() {
 func (d *dossier) controls() {
 	rep := d.rep
 	fws := rep.Frameworks()
-	if len(fws) == 0 {
-		return
-	}
 	d.h1("s4", "4", "Control mapping")
-	d.text("Each failing check is mapped to the framework controls it provides evidence for. References point to the findings register (section 5).")
+	d.text("Each failing check is mapped to the risks and framework controls it provides evidence for. References point to the findings register (section 5).")
+	d.h2("s4.1", "4.1", "OWASP Non-Human Identities Top 10")
+	nt := d.newTable([]tcol{{"Risk", 50, "L"}, {"Highest severity", 30, "L"}, {"Findings register", d.body - 120, "L"}, {"Identities", 20, "R"}, {"Findings", 20, "R"}})
+	nt.maxLine = 5
+	nt.header()
+	for i, r := range rep.NHITop10() {
+		var refs []string
+		for _, gi := range r.Checks {
+			refs = append(refs, FindingRef(gi)+" "+rep.Groups[gi].Title)
+		}
+		if len(refs) == 0 {
+			nt.row([]tcell{{text: r.ID + " " + r.Title, face: fMed}, {text: "-", color: &cInk3}, {text: "No failing check in scope", color: &cInk3}, {text: "0"}, {text: "0"}}, i%2 == 1)
+			continue
+		}
+		nt.row([]tcell{{text: r.ID + " " + r.Title, face: fMed}, {sev: r.Worst}, {text: strings.Join(refs, "\n")}, {text: num(r.Identities), face: fSemi}, {text: num(r.Findings)}}, i%2 == 1)
+	}
+	d.pdf.SetY(d.pdf.GetY() + 3)
+	if len(fws) > 0 {
+		d.h2("s4.2", "4.2", "Security frameworks")
+	}
 	for _, f := range fws {
 		d.h2("", "", f.Name)
 		t := d.newTable([]tcol{{"Control", 28, "L"}, {"Highest severity", 32, "L"}, {"Findings register", d.body - 86, "L"}, {"Identities", 26, "R"}})
@@ -417,7 +500,7 @@ func (d *dossier) register() {
 
 func (d *dossier) entry(i int, g CheckGroup) {
 	pdf, rep := d.pdf, d.rep
-	d.ensure(100)
+	d.ensure(72) // the heading and the first register rows stay together
 	pdf.SetY(pdf.GetY() + 3)
 	d.toc = append(d.toc, tocEntry{fmt.Sprintf("g%d", i), FindingRef(i), g.Title, 1})
 	d.mark(fmt.Sprintf("g%d", i))
@@ -450,17 +533,42 @@ func (d *dossier) entry(i int, g CheckGroup) {
 	if g.ManyFix {
 		fix += " Some identities have specific steps; see the workbook."
 	}
+	st := rep.State(g)
+	owner := "Unassigned"
+	if len(st.Owners) > 0 {
+		owner = strings.Join(st.Owners, ", ")
+		if st.Unassigned > 0 {
+			owner += fmt.Sprintf("; %s unassigned", count(st.Unassigned, "finding", "findings"))
+		}
+	}
+	target := fmt.Sprintf("%d days from first detection (%s)", rep.SLA.Due(g.Severity), SeverityLabel(g.Severity))
+	if st.Overdue > 0 {
+		target += fmt.Sprintf("; %s of %s overdue", num(st.Overdue), count(len(g.Items), "finding", "findings"))
+	}
+	condition := count(len(g.Items), "identity", "identities") + " in " + count(len(g.Accounts), "account", "accounts") + " (" + strings.Join(accts, ", ") + ")."
+	if evidence != "" {
+		condition += " Example: " + evidence
+	}
+	if st.MostReach != nil {
+		condition += " Widest reach: " + st.MostReach.Name + " " + ReachText(st.MostReach.Reach) + "."
+	}
+	why := g.Risk
+	if why == "" {
+		why = g.About
+	}
+	// The register follows the elements of an audit finding: criteria,
+	// condition, cause, effect, recommendation (IIA Global Internal Audit
+	// Standards, 14.3), with the owner and the remediation target.
 	rows := [][2]string{
-		{"Check ID", g.RuleID},
-		{"Security area", AreaLabel(g.Area)},
-		{"Priority", rep.Priority(g) + " · " + PriorityText(rep.Priority(g))},
-		{"Controls", strings.Join(g.Controls, ", ")},
-		{"Affected", count(len(g.Items), "identity", "identities") + " in " + count(len(g.Accounts), "account", "accounts") + ": " + strings.Join(accts, ", ")},
+		{"Check ID", g.RuleID + "  ·  " + AreaLabel(g.Area) + "  ·  " + rep.Priority(g) + " " + PriorityText(rep.Priority(g))},
+		{"Criteria", Criteria(g)},
+		{"Condition", condition},
 		{"First observed", since},
-		{"Description", g.About},
-		{"Risk", g.Risk},
+		{"Cause", "To be confirmed by the owner. The check shows the condition; why it arose (manual change, template default, missing guardrail) is recorded when the finding is fixed or accepted."},
+		{"Effect", why},
 		{"Recommendation", orDash(fix)},
-		{"Evidence (example)", evidence},
+		{"Owner", owner},
+		{"Target", target},
 	}
 	t := d.newTable([]tcol{{"", 34, "L"}, {"", d.body - 34, "L"}})
 	t.size, t.maxLine = 8.2, 5
@@ -469,8 +577,11 @@ func (d *dossier) entry(i int, g CheckGroup) {
 			continue
 		}
 		face := fReg
-		if r[0] == "Check ID" || r[0] == "Controls" {
+		if r[0] == "Check ID" {
 			face = fMono
+		}
+		if r[0] == "Recommendation" {
+			face = fMed
 		}
 		t.row([]tcell{{text: r[0], face: fSemi, color: &cInk3}, {text: r[1], face: face, size: map[bool]float64{true: 7.6, false: 0}[face == fMono]}}, j%2 == 1)
 	}
@@ -478,7 +589,7 @@ func (d *dossier) entry(i int, g CheckGroup) {
 
 	items := append([]GroupItem(nil), g.Items...)
 	sortItemsByScore(rep, items)
-	it := d.newTable([]tcol{{"Affected identity", d.body - 108, "L"}, {"Type", 30, "L"}, {"Account", 42, "L"}, {"Score", 16, "R"}, {"Days", 20, "R"}})
+	it := d.newTable([]tcol{{"Affected identity", d.body - 124, "L"}, {"Account", 38, "L"}, {"Owner", 32, "L"}, {"Score", 14, "R"}, {"Days open", 20, "R"}, {"Due", 20, "R"}})
 	it.size, it.maxLine = 7.6, 1
 	it.header()
 	for j, item := range items {
@@ -486,13 +597,30 @@ func (d *dossier) entry(i int, g CheckGroup) {
 			break
 		}
 		id := rep.Identities[item.Identity]
-		days := "-"
+		days, due, owner := "-", "-", "Unassigned"
+		dueColor := cInk2
 		for _, c := range id.Checks {
-			if c.RuleID == g.RuleID && c.FailingSince != nil {
+			if c.RuleID != g.RuleID {
+				continue
+			}
+			if c.FailingSince != nil {
 				days = num(rep.DaysFailing(c.FailingSince))
+				if dd := rep.DueDate(c); dd != nil {
+					due = dd.UTC().Format("2 Jan 06")
+				}
+				if late, by := rep.OverdueCheck(c); late {
+					due, dueColor = fmt.Sprintf("%s late", daysText(by)), cSev["critical"]
+				}
+			}
+			if o := strings.TrimSpace(c.Owner); o != "" {
+				owner = o
 			}
 		}
-		it.row([]tcell{{text: id.Name, face: fMed}, {text: typeLabel(id.Type)}, {text: orDash(id.Account)}, {text: fmtScore(id.Score)}, {text: days}}, j%2 == 1)
+		oc := cInk2
+		if owner == "Unassigned" {
+			oc = cInk3
+		}
+		it.row([]tcell{{text: id.Name, face: fMed}, {text: orDash(id.Account)}, {text: owner, color: &oc}, {text: fmtScore(id.Score)}, {text: days}, {text: due, color: &dueColor, face: fSemi}}, j%2 == 1)
 	}
 	if len(items) > dossierIdentities {
 		d.font(fReg, 7.4, cInk3)
@@ -500,6 +628,16 @@ func (d *dossier) entry(i int, g CheckGroup) {
 		pdf.SetY(pdf.GetY() + 5)
 	}
 	pdf.SetY(pdf.GetY() + 5)
+}
+
+// ---- 6 risk acceptances ----------------------------------------------------------
+
+func (d *dossier) acceptances() {
+	rep := d.rep
+	d.h1("s6", "6", "Risk acceptances")
+	d.text("Findings the organisation chose to keep (accepted) or to hide until a date (suppressed), with the reason recorded and who decided. They are excluded from the score. Review each one before its end date.")
+	d.exceptionsTable(d.mx, d.body, 60)
+	_ = rep
 }
 
 // ---- appendices ---------------------------------------------------------------------

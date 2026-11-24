@@ -508,6 +508,20 @@ func applyCache(ctx context.Context, s *scope.DataScope, rep *PostureReport, ide
 	if err != nil {
 		return fmt.Errorf("posture report fleet score: %w", err)
 	}
+	// The daily score the Posture page draws, and when it was computed. A
+	// report on chosen accounts has no per-day series of its own.
+	if len(rep.Options.Accounts) == 0 {
+		pts, asOf, err := repo.DailyTrend(ctx, s, cacheClass[rep.Options.Class], 90)
+		if err != nil {
+			return fmt.Errorf("posture report trend: %w", err)
+		}
+		for _, p := range pts {
+			if day, err := time.Parse("2006-01-02", p.At); err == nil {
+				rep.Trend = append(rep.Trend, TrendPoint{Day: day, Score: p.Score})
+			}
+		}
+		rep.DataAsOf = asOf
+	}
 	if snap == nil {
 		if rep.AverageScore != nil {
 			v := round1(*rep.AverageScore)

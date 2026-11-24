@@ -11,9 +11,9 @@ import (
 
 // Brand lines every report opens with.
 const (
-	BrandTitle   = "Continuous AI Security Posture Management"
-	BrandTagline = "Securing your Identities and Digital Ecosystem from AI-driven threats."
-	ReportTitle  = "Identity Security Posture Report"
+	BrandTitle     = "Continuous AI Security Posture Management"
+	BrandTagline   = "Securing your Identities and Digital Ecosystem from AI-driven threats."
+	ReportTitle    = "Identity Security Posture Report"
 	Classification = "CONFIDENTIAL · Internal use only"
 )
 
@@ -297,7 +297,7 @@ var nhiRisk = map[string][]string{
 	"IAM-03": {"NHI7"}, "SEC-01": {"NHI7"}, "KMS-03": {"NHI7"}, "CH-009": {"NHI7"}, "CH-011": {"NHI7"}, "ACM-01": {"NHI7"}, "I06": {"NHI7"},
 	"IAM-19": {"NHI7"}, "I10": {"NHI7"},
 	"PATH-02": {"NHI8"},
-	"LAM-03": {"NHI9"}, "EKS-01": {"NHI9"}, "EKS-02": {"NHI9"}, "EKS-06": {"NHI9"},
+	"LAM-03":  {"NHI9"}, "EKS-01": {"NHI9"}, "EKS-02": {"NHI9"}, "EKS-06": {"NHI9"},
 	"BEH-04": {"NHI10"},
 }
 
@@ -432,4 +432,75 @@ func ReachText(r *Reach) string {
 		parts = append(parts, fmt.Sprintf("%s into other accounts", count(r.CrossAccount, "path", "paths")))
 	}
 	return strings.Join(parts, ", ")
+}
+
+// GroupState is where one check stands across the identities it fails on.
+type GroupState struct {
+	Owners     []string // owners of its findings, most findings first
+	Unassigned int      // findings with no owner
+	Overdue    int      // findings past their remediation target
+	MostReach  *ReportIdentity
+}
+
+// State sums a check's owners, overdue findings and the identity with the
+// largest blast radius.
+func (rep *PostureReport) State(g CheckGroup) GroupState {
+	var st GroupState
+	owners := map[string]int{}
+	for _, it := range g.Items {
+		id := &rep.Identities[it.Identity]
+		for _, c := range id.Checks {
+			if c.RuleID != g.RuleID {
+				continue
+			}
+			if o := strings.TrimSpace(c.Owner); o != "" {
+				owners[o]++
+			} else {
+				st.Unassigned++
+			}
+			if late, _ := rep.OverdueCheck(c); late {
+				st.Overdue++
+			}
+		}
+		if id.Reach != nil && (st.MostReach == nil || id.Reach.Resources > st.MostReach.Reach.Resources) {
+			st.MostReach = id
+		}
+	}
+	for o := range owners {
+		st.Owners = append(st.Owners, o)
+	}
+	sort.Slice(st.Owners, func(i, j int) bool {
+		if owners[st.Owners[i]] != owners[st.Owners[j]] {
+			return owners[st.Owners[i]] > owners[st.Owners[j]]
+		}
+		return st.Owners[i] < st.Owners[j]
+	})
+	return st
+}
+
+// Criteria is what a check expects, for audit findings: what it looks at
+// and the controls it is evidence for.
+func Criteria(g CheckGroup) string {
+	var parts []string
+	if a := strings.TrimSpace(g.About); a != "" {
+		parts = append(parts, a)
+	}
+	if len(g.Controls) > 0 {
+		parts = append(parts, "Controls: "+strings.Join(g.Controls, ", ")+".")
+	}
+	if r := NHIRisks(g.RuleID); len(r) > 0 {
+		var names []string
+		for _, id := range r {
+			for _, o := range OWASPNHI {
+				if o.ID == id {
+					names = append(names, id+" "+o.Title)
+				}
+			}
+		}
+		parts = append(parts, "OWASP NHI Top 10: "+strings.Join(names, ", ")+".")
+	}
+	if len(parts) == 0 {
+		return "Posture check " + g.RuleID + ": " + g.Title + "."
+	}
+	return strings.Join(parts, " ")
 }

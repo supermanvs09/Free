@@ -8,6 +8,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-pdf/fpdf"
 )
@@ -60,10 +61,10 @@ var (
 	// Fills for bars and marks: brighter than the text colours and spaced in
 	// lightness, so the four severities stay apart in grey and for colour-blind
 	// readers; text always uses cSev on white.
-	cSevFill = map[string]rgb{"critical": {196, 32, 32}, "high": {234, 106, 24}, "medium": {226, 172, 28}, "low": {46, 150, 100}, "": {161, 161, 170}}
-	cSevSoft   = map[string]rgb{"critical": {253, 236, 234}, "high": {254, 240, 228}, "medium": {253, 246, 225}, "low": {231, 246, 239}, "": {241, 241, 243}}
-	cBand      = map[string]rgb{"critical": {180, 35, 24}, "poor": {181, 74, 7}, "fair": {143, 95, 2}, "healthy": {5, 115, 75}}
-	cBandFill  = map[string]rgb{"critical": {196, 32, 32}, "poor": {234, 106, 24}, "fair": {226, 172, 28}, "healthy": {46, 150, 100}}
+	cSevFill  = map[string]rgb{"critical": {196, 32, 32}, "high": {234, 106, 24}, "medium": {226, 172, 28}, "low": {46, 150, 100}, "": {161, 161, 170}}
+	cSevSoft  = map[string]rgb{"critical": {253, 236, 234}, "high": {254, 240, 228}, "medium": {253, 246, 225}, "low": {231, 246, 239}, "": {241, 241, 243}}
+	cBand     = map[string]rgb{"critical": {180, 35, 24}, "poor": {181, 74, 7}, "fair": {143, 95, 2}, "healthy": {5, 115, 75}}
+	cBandFill = map[string]rgb{"critical": {196, 32, 32}, "poor": {234, 106, 24}, "fair": {226, 172, 28}, "healthy": {46, 150, 100}}
 )
 
 // kit is one PDF being laid out, with what every design shares: the fonts,
@@ -72,11 +73,11 @@ var (
 type kit struct {
 	pdf    *fpdf.Fpdf
 	rep    *PostureReport
-	W, H   float64 // page size
-	mx     float64 // side margin
-	top    float64 // where the body starts under the page header
-	bottom float64 // reserved for the footer
-	body   float64 // body width
+	W, H   float64        // page size
+	mx     float64        // side margin
+	top    float64        // where the body starts under the page header
+	bottom float64        // reserved for the footer
+	body   float64        // body width
 	known  map[string]int // pages from the first pass; nil during it
 	pages  map[string]int // pages in this pass
 	links  map[string]int
@@ -346,21 +347,47 @@ func (k *kit) gauge(cx, cy, r float64, score *float64, track rgb) {
 	pdf.SetLineWidth(0.2)
 }
 
-// trendChart draws the score over time in (x, y, w, h), 0 to 100.
+// trendChart draws the score over time in (x, y, w, h). The axis fits the
+// data (rounded out to 5 points, at least 10 wide) so a change of a few
+// points is visible; the axis labels say where it starts.
 func (k *kit) trendChart(x, y, w, h float64, pts []TrendPoint, line rgb, ink rgb, grid rgb) {
 	pdf := k.pdf
+	if len(pts) < 2 {
+		k.draw(grid)
+		pdf.SetLineWidth(0.15)
+		pdf.Line(x+7, y+h, x+w, y+h)
+		k.font(fReg, 8, ink)
+		k.at(x+7, y+h/2-4, w-7, 4, "The trend starts after a few days of scans.", "C")
+		if len(pts) == 1 {
+			k.at(x+7, y+h/2+1, w-7, 4, fmt.Sprintf("%s: %s", pts[0].Day.Format("2 Jan"), score1(pts[0].Score)), "C")
+		}
+		return
+	}
+	lo, hi := 100.0, 0.0
+	for _, p := range pts {
+		lo, hi = math.Min(lo, p.Score), math.Max(hi, p.Score)
+	}
+	lo, hi = math.Floor((lo-2)/5)*5, math.Ceil((hi+2)/5)*5
+	if hi-lo < 10 {
+		mid := (hi + lo) / 2
+		lo, hi = math.Floor((mid-5)/5)*5, math.Floor((mid-5)/5)*5+10
+	}
+	lo, hi = math.Max(0, lo), math.Min(100, hi)
+	if hi-lo < 10 {
+		if lo == 0 {
+			hi = 10
+		} else {
+			lo = hi - 10
+		}
+	}
+	py := func(v float64) float64 { return y + h - h*(math.Max(lo, math.Min(hi, v))-lo)/(hi-lo) }
 	pdf.SetLineWidth(0.15)
 	k.draw(grid)
 	k.font(fReg, 6.5, ink)
-	for _, v := range []float64{0, 50, 100} {
-		gy := y + h - h*v/100
+	for _, v := range []float64{lo, (lo + hi) / 2, hi} {
+		gy := py(v)
 		pdf.Line(x+7, gy, x+w, gy)
-		k.at(x, gy-1.6, 6, 3.2, strconv.Itoa(int(v)), "R")
-	}
-	if len(pts) < 2 {
-		k.font(fReg, 8, ink)
-		k.at(x+7, y+h/2-2, w-7, 4, "Not enough history yet: the trend starts after a few daily scans.", "C")
-		return
+		k.at(x, gy-1.6, 6, 3.2, strconv.Itoa(int(math.Round(v))), "R")
 	}
 	x0, span := x+9, w-11
 	first, last := pts[0].Day, pts[len(pts)-1].Day
@@ -371,8 +398,6 @@ func (k *kit) trendChart(x, y, w, h float64, pts []TrendPoint, line rgb, ink rgb
 		}
 		return x0 + span*(pts[i].Day.Sub(first).Hours()/24)/days
 	}
-	py := func(v float64) float64 { return y + h - h*math.Max(0, math.Min(100, v))/100 }
-	// Area under the line, faint.
 	poly := []fpdf.PointType{{X: px(0), Y: y + h}}
 	for i, p := range pts {
 		poly = append(poly, fpdf.PointType{X: px(i), Y: py(p.Score)})
@@ -393,6 +418,41 @@ func (k *kit) trendChart(x, y, w, h float64, pts []TrendPoint, line rgb, ink rgb
 	k.font(fReg, 6.5, ink)
 	k.at(x0-6, y+h+1, 20, 3.5, first.Format("2 Jan"), "L")
 	k.at(x+w-20, y+h+1, 20, 3.5, last.Format("2 Jan"), "R")
+}
+
+// periodText names the reporting period and the one it is compared with.
+func periodText(rep *PostureReport) string {
+	h := rep.History
+	if h == nil {
+		return ""
+	}
+	f := func(t time.Time) string { return t.UTC().Format("2 Jan 2006") }
+	return fmt.Sprintf("%s to %s, compared with %s to %s", f(h.Current.Start), f(h.Current.End), f(h.Previous.Start), f(h.Previous.End))
+}
+
+// hasPrevious reports whether the previous period saw any activity to
+// compare with; a first period reads "first period" instead of "was 0".
+func hasPrevious(rep *PostureReport) bool {
+	return rep.History != nil && (rep.History.Previous.New > 0 || rep.History.Previous.Resolved > 0)
+}
+
+// wasText is the "(was N)" line under a figure.
+func wasText(rep *PostureReport, before int) string {
+	if !hasPrevious(rep) {
+		return "first period: no comparison yet"
+	}
+	return "was " + num(before)
+}
+
+// medianText is a median days figure, or a dash.
+func medianText(v float64, ok bool) string {
+	if !ok {
+		return "-"
+	}
+	if v < 10 {
+		return fmt.Sprintf("%.1f days", v)
+	}
+	return fmt.Sprintf("%.0f days", v)
 }
 
 // watermark marks a page built from sample data.
@@ -617,6 +677,8 @@ var methodology = []string{
 	"A finding is one failing check on one identity. A check that fails on many identities is reported once, with every identity it fails on.",
 	"Framework references come from each check's own mapping. They show where a failing check is relevant evidence for a control; they are not a full compliance assessment.",
 	"Data comes from the configuration discovered in each connected AWS account and from the AWS activity log (CloudTrail). It reflects the last completed scan.",
+	"Each check is mapped to the OWASP Non-Human Identities Top 10 (2025) by Deep Algorithms from the check's definition. Checks about general cloud configuration map to none.",
+	"New and fixed findings, days to fix and fixes within target come from each finding's first detection and resolution dates. A finding's root cause is established with its owner; the report records its condition, effect and the recommended fix.",
 }
 
 // fpdfImage is how the embedded logos are placed.

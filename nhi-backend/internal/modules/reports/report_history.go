@@ -29,7 +29,7 @@ type SLAPolicy struct {
 func DefaultSLA() SLAPolicy {
 	return SLAPolicy{
 		Days:   map[string]int{"critical": 15, "high": 30, "medium": 90, "low": 180},
-		Source: "Default remediation targets (critical 15, high 30, medium 90, low 180 days from first detection)",
+		Source: "Default targets; no remediation SLA is set in the Jira integration",
 	}
 }
 
@@ -43,13 +43,14 @@ func (p SLAPolicy) Due(sev string) int {
 
 // PeriodStats is what changed in one reporting period.
 type PeriodStats struct {
-	Start, End     time.Time
-	New, Resolved  int
-	NewBySev       map[string]int
-	ResolvedBySev  map[string]int
-	MedianDays     map[string]float64 // median days from detection to fix, findings fixed in the period
-	FixedInSLA     map[string]int     // fixed in the period within the SLA
-	Accepted       int                // findings accepted or suppressed in the period
+	Start, End    time.Time
+	New, Resolved int
+	NewBySev      map[string]int
+	ResolvedBySev map[string]int
+	MedianDays    map[string]float64 // median days from detection to fix, findings fixed in the period
+	FixedInSLA    map[string]int     // fixed in the period within the SLA
+	Accepted      int                // findings accepted or suppressed in the period
+	Median        *float64           // median days to fix across severities; nil = estimate from MedianDays
 }
 
 // History is the report's view over time: this period and the one before.
@@ -62,6 +63,7 @@ type History struct {
 // Exception is a finding the client accepted or suppressed.
 type Exception struct {
 	Check, Severity, Identity, Account, Reason, Owner string
+	DecidedBy                                         string // who accepted or suppressed it (finding history)
 	Since, Until                                      *time.Time
 }
 
@@ -229,14 +231,30 @@ func loadHistory(ctx context.Context, s *scope.DataScope, rep *PostureReport, da
 			}
 		}
 		rows.Close()
+		var med sql.NullFloat64
+		mq := fmt.Sprintf(`SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM f.resolved_at - f.first_seen) / 86400)
+			FROM %s f WHERE upper(f.status) = 'RESOLVED' AND f.resolved_at >= $%d AND f.resolved_at < $%d`+where, table, ps, pe)
+		if err := s.DB.QueryRowContext(ctx, mq, a...).Scan(&med); err == nil && med.Valid {
+			v := round1(med.Float64)
+			p.Median = &v
+		}
 	}
 	rep.History = h
 
 	// Accepted and suppressed findings: the exceptions an auditor asks for.
+	// Who decided and when comes from the finding's history when the table
+	// exists (the console writes a row per change, with the signed-in user).
+	decided, decidedAt, histJoin := "''", "f.updated_at", ""
+	var hist sql.NullString
+	if err := s.DB.QueryRowContext(ctx, `SELECT to_regclass($1)::text`, s.Table(common.TFindingHistory)).Scan(&hist); err == nil && hist.Valid {
+		histJoin = fmt.Sprintf(` LEFT JOIN LATERAL (SELECT h.actor, h.created_at FROM %s h WHERE h.finding_id::text = f.finding_id::text
+			AND upper(COALESCE(h.new_value, '')) IN ('ACCEPTED', 'SUPPRESSED') ORDER BY h.created_at DESC LIMIT 1) h ON true`, s.Table(common.TFindingHistory))
+		decided, decidedAt = "COALESCE(h.actor, '')", "COALESCE(h.created_at, f.updated_at)"
+	}
 	q := fmt.Sprintf(`SELECT COALESCE(NULLIF(f.rule_name, ''), f.rule_id, ''), lower(COALESCE(f.severity, '')), COALESCE(f.identity_name, ''), COALESCE(f.account_id, ''),
-			COALESCE(NULLIF(f.accepted_reason, ''), NULLIF(f.notes, ''), ''), COALESCE(f.assigned_to, ''), f.updated_at, f.suppressed_until
-		FROM %s f WHERE upper(f.status) IN ('ACCEPTED', 'SUPPRESSED')`+where+`
-		ORDER BY CASE lower(f.severity) WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, f.updated_at DESC LIMIT 5000`, table)
+			COALESCE(NULLIF(f.accepted_reason, ''), NULLIF(f.notes, ''), ''), COALESCE(f.assigned_to, ''), %[3]s, %[4]s, f.suppressed_until
+		FROM %[1]s f`+histJoin+` WHERE upper(f.status) IN ('ACCEPTED', 'SUPPRESSED')`+where+`
+		ORDER BY CASE lower(f.severity) WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, f.updated_at DESC LIMIT %[2]d`, table, 5000, decided, decidedAt)
 	rows, err := s.DB.QueryContext(ctx, q, args...)
 	if err != nil {
 		return fmt.Errorf("posture report exceptions: %w", err)
@@ -245,7 +263,7 @@ func loadHistory(ctx context.Context, s *scope.DataScope, rep *PostureReport, da
 	for rows.Next() {
 		var e Exception
 		var since, until sql.NullTime
-		if err := rows.Scan(&e.Check, &e.Severity, &e.Identity, &e.Account, &e.Reason, &e.Owner, &since, &until); err != nil {
+		if err := rows.Scan(&e.Check, &e.Severity, &e.Identity, &e.Account, &e.Reason, &e.Owner, &e.DecidedBy, &since, &until); err != nil {
 			return err
 		}
 		if since.Valid {
@@ -287,6 +305,9 @@ func (p PeriodStats) SLACompliance() (pctv float64, ok bool) {
 // OverallMedian is the median days to fix across severities, weighted by
 // how many were fixed; NaN-free: ok is false when nothing was fixed.
 func (p PeriodStats) OverallMedian() (float64, bool) {
+	if p.Median != nil {
+		return *p.Median, true
+	}
 	type kv struct {
 		d float64
 		n int

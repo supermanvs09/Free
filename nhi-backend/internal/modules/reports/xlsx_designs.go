@@ -106,16 +106,21 @@ func WriteExecutiveXLSX(w io.Writer, rep *PostureReport) error {
 	}
 	defer x.f.Close()
 	sheets := []sheetInfo{
-		{"Dashboard", "The score, trend, severities, score bands, accounts and security areas, with charts."},
-		{"Findings", "Every failing check once: severity, priority, how many identities, why it matters and how to fix it."},
+		{"Dashboard", "The score, trend, what changed in the period, severities, score bands, accounts, security areas and the OWASP NHI Top 10, with charts."},
+		{"Remediation", "By severity: open and overdue findings against the remediation targets, their age, and new, fixed and days to fix against the previous period."},
+		{"Findings", "Every failing check once: severity, priority, how many identities, owners, overdue, why it matters and how to fix it."},
 		{"Identities", "Every scored identity, lowest score first, with its failing checks by severity."},
-		{"Compliance", "Framework controls the failing checks bear on."},
+		{"Compliance", "OWASP NHI Top 10 risks and framework controls the failing checks bear on."},
+		{"Accepted risks", "Findings accepted or suppressed, with the reason and who decided."},
 		{"Data dictionary", "What every column means."},
 	}
 	if err := x.cover("Identity Security Posture Report · Executive workbook", sheets, nil); err != nil {
 		return err
 	}
 	if err := x.dashboard(); err != nil {
+		return err
+	}
+	if err := x.remediationSheet("Remediation", "Remediation"); err != nil {
 		return err
 	}
 	if _, err := x.findingsSheet("Findings", "Findings"); err != nil {
@@ -125,6 +130,9 @@ func WriteExecutiveXLSX(w io.Writer, rep *PostureReport) error {
 		return err
 	}
 	if err := x.complianceSheet("Compliance", "Compliance"); err != nil {
+		return err
+	}
+	if err := x.exceptionsSheet("Accepted risks", "AcceptedRisks"); err != nil {
 		return err
 	}
 	if err := x.dictionary(); err != nil {
@@ -166,13 +174,20 @@ func (x *wb) dashboard() error {
 	if rep.AverageScore != nil {
 		avg = round1(*rep.AverageScore)
 	}
+	overdue := 0
+	for _, n := range rep.Overdue() {
+		overdue += n
+	}
 	tiles := []tile{
 		{"AVERAGE SCORE", avg, changeText(rep.Change30d) + " in 30 days", false},
-		{"IDENTITIES SCORED", rep.ScoredCount, "in " + count(rep.AccountsCovered, "account", "accounts"), true},
-		{"WITH FAILING CHECKS", rep.FailingCount, pct(rep.FailingCount, rep.ScoredCount) + " of scored", true},
-		{"FINDINGS", rep.CheckCount, "on " + count(len(rep.Groups), "check", "checks"), true},
-		{"CRITICAL + HIGH", rep.BySeverity["critical"] + rep.BySeverity["high"], "findings", true},
-		{"FAILING 30+ DAYS", rep.OldChecks, "findings", true},
+		{"WITH FAILING CHECKS", rep.FailingCount, pct(rep.FailingCount, rep.ScoredCount) + " of " + num(rep.ScoredCount) + " scored", true},
+		{"OPEN CRITICAL + HIGH", rep.BySeverity["critical"] + rep.BySeverity["high"], "of " + num(rep.CheckCount) + " open findings", true},
+		{"OVERDUE", overdue, "past their remediation target", true},
+	}
+	if h := rep.History; h != nil {
+		tiles = append(tiles,
+			tile{"NEW IN PERIOD", h.Current.New, wasText(rep, h.Previous.New), true},
+			tile{"FIXED IN PERIOD", h.Current.Resolved, wasText(rep, h.Previous.Resolved), true})
 	}
 	for i, t := range tiles {
 		c1 := colLetter(2 + i*2)
@@ -300,6 +315,39 @@ func (x *wb) dashboard() error {
 	if r >= first {
 		_ = f.SetConditionalFormat(sh, fmt.Sprintf("E%d:E%d", first, r), []excelize.ConditionalFormatOptions{{Type: "data_bar", BarColor: "#" + xBrand, MinType: "num", MinValue: "0", MaxType: "max", BarSolid: true}})
 	}
+
+	// Age of open findings: a stacked chart of the Remediation sheet.
+	r += 3
+	set(fmt.Sprintf("B%d", r), "Age of open findings, by severity", "h")
+	var ageSeries []excelize.ChartSeries
+	for i, sv := range Severities {
+		ageSeries = append(ageSeries, excelize.ChartSeries{Name: fmt.Sprintf("Remediation!$A$%d", i+2), Categories: "Remediation!$E$1:$I$1",
+			Values: fmt.Sprintf("Remediation!$E$%d:$I$%d", i+2, i+2), Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{xSevFill[sv]}}})
+	}
+	_ = f.AddChart(sh, fmt.Sprintf("B%d", r+1), &excelize.Chart{Type: excelize.ColStacked, Series: ageSeries,
+		Title: []excelize.RichTextRun{{Text: "Open findings by age"}}, Legend: excelize.ChartLegend{Position: "bottom"},
+		Dimension: excelize.ChartDimension{Width: 720, Height: 280}})
+	r += 17
+
+	// OWASP NHI Top 10.
+	set(fmt.Sprintf("B%d", r), "OWASP Non-Human Identities Top 10", "h")
+	r++
+	for i, h := range []string{"Risk", "Identities", "Findings", "Highest severity"} {
+		set(fmt.Sprintf("%s%d", colLetter(2+i), r), h, "head")
+	}
+	for _, n := range rep.NHITop10() {
+		r++
+		set(fmt.Sprintf("B%d", r), n.ID+" "+n.Title, "bold")
+		set(fmt.Sprintf("C%d", r), n.Identities, "int")
+		set(fmt.Sprintf("D%d", r), n.Findings, "int")
+		if n.Worst != "" {
+			set(fmt.Sprintf("E%d", r), SeverityLabel(n.Worst), "")
+			_ = f.SetCellStyle(sh, fmt.Sprintf("E%d", r), fmt.Sprintf("E%d", r), x.sev[n.Worst])
+		} else {
+			set(fmt.Sprintf("E%d", r), "None failing", "sub")
+		}
+	}
+	_ = f.SetConditionalFormat(sh, fmt.Sprintf("C%d:C%d", r-9, r), []excelize.ConditionalFormatOptions{{Type: "data_bar", BarColor: "#" + xBrand, MinType: "num", MinValue: "0", MaxType: "max", BarSolid: true}})
 	x.printSetup(sh, false)
 	return nil
 }
@@ -315,7 +363,11 @@ var findingCols = []xcol{
 	{"Accounts", 9, kInt, "Accounts those identities are in."},
 	{"Failing since", 12, kDate, "When the longest-failing identity started failing it."},
 	{"Days failing", 10, kInt, "Days since then."},
-	{"Score gain", 10, kDec1, "How much the average score could rise if it were fixed everywhere (upper bound)."},
+	{"Score gain", 10, kDec1, "How much the average score rises if it is fixed everywhere (each identity re-scored)."},
+	{"Target (days)", 10, kInt, "Remediation target for its severity, in days from first detection."},
+	{"Overdue", 9, kInt, "Findings of this check past their target."},
+	{"Owners", 26, kWrap, "Who its findings are assigned to; Unassigned when none."},
+	{"OWASP NHI", 16, kText, "OWASP Non-Human Identities Top 10 (2025) risks it is evidence of."},
 	{"Controls", 28, kWrap, "Framework controls it maps to."},
 	{"Why it matters", 50, kWrap, "The risk if it stays."},
 	{"How to fix", 60, kWrap, "What to change."},
@@ -336,8 +388,16 @@ func (x *wb) findingsSheet(name, table string) (int, error) {
 			if why == "" {
 				why = g.About
 			}
+			st := rep.State(g)
+			owners := strings.Join(st.Owners, ", ")
+			if st.Unassigned > 0 {
+				if owners != "" {
+					owners += "; "
+				}
+				owners += fmt.Sprintf("Unassigned (%d)", st.Unassigned)
+			}
 			if err := emit([]interface{}{FindingRef(i), g.RuleID, g.Title, g.Severity, p + " " + PriorityText(p), AreaLabel(g.Area), len(g.Items), len(g.Accounts),
-				g.Since, d, gain, strings.Join(g.Controls, ", "), why, g.Fix}); err != nil {
+				g.Since, d, gain, rep.SLA.Due(g.Severity), st.Overdue, owners, strings.Join(NHIRisks(g.RuleID), ", "), strings.Join(g.Controls, ", "), why, g.Fix}); err != nil {
 				return err
 			}
 		}
@@ -349,12 +409,25 @@ func (x *wb) complianceSheet(name, table string) error {
 	rep := x.rep
 	_, err := x.dataSheet(name, table, "", []xcol{
 		{"Framework", 30, kBold, "The security framework."},
-		{"Control", 14, kMono, "The control within the framework."},
+		{"Control", 30, kMono, "The control within the framework, or the OWASP risk."},
 		{"Highest severity", 14, kSev, "The most severe failing check mapped to it."},
 		{"Failing checks", 12, kInt, "How many failing checks map to it."},
 		{"Identities", 11, kInt, "Distinct identities failing those checks."},
 		{"Findings", 70, kWrap, "The failing checks, by their reference in this report."},
 	}, func(emit func([]interface{}) error) error {
+		for _, r := range rep.NHITop10() {
+			var refs []string
+			for _, gi := range r.Checks {
+				refs = append(refs, FindingRef(gi)+" "+rep.Groups[gi].Title)
+			}
+			var worst interface{} = r.Worst
+			if r.Worst == "" {
+				worst = nil
+			}
+			if err := emit([]interface{}{"OWASP NHI Top 10 (2025)", r.ID + " " + r.Title, worst, len(r.Checks), r.Identities, strings.Join(refs, "; ")}); err != nil {
+				return err
+			}
+		}
 		for _, fw := range rep.Frameworks() {
 			for _, r := range fw.Rows {
 				var refs []string
@@ -364,6 +437,95 @@ func (x *wb) complianceSheet(name, table string) error {
 				if err := emit([]interface{}{fw.Name, r.Control, r.Worst, len(r.Checks), r.Identities, strings.Join(refs, "; ")}); err != nil {
 					return err
 				}
+			}
+		}
+		return nil
+	})
+	return err
+}
+
+// remediationSheet is remediation by severity: open and overdue now, and
+// the period against the one before.
+func (x *wb) remediationSheet(name, table string) error {
+	rep := x.rep
+	open := map[string]int{}
+	for _, id := range rep.Identities {
+		for _, c := range id.Checks {
+			open[c.Severity]++
+		}
+	}
+	overdue := rep.Overdue()
+	h := rep.History
+	cols := []xcol{
+		{"Severity", 11, kSev, "Finding severity."},
+		{"Target (days)", 12, kInt, "Remediation target in days from first detection."},
+		{"Open", 9, kInt, "Open findings now."},
+		{"Overdue", 9, kInt, "Open findings past their target."},
+		{"Open 0-15 days", 11, kInt, "Open findings by age."},
+		{"Open 16-30 days", 11, kInt, "Open findings by age."},
+		{"Open 31-90 days", 11, kInt, "Open findings by age."},
+		{"Open 91-180 days", 11, kInt, "Open findings by age."},
+		{"Open 180+ days", 11, kInt, "Open findings by age."},
+		{"New (period)", 11, kInt, "Findings first detected in the reporting period."},
+		{"New (previous)", 11, kInt, "Same, in the period before."},
+		{"Fixed (period)", 11, kInt, "Findings resolved in the reporting period."},
+		{"Fixed (previous)", 11, kInt, "Same, in the period before."},
+		{"Median days to fix (period)", 14, kDec1, "Median days from first detection to resolution, findings fixed in the period."},
+		{"Median days to fix (previous)", 14, kDec1, "Same, in the period before."},
+		{"Fixed in time (period)", 13, kPct, "Share of the period's fixes made within target."},
+		{"Fixed in time (previous)", 13, kPct, "Same, in the period before."},
+	}
+	aging := rep.Aging()
+	_, err := x.dataSheet(name, table, "", cols, func(emit func([]interface{}) error) error {
+		for _, s := range Severities {
+			row := []interface{}{s, rep.SLA.Due(s), open[s], overdue[s]}
+			for _, b := range aging {
+				row = append(row, b.BySev[s])
+			}
+			if h == nil {
+				row = append(row, nil, nil, nil, nil, nil, nil, nil, nil)
+			} else {
+				med := func(p PeriodStats) interface{} {
+					if v, ok := p.MedianDays[s]; ok {
+						return v
+					}
+					return nil
+				}
+				share := func(p PeriodStats) interface{} {
+					if p.ResolvedBySev[s] == 0 {
+						return nil
+					}
+					return float64(p.FixedInSLA[s]) / float64(p.ResolvedBySev[s])
+				}
+				row = append(row, h.Current.NewBySev[s], h.Previous.NewBySev[s], h.Current.ResolvedBySev[s], h.Previous.ResolvedBySev[s],
+					med(h.Current), med(h.Previous), share(h.Current), share(h.Previous))
+			}
+			if err := emit(row); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	return err
+}
+
+// exceptionsSheet is every accepted or suppressed finding.
+func (x *wb) exceptionsSheet(name, table string) error {
+	rep := x.rep
+	_, err := x.dataSheet(name, table, "", []xcol{
+		{"Check", 34, kBold, "The check the decision is about."},
+		{"Severity", 10, kSev, "Its severity."},
+		{"Identity", 30, kText, "The identity it fails on."},
+		{"Account", 16, kMono, "The AWS account ID."},
+		{"Reason", 60, kWrap, "Why it was accepted or suppressed."},
+		{"Decided by", 24, kText, "Who accepted or suppressed it (console history)."},
+		{"Decided", 12, kDate, "When."},
+		{"Until", 12, kDate, "When a suppression ends; blank for an accepted risk with no end."},
+		{"Owner", 20, kText, "Who the finding is assigned to."},
+	}, func(emit func([]interface{}) error) error {
+		for _, e := range rep.Exceptions {
+			if err := emit([]interface{}{e.Check, e.Severity, e.Identity, e.Account, e.Reason, e.DecidedBy, e.Since, e.Until, e.Owner}); err != nil {
+				return err
 			}
 		}
 		return nil
@@ -386,11 +548,13 @@ func WriteRegisterXLSX(w io.Writer, rep *PostureReport) error {
 	}
 	defer x.f.Close()
 	sheets := []sheetInfo{
-		{"Register", "One row per finding (a failing check on one identity) with evidence, risk, recommendation and controls, and yellow columns to track remediation."},
-		{"Checks", "Every failing check once, with its reference, severity and priority."},
-		{"Controls", "Each framework control and the findings that bear on it."},
+		{"Register", "One row per finding (a failing check on one identity) as an audit finding: criteria, condition, effect, recommendation, due date and owner, and yellow columns to track remediation."},
+		{"Remediation", "By severity: open and overdue against the targets, age, and new, fixed and days to fix against the previous period."},
+		{"Checks", "Every failing check once, with its reference, severity, priority, owners and overdue count."},
+		{"Controls", "Each OWASP NHI risk and framework control and the findings that bear on it."},
+		{"Accepted risks", "Findings accepted or suppressed, with the reason and who decided."},
 		{"Identities", "Every scored identity in scope: the population to sample from."},
-		{"Method", "Scope, scoring model, severities, score bands and priorities."},
+		{"Method", "Scope, scoring model, severities, score bands, remediation targets, priorities and statuses."},
 		{"Data dictionary", "What every column means."},
 	}
 	n := 0
@@ -406,18 +570,25 @@ func WriteRegisterXLSX(w io.Writer, rep *PostureReport) error {
 		set(fmt.Sprintf("B%d", row), "Remediation progress", "h")
 		set(fmt.Sprintf("C%d", row), "Counts update as the Register's Status column is filled in.", "h")
 		row++
-		statusCol := colLetter(len(registerCols) - 3)
+		statusCol, dueCol, ownerCol := regCol("Status"), regCol("Due date"), regCol("Owner")
 		rng := fmt.Sprintf("Register!$%s$2:$%s$%d", statusCol, statusCol, n+1)
+		dueRng := fmt.Sprintf("Register!$%s$2:$%s$%d", dueCol, dueCol, n+1)
+		ownerRng := fmt.Sprintf("Register!$%s$2:$%s$%d", ownerCol, ownerCol, n+1)
 		for _, s := range registerStatuses {
 			set(fmt.Sprintf("B%d", row), s, "k")
 			formula := fmt.Sprintf(`COUNTIF(%s,"%s")`, rng, s)
-			if s == "Open" {
-				formula = fmt.Sprintf(`COUNTIF(%s,"Open")+COUNTBLANK(%s)`, rng, rng)
-			}
 			_ = f.SetCellFormula(sh, fmt.Sprintf("C%d", row), formula)
 			_ = f.SetCellStyle(sh, fmt.Sprintf("C%d", row), fmt.Sprintf("C%d", row), x.st["int"])
 			row++
 		}
+		set(fmt.Sprintf("B%d", row), "Overdue today", "k")
+		_ = f.SetCellFormula(sh, fmt.Sprintf("C%d", row), fmt.Sprintf(`COUNTIFS(%s,"<"&TODAY(),%s,"<>Closed",%s,"<>Risk accepted")`, dueRng, rng, rng))
+		_ = f.SetCellStyle(sh, fmt.Sprintf("C%d", row), fmt.Sprintf("C%d", row), x.st["int"])
+		row++
+		set(fmt.Sprintf("B%d", row), "Without an owner", "k")
+		_ = f.SetCellFormula(sh, fmt.Sprintf("C%d", row), fmt.Sprintf(`COUNTBLANK(%s)`, ownerRng))
+		_ = f.SetCellStyle(sh, fmt.Sprintf("C%d", row), fmt.Sprintf("C%d", row), x.st["int"])
+		row++
 		set(fmt.Sprintf("B%d", row), "Closed or accepted", "k")
 		_ = f.SetCellFormula(sh, fmt.Sprintf("C%d", row), fmt.Sprintf(`IF(%d=0,0,(COUNTIF(%s,"Closed")+COUNTIF(%s,"Risk accepted"))/%d)`, n, rng, rng, max(n, 1)))
 		_ = f.SetCellStyle(sh, fmt.Sprintf("C%d", row), fmt.Sprintf("C%d", row), x.st["pct"])
@@ -429,10 +600,16 @@ func WriteRegisterXLSX(w io.Writer, rep *PostureReport) error {
 	if err := x.register(n); err != nil {
 		return err
 	}
+	if err := x.remediationSheet("Remediation", "Remediation"); err != nil {
+		return err
+	}
 	if err := x.checksSheet(); err != nil {
 		return err
 	}
 	if err := x.controlsSheet(); err != nil {
+		return err
+	}
+	if err := x.exceptionsSheet("Accepted risks", "AcceptedRisks"); err != nil {
 		return err
 	}
 	if _, err := x.identitiesSheet("Identities", "Population"); err != nil {
@@ -449,6 +626,10 @@ func WriteRegisterXLSX(w io.Writer, rep *PostureReport) error {
 	return x.f.Write(w)
 }
 
+// registerCols follow the elements of an audit finding (IIA Global Internal
+// Audit Standards 14.3: criteria, condition, cause, effect, recommendation),
+// then the remediation target, then the yellow columns the organisation
+// fills in.
 var registerCols = []xcol{
 	{"Finding ID", 13, kMono, "Unique reference of the finding: its check's reference and a number."},
 	{"Ref", 8, kMono, "The check's reference in this report (F-001 is the most severe)."},
@@ -463,18 +644,34 @@ var registerCols = []xcol{
 	{"Account", 24, kText, "The AWS account's name."},
 	{"Account ID", 14, kMono, "The 12-digit AWS account ID."},
 	{"Score", 8, kDec1, "The identity's security score."},
-	{"Failing since", 12, kDate, "When the check started failing on this identity."},
-	{"Days failing", 9, kInt, "Days since then."},
-	{"Evidence", 52, kWrap, "What the scan found on this identity."},
-	{"Risk", 44, kWrap, "Why it matters."},
+	{"First detected", 12, kDate, "When the check started failing on this identity."},
+	{"Days open", 9, kInt, "Days since then, at report time."},
+	{"Target (days)", 10, kInt, "Remediation target for the severity, in days from first detection."},
+	{"Due date", 12, kDate, "First detected plus the target. Red when past and the finding is not closed or accepted."},
+	{"Days overdue", 10, kInt, "Days past the due date at report time; blank when not overdue."},
+	{"Criteria", 48, kWrap, "What the check expects, and the controls and OWASP NHI risks it is evidence for."},
+	{"Condition", 52, kWrap, "What the scan found on this identity."},
+	{"Effect", 44, kWrap, "The risk if it stays."},
 	{"Recommendation", 52, kWrap, "How to fix it on this identity."},
+	{"OWASP NHI", 14, kText, "OWASP Non-Human Identities Top 10 (2025) risks it is evidence of."},
 	{"Controls", 24, kWrap, "Framework controls it maps to."},
 	{"ARN", 50, kMono, "The identity's Amazon Resource Name."},
-	{"Owner", 20, kText, "To fill in: who will fix it."},
-	{"Status", 16, kText, "To fill in: Open, In progress, Risk accepted, Fixed - to verify or Closed."},
-	{"Target date", 12, kDate, "To fill in: when it should be fixed."},
+	{"Owner", 20, kText, "Who will fix it: from the console's assignment; change it here if needed."},
+	{"Status", 16, kText, "To keep up to date: Open, In progress, Risk accepted, Fixed - to verify or Closed."},
+	{"Agreed date", 12, kDate, "To fill in: the date the owner commits to, when it differs from the due date."},
 	{"Ticket", 14, kText, "To fill in: the change or ticket reference."},
+	{"Cause", 36, kWrap, "To fill in: why the condition arose (manual change, template default, missing guardrail ...)."},
 	{"Comments", 40, kWrap, "To fill in: notes, exception reason, verification evidence."},
+}
+
+// regCol is a register column's letter by name.
+func regCol(name string) string {
+	for i, c := range registerCols {
+		if c.name == name {
+			return colLetter(i + 1)
+		}
+	}
+	panic("register column " + name)
 }
 
 func (x *wb) register(n int) error {
@@ -485,22 +682,35 @@ func (x *wb) register(n int) error {
 			sortItemsByScore(rep, items)
 			for j, it := range items {
 				id := rep.Identities[it.Identity]
-				var since interface{}
-				var days interface{} = ""
+				var since, due, days, late interface{}
+				owner := ""
 				for _, c := range id.Checks {
-					if c.RuleID == g.RuleID && c.FailingSince != nil {
+					if c.RuleID != g.RuleID {
+						continue
+					}
+					owner = strings.TrimSpace(c.Owner)
+					if c.FailingSince != nil {
 						since = c.FailingSince
 						days = rep.DaysFailing(c.FailingSince)
+						due = rep.DueDate(c)
+						if ok, by := rep.OverdueCheck(c); ok {
+							late = by
+						}
 					}
 				}
 				fix := it.Fix
 				if fix == "" {
 					fix = g.Fix
 				}
+				why := g.Risk
+				if why == "" {
+					why = g.About
+				}
 				p := rep.Priority(g)
 				if err := emit([]interface{}{fmt.Sprintf("%s-%04d", FindingRef(gi), j+1), FindingRef(gi), g.RuleID, g.Title, g.Severity, p + " " + PriorityText(p), AreaLabel(g.Area),
-					id.Name, typeLabel(id.Type), classOf(id.Human), orDash(id.Account), id.AccountID, id.Score, since, days, it.Found, g.Risk, fix, strings.Join(g.Controls, ", "), id.ARN,
-					"", "Open", nil, "", ""}); err != nil {
+					id.Name, typeLabel(id.Type), classOf(id.Human), orDash(id.Account), id.AccountID, id.Score, since, days, rep.SLA.Due(g.Severity), due, late,
+					Criteria(g), it.Found, why, fix, strings.Join(NHIRisks(g.RuleID), ", "), strings.Join(g.Controls, ", "), id.ARN,
+					owner, "Open", nil, "", "", ""}); err != nil {
 					return err
 				}
 			}
@@ -511,26 +721,32 @@ func (x *wb) register(n int) error {
 		return err
 	}
 	last := got + 1
-	owner, status, target, ticket, comments := colLetter(len(registerCols)-4), colLetter(len(registerCols)-3), colLetter(len(registerCols)-2), colLetter(len(registerCols)-1), colLetter(len(registerCols))
-	_ = f.SetCellStyle("Register", fmt.Sprintf("%s2", owner), fmt.Sprintf("%s%d", status, last), x.st["input"])
-	_ = f.SetCellStyle("Register", fmt.Sprintf("%s2", target), fmt.Sprintf("%s%d", target, last), x.st["inputDate"])
-	_ = f.SetCellStyle("Register", fmt.Sprintf("%s2", ticket), fmt.Sprintf("%s%d", comments, last), x.st["input"])
+	status, agreed, due := regCol("Status"), regCol("Agreed date"), regCol("Due date")
+	_ = f.SetCellStyle("Register", fmt.Sprintf("%s2", regCol("Owner")), fmt.Sprintf("%s%d", status, last), x.st["input"])
+	_ = f.SetCellStyle("Register", fmt.Sprintf("%s2", agreed), fmt.Sprintf("%s%d", agreed, last), x.st["inputDate"])
+	_ = f.SetCellStyle("Register", fmt.Sprintf("%s2", regCol("Ticket")), fmt.Sprintf("%s%d", regCol("Comments"), last), x.st["input"])
 	dv := excelize.NewDataValidation(true)
 	dv.Sqref = fmt.Sprintf("%s2:%s%d", status, status, last)
 	_ = dv.SetDropList(registerStatuses)
 	dv.SetError(excelize.DataValidationErrorStyleStop, "Status", "Choose a status from the list.")
 	_ = f.AddDataValidation("Register", dv)
 	dd := excelize.NewDataValidation(true)
-	dd.Sqref = fmt.Sprintf("%s2:%s%d", target, target, last)
+	dd.Sqref = fmt.Sprintf("%s2:%s%d", agreed, agreed, last)
 	_ = dd.SetRange(45658, 73050, excelize.DataValidationTypeDate, excelize.DataValidationOperatorBetween) // 2025-01-01 .. 2099-12-31
-	dd.SetError(excelize.DataValidationErrorStyleStop, "Target date", "Enter a date.")
+	dd.SetError(excelize.DataValidationErrorStyleStop, "Agreed date", "Enter a date.")
 	_ = f.AddDataValidation("Register", dd)
-	// Overdue: a target date in the past on a finding that is not closed.
+	// Overdue, live: a due (or agreed) date in the past on a finding that is
+	// not closed or accepted turns red when the workbook is opened later.
 	overdue, _ := f.NewConditionalStyle(&excelize.Style{Font: &excelize.Font{Color: "B42318", Bold: true}, Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{"FDECEA"}}})
-	_ = f.SetConditionalFormat("Register", fmt.Sprintf("%s2:%s%d", target, target, last), []excelize.ConditionalFormatOptions{
-		{Type: "formula", Criteria: fmt.Sprintf(`AND(%s2<>"",%s2<TODAY(),%s2<>"Closed",%s2<>"Risk accepted")`, target, target, status, status), Format: &overdue}})
+	for _, c := range []string{due, agreed} {
+		_ = f.SetConditionalFormat("Register", fmt.Sprintf("%s2:%s%d", c, c, last), []excelize.ConditionalFormatOptions{
+			{Type: "formula", Criteria: fmt.Sprintf(`AND(%s2<>"",%s2<TODAY(),$%s2<>"Closed",$%s2<>"Risk accepted")`, c, c, status, status), Format: &overdue}})
+	}
+	unassigned, _ := f.NewConditionalStyle(&excelize.Style{Font: &excelize.Font{Color: "B54A07", Italic: true}})
+	_ = f.SetConditionalFormat("Register", fmt.Sprintf("%s2:%s%d", regCol("Owner"), regCol("Owner"), last), []excelize.ConditionalFormatOptions{
+		{Type: "formula", Criteria: fmt.Sprintf(`%s2=""`, regCol("Owner")), Format: &unassigned}})
 	closed, _ := f.NewConditionalStyle(&excelize.Style{Font: &excelize.Font{Color: "71717A"}})
-	_ = f.SetConditionalFormat("Register", fmt.Sprintf("A2:%s%d", comments, last), []excelize.ConditionalFormatOptions{
+	_ = f.SetConditionalFormat("Register", fmt.Sprintf("A2:%s%d", regCol("Comments"), last), []excelize.ConditionalFormatOptions{
 		{Type: "formula", Criteria: fmt.Sprintf(`$%s2="Closed"`, status), Format: &closed}})
 	_ = f.SetPanes("Register", &excelize.Panes{Freeze: true, XSplit: 1, YSplit: 1, TopLeftCell: "B2", ActivePane: "bottomRight"})
 	return nil
@@ -544,13 +760,21 @@ func (x *wb) checksSheet() error {
 func (x *wb) controlsSheet() error {
 	rep := x.rep
 	_, err := x.dataSheet("Controls", "Controls", "", []xcol{
-		{"Framework", 30, kBold, "The security framework."},
-		{"Control", 14, kMono, "The control within the framework."},
+		{"Framework", 30, kBold, "The security framework, or the OWASP NHI Top 10."},
+		{"Control", 30, kMono, "The control within the framework, or the OWASP risk."},
 		{"Ref", 8, kMono, "The failing check's reference."},
 		{"Check", 40, kText, "The failing check."},
 		{"Severity", 10, kSev, "The check's severity."},
 		{"Identities", 11, kInt, "Identities failing the check."},
 	}, func(emit func([]interface{}) error) error {
+		for _, r := range rep.NHITop10() {
+			for _, gi := range r.Checks {
+				g := rep.Groups[gi]
+				if err := emit([]interface{}{"OWASP NHI Top 10 (2025)", r.ID + " " + r.Title, FindingRef(gi), g.Title, g.Severity, len(g.Items)}); err != nil {
+					return err
+				}
+			}
+		}
 		for _, fw := range rep.Frameworks() {
 			for _, r := range fw.Rows {
 				for _, gi := range r.Checks {
@@ -610,6 +834,16 @@ func (x *wb) methodSheet() error {
 		put(bandLabel(b), BandRange[b], "bold", "v")
 	}
 	r++
+	put("Remediation targets", "", "h", "h")
+	for _, sv := range Severities {
+		_ = f.SetCellValue(sh, fmt.Sprintf("B%d", r), SeverityLabel(sv))
+		_ = f.SetCellStyle(sh, fmt.Sprintf("B%d", r), fmt.Sprintf("B%d", r), x.sev[sv])
+		_ = f.SetCellValue(sh, fmt.Sprintf("C%d", r), fmt.Sprintf("%d days from first detection", rep.SLA.Due(sv)))
+		_ = f.SetCellStyle(sh, fmt.Sprintf("C%d", r), fmt.Sprintf("C%d", r), x.st["v"])
+		r++
+	}
+	put("Source", strings.TrimSuffix(rep.SLA.Source, ".")+". A finding is overdue when it is still open after its target; the Register's due dates turn red when that day passes.", "k", "v")
+	r++
 	put("Priorities", "", "h", "h")
 	put("P1 Fix now", "Critical checks, and high checks failing on 10% or more of scored identities.", "bold", "v")
 	put("P2 This sprint", "Other high checks, and medium checks failing on 10% or more.", "bold", "v")
@@ -617,9 +851,9 @@ func (x *wb) methodSheet() error {
 	put("P4 Hygiene", "Low checks.", "bold", "v")
 	r++
 	put("Statuses", "", "h", "h")
-	put("Open", "Not started. A blank status counts as open.", "bold", "v")
+	put("Open", "Not started.", "bold", "v")
 	put("In progress", "Someone is fixing it.", "bold", "v")
-	put("Risk accepted", "Kept on purpose, with the reason in Comments and the approver named.", "bold", "v")
+	put("Risk accepted", "Kept on purpose, with the reason in Comments and the approver named. Not counted as overdue.", "bold", "v")
 	put("Fixed - to verify", "Changed; the next scan confirms it.", "bold", "v")
 	put("Closed", "The scan no longer finds it.", "bold", "v")
 	x.printSetup(sh, false)
@@ -645,7 +879,9 @@ func WriteAnalystXLSX(w io.Writer, rep *PostureReport) error {
 		{"Identities", "Table tblIdentities: every scored identity (key: Identity key)."},
 		{"Checks", "Table tblChecks: every failing check (key: Check ID)."},
 		{"Accounts", "Table tblAccounts: every account (key: Account ID)."},
-		{"Control map", "Table tblControlMap: check to framework control, one row per pair."},
+		{"Control map", "Table tblControlMap: check to framework control or OWASP NHI risk, one row per pair."},
+		{"Remediation", "Table tblRemediation: by severity, open, overdue and age now, and new, fixed and days to fix in this period and the previous one."},
+		{"Accepted risks", "Table tblExceptions: findings accepted or suppressed, with the reason and who decided."},
 		{"Trend", "Table tblTrend: the average score per day."},
 		{"Data dictionary", "What every column means."},
 	}
@@ -700,9 +936,22 @@ func WriteAnalystXLSX(w io.Writer, rep *PostureReport) error {
 	if _, err := x.dataSheet("Control map", "tblControlMap", "", []xcol{
 		{"Check ID", 12, kMono, "The posture check (key to tblChecks)."},
 		{"Framework", 30, kText, "The framework."},
-		{"Control", 14, kMono, "The control within it."},
+		{"Control", 30, kMono, "The control within it, or the OWASP risk."},
 		{"Tag", 18, kMono, "The control as the check tags it."},
 	}, func(emit func([]interface{}) error) error {
+		for _, g := range rep.Groups {
+			for _, risk := range NHIRisks(g.RuleID) {
+				title := ""
+				for _, r := range OWASPNHI {
+					if r.ID == risk {
+						title = r.Title
+					}
+				}
+				if err := emit([]interface{}{g.RuleID, "OWASP NHI Top 10 (2025)", strings.TrimSpace(risk + " " + title), risk}); err != nil {
+					return err
+				}
+			}
+		}
 		for _, g := range rep.Groups {
 			for _, tag := range g.Controls {
 				fw, ctl := Framework(tag)
@@ -713,6 +962,12 @@ func WriteAnalystXLSX(w io.Writer, rep *PostureReport) error {
 		}
 		return nil
 	}); err != nil {
+		return err
+	}
+	if err := x.remediationSheet("Remediation", "tblRemediation"); err != nil {
+		return err
+	}
+	if err := x.exceptionsSheet("Accepted risks", "tblExceptions"); err != nil {
 		return err
 	}
 	if _, err := x.dataSheet("Trend", "tblTrend", "", []xcol{
@@ -737,8 +992,8 @@ func WriteAnalystXLSX(w io.Writer, rep *PostureReport) error {
 		if err := f.AddPivotTable(&excelize.PivotTableOptions{
 			DataRange: fmt.Sprintf("Facts!$A$1:$%s$%d", lastCol, facts+1), PivotTableRange: "Pivot!$B$4:$H$30", Name: "FindingsByAccount",
 			Rows: []excelize.PivotTableField{{Data: "Account"}}, Columns: []excelize.PivotTableField{{Data: "Severity"}},
-			Data:   []excelize.PivotTableField{{Data: "Finding ID", Subtotal: "Count", Name: "Findings"}},
-			Filter: []excelize.PivotTableField{{Data: "Class"}},
+			Data:           []excelize.PivotTableField{{Data: "Finding ID", Subtotal: "Count", Name: "Findings"}},
+			Filter:         []excelize.PivotTableField{{Data: "Class"}},
 			RowGrandTotals: true, ColGrandTotals: true, ShowDrill: true, ShowRowHeaders: true, ShowColHeaders: true, ShowLastColumn: true,
 			PivotTableStyleName: "PivotStyleMedium2",
 		}); err != nil {
@@ -776,6 +1031,12 @@ var factCols = []xcol{
 	{"Points", 8, kDec1, "Score points this finding takes off the identity."},
 	{"Failing since", 12, kDate, "When it started failing."},
 	{"Days failing", 9, kInt, "Days since then."},
+	{"Target days", 9, kInt, "Remediation target for the severity, in days from first detection."},
+	{"Due date", 12, kDate, "Failing since plus the target."},
+	{"Days overdue", 9, kInt, "Days past the due date at report time; 0 when not overdue."},
+	{"Overdue", 9, kText, "Yes when past the due date at report time."},
+	{"Owner", 20, kText, "Who it is assigned to in the console; blank when unassigned."},
+	{"OWASP NHI", 14, kText, "OWASP NHI Top 10 (2025) risks it is evidence of."},
 	{"Evidence", 50, kWrap, "What the scan found."},
 }
 
@@ -785,20 +1046,25 @@ func (x *wb) factsSheet() (int, error) {
 		for gi, g := range rep.Groups {
 			for j, it := range g.Items {
 				id := rep.Identities[it.Identity]
-				var since interface{}
+				var since, due interface{}
 				var days interface{} = ""
-				pts := 0.0
+				pts, late, lateText, owner := 0.0, 0, "No", ""
 				for _, c := range id.Checks {
 					if c.RuleID == g.RuleID {
-						pts = c.Points
+						pts, owner = c.Points, strings.TrimSpace(c.Owner)
 						if c.FailingSince != nil {
 							since = c.FailingSince
 							days = rep.DaysFailing(c.FailingSince)
+							due = rep.DueDate(c)
+							if ok, by := rep.OverdueCheck(c); ok {
+								late, lateText = by, "Yes"
+							}
 						}
 					}
 				}
 				if err := emit([]interface{}{fmt.Sprintf("%s-%04d", FindingRef(gi), j+1), g.RuleID, id.ID, id.AccountID, g.Title, g.Severity, sevRank(g.Severity) + 1, rep.Priority(g), AreaLabel(g.Area),
-					id.Name, typeLabel(id.Type), classOf(id.Human), orDash(id.Account), id.Score, pts, since, days, it.Found}); err != nil {
+					id.Name, typeLabel(id.Type), classOf(id.Human), orDash(id.Account), id.Score, pts, since, days,
+					rep.SLA.Due(g.Severity), due, late, lateText, owner, strings.Join(NHIRisks(g.RuleID), ", "), it.Found}); err != nil {
 					return err
 				}
 			}
@@ -814,7 +1080,9 @@ func (x *wb) analystSummary(facts int) error {
 	_ = f.SetSheetView(sh, 0, &excelize.ViewOptions{ShowGridLines: boolPtr(false)})
 	_ = f.SetColWidth(sh, "A", "A", 2.5)
 	_ = f.SetColWidth(sh, "B", "B", 34)
-	_ = f.SetColWidth(sh, "C", "H", 14)
+	_ = f.SetColWidth(sh, "C", "F", 14)
+	_ = f.SetColWidth(sh, "G", "G", 28)
+	_ = f.SetColWidth(sh, "H", "H", 12)
 	last := max(facts, 1) + 1
 	col := func(name string) string {
 		for i, c := range factCols {
@@ -841,6 +1109,12 @@ func (x *wb) analystSummary(facts int) error {
 	formula("C5", fmt.Sprintf(`SUMPRODUCT((%s<>"")/COUNTIF(%s,%s&""))`, col("Identity key"), col("Identity key"), col("Identity key")), "int")
 	set("B6", "Days failing, median", "k")
 	formula("C6", fmt.Sprintf("MEDIAN(%s)", col("Days failing")), "int")
+	set("G4", "Overdue at report time", "k")
+	formula("H4", fmt.Sprintf(`COUNTIF(%s,"Yes")`, col("Overdue")), "int")
+	set("G5", "Without an owner", "k")
+	formula("H5", fmt.Sprintf(`COUNTBLANK(%s)`, col("Owner")), "int")
+	set("G6", "Days overdue, total", "k")
+	formula("H6", fmt.Sprintf(`SUM(%s)`, col("Days overdue")), "int")
 
 	set("B8", "Findings by severity and class", "h")
 	for i, h := range []string{"Non-human", "Human", "Total"} {
