@@ -100,7 +100,7 @@ func accountLabel(id ReportIdentity) string {
 func typeLabel(t string) string {
 	known := map[string]string{
 		"ec2_instance": "EC2 instance", "lambda_function": "Lambda function", "ecs_task": "ECS task", "batch_job": "Batch job",
-		"IAM_USER": "IAM user", "iam_user": "IAM user", "iam_role": "IAM role", "IAM_ROLE": "IAM role", "eks_pod": "EKS pod",
+		"IAM_USER": "IAM user", "iam_user": "IAM user", "iam_role": "IAM role", "IAM_ROLE": "IAM role", "eks_pod": "EKS pod", "codebuild_project": "CodeBuild project",
 	}
 	if v, ok := known[t]; ok {
 		return v

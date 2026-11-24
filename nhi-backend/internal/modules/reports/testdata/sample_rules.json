@@ -1,0 +1,1256 @@
+[
+ {
+  "id": "IAM-16",
+  "name": "Trust entire account root",
+  "severity": "high",
+  "area": "trust_access",
+  "fix": "Trust specific role ARNs, or add aws:PrincipalArn / aws:PrincipalTag conditions.",
+  "risk": "Any over-privileged identity in the trusted account can assume this role.",
+  "about": "Trusting <account>:root delegates the decision to every principal in that account that has sts:AssumeRole on this role (including '*' policies).",
+  "controls": [
+   "NIST-AC-6"
+  ]
+ },
+ {
+  "id": "IAM-15",
+  "name": "Cross-acct trust without ExternalId",
+  "severity": "high",
+  "area": "trust_access",
+  "fix": "Add StringEquals sts:ExternalId = <unique value agreed with the third party>.",
+  "risk": "Confused-deputy: any customer of the third party can make it assume your role.",
+  "about": "",
+  "controls": [
+   "NIST-AC-3",
+   "SOC2-CC6.1"
+  ]
+ },
+ {
+  "id": "KMS-02",
+  "name": "KMS grants to external accounts",
+  "severity": "high",
+  "area": "trust_access",
+  "fix": "Retire grants that are not needed; prefer key-policy statements with conditions you can audit.",
+  "risk": "Grants bypass the key policy and are easy to forget; another account can decrypt your data.",
+  "about": "",
+  "controls": [
+   "NIST-SC-12",
+   "PCI-DSS-3.5"
+  ]
+ },
+ {
+  "id": "IAM-18",
+  "name": "Permissions boundary missing (priv role)",
+  "severity": "medium",
+  "area": "lifecycle",
+  "fix": "Attach a permission boundary that denies IAM/Organizations changes outside approved paths.",
+  "risk": "Any escalation through this role is unbounded.",
+  "about": "The role can change IAM / pass or assume roles, and nothing caps its maximum permissions.",
+  "controls": [
+   "NIST-AC-6"
+  ]
+ },
+ {
+  "id": "CR-002",
+  "name": "Account password policy is weak",
+  "severity": "medium",
+  "area": "lifecycle",
+  "fix": "Update the password policy (iam:UpdateAccountPasswordPolicy); it applies at the next password change.",
+  "risk": "Weak console passwords are easier to guess, steal or replay.",
+  "about": "GetAccountSummary shows root access keys or a root password without MFA.",
+  "controls": [
+   "CIS-2.7",
+   "NIST-IA-5(1)"
+  ]
+ },
+ {
+  "id": "CR-003",
+  "name": "Root account has keys or no MFA",
+  "severity": "critical",
+  "area": "lifecycle",
+  "fix": "Delete root access keys and enable (hardware) MFA on root.",
+  "risk": "One shared credential with unlimited privilege and no per-user attribution.",
+  "about": "GetAccountSummary shows root access keys or a root password without MFA.",
+  "controls": [
+   "CIS-2.4",
+   "CIS-2.5",
+   "NIST-AC-6(2)",
+   "SH-IAM.4"
+  ]
+ },
+ {
+  "id": "IAM-28",
+  "name": "NHI can modify SCP/Organizations",
+  "severity": "critical",
+  "area": "lifecycle",
+  "fix": "Restrict Organizations write actions to a break-glass role in the management account.",
+  "risk": "Removing SCP guardrails or detaching accounts disables preventive controls org-wide.",
+  "about": "",
+  "controls": [
+   "NIST-AC-6",
+   "NIST-CM-5"
+  ]
+ },
+ {
+  "id": "IAM-21",
+  "name": "NHI without owner tag",
+  "severity": "medium",
+  "area": "lifecycle",
+  "fix": "Tag the workload (and its role) with owner / team; enforce with a tag policy or SCP.",
+  "risk": "Nobody is accountable for the identity's permissions, rotation or decommissioning.",
+  "about": "Neither identities.owner nor an owner/team tag is set.",
+  "controls": [
+   "SOC2-CC1.3"
+  ]
+ },
+ {
+  "id": "ORG-01",
+  "name": "Missing SCP guardrails",
+  "severity": "medium",
+  "area": "lifecycle",
+  "fix": "Attach a baseline SCP denying these actions (with an exception for a break-glass role).",
+  "risk": "A compromised NHI can disable detection or leave the organization's controls.",
+  "about": "",
+  "controls": [
+   "NIST-AC-6",
+   "SOC2-CC6.1"
+  ]
+ },
+ {
+  "id": "IAM-20",
+  "name": "Inline policies on NHI",
+  "severity": "low",
+  "area": "lifecycle",
+  "fix": "Convert to customer-managed policies managed by IaC.",
+  "risk": "Inline policies bypass managed-policy review and versioning; drift goes unnoticed.",
+  "about": "",
+  "controls": [
+   "CIS-1.15"
+  ]
+ },
+ {
+  "id": "ORG-04",
+  "name": "Account BPA not enabled",
+  "severity": "medium",
+  "area": "lifecycle",
+  "fix": "Enable all four account-level S3 Block Public Access settings.",
+  "risk": "Any bucket can become public through a policy or ACL change.",
+  "about": "",
+  "controls": [
+   "CIS-2.1.4",
+   "NIST-AC-3"
+  ]
+ },
+ {
+  "id": "ORG-03",
+  "name": "Missing RCP for resource exposure",
+  "severity": "medium",
+  "area": "lifecycle",
+  "fix": "Attach an RCP denying these actions when aws:PrincipalOrgID != your org (with service-principal exceptions).",
+  "risk": "A single mis-written resource policy can expose data to any AWS account.",
+  "about": "",
+  "controls": [
+   "NIST-AC-3",
+   "NIST-SC-7"
+  ]
+ },
+ {
+  "id": "IAM-24",
+  "name": "Shadow NHI created outside governance",
+  "severity": "medium",
+  "area": "lifecycle",
+  "fix": "Recreate the identity through IaC, or add the creator to the approved list if legitimate.",
+  "risk": "Shadow identities skip review, tagging and least-privilege controls.",
+  "about": "",
+  "controls": [
+   "SOC2-CC8.1",
+   "NIST-CM-3"
+  ]
+ },
+ {
+  "id": "IAM-27",
+  "name": "NHI can disable security logging",
+  "severity": "high",
+  "area": "lifecycle",
+  "fix": "Remove these actions; protect logging with an SCP that denies them for everyone except a break-glass role.",
+  "risk": "An attacker using this identity can stop or delete the CloudTrail audit log and its log groups to hide what it does.",
+  "about": "",
+  "controls": [
+   "CIS-3.1",
+   "NIST-AU-9"
+  ]
+ },
+ {
+  "id": "I11",
+  "name": "No recent use of the roles that trust a login provider",
+  "severity": "medium",
+  "area": "trust_access",
+  "fix": "Confirm the federation is no longer needed, then remove the trust from the roles and delete the provider.",
+  "risk": "An unused trust is still an open door; nobody notices if an attacker starts using it.",
+  "about": "",
+  "controls": [
+   "NIST-AC-2",
+   "CIS-1.12"
+  ]
+ },
+ {
+  "id": "I06",
+  "name": "SAML signing certificate about to expire",
+  "severity": "low",
+  "area": "trust_access",
+  "fix": "Rotate the IdP signing certificate and upload the new metadata (iam:UpdateSAMLProvider).",
+  "risk": "An expiring certificate signals an unmaintained provider; rotating late can break sign-in when the IdP changes keys.",
+  "about": "",
+  "controls": [
+   "NIST-SC-17",
+   "NIST-IA-5"
+  ]
+ },
+ {
+  "id": "I01",
+  "name": "OIDC provider certificate fingerprint is out of date",
+  "severity": "medium",
+  "area": "trust_access",
+  "fix": "Verify the provider's certificate and update the thumbprint list (iam:UpdateOpenIDConnectProviderThumbprint). If issuer and JWKS hosts differ, include both thumbprints.",
+  "risk": "Sign-ins can break, or the trust may point at the wrong certificate, weakening who AWS believes the login provider is.",
+  "about": "",
+  "controls": [
+   "NIST-IA-5",
+   "NIST-SC-17"
+  ]
+ },
+ {
+  "id": "I08",
+  "name": "SAML logins allowed without encryption",
+  "severity": "medium",
+  "area": "trust_access",
+  "fix": "Enable assertion encryption at the IdP and set AssertionEncryptionMode=Required (iam:UpdateSAMLProvider).",
+  "risk": "Unencrypted assertions can expose user attributes to anyone who can read them in transit or in browser logs.",
+  "about": "",
+  "controls": [
+   "NIST-SC-8",
+   "NIST-SC-13"
+  ]
+ },
+ {
+  "id": "I10",
+  "name": "Federated login session allowed to last too long",
+  "severity": "medium",
+  "area": "trust_access",
+  "fix": "Lower MaxSessionDuration on the role to your limit (1 hour is the AWS default).",
+  "risk": "If a federated session is stolen, a longer duration gives the attacker more time before it expires.",
+  "about": "",
+  "controls": [
+   "NIST-AC-12"
+  ]
+ },
+ {
+  "id": "I02",
+  "name": "Role trusts more than one login provider",
+  "severity": "low",
+  "area": "trust_access",
+  "fix": "Keep one provider per role where possible, or give each provider its own role with matching sub / aud conditions.",
+  "risk": "Every extra login provider is another way in; a weak provider becomes a path to the same role.",
+  "about": "",
+  "controls": [
+   "NIST-AC-2",
+   "NIST-IA-8"
+  ]
+ },
+ {
+  "id": "CB-01",
+  "name": "CodeBuild role + PassRole escalation",
+  "severity": "high",
+  "area": "credential_hygiene",
+  "fix": "Scope iam:PassRole to the specific roles builds need, with iam:PassedToService.",
+  "risk": "Anyone who controls the build (buildspec, dependency) escalates to the most privileged role in the account.",
+  "about": "",
+  "controls": [
+   "NIST-AC-6"
+  ]
+ },
+ {
+  "id": "CICD-01",
+  "name": "CI/CD OIDC role deploys to prod",
+  "severity": "high",
+  "area": "credential_hygiene",
+  "fix": "Limit sub to repo:<org>/<repo>:environment:production (with required reviewers) or ref:refs/heads/main.",
+  "risk": "A pull request or feature branch can run with production deploy permissions.",
+  "about": "",
+  "controls": [
+   "NIST-CM-5",
+   "SOC2-CC8.1"
+  ]
+ },
+ {
+  "id": "ECR-02",
+  "name": "Secrets in image layers",
+  "severity": "high",
+  "area": "credential_hygiene",
+  "fix": "Rotate the secrets, rebuild without them (multi-stage builds, build secrets), delete affected tags.",
+  "risk": "Anyone who can pull the image (or any old tag) can extract the credentials.",
+  "about": "",
+  "controls": [
+   "NIST-IA-5",
+   "NIST-SA-11"
+  ]
+ },
+ {
+  "id": "CICD-02",
+  "name": "Deploy role over-privileged",
+  "severity": "medium",
+  "area": "credential_hygiene",
+  "fix": "Scope the deploy role to the stacks/services it deploys; use permission boundaries for roles it creates.",
+  "risk": "Pipeline compromise (malicious dependency, PR) yields broad account access.",
+  "about": "",
+  "controls": [
+   "NIST-AC-6",
+   "SOC2-CC8.1"
+  ]
+ },
+ {
+  "id": "CICD-03",
+  "name": "CI/CD with static long-lived keys",
+  "severity": "high",
+  "area": "credential_hygiene",
+  "fix": "Switch to OIDC federation (e.g. GitHub Actions -> AssumeRoleWithWebIdentity) and delete the keys.",
+  "risk": "Keys stored in CI secrets leak through logs, forks and compromised runners and never expire.",
+  "about": "",
+  "controls": [
+   "NIST-IA-5",
+   "SOC2-CC8.1"
+  ]
+ },
+ {
+  "id": "STS-04",
+  "name": "GitHub OIDC role broad",
+  "severity": "high",
+  "area": "credential_hygiene",
+  "fix": "StringEquals token.actions.githubusercontent.com:aud = sts.amazonaws.com and sub = repo:<org>/<repo>:<ref|environment>.",
+  "risk": "Workflows in other repositories (or other GitHub orgs) can assume the role.",
+  "about": "",
+  "controls": [
+   "NIST-IA-8",
+   "SOC2-CC8.1"
+  ]
+ },
+ {
+  "id": "PATH-05",
+  "name": "Privileged role assumable by low-trust",
+  "severity": "high",
+  "area": "escalation",
+  "fix": "Restrict the trust policy to the specific automation roles that need it; add MFA/ExternalId/PrincipalOrgID conditions.",
+  "risk": "Privilege jump: a weak identity becomes privileged with one AssumeRole call.",
+  "about": "",
+  "controls": [
+   "NIST-AC-6"
+  ]
+ },
+ {
+  "id": "IAM-13",
+  "name": "Policy version escalation",
+  "severity": "high",
+  "area": "escalation",
+  "fix": "Remove these actions from workload roles; restrict policy management to the IaC pipeline role.",
+  "risk": "Any principal with the policy attached (including this identity) can be made administrator.",
+  "about": "",
+  "controls": [
+   "NIST-AC-6"
+  ]
+ },
+ {
+  "id": "IAM-11",
+  "name": "Self policy modification",
+  "severity": "critical",
+  "area": "escalation",
+  "fix": "Remove IAM write actions on the role itself; use a permission boundary that denies IAM changes.",
+  "risk": "The workload can grant itself administrator access at any time.",
+  "about": "",
+  "controls": [
+   "NIST-AC-6",
+   "NIST-AC-5"
+  ]
+ },
+ {
+  "id": "IAM-12",
+  "name": "CreateRole + AttachPolicy escalation",
+  "severity": "high",
+  "area": "escalation",
+  "fix": "Remove these actions, or require a permission boundary on created roles (iam:PermissionsBoundary condition).",
+  "risk": "Privilege escalation to administrator through a newly created role.",
+  "about": "",
+  "controls": [
+   "NIST-AC-6"
+  ]
+ },
+ {
+  "id": "IAM-26",
+  "name": "Toxic permission combination",
+  "severity": "high",
+  "area": "escalation",
+  "fix": "Remove the actions or scope them to specific resources; deny them in a permission boundary.",
+  "risk": "Each primitive lets the identity act as another, usually more privileged, principal.",
+  "about": "",
+  "controls": [
+   "NIST-AC-6"
+  ]
+ },
+ {
+  "id": "IAM-25",
+  "name": "Deep role-chaining path",
+  "severity": "high",
+  "area": "escalation",
+  "fix": "Break the chain: restrict sts:AssumeRole to the roles the workload needs and tighten trust policies.",
+  "risk": "Deep chains hide the real origin of actions in CloudTrail and widen effective access.",
+  "about": "Assume-role path: ",
+  "controls": [
+   "NIST-AC-6",
+   "NIST-AU-10"
+  ]
+ },
+ {
+  "id": "PATH-01",
+  "name": "End-to-end exfiltration path",
+  "severity": "critical",
+  "area": "escalation",
+  "fix": "Remove internet exposure or the data permissions; scope data access to specific resources; add VPC endpoint policies.",
+  "risk": "One exploit of the exposed workload leads directly to bulk data theft.",
+  "about": "",
+  "controls": [
+   "NIST-AC-4",
+   "NIST-SC-7",
+   "PCI-DSS-7.1"
+  ]
+ },
+ {
+  "id": "PATH-03",
+  "name": "High blast-radius identity",
+  "severity": "high",
+  "area": "escalation",
+  "fix": "Split responsibilities across smaller roles and remove assume-role paths to privileged roles.",
+  "risk": "Compromise of this identity affects a large part of the account.",
+  "about": "",
+  "controls": [
+   "NIST-AC-6"
+  ]
+ },
+ {
+  "id": "IAM-10",
+  "name": "PassRole + compute-create combo",
+  "severity": "critical",
+  "area": "escalation",
+  "fix": "Scope iam:PassRole to specific role ARNs with iam:PassedToService; remove unused create permissions.",
+  "risk": "Privilege escalation to any role that can be passed (often admin).",
+  "about": "",
+  "controls": [
+   "NIST-AC-6",
+   "SOC2-CC6.1"
+  ]
+ },
+ {
+  "id": "PATH-02",
+  "name": "Cross-account lateral movement",
+  "severity": "high",
+  "area": "escalation",
+  "fix": "Remove cross-account sts:AssumeRole unless required; scope it to specific role ARNs with ExternalId/conditions.",
+  "risk": "Compromise of this workload spreads to other accounts.",
+  "about": "",
+  "controls": [
+   "NIST-AC-4"
+  ]
+ },
+ {
+  "id": "PATH-04",
+  "name": "Exposure-to-privilege path",
+  "severity": "critical",
+  "area": "escalation",
+  "fix": "Remove the exposure or the path (assume-role permission / trust) to the privileged role.",
+  "risk": "Internet exploit -> privileged AWS access.",
+  "about": "",
+  "controls": [
+   "NIST-AC-6",
+   "NIST-SC-7"
+  ]
+ },
+ {
+  "id": "PE-010",
+  "name": "Role can remove or weaken its own permissions boundary",
+  "severity": "high",
+  "area": "escalation",
+  "fix": "Deny iam:DeleteRolePermissionsBoundary / PutRolePermissionsBoundary on the role (in the boundary itself or an SCP).",
+  "risk": "The boundary is only advisory: an attacker removes it, then uses the role's full policies.",
+  "about": "The role has a permissions boundary and is allowed to delete or replace it.",
+  "controls": [
+   "NIST-AC-6",
+   "NIST-AC-3"
+  ]
+ },
+ {
+  "id": "PE-013",
+  "name": "Can assign a stronger Lambda execution role",
+  "severity": "high",
+  "area": "escalation",
+  "fix": "Scope iam:PassRole to specific roles with iam:PassedToService=lambda.amazonaws.com, and limit UpdateFunctionConfiguration.",
+  "risk": "A low-privilege credential becomes the strongest role it can pass.",
+  "about": "lambda:UpdateFunctionConfiguration plus iam:PassRole on \\",
+  "controls": [
+   "NIST-AC-6"
+  ]
+ },
+ {
+  "id": "SSM-03",
+  "name": "Session Manager role over-privileged",
+  "severity": "medium",
+  "area": "least_privilege",
+  "fix": "Keep the instance role to AmazonSSMManagedInstanceCore + what the workload needs; restrict ssm:StartSession.",
+  "risk": "ssm:StartSession on the instance becomes a privilege escalation to the instance role.",
+  "about": "Anyone who can start a Session Manager session on the instance inherits this role: ",
+  "controls": [
+   "NIST-AC-6"
+  ]
+ },
+ {
+  "id": "RS-01",
+  "name": "Redshift role over-privileged",
+  "severity": "medium",
+  "area": "least_privilege",
+  "fix": "Scope the role to the specific S3 prefixes / services the cluster uses (COPY/UNLOAD, Spectrum).",
+  "risk": "SQL users who can run COPY/UNLOAD use this role: database access becomes broad AWS access.",
+  "about": "",
+  "controls": [
+   "NIST-AC-6"
+  ]
+ },
+ {
+  "id": "EKS-03",
+  "name": "SA cluster-admin + privileged IRSA",
+  "severity": "critical",
+  "area": "least_privilege",
+  "fix": "Remove cluster-admin from the service account and scope the IRSA role to the workload's needs.",
+  "risk": "Compromise of a single pod = full cluster control + privileged AWS access.",
+  "about": "",
+  "controls": [
+   "NIST-AC-6",
+   "CIS-EKS-4.1.1"
+  ]
+ },
+ {
+  "id": "IAM-07",
+  "name": "Wildcard resource (Resource:*)",
+  "severity": "high",
+  "area": "least_privilege",
+  "fix": "Scope Resource to the specific ARNs (or ARN prefixes) the workload works on.",
+  "risk": "The workload can modify or delete resources it never touches, including other teams' data.",
+  "about": "",
+  "controls": [
+   "NIST-AC-6",
+   "SOC2-CC6.1"
+  ]
+ },
+ {
+  "id": "RDS-01",
+  "name": "Broad IAM auth role",
+  "severity": "medium",
+  "area": "least_privilege",
+  "fix": "Scope rds-db:connect to arn:aws:rds-db:<region>:<acct>:dbuser:<db-resource-id>/<specific-user>.",
+  "risk": "The workload can log in as any database user (including admin users) of any IAM-auth database.",
+  "about": "",
+  "controls": [
+   "NIST-AC-6",
+   "PCI-DSS-7.1"
+  ]
+ },
+ {
+  "id": "E-I09",
+  "name": "Service-linked role has customer-added permissions",
+  "severity": "medium",
+  "area": "least_privilege",
+  "fix": "Remove the inline / customer-managed policies from the service-linked role.",
+  "risk": "An attacker who abuses the service plane gains the extra permissions too.",
+  "about": "Customer-modifiable permissions were added to a role meant to carry only the AWS-managed service policy.",
+  "controls": [
+   "NIST-AC-6"
+  ]
+ },
+ {
+  "id": "ECS-04",
+  "name": "Execution role over-privileged",
+  "severity": "medium",
+  "area": "least_privilege",
+  "fix": "Use AmazonECSTaskExecutionRolePolicy plus only the specific secrets/parameters the task needs; put app permissions on the task role.",
+  "risk": "The execution role is available to the ECS agent on the host; extra permissions widen what a host compromise yields.",
+  "about": "",
+  "controls": [
+   "NIST-AC-6"
+  ]
+ },
+ {
+  "id": "ACM-02",
+  "name": "Private CA broadly permissioned",
+  "severity": "high",
+  "area": "least_privilege",
+  "fix": "Restrict acm-pca:IssueCertificate to specific CA ARNs and issuing pipelines; remove public/cross-account CA policy.",
+  "risk": "Whoever can issue certificates can impersonate services and IAM Roles Anywhere workloads trusted by this CA.",
+  "about": "",
+  "controls": [
+   "NIST-SC-17"
+  ]
+ },
+ {
+  "id": "KMS-03",
+  "name": "Key without rotation enabled",
+  "severity": "low",
+  "area": "credential_hygiene",
+  "fix": "Enable automatic key rotation (EnableKeyRotation).",
+  "risk": "Compromised key material stays valid for all future encryptions.",
+  "about": "The customer-managed symmetric key does not rotate its key material.",
+  "controls": [
+   "CIS-3.6",
+   "PCI-DSS-3.6"
+  ]
+ },
+ {
+  "id": "ECS-01",
+  "name": "Hardcoded secrets in task definition",
+  "severity": "critical",
+  "area": "credential_hygiene",
+  "fix": "Rotate the secret; use the containerDefinitions 'secrets' field (Secrets Manager / SSM) instead of 'environment'.",
+  "risk": "Task definitions are readable with ecs:DescribeTaskDefinition and keep every revision forever.",
+  "about": "",
+  "controls": [
+   "NIST-IA-5",
+   "PCI-DSS-8.2"
+  ]
+ },
+ {
+  "id": "IAM-04",
+  "name": "Workload using IAM user keys vs role",
+  "severity": "high",
+  "area": "credential_hygiene",
+  "fix": "Remove the keys from the workload and use its instance profile / task role / execution role (temporary credentials).",
+  "risk": "Static keys never expire, are copied into code/config and bypass the workload's role boundary.",
+  "about": "",
+  "controls": [
+   "CIS-1.20",
+   "NIST-IA-5"
+  ]
+ },
+ {
+  "id": "S3-02",
+  "name": "Secrets in bucket objects/state",
+  "severity": "high",
+  "area": "credential_hygiene",
+  "fix": "Rotate the secrets, remove them from objects (use remote state with encryption, Secrets Manager), restrict bucket access.",
+  "risk": "Anyone who can read the bucket (or a backup of it) gets the credentials.",
+  "about": "",
+  "controls": [
+   "NIST-IA-5",
+   "PCI-DSS-3.4"
+  ]
+ },
+ {
+  "id": "IAM-02",
+  "name": "Unused access keys",
+  "severity": "high",
+  "area": "credential_hygiene",
+  "fix": "Deactivate the key now and delete it after confirming nothing depends on it.",
+  "risk": "Unused active keys are unmonitored standing credentials; a leak goes unnoticed.",
+  "about": "",
+  "controls": [
+   "CIS-1.12",
+   "SOC2-CC6.2"
+  ]
+ },
+ {
+  "id": "SSM-02",
+  "name": "Plaintext secret in String parameter",
+  "severity": "high",
+  "area": "credential_hygiene",
+  "fix": "Rotate the secret and store it as SecureString with a customer-managed key (or in Secrets Manager).",
+  "risk": "Plaintext secret readable without any KMS permission.",
+  "about": "A credential-like value is stored unencrypted; anyone with ssm:GetParameter (and console users) can read it.",
+  "controls": [
+   "NIST-IA-5",
+   "PCI-DSS-3.4"
+  ]
+ },
+ {
+  "id": "SSM-01",
+  "name": "SecureString without CMK",
+  "severity": "low",
+  "area": "credential_hygiene",
+  "fix": "Re-encrypt with a customer-managed KMS key whose policy allows only the intended consumers.",
+  "risk": "No separation between 'can read the parameter' and 'can decrypt it'.",
+  "about": "The parameter is encrypted with alias/aws/ssm, whose key policy cannot be restricted: any principal with ssm:GetParameter can decrypt it.",
+  "controls": [
+   "NIST-SC-12"
+  ]
+ },
+ {
+  "id": "CH-005",
+  "name": "Machine identity has a console password",
+  "severity": "high",
+  "area": "credential_hygiene",
+  "fix": "Delete the login profile (iam:DeleteLoginProfile).",
+  "risk": "A console password is a second, human-style way in that nobody owns, rotates or protects with MFA.",
+  "about": "A non-human IAM user has a login profile. Workloads only need programmatic access.",
+  "controls": [
+   "NIST-IA-2",
+   "NIST-AC-2"
+  ]
+ },
+ {
+  "id": "CH-009",
+  "name": "Unrenewed certificate past its rotation window",
+  "severity": "medium",
+  "area": "credential_hygiene",
+  "fix": "Re-issue the certificate (prefer ACM-issued with managed renewal) and replace it on its listeners.",
+  "risk": "If the certificate's key leaks, an attacker could impersonate the service indefinitely.",
+  "about": "",
+  "controls": [
+   "NIST-SC-17",
+   "NIST-IA-5(2)"
+  ]
+ },
+ {
+  "id": "CH-011",
+  "name": "IoT device certificate past its rotation window",
+  "severity": "medium",
+  "area": "credential_hygiene",
+  "fix": "Rotate device certificates (fleet provisioning / just-in-time registration) and deactivate old ones.",
+  "risk": "If extracted from a device, the certificate impersonates it until someone revokes it by hand.",
+  "about": "Your secret scanner matched this secret's material in code or logs; the secret is not scheduled for deletion.",
+  "controls": [
+   "NIST-IA-5(2)"
+  ]
+ },
+ {
+  "id": "CR-006",
+  "name": "Exposed secret is still live",
+  "severity": "critical",
+  "area": "credential_hygiene",
+  "fix": "Rotate the secret immediately and remove it from the exposed location.",
+  "risk": "Exposed-but-live secrets can be copied and used outside normal controls.",
+  "about": "Your secret scanner matched this secret's material in code or logs; the secret is not scheduled for deletion.",
+  "controls": [
+   "NIST-IA-5(7)"
+  ]
+ },
+ {
+  "id": "LAM-01",
+  "name": "Hardcoded secrets in Lambda env vars",
+  "severity": "critical",
+  "area": "credential_hygiene",
+  "fix": "Rotate the exposed secret, move it to Secrets Manager / SSM SecureString and read it at runtime with the execution role.",
+  "risk": "Anyone with lambda:GetFunctionConfiguration (and every log line that dumps env) can read the secret.",
+  "about": "",
+  "controls": [
+   "NIST-IA-5",
+   "SOC2-CC6.1",
+   "PCI-DSS-8.2"
+  ]
+ },
+ {
+  "id": "IAM-03",
+  "name": "Multiple active access keys",
+  "severity": "medium",
+  "area": "credential_hygiene",
+  "fix": "Finish the rotation: switch consumers to one key, deactivate and delete the other.",
+  "risk": "Doubles the exposure of long-lived credentials and hides which key is really in use.",
+  "about": "",
+  "controls": [
+   "CIS-1.13"
+  ]
+ },
+ {
+  "id": "SEC-01",
+  "name": "Secret not rotated",
+  "severity": "medium",
+  "area": "credential_hygiene",
+  "fix": "Enable automatic rotation with a rotation Lambda, or rotate manually and set a rotation schedule.",
+  "risk": "A long-lived secret that leaked once stays usable indefinitely.",
+  "about": "",
+  "controls": [
+   "NIST-IA-5",
+   "PCI-DSS-8.3"
+  ]
+ },
+ {
+  "id": "IAM-19",
+  "name": "Excessive STS session duration",
+  "severity": "medium",
+  "area": "credential_hygiene",
+  "fix": "Lower MaxSessionDuration to 1h (3600) unless a longer session is required.",
+  "risk": "Stolen session credentials stay valid for many hours after the theft.",
+  "about": "",
+  "controls": [
+   "NIST-AC-12"
+  ]
+ },
+ {
+  "id": "SEC-02",
+  "name": "Secret access by non-consumers",
+  "severity": "medium",
+  "area": "credential_hygiene",
+  "fix": "Restrict the secret's resource policy / KMS key to the intended consumers and investigate the extra readers.",
+  "risk": "The secret is used outside its intended workload: over-broad access or credential misuse.",
+  "about": "",
+  "controls": [
+   "NIST-AC-6",
+   "SOC2-CC6.1"
+  ]
+ },
+ {
+  "id": "ECS-05",
+  "name": "Privileged container / host namespace",
+  "severity": "high",
+  "area": "exposure",
+  "fix": "Remove privileged:true, extra Linux capabilities, pidMode/networkMode host; use awsvpc networking and task roles.",
+  "risk": "Privileged containers can escape to the host, read other tasks' credentials and the EC2 instance role via IMDS.",
+  "about": "The task definition grants host-level access: ",
+  "controls": [
+   "CIS-5.4",
+   "NIST-AC-6"
+  ]
+ },
+ {
+  "id": "EKS-01",
+  "name": "Pod uses node role (no IRSA/Pod Identity)",
+  "severity": "high",
+  "area": "exposure",
+  "fix": "Create a dedicated IAM role per service account via IRSA or EKS Pod Identity and block IMDS from pods (hop limit 1).",
+  "risk": "Every pod on the node shares the node role; one compromised pod gets all of its permissions.",
+  "about": "",
+  "controls": [
+   "NIST-AC-6",
+   "SOC2-CC6.1"
+  ]
+ },
+ {
+  "id": "LAM-03",
+  "name": "Shared execution role across many functions",
+  "severity": "medium",
+  "area": "exposure",
+  "fix": "Give each function (or each tightly related group) its own least-privilege execution role.",
+  "risk": "Compromising any one function exposes the permissions of every function sharing the role.",
+  "about": "",
+  "controls": [
+   "NIST-AC-6",
+   "SOC2-CC6.1"
+  ]
+ },
+ {
+  "id": "SM-02",
+  "name": "SageMaker notebook direct internet",
+  "severity": "medium",
+  "area": "exposure",
+  "fix": "Set DirectInternetAccess=Disabled and route traffic through the VPC with VPC endpoints / NAT controls.",
+  "risk": "Data exfiltration path that bypasses VPC egress controls and logging.",
+  "about": "DirectInternetAccess is Enabled: the notebook reaches the internet without your VPC controls, and its execution role can be used to exfiltrate data.",
+  "controls": [
+   "NIST-SC-7",
+   "SOC2-CC6.6"
+  ]
+ },
+ {
+  "id": "CB-02",
+  "name": "CodeBuild privileged mode",
+  "severity": "medium",
+  "area": "exposure",
+  "fix": "Disable privileged mode unless the project builds images; for image builds use a separate project with a minimal role.",
+  "risk": "Malicious build input (dependency, PR) can escape the build container and steal the project's service role credentials.",
+  "about": "environment.privilegedMode=true gives build containers root on the build host (Docker daemon access).",
+  "controls": [
+   "NIST-CM-7"
+  ]
+ },
+ {
+  "id": "EKS-05",
+  "name": "Public EKS API endpoint",
+  "severity": "medium",
+  "area": "exposure",
+  "fix": "Enable private endpoint access and disable public access, or restrict publicAccessCidrs to known ranges.",
+  "risk": "Internet-exposed control plane widens the attack surface for stolen IRSA / node credentials.",
+  "about": "The Kubernetes API endpoint accepts connections from 0.0.0.0/0. Leaked tokens or kubeconfigs can be used from anywhere.",
+  "controls": [
+   "CIS-EKS-5.4.2",
+   "NIST-SC-7"
+  ]
+ },
+ {
+  "id": "EKS-02",
+  "name": "Pod uses default service account",
+  "severity": "medium",
+  "area": "exposure",
+  "fix": "Create a dedicated service account per workload, set automountServiceAccountToken: false on 'default'.",
+  "risk": "No per-workload identity: permissions granted for one workload silently apply to all of them.",
+  "about": "The pod runs as service account 'default'. Every workload in the namespace without an explicit service account shares its RBAC rights and IRSA role.",
+  "controls": [
+   "CIS-EKS-4.1.5",
+   "NIST-AC-6"
+  ]
+ },
+ {
+  "id": "BEH-08",
+  "name": "New sensitive-resource access",
+  "severity": "high",
+  "area": "lifecycle",
+  "fix": "Confirm the access is part of an approved change; otherwise contain the identity and review data access logs.",
+  "risk": "Possible data discovery / exfiltration with the workload's credentials.",
+  "about": "",
+  "controls": [
+   "NIST-SI-4",
+   "NIST-AC-4"
+  ]
+ },
+ {
+  "id": "BEH-02",
+  "name": "New API action for identity",
+  "severity": "medium",
+  "area": "lifecycle",
+  "fix": "Review the calls (CloudTrail); if not a deployment change, contain the identity.",
+  "risk": "Workloads are repetitive; new actions often mean reconnaissance or misuse of stolen credentials.",
+  "about": "",
+  "controls": [
+   "NIST-SI-4"
+  ]
+ },
+ {
+  "id": "BEH-06",
+  "name": "AccessDenied spike",
+  "severity": "high",
+  "area": "lifecycle",
+  "fix": "Review the denied calls in CloudTrail and contain the identity if they are not a known bug.",
+  "risk": "Permission probing: someone is testing what the stolen credentials can do.",
+  "about": "",
+  "controls": [
+   "NIST-SI-4"
+  ]
+ },
+ {
+  "id": "BEH-03",
+  "name": "Impossible travel / concurrent origins",
+  "severity": "high",
+  "area": "lifecycle",
+  "fix": "Revoke active sessions and rotate the credentials; investigate the second origin.",
+  "risk": "The same workload credential is being used by someone else in parallel.",
+  "about": "",
+  "controls": [
+   "NIST-SI-4",
+   "NIST-IR-4"
+  ]
+ },
+ {
+  "id": "BEH-01",
+  "name": "New IP/region usage",
+  "severity": "high",
+  "area": "lifecycle",
+  "fix": "Verify the activity; if unexpected, revoke sessions (aws:TokenIssueTime deny) and rotate credentials.",
+  "risk": "Workload credentials used from an unexpected location are a strong sign of theft.",
+  "about": "",
+  "controls": [
+   "NIST-SI-4"
+  ]
+ },
+ {
+  "id": "BEH-09",
+  "name": "Policy drift from baseline",
+  "severity": "medium",
+  "area": "lifecycle",
+  "fix": "Confirm the change came through IaC/review; revert otherwise and alert on IAM policy changes.",
+  "risk": "Unreviewed permission growth (or an attacker granting itself access).",
+  "about": "",
+  "controls": [
+   "NIST-CM-3",
+   "SOC2-CC8.1"
+  ]
+ },
+ {
+  "id": "BEH-07",
+  "name": "Off-hours activity",
+  "severity": "low",
+  "area": "lifecycle",
+  "fix": "Correlate with deployments/batch schedules; investigate if unexplained.",
+  "risk": "Attackers often use stolen credentials when nobody is watching.",
+  "about": "Activity outside the identity's usual schedule.",
+  "controls": [
+   "NIST-SI-4"
+  ]
+ },
+ {
+  "id": "IAM-30",
+  "name": "Dormant-then-active credential",
+  "severity": "high",
+  "area": "lifecycle",
+  "fix": "Verify the owner expected this use; otherwise revoke and rotate.",
+  "risk": "Forgotten credentials coming back to life are a classic sign of compromise.",
+  "about": "",
+  "controls": [
+   "NIST-AC-2",
+   "NIST-SI-4"
+  ]
+ },
+ {
+  "id": "BEH-05",
+  "name": "Activity volume spike",
+  "severity": "medium",
+  "area": "lifecycle",
+  "fix": "Check the top actions in the window; contain the identity if the spike is not explained by a release/load.",
+  "risk": "Bulk enumeration or data extraction with the workload's credentials.",
+  "about": "",
+  "controls": [
+   "NIST-SI-4"
+  ]
+ },
+ {
+  "id": "BEH-04",
+  "name": "Console login by NHI",
+  "severity": "high",
+  "area": "lifecycle",
+  "fix": "Deny sts:GetFederationToken / signin for NHIs and investigate the sessions.",
+  "risk": "Interactive use of workload credentials (federation via GetFederationToken / stolen keys).",
+  "about": "ConsoleLogin / GetSigninToken events for a non-human identity: its credentials are being used interactively.",
+  "controls": [
+   "NIST-AC-2",
+   "NIST-SI-4"
+  ]
+ },
+ {
+  "id": "STS-03",
+  "name": "Roles Anywhere broad cert mapping",
+  "severity": "high",
+  "area": "trust_access",
+  "fix": "Add conditions on aws:PrincipalTag/x509Subject/CN (and aws:SourceArn = the trust anchor ARN).",
+  "risk": "Any certificate issued by any trusted CA in the account can obtain this role.",
+  "about": "The trust policy trusts rolesanywhere.amazonaws.com without aws:PrincipalTag/x509Subject, x509Issuer or aws:SourceArn (trust anchor) conditions.",
+  "controls": [
+   "NIST-IA-5"
+  ]
+ },
+ {
+  "id": "STS-01",
+  "name": "Wildcard OIDC/SAML subject/audience",
+  "severity": "high",
+  "area": "trust_access",
+  "fix": "Add StringEquals conditions on <provider>:sub and <provider>:aud (SAML:aud for SAML) with exact values.",
+  "risk": "Any identity issued by the provider (other apps, other tenants) can assume the role.",
+  "about": "",
+  "controls": [
+   "NIST-IA-8"
+  ]
+ },
+ {
+  "id": "EKS-06",
+  "name": "aws-auth maps broad IAM principals",
+  "severity": "high",
+  "area": "trust_access",
+  "fix": "Map specific roles only, never account root or wildcards; give admin to a break-glass role via access entries.",
+  "risk": "Many AWS principals (or long-lived user keys) get Kubernetes access, often cluster-admin.",
+  "about": "",
+  "controls": [
+   "CIS-EKS-3.1",
+   "NIST-AC-6"
+  ]
+ },
+ {
+  "id": "IAM-29",
+  "name": "Role usable without MFA condition",
+  "severity": "medium",
+  "area": "trust_access",
+  "fix": "Add Condition Bool aws:MultiFactorAuthPresent=true (or restrict aws:PrincipalArn to automation roles).",
+  "risk": "Stolen long-term user keys are enough to assume this NHI role.",
+  "about": "",
+  "controls": [
+   "CIS-1.10",
+   "NIST-IA-2"
+  ]
+ },
+ {
+  "id": "EKS-04",
+  "name": "IRSA trust with wildcard subject",
+  "severity": "high",
+  "area": "trust_access",
+  "fix": "Use StringEquals <oidc>:sub = system:serviceaccount:<namespace>:<serviceaccount> and <oidc>:aud = sts.amazonaws.com.",
+  "risk": "Any pod in the cluster (any namespace) can assume the role.",
+  "about": "",
+  "controls": [
+   "CIS-EKS-4.1.6",
+   "NIST-AC-6"
+  ]
+ },
+ {
+  "id": "ACM-01",
+  "name": "Certificate expiring/expired",
+  "severity": "medium",
+  "area": "lifecycle",
+  "fix": "Renew (or enable managed renewal with DNS validation); delete expired certificates not in use.",
+  "risk": "Expired certificates break TLS / mutual-TLS workload authentication (outages, fallback to insecure paths).",
+  "about": "",
+  "controls": [
+   "NIST-SC-17"
+  ]
+ },
+ {
+  "id": "IAM-22",
+  "name": "Orphaned IAM role",
+  "severity": "medium",
+  "area": "lifecycle",
+  "fix": "Confirm with the owner, then delete the role (and its instance profiles).",
+  "risk": "Unowned roles keep permissions and trust nobody monitors; attractive for persistence.",
+  "about": "",
+  "controls": [
+   "CIS-1.12",
+   "SOC2-CC6.2"
+  ]
+ },
+ {
+  "id": "STS-02",
+  "name": "Unused OIDC/SAML provider",
+  "severity": "low",
+  "area": "lifecycle",
+  "fix": "Delete the provider if no longer needed.",
+  "risk": "Leftover federation trust can be reused silently by a new or modified role.",
+  "about": "No role trust policy references this provider.",
+  "controls": [
+   "NIST-AC-2"
+  ]
+ },
+ {
+  "id": "LC-010",
+  "name": "Role last used in a region nobody watches",
+  "severity": "medium",
+  "area": "lifecycle",
+  "fix": "Investigate the use; block unused regions with an SCP (aws:RequestedRegion).",
+  "risk": "An unused region keeps the attacker off the dashboards and alarms the team watches.",
+  "about": "",
+  "controls": [
+   "NIST-AC-2(12)"
+  ]
+ },
+ {
+  "id": "STS-05",
+  "name": "Zombie credential (post-termination)",
+  "severity": "high",
+  "area": "lifecycle",
+  "fix": "Find the caller in CloudTrail, revoke sessions (deny aws:TokenIssueTime < now), and delete the role if unneeded.",
+  "risk": "Credentials of a terminated workload (or exfiltrated session tokens) are still in use.",
+  "about": "",
+  "controls": [
+   "NIST-AC-2",
+   "NIST-IR-4"
+  ]
+ },
+ {
+  "id": "IAM-23",
+  "name": "Unused IAM role",
+  "severity": "medium",
+  "area": "lifecycle",
+  "fix": "Remove the role from the workload or reduce it to no permissions; delete when confirmed.",
+  "risk": "Unused standing permissions: the workload no longer needs AWS access, or never did.",
+  "about": "",
+  "controls": [
+   "CIS-1.12"
+  ]
+ },
+ {
+  "id": "SSM-04",
+  "name": "SSM document shared publicly/cross-account",
+  "severity": "medium",
+  "area": "exposure",
+  "fix": "Remove public sharing (ModifyDocumentPermission --account-ids-to-remove all) and unneeded accounts.",
+  "risk": "Leaks operational details and any secrets embedded in the document.",
+  "about": "The automation/command document is visible outside your organization; documents often embed scripts, endpoints and parameter names.",
+  "controls": [
+   "NIST-AC-3"
+  ]
+ },
+ {
+  "id": "LAM-04",
+  "name": "Public/broad resource policy (invoke)",
+  "severity": "high",
+  "area": "exposure",
+  "fix": "Restrict the permission to the calling service with aws:SourceArn / aws:SourceAccount, or to specific principals.",
+  "risk": "Outsiders can trigger the function and act with its execution role.",
+  "about": "The function's resource policy grants lambda:InvokeFunction (or broader) to ",
+  "controls": [
+   "NIST-AC-3",
+   "SOC2-CC6.6"
+  ]
+ },
+ {
+  "id": "RDS-02",
+  "name": "Snapshot shared publicly/cross-account",
+  "severity": "high",
+  "area": "exposure",
+  "fix": "Remove 'all' and unneeded accounts from the restore attribute; encrypt snapshots with a CMK not shared externally.",
+  "risk": "A complete copy of the database, including credentials tables and PII.",
+  "about": "The snapshot's restore attribute lets other accounts (or everyone) restore a full copy of the database.",
+  "controls": [
+   "NIST-AC-3",
+   "PCI-DSS-3.4"
+  ]
+ },
+ {
+  "id": "S3-01",
+  "name": "Bucket policy broad/public",
+  "severity": "high",
+  "area": "exposure",
+  "fix": "Enable S3 Block Public Access, remove public statements and AllUsers grants, restrict cross-account access with aws:PrincipalOrgID.",
+  "risk": "Bucket contents can be read (or written) by anyone / outside your organization.",
+  "about": "",
+  "controls": [
+   "CIS-2.1.4",
+   "PCI-DSS-1.3",
+   "NIST-AC-3"
+  ]
+ },
+ {
+  "id": "LAM-06",
+  "name": "Layer shared cross-account with secrets",
+  "severity": "medium",
+  "area": "exposure",
+  "fix": "Rotate the secrets, rebuild the layer without them, remove public/cross-account layer permissions.",
+  "risk": "Anyone allowed to use the layer can download it and extract the credentials.",
+  "about": "",
+  "controls": [
+   "NIST-IA-5"
+  ]
+ },
+ {
+  "id": "E-I06",
+  "name": "EventBridge bus open to anyone or unknown accounts",
+  "severity": "high",
+  "area": "exposure",
+  "fix": "Restrict the bus policy to known accounts or aws:PrincipalOrgID.",
+  "risk": "An outsider can inject events that trigger your rules and the targets (and roles) behind them.",
+  "about": "The event bus policy grants Principal \\",
+  "controls": [
+   "NIST-AC-3"
+  ]
+ },
+ {
+  "id": "LAM-05",
+  "name": "Function URL with no auth",
+  "severity": "high",
+  "area": "exposure",
+  "fix": "Set AuthType=AWS_IAM, or put the function behind API Gateway / CloudFront with authentication.",
+  "risk": "Internet-reachable entry point running with the function's execution role.",
+  "about": "The function URL accepts unauthenticated HTTPS requests from the internet.",
+  "controls": [
+   "NIST-AC-3",
+   "NIST-SC-7"
+  ]
+ },
+ {
+  "id": "S3-03",
+  "name": "Bucket readable by all authenticated AWS",
+  "severity": "high",
+  "area": "exposure",
+  "fix": "Remove the AuthenticatedUsers grant, set Object Ownership to BucketOwnerEnforced (disables ACLs).",
+  "risk": "Anyone with a free AWS account can access the bucket.",
+  "about": "The 'AuthenticatedUsers' group means ANY AWS account, not just yours.",
+  "controls": [
+   "CIS-2.1.4",
+   "NIST-AC-3"
+  ]
+ }
+]

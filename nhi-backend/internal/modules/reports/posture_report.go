@@ -62,6 +62,20 @@ type PostureReport struct {
 	Identities      []ReportIdentity
 	Population      []ReportIdentity // every scored identity, worst first; only with Options.Population
 	AccountsCovered int
+
+	// Document control, shown on the cover and in every page footer.
+	ReportID    string     // stable reference for this report, e.g. ISPM-20261124-0912-7F3A
+	PreparedFor string     // the organisation (tenant) the report is about
+	GeneratedBy string     // who asked for it
+	DataAsOf    *time.Time // when the posture data was last computed
+	Trend       []TrendPoint
+	Sample      bool // built from sample data: every page says so
+}
+
+// TrendPoint is the average score on one day.
+type TrendPoint struct {
+	Day   time.Time
+	Score float64
 }
 
 // BandCount is how many scored identities sit in one score band.
@@ -101,6 +115,9 @@ type CheckGroup struct {
 	Items    []GroupItem
 	Accounts []AccountCount // where the identities failing it are, most first
 	Since    *time.Time     // when the longest-failing identity started failing it
+	Risk     string         // why it matters
+	Controls []string       // framework controls it maps to (NIST-AC-6, CIS-1.15, SOC2-CC6.1 ...)
+	Points   float64        // score points it takes off, summed over the identities failing it
 }
 
 // AccountCount is how many identities failing a check sit in one account.
@@ -164,6 +181,9 @@ type ReportCheck struct {
 	Fix          string // how to fix it on this identity
 	RuleFix      string // the check's own fix, the same on every identity
 	FailingSince *time.Time
+	Risk         string   // why it matters
+	Controls     []string // framework controls it maps to
+	Points       float64  // score points it takes off this identity
 }
 
 // Bands in report order, worst first; the Posture page's bands.
@@ -360,6 +380,11 @@ func summarise(rep *PostureReport) {
 			if g.About == "" {
 				g.About = c.About
 			}
+			if g.Risk == "" {
+				g.Risk = c.Risk
+			}
+			g.Controls = mergeControls(g.Controls, c.Controls)
+			g.Points += c.Points
 			if strings.TrimSpace(c.Fix) != "" {
 				fixes[key][c.Fix]++
 			}
