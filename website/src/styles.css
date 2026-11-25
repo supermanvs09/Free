@@ -1206,7 +1206,7 @@ html.is-translated font { background: none !important; box-shadow: none !importa
 .hm-hx { position: relative; overflow: hidden; isolation: isolate; background: #030812 !important; color: #fff; }
 .hm-hx-bg { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover; object-position: 70% 50%; }
 .hm-hx-shade { position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, rgb(3 8 18 / .96) 0%, rgb(3 8 18 / .82) 38%, rgb(3 8 18 / .15) 72%, rgb(3 8 18 / 0) 100%), linear-gradient(0deg, rgb(3 8 18 / .9) 0%, transparent 30%); }
-.hm-hx-copy { max-width: 660px; min-height: clamp(460px, 62vh, 640px); display: flex; flex-direction: column; justify-content: center; padding: clamp(64px, 8vw, 120px) 0; }
+.hm-hx-copy { max-width: 660px; min-height: clamp(560px, 76vh, 800px); display: flex; flex-direction: column; justify-content: center; padding: clamp(64px, 8vw, 120px) 0; }
 .hm-hx-bg { animation: hm-drift 26s ease-in-out infinite alternate; transform-origin: 75% 55%; }
 @keyframes hm-drift { from { transform: scale(1) translate3d(0, 0, 0); } to { transform: scale(1.12) translate3d(-2.5%, -1.5%, 0); } }
 .hm-hx.paused .hm-hx-bg { animation-play-state: paused; }
@@ -1235,7 +1235,7 @@ html.is-translated font { background: none !important; box-shadow: none !importa
 
 /* threat: methods and the photo with its floating card */
 .hm-photo-card { position: relative; margin: 0; border-radius: 24px; overflow: hidden; background: #0d1626; box-shadow: 0 40px 80px -46px rgb(10 40 90 / .6); }
-.hm-photo-card > img { display: block; width: 100%; aspect-ratio: 4 / 3.3; object-fit: cover; }
+.hm-photo-card > img { display: block; width: 100%; aspect-ratio: 4 / 3.3; object-fit: cover; object-position: 50% 30%; }
 .hm-photo-over { position: absolute; left: 18px; right: 18px; bottom: 18px; }
 .tg { padding: 18px 20px 16px; border-radius: 18px; background: rgb(255 255 255 / .96); backdrop-filter: blur(8px); border: 1px solid rgb(255 255 255 / .7); color: var(--p-ink); box-shadow: 0 24px 48px -24px rgb(0 10 30 / .6); }
 .tg-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; }

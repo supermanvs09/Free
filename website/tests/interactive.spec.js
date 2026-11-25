@@ -115,7 +115,7 @@ test('home: the protection accordion opens one threat at a time, with its pictur
   await expect(pa.getByRole('button', { name: /Fraud with valid credentials/ })).toHaveAttribute('aria-expanded', 'true');
   await expect(pa.getByRole('button', { expanded: true })).toHaveCount(1);
   await expect(pa.getByRole('region')).toContainText('Identity Fraud Prevention');
-  await expect(pa.locator('.pa-fig img')).toHaveAttribute('src', /digital-platforms/);
+  await expect(pa.locator('.pa-fig img')).toHaveAttribute('src', /payment-cards/);
 });
 
 test('every hero rolls the customer logos, with a pause control', async ({ page }) => {

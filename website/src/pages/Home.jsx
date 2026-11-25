@@ -176,7 +176,7 @@ export default function Home() {
             </Reveal>
             <Reveal up delay={100} className="min-w-0">
               <figure className="hm-photo-card">
-                <img src="/img/photos/signin-late.webp" alt="A man on a late-night phone call at his laptop, the moment a caller or an MFA prompt can be used against him" width="1600" height="900" loading="lazy" decoding="async" />
+                <img src="/img/concept/glass-cube.webp" alt="" width="1400" height="1154" loading="lazy" decoding="async" />
                 <figcaption className="hm-photo-over"><TrustGap /></figcaption>
               </figure>
             </Reveal>
