@@ -25,12 +25,14 @@ test('unknown pages answer 404 with a way back', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Back to home' })).toBeVisible();
 });
 
-test('one type family across the site: Inter, with mono only for machine values', async ({ page }) => {
+test('one type family per surface: Inter across the site, Geist on the redesigned home', async ({ page }) => {
   for (const route of ['/', '/adapid-ai', '/blogs/identity-security', '/why-deep-algorithms']) {
     await page.goto(route);
     const families = await page.evaluate(() => [...document.querySelectorAll('h1, h2, h3, p, a, button, li')]
-      .filter((e) => !e.closest('.vz, .mono, pre, code')).map((e) => getComputedStyle(e).fontFamily.split(',')[0].replace(/"/g, '')));
-    expect(new Set(families), route).toEqual(new Set(['Inter Variable']));
+      .filter((e) => !e.closest('.vz, .mono, .dx-mono, .dx-st, pre, code')).map((e) => getComputedStyle(e).fontFamily.split(',')[0].replace(/"/g, '')));
+    // the home's own system (src/home/home.css) is Geist; header and footer stay Inter
+    const allowed = route === '/' ? ['Inter Variable', 'Geist Variable', 'Geist Mono Variable'] : ['Inter Variable'];
+    for (const f of new Set(families)) expect(allowed, `${route}: ${f}`).toContain(f);
   }
 });
 

@@ -67,3 +67,39 @@ Global: top utility bar (Prompt Heist promo, phone, search, language), mega-menu
 - **Products:** adapID AI (CIRM, NHI, Fraud, AD), Zenstra AI (+6 capabilities), ICMS — fixed 6-section template.
 - **Solutions:** BFSI, Government, Healthcare, Digital — keep.
 - **Company / Resources / Prompt Heist (Careers).**
+
+## 5. Home redesign research (round 2)
+
+### Cisco Identity Intelligence film (2:07, transcribed)
+    [   0.7] In 2023, 74% of security breaches involved the human element, stolen credentials,
+    [   8.0] phishing, multi-factor authentication fatigue, even simple human mistakes.
+    [  13.8] Identity-based attacks hit major companies across all industries,
+    [  17.6] including the identity industry itself. If this trajectory tells us one thing, it is this.
+    [  23.4] Attackers don't need a zero-day exploit anymore. In fact, why hack in at all,
+    [  29.0] when they can simply log in? Most organizations today suffer from blind trust between user
+    [  35.8] authentication and access. That's a problem, because you can't defend what you can't see.
+    [  42.1] It's not enough to simply ask if a user can get access into your apps and data,
+    [  46.7] but should they get access at all? Introducing Cisco Identity Intelligence,
+    [  52.9] built to solve the disconnect between user authentication and access.
+    [  56.6] This unified, data-driven analytics and identity intelligence layer reaches across
+    [  62.6] your existing identity systems to discover your users, devices, networks, platforms,
+    [  69.1] applications and data, and infuses identity intelligence into all aspects of the Cisco
+    [  74.8] Security Cloud to bring together authentication, analytics and access for an end-to-end solution,
+    [  82.3] uncover identity threat and boost your identity posture, and reduce the potential risk of every
+    [  88.0] access by seeing across the entire identity attack surface. Our identity-first approach hydrates
+    [  95.7] user authentication with ongoing and trusted identity intelligence for human activities,
+    [ 101.4] secure access with continuous behavior-based identity verification, and XDR with malicious
+    [ 108.1] user and machine identity intelligence with graduated response, all to provide you with
+    [ 113.2] full identity fidelity. Better efficacy, better experience, better economics,
+    [ 120.1] with trusted identity powered by Cisco Identity Intelligence.
+
+Story beats: the human element → "why hack in when they can simply log in?" → **blind trust** between authentication and access → "not *can* a user get access, but *should* they?" → one intelligence layer across existing identity systems (IdPs shown as floating real logos) → identity graph → user / cloud / breach protection → authentication, secure access, threat detection (Endpoint 0 · Network 0 · **Identity 2** anomalies: MFA flood attack, compromised session) → "Better efficacy. Better experience." Visual language: deep navy, thin cyan rings, line icons, kinetic type, real vendor logos.
+
+### Zenstra (zenstra.ai)
+Three ways in, one inventory / policy engine / decision record: **Workflow Security** (every hop checked against its task), **Cloud Security** (gateway in your cloud in front of every MCP server, model and API; payloads never leave), **Zenstra AI Discovery** (staff devices: prompt + tool call + device together, contain an agent in seconds). Inline · p95 18 ms · fails closed.
+
+### Film 0:57–1:07 (the Claude scene to reproduce)
+claude.ai/new → "Good evening, Priya" → typed prompt + pasted .env (AWS access key, secret key, production DB password) → send → Zenstra toast "Blocked! This prompt contains credentials, API keys and tokens. It was not sent." · Policy: Sensitive credential protection → secrets highlighted and labelled → lock on send → "Not sent · decision recorded by Zenstra AI".
+
+### Template references
+Antigravity (light page, huge calm type, dark media cards per product, icon rail), Linear (dark, product UI as hero, numbered capability blocks), Stripe (light, bento of product tiles, big numbers band), Dribbble cyber security shots (dark glass, glowing 3D, data tiles).

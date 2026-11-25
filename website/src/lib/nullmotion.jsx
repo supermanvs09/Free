@@ -64,14 +64,14 @@ export function KineticPill({ words, lead, tail, className, style }) {
 }
 
 /* 12-blur-reveal + 22's word entrance: a heading's words sharpen into place */
-export function BlurWords({ text, as: As = 'span', className }) {
+export function BlurWords({ text, as: As = 'span', className, id }) {
   const ref = useRef(null);
   useOnView(ref, (gsap, el) => gsap.fromTo(el.querySelectorAll('.nm-w'),
     { opacity: 0, y: 18, filter: 'blur(8px)' },
     { opacity: 1, y: 0, filter: 'blur(0px)', duration: .7, ease: 'power4.out', stagger: .045 }), { threshold: .4 });
   const words = String(text).split(' ');
   return (
-    <As ref={ref} className={className}>
+    <As ref={ref} className={className} id={id}>
       {words.map((w, k) => <span key={k} className="nm-w">{w}{k < words.length - 1 ? ' ' : ''}</span>)}
     </As>
   );

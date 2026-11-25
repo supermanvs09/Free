@@ -1,224 +1,170 @@
 import { useState } from 'react';
-import { Link } from 'react-router';
-import { cx } from '../lib/motion.js';
 import { Seo } from '../lib/head.jsx';
-import { CERTS, CUSTOMERS } from '../data/site.js';
-import { PRODUCT_MENU } from '../data/nav.js';
-import { CountUp, Icon, Reveal } from '../components/ui.jsx';
 import { CtaBand } from '../components/blocks.jsx';
-import CertSeal from '../components/CertSeal.jsx';
-import ProductMark from '../components/ProductMark.jsx';
-import PostureConsole from '../components/home/PostureConsole.jsx';
-import { AgentScanCard, DetectionCard, InventoryCard, RecordCard } from '../components/home/AppCards.jsx';
+import { BlurWords } from '../lib/nullmotion.jsx';
 import FilmModal, { FILM, openFilm } from '../components/home/FilmModal.jsx';
+import HeroWave from '../home/HeroWave.jsx';
+import Overview from '../home/Overview.jsx';
+import { TrustGap, IdentityGraph, PostureScore, SessionSignals, ResponseLadder } from '../home/Identity.jsx';
+import { ClaudeBlock, AgentRadar, WorkflowGuard, CloudGateway } from '../home/Agents.jsx';
+import { Link } from 'react-router';
 
-/* Home, on zenstra.ai's design system: a white page; every product picture
-   is the same object (a white app window on a pale dotted stage); rows of
-   text beside a window, alternating; large centred statements between
-   blocks; one dark moment (the hero). Type follows the Cisco scale.
-   Positioning follows the AI-SPM category (Wiz, Palo Alto Prisma AIRS,
-   Microsoft Defender) and says what is different: they secure AI systems;
-   Deep Algorithms secures every identity, AI agents included, against
-   attacks that use AI. See docs/reference/benchmarks.md. */
+/* Home, redesigned. One story after the hero: Continuous AI Security Posture
+   Management, told in two halves. 01 · identity posture for people and
+   machines (the argument of Cisco's Identity Intelligence film: attackers
+   log in, and authentication is trusted blindly all the way to access).
+   02 · AI agents, with Zenstra's three ways in (discovery on every device,
+   workflow security, cloud security). Every picture is a live product scene
+   with real app marks, played by anime.js; headings sharpen in with Null
+   Motion's blur reveal (GSAP). The closing demo card is the site's own. */
 
-/* the platform, as four rows: what it does, shown in the product */
-const ROWS = [
-  {
-    k: 'Discover', h: 'Every identity, found and owned.',
-    p: 'One inventory of every person, workload, key and AI agent, built from your identity providers, clouds, SaaS and agent platforms. Each gets an owner and a live risk score.',
-    on: 'Entra ID · Okta · AWS · Azure · Google Cloud · SaaS', to: '/adapid-ai', Card: InventoryCard,
-  },
-  {
-    k: 'Detect', h: 'Threats caught in the session, not the audit.',
-    p: 'Every session is compared with how that identity normally behaves. Weak signals are linked into one detection, mapped to MITRE ATT&CK and answered inline.',
-    on: 'adapID AI · Continuous identity risk', to: '/adapid-ai', Card: DetectionCard,
-  },
-  {
-    k: 'Secure AI agents', h: 'Every agent your teams run, under control.',
-    p: 'Zenstra AI scans agent platforms and staff devices, finds every agent and MCP server, gives each an owner and checks every action against its task.',
-    on: 'Claude · Cursor · Copilot · n8n · Zapier · MCP', to: '/agentic-ai/agent-discovery', Card: AgentScanCard,
-  },
-  {
-    k: 'Prove', h: 'Every decision, on the record.',
-    p: 'Each decision is kept with its reason on a tamper-evident record, mapped to the DPDP Act 2023, ISO/IEC 42001 and RBI and SEBI expectations.',
-    on: 'ICMS Compliance Suite · Decision record', to: '/dpdpa-compliance', Card: RecordCard,
-  },
+const Arrow = ({ down }) => <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{down ? <path d="M12 5v14M6 13l6 6 6-6" /> : <path d="M5 12h14M13 6l6 6-6 6" />}</svg>;
+const Tick = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>;
+const Play = () => <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="currentColor" /></svg>;
+
+const IDENTITY_CARDS = [
+  { k: 'Discover', h: 'See every identity that can log in.', p: 'People, service accounts, keys, tokens and AI agents, pulled from your identity providers, clouds and SaaS into one inventory, each with an owner.', V: IdentityGraph },
+  { k: 'Assess', h: 'Fix the posture attackers look for.', p: 'Missing MFA, dormant admins, unused keys and shared passwords, ranked by what they can reach, and checked again after every fix.', V: PostureScore },
+  { k: 'Detect', h: 'Catch the threat inside the session.', p: 'Each identity is compared with its own normal. Weak signals that mean nothing alone are joined into one detection, while the session is still open.', V: SessionSignals },
+  { k: 'Respond', h: 'Respond in proportion, everywhere at once.', p: 'Your policy turns risk into action: step-up, hold the transaction or revoke every session, through the identity provider you already run.', V: ResponseLadder },
 ];
-
-const STATS = [
-  { v: '82:1', l: 'machine identities for every human identity', s: 'CyberArk, 2025' },
-  { v: '97%', l: 'of AI-related breaches hit organisations with no AI access controls', s: 'IBM, 2025' },
-  { v: '63%', l: 'of organisations have no policy to govern shadow AI', s: 'IBM, 2025' },
-  { v: '₹250 Cr', l: 'maximum penalty per breach under India’s DPDP Act', s: 'DPDP Act 2023' },
-];
-
-const PRODUCTS = [
-  { key: 'adapid', secures: 'Human and machine identities', line: 'A live risk score for every login, key and service account, with the response decided the moment behaviour changes.' },
-  { key: 'zenstra', secures: 'AI agents', line: 'Every AI agent and MCP server found, owned and scoped to its task, with every action checked before it runs.' },
-  { key: 'icms', secures: 'Personal data under the DPDP Act', line: 'Personal data located across your estate, every access checked for purpose and consent, evidence on demand.' },
-];
-
-const Play = ({ size = 16 }) => <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="currentColor" /></svg>;
-const Explore = ({ to, children = 'Explore', className }) => <Link to={to} className={cx('hm-explore', className)}>{children}<Icon name="ArrowRight" size={14} weight="bold" /></Link>;
+const LOOP = [['Discover', 'Every identity, owned'], ['Assess', 'Posture scored and fixed'], ['Detect', 'Behaviour, not rules'], ['Respond', 'Through your IdP'], ['Prove', 'Every decision recorded']];
 
 export default function Home() {
-  const menu = Object.fromEntries(PRODUCT_MENU.map((l) => [l.key, l]));
-  const [heroPaused, setHeroPaused] = useState(false);
-  const names = Object.fromEntries(CUSTOMERS);
-  const logos = ['meity', 'canara-bank', 'karnataka-bank', 'dcb-bank', 'ncrtc', 'iit-kanpur', 'iit-mandi', 'iiit-hyderabad', 'bhaktivedanta', 'ccoe', 'inmorphis', 'silda'];
+  const [paused, setPaused] = useState(false);
   return (
-    <>
+    <div className="dx">
       <Seo path="/" description="Deep Algorithms discovers every human, machine and AI agent identity in your enterprise and protects each one from AI-driven threats with Continuous AI Security Posture Management. ISO 27001, SOC 2 Type II, ISO 42001." />
 
-      {/* 1 · HERO (cisco.com): one sentence, two actions, a moving picture with a pause control */}
-      <section className={cx('dark hm-hx', heroPaused && 'paused')} aria-labelledby="hero-h">
-        <img className="hm-hx-bg" src="/img/photos/hero-wave.webp" alt="" width="2400" height="1350" fetchpriority="high" decoding="async" />
-        <div className="hm-hx-shade" aria-hidden="true" />
-        <button type="button" className="hm-hx-pause" onClick={() => setHeroPaused((v) => !v)} aria-label={heroPaused ? 'Play background animation' : 'Pause background animation'}>
-          <Icon name={heroPaused ? 'Play' : 'Pause'} size={14} weight="fill" />
+      {/* HERO: a flowing wave of light strands, signals travelling through it */}
+      <section className="dx-hero" aria-labelledby="hero-h">
+        <HeroWave paused={paused} />
+        <button type="button" className="dx-pause" onClick={() => setPaused((v) => !v)} aria-label={paused ? 'Play background animation' : 'Pause background animation'}>
+          {paused ? <Play /> : <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor" /></svg>}
         </button>
-        <div className="wrap relative">
-          <div className="hm-hx-copy">
-            <h1 id="hero-h" className="hm-hx-h rise" style={{ '--d': '40ms' }}>Discover every human, machine and AI agent identity.</h1>
-            <div className="hm-hx-cta rise" style={{ '--d': '140ms' }}>
-              <Link to="/request-demo" className="hm-pillbtn solid">Book a demo</Link>
-              <button type="button" className="hm-pillbtn" onClick={() => openFilm(0)}><Play size={12} />Watch video ({FILM.length.padStart(5, '0')})</button>
+        <div className="dx-wrap">
+          <div className="dx-hero-copy">
+            <h1 id="hero-h" className="rise" style={{ '--d': '40ms' }}>Discover every human, machine and AI agent identity.</h1>
+            <div className="dx-hero-cta rise" style={{ '--d': '160ms' }}>
+              <Link to="/request-demo" className="dx-btn solid">Book a demo</Link>
+              <button type="button" className="dx-btn ghost" onClick={() => openFilm(0)}><Play />Watch video ({FILM.length.padStart(5, '0')})</button>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 2 · CUSTOMERS */}
-      <section className="hm-logos" aria-labelledby="logos-h">
-        <div className="wrap">
-          <h2 id="logos-h" className="hm-logos-h">Trusted by banks, government and enterprises across India</h2>
-          <ul className="hm-logos-g">
-            {logos.map((k) => <li key={k}><img src={`/img/logos/${k}.webp`} alt={names[k]} loading="lazy" decoding="async" /></li>)}
-          </ul>
+      {/* CONTINUOUS AI-SPM: the umbrella, in one picture */}
+      <section id="aispm" className="dx-band ink tight-top scroll-mt-20" aria-labelledby="aispm-h">
+        <div className="dx-wrap">
+          <div className="dx-head-c">
+            <p className="dx-k">Continuous AI Security Posture Management</p>
+            <BlurWords as="h2" id="aispm-h" className="dx-h2" text="Securing your identities and digital ecosystem from AI-driven threats." />
+            <p className="dx-lead">One engine watches every person, machine and AI agent that can act in your business, scores its posture continuously and decides before an unsafe action runs.</p>
+          </div>
+          <div style={{ marginTop: 'clamp(48px, 6vw, 80px)' }}><Overview /></div>
+          <nav className="dx-pillars" aria-label="The two halves of Continuous AI-SPM">
+            <a className="dx-pillar" href="#identity">
+              <span className="n">01</span>
+              <span><b>Identity security posture</b><span>People and machine identities, from login to access</span></span>
+              <span className="ar"><Arrow down /></span>
+              <span className="bar" style={{ background: 'linear-gradient(90deg, transparent, var(--sig), transparent)' }} />
+            </a>
+            <a className="dx-pillar" href="#agents">
+              <span className="n">02</span>
+              <span><b>AI agent security · Zenstra AI</b><span>Agents on devices, in workflows and in your cloud</span></span>
+              <span className="ar"><Arrow down /></span>
+              <span className="bar" style={{ background: 'linear-gradient(90deg, transparent, var(--agent), transparent)' }} />
+            </a>
+          </nav>
         </div>
       </section>
 
-      {/* 3 · THE PLATFORM, in four rows */}
-      <section id="aispm" className="zs-sec scroll-mt-20" aria-labelledby="aispm-h">
-        <div className="wrap">
-          <Reveal className="zs-head">
-            <p className="zs-k">The platform</p>
-            <h2 id="aispm-h" className="zs-h">Continuous AI Security Posture Management</h2>
-            <p className="zs-sub">Securing your identities and digital ecosystem from AI-driven threats.</p>
-            <p className="zs-lead">AI security tools secure your models and pipelines. Deep Algorithms secures the identities attacks actually use: every person, workload and AI agent, scored continuously and stopped before an unsafe action runs.</p>
-          </Reveal>
-          <div className="zs-rows">
-            {ROWS.map(({ k, h, p, on, to, Card }, i) => (
-              <div key={k} id={k === 'Secure AI agents' ? 'agents' : k === 'Detect' ? 'threat' : undefined} className={cx('zs-row scroll-mt-20', i % 2 && 'flip')}>
-                <Reveal className="zs-text">
-                  <p className="zs-rk">{String(i + 1).padStart(2, '0')} · {k}</p>
-                  <h3 className="zs-rh">{h}</h3>
-                  <p className="zs-rp">{p}</p>
-                  <p className="zs-on">{on}</p>
-                  <Explore to={to} />
-                </Reveal>
-                <Reveal up delay={80} className="zs-pic min-w-0"><Card /></Reveal>
+      {/* 01 · IDENTITY POSTURE */}
+      <section id="identity" className="dx-band paper scroll-mt-20" aria-labelledby="identity-h">
+        <div className="dx-wrap">
+          <div className="dx-head-s">
+            <div>
+              <p className="dx-k"><i>01</i>Continuous identity security posture</p>
+              <BlurWords as="h2" id="identity-h" className="dx-h2" text="Attackers don’t hack in anymore. They log in." />
+            </div>
+            <p className="dx-lead">Stolen credentials, phishing and MFA fatigue all end the same way: a valid login. Most stacks then trust it blindly, from authentication all the way to access. Deep Algorithms keeps asking whether each identity should still have the access it holds.</p>
+          </div>
+          <div style={{ marginTop: 'clamp(40px, 5vw, 64px)' }}><TrustGap /></div>
+          <div className="dx-bento">
+            {IDENTITY_CARDS.map(({ k, h, p, V }, i) => (
+              <article key={k} className="dx-card">
+                <V />
+                <div className="dx-card-b">
+                  <p className="dx-k"><i>{String(i + 1).padStart(2, '0')}</i>{k}</p>
+                  <h3 className="dx-h3">{h}</h3>
+                  <p className="dx-p">{p}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+          <ol className="dx-loop" aria-label="The continuous loop" style={{ margin: '20px 0 0', padding: 0 }}>
+            {LOOP.map(([b, s], i) => <li key={b} style={{ '--i': i }}><i>{String(i + 1).padStart(2, '0')}</i><b>{b}</b><span>{s}</span></li>)}
+          </ol>
+          <p style={{ marginTop: 32 }}><Link to="/adapid-ai" className="dx-link">Explore adapID AI <Arrow /></Link></p>
+        </div>
+      </section>
+
+      {/* 02 · AI AGENTS (ZENSTRA) */}
+      <section id="agents" className="dx-band ink zen scroll-mt-20" aria-labelledby="agents-h">
+        <div className="dx-wrap">
+          <div className="dx-head-s">
+            <div>
+              <p className="dx-k"><i>02</i>AI agent security · Zenstra AI</p>
+              <BlurWords as="h2" id="agents-h" className="dx-h2" text="Every AI agent is a new identity with real access." />
+            </div>
+            <p className="dx-lead">Agents read your documents, hold your credentials and act in your core systems. Zenstra checks every agent action before it runs, on every device, across your workflows and inside your cloud, and records why.</p>
+          </div>
+
+          <div className="zx-feature">
+            <div className="zx-feature-t">
+              <div style={{ display: 'grid', gap: 14 }}>
+                <p className="dx-k" style={{ color: 'var(--agent-2)' }}>Zenstra AI Discovery · on every device</p>
+                <h3 className="dx-h3">Secrets stopped before they leave the laptop.</h3>
+                <p className="dx-p">A developer pastes a production .env into Claude to debug a deploy. Zenstra reads the prompt on the device, finds the keys and the password, and blocks it before it is sent.</p>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 4 · STATEMENT */}
-      <section className="zs-statement" aria-labelledby="why-h">
-        <div className="wrap">
-          <Reveal className="text-center">
-            <p className="zs-k">Why Deep Algorithms</p>
-            <h2 id="why-h" className="zs-big">Attacks now arrive with valid credentials. We watch what every identity does next.</h2>
-            <Explore to="/why-deep-algorithms" className="mt-8">Why Deep Algorithms</Explore>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* 5 · THE CONSOLE */}
-      <section className="zs-sec" aria-labelledby="console-h">
-        <div className="wrap">
-          <Reveal className="zs-split">
-            <div>
-              <p className="zs-k">The console</p>
-              <h2 id="console-h" className="zs-h">Your identity posture, on one screen.</h2>
-            </div>
-            <p className="zs-lead">Inventory, posture score and every finding with the action taken, where your security team already works.</p>
-          </Reveal>
-          <Reveal up delay={80} className="mt-12 min-w-0">
-            <div className="ac-stage wide"><PostureConsole /></div>
-          </Reveal>
-          <ul className="zs-stats">
-            {STATS.map((x) => (
-              <li key={x.v}>
-                <p className="zs-stat-v"><CountUp value={x.v} /></p>
-                <p className="zs-stat-l">{x.l}</p>
-                <p className="zs-stat-s">Source: {x.s}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      {/* 6 · PRODUCTS */}
-      <section id="platform" className="zs-sec tint scroll-mt-20" aria-labelledby="platform-h">
-        <div className="wrap">
-          <Reveal className="zs-split">
-            <div>
-              <p className="zs-k">Products</p>
-              <h2 id="platform-h" className="zs-h">Start where your risk is highest.</h2>
-            </div>
-            <p className="zs-lead">Three products share one inventory, one posture engine and one decision record. Deploy one now and add the others when you are ready.</p>
-          </Reveal>
-          <div className="zs-prods">
-            {PRODUCTS.map((x, i) => {
-              const L = menu[x.key];
-              return (
-                <Reveal key={x.key} delay={i * 80} className="zs-prod hm-prod">
-                  <ProductMark p={x.key} size={44} />
-                  <p className="zs-prod-k">{x.secures}</p>
-                  <h3 className="zs-prod-h">{L.name}</h3>
-                  <p className="zs-prod-p">{x.line}</p>
-                  <ul>
-                    {L.items.slice(0, 4).map((m) => <li key={m.name}><Link to={m.path}>{m.name}</Link></li>)}
-                  </ul>
-                  <Explore to={L.path}>{`Explore ${L.name}`}</Explore>
-                </Reveal>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* 7 · TRUST */}
-      <section className="zs-sec" aria-labelledby="proof-h">
-        <div className="wrap">
-          <div className="zs-trust">
-            <Reveal>
-              <p className="zs-k">Trust</p>
-              <h2 id="proof-h" className="zs-h">Audited the way you will audit us.</h2>
-              <p className="zs-lead mt-5">Independent audits every year, deployment inside your own environment and evidence mapped to the regulations you report against.</p>
-              <ul className="zs-facts">
-                <li><Icon name="Check" size={16} weight="bold" />Read-only connectors; enforcement switched on by you, per policy</li>
-                <li><Icon name="Check" size={16} weight="bold" />Runs in your cloud or data centre; identity data stays with you</li>
-                <li><Icon name="Check" size={16} weight="bold" />Mapped to the DPDP Act 2023, the DPDP Rules 2025, RBI and SEBI</li>
+              <ul>
+                <li><Tick />Sees the prompt, the tool call and the device together</li>
+                <li><Tick />Covers Copilot, ChatGPT, Claude Code and Cursor on staff devices</li>
+                <li><Tick />Contains one agent in seconds, with the reason on record</li>
               </ul>
-            </Reveal>
-            <ul className="zs-certs">
-              {CERTS.map((c, i) => (
-                <Reveal as="li" key={c.code} delay={i * 60}>
-                  <CertSeal code={c.code} size={56} />
-                  <b>{c.name}</b>
-                  <small>{c.desc}</small>
-                </Reveal>
-              ))}
-            </ul>
+            </div>
+            <ClaudeBlock />
           </div>
+
+          <div className="zx-three">
+            {[
+              { k: 'Discover', h: 'Find every agent, including the shadow ones.', p: 'Agent platforms and staff devices scanned for agents and MCP servers. Each one gets an owner and a purpose.', V: AgentRadar },
+              { k: 'Workflow Security', h: 'Every hop checked against its task.', p: 'Each step of an agent workflow is checked before the next one runs. Steps outside the task are stopped.', V: WorkflowGuard },
+              { k: 'Cloud Security', h: 'A gateway inside your cloud.', p: 'In front of every MCP server, model and API your agents call. Payloads never leave your environment.', V: CloudGateway },
+            ].map(({ k, h, p, V }) => (
+              <article key={k} className="dx-card">
+                <V />
+                <div className="dx-card-b">
+                  <p className="dx-k">{k}</p>
+                  <h3 className="dx-h3">{h}</h3>
+                  <p className="dx-p">{p}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <ul className="zx-facts" style={{ padding: 0 }}>
+            <li><b>Inline</b><span>Decided before the action runs</span></li>
+            <li><b>p95 18 ms</b><span>Decision latency, inline</span></li>
+            <li><b>Fails closed</b><span>No decision, no action</span></li>
+            <li><b>On the record</b><span>Every decision, with its reason</span></li>
+          </ul>
+          <p style={{ marginTop: 32 }}><Link to="/agentic-ai/agentic-identity" className="dx-link">Explore Zenstra AI <Arrow /></Link></p>
         </div>
       </section>
 
       <CtaBand />
       <FilmModal />
-    </>
+    </div>
   );
 }

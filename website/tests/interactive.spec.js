@@ -1,31 +1,32 @@
 import { test, expect } from '@playwright/test';
 import { hydrated } from './helpers.js';
 
-test('home: every product line has a card that leads to its own page', async ({ page }) => {
+test('home: both halves of AI-SPM lead to their product pages', async ({ page }) => {
   await page.goto('/');
   await hydrated(page);
-  const section = page.locator('#platform');
-  for (const name of ['Zenstra AI', 'adapID AI', 'ICMS Compliance Suite']) {
-    await expect(section.getByRole('link', { name: `Explore ${name}` })).toHaveAttribute('href', /^\//);
-  }
+  await expect(page.locator('#identity').getByRole('link', { name: 'Explore adapID AI' })).toHaveAttribute('href', '/adapid-ai');
+  await expect(page.locator('#agents').getByRole('link', { name: 'Explore Zenstra AI' })).toHaveAttribute('href', '/agentic-ai/agentic-identity');
+  await expect(page.getByRole('navigation', { name: 'The two halves of Continuous AI-SPM' }).getByRole('link')).toHaveCount(2);
 });
 
-test('home: the platform rows show discovery, detection, AI agents and the record', async ({ page }) => {
+test('home: the identity half walks discover, assess, detect and respond, and the agent half shows real AI apps', async ({ page }) => {
   await page.goto('/');
   await hydrated(page);
-  await expect(page.locator('#aispm .zs-row')).toHaveCount(4);
+  await expect(page.locator('#identity .dx-bento > article')).toHaveCount(4);
+  await expect(page.locator('#identity .dx-loop li')).toHaveCount(5);
   const agents = page.locator('#agents');
-  await expect(agents.getByRole('link', { name: 'Explore' })).toHaveAttribute('href', '/agentic-ai/agent-discovery');
-  // real app icons for the AI apps staff use
-  for (const app of ['Claude', 'Cursor', 'GitHub Copilot', 'n8n', 'Zapier']) await expect(agents.locator('.ac-apps')).toContainText(app);
+  for (const app of ['Claude', 'Cursor', 'Copilot', 'n8n', 'Zapier']) await expect(page.locator(`#aispm [title="${app}"]`).first()).toBeAttached();
+  await expect(agents.locator('.zx-three > article')).toHaveCount(3);
 });
 
-test('reduced motion still shows every product card and figure', async ({ page }) => {
+test('reduced motion shows every picture at its finished frame', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await hydrated(page);
-  await expect(page.locator('#platform .hm-prod')).toHaveCount(3);
-  await expect(page.locator('.pc-tr.in')).toHaveCount(4);
+  expect(await page.locator('.dx .dx-media').count()).toBeGreaterThanOrEqual(10);
+  await expect(page.locator('.cl-toast')).toContainText('Blocked! This prompt contains credentials, API keys and tokens.');
+  await expect(page.locator('.cl-note')).toContainText('Not sent · decision recorded by Zenstra AI');
+  await expect(page.locator('.tg-verdict')).toBeVisible();
 });
 
 test('zenstra: before and after sit side by side, five moments each', async ({ page }) => {
@@ -54,7 +55,7 @@ test('home: the hero leads with discovery and offers a demo and the film', async
   await expect(hero.getByRole('link', { name: /product tour/i })).toHaveCount(0);
   // no stills from the brand film anywhere on the page
   expect(await page.locator('img[src*="/img/film/"]').count()).toBe(0);
-  await expect(page.locator('#aispm h2')).toHaveText('Continuous AI Security Posture Management');
+  await expect(page.locator('#aispm')).toContainText('Continuous AI Security Posture Management');
 });
 
 test('home: "Watch video" plays the brand film in a dialog, and Escape closes it', async ({ page }) => {
@@ -71,22 +72,13 @@ test('home: "Watch video" plays the brand film in a dialog, and Escape closes it
   await expect(btn).toBeFocused();
 });
 
-test('home: the logo wall names every customer it shows', async ({ page }) => {
-  await page.goto('/');
-  const imgs = page.locator('.hm-logos img');
-  expect(await imgs.count()).toBeGreaterThanOrEqual(12);
-  for (const alt of await imgs.evaluateAll((els) => els.map((e) => e.alt))) expect(alt.length).toBeGreaterThan(2);
-});
-
-test('home: the detection card compares the session with the baseline and shows the decision', async ({ page }) => {
+test('home: the session picture compares behaviour with its normal and shows the decision', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
-  await hydrated(page);
-  const det = page.locator('#threat');
-  await expect(det.locator('.ac-diff.ac-tr')).toHaveCount(4);
-  await expect(det).toContainText('11 pushes in 90 s, approved');
-  await expect(det).toContainText('Session revoked');
-  await expect(det).toContainText('T1621');
+  const id = page.locator('#identity');
+  await expect(id).toContainText('Their normal, learned');
+  await expect(id).toContainText('MFA push ×9');
+  await expect(id).toContainText('Session revoked');
 });
 
 test('home: the hero is one sentence and two actions, with a pause control', async ({ page }) => {
@@ -95,16 +87,15 @@ test('home: the hero is one sentence and two actions, with a pause control', asy
   const hero = page.locator('section[aria-labelledby="hero-h"]');
   expect(await hero.locator('p').count()).toBe(0);
   await hero.getByRole('button', { name: 'Pause background animation' }).click();
-  await expect(hero).toHaveClass(/paused/);
+  await expect(hero.getByRole('button', { name: 'Play background animation' })).toBeVisible();
 });
 
-test('home: the platform section states the position and the AI-SPM difference', async ({ page }) => {
+test('home: the AI-SPM section states the position, with pictures marked illustrative', async ({ page }) => {
   await page.goto('/');
   const sec = page.locator('#aispm');
-  await expect(sec.getByRole('heading', { level: 2 })).toHaveText('Continuous AI Security Posture Management');
-  await expect(sec).toContainText('Securing your identities and digital ecosystem from AI-driven threats.');
-  await expect(sec).toContainText('AI security tools secure your models and pipelines.');
-  await expect(page.locator('.pc')).toContainText('Sample data');
+  await expect(sec.getByRole('heading', { level: 2 })).toHaveText('Securing your identities and digital ecosystem from AI-driven threats.');
+  await expect(sec).toContainText('Continuous AI Security Posture Management');
+  await expect(sec.locator('.dx-tag')).toContainText('Illustrative');
 });
 
 
@@ -169,8 +160,8 @@ test('fraud: three checks on one dial, each session with its own decision', asyn
 test('home has no blogs section, and the platform is one scroll away', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#orbit')).toHaveCount(0);
-  await page.locator('#platform-h').scrollIntoViewIfNeeded();
-  await expect(page.locator('#platform-h')).toBeInViewport({ timeout: 5000 });
+  await page.locator('#aispm-h').scrollIntoViewIfNeeded();
+  await expect(page.locator('#aispm-h')).toBeInViewport({ timeout: 5000 });
   // the blogs section is gone from home; blogs stay one click away in the menu
   await expect(page.locator('#res-h')).toHaveCount(0);
   await expect(page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Blogs' })).toHaveAttribute('href', '/blogs');
