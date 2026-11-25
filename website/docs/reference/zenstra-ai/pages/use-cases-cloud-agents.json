@@ -1,0 +1,488 @@
+{
+ "path": "/use-cases/cloud-agents",
+ "out": [
+  {
+   "k": "li",
+   "t": "Home"
+  },
+  {
+   "k": "cta",
+   "t": "Home",
+   "h": "/"
+  },
+  {
+   "k": "li",
+   "t": "Use cases · by environment"
+  },
+  {
+   "k": "li",
+   "t": "Cloud agents"
+  },
+  {
+   "k": "h1",
+   "t": "Runtime protection, inside your cloud."
+  },
+  {
+   "k": "p",
+   "t": "Agents built on AWS Bedrock, Azure OpenAI and Vertex AI call models, MCP servers and internal APIs. Zenstra decides those calls at a gateway in your VPC; payloads never leave."
+  },
+  {
+   "k": "cta",
+   "t": "See how it works",
+   "h": "#how"
+  },
+  {
+   "k": "cta",
+   "t": "Platform overview",
+   "h": "/platform"
+  },
+  {
+   "k": "h2",
+   "t": "Your agents reach your most sensitive systems."
+  },
+  {
+   "k": "p",
+   "t": "Homegrown agents are built to do real work: read accounts, update cases, move money. That makes every call they make a decision worth checking."
+  },
+  {
+   "k": "li",
+   "t": "Over-scoped credentials Model and API keys shared across agents and environments."
+  },
+  {
+   "k": "li",
+   "t": "Tools everywhere MCP servers and internal APIs added faster than reviews."
+  },
+  {
+   "k": "li",
+   "t": "Data residency Prompts and payloads that must not leave your cloud."
+  },
+  {
+   "k": "figcaption",
+   "t": "A REAL PATH A crafted request asks a loan agent to move funds."
+  },
+  {
+   "k": "li",
+   "t": "1 Bedrock agent A loan-servicing agent built on AWS Bedrock runs inside your VPC."
+  },
+  {
+   "k": "li",
+   "t": "2 grant It asks for access to the loan system and receives a grant for 15 minutes."
+  },
+  {
+   "k": "li",
+   "t": "3 request A crafted request asks it to transfer funds between accounts."
+  },
+  {
+   "k": "li",
+   "t": "BLOCKaccounts.transfer is not in the grant. Stopped at the gateway; payloads stay in your VPC. mcp core-banking · accounts.transfer"
+  },
+  {
+   "k": "li",
+   "t": "ASI03 Identity and Privilege Abuse OWASP Top 10 for Agentic Apps"
+  },
+  {
+   "k": "li",
+   "t": "LLM06:2025 Excessive Agency OWASP Top 10 for LLMs"
+  },
+  {
+   "k": "li",
+   "t": "AML.T0053 AI Agent Tool Invocation MITRE ATLAS"
+  },
+  {
+   "k": "h2",
+   "t": "How it is stopped."
+  },
+  {
+   "k": "p",
+   "t": "Per-agent identity and short-lived grants for the models and tools each agent uses, decided at a gateway in your own cloud."
+  },
+  {
+   "k": "li",
+   "t": "Decided inline"
+  },
+  {
+   "k": "li",
+   "t": "Fails closed"
+  },
+  {
+   "k": "li",
+   "t": "Versioned with every decision"
+  },
+  {
+   "k": "h2",
+   "t": "A decision point in your own environment."
+  },
+  {
+   "k": "p",
+   "t": "The gateway runs where your agents run, in front of every model, MCP server and API."
+  },
+  {
+   "k": "h3",
+   "t": "In your VPC, your way"
+  },
+  {
+   "k": "p",
+   "t": "Deploy the gateway with Helm or Terraform in AWS, Azure or Google Cloud, in your VPC or Kubernetes cluster."
+  },
+  {
+   "k": "li",
+   "t": "Helm or Terraform"
+  },
+  {
+   "k": "li",
+   "t": "AWS, Azure or Google Cloud"
+  },
+  {
+   "k": "li",
+   "t": "No agent rewrite"
+  },
+  {
+   "k": "p",
+   "t": "$ helm install zenstra-gateway zenstra/gateway -n zenstra"
+  },
+  {
+   "k": "p",
+   "t": "Release \"zenstra-gateway\" deployed"
+  },
+  {
+   "k": "p",
+   "t": "$ kubectl get pods -n zenstra"
+  },
+  {
+   "k": "p",
+   "t": "zenstra-gateway-7d9f 1/1 Running"
+  },
+  {
+   "k": "h3",
+   "t": "Per-agent identity and grants"
+  },
+  {
+   "k": "p",
+   "t": "Each agent gets its own identity and short-lived grants for the models and tools it uses."
+  },
+  {
+   "k": "li",
+   "t": "Scoped credentials for Bedrock, Azure OpenAI and Vertex AI"
+  },
+  {
+   "k": "li",
+   "t": "Per-call and per-session grants"
+  },
+  {
+   "k": "li",
+   "t": "Revocation in seconds"
+  },
+  {
+   "k": "h3",
+   "t": "Fail-closed, fast"
+  },
+  {
+   "k": "p",
+   "t": "Every call is decided inline, before it reaches the tool. If Zenstra is unreachable, actions are held."
+  },
+  {
+   "k": "li",
+   "t": "Inline decisions"
+  },
+  {
+   "k": "li",
+   "t": "Fails closed"
+  },
+  {
+   "k": "li",
+   "t": "Every decision on the record"
+  },
+  {
+   "k": "h4",
+   "t": "Zenstra reachable"
+  },
+  {
+   "k": "p",
+   "t": "In scope: allowed"
+  },
+  {
+   "k": "p",
+   "t": "Sensitive: held for a person"
+  },
+  {
+   "k": "p",
+   "t": "Out of scope: blocked"
+  },
+  {
+   "k": "h4",
+   "t": "Zenstra unreachable"
+  },
+  {
+   "k": "p",
+   "t": "Every action held"
+  },
+  {
+   "k": "p",
+   "t": "Nothing runs unchecked"
+  },
+  {
+   "k": "p",
+   "t": "Resumes when it is back"
+  },
+  {
+   "k": "h2",
+   "t": "Every call your agents make."
+  },
+  {
+   "k": "li",
+   "t": "Model calls Bedrock, Azure OpenAI and Vertex AI, per-agent credentials."
+  },
+  {
+   "k": "h3",
+   "t": "Model calls"
+  },
+  {
+   "k": "p",
+   "t": "Bedrock, Azure OpenAI and Vertex AI, per-agent credentials."
+  },
+  {
+   "k": "li",
+   "t": "MCP servers Each tool call checked against the agent’s grant."
+  },
+  {
+   "k": "h3",
+   "t": "MCP servers"
+  },
+  {
+   "k": "p",
+   "t": "Each tool call checked against the agent’s grant."
+  },
+  {
+   "k": "li",
+   "t": "Internal APIs Core, LOS and CRM connectors as scoped grants."
+  },
+  {
+   "k": "h3",
+   "t": "Internal APIs"
+  },
+  {
+   "k": "p",
+   "t": "Core, LOS and CRM connectors as scoped grants."
+  },
+  {
+   "k": "li",
+   "t": "Payments Held for a person to approve, by policy."
+  },
+  {
+   "k": "h3",
+   "t": "Payments"
+  },
+  {
+   "k": "p",
+   "t": "Held for a person to approve, by policy."
+  },
+  {
+   "k": "li",
+   "t": "Outbound data Approved destinations only."
+  },
+  {
+   "k": "h3",
+   "t": "Outbound data"
+  },
+  {
+   "k": "p",
+   "t": "Approved destinations only."
+  },
+  {
+   "k": "li",
+   "t": "Agent identity Attested before actions run."
+  },
+  {
+   "k": "h3",
+   "t": "Agent identity"
+  },
+  {
+   "k": "p",
+   "t": "Attested before actions run."
+  },
+  {
+   "k": "h2",
+   "t": "Keep exploring."
+  },
+  {
+   "k": "h2",
+   "t": "Common questions."
+  },
+  {
+   "k": "h2",
+   "t": "See it on your own agents."
+  },
+  {
+   "k": "p",
+   "t": "A 30-minute technical session with a Zenstra security engineer, run against one of your agents."
+  },
+  {
+   "k": "cta",
+   "t": "Request a demo",
+   "h": "/demo"
+  },
+  {
+   "k": "cta",
+   "t": "or email info@deepalgorithms.in",
+   "h": "mailto:info@deepalgorithms.in"
+  }
+ ],
+ "links": [
+  "/",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/",
+  "/platform",
+  "/platform/mcp-security",
+  "/platform/agent-identity",
+  "/use-cases/tool-poisoning",
+  "/demo",
+  "/",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/company#contact",
+  "/company#contact",
+  "/company#contact",
+  "/privacy",
+  "/terms"
+ ],
+ "imgs": [
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark-dark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark-dark.png",
+   "alt": "",
+   "w": 657
+  }
+ ],
+ "anims": [],
+ "meta": {
+  "title": "Cloud & homegrown agents · Zenstra AI",
+  "desc": "Bedrock, Azure OpenAI, Vertex AI and MCP."
+ }
+}

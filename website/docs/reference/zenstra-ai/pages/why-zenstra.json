@@ -1,0 +1,665 @@
+{
+ "path": "/why-zenstra",
+ "out": [
+  {
+   "k": "h1",
+   "t": "Your agents act on their own. Someone has to decide first."
+  },
+  {
+   "k": "p",
+   "t": "AI agents now read your documents, hold your credentials and act in your core systems. Zenstra decides every action before it runs, and keeps the record that proves it."
+  },
+  {
+   "k": "cta",
+   "t": "Why it matters",
+   "h": "#exposure"
+  },
+  {
+   "k": "cta",
+   "t": "Platform overview",
+   "h": "/platform"
+  },
+  {
+   "k": "h2",
+   "t": "Secure every agent. Verify every intent."
+  },
+  {
+   "k": "p",
+   "t": "Agents work inside workflows, in your cloud and on every laptop. Take the core apart to see where each attack is stopped, and what lands on the record."
+  },
+  {
+   "k": "h3",
+   "t": "Agents act faster than your controls."
+  },
+  {
+   "k": "p",
+   "t": "They read documents, call tools and move data inside workflows, in your cloud and on every laptop. The same few attacks reach all three."
+  },
+  {
+   "k": "h3",
+   "t": "One engine decides every action."
+  },
+  {
+   "k": "p",
+   "t": "Each action is checked against the agent’s identity, the task it was given and your policy, inline, before it runs."
+  },
+  {
+   "k": "p",
+   "t": "Inline · p95 18 ms · Fails closed"
+  },
+  {
+   "k": "h3",
+   "t": "Every hop, checked against its task."
+  },
+  {
+   "k": "dt",
+   "t": "RUNS IN"
+  },
+  {
+   "k": "dd",
+   "t": "n8n, Zapier, LangGraph, CrewAI, Copilot Studio"
+  },
+  {
+   "k": "dt",
+   "t": "CHECKS"
+  },
+  {
+   "k": "dd",
+   "t": "Every hop and agent-to-agent hand-off"
+  },
+  {
+   "k": "dt",
+   "t": "STOPS"
+  },
+  {
+   "k": "dd",
+   "t": "Injected instructions spreading between agents"
+  },
+  {
+   "k": "p",
+   "t": "BLOCK hop 7 · crm.export → outside email · not in task"
+  },
+  {
+   "k": "h3",
+   "t": "A gateway inside your cloud."
+  },
+  {
+   "k": "dt",
+   "t": "RUNS IN"
+  },
+  {
+   "k": "dd",
+   "t": "Your VPC on AWS, Azure or Google Cloud"
+  },
+  {
+   "k": "dt",
+   "t": "CHECKS"
+  },
+  {
+   "k": "dd",
+   "t": "Every MCP, model and API call against the agent’s grant"
+  },
+  {
+   "k": "dt",
+   "t": "STOPS"
+  },
+  {
+   "k": "dd",
+   "t": "Tool poisoning, over-scoped keys, data leaving your cloud"
+  },
+  {
+   "k": "p",
+   "t": "BLOCK mcp core-banking · accounts.transfer · not in grant"
+  },
+  {
+   "k": "p",
+   "t": "Prompts and payloads never leave your VPC"
+  },
+  {
+   "k": "h3",
+   "t": "AI on every laptop, contained in seconds."
+  },
+  {
+   "k": "dt",
+   "t": "RUNS ON"
+  },
+  {
+   "k": "dd",
+   "t": "Windows and macOS, through Intune, Jamf or Kandji"
+  },
+  {
+   "k": "dt",
+   "t": "CHECKS"
+  },
+  {
+   "k": "dd",
+   "t": "Copilot, ChatGPT, Claude Code and Cursor: prompt, tool call and device together"
+  },
+  {
+   "k": "dt",
+   "t": "STOPS"
+  },
+  {
+   "k": "dd",
+   "t": "Hijacked coding agents, secrets pasted into AI, shadow AI"
+  },
+  {
+   "k": "p",
+   "t": "BLOCK laptop-114 · cursor · read ~/.aws · session contained"
+  },
+  {
+   "k": "h3",
+   "t": "Every decision, on one record."
+  },
+  {
+   "k": "p",
+   "t": "Each entry is chained to the one before it, so any change shows. Export it as evidence for your auditors and examiners."
+  },
+  {
+   "k": "p",
+   "t": "Hash-chained · Exported as PDF and CSV"
+  },
+  {
+   "k": "cta",
+   "t": "See the decision record",
+   "h": "/platform/decision-record"
+  },
+  {
+   "k": "h2",
+   "t": "Every AI agent is a new identity with real access."
+  },
+  {
+   "k": "p",
+   "t": "Agents run in workflows, in your cloud and on laptops, connected to your systems by credentials most identity and data tools never see."
+  },
+  {
+   "k": "h3",
+   "t": "Created by anyone"
+  },
+  {
+   "k": "p",
+   "t": "No-code flows, copilots and coding agents are built by business teams and developers, not provisioned by IT."
+  },
+  {
+   "k": "h3",
+   "t": "Holding real credentials"
+  },
+  {
+   "k": "p",
+   "t": "Tokens, API keys, OAuth apps, service accounts and MCP connections, many with standing, broad access."
+  },
+  {
+   "k": "h3",
+   "t": "Acting without a person"
+  },
+  {
+   "k": "p",
+   "t": "They decide and act in seconds, inside the systems that move money and member data."
+  },
+  {
+   "k": "h2",
+   "t": "Agents act on real access, and attackers have noticed."
+  },
+  {
+   "k": "p",
+   "t": "Five public incidents from 2025, each with its source, and the Zenstra control that applies to that kind of action."
+  },
+  {
+   "k": "li",
+   "t": "Jun 2025 Microsoft 365 Copilot · EchoLeak Hidden instructions in an email could lead Copilot to disclose internal data with no action from the user. Microsoft fixed it (CVE-2025-32711) and reported no exploitation. Intent check on outbound actions Source: NVD · CVE-2025-32711"
+  },
+  {
+   "k": "h3",
+   "t": "Microsoft 365 Copilot · EchoLeak"
+  },
+  {
+   "k": "p",
+   "t": "Hidden instructions in an email could lead Copilot to disclose internal data with no action from the user. Microsoft fixed it (CVE-2025-32711) and reported no exploitation."
+  },
+  {
+   "k": "cta",
+   "t": "Intent check on outbound actions",
+   "h": "/use-cases/prompt-injection"
+  },
+  {
+   "k": "cta",
+   "t": "Source: NVD · CVE-2025-32711",
+   "h": "https://nvd.nist.gov/vuln/detail/CVE-2025-32711"
+  },
+  {
+   "k": "li",
+   "t": "Jul 2025 A coding agent deletes a production database During a code freeze, Replit’s agent ran destructive commands against the production database of a SaaStr founder’s project, despite instructions not to change anything. Hold production changes for a person Source: eWeek"
+  },
+  {
+   "k": "h3",
+   "t": "A coding agent deletes a production database"
+  },
+  {
+   "k": "p",
+   "t": "During a code freeze, Replit’s agent ran destructive commands against the production database of a SaaStr founder’s project, despite instructions not to change anything."
+  },
+  {
+   "k": "cta",
+   "t": "Hold production changes for a person",
+   "h": "/platform/runtime-enforcement"
+  },
+  {
+   "k": "cta",
+   "t": "Source: eWeek",
+   "h": "https://www.eweek.com/news/replit-ai-coding-assistant-failure/"
+  },
+  {
+   "k": "li",
+   "t": "Jul 2025 Amazon Q extension ships an injected prompt Version 1.84.0 of the VS Code extension contained a prompt telling the agent to wipe systems and cloud resources. A syntax error stopped it from running. Contain one agent on one device Source: AWS security bulletin AWS-2025-015"
+  },
+  {
+   "k": "h3",
+   "t": "Amazon Q extension ships an injected prompt"
+  },
+  {
+   "k": "p",
+   "t": "Version 1.84.0 of the VS Code extension contained a prompt telling the agent to wipe systems and cloud resources. A syntax error stopped it from running."
+  },
+  {
+   "k": "cta",
+   "t": "Contain one agent on one device",
+   "h": "/use-cases/coding-agents"
+  },
+  {
+   "k": "cta",
+   "t": "Source: AWS security bulletin AWS-2025-015",
+   "h": "https://aws.amazon.com/security/security-bulletins/AWS-2025-015/"
+  },
+  {
+   "k": "li",
+   "t": "Aug 2025 Salesloft Drift OAuth tokens Tokens held by an AI chat integration were used to export Salesforce data from customer instances between 8 and 18 August, and to search it for further credentials. Scoped, expiring grants per agent Source: Arctic Wolf, citing Google Threat Intelligence"
+  },
+  {
+   "k": "h3",
+   "t": "Salesloft Drift OAuth tokens"
+  },
+  {
+   "k": "p",
+   "t": "Tokens held by an AI chat integration were used to export Salesforce data from customer instances between 8 and 18 August, and to search it for further credentials."
+  },
+  {
+   "k": "cta",
+   "t": "Scoped, expiring grants per agent",
+   "h": "/platform/agent-identity"
+  },
+  {
+   "k": "cta",
+   "t": "Source: Arctic Wolf, citing Google Threat Intelligence",
+   "h": "https://arcticwolf.com/resources/blog/widespread-salesforce-data-theft-via-compromised-salesloft-drift-oauth-tokens/"
+  },
+  {
+   "k": "li",
+   "t": "Sep 2025 The first malicious MCP server An npm package posing as a Postmark MCP server added one line in version 1.0.16 that copied every email an agent sent to the attacker. Changed tool servers held for review Source: Koi Security"
+  },
+  {
+   "k": "h3",
+   "t": "The first malicious MCP server"
+  },
+  {
+   "k": "p",
+   "t": "An npm package posing as a Postmark MCP server added one line in version 1.0.16 that copied every email an agent sent to the attacker."
+  },
+  {
+   "k": "cta",
+   "t": "Changed tool servers held for review",
+   "h": "/use-cases/tool-poisoning"
+  },
+  {
+   "k": "cta",
+   "t": "Source: Koi Security",
+   "h": "https://koi.ai/blog/postmark-mcp-npm-malicious-backdoor-email-theft"
+  },
+  {
+   "k": "h2",
+   "t": "Agent security starts with an owner and a scope."
+  },
+  {
+   "k": "p",
+   "t": "Zenstra ties every agent to the person it acts for, maps every credential it holds, and narrows each grant to the task in front of it."
+  },
+  {
+   "k": "li",
+   "t": "Every agent has a named owner who answers for it."
+  },
+  {
+   "k": "li",
+   "t": "Every credential is mapped to the systems it reaches."
+  },
+  {
+   "k": "li",
+   "t": "Every grant is scoped to the task and expires on its own."
+  },
+  {
+   "k": "cta",
+   "t": "Agent identity and access",
+   "h": "/platform/agent-identity"
+  },
+  {
+   "k": "h2",
+   "t": "What changes with Zenstra."
+  },
+  {
+   "k": "h3",
+   "t": "Without Zenstra"
+  },
+  {
+   "k": "li",
+   "t": "✕ Agents found after an incident, one platform at a time"
+  },
+  {
+   "k": "li",
+   "t": "✕ Standing keys and service accounts with broad scope"
+  },
+  {
+   "k": "li",
+   "t": "✕ Logs that show what happened, after it happened"
+  },
+  {
+   "k": "li",
+   "t": "✕ A separate switch in every vendor to stop one agent"
+  },
+  {
+   "k": "li",
+   "t": "✕ Evidence pulled together by hand for every exam"
+  },
+  {
+   "k": "h3",
+   "t": "With Zenstra"
+  },
+  {
+   "k": "li",
+   "t": "✓ One inventory of every agent, each with a named owner"
+  },
+  {
+   "k": "li",
+   "t": "✓ Grants scoped to the task that expire on their own"
+  },
+  {
+   "k": "li",
+   "t": "✓ Every action decided inline, before it runs"
+  },
+  {
+   "k": "li",
+   "t": "✓ One revocation stops an agent everywhere, in seconds"
+  },
+  {
+   "k": "li",
+   "t": "✓ A tamper-evident record, exported as evidence"
+  },
+  {
+   "k": "h2",
+   "t": "Built to decide, not only to watch."
+  },
+  {
+   "k": "p",
+   "t": "Most tools see an agent after it acts. Zenstra is in the path of every action, with the context to tell a helpful agent from a hijacked one."
+  },
+  {
+   "k": "li",
+   "t": "Inline, not after the fact Zenstra sits in the path of the action. Allow, hold or block is decided before the tool runs, not flagged in a log afterwards."
+  },
+  {
+   "k": "h3",
+   "t": "Inline, not after the fact"
+  },
+  {
+   "k": "p",
+   "t": "Zenstra sits in the path of the action. Allow, hold or block is decided before the tool runs, not flagged in a log afterwards."
+  },
+  {
+   "k": "li",
+   "t": "Intent, not only identity Each action is checked against the task the agent was given, so a hijacked agent holding valid credentials is still stopped."
+  },
+  {
+   "k": "h3",
+   "t": "Intent, not only identity"
+  },
+  {
+   "k": "p",
+   "t": "Each action is checked against the task the agent was given, so a hijacked agent holding valid credentials is still stopped."
+  },
+  {
+   "k": "li",
+   "t": "Inside your environment The gateway runs in your VPC. Prompts and payloads never leave your cloud, and nothing in your agents is rewritten."
+  },
+  {
+   "k": "h3",
+   "t": "Inside your environment"
+  },
+  {
+   "k": "p",
+   "t": "The gateway runs in your VPC. Prompts and payloads never leave your cloud, and nothing in your agents is rewritten."
+  },
+  {
+   "k": "li",
+   "t": "Evidence an examiner accepts Every decision is chained to the one before it, with the policy version that made it, and exports as a report."
+  },
+  {
+   "k": "h3",
+   "t": "Evidence an examiner accepts"
+  },
+  {
+   "k": "p",
+   "t": "Every decision is chained to the one before it, with the policy version that made it, and exports as a report."
+  },
+  {
+   "k": "h2",
+   "t": "Discover, decide, detect and prove, in one place."
+  },
+  {
+   "k": "h3",
+   "t": "Every agent, with an owner"
+  },
+  {
+   "k": "p",
+   "t": "Agents, MCP servers and credentials across your platforms, in one inventory."
+  },
+  {
+   "k": "h3",
+   "t": "Every action, before it runs"
+  },
+  {
+   "k": "p",
+   "t": "Allow, hold for a person, or block, against identity, task and policy."
+  },
+  {
+   "k": "h3",
+   "t": "Every anomaly, contained"
+  },
+  {
+   "k": "p",
+   "t": "Baselines per agent, and one agent stopped on one device in seconds."
+  },
+  {
+   "k": "h3",
+   "t": "Every decision, on the record"
+  },
+  {
+   "k": "p",
+   "t": "A hash-chained record your auditors and examiners can verify."
+  },
+  {
+   "k": "h2",
+   "t": "See Zenstra decide on your own agents."
+  },
+  {
+   "k": "p",
+   "t": "A 30-minute technical session with a Zenstra security engineer, run against one of your agents."
+  },
+  {
+   "k": "cta",
+   "t": "Request a demo",
+   "h": "/demo"
+  },
+  {
+   "k": "cta",
+   "t": "or email info@deepalgorithms.in",
+   "h": "mailto:info@deepalgorithms.in"
+  }
+ ],
+ "links": [
+  "/",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/platform",
+  "/platform/decision-record",
+  "/use-cases/prompt-injection",
+  "/platform/runtime-enforcement",
+  "/use-cases/coding-agents",
+  "/platform/agent-identity",
+  "/use-cases/tool-poisoning",
+  "/platform/agent-identity",
+  "/platform/agent-discovery",
+  "/platform/runtime-enforcement",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/demo",
+  "/",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/company#contact",
+  "/company#contact",
+  "/company#contact",
+  "/privacy",
+  "/terms"
+ ],
+ "imgs": [
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark-dark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark-dark.png",
+   "alt": "",
+   "w": 657
+  }
+ ],
+ "anims": [
+  {
+   "tag": "CANVAS",
+   "y": 225,
+   "w": 506,
+   "h": 490
+  },
+  {
+   "tag": "CANVAS",
+   "y": 1147,
+   "w": 1440,
+   "h": 816
+  },
+  {
+   "tag": "svg",
+   "y": 7354,
+   "w": 918,
+   "h": 551
+  },
+  {
+   "tag": "svg",
+   "y": 9982,
+   "w": 704,
+   "h": 410
+  }
+ ],
+ "meta": {
+  "title": "Why Zenstra · Zenstra AI",
+  "desc": "Every AI agent is a new identity with real access. Why runtime security for agents matters, what changes with Zenstra and what sets it apart."
+ }
+}

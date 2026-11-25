@@ -1,0 +1,430 @@
+{
+ "path": "/",
+ "out": [
+  {
+   "k": "h1",
+   "t": "Secure every agent. Verify every intent. Secure every agent. Verify every intent."
+  },
+  {
+   "k": "p",
+   "t": "Zenstra checks every AI agent action before it runs, across your workflows, inside your cloud and on every device, and records why."
+  },
+  {
+   "k": "cta",
+   "t": "Explore the platform",
+   "h": "#products"
+  },
+  {
+   "k": "cta",
+   "t": "Watch the product tour",
+   "h": "#tour"
+  },
+  {
+   "k": "h2",
+   "t": "The Agent Makes Decisions Before Anyone Realises What’s Happening."
+  },
+  {
+   "k": "p",
+   "t": "A short walkthrough of the Zenstra, from the agents it finds to the decisions it records."
+  },
+  {
+   "k": "h2",
+   "t": "One platform. Three ways in."
+  },
+  {
+   "k": "p",
+   "t": "Every product shares one agent inventory, one policy engine and one decision record."
+  },
+  {
+   "k": "h3",
+   "t": "Workflow Security"
+  },
+  {
+   "k": "p",
+   "t": "Every hop in every agent workflow, checked against the task it was given, before the next step runs."
+  },
+  {
+   "k": "cta",
+   "t": "Explore",
+   "h": "/use-cases/workflow-agents"
+  },
+  {
+   "k": "h3",
+   "t": "Cloud Security"
+  },
+  {
+   "k": "p",
+   "t": "A gateway inside your cloud, in front of every MCP server, model and API your agents call. Payloads never leave."
+  },
+  {
+   "k": "cta",
+   "t": "Explore",
+   "h": "/use-cases/cloud-agents"
+  },
+  {
+   "k": "h3",
+   "t": "Zenstra AI Discovery"
+  },
+  {
+   "k": "p",
+   "t": "AI discovery for every agent on staff devices. Sees the prompt, the tool call and the device together, and contains one agent in seconds."
+  },
+  {
+   "k": "cta",
+   "t": "Explore",
+   "h": "/use-cases/coding-agents"
+  },
+  {
+   "k": "h2",
+   "t": "Every AI agent is a new identity with real access."
+  },
+  {
+   "k": "cta",
+   "t": "Why Zenstra",
+   "h": "/why-zenstra"
+  },
+  {
+   "k": "h2",
+   "t": "Your entire agent fleet, on one screen."
+  },
+  {
+   "k": "p",
+   "t": "Fleet, detections, investigations and the decision record, where your analysts already triage."
+  },
+  {
+   "k": "p",
+   "t": "Protected agents"
+  },
+  {
+   "k": "p",
+   "t": "Threats blocked every month"
+  },
+  {
+   "k": "p",
+   "t": "Security policies enforced"
+  },
+  {
+   "k": "p",
+   "t": "Decision latency at p95, inline"
+  },
+  {
+   "k": "h2",
+   "t": "Ready for the examiner's first question."
+  },
+  {
+   "k": "p",
+   "t": "Core platforms, copilots, lending and fraud agents are already live. Zenstra gives every one an owner, a scope and a record your NCUA examiner can read."
+  },
+  {
+   "k": "cta",
+   "t": "Zenstra for credit unions",
+   "h": "/credit-unions"
+  },
+  {
+   "k": "h2",
+   "t": "Audited the way you will audit us."
+  },
+  {
+   "k": "p",
+   "t": "Independent audits every year, reports under NDA, and certificates you can verify with the issuing body."
+  },
+  {
+   "k": "cta",
+   "t": "Security & compliance",
+   "h": "/company#compliance"
+  },
+  {
+   "k": "p",
+   "t": "HIPAA and GDPR programmes · Reports under NDA · Security review pack on request"
+  },
+  {
+   "k": "h2",
+   "t": "Deploy agents your board can sign off on."
+  },
+  {
+   "k": "p",
+   "t": "See Zenstra enforce a live policy against your own agent, in your own cloud."
+  },
+  {
+   "k": "cta",
+   "t": "Request a demo",
+   "h": "/demo"
+  },
+  {
+   "k": "p",
+   "t": "No agent rewrite · Runs in your cloud · Security review pack included"
+  }
+ ],
+ "links": [
+  "/",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/why-zenstra",
+  "/credit-unions",
+  "/company#compliance",
+  "/demo",
+  "/",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/company#contact",
+  "/company#contact",
+  "/company#contact",
+  "/privacy",
+  "/terms"
+ ],
+ "imgs": [
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark-dark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark-dark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark-dark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark-dark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/screen-overview-light.webp",
+   "alt": "Console overview with governed agents, detections, blocked actions and approvals",
+   "w": 1600
+  },
+  {
+   "src": "https://www.zenstra.ai/img/screen-overview-dark.webp",
+   "alt": "",
+   "w": 0
+  },
+  {
+   "src": "https://www.zenstra.ai/img/screen-detections-light.webp",
+   "alt": "Detections queue ranked by severity",
+   "w": 1600
+  },
+  {
+   "src": "https://www.zenstra.ai/img/screen-detections-dark.webp",
+   "alt": "",
+   "w": 0
+  },
+  {
+   "src": "https://www.zenstra.ai/img/screen-investigation-light.webp",
+   "alt": "Investigation showing outcome, blast radius and the agent run",
+   "w": 1600
+  },
+  {
+   "src": "https://www.zenstra.ai/img/screen-investigation-dark.webp",
+   "alt": "",
+   "w": 0
+  },
+  {
+   "src": "https://www.zenstra.ai/img/screen-agent-light.webp",
+   "alt": "Agent profile with identity, grants and behavior baseline",
+   "w": 1600
+  },
+  {
+   "src": "https://www.zenstra.ai/img/screen-agent-dark.webp",
+   "alt": "",
+   "w": 0
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark-dark.png",
+   "alt": "",
+   "w": 657
+  }
+ ],
+ "anims": [
+  {
+   "tag": "CANVAS",
+   "y": 0,
+   "w": 1440,
+   "h": 900
+  },
+  {
+   "tag": "CANVAS",
+   "y": 6698,
+   "w": 1286,
+   "h": 558
+  }
+ ],
+ "meta": {
+  "title": "Zenstra AI · Runtime security for agentic AI",
+  "desc": "Zenstra checks every AI agent action before it runs: across workflows, inside your cloud and on every device. Workflow Security, Cloud Security and Zenstra AI Discovery on one platform."
+ }
+}

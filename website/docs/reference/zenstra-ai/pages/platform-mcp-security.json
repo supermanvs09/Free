@@ -1,0 +1,446 @@
+{
+ "path": "/platform/mcp-security",
+ "out": [
+  {
+   "k": "li",
+   "t": "Home"
+  },
+  {
+   "k": "cta",
+   "t": "Home",
+   "h": "/"
+  },
+  {
+   "k": "li",
+   "t": "Platform"
+  },
+  {
+   "k": "cta",
+   "t": "Platform",
+   "h": "/platform"
+  },
+  {
+   "k": "li",
+   "t": "MCP security"
+  },
+  {
+   "k": "h1",
+   "t": "A gateway in your cloud for every tool call."
+  },
+  {
+   "k": "p",
+   "t": "A gateway in your VPC sits in front of every MCP server, model and API your agents call. Payloads never leave your environment."
+  },
+  {
+   "k": "cta",
+   "t": "See how it works",
+   "h": "#how"
+  },
+  {
+   "k": "cta",
+   "t": "Platform overview",
+   "h": "/platform"
+  },
+  {
+   "k": "h2",
+   "t": "Every tool is a way in."
+  },
+  {
+   "k": "p",
+   "t": "MCP made it easy to give agents tools. It also gave attackers a place to hide instructions, widen access or pull data out."
+  },
+  {
+   "k": "li",
+   "t": "Poisoned tools A tool description or result carries instructions the agent follows."
+  },
+  {
+   "k": "li",
+   "t": "Over-scoped keys One MCP server key reaches far more than any task needs."
+  },
+  {
+   "k": "li",
+   "t": "Data leaving your cloud Payloads sent to tools and models outside your environment."
+  },
+  {
+   "k": "figcaption",
+   "t": "A REAL PATH A tool update tries to move money."
+  },
+  {
+   "k": "li",
+   "t": "1 member-chat-assist The agent calls kb.search through the gateway in your VPC."
+  },
+  {
+   "k": "li",
+   "t": "2 mcp kb-sync A new version of the server adds an instruction to call accounts.transfer."
+  },
+  {
+   "k": "li",
+   "t": "3 gateway The call is checked against the agent’s grant, inside your cloud. Transfers are not in it."
+  },
+  {
+   "k": "li",
+   "t": "BLOCKTool not in grant. The call never reaches core banking. mcp core-banking · accounts.transfer"
+  },
+  {
+   "k": "li",
+   "t": "ASI04 Agentic Supply Chain Vulnerabilities OWASP Top 10 for Agentic Apps"
+  },
+  {
+   "k": "li",
+   "t": "ASI02 Tool Misuse and Exploitation OWASP Top 10 for Agentic Apps"
+  },
+  {
+   "k": "li",
+   "t": "AML.T0110 AI Agent Tool Poisoning MITRE ATLAS"
+  },
+  {
+   "k": "h2",
+   "t": "Inspect, scope and stop inside your own cloud."
+  },
+  {
+   "k": "p",
+   "t": "The gateway is the decision point for every call your agents make to tools, models and APIs."
+  },
+  {
+   "k": "h3",
+   "t": "Every call, inside your VPC"
+  },
+  {
+   "k": "p",
+   "t": "The gateway sees each MCP, model and API call before it leaves the agent, without sending prompts or payloads anywhere else."
+  },
+  {
+   "k": "li",
+   "t": "Deployed with Helm or Terraform"
+  },
+  {
+   "k": "li",
+   "t": "Runs in AWS, Azure or Google Cloud"
+  },
+  {
+   "k": "li",
+   "t": "Only decisions and redacted evidence reach the control plane"
+  },
+  {
+   "k": "h3",
+   "t": "Each tool becomes a grant"
+  },
+  {
+   "k": "p",
+   "t": "A tool call is checked against the agent’s grant: which tool, which scope, for how long."
+  },
+  {
+   "k": "li",
+   "t": "Per-agent identity for every call"
+  },
+  {
+   "k": "li",
+   "t": "Short-lived grants for model providers"
+  },
+  {
+   "k": "li",
+   "t": "Unapproved MCP servers flagged"
+  },
+  {
+   "k": "h3",
+   "t": "Blocked before it lands"
+  },
+  {
+   "k": "p",
+   "t": "Calls outside the grant, poisoned tool content and data leaving for unapproved destinations are stopped inline."
+  },
+  {
+   "k": "li",
+   "t": "Decided inline, before the call lands"
+  },
+  {
+   "k": "li",
+   "t": "Fails closed if unreachable"
+  },
+  {
+   "k": "li",
+   "t": "Every block on the decision record"
+  },
+  {
+   "k": "h2",
+   "t": "The policy behind it."
+  },
+  {
+   "k": "p",
+   "t": "Every MCP server, model and API sits behind one gateway. Each tool is a grant, and instructions hidden in tool content are quarantined."
+  },
+  {
+   "k": "li",
+   "t": "Decided inline"
+  },
+  {
+   "k": "li",
+   "t": "Fails closed"
+  },
+  {
+   "k": "li",
+   "t": "Versioned with every decision"
+  },
+  {
+   "k": "h2",
+   "t": "The attacks that come through tools."
+  },
+  {
+   "k": "li",
+   "t": "Tool poisoning Instructions hidden in tool descriptions and results."
+  },
+  {
+   "k": "h3",
+   "t": "Tool poisoning"
+  },
+  {
+   "k": "p",
+   "t": "Instructions hidden in tool descriptions and results."
+  },
+  {
+   "k": "li",
+   "t": "Over-scoped calls A transfer when the task only allowed a read."
+  },
+  {
+   "k": "h3",
+   "t": "Over-scoped calls"
+  },
+  {
+   "k": "p",
+   "t": "A transfer when the task only allowed a read."
+  },
+  {
+   "k": "li",
+   "t": "Rogue MCP servers Tool servers nobody approved, found and blocked."
+  },
+  {
+   "k": "h3",
+   "t": "Rogue MCP servers"
+  },
+  {
+   "k": "p",
+   "t": "Tool servers nobody approved, found and blocked."
+  },
+  {
+   "k": "li",
+   "t": "Data exfiltration Payloads headed for destinations outside policy."
+  },
+  {
+   "k": "h3",
+   "t": "Data exfiltration"
+  },
+  {
+   "k": "p",
+   "t": "Payloads headed for destinations outside policy."
+  },
+  {
+   "k": "li",
+   "t": "Credential misuse Standing keys replaced by per-agent, expiring grants."
+  },
+  {
+   "k": "h3",
+   "t": "Credential misuse"
+  },
+  {
+   "k": "p",
+   "t": "Standing keys replaced by per-agent, expiring grants."
+  },
+  {
+   "k": "li",
+   "t": "Model sprawl Calls to unapproved models and endpoints."
+  },
+  {
+   "k": "h3",
+   "t": "Model sprawl"
+  },
+  {
+   "k": "p",
+   "t": "Calls to unapproved models and endpoints."
+  },
+  {
+   "k": "h2",
+   "t": "Keep exploring."
+  },
+  {
+   "k": "h2",
+   "t": "Common questions."
+  },
+  {
+   "k": "h2",
+   "t": "See it on your own agents."
+  },
+  {
+   "k": "p",
+   "t": "A 30-minute technical session with a Zenstra security engineer, run against one of your agents."
+  },
+  {
+   "k": "cta",
+   "t": "Request a demo",
+   "h": "/demo"
+  },
+  {
+   "k": "cta",
+   "t": "or email info@deepalgorithms.in",
+   "h": "mailto:info@deepalgorithms.in"
+  }
+ ],
+ "links": [
+  "/",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/",
+  "/platform",
+  "/platform",
+  "/use-cases/tool-poisoning",
+  "/use-cases/cloud-agents",
+  "/platform/agent-identity",
+  "/demo",
+  "/",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/company#contact",
+  "/company#contact",
+  "/company#contact",
+  "/privacy",
+  "/terms"
+ ],
+ "imgs": [
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark-dark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark-dark.png",
+   "alt": "",
+   "w": 657
+  }
+ ],
+ "anims": [],
+ "meta": {
+  "title": "MCP & tool security · Zenstra AI",
+  "desc": "A gateway in your cloud in front of every tool call."
+ }
+}

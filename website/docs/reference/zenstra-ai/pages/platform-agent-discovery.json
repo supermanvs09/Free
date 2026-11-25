@@ -1,0 +1,456 @@
+{
+ "path": "/platform/agent-discovery",
+ "out": [
+  {
+   "k": "li",
+   "t": "Home"
+  },
+  {
+   "k": "cta",
+   "t": "Home",
+   "h": "/"
+  },
+  {
+   "k": "li",
+   "t": "Platform"
+  },
+  {
+   "k": "cta",
+   "t": "Platform",
+   "h": "/platform"
+  },
+  {
+   "k": "li",
+   "t": "Agent discovery"
+  },
+  {
+   "k": "h1",
+   "t": "Every agent you run, found and owned."
+  },
+  {
+   "k": "p",
+   "t": "One living inventory of every AI agent, copilot, MCP server and no-code flow, each with an owner and a scope."
+  },
+  {
+   "k": "cta",
+   "t": "See how it works",
+   "h": "#how"
+  },
+  {
+   "k": "cta",
+   "t": "Platform overview",
+   "h": "/platform"
+  },
+  {
+   "k": "h2",
+   "t": "You cannot govern what you cannot see."
+  },
+  {
+   "k": "p",
+   "t": "Agents arrive with the platforms you already use. Most aren’t malicious, just unreviewed, with access nobody tracked."
+  },
+  {
+   "k": "li",
+   "t": "Built without asking No-code flows wire agents into core systems before IT sees them."
+  },
+  {
+   "k": "li",
+   "t": "Access nobody tracked Standing credentials and broad scopes, granted at rollout and never revisited."
+  },
+  {
+   "k": "li",
+   "t": "No owner on record Nobody can say who approved an agent or what it should do."
+  },
+  {
+   "k": "figcaption",
+   "t": "A REAL PATH A flow nobody registered starts writing to core."
+  },
+  {
+   "k": "li",
+   "t": "1 n8n A team builds a card-dispute automation in n8n and connects it to the core platform."
+  },
+  {
+   "k": "li",
+   "t": "2 core API The flow starts writing dispute records with a shared service key."
+  },
+  {
+   "k": "li",
+   "t": "3 Zenstra Workflow Security maps the new flow: an agent with write access and no owner on record."
+  },
+  {
+   "k": "li",
+   "t": "HOLDWrites to core wait until an owner and a scope are on record. n8n:card-dispute · write:core"
+  },
+  {
+   "k": "li",
+   "t": "ASI10 Rogue Agents OWASP Top 10 for Agentic Apps"
+  },
+  {
+   "k": "li",
+   "t": "GOVERN 1.6 AI system inventory NIST AI RMF"
+  },
+  {
+   "k": "li",
+   "t": "ISO/IEC 42001 AI management system International standard"
+  },
+  {
+   "k": "h2",
+   "t": "From discovery to governed, in one place."
+  },
+  {
+   "k": "p",
+   "t": "Discovery is only the first step. Zenstra connects what it finds to an owner, a policy and a record."
+  },
+  {
+   "k": "h3",
+   "t": "One inventory across every platform"
+  },
+  {
+   "k": "p",
+   "t": "Zenstra maps agents, tools, MCP servers and connections in workflows, in your cloud and on staff devices, and shows how much of each platform is governed."
+  },
+  {
+   "k": "li",
+   "t": "Coverage by platform: governed versus discovered"
+  },
+  {
+   "k": "li",
+   "t": "Every hop in n8n, Zapier, LangGraph and CrewAI"
+  },
+  {
+   "k": "li",
+   "t": "AI on Windows and macOS, found by the AI Discovery app"
+  },
+  {
+   "k": "h3",
+   "t": "An owner and a scope for each agent"
+  },
+  {
+   "k": "p",
+   "t": "Each agent gets an owner, a declared task and the grants it needs. Agents without an owner are flagged until someone takes them."
+  },
+  {
+   "k": "li",
+   "t": "Highest-risk agents ranked, with the main factor"
+  },
+  {
+   "k": "li",
+   "t": "Unregistered agents flagged when they write to core systems"
+  },
+  {
+   "k": "li",
+   "t": "Agents without an owner shown on the overview"
+  },
+  {
+   "k": "h3",
+   "t": "An inventory your examiner can read"
+  },
+  {
+   "k": "p",
+   "t": "The inventory is kept current automatically and exported as evidence, with the owner and the platform for every agent."
+  },
+  {
+   "k": "li",
+   "t": "Living inventory, tracked automatically"
+  },
+  {
+   "k": "li",
+   "t": "Export as PDF and CSV"
+  },
+  {
+   "k": "li",
+   "t": "Every change to an agent on the decision record"
+  },
+  {
+   "k": "h2",
+   "t": "The policy behind it."
+  },
+  {
+   "k": "p",
+   "t": "An agent counts as governed once it has an owner, a declared task and the grants it needs. Until then, policy decides what it may do."
+  },
+  {
+   "k": "li",
+   "t": "Decided inline"
+  },
+  {
+   "k": "li",
+   "t": "Fails closed"
+  },
+  {
+   "k": "li",
+   "t": "Versioned with every decision"
+  },
+  {
+   "k": "h2",
+   "t": "Agents hide in six places."
+  },
+  {
+   "k": "li",
+   "t": "Core-banking agents Agent runtimes inside the core platforms you already operate."
+  },
+  {
+   "k": "h3",
+   "t": "Core-banking agents"
+  },
+  {
+   "k": "p",
+   "t": "Agent runtimes inside the core platforms you already operate."
+  },
+  {
+   "k": "li",
+   "t": "Employee copilots Microsoft Copilot, ChatGPT and Claude on staff devices."
+  },
+  {
+   "k": "h3",
+   "t": "Employee copilots"
+  },
+  {
+   "k": "p",
+   "t": "Microsoft Copilot, ChatGPT and Claude on staff devices."
+  },
+  {
+   "k": "li",
+   "t": "No-code automation n8n, Zapier and Copilot Studio flows wired into production systems."
+  },
+  {
+   "k": "h3",
+   "t": "No-code automation"
+  },
+  {
+   "k": "p",
+   "t": "n8n, Zapier and Copilot Studio flows wired into production systems."
+  },
+  {
+   "k": "li",
+   "t": "Agent frameworks LangGraph and CrewAI agents built by your own teams."
+  },
+  {
+   "k": "h3",
+   "t": "Agent frameworks"
+  },
+  {
+   "k": "p",
+   "t": "LangGraph and CrewAI agents built by your own teams."
+  },
+  {
+   "k": "li",
+   "t": "MCP servers Tool servers your agents call, approved or not."
+  },
+  {
+   "k": "h3",
+   "t": "MCP servers"
+  },
+  {
+   "k": "p",
+   "t": "Tool servers your agents call, approved or not."
+  },
+  {
+   "k": "li",
+   "t": "Coding agents Cursor and Claude Code with access to source and secrets."
+  },
+  {
+   "k": "h3",
+   "t": "Coding agents"
+  },
+  {
+   "k": "p",
+   "t": "Cursor and Claude Code with access to source and secrets."
+  },
+  {
+   "k": "h2",
+   "t": "Keep exploring."
+  },
+  {
+   "k": "h2",
+   "t": "Common questions."
+  },
+  {
+   "k": "h2",
+   "t": "See it on your own agents."
+  },
+  {
+   "k": "p",
+   "t": "A 30-minute technical session with a Zenstra security engineer, run against one of your agents."
+  },
+  {
+   "k": "cta",
+   "t": "Request a demo",
+   "h": "/demo"
+  },
+  {
+   "k": "cta",
+   "t": "or email info@deepalgorithms.in",
+   "h": "mailto:info@deepalgorithms.in"
+  }
+ ],
+ "links": [
+  "/",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/",
+  "/platform",
+  "/platform",
+  "/platform/agent-identity",
+  "/use-cases/shadow-ai",
+  "/use-cases/audit-readiness",
+  "/demo",
+  "/",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/company#contact",
+  "/company#contact",
+  "/company#contact",
+  "/privacy",
+  "/terms"
+ ],
+ "imgs": [
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark-dark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark-dark.png",
+   "alt": "",
+   "w": 657
+  }
+ ],
+ "anims": [],
+ "meta": {
+  "title": "Agent discovery & inventory · Zenstra AI",
+  "desc": "Every agent, MCP server and connection, found and owned."
+ }
+}

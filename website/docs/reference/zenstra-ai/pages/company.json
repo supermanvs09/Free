@@ -1,0 +1,446 @@
+{
+ "path": "/company",
+ "out": [
+  {
+   "k": "h1",
+   "t": "Defence as intelligent as the attack."
+  },
+  {
+   "k": "p",
+   "t": "Zenstra AI is built by Deep Algorithms, an AI-native cybersecurity company headquartered in Hyderabad. We build platforms that think continuously, respond autonomously, and get smarter with every threat they see."
+  },
+  {
+   "k": "cta",
+   "t": "Meet the leadership",
+   "h": "#leadership"
+  },
+  {
+   "k": "cta",
+   "t": "Contact us",
+   "h": "#contact"
+  },
+  {
+   "k": "dt",
+   "t": "COMPANY"
+  },
+  {
+   "k": "dd",
+   "t": "Deep Algorithms Deep Algorithms Solutions Pvt Ltd."
+  },
+  {
+   "k": "dt",
+   "t": "FOUNDED"
+  },
+  {
+   "k": "dd",
+   "t": "2022"
+  },
+  {
+   "k": "dt",
+   "t": "HEADQUARTERS"
+  },
+  {
+   "k": "dd",
+   "t": "Hyderabad, India"
+  },
+  {
+   "k": "dt",
+   "t": "OFFICES"
+  },
+  {
+   "k": "dd",
+   "t": "Hyderabad · Bangalore · Texas, USA"
+  },
+  {
+   "k": "dt",
+   "t": "FOCUS"
+  },
+  {
+   "k": "dd",
+   "t": "AI-native security Serving organisations globally"
+  },
+  {
+   "k": "h2",
+   "t": "Built from a belief that the defence must be as intelligent as the attack."
+  },
+  {
+   "k": "p",
+   "t": "Deep Algorithms was founded on a single observation: the threat landscape changed fundamentally when attackers adopted AI. Bots that mimic human behaviour perfectly. Identity compromises that drift invisibly for months. Data access violations that look exactly like legitimate work. Traditional tools, built for a rule-based world, cannot keep pace."
+  },
+  {
+   "k": "p",
+   "t": "We set out to build something different. Not a faster version of existing tools. An entirely new class of security intelligence, one that learns your environment continuously, understands what normal looks like in your specific context, and detects deviation before it becomes a breach."
+  },
+  {
+   "k": "p",
+   "t": "Zenstra AI applies that thinking to the newest identities in the enterprise: autonomous AI agents. Every agent gets an identity, every call is checked against policy before it runs, and every decision leaves a tamper-evident record."
+  },
+  {
+   "k": "blockquote",
+   "t": "“We don’t sell security products. We build defence that thinks.” DEEP ALGORITHMS FOUNDING PHILOSOPHY"
+  },
+  {
+   "k": "h2",
+   "t": "One architecture, four platforms."
+  },
+  {
+   "k": "p",
+   "t": "Every Deep Algorithms product shares the same foundation: continuous, autonomous and adaptive."
+  },
+  {
+   "k": "p",
+   "t": "Identity, policy enforcement, threat defense and audit for autonomous agent activity."
+  },
+  {
+   "k": "cta",
+   "t": "Explore Zenstra",
+   "h": "/"
+  },
+  {
+   "k": "p",
+   "t": "Scores every identity for anomalous behaviour, detecting threats that traditional tools miss for months."
+  },
+  {
+   "k": "p",
+   "t": "Continuous threat exposure management, behavioural bot fingerprinting, and DDoS detection with auto-mitigation."
+  },
+  {
+   "k": "p",
+   "t": "Personal data access monitoring, with reporting for DPDPA, RBI and SEBI."
+  },
+  {
+   "k": "h2",
+   "t": "Six principles behind every product."
+  },
+  {
+   "k": "p",
+   "t": "Security that runs on a schedule gives attackers the gaps between. Everything we build operates in real time, always."
+  },
+  {
+   "k": "p",
+   "t": "Signatures describe yesterday’s attacks. Behavioural intelligence catches attacks that have never been seen before."
+  },
+  {
+   "k": "p",
+   "t": "Human-speed response cannot match machine-speed attacks. Autonomous action is not a feature; it is a requirement."
+  },
+  {
+   "k": "p",
+   "t": "Every threat environment has its own regulatory obligations, attack patterns and infrastructure risks. Our platforms are built from first principles for the environment they protect, not ported from a generic template."
+  },
+  {
+   "k": "p",
+   "t": "Every detection is explainable. Every compliance claim is documented. Our customers can always show their work."
+  },
+  {
+   "k": "p",
+   "t": "Individual tools create gaps between them. A unified intelligence layer across identity, traffic and compliance leaves nowhere to hide."
+  },
+  {
+   "k": "h2",
+   "t": "The team behind Zenstra."
+  },
+  {
+   "k": "li",
+   "t": "EPBA, IIM Calcutta"
+  },
+  {
+   "k": "li",
+   "t": "18+ years in AI, cybersecurity, cloud and blockchain"
+  },
+  {
+   "k": "cta",
+   "t": "LinkedIn : JP Mishra",
+   "h": "https://www.linkedin.com/in/jp-mishra-97272011/"
+  },
+  {
+   "k": "li",
+   "t": "M.Tech, IIIT Bangalore"
+  },
+  {
+   "k": "li",
+   "t": "21+ years in solution design, cloud, blockchain, AI and analytics"
+  },
+  {
+   "k": "cta",
+   "t": "LinkedIn : Manish Parganiha",
+   "h": "https://www.linkedin.com/in/manishparganiha/"
+  },
+  {
+   "k": "li",
+   "t": "B.Tech, IIT Kanpur · PhD, Imperial College London"
+  },
+  {
+   "k": "li",
+   "t": "16+ years of experience · Chairperson at IIT Mandi"
+  },
+  {
+   "k": "cta",
+   "t": "LinkedIn : Dr. Amit Shukla",
+   "h": "https://www.linkedin.com/in/amit-shukla-11a0391a/"
+  },
+  {
+   "k": "li",
+   "t": "B.Tech, JNTU Hyderabad"
+  },
+  {
+   "k": "li",
+   "t": "6+ patents · 5+ years in innovation and research"
+  },
+  {
+   "k": "cta",
+   "t": "LinkedIn : Abhishek Tripathi",
+   "h": "https://www.linkedin.com/in/abhishek-tripathi-software/"
+  },
+  {
+   "k": "h3",
+   "t": "Advisors and mentors"
+  },
+  {
+   "k": "p",
+   "t": "31+ years at RBI · Former World Bank consultant · Multi-firm board member"
+  },
+  {
+   "k": "p",
+   "t": "30+ years in investment banking and private equity · JPMorgan Chase · Mirae Asset · Multi-firm board member"
+  },
+  {
+   "k": "p",
+   "t": "Co-Founder and CEO, Gradiant · Driving clean water access through cutting-edge technologies"
+  },
+  {
+   "k": "p",
+   "t": "Chief Executive Officer · Times 40 under 40 · Indian culture ambassador"
+  },
+  {
+   "k": "p",
+   "t": "25 years of industry experience in AI, analytics, cloud and enterprise security"
+  },
+  {
+   "k": "p",
+   "t": "Founder and MD, EasyGov (Jio Platforms)"
+  },
+  {
+   "k": "p",
+   "t": "Founder, End Now Foundation · 26 years of experience"
+  },
+  {
+   "k": "p",
+   "t": "Dean (Finance and Accounts), IIT Mandi · Clean energy research-to-scale leader"
+  },
+  {
+   "k": "h2",
+   "t": "Built to the world’s highest standards."
+  },
+  {
+   "k": "p",
+   "t": "Our certifications are independently audited and renewed annually to ensure your data is always protected."
+  },
+  {
+   "k": "h2",
+   "t": "Talk to the team."
+  },
+  {
+   "k": "p",
+   "t": "For a product walkthrough, the fastest route is a demo request. For anything else, write to us and a person will reply."
+  },
+  {
+   "k": "h3",
+   "t": "Zenstra AI"
+  },
+  {
+   "k": "p",
+   "t": "Product, partnership and security questions."
+  },
+  {
+   "k": "cta",
+   "t": "info@deepalgorithms.in",
+   "h": "mailto:info@deepalgorithms.in"
+  },
+  {
+   "k": "cta",
+   "t": "Request a demo",
+   "h": "/demo"
+  },
+  {
+   "k": "h3",
+   "t": "Deep Algorithms"
+  },
+  {
+   "k": "p",
+   "t": "Company enquiries and the wider platform family."
+  },
+  {
+   "k": "cta",
+   "t": "info@deepalgorithms.in",
+   "h": "mailto:info@deepalgorithms.in"
+  },
+  {
+   "k": "cta",
+   "t": "+91 77028 46856",
+   "h": "tel:+917702846856"
+  },
+  {
+   "k": "cta",
+   "t": "Deep Algorithms on LinkedIn",
+   "h": "https://www.linkedin.com/company/deepalgorithms.in"
+  },
+  {
+   "k": "h3",
+   "t": "Careers"
+  },
+  {
+   "k": "p",
+   "t": "We’re looking for AI engineers, security researchers and product builders who want to work on the world’s hardest security problems."
+  },
+  {
+   "k": "cta",
+   "t": "hr@deepalgorithms.in",
+   "h": "mailto:hr@deepalgorithms.in"
+  }
+ ],
+ "links": [
+  "/",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/",
+  "/demo",
+  "/",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/company#contact",
+  "/company#contact",
+  "/company#contact",
+  "/privacy",
+  "/terms"
+ ],
+ "imgs": [
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark-dark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/lead-jp-mishra.webp",
+   "alt": "JP Mishra",
+   "w": 360
+  },
+  {
+   "src": "https://www.zenstra.ai/img/lead-manish-parganiha.webp",
+   "alt": "Manish Parganiha",
+   "w": 360
+  },
+  {
+   "src": "https://www.zenstra.ai/img/lead-amit-shukla.webp",
+   "alt": "Dr. Amit Shukla",
+   "w": 360
+  },
+  {
+   "src": "https://www.zenstra.ai/img/lead-abhishek-tripathi.webp",
+   "alt": "Abhishek Tripathi",
+   "w": 360
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark-dark.png",
+   "alt": "",
+   "w": 657
+  }
+ ],
+ "anims": [],
+ "meta": {
+  "title": "Company · Zenstra AI",
+  "desc": "Zenstra AI is built by Deep Algorithms, an AI-native cybersecurity company headquartered in Hyderabad, with offices in Bangalore and Texas."
+ }
+}

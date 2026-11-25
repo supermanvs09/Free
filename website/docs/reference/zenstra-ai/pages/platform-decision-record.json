@@ -1,0 +1,488 @@
+{
+ "path": "/platform/decision-record",
+ "out": [
+  {
+   "k": "li",
+   "t": "Home"
+  },
+  {
+   "k": "cta",
+   "t": "Home",
+   "h": "/"
+  },
+  {
+   "k": "li",
+   "t": "Platform"
+  },
+  {
+   "k": "cta",
+   "t": "Platform",
+   "h": "/platform"
+  },
+  {
+   "k": "li",
+   "t": "Decision record"
+  },
+  {
+   "k": "h1",
+   "t": "Every decision, on one record."
+  },
+  {
+   "k": "p",
+   "t": "Every decision Zenstra makes lands on one tamper-evident record, each entry chained to the one before it. Export it as evidence."
+  },
+  {
+   "k": "cta",
+   "t": "See how it works",
+   "h": "#how"
+  },
+  {
+   "k": "cta",
+   "t": "Platform overview",
+   "h": "/platform"
+  },
+  {
+   "k": "h2",
+   "t": "“Show me what it did” should take minutes."
+  },
+  {
+   "k": "p",
+   "t": "When an examiner asks what an agent did, the answer sits in vendor logs that disagree and can’t prove they weren’t changed."
+  },
+  {
+   "k": "li",
+   "t": "Logs spread across vendors Each platform keeps its own partial history."
+  },
+  {
+   "k": "li",
+   "t": "Only the flagged events Most logs keep alerts, not every decision."
+  },
+  {
+   "k": "li",
+   "t": "No proof of integrity A log that can be edited is not evidence."
+  },
+  {
+   "k": "figcaption",
+   "t": "A REAL PATH An examiner asks what one agent did last quarter."
+  },
+  {
+   "k": "li",
+   "t": "1 examiner The request: everything sar-prep-agent did in Q3, and who approved it."
+  },
+  {
+   "k": "li",
+   "t": "2 record You filter by agent and date: every allow, hold and block, with the policy version that decided it."
+  },
+  {
+   "k": "li",
+   "t": "3 verify Each entry carries the hash of the one before it. The chain verifies end to end."
+  },
+  {
+   "k": "li",
+   "t": "ALLOWExported as PDF and CSV, approvals included, in minutes. ledger · 1.2M entries · verified"
+  },
+  {
+   "k": "li",
+   "t": "ISO/IEC 42001 AI management system International standard"
+  },
+  {
+   "k": "li",
+   "t": "GOVERN · MANAGE Accountability and response NIST AI RMF"
+  },
+  {
+   "k": "li",
+   "t": "ASI10 Rogue Agents OWASP Top 10 for Agentic Apps"
+  },
+  {
+   "k": "h2",
+   "t": "A record built for examination."
+  },
+  {
+   "k": "p",
+   "t": "The record is produced as agents work, not assembled before an audit."
+  },
+  {
+   "k": "h3",
+   "t": "Every action, not just alerts"
+  },
+  {
+   "k": "p",
+   "t": "Allowed actions are recorded alongside the blocks and the holds, with the agent, the task and the policy version."
+  },
+  {
+   "k": "li",
+   "t": "Every decision, every agent"
+  },
+  {
+   "k": "li",
+   "t": "Policy version on every entry"
+  },
+  {
+   "k": "li",
+   "t": "Approvals with who, when and why"
+  },
+  {
+   "k": "h3",
+   "t": "Tamper-evident by design"
+  },
+  {
+   "k": "p",
+   "t": "Each entry is chained to the one before it. Change one and the chain breaks, so the record proves its own integrity."
+  },
+  {
+   "k": "li",
+   "t": "Hash-chained entries"
+  },
+  {
+   "k": "li",
+   "t": "Chain verified on export"
+  },
+  {
+   "k": "li",
+   "t": "Approvals and policy versions in order"
+  },
+  {
+   "k": "h3",
+   "t": "Evidence in the format asked for"
+  },
+  {
+   "k": "p",
+   "t": "Export the inventory, the grants, the approvals and the decisions for an audit, an exam or an incident review."
+  },
+  {
+   "k": "li",
+   "t": "PDF and CSV export"
+  },
+  {
+   "k": "li",
+   "t": "Examination pack generated on demand"
+  },
+  {
+   "k": "li",
+   "t": "Mapped to how examiners ask questions"
+  },
+  {
+   "k": "h4",
+   "t": "The examiner asks"
+  },
+  {
+   "k": "p",
+   "t": "Which agents ran in Q3?"
+  },
+  {
+   "k": "p",
+   "t": "Who approved transfers over $10k?"
+  },
+  {
+   "k": "p",
+   "t": "Every block on member data"
+  },
+  {
+   "k": "h4",
+   "t": "You export"
+  },
+  {
+   "k": "p",
+   "t": "Inventory · 63 agents, owners"
+  },
+  {
+   "k": "p",
+   "t": "Approvals · approver and time"
+  },
+  {
+   "k": "p",
+   "t": "Decisions · POL-114"
+  },
+  {
+   "k": "h2",
+   "t": "The evidence, as it is kept."
+  },
+  {
+   "k": "p",
+   "t": "Allowed actions are recorded alongside the blocks and the holds, so the record shows what happened, not just what was flagged."
+  },
+  {
+   "k": "li",
+   "t": "Tamper-evident"
+  },
+  {
+   "k": "li",
+   "t": "Every action, not just alerts"
+  },
+  {
+   "k": "li",
+   "t": "Export as PDF and CSV"
+  },
+  {
+   "k": "h2",
+   "t": "The questions examiners ask."
+  },
+  {
+   "k": "li",
+   "t": "Which agents do you run? Every agent, one inventory, with an owner."
+  },
+  {
+   "k": "h3",
+   "t": "Which agents do you run?"
+  },
+  {
+   "k": "p",
+   "t": "Every agent, one inventory, with an owner."
+  },
+  {
+   "k": "li",
+   "t": "Who approved it? A recorded review before production."
+  },
+  {
+   "k": "h3",
+   "t": "Who approved it?"
+  },
+  {
+   "k": "p",
+   "t": "A recorded review before production."
+  },
+  {
+   "k": "li",
+   "t": "What can each one reach? Scoped, expiring grants, listed."
+  },
+  {
+   "k": "h3",
+   "t": "What can each one reach?"
+  },
+  {
+   "k": "p",
+   "t": "Scoped, expiring grants, listed."
+  },
+  {
+   "k": "li",
+   "t": "How do you stop one? One revocation, in seconds, on the record."
+  },
+  {
+   "k": "h3",
+   "t": "How do you stop one?"
+  },
+  {
+   "k": "p",
+   "t": "One revocation, in seconds, on the record."
+  },
+  {
+   "k": "li",
+   "t": "Show me what it did. One tamper-evident record of every decision."
+  },
+  {
+   "k": "h3",
+   "t": "Show me what it did."
+  },
+  {
+   "k": "p",
+   "t": "One tamper-evident record of every decision."
+  },
+  {
+   "k": "li",
+   "t": "What changed, and when? Policy versions and approvals, in order."
+  },
+  {
+   "k": "h3",
+   "t": "What changed, and when?"
+  },
+  {
+   "k": "p",
+   "t": "Policy versions and approvals, in order."
+  },
+  {
+   "k": "h2",
+   "t": "Keep exploring."
+  },
+  {
+   "k": "h2",
+   "t": "Common questions."
+  },
+  {
+   "k": "h2",
+   "t": "See it on your own agents."
+  },
+  {
+   "k": "p",
+   "t": "A 30-minute technical session with a Zenstra security engineer, run against one of your agents."
+  },
+  {
+   "k": "cta",
+   "t": "Request a demo",
+   "h": "/demo"
+  },
+  {
+   "k": "cta",
+   "t": "or email info@deepalgorithms.in",
+   "h": "mailto:info@deepalgorithms.in"
+  }
+ ],
+ "links": [
+  "/",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/",
+  "/platform",
+  "/platform",
+  "/use-cases/audit-readiness",
+  "/platform/runtime-enforcement",
+  "/credit-unions",
+  "/demo",
+  "/",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/company#contact",
+  "/company#contact",
+  "/company#contact",
+  "/privacy",
+  "/terms"
+ ],
+ "imgs": [
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark-dark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark-dark.png",
+   "alt": "",
+   "w": 657
+  }
+ ],
+ "anims": [],
+ "meta": {
+  "title": "Decision record & evidence · Zenstra AI",
+  "desc": "A tamper-evident record your auditors can read."
+ }
+}

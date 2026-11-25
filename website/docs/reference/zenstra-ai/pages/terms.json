@@ -1,0 +1,372 @@
+{
+ "path": "/terms",
+ "out": [
+  {
+   "k": "h1",
+   "t": "Terms of Service"
+  },
+  {
+   "k": "p",
+   "t": "The agreement between you and Zenstra AI governing use of our website, platform and related services."
+  },
+  {
+   "k": "p",
+   "t": "Last updated: 5 August 2026"
+  },
+  {
+   "k": "li",
+   "t": "Acceptance of terms"
+  },
+  {
+   "k": "cta",
+   "t": "Acceptance of terms",
+   "h": "#acceptance-of-terms"
+  },
+  {
+   "k": "li",
+   "t": "The service"
+  },
+  {
+   "k": "cta",
+   "t": "The service",
+   "h": "#the-service"
+  },
+  {
+   "k": "li",
+   "t": "Accounts and access"
+  },
+  {
+   "k": "cta",
+   "t": "Accounts and access",
+   "h": "#accounts-and-access"
+  },
+  {
+   "k": "li",
+   "t": "Acceptable use"
+  },
+  {
+   "k": "cta",
+   "t": "Acceptable use",
+   "h": "#acceptable-use"
+  },
+  {
+   "k": "li",
+   "t": "Customer data and intellectual property"
+  },
+  {
+   "k": "cta",
+   "t": "Customer data and intellectual property",
+   "h": "#customer-data-and-intellectual-property"
+  },
+  {
+   "k": "li",
+   "t": "Fees and payment"
+  },
+  {
+   "k": "cta",
+   "t": "Fees and payment",
+   "h": "#fees-and-payment"
+  },
+  {
+   "k": "li",
+   "t": "Confidentiality"
+  },
+  {
+   "k": "cta",
+   "t": "Confidentiality",
+   "h": "#confidentiality"
+  },
+  {
+   "k": "li",
+   "t": "Disclaimers"
+  },
+  {
+   "k": "cta",
+   "t": "Disclaimers",
+   "h": "#disclaimers"
+  },
+  {
+   "k": "li",
+   "t": "Limitation of liability"
+  },
+  {
+   "k": "cta",
+   "t": "Limitation of liability",
+   "h": "#limitation-of-liability"
+  },
+  {
+   "k": "li",
+   "t": "Indemnification"
+  },
+  {
+   "k": "cta",
+   "t": "Indemnification",
+   "h": "#indemnification"
+  },
+  {
+   "k": "li",
+   "t": "Term and termination"
+  },
+  {
+   "k": "cta",
+   "t": "Term and termination",
+   "h": "#term-and-termination"
+  },
+  {
+   "k": "li",
+   "t": "Governing law"
+  },
+  {
+   "k": "cta",
+   "t": "Governing law",
+   "h": "#governing-law"
+  },
+  {
+   "k": "li",
+   "t": "Contact us"
+  },
+  {
+   "k": "cta",
+   "t": "Contact us",
+   "h": "#contact-us"
+  },
+  {
+   "k": "cta",
+   "t": "Privacy Policy",
+   "h": "/privacy"
+  },
+  {
+   "k": "h2",
+   "t": "1 Acceptance of terms"
+  },
+  {
+   "k": "p",
+   "t": "By accessing this website or using the Zenstra AI platform you agree to these terms. If you are entering into them on behalf of a company, you confirm you have authority to bind that company. If you do not agree, do not use the service."
+  },
+  {
+   "k": "h2",
+   "t": "2 The service"
+  },
+  {
+   "k": "p",
+   "t": "Zenstra AI provides a runtime security layer for agentic AI — identity, policy enforcement, threat defense and audit for autonomous agent activity. Specific features, limits and support commitments are set out in your order form or subscription plan. We may improve or modify the service, and will give reasonable notice before removing material functionality."
+  },
+  {
+   "k": "h2",
+   "t": "3 Accounts and access"
+  },
+  {
+   "k": "p",
+   "t": "You are responsible for the accuracy of your account details, for keeping credentials confidential, and for all activity under your account. Notify us promptly at info@deepalgorithms.in if you suspect unauthorised access."
+  },
+  {
+   "k": "h2",
+   "t": "4 Acceptable use"
+  },
+  {
+   "k": "p",
+   "t": "You may not use the service to break the law, infringe someone else's rights, attempt to gain unauthorised access to any system, interfere with its operation, or resell access without our written agreement. Security testing against the platform requires prior written permission."
+  },
+  {
+   "k": "h2",
+   "t": "5 Customer data and intellectual property"
+  },
+  {
+   "k": "p",
+   "t": "You retain all rights to the data you submit. You grant us a limited licence to process it solely to provide and secure the service. We retain all rights to the platform, software, documentation and trademarks. Feedback you send us may be used without restriction or obligation."
+  },
+  {
+   "k": "h2",
+   "t": "6 Fees and payment"
+  },
+  {
+   "k": "p",
+   "t": "Fees are set out in your order form and are payable in advance unless agreed otherwise. Amounts are exclusive of taxes. Late payments may lead to suspension after written notice. Fees are non-refundable except where these terms state otherwise."
+  },
+  {
+   "k": "h2",
+   "t": "7 Confidentiality"
+  },
+  {
+   "k": "p",
+   "t": "Each party will protect the other's confidential information with at least the same care it uses for its own, and will not disclose it except to personnel and advisors who need it and are bound by similar obligations."
+  },
+  {
+   "k": "h2",
+   "t": "8 Disclaimers"
+  },
+  {
+   "k": "p",
+   "t": "The service is provided on an \"as is\" and \"as available\" basis. Zenstra AI reduces risk in agent operations but does not guarantee that every threat will be detected or prevented. To the extent permitted by law, we disclaim all implied warranties, including merchantability, fitness for a particular purpose and non-infringement."
+  },
+  {
+   "k": "h2",
+   "t": "9 Limitation of liability"
+  },
+  {
+   "k": "p",
+   "t": "Neither party is liable for indirect, incidental, special or consequential damages, or for lost profits or data. Our total liability arising out of these terms is limited to the fees you paid in the twelve months before the event giving rise to the claim. Nothing here limits liability that cannot be limited by law."
+  },
+  {
+   "k": "h2",
+   "t": "10 Indemnification"
+  },
+  {
+   "k": "p",
+   "t": "You will defend and indemnify Zenstra AI against third-party claims arising from your data or your use of the service in breach of these terms. We will defend and indemnify you against third-party claims that the platform infringes their intellectual property rights."
+  },
+  {
+   "k": "h2",
+   "t": "11 Term and termination"
+  },
+  {
+   "k": "p",
+   "t": "These terms apply for as long as you use the service. Either party may terminate for material breach that is not cured within 30 days of written notice. On termination your access ends and we delete customer data as described in the Privacy Policy."
+  },
+  {
+   "k": "h2",
+   "t": "12 Governing law"
+  },
+  {
+   "k": "p",
+   "t": "These terms are governed by the laws of the State of Delaware, without regard to conflict of law rules. The state and federal courts located in Delaware have exclusive jurisdiction over any dispute."
+  },
+  {
+   "k": "h2",
+   "t": "13 Contact us"
+  },
+  {
+   "k": "p",
+   "t": "Questions about these terms:"
+  },
+  {
+   "k": "cta",
+   "t": "info@deepalgorithms.in",
+   "h": "mailto:info@deepalgorithms.in"
+  }
+ ],
+ "links": [
+  "/",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/privacy",
+  "/privacy",
+  "/",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/company#contact",
+  "/company#contact",
+  "/company#contact",
+  "/privacy",
+  "/terms"
+ ],
+ "imgs": [
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark-dark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark-dark.png",
+   "alt": "",
+   "w": 657
+  }
+ ],
+ "anims": [],
+ "meta": {
+  "title": "Terms of Service · Zenstra AI",
+  "desc": "The agreement between you and Zenstra AI governing use of our website, platform and related services."
+ }
+}

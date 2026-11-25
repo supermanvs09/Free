@@ -1,0 +1,641 @@
+{
+ "path": "/platform",
+ "out": [
+  {
+   "k": "h1",
+   "t": "Runtime security for every AI agent."
+  },
+  {
+   "k": "p",
+   "t": "Zenstra checks every agent action before it runs, across your workflows, inside your cloud and on every device, and records why. Three ways in, one inventory, one policy engine and one decision record."
+  },
+  {
+   "k": "cta",
+   "t": "Explore capabilities",
+   "h": "#capabilities"
+  },
+  {
+   "k": "cta",
+   "t": "How it works",
+   "h": "#layers"
+  },
+  {
+   "k": "li",
+   "t": "Intent declared task"
+  },
+  {
+   "k": "li",
+   "t": "Identity owner · agent"
+  },
+  {
+   "k": "li",
+   "t": "Scope grant · 15 min"
+  },
+  {
+   "k": "h2",
+   "t": "Works with what you already run."
+  },
+  {
+   "k": "li",
+   "t": "Claude"
+  },
+  {
+   "k": "li",
+   "t": "Gemini"
+  },
+  {
+   "k": "li",
+   "t": "GitHub Copilot"
+  },
+  {
+   "k": "li",
+   "t": "Cursor"
+  },
+  {
+   "k": "li",
+   "t": "MCP"
+  },
+  {
+   "k": "li",
+   "t": "n8n"
+  },
+  {
+   "k": "li",
+   "t": "Zapier"
+  },
+  {
+   "k": "li",
+   "t": "LangGraph"
+  },
+  {
+   "k": "li",
+   "t": "CrewAI"
+  },
+  {
+   "k": "li",
+   "t": "Google Cloud"
+  },
+  {
+   "k": "li",
+   "t": "Kubernetes"
+  },
+  {
+   "k": "li",
+   "t": "Terraform"
+  },
+  {
+   "k": "p",
+   "t": "Also Microsoft Copilot, ChatGPT Enterprise, AWS Bedrock, Azure OpenAI, Vertex AI, Fiserv, Jack Henry and Temenos."
+  },
+  {
+   "k": "h2",
+   "t": "Every layer feeds one decision."
+  },
+  {
+   "k": "p",
+   "t": "What an agent can reach, who it acts for and what it was asked to do meet at one decision point."
+  },
+  {
+   "k": "li",
+   "t": "Discover Every agent, tool and MCP server, with an owner."
+  },
+  {
+   "k": "cta",
+   "t": "Discover",
+   "h": ""
+  },
+  {
+   "k": "p",
+   "t": "Every agent, tool and MCP server, with an owner."
+  },
+  {
+   "k": "li",
+   "t": "Decide Each action checked inline: allow, hold or block."
+  },
+  {
+   "k": "cta",
+   "t": "Decide",
+   "h": ""
+  },
+  {
+   "k": "p",
+   "t": "Each action checked inline: allow, hold or block."
+  },
+  {
+   "k": "li",
+   "t": "Prove Every decision on one tamper-evident record."
+  },
+  {
+   "k": "cta",
+   "t": "Prove",
+   "h": ""
+  },
+  {
+   "k": "p",
+   "t": "Every decision on one tamper-evident record."
+  },
+  {
+   "k": "h2",
+   "t": "Purpose-built for agent security."
+  },
+  {
+   "k": "p",
+   "t": "Six capabilities on one policy engine. Start with the one your risk calls for; each shares the same inventory and record."
+  },
+  {
+   "k": "li",
+   "t": "core-banking Approved"
+  },
+  {
+   "k": "li",
+   "t": "crm-tools Approved"
+  },
+  {
+   "k": "li",
+   "t": "kb-sync v2.4 Held"
+  },
+  {
+   "k": "li",
+   "t": "#48231 Hold"
+  },
+  {
+   "k": "li",
+   "t": "#48232 Allow"
+  },
+  {
+   "k": "li",
+   "t": "#48233 Block"
+  },
+  {
+   "k": "h2",
+   "t": "All platforms. Everywhere."
+  },
+  {
+   "k": "p",
+   "t": "Checks each hop against policy and the task the workflow declared, before the next step runs."
+  },
+  {
+   "k": "p",
+   "t": "Sits in front of every MCP server, model and API your agents call. Payloads never leave your environment."
+  },
+  {
+   "k": "p",
+   "t": "Sees the prompt, the tool call and the device together, and stops one agent on one device."
+  },
+  {
+   "k": "h2",
+   "t": "What changes when every action is decided."
+  },
+  {
+   "k": "li",
+   "t": "Every agent, found and owned See every agent, tool and MCP server, with an owner for each."
+  },
+  {
+   "k": "h3",
+   "t": "Every agent, found and owned"
+  },
+  {
+   "k": "p",
+   "t": "See every agent, tool and MCP server, with an owner for each."
+  },
+  {
+   "k": "li",
+   "t": "Risk stopped before runtime Scope access and block risky setups before an agent runs."
+  },
+  {
+   "k": "h3",
+   "t": "Risk stopped before runtime"
+  },
+  {
+   "k": "p",
+   "t": "Scope access and block risky setups before an agent runs."
+  },
+  {
+   "k": "li",
+   "t": "Detections with context Prompt, plan and action together, so an alert means something."
+  },
+  {
+   "k": "h3",
+   "t": "Detections with context"
+  },
+  {
+   "k": "p",
+   "t": "Prompt, plan and action together, so an alert means something."
+  },
+  {
+   "k": "li",
+   "t": "Contain one agent in seconds Stop one agent on one device or flow, not the whole system."
+  },
+  {
+   "k": "h3",
+   "t": "Contain one agent in seconds"
+  },
+  {
+   "k": "p",
+   "t": "Stop one agent on one device or flow, not the whole system."
+  },
+  {
+   "k": "li",
+   "t": "Evidence on every decision One tamper-evident record your auditors can read."
+  },
+  {
+   "k": "h3",
+   "t": "Evidence on every decision"
+  },
+  {
+   "k": "p",
+   "t": "One tamper-evident record your auditors can read."
+  },
+  {
+   "k": "h2",
+   "t": "Existing tools were not built with agents in mind."
+  },
+  {
+   "k": "p",
+   "t": "Each sees part of what an agent does. None of them sees the task, the plan and the action together, which is where agent risk lives."
+  },
+  {
+   "k": "th",
+   "t": "Capability"
+  },
+  {
+   "k": "th",
+   "t": "DLP and CASB"
+  },
+  {
+   "k": "th",
+   "t": "EDR and XDR"
+  },
+  {
+   "k": "th",
+   "t": "IAM and API gateways"
+  },
+  {
+   "k": "th",
+   "t": "Prompt guardrails"
+  },
+  {
+   "k": "th",
+   "t": "Zenstra"
+  },
+  {
+   "k": "th",
+   "t": "Knows which agent acted, and for whom"
+  },
+  {
+   "k": "td",
+   "t": "No"
+  },
+  {
+   "k": "td",
+   "t": "Partly"
+  },
+  {
+   "k": "td",
+   "t": "Partly"
+  },
+  {
+   "k": "td",
+   "t": "No"
+  },
+  {
+   "k": "td",
+   "t": "Yes"
+  },
+  {
+   "k": "th",
+   "t": "Checks the action against the agent’s task"
+  },
+  {
+   "k": "td",
+   "t": "No"
+  },
+  {
+   "k": "td",
+   "t": "No"
+  },
+  {
+   "k": "td",
+   "t": "No"
+  },
+  {
+   "k": "td",
+   "t": "Partly"
+  },
+  {
+   "k": "td",
+   "t": "Yes"
+  },
+  {
+   "k": "th",
+   "t": "Decides before the tool runs"
+  },
+  {
+   "k": "td",
+   "t": "Partly"
+  },
+  {
+   "k": "td",
+   "t": "Partly"
+  },
+  {
+   "k": "td",
+   "t": "Yes"
+  },
+  {
+   "k": "td",
+   "t": "Partly"
+  },
+  {
+   "k": "td",
+   "t": "Yes"
+  },
+  {
+   "k": "th",
+   "t": "Covers workflows, your cloud and staff devices"
+  },
+  {
+   "k": "td",
+   "t": "Partly"
+  },
+  {
+   "k": "td",
+   "t": "Partly"
+  },
+  {
+   "k": "td",
+   "t": "Partly"
+  },
+  {
+   "k": "td",
+   "t": "Partly"
+  },
+  {
+   "k": "td",
+   "t": "Yes"
+  },
+  {
+   "k": "th",
+   "t": "Records each decision with its policy version"
+  },
+  {
+   "k": "td",
+   "t": "Partly"
+  },
+  {
+   "k": "td",
+   "t": "Partly"
+  },
+  {
+   "k": "td",
+   "t": "Partly"
+  },
+  {
+   "k": "td",
+   "t": "No"
+  },
+  {
+   "k": "td",
+   "t": "Yes"
+  },
+  {
+   "k": "p",
+   "t": "Yes Partly No Typical of each category; individual products vary."
+  },
+  {
+   "k": "h2",
+   "t": "Deploys the way your stack already works."
+  },
+  {
+   "k": "p",
+   "t": "No agent rewrite. Prompts and payloads are evaluated inside your environment; only decisions and redacted evidence reach the Zenstra control plane."
+  },
+  {
+   "k": "p",
+   "t": "For agents your teams build: identity, task and every tool call checked inline."
+  },
+  {
+   "k": "p",
+   "t": "In your VPC or Kubernetes cluster, deployed with Helm or Terraform on AWS, Azure or Google Cloud."
+  },
+  {
+   "k": "p",
+   "t": "On Windows and macOS, deployed through Intune, Jamf or Kandji."
+  },
+  {
+   "k": "h2",
+   "t": "Built for regulated environments."
+  },
+  {
+   "k": "p",
+   "t": "Every control runs inline, before a tool call executes, and leaves evidence your auditors can read."
+  },
+  {
+   "k": "li",
+   "t": "SOC 2 Type II"
+  },
+  {
+   "k": "li",
+   "t": "ISO/IEC 27001"
+  },
+  {
+   "k": "li",
+   "t": "ISO/IEC 42001"
+  },
+  {
+   "k": "li",
+   "t": "ISO/IEC 27701"
+  },
+  {
+   "k": "li",
+   "t": "HIPAA and GDPR programmes"
+  },
+  {
+   "k": "h2",
+   "t": "Common questions."
+  },
+  {
+   "k": "h2",
+   "t": "Start with the risk in front of you."
+  },
+  {
+   "k": "p",
+   "t": "A 30-minute technical session: we connect Zenstra to one of your agents and show the decision record it leaves."
+  },
+  {
+   "k": "cta",
+   "t": "Request a demo",
+   "h": "/demo"
+  },
+  {
+   "k": "cta",
+   "t": "or email info@deepalgorithms.in",
+   "h": "mailto:info@deepalgorithms.in"
+  }
+ ],
+ "links": [
+  "/",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/demo",
+  "/",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/company#contact",
+  "/company#contact",
+  "/company#contact",
+  "/privacy",
+  "/terms"
+ ],
+ "imgs": [
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark-dark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark-dark.png",
+   "alt": "",
+   "w": 657
+  }
+ ],
+ "anims": [
+  {
+   "tag": "svg",
+   "y": 157,
+   "w": 704,
+   "h": 440
+  },
+  {
+   "tag": "svg",
+   "y": 1609,
+   "w": 660,
+   "h": 520
+  }
+ ],
+ "meta": {
+  "title": "The Zenstra platform · Zenstra AI",
+  "desc": "One policy engine, one agent inventory and one decision record for every AI agent, in your workflows, in your cloud and on every device."
+ }
+}

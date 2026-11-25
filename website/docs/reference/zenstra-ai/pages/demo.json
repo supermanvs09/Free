@@ -1,0 +1,250 @@
+{
+ "path": "/demo",
+ "out": [
+  {
+   "k": "h1",
+   "t": "See Zenstra stop a live attack."
+  },
+  {
+   "k": "p",
+   "t": "A security engineer connects Zenstra to one of your agents, runs a real injection against it, and hands you the decision record. No slides."
+  },
+  {
+   "k": "li",
+   "t": "01 00 – 05 MIN Your agent, your concerns Which agent you are being asked to approve, and what worries you about it."
+  },
+  {
+   "k": "p",
+   "t": "Which agent you are being asked to approve, and what worries you about it."
+  },
+  {
+   "k": "li",
+   "t": "02 05 – 12 MIN Connect it SDK, gateway or AI Discovery app in front of a test copy. Any framework, any model."
+  },
+  {
+   "k": "p",
+   "t": "SDK, gateway or AI Discovery app in front of a test copy. Any framework, any model."
+  },
+  {
+   "k": "li",
+   "t": "03 12 – 22 MIN Watch a policy stop it A live prompt injection and an exfiltration attempt, decided before the tool runs."
+  },
+  {
+   "k": "p",
+   "t": "A live prompt injection and an exfiltration attempt, decided before the tool runs."
+  },
+  {
+   "k": "li",
+   "t": "04 22 – 30 MIN Keep the record The decision ledger from the session and a security review pack."
+  },
+  {
+   "k": "p",
+   "t": "The decision ledger from the session and a security review pack."
+  },
+  {
+   "k": "h2",
+   "t": "Request a technical session"
+  },
+  {
+   "k": "p",
+   "t": "A security engineer replies within one business day."
+  },
+  {
+   "k": "cta",
+   "t": "privacy notice",
+   "h": "/privacy"
+  },
+  {
+   "k": "cta",
+   "t": "Request the session",
+   "h": ""
+  },
+  {
+   "k": "p",
+   "t": "No phone number needed · Reply within one business day"
+  },
+  {
+   "k": "h2",
+   "t": "We test against what you already run."
+  },
+  {
+   "k": "li",
+   "t": "Claude"
+  },
+  {
+   "k": "li",
+   "t": "Gemini"
+  },
+  {
+   "k": "li",
+   "t": "GitHub Copilot"
+  },
+  {
+   "k": "li",
+   "t": "Cursor"
+  },
+  {
+   "k": "li",
+   "t": "MCP"
+  },
+  {
+   "k": "li",
+   "t": "n8n"
+  },
+  {
+   "k": "li",
+   "t": "Zapier"
+  },
+  {
+   "k": "li",
+   "t": "LangGraph"
+  },
+  {
+   "k": "li",
+   "t": "CrewAI"
+  },
+  {
+   "k": "li",
+   "t": "Google Cloud"
+  },
+  {
+   "k": "li",
+   "t": "Kubernetes"
+  },
+  {
+   "k": "li",
+   "t": "Terraform"
+  },
+  {
+   "k": "p",
+   "t": "Also Microsoft Copilot, ChatGPT Enterprise, AWS Bedrock, Azure OpenAI, Vertex AI, Fiserv, Jack Henry and Temenos."
+  },
+  {
+   "k": "h2",
+   "t": "Common questions."
+  }
+ ],
+ "links": [
+  "/",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/privacy",
+  "/",
+  "/why-zenstra",
+  "/platform",
+  "/platform/agent-discovery",
+  "/platform/agent-identity",
+  "/platform/runtime-enforcement",
+  "/platform/mcp-security",
+  "/platform/detection-response",
+  "/platform/decision-record",
+  "/use-cases/shadow-ai",
+  "/use-cases/prompt-injection",
+  "/use-cases/tool-poisoning",
+  "/use-cases/data-leakage",
+  "/use-cases/workflow-agents",
+  "/use-cases/cloud-agents",
+  "/use-cases/coding-agents",
+  "/use-cases/audit-readiness",
+  "/credit-unions",
+  "/company",
+  "/company#leadership",
+  "/company#compliance",
+  "/company#contact",
+  "/demo",
+  "/company#contact",
+  "/company#contact",
+  "/company#contact",
+  "/privacy",
+  "/terms"
+ ],
+ "imgs": [
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark-dark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-mark-dark.png",
+   "alt": "",
+   "w": 138
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark.png",
+   "alt": "",
+   "w": 657
+  },
+  {
+   "src": "https://www.zenstra.ai/img/zenstra-wordmark-dark.png",
+   "alt": "",
+   "w": 657
+  }
+ ],
+ "anims": [],
+ "meta": {
+  "title": "Request a demo · Zenstra AI",
+  "desc": "A technical session with a Zenstra security engineer, run against one of your own AI agents."
+ }
+}
