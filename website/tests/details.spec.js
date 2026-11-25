@@ -60,8 +60,8 @@ test('a missing page names the address and offers search', async ({ page }) => {
 test('the home hero names who we secure and shows proof before any scroll', async ({ page, isMobile }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1, name: 'Discover every human, machine and AI agent identity.' })).toBeVisible();
-  await expect(page.getByText('finds every employee, workload and AI agent', { exact: false }).first()).toBeVisible();
-  await expect(page.getByText('ISO/IEC 27001').first()).toBeVisible();
+  // the hero is one sentence (cisco.com); the proof sits right under it: the customer logo wall
+  await expect(page.getByRole('heading', { name: 'Trusted by banks, government and enterprises across India' })).toBeInViewport();
 });
 
 test('the utility bar carries search and the language menu, and folds away on scroll', async ({ page, isMobile }) => {

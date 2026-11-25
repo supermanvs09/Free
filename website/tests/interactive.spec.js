@@ -77,10 +77,30 @@ test('home: the logo wall names every customer it shows', async ({ page }) => {
   for (const alt of await imgs.evaluateAll((els) => els.map((e) => e.alt))) expect(alt.length).toBeGreaterThan(2);
 });
 
-test('home: the threat section closes the trust gap', async ({ page }) => {
+test('home: the AI threat picture names every threat and stops it', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await hydrated(page);
-  const tg = page.locator('#threat .tg');
+  const ts = page.locator('#threat .ts');
+  for (const t of ['AI-generated phishing', 'Deepfake voice and video', 'MFA fatigue', 'Session hijacking', 'Prompt injection', 'Agent hijacking']) {
+    await expect(ts).toHaveAttribute('aria-label', new RegExp(t, 'i'));
+  }
+  await expect(ts.locator('.ts-th.done')).toHaveCount(8);
+});
+
+test('home: the hero is one sentence and two actions, with a pause control', async ({ page }) => {
+  await page.goto('/');
+  await hydrated(page);
+  const hero = page.locator('section[aria-labelledby="hero-h"]');
+  expect(await hero.locator('p').count()).toBe(0);
+  await hero.getByRole('button', { name: 'Pause background animation' }).click();
+  await expect(hero).toHaveClass(/paused/);
+});
+
+test('home: the posture section closes the trust gap', async ({ page }) => {
+  await page.goto('/');
+  await hydrated(page);
+  const tg = page.locator('#aispm .tg');
   await tg.scrollIntoViewIfNeeded();
   await expect(tg).toContainText('Continuous posture', { timeout: 12000 });
   await expect(tg).toContainText('Deep Algorithms closes the gap');
