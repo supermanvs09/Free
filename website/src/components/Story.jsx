@@ -192,7 +192,7 @@ export function StatCard({ items, className }) {
   const [a, ...rest] = items;
   return (
     <div className={cx('rc-stat rounded-[22px] p-7', className)}>
-      <p className="rc-num font-semibold tracking-[-0.04em]" style={{ fontSize: 'clamp(40px, 3.6vw, 54px)', lineHeight: 1 }}><CountUp value={a.v} /></p>
+      <p className="rc-num font-semibold tracking-[-0.015em]" style={{ fontSize: 'clamp(40px, 3.6vw, 54px)', lineHeight: 1 }}><CountUp value={a.v} /></p>
       <p className="mt-3 text-[15px] leading-snug text-[var(--rc-ink)]">{a.l}</p>
       {a.s && <p className="mt-3 text-[12.5px] text-[var(--rc-ink2)]">Source: {a.s}</p>}
       {rest.length > 0 && (

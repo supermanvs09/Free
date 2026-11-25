@@ -45,7 +45,7 @@ function RiskPolicy() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-[13px] font-semibold uppercase tracking-[.08em] text-ink-3">Risk score</p>
-          <p className="mt-1 text-[56px] font-semibold leading-none tracking-[-0.05em] num" style={{ color: z.tone }}>{v}</p>
+          <p className="mt-1 text-[56px] font-medium leading-none tracking-[-0.015em] num" style={{ color: z.tone }}>{v}</p>
         </div>
         <div className="max-w-[420px] text-right">
           <p className="text-[22px] font-semibold tracking-[-0.02em]" style={{ color: z.tone }}>{z.label}</p>
@@ -130,7 +130,7 @@ export default function Cirm() {
                 <>
                   <div className="relative h-[260px] overflow-hidden rounded-[16px] border border-line md:h-[300px]" style={{ background: 'radial-gradient(70% 60% at 50% 0%, rgb(30 136 216 / .12), transparent 70%), linear-gradient(160deg, #f4f8fd, #e8f0f9)' }}>
                     {f.V ? <div className="pointer-events-none absolute left-1/2 top-4 w-[118%] -translate-x-1/2 md:w-[104%]"><f.V /></div>
-                      : <div className="absolute inset-0 flex items-center justify-center"><span className="text-[64px] font-semibold tracking-[-0.05em] text-[#c4352a] num">94</span><span className="ml-3 text-[15px] text-ink-3">risk score,<br />with the reasons</span></div>}
+                      : <div className="absolute inset-0 flex items-center justify-center"><span className="text-[64px] font-medium tracking-[-0.015em] text-[#c4352a] num">94</span><span className="ml-3 text-[15px] text-ink-3">risk score,<br />with the reasons</span></div>}
                     <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-24" style={{ background: 'linear-gradient(rgb(232 240 249 / 0), #e8f0f9)' }} />
                   </div>
                   <div className="mt-6 flex items-center gap-3"><h3 className="t-h3">{f.name}</h3>{f.tag && <span className="rounded-full border border-adap/40 px-2.5 py-0.5 text-[12px] font-medium text-adap">{f.tag}</span>}</div>

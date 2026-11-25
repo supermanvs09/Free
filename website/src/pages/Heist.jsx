@@ -53,7 +53,7 @@ function Vaults() {
             <li key={l.n} className="ph-row">
               <span className="ph-num">0{l.n}</span>
               <span>
-                <span className="block text-[clamp(24px,2.6vw,34px)] font-bold tracking-[-0.03em]">{l.name}</span>
+                <span className="block text-[clamp(24px,2.6vw,34px)] font-medium tracking-[-0.01em]">{l.name}</span>
                 <span className="mt-2 block max-w-[640px] text-[16px] text-[var(--ink2)]">{l.brief}</span>
                 <span className="mono mt-3 block text-[12px] tracking-[.12em] text-[var(--ink3)]">+ {LAYERS[l.layers[l.layers.length - 1]].name.toUpperCase()}</span>
               </span>
@@ -79,7 +79,7 @@ function Prizes() {
           {PRIZES.map((p) => (
             <li key={p.title} className="border-t border-[var(--line)] pt-6">
               <span className="flex items-center justify-between"><Icon name={p.icon} size={30} className="text-[var(--mood)]" /><span className="mono text-[11.5px] tracking-[.16em] text-[var(--ink3)]">{p.tag.toUpperCase()}</span></span>
-              <span className="mt-5 block text-[clamp(26px,2.8vw,38px)] font-bold tracking-[-0.03em]">{p.title}</span>
+              <span className="mt-5 block text-[clamp(26px,2.8vw,38px)] font-medium tracking-[-0.01em]">{p.title}</span>
               <span className="mt-2 block max-w-[440px] text-[16.5px] leading-relaxed text-[var(--ink2)]">{p.body}</span>
             </li>
           ))}

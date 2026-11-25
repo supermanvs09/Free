@@ -124,7 +124,7 @@ function ProductPanel() {
       </div>
 
       <Link ref={copy} to={P[6]} key={on} className="relative mt-4 grid place-items-center" aria-label={`${P[1]}: ${P[7]}`} aria-live="polite">
-        <span className="text-[clamp(28px,2.8vw,40px)] font-semibold tracking-[-0.03em] text-ink">{words(P[1])}</span>
+        <span className="text-[clamp(28px,2.8vw,40px)] font-medium tracking-[-0.015em] text-ink">{words(P[1])}</span>
         <span className="mt-3 block min-h-[5.1em] max-w-[32ch] text-[17px] leading-relaxed text-ink-2">{words(P[7])}</span>
       </Link>
       <div className="relative mt-4 flex gap-2" role="group" aria-label="Choose a product">
@@ -151,7 +151,7 @@ function Statement() {
   return (
     <div ref={ref} className="space-y-8">
       {STATEMENT.map((para, k) => (
-        <p key={k} className={cx('font-semibold leading-[1.2] tracking-[-0.025em]', k ? 'text-[clamp(26px,3.1vw,42px)] text-[#0a5ea3]' : 'text-[clamp(26px,3.1vw,42px)]')}>
+        <p key={k} className={cx('font-semibold leading-[1.2] tracking-[-0.015em]', k ? 'text-[clamp(26px,3.1vw,42px)] text-[#0a5ea3]' : 'text-[clamp(26px,3.1vw,42px)]')}>
           {para.split(' ').map((w, i, a) => {
             const on = clamp(p * total * 1.15 - n++);
             return <span key={i} style={{ opacity: 0.18 + 0.82 * on, transition: 'opacity .2s linear' }}>{w}{i < a.length - 1 ? ' ' : ''}</span>;
@@ -182,8 +182,8 @@ function Years() {
           <li key={y.y} className="relative grid gap-6 pl-12 md:grid-cols-2 md:gap-16 md:pl-0">
             <span aria-hidden="true" className={cx('absolute left-[7px] top-1 h-[17px] w-[17px] rounded-full border-2 transition-colors duration-500 md:left-1/2 md:-translate-x-1/2', lit ? 'border-cyan-2 bg-cyan-2' : 'border-line-2 bg-bg')} />
             <Reveal className={cx(i % 2 ? 'md:order-2 md:pl-4' : 'md:pr-4 md:text-right')}>
-              <p className="text-[56px] font-semibold leading-none tracking-[-0.05em] text-cyan-2 num md:text-[72px]">{y.y}</p>
-              <h3 className="mt-3 text-[24px] font-semibold tracking-[-0.025em]">{y.h}</h3>
+              <p className="text-[56px] font-medium leading-none tracking-[-0.015em] text-cyan-2 num md:text-[72px]">{y.y}</p>
+              <h3 className="mt-3 text-[24px] font-semibold tracking-[-0.015em]">{y.h}</h3>
               <p className="mt-2 text-[16.5px] leading-relaxed text-ink-2">{y.p}</p>
               <ul className={cx('mt-4 flex flex-wrap gap-2', !(i % 2) && 'md:justify-end')}>
                 {y.items.map(([t, w]) => <li key={t} className="rounded-full border border-line-2 px-3 py-1.5 text-[13px] text-ink-2"><span className="font-medium text-ink">{t}</span> · {w}</li>)}
@@ -286,7 +286,7 @@ export default function Why() {
             <p className="t-lead rise mt-7 max-w-[560px] max-md:mx-auto" style={{ '--d': '160ms' }}>Attackers adopted AI, automation and stolen identities. We build products that learn your environment, decide in the moment and explain every decision, for organisations that cannot afford a breach.</p>
             <dl className="rise mt-10 grid max-w-[320px] grid-cols-2 gap-x-8 max-md:mx-auto" style={{ '--d': '240ms' }}>
               {[['Founded', SITE.founded], ['Headquarters', 'Hyderabad']].map(([k, v]) => (
-                <div key={k}><dt className="text-[13px] text-ink-3">{k}</dt><dd className="mt-1 text-[24px] font-semibold tracking-[-0.03em] num">{v}</dd></div>
+                <div key={k}><dt className="text-[13px] text-ink-3">{k}</dt><dd className="mt-1 text-[24px] font-semibold tracking-[-0.015em] num">{v}</dd></div>
               ))}
             </dl>
           </div>
@@ -431,7 +431,7 @@ export default function Why() {
             {SITE.offices.map((o, i) => (
               <Reveal key={o.city} delay={i * 70} className="card flex flex-col p-7">
                 <p className="text-[12.5px] font-semibold uppercase tracking-[.1em] text-cyan-2">{o.label}</p>
-                <p className="mt-3 text-[24px] font-semibold tracking-[-0.025em]">{o.city}</p>
+                <p className="mt-3 text-[24px] font-semibold tracking-[-0.015em]">{o.city}</p>
                 <p className="mt-3 flex-1 text-[15.5px] leading-relaxed text-ink-2">{o.address}</p>
                 {o.map && <a href={o.map} target="_blank" rel="noreferrer" className="link mt-5 text-[14.5px]">Open in Maps<Icon name="ArrowUpRight" size={14} weight="bold" /></a>}
               </Reveal>

@@ -98,7 +98,7 @@ export function Stats({ items, acc = 'brand', title, story, proof, log }) {
           <div className="rc grid gap-4 md:grid-cols-3">
             {items.map((x, i) => (
               <Reveal key={x.l} delay={i * 80} className={cx('rounded-[22px] p-7 max-md:text-center md:p-8', ['rc-stat', 'rc-proof', 'rc-main'][i % 3])}>
-                <p className="rc-num font-semibold tracking-[-0.04em]" style={{ fontSize: 'clamp(40px, 4vw, 56px)', lineHeight: 1 }}><CountUp value={x.v} /></p>
+                <p className="rc-num font-semibold tracking-[-0.015em]" style={{ fontSize: 'clamp(40px, 4vw, 56px)', lineHeight: 1 }}><CountUp value={x.v} /></p>
                 <p className="mt-4 max-w-[300px] text-[15.5px] leading-relaxed text-[var(--rc-ink)] max-md:mx-auto">{x.l}</p>
                 {x.s && <p className="mt-4 text-[12.5px] text-[var(--rc-ink2)]">Source: {x.s}</p>}
               </Reveal>
@@ -198,7 +198,7 @@ export function Explorer({ items, acc = 'brand', label }) {
       </div>
       <div id={`${id}-p`} role="tabpanel" aria-labelledby={`${id}-t${i}`} key={i} className="fadein mt-10 grid items-center gap-10 lg:grid-cols-[.85fr_1.15fr] lg:gap-16">
         <div>
-          <h3 className="text-[28px] font-semibold leading-tight tracking-[-0.03em] md:text-[34px]">{it.h}</h3>
+          <h3 className="text-[28px] font-medium leading-tight tracking-[-0.015em] md:text-[34px]">{it.h}</h3>
           <p className="mt-4 text-[17px] leading-relaxed text-ink-2">{it.p}</p>
           {it.points && <ul className="mt-6 space-y-3">{it.points.map((t) => <li key={t} className="flex gap-3 text-[15.5px] text-ink-2"><Icon name="Check" size={18} weight="bold" className="mt-[3px] shrink-0" style={{ color }} />{t}</li>)}</ul>}
           {it.to && <Link to={it.to} className="link mt-7" style={{ '--acc': color }}>{it.cta || 'Learn more'}<Icon name="ArrowRight" size={14} weight="bold" /></Link>}
@@ -296,7 +296,7 @@ export function Points({ items, acc = 'brand', cols = 3 }) {
               <span aria-hidden="true" className="pt-ring absolute -inset-3 rounded-[28px] border" style={{ borderColor: `color-mix(in oklab, ${color} 30%, transparent)` }} />
             </span>
             <p className="pt-t mono mt-auto pt-10 text-[13px]" style={{ color }}>{String(i + 1).padStart(2, '0')} / {String(items.length).padStart(2, '0')}</p>
-            <h3 className="pt-t mt-3 text-[30px] font-semibold leading-tight tracking-[-0.03em]">{it.h}</h3>
+            <h3 className="pt-t mt-3 text-[30px] font-medium leading-tight tracking-[-0.015em]">{it.h}</h3>
             <p className="pt-t mt-4 max-w-[46ch] text-[17px] leading-relaxed text-ink-2">{it.p}</p>
           </div>
         </div>

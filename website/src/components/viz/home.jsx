@@ -35,7 +35,7 @@ export function HeroActivity({ k: fk, tilt = [7, -16], range, pad = '9% 6% 12% 1
                 {[['Allowed today', '1,284', '#27b8f2', [4, 6, 5, 7, 6, 8, 9, 8, 10, 11]], ['Held for a person', '6', '#f6b955', [1, 0, 1, 2, 1, 1, 0, 1, 2, 1]], ['Blocked', '23', '#ff6b5d', [1, 2, 1, 3, 2, 2, 4, 3, 2, 3]]].map(([l, v, c, d]) => (
                   <div key={l} className="vz-panel" style={{ padding: '.8em .9em' }}>
                     <span className="vz-m block">{l}</span>
-                    <span className="mt-[.2em] block text-[1.5em] font-semibold tracking-[-0.03em] num">{v}</span>
+                    <span className="mt-[.2em] block text-[1.5em] font-semibold tracking-[-0.015em] num">{v}</span>
                     <span className="mt-[.4em] block h-[1.6em]"><Spark data={d} color={c} /></span>
                   </div>
                 ))}

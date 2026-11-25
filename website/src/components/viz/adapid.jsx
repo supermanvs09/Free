@@ -338,7 +338,7 @@ export function IdentityGraph({ k: fk } = {}) {
               {/* reach counter */}
               <span className="s3 absolute left-[2.5%] top-[4%] rounded-[.7em] px-[.8em] py-[.5em]" style={{ background: 'rgb(11 32 63 / .9)', border: '1px solid rgb(160 190 230 / .14)' }}>
                 <span className="block vz-h">Blast radius</span>
-                <span className="block text-[1.6em] font-semibold tracking-[-0.03em] num" style={{ color: held ? '#4be29a' : spread ? '#ff7d70' : '#edeff3' }}>{reach}<span className="vz-m" style={{ fontSize: 'max(var(--vz-min), .5em)' }}> of 12 resources</span></span>
+                <span className="block text-[1.6em] font-semibold tracking-[-0.015em] num" style={{ color: held ? '#4be29a' : spread ? '#ff7d70' : '#edeff3' }}>{reach}<span className="vz-m" style={{ fontSize: 'max(var(--vz-min), .5em)' }}> of 12 resources</span></span>
               </span>
             </div>
             <div className="mt-[.7em] grid grid-cols-3 gap-[.5em]">

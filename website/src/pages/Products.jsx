@@ -54,7 +54,7 @@ export default function Products() {
                 </span>
                 <span className="flex flex-1 flex-col p-6 md:p-7">
                 {x.line !== x.name && <span className="text-[12.5px] font-semibold uppercase tracking-[.08em]" style={{ color: x.acc }}>{x.line}</span>}
-                <h3 className="mt-1 text-[22px] font-semibold leading-tight tracking-[-0.025em]">{x.name}</h3>
+                <h3 className="mt-1 text-[22px] font-semibold leading-tight tracking-[-0.015em]">{x.name}</h3>
                 <p className="mt-3 flex-1 text-[15px] leading-relaxed text-ink-2">{x.body}</p>
                 <ul className="mt-6 space-y-2 border-t border-line pt-5">
                   {x.points.map((t) => <li key={t} className="flex items-center gap-2 text-[14px] text-ink-2"><Icon name="Check" size={14} weight="bold" style={{ color: x.acc }} />{t}</li>)}

@@ -127,7 +127,7 @@ function Explanation() {
     <div className="overflow-hidden rounded-[24px] border border-line bg-bg-1 p-7 shadow-[0_40px_80px_-60px_rgb(11_42_82/.4)] md:p-9">
       <p className="text-[12.5px] font-semibold uppercase tracking-[.1em] text-ink-3">One reason, as the analyst sees it</p>
       <div className="mt-6 flex items-start justify-between gap-6">
-        <p className="text-[22px] font-semibold leading-snug tracking-[-0.02em] text-ink md:text-[26px]">Phone call during the payment</p>
+        <p className="text-[22px] font-medium leading-snug tracking-[-0.02em] text-ink md:text-[26px]">Phone call during the payment</p>
         <span className="shrink-0 rounded-full px-3 py-1 text-[16px] font-semibold num" style={{ background: '#fff4e0', color: '#a86400' }}>+9 points</span>
       </div>
       <p className="mt-4 text-[16px] leading-relaxed text-ink-2">Seen about 7.5× more often in scams than in genuine sessions.</p>
@@ -214,7 +214,7 @@ export default function Fraud() {
               <div className="mt-8 grid grid-cols-2 gap-4">
                 {p.stats.slice(0, 2).map((s) => (
                   <div key={s.v} className="card p-5">
-                    <p className="whitespace-nowrap text-[clamp(24px,6.4vw,32px)] font-semibold tracking-[-0.04em] text-[#0a6dbb] num">{s.v}</p>
+                    <p className="whitespace-nowrap text-[clamp(24px,6.4vw,32px)] font-medium tracking-[-0.015em] text-[#0a6dbb] num">{s.v}</p>
                     <p className="mt-2 text-[14px] leading-snug text-ink-2">{s.l}</p>
                     <p className="mt-3 text-[12px] text-ink-3">Source: {s.s}</p>
                   </div>

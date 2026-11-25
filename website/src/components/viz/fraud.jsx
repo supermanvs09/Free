@@ -140,7 +140,7 @@ function ScoreBar({ v }) {
   return (
     <div>
       <div className="flex items-end justify-between">
-        <span><span className="block vz-m">Scam risk</span><span className="block text-[1.9em] font-semibold leading-none tracking-[-0.03em]" style={{ color: col, transition: 'color .4s' }}>{name}</span></span>
+        <span><span className="block vz-m">Scam risk</span><span className="block text-[1.9em] font-semibold leading-none tracking-[-0.015em]" style={{ color: col, transition: 'color .4s' }}>{name}</span></span>
         <span className="text-right"><span className="block vz-m">What happens</span><span className="mt-[.3em] block vz-t" style={{ fontSize: 'max(var(--vz-min), .92em)' }}>{act}</span></span>
       </div>
       <div className="relative mt-[.7em] flex h-[.55em] gap-[2px] overflow-hidden rounded-full">

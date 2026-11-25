@@ -80,6 +80,7 @@ export default function PostureConsole() {
         <ol className="pc-steps" aria-hidden="true">
           {STEPS.map((s, i) => <li key={s} className={cx(i <= step && 'on', i === step && 'now')}>{s}</li>)}
         </ol>
+        <span className="pc-sample">Sample data</span>
         <span className="pc-live"><span className="pc-pulse" />Continuous</span>
       </div>
 

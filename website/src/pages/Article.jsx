@@ -75,7 +75,7 @@ function Body({ slug, post, onToc }) {
     if (summary && i === kt) {
       return (
         <section key={i} id={slugify(b.text)} data-sec className="scroll-mt-28 rounded-[22px] border border-line p-7 md:p-9" style={{ background: `linear-gradient(180deg, hsl(${h} 80% 50% / .08), color-mix(in oklab, var(--color-fg) 2%, transparent))` }}>
-          <h2 className="flex items-center gap-3 text-[22px] font-semibold tracking-[-0.02em] md:text-[26px]"><Icon name="ListChecks" size={24} style={{ color: `hsl(${h} 100% var(--hl))` }} />{b.text}</h2>
+          <h2 className="flex items-center gap-3 text-[22px] font-medium tracking-[-0.02em] md:text-[26px]"><Icon name="ListChecks" size={24} style={{ color: `hsl(${h} 100% var(--hl))` }} />{b.text}</h2>
           <ul className="mt-6 space-y-4">
             {blocks.slice(kt + 1, ktEnd + 1).map((x, k) => (
               <li key={k} className="flex gap-4 text-[17px] leading-[1.65] text-ink">
@@ -90,13 +90,13 @@ function Body({ slug, post, onToc }) {
     const card = i === midIdx ? <ProductCallout key={`c${i}`} post={post} /> : null;
     let el;
     if (b.type === 'h2') {
-      el = <h2 key={i} id={slugify(b.text)} data-sec className="group scroll-mt-28 pt-8 text-[27px] font-semibold leading-[1.18] tracking-[-0.028em] text-ink md:text-[33px]">{b.text}<HeadingLink id={slugify(b.text)} /></h2>;
+      el = <h2 key={i} id={slugify(b.text)} data-sec className="group scroll-mt-28 pt-8 text-[27px] font-medium leading-[1.18] tracking-[-0.015em] text-ink md:text-[33px]">{b.text}<HeadingLink id={slugify(b.text)} /></h2>;
     } else if (b.type === 'h3') {
       el = <h3 key={i} className="pt-2 text-[21px] font-semibold leading-snug tracking-[-0.018em] text-ink">{b.text}</h3>;
     } else if (i === 0 && b.type === 'p') {
       el = <p key={i} className="text-[21px] leading-[1.65] text-ink md:text-[23px]">{b.text}</p>;
     } else if (isPunch(b, prev)) {
-      el = <p key={i} className="my-1 text-[23px] font-semibold leading-snug tracking-[-0.02em] text-ink md:text-[26px]">{b.text}</p>;
+      el = <p key={i} className="my-1 text-[23px] font-medium leading-snug tracking-[-0.02em] text-ink md:text-[26px]">{b.text}</p>;
     } else if (b.type === 'quote') {
       el = (
         <figure key={i} className="my-8 border-l-[3px] pl-6 md:pl-8" style={{ borderColor: `hsl(${h} 100% var(--hl))` }}>
@@ -179,7 +179,7 @@ export default function Article() {
           <Breadcrumb items={[{ name: 'Blogs', path: '/blogs' }, { name: post.category }]} className="rise" />
           <div className="mx-auto mt-10 max-w-[900px] text-center">
             <p className="rise inline-flex items-center gap-2 rounded-full border border-line-2 px-3.5 py-1.5 text-[13px] font-semibold" style={{ color: `hsl(${h} 100% var(--hl))` }}>{post.category}{post.fiction && <span className="font-normal text-ink-3">· Dramatised account</span>}</p>
-            <h1 className="rise mt-6 font-semibold tracking-[-0.04em]" style={{ fontSize: 'clamp(32px, 4.4vw, 60px)', lineHeight: 1.06, '--d': '80ms' }}>{post.title}</h1>
+            <h1 className="rise mt-6 font-semibold tracking-[-0.015em]" style={{ fontSize: 'clamp(32px, 4.4vw, 60px)', lineHeight: 1.06, '--d': '80ms' }}>{post.title}</h1>
             <p className="t-lead rise mx-auto mt-6 max-w-[700px]" style={{ '--d': '160ms' }}>{post.excerpt}</p>
             <div className="rise mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-[14px] text-ink-3" style={{ '--d': '240ms' }}>
               <span className="inline-flex items-center gap-3"><span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white p-1.5"><img src="/brand/mark.webp" alt="" className="h-full w-full" /></span><span className="font-medium text-ink-2">{authorOf(post)}</span></span>

@@ -53,7 +53,7 @@ export default function Blog() {
               <Cover post={feat} className="aspect-[16/10] md:aspect-auto md:min-h-[320px]" />
               <span className="flex flex-col justify-center p-7 md:p-10">
                 <span className="text-[12.5px] font-semibold uppercase tracking-[.1em]" style={{ color: hueOf(feat.category) }}>Featured · {feat.category}</span>
-                <span className="mt-3 text-[clamp(24px,2.4vw,32px)] font-semibold leading-tight tracking-[-0.025em]">{feat.title}</span>
+                <span className="mt-3 text-[clamp(24px,2.4vw,32px)] font-medium leading-tight tracking-[-0.015em]">{feat.title}</span>
                 <span className="mt-4 text-[16px] leading-relaxed text-ink-2">{feat.excerpt}</span>
                 <span className="mt-6 text-[13.5px] text-ink-3">{formatDate(feat)} · {feat.read} min read</span>
                 <span className="link mt-5">Read the blog<Icon name="ArrowRight" size={14} weight="bold" /></span>

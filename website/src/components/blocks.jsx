@@ -137,7 +137,7 @@ export function FilmPlayer({ src = '/video/deep-algorithms-film', poster = '/vid
               <svg viewBox="0 0 24 24" className="ml-1 h-6 w-6 md:h-9 md:w-9" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="currentColor" /></svg>
             </span>
             {!compact && <span className="absolute inset-x-9 bottom-8 hidden items-end justify-between gap-2 md:flex">
-              <span className="text-[26px] font-semibold tracking-[-0.02em] text-white">{title}</span>{meta}
+              <span className="text-[26px] font-medium tracking-[-0.02em] text-white">{title}</span>{meta}
             </span>}
           </button>
         )}

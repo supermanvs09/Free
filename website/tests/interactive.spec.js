@@ -78,20 +78,20 @@ test('home: the logo wall names every customer it shows', async ({ page }) => {
   for (const alt of await imgs.evaluateAll((els) => els.map((e) => e.alt))) expect(alt.length).toBeGreaterThan(2);
 });
 
-test('home: the AI threat picture names every threat and stops it', async ({ page }) => {
+test('home: the detection timeline shows signals, response and prevented steps for each pattern', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await hydrated(page);
-  const dc = page.locator('#threat .dc');
-  for (const t of ['AI-generated phishing', 'Deepfake voice', 'Token theft', 'Prompt injection']) {
-    await expect(dc).toHaveAttribute('aria-label', new RegExp(t, 'i'));
-  }
-  // reduced motion shows the record step; the step buttons move between steps
-  await expect(dc.locator('.dc-card')).toContainText('Every decision, on one record.');
-  await dc.getByRole('button', { name: 'Step 5: AI agents' }).click();
-  await expect(dc.locator('.dc-card')).toContainText('Zenstra AI');
-  await dc.getByRole('button', { name: 'Step 3: Human identities' }).click();
-  await expect(dc.locator('.dc-card')).toContainText('adapID AI');
+  const tl = page.locator('#threat .tl');
+  // reduced motion shows the finished detection: four numbered signals, the response and what was prevented
+  await expect(tl.locator('.tl-ev')).toHaveCount(4);
+  await expect(tl.locator('.tl-p-out')).toContainText('Session revoked, step-up required');
+  await expect(tl).toHaveAttribute('aria-label', /T1621|MFA pushes/);
+  await tl.getByRole('button', { name: 'AI agent hijack' }).click();
+  await expect(tl.locator('.tl-p-out')).toContainText('Tool call denied before it ran');
+  await expect(tl.locator('.tl-p-k')).toContainText('Zenstra AI');
+  await tl.getByRole('button', { name: 'Machine identity abuse' }).click();
+  await expect(tl.locator('.tl-p-out')).toContainText('Key revoked');
 });
 
 test('home: the hero is one sentence and two actions, with a pause control', async ({ page }) => {
@@ -103,22 +103,22 @@ test('home: the hero is one sentence and two actions, with a pause control', asy
   await expect(hero).toHaveClass(/paused/);
 });
 
-test('home: the posture section closes the trust gap', async ({ page }) => {
+test('home: the platform section states the position and the four things it does', async ({ page }) => {
   await page.goto('/');
-  await hydrated(page);
-  const tg = page.locator('#aispm .tg');
-  await tg.scrollIntoViewIfNeeded();
-  await expect(tg).toContainText('Continuous posture', { timeout: 12000 });
-  await expect(tg).toContainText('Deep Algorithms closes the gap');
+  const sec = page.locator('#aispm');
+  await expect(sec.getByRole('heading', { level: 2 })).toHaveText('Continuous AI Security Posture Management');
+  await expect(sec).toContainText('Securing your identities and digital ecosystem from AI-driven threats.');
+  await expect(sec.locator('.hm-four li')).toHaveCount(4);
+  await expect(sec.locator('.pc')).toContainText('Sample data');
 });
 
-test('home: the protection accordion opens one threat at a time, with its picture', async ({ page }) => {
+test('home: the outcomes accordion opens one outcome at a time, with its picture', async ({ page }) => {
   await page.goto('/');
   await hydrated(page);
   const pa = page.locator('#protect');
   await expect(pa.getByRole('button', { expanded: true })).toHaveCount(1);
-  await pa.getByRole('button', { name: /Fraud with valid credentials/ }).click();
-  await expect(pa.getByRole('button', { name: /Fraud with valid credentials/ })).toHaveAttribute('aria-expanded', 'true');
+  await pa.getByRole('button', { name: /Stop fraud that passes login/ }).click();
+  await expect(pa.getByRole('button', { name: /Stop fraud that passes login/ })).toHaveAttribute('aria-expanded', 'true');
   await expect(pa.getByRole('button', { expanded: true })).toHaveCount(1);
   await expect(pa.getByRole('region')).toContainText('Identity Fraud Prevention');
   await expect(pa.locator('.pa-fig img')).toHaveAttribute('src', /payment-cards/);

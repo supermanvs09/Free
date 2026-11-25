@@ -77,7 +77,7 @@ export function Sent({ title, body }) {
   return (
     <div role="status" className="flex min-h-[420px] flex-col items-center justify-center text-center">
       <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-ok/15 text-ok"><Icon name="CheckCircle" size={34} weight="fill" /></span>
-      <h2 className="mt-6 text-[30px] font-semibold tracking-[-0.03em] text-ink">{title}</h2>
+      <h2 className="mt-6 text-[30px] font-medium tracking-[-0.015em] text-ink">{title}</h2>
       <p className="mt-3 max-w-[380px] text-ink-2">{body}</p>
     </div>
   );

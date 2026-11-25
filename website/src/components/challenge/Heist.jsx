@@ -72,9 +72,10 @@ export function HeistTeaser() {
   useEffect(() => {
     let hidden = 0;
     try { hidden = +localStorage.getItem(HIDE_KEY) || 0; } catch { /* storage blocked */ }
-    // phones get the small pill: a card would cover the page and the bottom bar
-    if (Date.now() - hidden < 3 * 864e5 || window.matchMedia('(max-width: 767px)').matches) { const t = setTimeout(() => setState('mini'), 2500); return () => clearTimeout(t); }
-    const t = setTimeout(() => setState('open'), 4000);
+    // always start as the small pill: an open card would cover the page a visitor came to read.
+    // The utility bar already invites people in; the card opens when they ask for it.
+    void hidden;
+    const t = setTimeout(() => setState('mini'), 2500);
     return () => clearTimeout(t);
   }, []);
   useEffect(() => {

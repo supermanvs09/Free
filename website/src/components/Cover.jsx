@@ -156,7 +156,7 @@ const ART = {
     <Panel>
       <Head right="net banking">Payment</Head>
       <div className="p-[.9em]">
-        <div className="flex items-center justify-between"><span className="text-[1.5em] font-semibold tracking-[-0.03em] text-[#0e1116]">₹48,00,000</span><Pill c="crit">New payee</Pill></div>
+        <div className="flex items-center justify-between"><span className="text-[1.5em] font-semibold tracking-[-0.015em] text-[#0e1116]">₹48,00,000</span><Pill c="crit">New payee</Pill></div>
         <div className="mt-[.6em] flex items-center gap-[.5em] rounded-[.6em] px-[.6em] py-[.5em] text-[.8em]" style={{ background: 'rgb(11 42 82 / .035)' }}>
           <svg viewBox="0 0 24 24" className="h-[1.3em] w-[1.3em] shrink-0" fill="#a8650f" aria-hidden="true"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zM19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9z" /></svg>
           <span className="text-[#2b313b]">Queued by an AI assistant</span><span className={cx('ml-auto text-[#6b7280]', mono)}>0.4 s</span>
@@ -212,7 +212,7 @@ export default function Cover({ post, className, showHook = true, style }) {
       )}
       {hook && (
         <div className="absolute bottom-[9%] left-[6%] right-[56%]">
-          <p className="font-semibold leading-none tracking-[-0.05em] text-[#0e1116]" style={{ fontSize: `clamp(26px, ${big.length > 8 ? 6.2 : 8}cqw, 96px)` }}>{big}</p>
+          <p className="font-semibold leading-none tracking-[-0.015em] text-[#0e1116]" style={{ fontSize: `clamp(26px, ${big.length > 8 ? 6.2 : 8}cqw, 96px)` }}>{big}</p>
           <p className="mt-2 font-medium" style={{ color: `hsl(${hue} 70% 34%)`, fontSize: 'clamp(12px, 2.3cqw, 22px)' }}>{small}</p>
         </div>
       )}

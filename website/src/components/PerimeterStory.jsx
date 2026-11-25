@@ -29,7 +29,7 @@ function Copy({ s, i, dim }) {
   return (
     <div className={cx('transition-opacity duration-500', dim && 'lg:opacity-[.9]')}>
       <p className="kicker" style={{ '--acc': s.acc }}><span className="num mr-2">{String(i + 1).padStart(2, '0')}</span>{s.kicker}</p>
-      <p className="mt-5 text-[clamp(30px,3.2vw,44px)] font-semibold leading-[1.05] tracking-[-0.035em]" style={{ color: s.acc }}>{s.stat}</p>
+      <p className="mt-5 text-[clamp(30px,3.2vw,44px)] font-medium leading-[1.05] tracking-[-0.015em]" style={{ color: s.acc }}>{s.stat}</p>
       <h3 className="t-h3 mt-4 max-w-[30ch]">{s.title}</h3>
       <p className="mt-3 max-w-[46ch] text-[16.5px] leading-relaxed text-ink-2">{s.body}</p>
       <Link to={s.to} className="link mt-6" style={{ '--acc': s.acc }}>{s.cta}<Icon name="ArrowRight" size={14} weight="bold" /></Link>
