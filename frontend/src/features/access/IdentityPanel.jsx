@@ -4,6 +4,7 @@ import { ChevronRight, Crosshair, ExternalLink, Fingerprint, Radius } from 'luci
 import { findPosture, getCredentialTab, getIdentityTab } from '../../lib/api/access';
 import { useQuery } from '../../lib/hooks/useQuery';
 import { accessDetailRoute, genomeRouteFor, identityRoute } from '../../lib/identityLinks';
+import { EcsGenomeLauncher } from '../identities/OpenInGenome';
 import { formatDateTime, formatNumber, formatRelative, humanizeToken } from '../../lib/format';
 import { Button } from '../../ui/Button';
 import { Panel, SectionLabel } from '../../ui/Panel';
@@ -237,7 +238,10 @@ function SummaryPane({ node, isFocusNode, detail, posture, discoveryId, onFocus 
       : detail.data?.kind === 'credential'
         ? detail.data.overview?.credential
         : null;
-  const genome = node.identityId ? genomeRouteFor({ identity_type: node.identityType, arn: node.arn }) : null;
+  /* An ECS task has a Genome page per role (task, execution), so it asks which
+     one; every other type links straight to its page. */
+  const ecsTask = Boolean(node.identityId) && node.identityType === 'ecs_task';
+  const genome = node.identityId && !ecsTask ? genomeRouteFor({ identity_type: node.identityType, arn: node.arn }) : null;
   const score = posture.data;
 
   return (
@@ -323,7 +327,7 @@ function SummaryPane({ node, isFocusNode, detail, posture, discoveryId, onFocus 
         </div>
       )}
 
-      {(discoveryId || genome) && (
+      {(discoveryId || genome || ecsTask) && (
         <div className="flex flex-col gap-2">
           {!isFocusNode && discoveryId && (
             <Button variant="secondary" size="sm" icon={Crosshair} onClick={() => onFocus(discoveryId)} className="w-full justify-center">
@@ -335,6 +339,23 @@ function SummaryPane({ node, isFocusNode, detail, posture, discoveryId, onFocus 
             {node.identityId && <GoRow to={identityRoute(node.identityId)} icon={ExternalLink} label="Open identity" />}
             {!node.identityId && node.credentialId && <GoRow to={`/credentials?search=${encodeURIComponent(node.name)}`} icon={ExternalLink} label="Open credential" />}
             {genome && <GoRow to={genome} icon={Fingerprint} label="Normal behaviour" />}
+            {ecsTask && (
+              <EcsGenomeLauncher
+                identity={{ id: node.identityId, arn: node.arn, identity_type: node.identityType }}
+                credentials={detail.data?.overview?.bound_credentials}
+                renderTrigger={(open) => (
+                  <button
+                    type="button"
+                    onClick={open}
+                    className="group flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[12.5px] font-medium text-ink hover:bg-surface-2"
+                  >
+                    <Fingerprint className="size-4 text-ink-3 group-hover:text-brand" aria-hidden="true" />
+                    <span className="flex-1">Normal behaviour</span>
+                    <ChevronRight className="size-4 text-ink-3 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                  </button>
+                )}
+              />
+            )}
           </nav>
         </div>
       )}

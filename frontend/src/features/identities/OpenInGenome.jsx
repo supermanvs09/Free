@@ -42,7 +42,9 @@ export function OpenInGenome({ identity, credentials }) {
   return <EcsGenomeLauncher identity={identity} credentials={credentials} />;
 }
 
-function EcsGenomeLauncher({ identity, credentials }) {
+/* `renderTrigger(open)` lets another screen (the access graph's side panel)
+   show its own control; the default is the identity page's header button. */
+export function EcsGenomeLauncher({ identity, credentials, renderTrigger }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState('');
@@ -89,9 +91,13 @@ function EcsGenomeLauncher({ identity, credentials }) {
 
   return (
     <>
-      <Button variant="secondary" icon={Dna} onClick={() => setOpen(true)}>
-        Open NHI Genome
-      </Button>
+      {renderTrigger ? (
+        renderTrigger(() => setOpen(true))
+      ) : (
+        <Button variant="secondary" icon={Dna} onClick={() => setOpen(true)}>
+          Open NHI Genome
+        </Button>
+      )}
       <Modal
         open={open}
         onClose={close}
