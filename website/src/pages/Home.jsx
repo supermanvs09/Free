@@ -10,7 +10,7 @@ import CertSeal from '../components/CertSeal.jsx';
 import ProductMark from '../components/ProductMark.jsx';
 import PostureConsole from '../components/home/PostureConsole.jsx';
 import TrustGap from '../components/home/TrustGap.jsx';
-import ThreatDome from '../components/home/ThreatDome.jsx';
+import ThreatFeed from '../components/home/ThreatFeed.jsx';
 import ZenstraCore from '../components/home/ZenstraCore.jsx';
 import ProtectAccordion from '../components/home/ProtectAccordion.jsx';
 import FilmModal, { FILM, openFilm } from '../components/home/FilmModal.jsx';
@@ -101,36 +101,34 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 3 · ZENSTRA AI: the hero's promise carried on to AI agents, in Zenstra's own words */}
-      <section id="agents" className="sec scroll-mt-20" aria-labelledby="zen-h" style={{ '--acc': 'var(--color-zen)' }}>
+      {/* 3 · ZENSTRA AI: the hero's promise carried on to AI agents, in Zenstra's own words and style */}
+      <section id="agents" className="sec scroll-mt-20" aria-labelledby="zen-h">
         <div className="wrap">
-          <div className="hm-zen tone-d">
-            <img className="hm-zen-bg" src="/img/zenstra/agent.webp" alt="" loading="lazy" decoding="async" />
-            <div className="relative grid items-center gap-10 lg:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)] lg:gap-14">
-              <div className="max-lg:text-center">
-                <p className="hm-zen-k"><ProductMark p="zenstra" size={22} />Zenstra AI</p>
-                <h2 id="zen-h" className="hm-zen-h">Secure every agent. <span>Verify every intent.</span></h2>
-                <p className="hm-zen-p">Every AI agent is a new identity with real access. Zenstra checks every action before it runs, and records why.</p>
-                <div className="mt-8 flex flex-wrap gap-3 max-lg:justify-center max-sm:flex-col max-sm:[&>*]:w-full">
-                  <Link to="/agentic-ai/agentic-identity" className="hm-pillbtn solid">Explore Zenstra AI</Link>
-                  <Link to="/agentic-ai/agent-discovery" className="hm-pillbtn">Agent discovery</Link>
-                </div>
+          <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16">
+            <Reveal className="max-lg:text-center">
+              <p className="hm-zk"><ProductMark p="zenstra" size={20} />Zenstra AI</p>
+              <h2 id="zen-h" className="t-h2 mt-6">Secure every agent. <span className="hm-zaccent">Verify every intent.</span></h2>
+              <p className="t-lead mt-5 max-w-[520px] max-lg:mx-auto">Every AI agent is a new identity with real access. Zenstra checks every action before it runs, and records why.</p>
+              <div className="mt-8 flex flex-wrap gap-3 max-lg:justify-center max-sm:flex-col max-sm:[&>*]:w-full">
+                <Button to="/agentic-ai/agentic-identity" arrow>Explore Zenstra AI</Button>
+                <Button to="/agentic-ai/agent-discovery" variant="ghost">Agent discovery</Button>
               </div>
-              <div className="min-w-0"><ZenstraCore /></div>
-            </div>
-            <ul className="hm-zen-ways" aria-label="Three ways in">
-              {ZEN_WAYS.map((w) => (
-                <li key={w.k}>
-                  <Link to={w.to} className="group">
-                    <span className="hm-zen-wi"><Icon name={w.icon} size={18} /></span>
-                    <b>{w.k}<Icon name="ArrowRight" size={14} weight="bold" className="transition-transform group-hover:translate-x-0.5" /></b>
-                    <span className="hm-zen-wp">{w.p}</span>
-                    <small>{w.on}</small>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            </Reveal>
+            <Reveal up delay={80} className="hm-ztile min-w-0"><ZenstraCore /></Reveal>
           </div>
+          <ul className="hm-ways mt-14" aria-label="Three ways in">
+            {ZEN_WAYS.map((w, i) => (
+              <Reveal as="li" key={w.k} delay={i * 70}>
+                <Link to={w.to} className="hm-way group">
+                  <span className="hm-way-i"><Icon name={w.icon} size={20} /></span>
+                  <b>{w.k}</b>
+                  <span className="hm-way-p">{w.p}</span>
+                  <small>{w.on}</small>
+                  <span className="hm-way-a">Explore<Icon name="ArrowRight" size={14} weight="bold" className="transition-transform group-hover:translate-x-0.5" /></span>
+                </Link>
+              </Reveal>
+            ))}
+          </ul>
         </div>
       </section>
 
@@ -138,7 +136,7 @@ export default function Home() {
       <section id="threat" className="sec wash scroll-mt-20" aria-labelledby="threat-h">
         <div className="wrap">
           <SectionHead id="threat-h" eyebrow="AI-driven threats" title="Attackers don’t break in anymore. They log in." lead="AI hands attackers convincing phishing, cloned voices and stolen tokens at scale, and AI agents add identities nobody reviews. Deep Algorithms stops each threat at the identity it targets, before it executes." />
-          <Reveal up delay={80} className="mt-12 min-w-0"><ThreatDome /></Reveal>
+          <Reveal up delay={80} className="mt-12 min-w-0"><ThreatFeed /></Reveal>
           <ul className="mt-12 grid gap-px overflow-hidden rounded-[20px] border border-line bg-line sm:grid-cols-2 xl:grid-cols-4">
             {STATS.map((x, i) => (
               <Reveal as="li" key={x.v} delay={i * 70} className="hm-stat bg-bg-1 p-7">
