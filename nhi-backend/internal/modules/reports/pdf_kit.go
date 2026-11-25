@@ -108,7 +108,7 @@ func newKit(rep *PostureReport, orientation string, mx, top, bottom float64, kno
 	pdf.AliasNbPages("{nb}")
 
 	// Document properties readers and search tools use.
-	pdf.SetTitle(ReportTitle+" · "+rep.ScopeLabel(), true)
+	pdf.SetTitle(ReportTitle+" · "+rep.Edition()+" · "+rep.ScopeLabel(), true)
 	pdf.SetSubject(BrandTitle, true)
 	pdf.SetAuthor(orDash(rep.PreparedFor)+" · Deep Algorithms", true)
 	pdf.SetCreator("Deep Algorithms NHI Console", true)

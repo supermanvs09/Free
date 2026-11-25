@@ -64,7 +64,7 @@ func (k *kit) subHead(title, note string) {
 
 // statement is a shadcn Alert: a bordered box with an info mark, a title
 // and the text.
-func (k *kit) statement(x, w float64, s string) { k.note(x, w, "In brief", s) }
+func (k *kit) statement(x, w float64, s string) { k.note(x, w, "In brief  ·  "+k.rep.Edition(), s) }
 
 // note is a shadcn Alert with a title.
 func (k *kit) note(x, w float64, title, s string) {

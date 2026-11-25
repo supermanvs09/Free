@@ -43,6 +43,17 @@ func (rep *PostureReport) Stage() Stage {
 	return st
 }
 
+// Edition is which of the two report versions the data makes this one:
+// a baseline assessment (first period, nothing fixed yet) or a progress
+// report. It is chosen from the data, never by the user, so a new customer
+// never gets empty progress sections and a mature one never hides progress.
+func (rep *PostureReport) Edition() string {
+	if rep.Stage().Baseline {
+		return "Baseline assessment"
+	}
+	return "Progress report"
+}
+
 // dueIn is the days until a finding's target: negative when overdue, and
 // ok false when its first detection is unknown.
 func (rep *PostureReport) dueIn(c ReportCheck) (int, bool) {

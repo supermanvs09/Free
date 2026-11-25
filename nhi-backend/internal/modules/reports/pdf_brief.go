@@ -99,7 +99,7 @@ func (b *brief) cover() {
 	y += tsize*0.5 + 22
 
 	b.font(fSemi, 7.4, cInk3)
-	b.at(b.mx, y, b.body, 4, "REPORT", "L")
+	b.at(b.mx, y, b.body, 4, strings.ToUpper(rep.Edition()), "L")
 	b.font(fSemi, 17, cInk)
 	b.at(b.mx, y+5, b.body, 8, ReportTitle, "L")
 	b.font(fReg, 9.5, cInk2)

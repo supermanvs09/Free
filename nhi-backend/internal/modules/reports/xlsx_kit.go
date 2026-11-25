@@ -374,7 +374,7 @@ func (x *wb) cover(title string, sheets []sheetInfo, extra func(row int) int) er
 	if rep.Sample {
 		meta += "  ·  sample data"
 	}
-	r := x.header(sh, title, meta, true)
+	r := x.header(sh, title+"  ·  "+rep.Edition(), meta, true)
 
 	// At a glance.
 	r = x.section(sh, r, 0, 11, "At a glance", "Where things stand at the last posture scan.")

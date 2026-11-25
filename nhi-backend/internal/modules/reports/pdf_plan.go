@@ -117,7 +117,7 @@ func (p *plan) cover() {
 	lw := 76.0
 	x := p.mx
 	p.font(fSemi, 6.8, cInk3)
-	p.at(x, y, lw, 4, "REPORT", "L")
+	p.at(x, y, lw, 4, strings.ToUpper(rep.Edition()), "L")
 	p.font(fSemi, p.fitSize(fSemi, 15, lw, "Identity Risk Remediation Plan"), cInk)
 	p.at(x, y+4.5, lw, 7, "Identity Risk Remediation Plan", "L")
 	p.font(fReg, 8.4, cInk2)
