@@ -56,3 +56,20 @@ Ours is its own object: a **hexagonal defence stack**, five translucent plates a
 | 05 Prove | ring of chained record blocks | The examiner's question: prove it |
 
 Scroll sequence (pinned): AI-driven threats close in on the assembled core, seen face-on, under the section statement → the stack tilts to an isometric view and explodes, with leader-line labels → each plate in turn: the threat flies in and is stopped at that plate, with a side card (what it does, what it covers, what it stopped, the decision line) → the stack reassembles: "One posture. Always on." Reduced motion: the exploded drawing and the five cards, static.
+
+## 5. Section-by-section content (round 4, before styling)
+
+Every line below comes from the site's own data (`src/data/*`). The visual treatment waits for the chosen template.
+
+| # | Section | Headline | Content | Source |
+|---|---|---|---|---|
+| 1 | Hero | Discover every human, machine and AI agent identity. | Book a demo · Watch video (01:30). Ambient wave. | kept |
+| 2 | Proof | Trusted by banks, government and enterprises across India | 10 customer logos (MeitY, Canara Bank, Karnataka Bank, DCB Bank, NCRTC, IIT Kanpur, IIT Mandi, IIIT Hyderabad, Bhaktivedanta, CCoE) · ISO/IEC 27001, SOC 2 Type II, ISO/IEC 42001, ISO/IEC 27701 | `site.js` CUSTOMERS, CERTS |
+| 3 | Signature | Continuous AI Security Posture Management / Securing your identities and digital ecosystem from AI-driven threats. | The chosen concept (Air Traffic Control or Living City) | concept pending |
+| 4 | Products | Three products. One posture. | Zenstra AI (AI agents, with the film's Claude scene) · adapID AI (people and machine identities: CIRM, NHI for AWS, fraud prevention, AD) · ICMS (personal data under the DPDP Act) | `nav.js` PRODUCT_MENU |
+| 5 | Industries | Built for India's regulated industries | BFSI: "Every login, payee and payment, scored before it clears." · Healthcare: "Know who opened every patient record, and why." · Government · Digital platforms. Regulators named: RBI, SEBI, DPDP Act 2023 | `solutions.js` |
+| 6 | Proof in numbers | Measured, certified, recognised | < 80 ms risk decision · p95 18 ms agent decision · < 5 min audit package · 72-hour breach reporting ready. Patent No. 602726 (multi-domain fraud detection, Oct 2026). DSCI Cybersecurity Excellence 2025 · Business Excellence Award 2025 · GITEX GLOBAL 2025 | `products.js` stats, `company.js` RECOGNITION, posts |
+| 7 | Research | How identities get attacked, and how to stop it | Latest three: "Your AI Code Reviewer May Be Trusting the Wrong Instructions" (Oct 2026) · "Trusted Identities Remain a Critical Attack Surface" (Aug 2026) · "The Attack That Never Triggers an Alert" (Aug 2026) | `posts.js` |
+| 8 | Demo card | Find your riskiest identity before attackers do. | unchanged | kept |
+
+Template shortlist (Dribbble, opened individually): A Liberty (Emura), B Cyntra (BayFi Studio), C Fudo Security (Dave Roach), D Picus Security (Dave Roach), E PhishAI integrations (Illiyin Studio), F Stratiform (ROY'Z_VISUALS).
