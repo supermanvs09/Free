@@ -1,34 +1,34 @@
 import { test, expect } from '@playwright/test';
 import { hydrated } from './helpers.js';
 
-test('home: both halves of AI-SPM lead to their product pages', async ({ page }) => {
+test('home: every product line has a card that leads to its own page', async ({ page }) => {
   await page.goto('/');
   await hydrated(page);
-  await expect(page.locator('#identity').getByRole('link', { name: 'Explore adapID AI' })).toHaveAttribute('href', '/adapid-ai');
-  await expect(page.locator('#agents').getByRole('link', { name: 'Explore Zenstra AI' })).toHaveAttribute('href', '/agentic-ai/agentic-identity');
-  await expect(page.getByRole('navigation', { name: 'The two halves of Continuous AI-SPM' }).getByRole('link')).toHaveCount(2);
+  const sec = page.locator('#products');
+  for (const name of ['Zenstra AI', 'adapID AI', 'ICMS Compliance Suite']) {
+    await expect(sec.getByRole('link', { name: `Explore ${name}` })).toHaveAttribute('href', /^\//);
+  }
 });
-
-test('home: the identity half walks discover, assess, detect and respond, and the agent half shows real AI apps', async ({ page }) => {
+test('home: the attack replay plays five chapters and can be paused and jumped', async ({ page }) => {
   await page.goto('/');
   await hydrated(page);
-  await expect(page.locator('#identity .dx-bento > article')).toHaveCount(4);
-  await expect(page.locator('#identity .dx-loop li')).toHaveCount(5);
-  const agents = page.locator('#agents');
-  for (const app of ['Claude', 'Cursor', 'Copilot', 'n8n', 'Zapier']) await expect(page.locator(`#aispm [title="${app}"]`).first()).toBeAttached();
-  await expect(agents.locator('.zx-three > article')).toHaveCount(3);
+  const rp = page.locator('#aispm .rp');
+  await rp.scrollIntoViewIfNeeded();
+  await expect(rp.locator('.rp-ch')).toHaveCount(5);
+  await expect(rp.getByRole('button', { name: 'Pause the replay' })).toBeVisible({ timeout: 8000 });
+  await rp.getByRole('button', { name: /The agent is stopped/ }).click();
+  await expect(rp).toHaveAttribute('data-ch', '3');
+  await rp.getByRole('button', { name: 'Pause the replay' }).click();
+  await expect(rp.getByRole('button', { name: 'Play the replay' })).toBeVisible();
 });
-
-test('reduced motion shows every picture at its finished frame', async ({ page }) => {
+test('reduced motion shows the replay at its end, with every decision on the record', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await hydrated(page);
-  expect(await page.locator('.dx .dx-media').count()).toBeGreaterThanOrEqual(10);
+  await expect(page.locator('#aispm .rp-log li.in')).toHaveCount(5);
+  await expect(page.locator('#aispm .rp-scene.s4')).toBeVisible();
   await expect(page.locator('.cl-toast')).toContainText('Blocked! This prompt contains credentials, API keys and tokens.');
-  await expect(page.locator('.cl-note')).toContainText('Not sent · decision recorded by Zenstra AI');
-  await expect(page.locator('.tg-verdict')).toBeVisible();
 });
-
 test('zenstra: before and after sit side by side, five moments each', async ({ page }) => {
   await page.goto('/agentic-ai/agentic-identity');
   const sec = page.locator('section:has(#chg-h)');
@@ -72,15 +72,14 @@ test('home: "Watch video" plays the brand film in a dialog, and Escape closes it
   await expect(btn).toBeFocused();
 });
 
-test('home: the session picture compares behaviour with its normal and shows the decision', async ({ page }) => {
+test('home: the replay names each AI-driven technique and the decision taken', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
-  const id = page.locator('#identity');
-  await expect(id).toContainText('Their normal, learned');
-  await expect(id).toContainText('MFA push ×9');
-  await expect(id).toContainText('Session revoked');
+  const log = page.locator('#aispm .rp-log');
+  for (const v of ['DETECT', 'HOLD', 'FLAG', 'BLOCK', 'RECORD']) await expect(log).toContainText(v);
+  await expect(log).toContainText('synthetic voice');
+  await expect(page.locator('#aispm')).toContainText('Names and data are illustrative');
 });
-
 test('home: the hero is one sentence and two actions, with a pause control', async ({ page }) => {
   await page.goto('/');
   await hydrated(page);
@@ -90,14 +89,12 @@ test('home: the hero is one sentence and two actions, with a pause control', asy
   await expect(hero.getByRole('button', { name: 'Play background animation' })).toBeVisible();
 });
 
-test('home: the AI-SPM section states the position, with pictures marked illustrative', async ({ page }) => {
+test('home: the AI-SPM section states the position under its own name', async ({ page }) => {
   await page.goto('/');
   const sec = page.locator('#aispm');
   await expect(sec.getByRole('heading', { level: 2 })).toHaveText('Securing your identities and digital ecosystem from AI-driven threats.');
   await expect(sec).toContainText('Continuous AI Security Posture Management');
-  await expect(sec.locator('.dx-tag')).toContainText('Illustrative');
 });
-
 
 test('every hero rolls the customer logos, with a pause control', async ({ page }) => {
   for (const path of ['/adapid-ai']) {
