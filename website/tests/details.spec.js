@@ -57,12 +57,10 @@ test('a missing page names the address and offers search', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Search the site' }).last()).toBeVisible();
 });
 
-test('the home hero names who we secure, and proof follows straight after', async ({ page }) => {
+test('the home hero names who we secure, with the experts one click away', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1, name: 'Discover every human, machine and AI agent identity.' })).toBeVisible();
-  await expect(page.locator('section[aria-labelledby="hero-h"]').getByRole('link', { name: 'Book a demo' })).toBeInViewport();
-  // the customer proof is the very next section
-  await expect(page.locator('section[aria-labelledby="hero-h"] + section').getByRole('heading', { name: 'Trusted by banks, government and enterprises across India' })).toBeAttached();
+  await expect(page.getByRole('heading', { level: 1, name: 'Identity security for an AI-driven world.' })).toBeVisible();
+  await expect(page.locator('section[aria-labelledby="hero-h"]').getByRole('link', { name: 'Talk to our experts' })).toBeInViewport();
 });
 
 test('the utility bar carries search and the language menu, and folds away on scroll', async ({ page, isMobile }) => {

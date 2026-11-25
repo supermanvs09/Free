@@ -235,7 +235,7 @@ export default function Header() {
       // dark only when a dark band actually sits under the bar; product heroes
       // (navy, starting under a white strip) and pages that begin below the bar stay light
       let light = true;
-      for (const el of document.querySelectorAll('.page > .dark:not(.hero-navy)')) {
+      for (const el of document.querySelectorAll('.page > .dark:not(.hero-navy), .page [data-hdr="dark"]')) {
         const r = el.getBoundingClientRect();
         if (r.top <= 40 && r.bottom >= 32) { light = false; break; }
       }

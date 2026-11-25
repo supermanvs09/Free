@@ -24,10 +24,10 @@ test('there is no theme switch, and an old saved dark choice is ignored', async 
   expect(await page.evaluate(() => localStorage.getItem('da-theme'))).toBeNull();
 });
 
-test('the header stays light over the light hero and when scrolled', async ({ page }) => {
+test('the header turns dark over the dark home hero and light over light sheets', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' });
-  await expect(page.locator('header')).toHaveClass(/tone-l/);
-  await page.evaluate(() => window.scrollTo(0, document.getElementById('aispm').getBoundingClientRect().top + window.scrollY));
+  await expect(page.locator('header')).not.toHaveClass(/tone-l/);
+  await page.evaluate(() => window.scrollTo(0, document.getElementById('eco-h').getBoundingClientRect().top + window.scrollY - 40));
   await expect(page.locator('header')).toHaveClass(/tone-l/);
 });
 
