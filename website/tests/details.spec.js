@@ -60,7 +60,7 @@ test('a missing page names the address and offers search', async ({ page }) => {
 test('the home hero names who we secure and shows proof before any scroll', async ({ page, isMobile }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1, name: 'Discover every human, machine and AI agent identity.' })).toBeVisible();
-  await expect(page.getByText('Secure your identities and digital ecosystem from AI-driven threats.', { exact: false }).first()).toBeVisible();
+  await expect(page.getByText('finds every employee, customer, workload and AI agent', { exact: false }).first()).toBeVisible();
   await expect(page.getByText('ISO/IEC 27001').first()).toBeVisible();
 });
 

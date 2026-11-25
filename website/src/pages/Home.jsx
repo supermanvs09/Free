@@ -8,32 +8,35 @@ import { CtaBand, TrustedRow } from '../components/blocks.jsx';
 import CertSeal from '../components/CertSeal.jsx';
 import ProductMark from '../components/ProductMark.jsx';
 import PostureConsole from '../components/home/PostureConsole.jsx';
-import OverviewFilm from '../components/home/OverviewFilm.jsx';
 import AgentMap from '../components/home/AgentMap.jsx';
+import IdentityMosaic from '../components/home/IdentityMosaic.jsx';
+import AttackPath from '../components/home/AttackPath.jsx';
+import ThreatTabs from '../components/home/ThreatTabs.jsx';
+import FilmModal, { CHAPTERS, FILM, openFilm } from '../components/home/FilmModal.jsx';
 
-/* The home page states one position and proves it, in the order a security
-   buyer evaluates a vendor:
-   1. what we do (hero: discover every identity; Continuous AI Security
-      Posture Management) and the product doing it;
-   2. why it matters now (the AI threat landscape, sourced);
-   3. how it works, in 49 seconds (the overview);
-   4. the operating model (discover, assess, enforce, prove);
-   5. the newest attack surface, AI agents (Zenstra agent discovery);
-   6. the platform behind it; 7. the proof; 8. the call to action.
+/* The home page follows the order enterprise security buyers read in
+   (Cisco, SailPoint): one promise and its proof up top, then the threat, the
+   attacks we stop, the operating model, the film, the newest surface (AI
+   agents), the platform, the evidence and the call to action.
+   1. Hero: discover every identity, shown as the brand film shows it.
+   2. The threat: attackers sign in, they do not break in (the trust gap).
+   3. Four AI-driven attacks, each with the product screen that stops it.
+   4. Continuous AI Security Posture Management: the model and the console.
+   5. The brand film.  6. Zenstra agent discovery.  7. Platform.  8. Proof.
    Every line is active voice: the platform is the subject, and it acts. */
 
-const THREATS = [
+const STATS = [
   { v: '82:1', l: 'machine identities for every human identity in the average organisation.', s: 'CyberArk Identity Security Landscape, 2025' },
-  { v: '97%', l: 'of organisations that suffered an AI-related breach had no AI access controls in place.', s: 'IBM Cost of a Data Breach Report, 2025' },
+  { v: '97%', l: 'of organisations hit by an AI-related breach had no AI access controls in place.', s: 'IBM Cost of a Data Breach Report, 2025' },
   { v: '63%', l: 'of organisations have no AI governance policy to stop shadow AI.', s: 'IBM Cost of a Data Breach Report, 2025' },
   { v: '$670K', l: 'added to the average breach where shadow AI runs at high levels.', s: 'IBM Cost of a Data Breach Report, 2025' },
 ];
 
 const LOOP = [
-  { n: '01', k: 'Discover', h: 'Inventory every identity.', p: 'Deep Algorithms connects read-only to your identity providers, clouds, SaaS and agent platforms, and builds one inventory of people, machine identities and AI agents, each with an accountable owner.', out: 'Identity inventory · owner · reach', icon: 'MagnifyingGlass' },
-  { n: '02', k: 'Assess', h: 'Score posture continuously.', p: 'It baselines how each identity behaves, rescores its risk the moment something changes and ranks every finding by blast radius, not by alert volume.', out: 'Posture score · ranked findings', icon: 'Gauge' },
-  { n: '03', k: 'Enforce', h: 'Stop the unsafe action.', p: 'It enforces least privilege inline: it steps up a login, revokes an unused privilege or blocks an agent’s tool call before the action executes.', out: 'Inline decision in milliseconds', icon: 'ShieldCheck' },
-  { n: '04', k: 'Prove', h: 'Record audit-ready evidence.', p: 'It records every decision with its reason and maps it to ISO/IEC 42001, the DPDP Act 2023 and RBI and SEBI expectations.', out: 'Tamper-evident decision record', icon: 'SealCheck' },
+  { n: '01', k: 'Discover', h: 'Inventory every identity.', p: 'Connects read-only to your identity providers, clouds, SaaS and AI tools, and builds one inventory of people, workloads and AI agents, each with an owner.', icon: 'MagnifyingGlass' },
+  { n: '02', k: 'Assess', h: 'Score posture continuously.', p: 'Baselines how every identity behaves, rescores it the moment something changes and ranks findings by blast radius.', icon: 'Gauge' },
+  { n: '03', k: 'Enforce', h: 'Stop the unsafe action.', p: 'Steps up a login, revokes unused privilege or blocks an agent’s action inline, before it executes.', icon: 'ShieldCheck' },
+  { n: '04', k: 'Prove', h: 'Record the evidence.', p: 'Records every decision with its reason, mapped to ISO/IEC 42001, the DPDP Act 2023 and RBI and SEBI expectations.', icon: 'SealCheck' },
 ];
 
 const ZEN_POINTS = [
@@ -45,64 +48,51 @@ const ZEN_POINTS = [
 
 /* the three product lines, Zenstra first: it carries the AI agent story */
 const PLATFORM = [
-  { key: 'zenstra', secures: 'AI agents', line: 'Discovers every AI agent and MCP server, scopes its access to its task and checks every action before it runs.' },
-  { key: 'adapid', secures: 'human and machine identities', line: 'Scores every login, key and service account continuously, and stops the identity that starts behaving differently.' },
-  { key: 'icms', secures: 'personal data for DPDPA', line: 'Finds personal data across your estate, checks purpose and consent on every access and produces DPDPA evidence on demand.' },
+  { key: 'zenstra', img: 'ai-at-work', secures: 'AI agents and AI use', line: 'Discovers every AI agent and MCP server, scopes its access to its task, and keeps secrets and personal data out of AI prompts.' },
+  { key: 'adapid', img: 'employee', secures: 'human and machine identities', line: 'Scores every login, key and service account continuously, and stops the identity that starts behaving differently.' },
+  { key: 'icms', img: 'office', secures: 'personal data for DPDPA', line: 'Finds personal data across your estate, checks purpose and consent on every access and produces DPDPA evidence on demand.' },
 ];
 
-const playOverview = () => {
-  const el = document.getElementById('overview');
-  if (!el) return;
-  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 90, behavior: reduce ? 'auto' : 'smooth' });
-  setTimeout(() => window.dispatchEvent(new Event('da:play-overview')), reduce ? 0 : 650);
-};
+const Play = ({ size = 16 }) => <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="currentColor" /></svg>;
 
 export default function Home() {
   const menu = Object.fromEntries(PRODUCT_MENU.map((l) => [l.key, l]));
   return (
     <>
-      <Seo path="/" description="Deep Algorithms delivers Continuous AI Security Posture Management. It discovers every human, machine and AI agent identity, scores its risk continuously, stops unsafe access and agent actions before they execute, and records audit-ready evidence. ISO 27001, SOC 2 Type II, ISO 42001." />
+      <Seo path="/" description="Deep Algorithms discovers every human, machine and AI agent identity in your enterprise and protects each one from AI-driven threats with Continuous AI Security Posture Management. ISO 27001, SOC 2 Type II, ISO 42001." />
 
-      {/* 1 · HERO */}
+      {/* 1 · HERO: the discovery promise, and the picture of it */}
       <section className="hm-hero band-brand hero-under relative overflow-hidden" aria-labelledby="hero-h">
         <div aria-hidden="true" className="hm-hero-grid" />
-        <div className="wrap relative pb-10 pt-12 text-center md:pt-20 lg:pt-24">
-          <h1 id="hero-h" className="hm-h1 rise mx-auto" style={{ '--d': '40ms' }}>Discover every human, machine and AI agent identity.</h1>
-          <p className="hm-pos rise mx-auto" style={{ '--d': '110ms' }}>Continuous AI Security Posture Management</p>
-          <p className="t-lead rise mx-auto mt-5 max-w-[720px]" style={{ '--d': '170ms' }}>Secure your identities and digital ecosystem from AI-driven threats. Deep Algorithms maps every identity, scores its risk around the clock and stops unsafe access before it executes.</p>
-          <div className="rise mt-9 flex flex-wrap justify-center gap-3 max-sm:flex-col max-sm:[&>*]:w-full" style={{ '--d': '230ms' }}>
-            <Button to="/request-demo" size="lg" arrow>Book a demo</Button>
-            <Button type="button" variant="ghost" size="lg" onClick={playOverview}>
-              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="currentColor" /></svg>
-              Watch the overview <span className="text-ink-3">0:49</span>
-            </Button>
+        <div className="wrap relative grid items-center gap-12 pb-14 pt-10 md:pt-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.12fr)] lg:gap-14 lg:pb-20 lg:pt-20">
+          <div className="max-lg:text-center">
+            <Link to="/agentic-ai/agent-discovery" className="hm-pill rise" style={{ '--d': '0ms' }}>
+              <span className="hm-pill-new">New</span>Zenstra AI agent discovery<Icon name="ArrowRight" size={13} weight="bold" />
+            </Link>
+            <h1 id="hero-h" className="hm-h1 rise mt-7 max-lg:mx-auto" style={{ '--d': '60ms' }}>Discover every human, machine and AI agent identity.</h1>
+            <p className="t-lead rise mt-6 max-w-[560px] max-lg:mx-auto" style={{ '--d': '130ms' }}>Deep Algorithms finds every employee, customer, workload and AI agent across your cloud, SaaS and AI tools, and shows you who owns each one, what it can reach and how risky it is right now.</p>
+            <div className="rise mt-9 flex flex-wrap gap-3 max-lg:justify-center max-sm:flex-col max-sm:[&>*]:w-full" style={{ '--d': '190ms' }}>
+              <Button to="/request-demo" size="lg" arrow>Book a demo</Button>
+              <Button type="button" variant="ghost" size="lg" onClick={() => openFilm(0)}>
+                <span className="hm-play-dot"><Play size={11} /></span>Watch the film <span className="text-ink-3">{FILM.length}</span>
+              </Button>
+            </div>
+            <ul className="hm-certs rise mt-10 max-lg:justify-center" style={{ '--d': '250ms' }} aria-label="Certifications">
+              {CERTS.map((c) => <li key={c.code}><Icon name="SealCheck" size={16} weight="fill" />{c.name}</li>)}
+            </ul>
           </div>
-          <ul className="rise mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[13.5px] font-medium text-ink-3" style={{ '--d': '280ms' }} aria-label="Certifications">
-            {CERTS.map((c) => <li key={c.code} className="inline-flex items-center gap-2"><Icon name="SealCheck" size={16} className="text-[#0a6dbb]" />{c.name}</li>)}
-          </ul>
-        </div>
-        <div className="wrap relative pb-14 md:pb-20">
-          <div className="rise mx-auto max-w-[1120px]" style={{ '--d': '320ms' }}><PostureConsole /></div>
+          <div className="rise min-w-0" style={{ '--d': '200ms' }}><IdentityMosaic /></div>
         </div>
         <TrustedRow />
       </section>
 
-      {/* 2 · THE AI THREAT LANDSCAPE */}
-      <section className="sec" aria-labelledby="threat-h">
+      {/* 2 · THE THREAT: attackers sign in */}
+      <section id="threat" className="sec scroll-mt-20" aria-labelledby="threat-h">
         <div className="wrap">
-          <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-16">
-            <Reveal className="blur-in max-lg:text-center">
-              <p className="eyebrow mb-6">The AI threat landscape</p>
-              <h2 id="threat-h" className="t-h2">AI changed who acts inside your enterprise. Attackers adapted first.</h2>
-            </Reveal>
-            <Reveal delay={80} className="max-lg:text-center">
-              <p className="t-lead">Machine identities and AI agents now outnumber your people. They hold standing access to your most sensitive systems and act without review, and most security programmes cannot see them.</p>
-              <p className="mt-5 text-[16px] leading-relaxed text-ink-2">Deep Algorithms closes that gap. It gives your security team one continuous view of every identity’s posture, and the controls to act on it.</p>
-            </Reveal>
-          </div>
-          <ul className="mt-14 grid gap-px overflow-hidden rounded-[20px] border border-line bg-line sm:grid-cols-2 xl:grid-cols-4">
-            {THREATS.map((x, i) => (
+          <SectionHead id="threat-h" eyebrow="Why identity is the new perimeter" title="Attackers don’t break in. They sign in." lead="AI gives attackers convincing phishing, cloned voices and stolen session tokens at scale. They pass your login checks with valid credentials, and once a session is trusted, most security tools stop watching. That trust gap is where breaches happen." />
+          <Reveal up className="mt-12 min-w-0"><AttackPath /></Reveal>
+          <ul className="mt-12 grid gap-px overflow-hidden rounded-[20px] border border-line bg-line sm:grid-cols-2 xl:grid-cols-4">
+            {STATS.map((x, i) => (
               <Reveal as="li" key={x.v} delay={i * 70} className="hm-stat bg-bg-1 p-7">
                 <p className="hm-stat-v"><CountUp value={x.v} /></p>
                 <p className="mt-4 text-[15.5px] leading-snug text-ink">{x.l}</p>
@@ -113,47 +103,63 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 3 · OVERVIEW FILM (dark band) */}
-      <section id="overview" className="hm-ov sec scroll-mt-24" aria-labelledby="ov-h">
+      {/* 3 · WHAT WE PROTECT YOU FROM */}
+      <section id="protect" className="sec wash scroll-mt-20" aria-labelledby="protect-h">
         <div className="wrap">
-          <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,.82fr)_minmax(0,1.4fr)] lg:gap-14">
-            <Reveal className="max-lg:text-center">
-              <p className="eyebrow mb-6">Overview</p>
-              <h2 id="ov-h" className="t-h2">Close the trust gap between sign‑in and action.</h2>
-              <p className="t-lead mt-5">Authentication tells you who signed in. Deep Algorithms tells you what every identity does next, and stops the action that breaks policy.</p>
-              <ul className="mt-8 grid gap-3 text-left max-lg:mx-auto max-lg:max-w-[440px]">
-                {['How attackers exploit trusted identities', 'Why AI agents widen the gap', 'How the platform discovers, assesses, enforces and proves'].map((t) => (
-                  <li key={t} className="flex items-start gap-3 text-[15.5px] text-ink-2"><Icon name="CheckCircle" size={20} weight="fill" className="mt-0.5 shrink-0 text-[#0a6dbb]" />{t}</li>
-                ))}
-              </ul>
-            </Reveal>
-            <Reveal up delay={100} className="min-w-0"><OverviewFilm /></Reveal>
-          </div>
+          <SectionHead id="protect-h" eyebrow="What we protect you from" title="Four ways AI-driven attacks reach your data. One platform stops all four." lead="Each attack gets past a control that said yes: a valid login, a granted permission, a correct OTP, an approved AI tool. Deep Algorithms checks what happens next." />
+          <Reveal up className="mt-12 min-w-0"><ThreatTabs /></Reveal>
         </div>
       </section>
 
-      {/* 4 · HOW IT WORKS: the continuous loop */}
-      <section id="how" className="sec wash scroll-mt-20" aria-labelledby="how-h">
+      {/* 4 · CONTINUOUS AI SECURITY POSTURE MANAGEMENT */}
+      <section id="aispm" className="sec scroll-mt-20" aria-labelledby="aispm-h">
         <div className="wrap">
-          <SectionHead id="how-h" eyebrow="How it works" title="One continuous loop. Every identity, every action." lead="Point-in-time access reviews miss what changes between audits. Deep Algorithms runs four controls continuously, across your cloud, SaaS, on-premises and AI estate." />
-          <ol className="hm-loop mt-14 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          <Reveal className="mx-auto max-w-[900px] text-center">
+            <p className="eyebrow mb-6 justify-center">The platform</p>
+            <h2 id="aispm-h" className="t-h2">Continuous AI Security Posture Management</h2>
+            <p className="hm-sub mx-auto mt-4">Securing your identities and digital ecosystem from AI-driven threats.</p>
+            <p className="t-lead mx-auto mt-6 max-w-[760px]">Quarterly access reviews show you a snapshot. Attackers work in the minutes between them. Deep Algorithms runs your identity posture as a live system: it discovers, assesses, enforces and proves, for every identity, every hour of the day.</p>
+          </Reveal>
+          <Reveal up delay={80} className="mx-auto mt-12 max-w-[1120px] min-w-0"><PostureConsole /></Reveal>
+          <ol className="hm-loop mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
             {LOOP.map((s, i) => (
-              <Reveal as="li" key={s.k} delay={i * 90} className="hm-step card p-7">
-                <div className="flex items-center justify-between">
-                  <span className="grid h-11 w-11 place-items-center rounded-[12px] bg-[#0a6dbb] text-white"><Icon name={s.icon} size={22} /></span>
-                  <span className="mono text-[13px] font-medium text-ink-3">{s.n}</span>
-                </div>
-                <p className="mt-6 text-[13px] font-semibold uppercase tracking-[.12em] text-cyan-2">{s.k}</p>
-                <h3 className="mt-2 text-[21px] font-semibold leading-snug tracking-[-0.02em]">{s.h}</h3>
-                <p className="mt-3 text-[15px] leading-relaxed text-ink-2">{s.p}</p>
-                <p className="hm-out mt-6"><span>Output</span>{s.out}</p>
+              <Reveal as="li" key={s.k} delay={i * 80} className="hm-step">
+                <span className="hm-step-ico"><Icon name={s.icon} size={20} /></span>
+                <p className="mt-5 text-[12.5px] font-semibold uppercase tracking-[.12em] text-cyan-2">{s.n} · {s.k}</p>
+                <h3 className="mt-2 text-[20px] font-semibold leading-snug tracking-[-0.02em]">{s.h}</h3>
+                <p className="mt-2.5 text-[15px] leading-relaxed text-ink-2">{s.p}</p>
               </Reveal>
             ))}
           </ol>
         </div>
       </section>
 
-      {/* 5 · ZENSTRA: AI agent discovery */}
+      {/* 5 · THE FILM */}
+      <section id="film" className="hm-film sec scroll-mt-20" aria-labelledby="film-h">
+        <div className="wrap">
+          <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,.8fr)_minmax(0,1.45fr)] lg:gap-14">
+            <Reveal className="max-lg:text-center">
+              <p className="eyebrow mb-6">Watch the film · {FILM.length}</p>
+              <h2 id="film-h" className="t-h2">One working day. Every identity protected.</h2>
+              <p className="t-lead mt-5">Follow an employee, a workload, a customer and an engineer using AI through one working day, and see Deep Algorithms protect each of them.</p>
+              <ol className="hm-chap mt-8 max-lg:mx-auto max-lg:max-w-[460px]">
+                {CHAPTERS.map(([at, t, l]) => (
+                  <li key={at}><button type="button" onClick={() => openFilm(at)}><span className="mono">{t}</span>{l}<Play size={12} /></button></li>
+                ))}
+              </ol>
+            </Reveal>
+            <Reveal up delay={100} className="min-w-0">
+              <button type="button" className="hm-poster group" onClick={() => openFilm(0)} aria-label={`Play the Deep Algorithms film, ${FILM.length}`}>
+                <img src="/img/film/poster.webp" alt="" width="1600" height="900" loading="lazy" decoding="async" />
+                <span className="hm-poster-play"><Play size={26} /></span>
+                <span className="hm-poster-len">{FILM.length}</span>
+              </button>
+            </Reveal>
+          </div>
+        </div>
+      </section>
+
+      {/* 6 · ZENSTRA: AI agent discovery */}
       <section id="agents" className="sec scroll-mt-20" aria-labelledby="zen-h" style={{ '--acc': 'var(--color-zen)' }}>
         <div className="wrap">
           <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)] lg:gap-16">
@@ -193,15 +199,17 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 6 · THE PLATFORM */}
+      {/* 7 · THE PLATFORM */}
       <section id="platform" className="sec scroll-mt-20" aria-labelledby="platform-h">
         <div className="wrap">
-          <SectionHead id="platform-h" eyebrow="The platform" title="One posture across human, machine and AI identities." lead="Start with the risk that costs you most. Each product deploys on its own and reports into the same posture, so your security team works from one view." />
+          <SectionHead id="platform-h" eyebrow="The platform" title="Three products. One posture across every identity." lead="Start with the risk that costs you most. Each product deploys on its own and reports into the same posture, so your security team works from one view." />
           <div className="mt-14 grid gap-5 lg:grid-cols-3">
             {PLATFORM.map((x, i) => {
               const L = menu[x.key];
               return (
-                <Reveal key={x.key} delay={i * 90} className="hm-prod card flex flex-col p-7 xl:p-8" style={{ '--acc': L.acc }}>
+                <Reveal key={x.key} delay={i * 90} className="hm-prod card flex flex-col overflow-hidden" style={{ '--acc': L.acc }}>
+                  <div className="hm-prod-img"><img src={`/img/film/${x.img}.webp`} alt="" width="1100" height="619" loading="lazy" decoding="async" /></div>
+                  <div className="flex flex-1 flex-col p-7 xl:p-8">
                   <div className="flex items-center gap-3.5">
                     <ProductMark p={x.key} size={40} />
                     <span><span className="block text-[19px] font-semibold tracking-[-0.015em]">{L.name}</span><span className="block text-[13.5px] font-medium" style={{ color: L.acc }}>Secures {x.secures}</span></span>
@@ -216,6 +224,7 @@ export default function Home() {
                     ))}
                   </ul>
                   <Link to={L.path} className="link mt-6 text-[15px]" style={{ '--acc': L.acc }}>Explore {L.name}<Icon name="ArrowRight" size={14} weight="bold" /></Link>
+                  </div>
                 </Reveal>
               );
             })}
@@ -223,7 +232,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 7 · PROOF: certified, and it runs where your data lives */}
+      {/* 8 · PROOF: certified, and it runs where your data lives */}
       <section className="sec wash" aria-labelledby="proof-h">
         <div className="wrap">
           <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:gap-16">
@@ -262,6 +271,7 @@ export default function Home() {
       </section>
 
       <CtaBand />
+      <FilmModal />
     </>
   );
 }

@@ -26,7 +26,7 @@ test('there is no theme switch, and an old saved dark choice is ignored', async 
 test('the header stays light over the light hero and when scrolled', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' });
   await expect(page.locator('header')).toHaveClass(/tone-l/);
-  await page.evaluate(() => window.scrollTo(0, document.getElementById('how').getBoundingClientRect().top + window.scrollY));
+  await page.evaluate(() => window.scrollTo(0, document.getElementById('aispm').getBoundingClientRect().top + window.scrollY));
   await expect(page.locator('header')).toHaveClass(/tone-l/);
 });
 
