@@ -4,13 +4,11 @@ import { cx } from '../lib/motion.js';
 import { Seo } from '../lib/head.jsx';
 import { CERTS, CUSTOMERS } from '../data/site.js';
 import { PRODUCT_MENU } from '../data/nav.js';
-import { ZCAPS } from '../data/zenstra.js';
 import { Button, CountUp, Icon, Reveal, SectionHead } from '../components/ui.jsx';
 import { CtaBand } from '../components/blocks.jsx';
 import CertSeal from '../components/CertSeal.jsx';
 import ProductMark from '../components/ProductMark.jsx';
 import PostureConsole from '../components/home/PostureConsole.jsx';
-import AgentMap from '../components/home/AgentMap.jsx';
 import TrustGap from '../components/home/TrustGap.jsx';
 import ThreatShield from '../components/home/ThreatShield.jsx';
 import ProtectAccordion from '../components/home/ProtectAccordion.jsx';
@@ -22,7 +20,7 @@ import FilmModal, { FILM, openFilm } from '../components/home/FilmModal.jsx';
    the film in a white lightbox. SailPoint sets the order: promise, the new
    attack surface, threats, platform, how we help, products, proof, contact.
    1. Hero: discover every human, machine and AI agent identity.
-   2. Logos.  3. AI agent discovery (Zenstra), the hero's promise carried on.
+   2. Logos.  3. Zenstra AI (its own tagline and "three ways in"), the hero's promise carried on.
    4. AI-driven threats (the Cisco film's argument: they log in), as a picture
       of every named threat stopped at the identity it targets.
    5. Continuous AI Security Posture Management: can vs should, and the console.
@@ -43,11 +41,11 @@ const LOOP = [
   { n: '04', k: 'Prove', h: 'Record the evidence.', p: 'Records every decision with its reason, mapped to ISO/IEC 42001, the DPDP Act 2023 and RBI and SEBI expectations.', icon: 'SealCheck' },
 ];
 
-const ZEN_POINTS = [
-  'Discovers sanctioned and shadow agents across Copilot Studio, Claude, Cursor, n8n, Zapier, LangGraph and MCP servers.',
-  'Flags agents that hold standing write access, non-expiring tokens or no accountable owner.',
-  'Checks every tool call against the agent’s declared task before it runs.',
-  'Records each decision as evidence your auditors can read.',
+/* Zenstra's own structure and wording (zenstra.ai, "One platform. Three ways in."); see docs/reference/zenstra-ai */
+const ZEN_WAYS = [
+  { k: 'Workflow Security', icon: 'FlowArrow', p: 'Every hop in every agent workflow, checked against its task before the next step runs.', on: 'n8n · Zapier · LangGraph · Copilot Studio', to: '/agentic-ai/runtime-enforcement' },
+  { k: 'Cloud Security', icon: 'Cloud', p: 'A gateway inside your cloud, in front of every MCP server, model and API your agents call.', on: 'AWS · Azure · Google Cloud · Kubernetes', to: '/agentic-ai/mcp-security' },
+  { k: 'Zenstra AI Discovery', icon: 'Laptop', p: 'Every agent on staff devices: prompt, tool call and device seen together, contained in seconds.', on: 'Windows · macOS · Intune · Jamf', to: '/agentic-ai/agent-discovery' },
 ];
 
 /* the three product lines, Zenstra first: it carries the AI agent story */
@@ -102,40 +100,38 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 3 · AI AGENT DISCOVERY (Zenstra): the hero's promise, carried straight on */}
+      {/* 3 · ZENSTRA AI: the hero's promise carried on to AI agents, in Zenstra's own words */}
       <section id="agents" className="sec scroll-mt-20" aria-labelledby="zen-h" style={{ '--acc': 'var(--color-zen)' }}>
         <div className="wrap">
           <div className="hm-zen tone-d">
             <img className="hm-zen-bg" src="/img/zenstra/agent.webp" alt="" loading="lazy" decoding="async" />
-            <div className="relative grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-14">
+            <div className="relative grid items-center gap-10 lg:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)] lg:gap-14">
               <div className="max-lg:text-center">
-                <p className="hm-zen-k"><ProductMark p="zenstra" size={22} />Zenstra AI · Agent discovery</p>
-                <h2 id="zen-h" className="hm-zen-h">Find every AI agent before it acts on your data.</h2>
-                <p className="hm-zen-p">AI agents sign in with valid tokens, act thousands of times a day and answer to no one. Zenstra discovers every copilot, workflow agent, coding agent and MCP server, gives each an owner and checks every action against its task.</p>
-                <ul className="hm-zen-l">
-                  {ZEN_POINTS.map((t) => <li key={t}><Icon name="CheckCircle" size={18} weight="fill" />{t}</li>)}
-                </ul>
+                <p className="hm-zen-k"><ProductMark p="zenstra" size={22} />Zenstra AI</p>
+                <h2 id="zen-h" className="hm-zen-h">Secure every agent. <span>Verify every intent.</span></h2>
+                <p className="hm-zen-p">Every AI agent is a new identity with real access. Zenstra checks every action before it runs, and records why.</p>
                 <div className="mt-8 flex flex-wrap gap-3 max-lg:justify-center max-sm:flex-col max-sm:[&>*]:w-full">
-                  <Link to="/agentic-ai/agent-discovery" className="hm-pillbtn solid">Explore agent discovery</Link>
-                  <Link to="/agentic-ai/agentic-identity" className="hm-pillbtn">See the Zenstra platform</Link>
+                  <Link to="/agentic-ai/agentic-identity" className="hm-pillbtn solid">Explore Zenstra AI</Link>
+                  <Link to="/agentic-ai/agent-discovery" className="hm-pillbtn">Agent discovery</Link>
                 </div>
               </div>
-              <div className="min-w-0"><AgentMap /></div>
+              <figure className="hm-zen-shot min-w-0">
+                <img src="/img/zenstra/console-overview.webp" alt="The Zenstra AI security overview: agents governed, open detections, actions blocked, decisions per second and the highest-risk agents." width="1600" height="1000" loading="lazy" decoding="async" />
+              </figure>
             </div>
-          </div>
-          <Reveal className="mt-10">
-            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {Object.values(ZCAPS).map((c) => (
-                <li key={c.path}>
-                  <Link to={c.path} className="hm-cap group">
-                    <Icon name={c.icon} size={20} style={{ color: 'var(--color-zen)' }} />
-                    <span className="flex-1"><b>{c.name}</b><small>{c.short}</small></span>
-                    <Icon name="ArrowRight" size={14} className="text-ink-3 transition-transform group-hover:translate-x-0.5" />
+            <ul className="hm-zen-ways" aria-label="Three ways in">
+              {ZEN_WAYS.map((w) => (
+                <li key={w.k}>
+                  <Link to={w.to} className="group">
+                    <span className="hm-zen-wi"><Icon name={w.icon} size={18} /></span>
+                    <b>{w.k}<Icon name="ArrowRight" size={14} weight="bold" className="transition-transform group-hover:translate-x-0.5" /></b>
+                    <span className="hm-zen-wp">{w.p}</span>
+                    <small>{w.on}</small>
                   </Link>
                 </li>
               ))}
             </ul>
-          </Reveal>
+          </div>
         </div>
       </section>
 

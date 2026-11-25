@@ -10,12 +10,14 @@ test('home: every product line has a card that leads to its own page', async ({ 
   }
 });
 
-test('home: the Zenstra band leads to agent discovery and lists every capability', async ({ page }) => {
+test('home: the Zenstra band uses Zenstra wording and shows its three ways in', async ({ page }) => {
   await page.goto('/');
   await hydrated(page);
   const zen = page.locator('#agents');
-  await expect(zen.getByRole('link', { name: 'Explore agent discovery' })).toHaveAttribute('href', '/agentic-ai/agent-discovery');
-  await expect(zen.locator('.hm-cap')).toHaveCount(6);
+  await expect(zen.getByRole('heading', { level: 2 })).toHaveText('Secure every agent. Verify every intent.');
+  await expect(zen.getByRole('link', { name: 'Agent discovery' })).toHaveAttribute('href', '/agentic-ai/agent-discovery');
+  for (const w of ['Workflow Security', 'Cloud Security', 'Zenstra AI Discovery']) await expect(zen.getByRole('link', { name: new RegExp(w) })).toBeVisible();
+  await expect(zen.locator('.hm-zen-shot img')).toHaveAttribute('src', '/img/zenstra/console-overview.webp');
 });
 
 test('reduced motion still shows every product card and figure', async ({ page }) => {
@@ -24,7 +26,6 @@ test('reduced motion still shows every product card and figure', async ({ page }
   await hydrated(page);
   await expect(page.locator('#platform .hm-prod')).toHaveCount(3);
   await expect(page.locator('.pc-tr.in')).toHaveCount(4);
-  await expect(page.locator('.am-row.in')).toHaveCount(6);
 });
 
 test('zenstra: before and after sit side by side, five moments each', async ({ page }) => {
