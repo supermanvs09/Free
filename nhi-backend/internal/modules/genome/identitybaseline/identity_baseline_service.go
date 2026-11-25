@@ -94,6 +94,11 @@ func (s *Service) GetBaseline(
 		IdentityName: identityName,
 	}
 
+	// Baseline detail is visible only for an inventory-backed identity.
+	if _, mapped := common.NewIdentityIndex(fleet).IndexOf(requestedKey); !mapped {
+		return nil, common.ErrIdentityNotFound
+	}
+
 	// The exact requested key receives the highest preference.
 	keys := []common.MonitoringKey{
 		requestedKey,

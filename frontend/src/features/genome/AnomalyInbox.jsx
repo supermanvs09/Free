@@ -193,7 +193,7 @@ function Investigation({ group, priority, onOpen, onBack }) {
  * Anomalies as an investigation inbox: identities ranked by priority on the
  * left (j / k to move), the selected one's story on the right.
  */
-export function AnomalyInbox({ items, onOpen, emptyState, onSeverity, activeSeverities, realTotal }) {
+export function AnomalyInbox({ items, onOpen, emptyState, onSeverity, activeSeverities, realTotal, windowLabel, windowMs }) {
   const groups = useMemo(() => groupAnomalies(items), [items]);
   const ranked = useMemo(
     () =>
@@ -227,7 +227,7 @@ export function AnomalyInbox({ items, onOpen, emptyState, onSeverity, activeSeve
 
   return (
     <>
-      <AnomalyOverview items={items} onSeverity={onSeverity} activeSeverities={activeSeverities} realTotal={realTotal} />
+      <AnomalyOverview items={items} onSeverity={onSeverity} activeSeverities={activeSeverities} realTotal={realTotal} windowLabel={windowLabel} windowMs={windowMs} />
       <div className="flex h-[min(78vh,880px)] min-h-[560px]">
         <div
           ref={listRef}

@@ -39,7 +39,21 @@ func New(ctx context.Context, cfg config.ClickHouseConfig) (*Client, error) {
 	if !cfg.Enabled() {
 		return nil, nil
 	}
+	if cfg.TimeoutSeconds <= 0 {
+		return nil, fmt.Errorf(
+			"clickhouse TimeoutSeconds must be greater than zero",
+		)
+	}
+
 	timeout := time.Duration(cfg.TimeoutSeconds) * time.Second
+
+	slog.Info(
+		"clickhouse timeout configuration",
+		"query_timeout", timeout,
+		"dial_timeout", timeout,
+		"read_timeout", timeout,
+		"protocol", cfg.Protocol,
+	)
 
 	opts := &ch.Options{
 		Addr: []string{net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port))},

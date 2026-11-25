@@ -36,7 +36,7 @@ type Params struct {
 
 // GetEvidence builds the response. Unknown ids are common.ErrAnomalyNotFound.
 func (s *Service) GetEvidence(ctx context.Context, userID, tenantID, dbName string, alertID int64, p Params) (*Response, error) {
-	sc, _, err := s.lookup.Fleet(ctx, userID, tenantID, dbName)
+	sc, fleet, err := s.lookup.Fleet(ctx, userID, tenantID, dbName)
 	if err != nil {
 		return nil, err
 	}
@@ -45,6 +45,9 @@ func (s *Service) GetEvidence(ctx context.Context, userID, tenantID, dbName stri
 		return nil, &common.StoreUnavailableError{Op: "read alert", Err: err}
 	}
 	if a == nil {
+		return nil, common.ErrAnomalyNotFound
+	}
+	if _, mapped := common.NewIdentityIndex(fleet).IndexOf(a.Key); !mapped {
 		return nil, common.ErrAnomalyNotFound
 	}
 	ev := common.EventOf(common.AlertEvents(ctx, s.events, "anomaly evidence event", []common.AlertRow{*a}), *a)

@@ -21,15 +21,19 @@ import (
 //
 // The list shows only identities the behaviour pipeline has a baselines row
 // for (learning or active), in the caller's accounts. Each row is keyed by
-// its baseline key (baselines.identity_name = log_events.workload_key):
+// its baseline key (baselines.identity_name):
 //
-//   - last_seen comes from log_events by workload_key;
-//   - alerts and risk scores are stored under the event identity names, so
-//     they are read by the identity names log_events recorded under the key;
-//   - every link addresses the genome endpoints by the baseline key.
+//   - IAM: baselines.identity_name matches log_events.identity_name; the
+//     matching log_events row's instance_arn is matched exactly against
+//     identities.arn.
+//   - ECS: baselines.identity_name matches log_events.workload_key; the
+//     matching log_events row's task_id is resolved through
+//     ecs_task_registry.task_arn, which is matched exactly against
+//     identities.arn.
+//   - Every other family: baselines.identity_name matches both
+//     log_events.identity_name and identities.arn.
 //
-// Each row is also mapped to the discovery identity (inventory resource) it
-// belongs to — see "Baseline -> discovery identity mapping" below.
+// Every link addresses the genome endpoints by the baseline key.
 type Service struct {
 	lookup *common.MonitoredIdentityLookup
 	repo   *Repository
@@ -120,11 +124,24 @@ func (s *Service) List(
 	}
 
 	// One log_events read for every baseline: the event identity names
-	// (alert / risk keys), last_seen and the display labels.
+	// (alert / risk keys), last_seen, the display labels, the ECS task_id and
+	// the IAM instance_arn.
 	facts := s.workloadFacts(ctx, resolvedScope, entries)
+	for index := range entries {
+		entries[index].attachFacts(facts)
+	}
+	s.resolveLegacyMappings(ctx, resolvedScope, mapper, entries)
+
+	// The identities API is inventory-backed. A baseline that cannot be
+	// resolved to exactly one live identities row is not an identity that the
+	// API can safely expose. Drop it before filtering, sorting, pagination,
+	// risk reads, and alert-count reads so response metadata and cursors are
+	// calculated exclusively from mapped identities.
 	filtered := entries[:0]
 	for _, entry := range entries {
-		entry.attachFacts(facts)
+		if _, mapped := entry.primary(); !mapped {
+			continue
+		}
 		if matchesFilters(entry, params) {
 			filtered = append(filtered, entry)
 		}
@@ -199,6 +216,12 @@ func (s *Service) List(
 func (s *Service) workloadFacts(ctx context.Context, resolvedScope *scope.DataScope, entries []listEntry) map[common.MonitoringKey]chclient.WorkloadFacts {
 	keys := make([]common.MonitoringKey, 0, len(entries))
 	for _, entry := range entries {
+		if entry.row.Key.SourceType == "ECS" {
+			// ECS facts must be read only by the exact baseline workload key.
+			// Role ARN and cluster name are shared attributes, not identity keys.
+			keys = append(keys, entry.row.Key)
+			continue
+		}
 		keys = append(keys, entry.eventKeys...)
 	}
 	if len(keys) == 0 {
@@ -209,6 +232,181 @@ func (s *Service) workloadFacts(ctx context.Context, resolvedScope *scope.DataSc
 		return nil
 	}
 	return facts
+}
+
+// resolveLegacyMappings preserves the pre-canonical correlation path.
+//
+// ECS uses ClickHouse task_id -> ecs_task_registry -> identities, with the
+// role binding read from ClickHouse role_type. IAM uses the ClickHouse
+// instance_arn of the row whose identity_name matches the baseline key. Every
+// other family maps the ClickHouse identity_name, which is the resource ARN
+// stored in identities.
+func (s *Service) resolveLegacyMappings(
+	ctx context.Context,
+	resolved *scope.DataScope,
+	mapper *identityMapper,
+	entries []listEntry,
+) {
+	lookups := make([]ECSInventoryLookup, 0)
+	seenLookups := make(map[string]struct{})
+
+	for index := range entries {
+		entry := &entries[index]
+		if entry.row.Key.SourceType != "ECS" {
+			continue
+		}
+
+		// ECS mapping is fail-closed. The generic discovery match created while
+		// constructing the entry must not rescue a missing task-registry mapping.
+		entry.matches = nil
+		entry.matchedBy = ""
+		entry.context = normalizeECSRoleType(entry.roleType)
+
+		if entry.context == "" || strings.TrimSpace(entry.taskID) == "" {
+			continue
+		}
+
+		key := ecsTaskLookupKey(entry.row.AccountID, entry.region, entry.taskID)
+		if _, exists := seenLookups[key]; exists {
+			continue
+		}
+		seenLookups[key] = struct{}{}
+
+		lookups = append(lookups, ECSInventoryLookup{
+			TaskID:    entry.taskID,
+			AccountID: entry.row.AccountID,
+			Region:    entry.region,
+		})
+	}
+
+	ecsMappings, err := s.repo.ResolveECSInventory(ctx, resolved, lookups)
+	if !common.ReadOK("identity list ECS task registry", err) {
+		ecsMappings = nil
+	}
+
+	for index := range entries {
+		entry := &entries[index]
+
+		if entry.row.Key.SourceType == "ECS" {
+			// Missing registry row, null/empty task ARN, no identities.arn match,
+			// or an ambiguous match all remain unmapped. Never try another key.
+			if entry.context == "" || strings.TrimSpace(entry.taskID) == "" {
+				continue
+			}
+
+			mapping, ok := ecsMappings[ecsTaskLookupKey(
+				entry.row.AccountID,
+				entry.region,
+				entry.taskID,
+			)]
+			if !ok || strings.TrimSpace(mapping.Identity.ID) == "" || strings.TrimSpace(mapping.Identity.ARN) == "" {
+				continue
+			}
+
+			entry.matches = []mappedIdentity{{
+				raw:  rawIdentity{row: mapping.Identity, subtype: "ecs_task"},
+				role: entry.keyRole,
+			}}
+			entry.matchedBy = "ecs_task_registry"
+			entry.region = common.FirstNonEmpty(mapping.Identity.Region, entry.region)
+			continue
+		}
+
+		if entry.row.Key.SourceType == "IAM" {
+			// IAM: baselines.identity_name is the ClickHouse identity_name.
+			// The matching ClickHouse row's instance_profile_arn is the exact
+			// identities.arn.
+			if strings.TrimSpace(entry.instanceProfileARN) == "" {
+				continue
+			}
+
+			resolvedInstance := mapper.Resolve(
+				entry.row.Key.SourceType,
+				entry.instanceProfileARN,
+				entry.row.AccountID,
+			)
+			if len(resolvedInstance.Matches) == 0 {
+				continue
+			}
+
+			instanceMatches := make([]mappedIdentity, 0, len(resolvedInstance.Matches))
+			for _, match := range resolvedInstance.Matches {
+				mapped := mappedIdentity{
+					raw: mapper.raw[match.raw],
+					role: mapper.RoleFor(
+						match,
+						entry.row.Key.SourceType,
+						entry.instanceProfileARN,
+						resolvedInstance.Role,
+					),
+				}
+				if match.fleet >= 0 {
+					identity := mapper.fleet[match.fleet]
+					mapped.fleet = &identity
+				}
+				instanceMatches = append(instanceMatches, mapped)
+			}
+
+			entry.matches = instanceMatches
+			entry.matchedBy = "instance_profile_arn"
+			continue
+		}
+
+		// For every non-ECS family, ClickHouse identity_name is the resource ARN
+		// stored in identities. Prefer this observed exact value as the default
+		// mapping key. If ClickHouse has no value or it does not map, preserve the
+		// existing baseline-key mapping as the compatibility fallback.
+		if strings.TrimSpace(entry.eventIdentityName) == "" {
+			continue
+		}
+
+		resolvedEvent := mapper.Resolve(
+			entry.row.Key.SourceType,
+			entry.eventIdentityName,
+			entry.row.AccountID,
+		)
+		if len(resolvedEvent.Matches) == 0 {
+			continue
+		}
+
+		observedMatches := make([]mappedIdentity, 0, len(resolvedEvent.Matches))
+		for _, match := range resolvedEvent.Matches {
+			mapped := mappedIdentity{
+				raw: mapper.raw[match.raw],
+				role: mapper.RoleFor(
+					match,
+					entry.row.Key.SourceType,
+					entry.eventIdentityName,
+					resolvedEvent.Role,
+				),
+			}
+			if match.fleet >= 0 {
+				identity := mapper.fleet[match.fleet]
+				mapped.fleet = &identity
+			}
+			observedMatches = append(observedMatches, mapped)
+		}
+
+		entry.matches = observedMatches
+		entry.matchedBy = "event_identity_name"
+	}
+}
+
+func normalizeECSRoleType(roleType string) string {
+	switch strings.ToLower(strings.TrimSpace(roleType)) {
+	case "task", "task_role", "taskrole":
+		return "task_role"
+	case "execution", "execution_role", "executionrole":
+		return "execution_role"
+	default:
+		return ""
+	}
+}
+
+func ecsTaskLookupKey(accountID, region, taskID string) string {
+	return strings.TrimSpace(accountID) + "|" +
+		strings.ToLower(strings.TrimSpace(region)) + "|" +
+		strings.TrimSpace(taskID)
 }
 
 // ---------------------------------------------------------------------------
@@ -223,21 +421,25 @@ type mappedIdentity struct {
 }
 
 type listEntry struct {
-	row               BaselineRow
-	matches           []mappedIdentity // primary first
-	matchedBy         string
-	keyRole           string                 // role the baseline key names (ECS)
-	context           string                 // role context of the key (task, execution, ...)
-	keyService        string                 // service the baseline key names (ECS)
-	eventKeys         []common.MonitoringKey // names its log_events rows carry, baseline key first
-	alertKeys         []common.MonitoringKey // keys alerts / risk scores are stored under
-	eventIdentityName string                 // latest ClickHouse identity_name; matches alerts.identity_name
-	sortID            string
-	displayName       string
-	serviceName       string
-	region            string
-	score             *int
-	lastSeen          *time.Time
+	row                BaselineRow
+	matches            []mappedIdentity
+	matchedBy          string
+	keyRole            string
+	context            string
+	keyService         string
+	eventKeys          []common.MonitoringKey
+	alertKeys          []common.MonitoringKey
+	eventIdentityName  string
+	instanceProfileARN string
+	taskID             string
+	taskDefinition     string
+	roleType           string
+	sortID             string
+	displayName        string
+	serviceName        string
+	region             string
+	score              *int
+	lastSeen           *time.Time
 }
 
 func newListEntry(mapper *identityMapper, row BaselineRow) listEntry {
@@ -304,14 +506,25 @@ func newListEntry(mapper *identityMapper, row BaselineRow) listEntry {
 }
 
 // attachFacts completes the entry from the log_events facts of its baseline
-// key: the alert / risk keys, last_seen and the pipeline's display labels.
+// key: the alert / risk keys, last_seen, the pipeline's display labels, the
+// ECS task_id and the IAM instance_arn.
 func (e *listEntry) attachFacts(facts map[common.MonitoringKey]chclient.WorkloadFacts) {
 	e.alertKeys = common.BaselineAlertKeys(e.eventKeys, facts)
-	f, ok := common.MergedFacts(e.eventKeys, facts)
+	var f chclient.WorkloadFacts
+	var ok bool
+	if e.row.Key.SourceType == "ECS" {
+		f, ok = facts[e.row.Key]
+	} else {
+		f, ok = common.MergedFacts(e.eventKeys, facts)
+	}
 	if !ok {
 		return
 	}
 	e.eventIdentityName = strings.TrimSpace(f.EventIdentityName)
+	e.instanceProfileARN = strings.TrimSpace(f.InstanceProfileARN)
+	e.taskID = strings.TrimSpace(f.TaskID)
+	e.taskDefinition = strings.TrimSpace(f.TaskDefinition)
+	e.roleType = strings.TrimSpace(f.RoleType)
 	if f.LastSeen != nil {
 		t := f.LastSeen.UTC()
 		e.lastSeen = &t
@@ -375,7 +588,7 @@ func matchesFilters(entry listEntry, params Params) bool {
 		return true
 	}
 	needle := strings.ToLower(params.Search)
-	values := []string{row.Key.IdentityName, entry.eventIdentityName, entry.displayName, entry.serviceName, entry.keyRole}
+	values := []string{row.Key.IdentityName, entry.eventIdentityName, entry.instanceProfileARN, entry.displayName, entry.serviceName, entry.keyRole}
 	for _, m := range entry.matches {
 		values = append(values, m.raw.row.ID, m.raw.row.ARN, m.raw.row.Name, m.role)
 		if m.fleet != nil {
@@ -390,8 +603,7 @@ func matchesFilters(entry listEntry, params Params) bool {
 	return false
 }
 
-// normalizeBinding maps the scanner's type_attributes binding names onto
-// identity_credentials.binding_type values.
+// normalizeBinding normalizes discovery role-binding labels.
 func normalizeBinding(binding string) string {
 	switch intelToken(binding) {
 	case "taskrole", "task_role":
@@ -448,6 +660,17 @@ func buildItem(entry listEntry) Item {
 
 	primary, ok := entry.primary()
 	if !ok {
+		return item
+	}
+	if row.Key.SourceType == "ECS" {
+		item.Parent = nil
+		item.InventoryID = common.OptionalString(primary.raw.row.ID)
+		item.ResourceARN = common.OptionalString(primary.raw.row.ARN)
+		item.PrincipalARN = common.OptionalString(entry.keyRole)
+		item.BindingType = common.OptionalString(normalizeECSRoleType(entry.roleType))
+		item.Mapping.Status = MappingMapped
+		item.Mapping.MatchedBy = common.OptionalString(entry.matchedBy)
+		item.NHIIdentityType = common.OptionalString("ecs_task")
 		return item
 	}
 	item.Mapping.Status = MappingMapped
@@ -732,8 +955,7 @@ var intelExplicitAliases = map[string]string{
 	"lambda": "lambda_function", "aws_lambda_function": "lambda_function",
 	"glue": "glue_job", "aws_glue_job": "glue_job",
 	"stepfunctions": "step_function", "stepfunctions_state_machine": "step_function",
-	"step_function_state_machine": "step_function", "states_state_machine": "step_function",
-	"state_machine": "step_function", "aws_stepfunctions_state_machine": "step_function",
+	"step_function_state_machine": "step_function", "aws_stepfunctions_state_machine": "step_function",
 	"aws_stepfunctions_statemachine": "step_function", "aws_states_state_machine": "step_function",
 	"aws_states_statemachine":  "step_function",
 	"datasync_agent":           "datasync_task",
@@ -815,14 +1037,14 @@ var intelResourceKeys = map[string][]string{
 	"github_actions_workflow":       {"repository", "workflow", "name"},
 	"gitlab_ci_job":                 {"project_path", "job_name", "name"},
 	"terraform_run":                 {"workspace", "organization", "name"},
+	"step_function":                 {"state_machine_name", "name"},
 	"eventbridge_scheduler":         {"schedule_name", "name"},
-	"ssm_managed_node":              {"managed_instance_id", "instance_id", "name"},
 	"ssm_automation":                {"document_name", "association_name", "name"},
 	"synthetics_canary":             {"canary_name", "name"},
 	"iot_role_alias":                {"role_alias_name", "name"},
 	"iot_thing":                     {"thing_name", "name"},
 	"greengrass_core":               {"core_device_name", "thing_name", "name"},
-	"transfer_server":               {"server_id", "server_name", "name"},
+	"transfer_server":               {"server_name", "name"},
 	"iam_roles_anywhere_session":    {"certificate_serial", "workload_name", "name"},
 	"saas_vendor_role":              {"vendor_name", "role_name", "name"},
 	"aws_service_linked_role":       {"service_name", "name"},
@@ -1489,7 +1711,3 @@ func dedupe(values []int) []int {
 	sort.Ints(out)
 	return out
 }
-
-// Package anomalylist serves GET /api/v1/genome/anomalies: one item per
-// PostgreSQL alerts row, newest first, with the event-level columns of
-// ClickHouse log_events joined in by event_id.

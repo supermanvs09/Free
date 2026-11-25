@@ -1685,6 +1685,12 @@ func BaselineEventKeys(key MonitoringKey, partition string, extra ...string) []M
 // latest last_seen and every event identity name. ok is false when no key
 // has events.
 func MergedFacts(eventKeys []MonitoringKey, facts map[MonitoringKey]chclient.WorkloadFacts) (chclient.WorkloadFacts, bool) {
+	if len(eventKeys) > 0 && strings.EqualFold(eventKeys[0].SourceType, "ECS") {
+		// For ECS, only the exact baseline workload key is authoritative.
+		// Shared role ARNs, clusters and generated aliases must not merge tasks.
+		f, ok := facts[eventKeys[0]]
+		return f, ok
+	}
 	var (
 		out   chclient.WorkloadFacts
 		found bool

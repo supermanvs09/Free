@@ -37,9 +37,16 @@ type Item struct {
 	LastSeen         *time.Time `json:"last_seen"`
 	OpenAnomalyCount *int       `json:"open_anomaly_count"`
 
+	// ECS-only inventory values. They are omitted when ECS task mapping fails
+	// and for every non-ECS identity.
+	InventoryID  *string `json:"inventory_id,omitempty"`
+	ResourceARN  *string `json:"resource_arn,omitempty"`
+	PrincipalARN *string `json:"principal_arn,omitempty"`
+	BindingType  *string `json:"binding_type,omitempty"`
+
 	// Parent is the discovery identity (inventory resource) the baseline
 	// belongs to; null when the baseline could not be mapped.
-	Parent  *Parent `json:"parent"`
+	Parent  *Parent `json:"parent,omitempty"`
 	Mapping Mapping `json:"mapping"`
 	Links   Links   `json:"links"`
 }

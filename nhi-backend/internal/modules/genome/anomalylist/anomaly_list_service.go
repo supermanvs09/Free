@@ -151,6 +151,18 @@ func (s *Service) List(
 			Err: err,
 		}
 	}
+	// Exclude alerts whose identity key is not backed by a live inventory
+	// identity. Do this before severity counts, filtering and pagination.
+	mappedRows := allRows[:0]
+	for _, alert := range allRows {
+		if _, mapped := set.IndexOf(alert.Key); !mapped {
+			continue
+		}
+		mappedRows = append(mappedRows, alert)
+	}
+	allRows = mappedRows
+	postgresTotal = len(allRows)
+
 	if len(allRows) > maxSeverityAggregation {
 		return nil, nil, &common.StoreUnavailableError{
 			Op: "severity aggregation",

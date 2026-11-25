@@ -109,6 +109,21 @@ func (s *DashboardSummaryService) GetSummary(
 		return nil, &summarycommon.StoreUnavailableError{Op: "read baselines", Err: err}
 	}
 
+	// Dashboard visibility is inventory-backed. Build the monitored-key set
+	// from live discovery identities once, then discard orphan baseline rows
+	// before any cards, alert keys, risk rows, charts or feeds are computed.
+	identityLookup := summarycommon.NewMonitoredIdentityLookup(s.repo, s.resolver)
+	_, mappedFleet, fleetErr := identityLookup.Fleet(ctx, userID, tenantID, dbName)
+	if fleetErr != nil {
+		return nil, fleetErr
+	}
+	mappedKeys := make(map[summarycommon.MonitoringKey]struct{})
+	for _, identity := range mappedFleet {
+		for _, key := range identity.AllKeys() {
+			mappedKeys[key] = struct{}{}
+		}
+	}
+
 	regions := make(map[string]bool, len(sc.Regions))
 	for _, r := range sc.Regions {
 		regions[strings.ToLower(r)] = true
@@ -117,6 +132,9 @@ func (s *DashboardSummaryService) GetSummary(
 	keys := make([]summarycommon.MonitoringKey, 0, len(rows))
 	var eventKeys []summarycommon.MonitoringKey
 	for _, row := range rows {
+		if _, mapped := mappedKeys[row.Key]; !mapped {
+			continue
+		}
 		if workloadtypes.IsGhostECSBaseline(row.Key.SourceType, row.Key.IdentityName, row.BuiltDays) {
 			continue
 		}

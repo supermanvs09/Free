@@ -164,6 +164,25 @@ export async function fetchGenomeListNames(sourceType, identityName, signal) {
 }
 
 /**
+ * The genome identities of one discovery ECS task:
+ * GET /genome/identities?source_type=ECS&search=<task ARN>. Discovery lists the
+ * task once; the genome monitors its task role and its execution role as two
+ * identities, each carrying the task's ARN (`resource_arn`), the role
+ * (`principal_arn`) and which one it is (`binding_type`). Only rows mapped to
+ * exactly this task are returned.
+ */
+export async function fetchEcsGenomeRoles(taskArn, signal) {
+  const arn = String(taskArn ?? '').trim();
+  if (!arn) return [];
+  await loadWorkloadTypes();
+  const { data } = unwrapGenome(await client.get(`${BASE}/identities`, { params: params({ source_type: 'ECS', search: arn, limit: 100 }), signal }));
+  return list(data?.items)
+    .filter((row) => row.resource_arn === arn)
+    .map(fleetRow)
+    .filter((row) => row.openable);
+}
+
+/**
  * The genome identity an anomaly belongs to. The anomaly names its identity
  * as the event recorded it ("ec2:eks-ap-south-2-..."), which is not always the
  * genome page's key, so the list is searched by that name and the matching
@@ -215,6 +234,8 @@ function fleetRow(row) {
     /* ECS tasks are expanded into their task role and execution role, each
        its own monitored principal sharing the task's inventory record. */
     roleKind: row.role_kind ?? null,
+    /* ECS only: task_role | execution_role, as the genome list maps it to the discovery task. */
+    bindingType: row.binding_type ?? null,
     principalArn: row.principal_arn ?? row.role_arn ?? null,
     inventoryId: row.inventory_id ?? parent?.inventory_id ?? row.discovery_identities?.[0]?.inventory_id ?? null,
     resourceArn: row.resource_arn ?? parent?.arn ?? null,
@@ -440,8 +461,8 @@ async function fetchAnomalyPages(query, maxPages, signal) {
  * so the Anomalies tab can group and filter without a request per filter.
  * `total` is the real count whatever was loaded; `complete` is false beyond.
  */
-export function fetchAllAnomalies({ state, sourceType, search, from } = {}, signal) {
-  return fetchAnomalyPages({ state, sourceType, search, from }, 10, signal);
+export function fetchAllAnomalies({ state, sourceType, search, from, to } = {}, signal) {
+  return fetchAnomalyPages({ state, sourceType, search, from, to }, 10, signal);
 }
 
 /** How many anomalies the list API counts for a filter, without reading them. */

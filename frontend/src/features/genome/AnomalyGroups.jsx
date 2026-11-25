@@ -117,7 +117,7 @@ function rangeText(pattern) {
  * whether it is rising, and where it concentrates. One number, one sentence,
  * one line - colour only where severity is the point.
  */
-export function AnomalyOverview({ items, onSeverity, activeSeverities = [], realTotal }) {
+export function AnomalyOverview({ items, onSeverity, activeSeverities = [], realTotal, windowLabel, windowMs }) {
   const stats = useMemo(() => {
     const now = Date.now();
     const sev = {};
@@ -137,7 +137,17 @@ export function AnomalyOverview({ items, onSeverity, activeSeverities = [], real
      only the newest part was loaded; the breakdown below covers what loaded. */
   const total = Number.isFinite(realTotal) && realTotal > items.length ? realTotal : items.length;
   const partial = total > items.length;
-  const severe = (stats.sev.CRITICAL ?? 0) + (stats.sev.HIGH ?? 0);
+  /* "Critical or high" unless the list is filtered to one of them: then the
+     line names only that severity, so it never says more than the filter. */
+  const picked = ['CRITICAL', 'HIGH'].filter((s) => activeSeverities.includes(s));
+  const severeKeys = picked.length ? picked : ['CRITICAL', 'HIGH'];
+  const severe = severeKeys.reduce((sum, s) => sum + (stats.sev[s] ?? 0), 0);
+  const severeLabel = severeKeys.length === 1 ? severityMeta(severeKeys[0]).label.toLowerCase() : 'critical or high';
+  /* The list only holds the selected window, so "new in the last 24 hours" is
+     the whole list for 24h (said once, in the heading) and the day before is
+     only there to compare with when the window reaches back two days. */
+  const showFresh = !windowMs || windowMs > DAY_MS;
+  const showTrend = !windowMs || windowMs >= 2 * DAY_MS;
   const trend =
     stats.fresh === stats.prior
       ? 'as many as the day before'
@@ -148,7 +158,9 @@ export function AnomalyOverview({ items, onSeverity, activeSeverities = [], real
     <section aria-label="Anomaly summary" className="border-b border-line">
       <div className="px-5 pt-6 pb-5 sm:px-6">
         <div className="flex min-w-0 flex-col">
-          <p className="text-[11px] font-semibold tracking-[0.14em] text-ink-3 uppercase">Waiting for review</p>
+          <p className="text-[11px] font-semibold tracking-[0.14em] text-ink-3 uppercase">
+            Waiting for review{windowLabel ? ` · last ${windowLabel}` : ''}
+          </p>
           <p className="mt-2 flex items-baseline gap-2.5">
             <span data-numeric="" className="font-display text-[48px] leading-none font-bold tracking-tight text-ink">
               {formatNumber(total)}
@@ -159,14 +171,18 @@ export function AnomalyOverview({ items, onSeverity, activeSeverities = [], real
             {severe > 0 ? (
               <>
                 <span className="font-semibold text-critical" data-numeric="">
-                  {formatNumber(severe)} critical or high
+                  {formatNumber(severe)} {severeLabel}
                 </span>{' '}
                 - start there.{' '}
               </>
             ) : (
-              'Nothing critical or high. '
+              `Nothing ${severeLabel}. `
             )}
-            <span data-numeric="">{formatNumber(stats.fresh)}</span> new in the last 24 hours, {trend}.
+            {showFresh && (
+              <>
+                <span data-numeric="">{formatNumber(stats.fresh)}</span> new in the last 24 hours{showTrend ? `, ${trend}` : ''}.
+              </>
+            )}
             {partial && (
               <span className="mt-1 block text-[12px] text-ink-3">
                 The counts and the list below cover the newest <span data-numeric="">{formatNumber(items.length)}</span>.

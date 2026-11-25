@@ -13,10 +13,11 @@ import (
 // How log_events names the identity an event belongs to.
 //
 // For most workload families log_events.identity_name is the identity's own
-// key. An ECS task's identity_name is the task label ("standalone:<family>_<role>_task"),
-// while the identity this console tracks is the task role. For ECS the role ARN
-// is therefore read from request_parameters.roleArn (the AssumeRole call), and
-// from the role_arn column on events that carry no such parameter.
+// key. An ECS task's identity_name is the task label
+// ("standalone:<family>_<role>_task"), while the identity this console tracks
+// is the task role. For ECS the role ARN is therefore read from
+// request_parameters.roleArn (the AssumeRole call), and from the role_arn
+// column on events that carry no such parameter.
 //
 // toString() keeps the expression valid whether request_parameters is a String
 // or a JSON column.
@@ -25,82 +26,37 @@ const ecsRoleArn = `if(JSONExtractString(toString(request_parameters), 'roleArn'
 	JSONExtractString(toString(request_parameters), 'roleArn'),
 	if(role_arn != '', role_arn, identity_name))`
 
-// EventIdentity returns the requested monitoring key under which one
-// log_events row should be grouped.
-//
-// ECS supports role ARN matching.
-// EC2 supports instance ARN matching.
-// Other families use workload_key first and identity_name as fallback.
-const EventIdentity = `
-	if(
-		source_type = 'ECS'
-		AND has(
-			{names:Array(String)},
-			` + ecsRoleArn + `
-		),
-		` + ecsRoleArn + `,
-
-		if(
-			source_type = 'EC2'
-			AND has(
-				{names:Array(String)},
-				instance_arn
-			),
-			instance_arn,
-
-			if(
-				has(
-					{names:Array(String)},
-					workload_key
-				),
-				workload_key,
-				identity_name
-			)
-		)
-	)
-`
+// EventIdentity is the identity key of a log_events row, for queries over many
+// identities at once (it needs {names:Array(String)}, the requested keys): an
+// ECS row counts under its workload_key, every other row under identity_name.
+const EventIdentity = `if(source_type = 'ECS', workload_key, identity_name)`
 
 // IdentityEquals is the predicate "this row belongs to the identity bound as
-// {identity_name:String}" for one known source type. Non-ECS keeps the plain
-// column comparison; ECS matches the role ARN, or the row's own identity_name
-// for a key that is not a role ARN.
+// {identity_name:String}" for one known source type.
 //
-// Every family also matches log_events.workload_key: the pipeline stores a
-// baseline under the workload key of its events (baselines.identity_name =
-// log_events.workload_key), so a baseline key selects all of the events that
-// trained it. Workload keys never collide with event identity names or role
-// ARNs ("ecs:<account>:...", "ec2:<account>:..."), so the OR does not widen a
-// lookup by identity name or role ARN.
-func IdentityEquals(
-	sourceType string,
-) string {
-	sourceType = strings.ToUpper(
-		strings.TrimSpace(
-			sourceType,
-		),
-	)
+// The baselines table is the source of the identity name used for the
+// ClickHouse lookup:
+//
+//   - IAM: baselines.identity_name matches log_events.identity_name. The
+//     matching log_events row's instance_arn is then matched exactly against
+//     identities.arn.
+//   - ECS: baselines.identity_name matches log_events.workload_key. The
+//     matching log_events row's task_id is resolved through
+//     ecs_task_registry.task_arn, which is matched exactly against
+//     identities.arn.
+//   - Every other family: baselines.identity_name matches both
+//     log_events.identity_name and identities.arn.
+//
+// No workload_key fallback is applied for IAM or non-ECS identities, and no
+// ARN-prefix normalization is applied anywhere.
+func IdentityEquals(sourceType string) string {
+	sourceType = strings.ToUpper(strings.TrimSpace(sourceType))
 
-	switch sourceType {
-	case "ECS":
-		return `(
-			` + ecsRoleArn + ` = {identity_name:String}
-			OR identity_name = {identity_name:String}
-			OR workload_key = {identity_name:String}
-		)`
-
-	case "EC2":
-		return `(
-			instance_arn = {identity_name:String}
-			OR workload_key = {identity_name:String}
-			OR identity_name = {identity_name:String}
-		)`
-
-	default:
-		return `(
-			workload_key = {identity_name:String}
-			OR identity_name = {identity_name:String}
-		)`
+	if sourceType == "ECS" {
+		return `workload_key = {identity_name:String}`
 	}
+
+	return `identity_name = {identity_name:String}`
 }
 
 // WorkloadFacts is what log_events knows about one baseline key
@@ -109,21 +65,30 @@ func IdentityEquals(
 // last resolved event and the labels of its newest event.
 type WorkloadFacts struct {
 	SourceType string
-	Key        string
+	Key        string // requested baseline/workload key
 
-	// Distinct ClickHouse identity_name values observed for this workload.
-	IdentityNames []string
-
-	// Latest ClickHouse identity_name. This matches alerts.identity_name.
+	// IdentityNames contains distinct ClickHouse identity_name values observed
+	// for this workload. EventIdentityName is the latest identity_name and is
+	// the value persisted in alerts.identity_name.
+	IdentityNames     []string
 	EventIdentityName string
 
 	LastSeen *time.Time
 
 	DisplayName string
-	RoleARN     string
-	RoleKind    string
 	ServiceName string
 	ClusterName string
+
+	// ECS task and IAM-role context from the same latest ClickHouse row.
+	TaskID         string
+	TaskDefinition string
+	RoleARN        string
+	RoleType       string // task | execution
+	RoleKind       string // retained for compatibility with existing callers
+
+	// InstanceARN is the IAM instance ARN of the latest matching log_events
+	// row. For IAM identities it is matched exactly against identities.arn.
+	InstanceProfileARN string
 }
 
 // workloadFactsLimit caps IdentityNames per key; a workload with more event
@@ -141,201 +106,141 @@ func ReadWorkloadFacts(
 	accounts []string,
 	keys []string,
 ) ([]WorkloadFacts, error) {
-	if len(keys) == 0 ||
-		len(accounts) == 0 {
+	if len(keys) == 0 || len(accounts) == 0 {
 		return nil, nil
 	}
 
-	q := `
+	query := `
 		SELECT
 			source_type,
-
-			if(
-				source_type = 'EC2'
-				AND has(
-					{keys:Array(String)},
-					instance_arn
-				),
-				instance_arn,
-
+			k,
+			names,
+			last_seen,
+			tupleElement(latest, 1) AS event_identity_name,
+			tupleElement(latest, 2) AS display_name,
+			tupleElement(latest, 3) AS task_id,
+			tupleElement(latest, 4) AS task_definition,
+			tupleElement(latest, 5) AS cluster_name,
+			tupleElement(latest, 6) AS service_name,
+			tupleElement(latest, 7) AS role_arn,
+			tupleElement(latest, 8) AS role_type,
+			tupleElement(latest, 9) AS role_kind,
+			tupleElement(latest, 10) AS instance_profile_arn
+		FROM
+		(
+			SELECT
+				source_type,
 				if(
-					has(
-						{keys:Array(String)},
-						workload_key
-					),
+					has({keys:Array(String)}, workload_key),
 					workload_key,
 					identity_name
-				)
-			) AS k,
-
-			groupUniqArrayIf(
-				` + strconv.Itoa(workloadFactsLimit) + `
-			)(
-				identity_name,
-				identity_name != ''
-			) AS names,
-
-			maxOrNullIf(
-				event_time,
-				is_resolved = 1
-			) AS last_seen,
-
+				) AS k,
+				groupUniqArrayIf(` + strconv.Itoa(workloadFactsLimit) + `)(
+					identity_name,
+					identity_name != ''
+				) AS names,
+				maxOrNullIf(
+					event_time,
+					is_resolved = 1
+				) AS last_seen,
 			argMax(
-				display_name,
-				event_time
-			) AS display_name,
-
-			argMaxIf(
-				identity_name,
-				event_time,
-				identity_name != ''
-			) AS event_identity_name,
-
-			argMax(
-				role_arn,
-				event_time
-			) AS role_arn,
-
-			toString(
-				argMax(
-					role_kind,
-					event_time
-				)
-			) AS role_kind,
-
-			argMax(
-				service_name,
-				event_time
-			) AS service_name,
-
-			argMax(
-				cluster_name,
-				event_time
-			) AS cluster_name
-
-		FROM ` + table + `
-
-		WHERE has(
-			{accounts:Array(String)},
-			account_id
-		)
-
-		AND (
-			has(
-				{keys:Array(String)},
-				workload_key
+	tuple(
+		identity_name,
+		display_name,
+		task_id,
+		task_definition,
+		cluster_name,
+		service_name,
+		role_arn,
+		toString(role_type),
+		toString(role_kind),
+		instance_profile_arn
+	),
+	tuple(
+		ingested_at,
+		event_time
+	)
+) AS latest
+			FROM ` + table + `
+			WHERE has(
+				{accounts:Array(String)},
+				account_id
 			)
-
-			OR has(
-				{keys:Array(String)},
-				identity_name
-			)
-
-			OR (
-				source_type = 'EC2'
-				AND has(
+			AND (
+				has(
 					{keys:Array(String)},
-					instance_arn
+					workload_key
+				)
+				OR has(
+					{keys:Array(String)},
+					identity_name
 				)
 			)
+			GROUP BY
+				source_type,
+				k
 		)
-
-		GROUP BY
-			source_type,
-			k
 	`
 
 	rows, err := conn.Query(
 		ctx,
-		q,
-		ch.Named(
-			"accounts",
-			accounts,
-		),
-		ch.Named(
-			"keys",
-			keys,
-		),
+		query,
+		ch.Named("accounts", accounts),
+		ch.Named("keys", keys),
 	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	out := make(
-		[]WorkloadFacts,
-		0,
-	)
-
+	result := make([]WorkloadFacts, 0)
 	for rows.Next() {
-		var (
-			f          WorkloadFacts
-			sourceType string
-		)
+		var facts WorkloadFacts
+		var sourceType string
 
 		if err := rows.Scan(
 			&sourceType,
-			&f.Key,
-			&f.IdentityNames,
-			&f.LastSeen,
-			&f.DisplayName,
-			&f.EventIdentityName,
-			&f.RoleARN,
-			&f.RoleKind,
-			&f.ServiceName,
-			&f.ClusterName,
+			&facts.Key,
+			&facts.IdentityNames,
+			&facts.LastSeen,
+			&facts.EventIdentityName,
+			&facts.DisplayName,
+			&facts.TaskID,
+			&facts.TaskDefinition,
+			&facts.ClusterName,
+			&facts.ServiceName,
+			&facts.RoleARN,
+			&facts.RoleType,
+			&facts.RoleKind,
+			&facts.InstanceProfileARN,
 		); err != nil {
 			return nil, err
 		}
 
-		f.SourceType = strings.ToUpper(
-			strings.TrimSpace(
-				sourceType,
-			),
-		)
+		facts.SourceType = strings.ToUpper(strings.TrimSpace(sourceType))
+		facts.Key = strings.TrimSpace(facts.Key)
+		facts.EventIdentityName = strings.TrimSpace(facts.EventIdentityName)
+		facts.DisplayName = strings.TrimSpace(facts.DisplayName)
+		facts.TaskID = strings.TrimSpace(facts.TaskID)
+		facts.TaskDefinition = strings.TrimSpace(facts.TaskDefinition)
+		facts.ClusterName = strings.TrimSpace(facts.ClusterName)
+		facts.ServiceName = strings.TrimSpace(facts.ServiceName)
+		facts.RoleARN = strings.TrimSpace(facts.RoleARN)
+		facts.RoleType = strings.TrimSpace(facts.RoleType)
+		facts.RoleKind = strings.TrimSpace(facts.RoleKind)
+		facts.InstanceProfileARN = strings.TrimSpace(facts.InstanceProfileARN)
 
-		f.Key = strings.TrimSpace(
-			f.Key,
-		)
-
-		f.EventIdentityName = strings.TrimSpace(
-			f.EventIdentityName,
-		)
-
-		f.DisplayName = strings.TrimSpace(
-			f.DisplayName,
-		)
-
-		f.RoleARN = strings.TrimSpace(
-			f.RoleARN,
-		)
-
-		f.RoleKind = strings.TrimSpace(
-			f.RoleKind,
-		)
-
-		f.ServiceName = strings.TrimSpace(
-			f.ServiceName,
-		)
-
-		f.ClusterName = strings.TrimSpace(
-			f.ClusterName,
-		)
-
-		if f.LastSeen != nil {
-			value := f.LastSeen.UTC()
-			f.LastSeen = &value
+		if facts.LastSeen != nil {
+			value := facts.LastSeen.UTC()
+			facts.LastSeen = &value
 		}
 
-		out = append(
-			out,
-			f,
-		)
+		result = append(result, facts)
 	}
 
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
-	return out, nil
+	return result, nil
 }

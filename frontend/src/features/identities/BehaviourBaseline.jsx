@@ -16,7 +16,9 @@ import { Tag } from '../../ui/Tag';
 export function BehaviourBaseline({ identity }) {
   /* Which workload kinds Genome shows is settled before a link is offered. */
   const families = useQuery(() => loadWorkloadTypes(), []);
-  const sourceType = families.data ? genomeSourceType(identity.identity_type) : null;
+  /* An ECS task has no Genome key of its own (its task role and execution role
+     are separate Genome identities); the header's "Open NHI Genome" asks which. */
+  const sourceType = families.data && identity.identity_type !== 'ecs_task' ? genomeSourceType(identity.identity_type) : null;
   const identityName = sourceType && identity.arn ? canonicalGenomeName(identity.identity_type, identity.arn) : null;
   const timeline = useQuery(
     (signal) =>

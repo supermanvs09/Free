@@ -37,11 +37,15 @@ func (s *Service) GetDetail(ctx context.Context, userID, tenantID, dbName string
 	if a == nil {
 		return nil, common.ErrAnomalyNotFound
 	}
+	identitySet := common.NewIdentityIndex(fleet)
+	if _, mapped := identitySet.IndexOf(a.Key); !mapped {
+		return nil, common.ErrAnomalyNotFound
+	}
 	ev := common.EventOf(common.AlertEvents(ctx, s.events, "anomaly detail event", []common.AlertRow{*a}), *a)
 
 	out := &Response{
 		ID:       a.ID,
-		Identity: common.AnomalyIdentityRefFor(*a, common.NewIdentityIndex(fleet)),
+		Identity: common.AnomalyIdentityRefFor(*a, identitySet),
 		WhatChanged: WhatChanged{
 			Dimension: a.Dimension,
 			Baseline:  common.RawJSON(a.BaselineValue),

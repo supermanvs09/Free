@@ -9,9 +9,11 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"mime"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"runtime/debug"
 	"sort"
@@ -46,12 +48,27 @@ import (
 //     errors or tenant data; those go to the log line
 //     "genome <endpoint> rid=<id> tenant=<tenant>: …".
 
-// RequestBudget bounds the work done for one request (all PostgreSQL and
-// ClickHouse reads together). It is deliberately below the 15s
-// http.Server WriteTimeout set in cmd/api-server/main.go, so an over-long
-// request is answered with 504 STORE_TIMEOUT instead of the server closing
-// the connection mid-response.
-const RequestBudget = 120 * time.Second
+// requestBudget bounds the work done for one request (all PostgreSQL and
+// ClickHouse reads together). It is configurable through
+// GENOME_REQUEST_BUDGET_SECONDS and defaults to 15 seconds, so a slow store
+// is answered with 504 STORE_TIMEOUT instead of holding worker and database
+// resources for minutes.
+func requestBudget() time.Duration {
+	raw := strings.TrimSpace(os.Getenv("GENOME_REQUEST_BUDGET_SECONDS"))
+	if raw == "" {
+		return 15 * time.Second
+	}
+
+	seconds, err := strconv.Atoi(raw)
+	if err != nil || seconds <= 0 || seconds > 120 {
+		return 15 * time.Second
+	}
+
+	return time.Duration(seconds) * time.Second
+}
+
+// RequestBudget is the effective per-request budget used by RequestContext.
+var RequestBudget = requestBudget()
 
 // Protective input limits (not business rules): a request beyond them is
 // rejected with 400 before any store is touched.
@@ -74,6 +91,34 @@ const (
 // use. The CancelFunc must be deferred by the caller.
 func RequestContext(r *http.Request) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(r.Context(), RequestBudget)
+}
+
+// SecureHeaders adds defensive response headers. It complements TLS, CORS,
+// authentication, and any CSP configured at the API gateway or reverse proxy.
+func SecureHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("Referrer-Policy", "no-referrer")
+		h.Set("Cross-Origin-Opener-Policy", "same-origin")
+		h.Set("Cross-Origin-Resource-Policy", "same-origin")
+		h.Set("Cache-Control", "no-store")
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+// RequestLogger returns a request-scoped structured logger. Use it instead of
+// direct log.Printf calls so logs correlate by request ID and tenant without
+// exposing SQL, credentials, or tenant data.
+func RequestLogger(r *http.Request, requestID, tenantID string) *slog.Logger {
+	return slog.Default().With(
+		slog.String("request_id", requestID),
+		slog.String("tenant_id", tenantID),
+		slog.String("method", r.Method),
+		slog.String("path", r.URL.Path),
+	)
 }
 
 // ParseTime parses an ISO-8601 timestamp or date, as the API's §2 accepts.
@@ -179,9 +224,17 @@ func WriteServiceError(w http.ResponseWriter, r *http.Request, endpoint, rid str
 	case errors.Is(err, ErrNotImplemented):
 		WriteError(w, http.StatusNotImplemented, CodeNotImplemented, "this operation is not available yet", rid)
 	case IsStoreTimeout(err):
-		Log(r, endpoint, rid, "timed out (budget %s): %v", RequestBudget, err)
-		WriteError(w, http.StatusGatewayTimeout, CodeStoreTimeout,
-			fmt.Sprintf("the request did not complete within %s; narrow the time window or retry", RequestBudget), rid)
+		Log(r, endpoint, rid,
+			"store operation timed out: request_budget=%s error=%v",
+			RequestBudget, err,
+		)
+		WriteError(
+			w,
+			http.StatusGatewayTimeout,
+			CodeStoreTimeout,
+			"a data-store operation timed out; narrow the time window or retry",
+			rid,
+		)
 	case errors.As(err, &unavailable):
 		Log(r, endpoint, rid, "store unavailable: %v", err)
 		WriteError(w, http.StatusServiceUnavailable, CodeStoreUnavailable, unavailable.Reason(), rid)

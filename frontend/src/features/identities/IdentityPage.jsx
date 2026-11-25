@@ -1,7 +1,7 @@
 import { Component, useEffect, useMemo } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Dna, Fingerprint, GitCompareArrows, ShieldCheck, Waypoints } from 'lucide-react';
-import { accessGraphRoute, genomeRouteFor } from '../../lib/identityLinks';
+import { ArrowLeft, Fingerprint, GitCompareArrows, ShieldCheck, Waypoints } from 'lucide-react';
+import { accessGraphRoute } from '../../lib/identityLinks';
 import { BehaviourBaseline } from './BehaviourBaseline';
 import { EntityChangesTab } from '../changes/EntityChangesTab';
 import { PageHeader } from '../../shell/PageHeader';
@@ -17,6 +17,7 @@ import { BandTag, ScoreRing } from '../posture/parts';
 import { IdentityActivity } from '../activity/IdentityActivity';
 import { IdentityTags } from './IdentityDrawer';
 import { IdentityRecordPanels, recordTabs, useIdentityTab } from './IdentityRecord';
+import { OpenInGenome } from './OpenInGenome';
 import { identityTypeLabel } from './meta';
 
 const RECORD_KEYS = new Set(['overview', 'permissions', 'credentials', 'relationships']);
@@ -117,8 +118,6 @@ export default function IdentityPage() {
     );
   }
 
-  const genome = genomeRouteFor({ identity_type: identity.identity_type, arn: identity.arn });
-
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -139,11 +138,7 @@ export default function IdentityPage() {
             <Button variant="secondary" as={Link} to={accessGraphRoute(identity.id)} icon={Waypoints}>
               Open access graph
             </Button>
-            {genome && (
-              <Button variant="secondary" as={Link} to={genome} icon={Dna}>
-                Open NHI Genome
-              </Button>
-            )}
+            <OpenInGenome identity={identity} credentials={overview?.bound_credentials} />
           </>
         }
         meta={

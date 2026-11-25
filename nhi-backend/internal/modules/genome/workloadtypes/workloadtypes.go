@@ -84,7 +84,8 @@ var families = map[string]string{
 	"iam_user_service_account":   "IAM",
 	"iam_access_key":             "IAM",
 	"iam_roles_anywhere_session": "IAM",
-	"saas_vendor_role":           "IAM",
+
+	"saas_vendor_role": "IAM",
 
 	// Service-linked roles remain separate from ordinary IAM principals.
 	"aws_service_linked_role": "AWS_SLR",
@@ -165,11 +166,12 @@ var aliases = map[string]string{
 	"aws::amplify::backendenvironment": "amplify_backend_environment",
 
 	// IAM.
-	"aws::iam::role":  "iam_role",
-	"aws::iam::user":  "iam_user",
-	"iam_roles":       "iam_role",
-	"iam_users":       "iam_user",
-	"iam_access_keys": "iam_access_key",
+	"aws::iam::role":          "iam_role",
+	"aws::iam::user":          "iam_user",
+	"iam_roles":               "iam_role",
+	"iam_users":               "iam_user",
+	"iam_access_keys":         "iam_access_key",
+	"roles_anywhere_workload": "iam_roles_anywhere_session",
 
 	// Other existing aliases.
 	"aws::sagemaker::notebookinstance": "sagemaker_notebook",

@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -216,6 +217,16 @@ func (e *MonitoringEvents) AlertRiskEvents(
 		map[string]AlertRiskEvent,
 		len(eventIDs),
 	)
+	started := time.Now()
+
+	batchSize := len(eventIDs)
+	queryTimeout := e.timeout
+
+	log.Printf(
+		"genome AlertRiskEvents started: batch_size=%d query_timeout=%s",
+		batchSize,
+		queryTimeout,
+	)
 
 	if len(eventIDs) == 0 {
 		return out, nil
@@ -272,7 +283,23 @@ func (e *MonitoringEvents) AlertRiskEvents(
 		),
 	)
 	if err != nil {
-		return nil, err
+		log.Printf(
+			"genome AlertRiskEvents query failed: "+
+				"batch_size=%d elapsed=%s query_timeout=%s "+
+				"context_error=%v error_type=%T error=%v",
+			batchSize,
+			time.Since(started),
+			queryTimeout,
+			queryCtx.Err(),
+			err,
+			err,
+		)
+
+		return nil, wrapEventsErr(
+			queryCtx,
+			"read latest anomaly risk events",
+			err,
+		)
 	}
 	defer rows.Close()
 
@@ -361,6 +388,25 @@ func (e *MonitoringEvents) EventsByID(
 
 	queryCtx, cancel := e.queryContext(ctx)
 	defer cancel()
+
+	parentRemaining := "none"
+	if deadline, ok := ctx.Deadline(); ok {
+		parentRemaining = time.Until(deadline).String()
+	}
+
+	queryRemaining := "none"
+	if deadline, ok := queryCtx.Deadline(); ok {
+		queryRemaining = time.Until(deadline).String()
+	}
+
+	log.Printf(
+		"genome AlertRiskEvents: batch_size=%d configured_timeout=%s "+
+			"parent_remaining=%s query_remaining=%s",
+		len(eventIDs),
+		e.timeout,
+		parentRemaining,
+		queryRemaining,
+	)
 
 	rows, err := e.conn.Query(
 		queryCtx,

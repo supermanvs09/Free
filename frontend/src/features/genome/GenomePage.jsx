@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Download, SearchX, ShieldCheck, ShieldQuestion } from 'lucide-react';
-import { WINDOW_MS, countAnomalies, fetchAllAnomalies, fetchGenomeFleet, fetchGenomeSummary } from '../../lib/api/genome';
+import { WINDOW_MS, countAnomalies, fetchAllAnomalies, fetchGenomeFleet, fetchGenomeSummary, windowRange } from '../../lib/api/genome';
 import { genomeRoute } from '../../lib/identityLinks';
 import { useDebouncedValue, useQuery } from '../../lib/hooks';
 import { SERIES_TOKENS, severityMeta } from '../../lib/domain';
@@ -97,10 +97,11 @@ export default function GenomePage() {
 
   const summary = useQuery((signal) => fetchGenomeSummary({ window }, signal), [window]);
   const fleet = useQuery((signal) => fetchGenomeFleet({}, signal), []);
-  /* The tab badge counts what the tab lists: every open anomaly, any age,
-     from the same list API and scope the tab reads (not a sum of the identity
-     rows, which leaves out anomalies of identities not in the list). */
-  const openCount = useQuery((signal) => countAnomalies({ state: 'open' }, signal), []);
+  /* The tab badge counts what the tab lists: the open anomalies raised in the
+     selected window, from the same list API and scope the tab reads (not a sum
+     of the identity rows, which leaves out anomalies of identities not in the
+     list). */
+  const openCount = useQuery((signal) => countAnomalies({ state: 'open', ...windowRange(window) }, signal), [window]);
   const openTotal = openCount.data;
 
   const tabs = [
@@ -138,7 +139,7 @@ export default function GenomePage() {
 
       {tab === 'overview' && <OverviewTab summary={summary} fleet={fleet} window={window} openTab={openTab} />}
       {tab === 'identities' && <IdentitiesTab fleet={fleet} searchParams={searchParams} setParams={setParams} />}
-      {tab === 'anomalies' && <AnomaliesTab searchParams={searchParams} setParams={setParams} />}
+      {tab === 'anomalies' && <AnomaliesTab searchParams={searchParams} setParams={setParams} window={window} />}
     </div>
   );
 }
@@ -260,7 +261,7 @@ function SummaryCards({ cards, window, learningCount, openTab }) {
       key="open"
       as="button"
       type="button"
-      onClick={() => openTab('anomalies', { since: window })}
+      onClick={() => openTab('anomalies')}
       label="Open anomalies"
       value={open}
       tone="high"
@@ -270,7 +271,7 @@ function SummaryCards({ cards, window, learningCount, openTab }) {
       key="critical"
       as="button"
       type="button"
-      onClick={() => openTab('anomalies', { sev: 'CRITICAL', since: window })}
+      onClick={() => openTab('anomalies', { sev: 'CRITICAL' })}
       label="Critical anomalies"
       value={critical}
       tone="critical"
@@ -793,7 +794,7 @@ const VIEWS = [
   { value: 'list', label: 'Every anomaly' },
 ];
 
-function AnomaliesTab({ searchParams, setParams }) {
+function AnomaliesTab({ searchParams, setParams, window }) {
   const listRef = useRef(null);
   const { railOpen, toggleRail } = useFacetRail('genome-anomalies');
   const state = searchParams.get('state') === 'all' ? 'all' : 'open';
@@ -808,13 +809,12 @@ function AnomaliesTab({ searchParams, setParams }) {
   const [selectedPattern, setSelectedPattern] = useState(null);
   const view = searchParams.get('view') === 'list' ? 'list' : 'groups';
 
-  /* Opened from a summary card, the tab lists what that card counted: the
-     anomalies raised in the card's window (`since`). */
-  const since = WINDOW_WORDS[searchParams.get('since')] ? searchParams.get('since') : '';
+  /* The detection window at the top of the page (24h / 7d / 30d) is a filter
+     of this list: the anomalies API is asked for what was raised between
+     `from` and `to` (GET /genome/anomalies?from=…&to=…). */
   const query = useQuery(
-    (signal) =>
-      fetchAllAnomalies({ state: state === 'all' ? '' : 'open', from: since ? new Date(Date.now() - WINDOW_MS[since]).toISOString() : undefined }, signal),
-    [state, since],
+    (signal) => fetchAllAnomalies({ state: state === 'all' ? '' : 'open', ...windowRange(window) }, signal),
+    [state, window],
   );
   const all = useMemo(() => query.data?.items ?? [], [query.data]);
   const sevOf = (item) => String(item.severity ?? '').toUpperCase();
@@ -1004,17 +1004,6 @@ function AnomaliesTab({ searchParams, setParams }) {
             className="w-full min-w-0 sm:w-72"
             aria-label="Search anomalies"
           />
-          {since && (
-            <button
-              type="button"
-              onClick={() => setParams({ since: '', page: '' })}
-              className="inline-flex items-center gap-1 rounded-full border border-line bg-surface-2 px-2 py-0.5 text-[11.5px] text-ink-2 hover:border-ink-3/50"
-              title="Show every anomaly, any age"
-            >
-              Raised in the last {WINDOW_WORDS[since]} <span aria-hidden="true">×</span>
-              <span className="sr-only">, remove</span>
-            </button>
-          )}
           <ResultCount
             shown={formatNumber(filtered.length)}
             total={formatNumber(query.data && !query.data.complete && query.data.total > all.length ? query.data.total : all.length)}
@@ -1070,6 +1059,8 @@ function AnomaliesTab({ searchParams, setParams }) {
                 onSeverity={(list) => setParams({ sev: list.join(','), page: '' })}
                 activeSeverities={severities}
                 realTotal={!applied && !search && query.data && !query.data.complete ? query.data.total : undefined}
+                windowLabel={WINDOW_WORDS[window]}
+                windowMs={WINDOW_MS[window]}
               />
             );
           }
