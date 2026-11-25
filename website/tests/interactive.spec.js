@@ -10,14 +10,14 @@ test('home: every product line has a card that leads to its own page', async ({ 
   }
 });
 
-test('home: the Zenstra band uses Zenstra wording and shows its three ways in', async ({ page }) => {
+test('home: the platform rows show discovery, detection, AI agents and the record', async ({ page }) => {
   await page.goto('/');
   await hydrated(page);
-  const zen = page.locator('#agents');
-  await expect(zen.getByRole('heading', { level: 2 })).toHaveText('Secure every agent. Verify every intent.');
-  await expect(zen.getByRole('link', { name: 'Agent discovery' })).toHaveAttribute('href', '/agentic-ai/agent-discovery');
-  for (const w of ['Workflow Security', 'Cloud Security', 'Zenstra AI Discovery']) await expect(zen.getByRole('link', { name: new RegExp(w) })).toBeVisible();
-  await expect(zen.locator('.zc')).toBeVisible();
+  await expect(page.locator('#aispm .zs-row')).toHaveCount(4);
+  const agents = page.locator('#agents');
+  await expect(agents.getByRole('link', { name: 'Explore' })).toHaveAttribute('href', '/agentic-ai/agent-discovery');
+  // real app icons for the AI apps staff use
+  for (const app of ['Claude', 'Cursor', 'GitHub Copilot', 'n8n', 'Zapier']) await expect(agents.locator('.ac-apps')).toContainText(app);
 });
 
 test('reduced motion still shows every product card and figure', async ({ page }) => {
@@ -78,20 +78,15 @@ test('home: the logo wall names every customer it shows', async ({ page }) => {
   for (const alt of await imgs.evaluateAll((els) => els.map((e) => e.alt))) expect(alt.length).toBeGreaterThan(2);
 });
 
-test('home: the detection timeline shows signals, response and prevented steps for each pattern', async ({ page }) => {
+test('home: the detection card compares the session with the baseline and shows the decision', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await hydrated(page);
-  const tl = page.locator('#threat .tl');
-  // reduced motion shows the finished detection: four numbered signals, the response and what was prevented
-  await expect(tl.locator('.tl-ev')).toHaveCount(4);
-  await expect(tl.locator('.tl-p-out')).toContainText('Session revoked, step-up required');
-  await expect(tl).toHaveAttribute('aria-label', /T1621|MFA pushes/);
-  await tl.getByRole('button', { name: 'AI agent hijack' }).click();
-  await expect(tl.locator('.tl-p-out')).toContainText('Tool call denied before it ran');
-  await expect(tl.locator('.tl-p-k')).toContainText('Zenstra AI');
-  await tl.getByRole('button', { name: 'Machine identity abuse' }).click();
-  await expect(tl.locator('.tl-p-out')).toContainText('Key revoked');
+  const det = page.locator('#threat');
+  await expect(det.locator('.ac-diff.ac-tr')).toHaveCount(4);
+  await expect(det).toContainText('11 pushes in 90 s, approved');
+  await expect(det).toContainText('Session revoked');
+  await expect(det).toContainText('T1621');
 });
 
 test('home: the hero is one sentence and two actions, with a pause control', async ({ page }) => {
@@ -103,26 +98,15 @@ test('home: the hero is one sentence and two actions, with a pause control', asy
   await expect(hero).toHaveClass(/paused/);
 });
 
-test('home: the platform section states the position and the four things it does', async ({ page }) => {
+test('home: the platform section states the position and the AI-SPM difference', async ({ page }) => {
   await page.goto('/');
   const sec = page.locator('#aispm');
   await expect(sec.getByRole('heading', { level: 2 })).toHaveText('Continuous AI Security Posture Management');
   await expect(sec).toContainText('Securing your identities and digital ecosystem from AI-driven threats.');
-  await expect(sec.locator('.hm-four li')).toHaveCount(4);
-  await expect(sec.locator('.pc')).toContainText('Sample data');
+  await expect(sec).toContainText('AI security tools secure your models and pipelines.');
+  await expect(page.locator('.pc')).toContainText('Sample data');
 });
 
-test('home: the outcomes accordion opens one outcome at a time, with its picture', async ({ page }) => {
-  await page.goto('/');
-  await hydrated(page);
-  const pa = page.locator('#protect');
-  await expect(pa.getByRole('button', { expanded: true })).toHaveCount(1);
-  await pa.getByRole('button', { name: /Stop fraud that passes login/ }).click();
-  await expect(pa.getByRole('button', { name: /Stop fraud that passes login/ })).toHaveAttribute('aria-expanded', 'true');
-  await expect(pa.getByRole('button', { expanded: true })).toHaveCount(1);
-  await expect(pa.getByRole('region')).toContainText('Identity Fraud Prevention');
-  await expect(pa.locator('.pa-fig img')).toHaveAttribute('src', /payment-cards/);
-});
 
 test('every hero rolls the customer logos, with a pause control', async ({ page }) => {
   for (const path of ['/adapid-ai']) {
