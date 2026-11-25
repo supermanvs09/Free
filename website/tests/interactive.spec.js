@@ -78,18 +78,17 @@ test('home: the logo wall names every customer it shows', async ({ page }) => {
   for (const alt of await imgs.evaluateAll((els) => els.map((e) => e.alt))) expect(alt.length).toBeGreaterThan(2);
 });
 
-test('home: the AI threat section names each threat and shows what stopped it', async ({ page }) => {
+test('home: the AI threat picture names every threat and stops it', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await hydrated(page);
-  const tf = page.locator('#threat .tf');
-  await expect(tf.locator('.tf-item')).toHaveCount(8);
-  await tf.getByRole('button', { name: /Token theft/ }).click();
-  await expect(tf.getByRole('button', { name: /Token theft/ })).toHaveAttribute('aria-pressed', 'true');
-  await expect(tf.locator('.tf-event')).toContainText('Key revoked and rotated');
-  await expect(tf.locator('.tf-event')).toContainText('adapID AI');
-  await tf.getByRole('button', { name: /Prompt injection/ }).click();
-  await expect(tf.locator('.tf-event')).toContainText('Zenstra AI');
+  const td = page.locator('#threat .td');
+  for (const t of ['AI-generated phishing', 'Prompt injection', 'Deepfake voice', 'Tool poisoning', 'MFA fatigue', 'Agent hijacking', 'Data leakage to AI']) {
+    await expect(td).toHaveAttribute('aria-label', new RegExp(t, 'i'));
+  }
+  // reduced motion: one still frame with stopped threats, and the identities it protects
+  await expect(td.locator('.td-stamp')).toHaveCount(3);
+  await expect(td.locator('.td-id')).toHaveCount(6);
 });
 
 test('home: the hero is one sentence and two actions, with a pause control', async ({ page }) => {
