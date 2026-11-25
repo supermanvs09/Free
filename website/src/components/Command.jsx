@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { PRODUCTS } from '../data/products.js';
 import { ZCAPS } from '../data/zenstra.js';
@@ -66,7 +66,8 @@ function Search({ onClose }) {
   const go = useNavigate();
   const hits = useMemo(() => search(q), [q]);
   useOverlay(onClose);
-  useEffect(() => { input.current?.focus(); }, []);
+  // focus before the dialog paints, so the first keystrokes are never lost
+  useLayoutEffect(() => { input.current?.focus(); }, []);
   useEffect(() => { setAt(0); }, [q]);
   useEffect(() => { list.current?.querySelector(`[data-i="${at}"]`)?.scrollIntoView({ block: 'nearest' }); }, [at]);
   const open = (h) => { if (!h) return; onClose(); go(h.path); };

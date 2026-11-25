@@ -73,3 +73,7 @@ Every line below comes from the site's own data (`src/data/*`). The visual treat
 | 8 | Demo card | Find your riskiest identity before attackers do. | unchanged | kept |
 
 Template shortlist (Dribbble, opened individually): A Liberty (Emura), B Cyntra (BayFi Studio), C Fudo Security (Dave Roach), D Picus Security (Dave Roach), E PhishAI integrations (Illiyin Studio), F Stratiform (ROY'Z_VISUALS).
+
+## 6. Status (round 4, built)
+
+All eight sections are built in direction A (Liberty). Section 3 is static for now (no signature animation, by decision): four things we secure (people, machine identities, AI agents, personal data), each with the AI-driven threats it stops and the product that does it, and the five-step loop. Moving pictures on the page: the hero wave and the Claude scene only. Signature concepts sampled but on hold: Air Traffic Control, Living City.

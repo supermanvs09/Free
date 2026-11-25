@@ -9,27 +9,20 @@ test('home: every product line has a card that leads to its own page', async ({ 
     await expect(sec.getByRole('link', { name: `Explore ${name}` })).toHaveAttribute('href', /^\//);
   }
 });
-test('home: the attack replay plays five chapters and can be paused and jumped', async ({ page }) => {
+test('home: AI-SPM names what we secure, the threats it stops and the loop', async ({ page }) => {
   await page.goto('/');
-  await hydrated(page);
-  const rp = page.locator('#aispm .rp');
-  await rp.scrollIntoViewIfNeeded();
-  await expect(rp.locator('.rp-ch')).toHaveCount(5);
-  await expect(rp.getByRole('button', { name: 'Pause the replay' })).toBeVisible({ timeout: 8000 });
-  await rp.getByRole('button', { name: /The agent is stopped/ }).click();
-  await expect(rp).toHaveAttribute('data-ch', '3');
-  await rp.getByRole('button', { name: 'Pause the replay' }).click();
-  await expect(rp.getByRole('button', { name: 'Play the replay' })).toBeVisible();
-});
-test('reduced motion shows the replay at its end, with every decision on the record', async ({ page }) => {
+  const sec = page.locator('#aispm');
+  await expect(sec.locator('.ai-cell')).toHaveCount(4);
+  for (const h of ['People', 'Machine identities', 'AI agents', 'Personal data']) await expect(sec.getByRole('heading', { level: 3, name: h })).toBeVisible();
+  await expect(sec.locator('.ai-loop li')).toHaveCount(5);
+  await expect(sec.getByRole('link', { name: /Zenstra AI/ })).toHaveAttribute('href', '/agentic-ai/agentic-identity');
+});test('reduced motion still shows the Claude scene at its finished frame', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await hydrated(page);
-  await expect(page.locator('#aispm .rp-log li.in')).toHaveCount(5);
-  await expect(page.locator('#aispm .rp-scene.s4')).toBeVisible();
   await expect(page.locator('.cl-toast')).toContainText('Blocked! This prompt contains credentials, API keys and tokens.');
-});
-test('zenstra: before and after sit side by side, five moments each', async ({ page }) => {
+  await expect(page.locator('.cl-note')).toContainText('Not sent · decision recorded by Zenstra AI');
+});test('zenstra: before and after sit side by side, five moments each', async ({ page }) => {
   await page.goto('/agentic-ai/agentic-identity');
   const sec = page.locator('section:has(#chg-h)');
   await expect(sec.getByText('Without Zenstra', { exact: true })).toBeVisible();
@@ -72,15 +65,17 @@ test('home: "Watch video" plays the brand film in a dialog, and Escape closes it
   await expect(btn).toBeFocused();
 });
 
-test('home: the replay names each AI-driven technique and the decision taken', async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: 'reduce' });
+test('home: industries, proof and research each lead somewhere real', async ({ page }) => {
   await page.goto('/');
-  const log = page.locator('#aispm .rp-log');
-  for (const v of ['DETECT', 'HOLD', 'FLAG', 'BLOCK', 'RECORD']) await expect(log).toContainText(v);
-  await expect(log).toContainText('synthetic voice');
-  await expect(page.locator('#aispm')).toContainText('Names and data are illustrative');
-});
-test('home: the hero is one sentence and two actions, with a pause control', async ({ page }) => {
+  const ind = page.locator('section[aria-labelledby="ind-h"]');
+  await expect(ind.locator('a[href^="/solutions/"]')).toHaveCount(4);
+  const proof = page.locator('section[aria-labelledby="num-h"]');
+  await expect(proof.locator('.nm-stats li')).toHaveCount(4);
+  await expect(proof).toContainText('Patent No. 602726');
+  const res = page.locator('section[aria-labelledby="res-h"]');
+  await expect(res.locator('a[href^="/blogs/"]')).toHaveCount(3);
+  await expect(res.getByRole('link', { name: /All research/ })).toHaveAttribute('href', '/blogs');
+});test('home: the hero is one sentence and two actions, with a pause control', async ({ page }) => {
   await page.goto('/');
   await hydrated(page);
   const hero = page.locator('section[aria-labelledby="hero-h"]');
@@ -154,13 +149,13 @@ test('fraud: three checks on one dial, each session with its own decision', asyn
   await expect(gate.locator('.card')).toHaveCount(0);
 });
 
-test('home has no blogs section, and the platform is one scroll away', async ({ page }) => {
+test('home ends with the latest research, and the platform is one scroll away', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#orbit')).toHaveCount(0);
   await page.locator('#aispm-h').scrollIntoViewIfNeeded();
   await expect(page.locator('#aispm-h')).toBeInViewport({ timeout: 5000 });
-  // the blogs section is gone from home; blogs stay one click away in the menu
-  await expect(page.locator('#res-h')).toHaveCount(0);
+  // the latest three posts close the page (docs/reference/home-ia.md); blogs stay in the menu too
+  await expect(page.locator('#res-h')).toHaveCount(1);
   await expect(page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Blogs' })).toHaveAttribute('href', '/blogs');
 });
 
