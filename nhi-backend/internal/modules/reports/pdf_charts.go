@@ -64,7 +64,10 @@ func (k *kit) subHead(title, note string) {
 
 // statement is a shadcn Alert: a bordered box with an info mark, a title
 // and the text.
-func (k *kit) statement(x, w float64, s string) {
+func (k *kit) statement(x, w float64, s string) { k.note(x, w, "In brief", s) }
+
+// note is a shadcn Alert with a title.
+func (k *kit) note(x, w float64, title, s string) {
 	k.font(fReg, 9.2, cInk2)
 	lines := k.wrap(s, w-16, 0)
 	h := 11 + float64(len(lines))*4.8
@@ -78,7 +81,7 @@ func (k *kit) statement(x, w float64, s string) {
 	k.pdf.Rect(x+5.82, y+5.5, 0.36, 1.5, "F")
 	k.pdf.Circle(x+6, y+4.75, 0.22, "F")
 	k.font(fSemi, 9.2, cInk)
-	k.at(x+10, y+3.6, w-14, 4.6, "In brief", "L")
+	k.at(x+10, y+3.6, w-14, 4.6, title, "L")
 	k.font(fReg, 9.2, cInk2)
 	for i, l := range lines {
 		k.at(x+10, y+8.6+float64(i)*4.8, w-16, 4.8, l, "L")
@@ -393,12 +396,15 @@ func (k *kit) vBars(x, y, w, h float64, cats []string, series [][]float64, color
 				k.fill(colors[si])
 				pdf.RoundedRect(bx, y+h-bh, bw, bh, math.Min(1.6, math.Min(bw/2, bh)), "12", "F")
 			}
+			if v <= 0 {
+				continue // an empty slot speaks for itself
+			}
 			label := fmt.Sprintf("%.0f", v)
-			if v > 0 && v < 10 && v != math.Trunc(v) {
+			if v < 10 && v != math.Trunc(v) {
 				label = fmt.Sprintf("%.1f", v)
 			}
-			k.font(fMed, 7, cInk)
-			k.at(bx-3, y+h-bh-4, bw+6, 3.6, label, "C")
+			k.font(fMed, 6.4, cInk)
+			k.at(bx-1, y+h-bh-3.6, bw+2, 3.4, label, "C")
 		}
 		k.font(fReg, 7.4, cInk3)
 		k.at(x+slot*float64(ci), y+h+1.6, slot, 3.6, cat, "C")

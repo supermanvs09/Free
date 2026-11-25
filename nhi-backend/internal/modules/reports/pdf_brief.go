@@ -176,16 +176,24 @@ func bottomLine(rep *PostureReport, overdue int) string {
 func (b *brief) summary() {
 	pdf, rep := b.pdf, b.rep
 	b.sectionTitle("summary", "Section 01", "Executive summary")
-	if pt := periodText(rep); pt != "" {
+	st := rep.Stage()
+	period := ""
+	if pt := periodText(rep); pt != "" && !st.Baseline {
+		period = "Reporting period: " + pt + "."
+	} else if rep.DataAsOf != nil {
+		period = "Baseline assessment from the scan of " + rep.DataAsOf.UTC().Format("2 January 2006") + "."
+	}
+	if period != "" {
 		b.font(fReg, 8, cInk3)
-		b.at(b.mx, pdf.GetY()-3, b.body, 4, "Reporting period: "+pt+".", "L")
+		b.at(b.mx, pdf.GetY()-3, b.body, 4, period, "L")
 		pdf.SetY(pdf.GetY() + 5)
 	}
-	overdue := 0
-	for _, n := range rep.Overdue() {
-		overdue += n
+	overdue := st.Overdue
+	if st.Baseline {
+		b.statement(b.mx, b.body, baselineLine(rep))
+	} else {
+		b.statement(b.mx, b.body, bottomLine(rep, overdue))
 	}
-	b.statement(b.mx, b.body, bottomLine(rep, overdue))
 
 	// Score (radial) and trend (area), side by side as cards.
 	y := pdf.GetY()
@@ -195,7 +203,7 @@ func (b *brief) summary() {
 	b.cardHead(b.mx, y, lw, "Security score", "Average of every scored identity")
 	b.radial(b.mx+lw/2, y+32, 13, rep.AverageScore, "out of 100")
 	var up *bool
-	trend := "Change: not tracked yet"
+	trend := "Baseline score"
 	if c := rep.Change30d; c != nil {
 		u := *c >= 0
 		up = &u
@@ -208,8 +216,22 @@ func (b *brief) summary() {
 	b.cardFoot(b.mx, y+ch, lw, trend, up, band)
 	tx, tw := b.mx+lw+5, b.body-lw-5
 	b.card(tx, y, tw, ch)
-	b.cardHead(tx, y, tw, "Score over time", "Average security score, day by day")
-	b.areaChart(tx+5, y+18, tw-10, 27, rep.Trend)
+	if !st.Trend {
+		// No history yet: where the score stands by account instead.
+		b.cardHead(tx, y, tw, "Score by account", "Average security score of each account's scored identities")
+		var bars []hbar
+		for i, a := range rep.Accounts {
+			if i == 5 {
+				break
+			}
+			bars = append(bars, hbar{accountName(a), scoreOr(a.Average), fmtScore(a.Average), cBlue[4]})
+		}
+		b.hBars(tx+5, y+17, tw-10, 46, 6, bars)
+		b.cardFoot(tx, y+ch, tw, "", nil, "The day-by-day trend starts after a few days of scans.")
+	} else {
+		b.cardHead(tx, y, tw, "Score over time", "Average security score, day by day")
+		b.areaChart(tx+5, y+18, tw-10, 27, rep.Trend)
+	}
 	if n := len(rep.Trend); n > 1 {
 		lo, hi := rep.Trend[0].Score, rep.Trend[0].Score
 		for _, p := range rep.Trend {
@@ -231,6 +253,9 @@ func (b *brief) summary() {
 		{"Identities failing", num(rep.FailingCount), pct(rep.FailingCount, rep.ScoredCount), "of " + num(rep.ScoredCount) + " scored", nil},
 		{"Critical and high open", num(rep.BySeverity["critical"] + rep.BySeverity["high"]), pct(rep.BySeverity["critical"]+rep.BySeverity["high"], rep.CheckCount), "of " + num(rep.CheckCount) + " open findings", nil},
 		{"Past target", num(overdue), pct(overdue, rep.CheckCount), "open findings past their target", nil},
+	}
+	if overdue == 0 {
+		figs[2] = fig{"Due in the next 7 days", num(rep.DueWithin(7)), "", "none is past its target yet", nil}
 	}
 	if h := rep.History; h != nil {
 		med, ok := h.Current.OverallMedian()
@@ -267,6 +292,17 @@ func (b *brief) summary() {
 			fig{"Identities scored", num(rep.ScoredCount), "", "in " + count(rep.AccountsCovered, "account", "accounts"), nil},
 			fig{"Failing 30+ days", num(rep.OldChecks), "", "open findings", nil})
 	}
+	if !st.Fixes {
+		// Nothing fixed yet: the figures that matter are what falls due
+		// and who owns it, not "0 fixed".
+		first := "nothing due in 30 days"
+		if f := rep.FirstDue(); f != nil {
+			first = "first on " + f.UTC().Format("2 Jan 2006")
+		}
+		figs = append(figs[:3], fig{"Due within 30 days", num(rep.DueWithin(30)), "", first, nil},
+			fig{"Checks failing", num(len(rep.Groups)), "", "across " + count(len(rep.Areas()), "security area", "security areas"), nil},
+			fig{"Without an owner", num(unassigned), pct(unassigned, rep.CheckCount), "assign them in the console", nil})
+	}
 	y = pdf.GetY()
 	gap := 4.0
 	fw := (b.body - 2*gap) / 3
@@ -299,6 +335,20 @@ func (b *brief) summary() {
 	}
 	b.sub("Key messages", "")
 	msgs := keyPoints(rep)
+	if st.Baseline {
+		// Everything was found by the first scans: "started failing in the
+		// last 7 days" would mislead.
+		var keep []string
+		for _, m := range msgs {
+			if !strings.Contains(m, "started failing") {
+				keep = append(keep, m)
+			}
+		}
+		msgs = keep
+		if n := rep.DueWithin(30); n > 0 {
+			msgs = append(msgs, fmt.Sprintf("%s fall due in the next 30 days at the current targets; the first on %s.", count(n, "finding", "findings"), rep.FirstDue().UTC().Format("2 January")))
+		}
+	}
 	if cs := changeSentence(rep); cs != "" {
 		msgs = append([]string{cs}, msgs...)
 	}
@@ -333,26 +383,51 @@ func (b *brief) summary() {
 
 func (b *brief) remediation() {
 	pdf, rep := b.pdf, b.rep
-	b.sectionTitle("remediation", "Section 02", "Remediation performance")
-	b.font(fReg, 9, cInk2)
-	b.para(b.mx, b.body, 4.6, "How fast findings are fixed against the remediation targets, and whether the backlog is growing. "+slaLine(rep))
-	pdf.SetY(pdf.GetY() + 4)
-	if cs := changeSentence(rep); cs != "" {
-		b.statement(b.mx, b.body, cs)
-	}
-	b.sub("By severity", "Open and overdue now; new, fixed, median days to fix and the share fixed within target in this period, with the previous period in brackets.")
-	b.remediationTable(b.mx, b.body)
-	pdf.SetY(pdf.GetY() + 7)
-	if rep.History != nil {
+	st := rep.Stage()
+	if !st.Fixes {
+		// Nothing fixed yet: the section sets the targets and shows what
+		// falls due when, instead of an empty performance history.
+		b.sectionTitle("remediation", "Section 02", "Remediation targets")
+		b.font(fReg, 9, cInk2)
+		b.para(b.mx, b.body, 4.6, "No finding has been fixed yet, so there is no remediation history to measure. Every open finding has a due date: its first detection plus the target for its severity. "+slaLine(rep))
+		pdf.SetY(pdf.GetY() + 4)
+		if cs := changeSentence(rep); cs != "" {
+			b.statement(b.mx, b.body, cs)
+		}
+		b.sub("By severity", "Open findings and when they fall due.")
+		b.dueTable(b.mx, b.body)
+		pdf.SetY(pdf.GetY() + 7)
+		b.ensure(76)
+		y := pdf.GetY()
+		half := (b.body - 5) / 2
+		b.dueChart(b.mx, y, half, 74)
+		end := b.ownersOrNote(b.mx+half+5, y, half, 74)
+		pdf.SetY(math.Max(y+74, end) + 7)
+	} else {
+		b.sectionTitle("remediation", "Section 02", "Remediation performance")
+		b.font(fReg, 9, cInk2)
+		b.para(b.mx, b.body, 4.6, "How fast findings are fixed against the remediation targets, and whether the backlog is growing. "+slaLine(rep))
+		pdf.SetY(pdf.GetY() + 4)
+		if cs := changeSentence(rep); cs != "" {
+			b.statement(b.mx, b.body, cs)
+		}
+		b.sub("By severity", "Open and overdue now; new, fixed, median days to fix and the share fixed within target in this period, with the previous period in brackets.")
+		b.remediationTable(b.mx, b.body)
+		pdf.SetY(pdf.GetY() + 7)
 		b.daysToFix(b.mx, b.body)
+		half := (b.body - 5) / 2
+		b.ensure(76)
+		y := pdf.GetY()
+		var end float64
+		if st.Spread {
+			end = b.agingChart(b.mx, y, half)
+		} else {
+			b.dueChart(b.mx, y, half, 74)
+			end = y + 74
+		}
+		end = math.Max(end, b.ownersOrNote(b.mx+half+5, y, half, 74))
+		pdf.SetY(end + 7)
 	}
-
-	half := (b.body - 5) / 2
-	b.ensure(76)
-	y := pdf.GetY()
-	end := b.agingChart(b.mx, y, half)
-	b.ownersCard(b.mx+half+5, y, half, 74)
-	pdf.SetY(end + 7)
 	if len(rep.Exceptions) > 0 {
 		b.sub("Accepted risks", "Findings the organisation decided to keep, with the reason and who decided. They are excluded from the score.")
 		b.exceptionsTable(b.mx, b.body, 12)
@@ -364,7 +439,11 @@ func (b *brief) remediation() {
 func (b *brief) overview() {
 	pdf, rep := b.pdf, b.rep
 	b.sectionTitle("overview", "Section 03", "Risk overview")
-	pdf.SetY(b.nhiIndex(b.mx, pdf.GetY(), b.body) + 5)
+	if anyNHI(rep) {
+		pdf.SetY(b.nhiIndex(b.mx, pdf.GetY(), b.body) + 5)
+	} else {
+		b.note(b.mx, b.body, "OWASP Non-Human Identities Top 10", "None of the checks failing in scope is evidence of an OWASP NHI Top 10 (2025) risk.")
+	}
 
 	half := (b.body - 5) / 2
 	b.ensure(64)
@@ -375,7 +454,7 @@ func (b *brief) overview() {
 		sev = append(sev, segment{SeverityLabel(s), rep.BySeverity[s], cSevFill[s]})
 	}
 	for _, bc := range rep.Bands {
-		bands = append(bands, segment{bandLabel(bc.Band) + " " + strings.ReplaceAll(BandRange[bc.Band], " to ", "–"), bc.Count, cBandFill[bc.Band]})
+		bands = append(bands, segment{bandLabel(bc.Band), bc.Count, cBandFill[bc.Band]})
 	}
 	for i, d := range []struct {
 		title, desc, caption string
@@ -383,7 +462,7 @@ func (b *brief) overview() {
 		total                int
 	}{
 		{"Findings by severity", "Open findings in scope", "findings", sev, rep.CheckCount},
-		{"Identities by score band", "Scored identities", "identities", bands, rep.ScoredCount},
+		{"Identities by score band", "Healthy 80+, fair 60–79, poor 40–59, critical below 40", "identities", bands, rep.ScoredCount},
 	} {
 		x := b.mx + float64(i)*(half+5)
 		b.card(x, y, half, ch)
@@ -568,10 +647,17 @@ func (b *brief) entry(i int, g CheckGroup) {
 	blocks := []struct{ label, text string }{
 		{"Criteria", Criteria(g)},
 		{"Condition", fmt.Sprintf("Fails on %s in %s. %s", count(len(g.Items), "identity", "identities"), count(len(g.Accounts), "account", "accounts"), who)},
-		{"Effect", orDash(why)},
-		{"Recommendation", orDash(g.Fix)},
+		{"Effect", why},
+		{"Recommendation", orText(g.Fix, noFixText)},
 		{"Owner", owner},
 	}
+	kept := blocks[:0]
+	for _, bl := range blocks {
+		if strings.TrimSpace(bl.text) != "" {
+			kept = append(kept, bl)
+		}
+	}
+	blocks = kept
 	b.font(fReg, 8.3, cInk2)
 	lines := make([][]string, len(blocks))
 	total := 0

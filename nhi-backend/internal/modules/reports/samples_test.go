@@ -292,18 +292,55 @@ func TestSamples(t *testing.T) {
 		{"C-analyst-model.xlsx", WriteAnalystXLSX},
 	}
 	t.Logf("avg %.1f, %d of %d failing, findings %v, bands %v", *rep.AverageScore, rep.FailingCount, rep.ScoredCount, rep.BySeverity, rep.Bands)
-	for _, d := range designs {
-		var buf bytes.Buffer
-		if err := d.write(&buf, rep); err != nil {
-			t.Fatalf("%s: %v", d.file, err)
-		}
-		t.Logf("%s: %d KB", d.file, buf.Len()/1024)
-		if out != "" {
-			if err := os.WriteFile(filepath.Join(out, d.file), buf.Bytes(), 0o644); err != nil {
-				t.Fatal(err)
+	day1 := dayOne(sampleReport(t, 320))
+	if st := day1.Stage(); !st.Baseline || st.Fixes || st.Trend || st.Owners || st.Overdue != 0 {
+		t.Fatalf("day-one sample is not a baseline: %+v", st)
+	}
+	for _, r := range []struct {
+		prefix string
+		rep    *PostureReport
+	}{{"", rep}, {"Day-one-", day1}} {
+		for _, d := range designs {
+			var buf bytes.Buffer
+			if err := d.write(&buf, r.rep); err != nil {
+				t.Fatalf("%s%s: %v", r.prefix, d.file, err)
+			}
+			if out != "" {
+				if err := os.WriteFile(filepath.Join(out, r.prefix+d.file), buf.Bytes(), 0o644); err != nil {
+					t.Fatal(err)
+				}
 			}
 		}
 	}
+}
+
+// dayOne turns a sample into a customer who connected a week ago: every
+// finding first seen in the last 7 days, nothing fixed, no owners, no
+// accepted risks, one day of scores.
+func dayOne(rep *PostureReport) *PostureReport {
+	now := rep.GeneratedAt
+	for i := range rep.Identities {
+		for j := range rep.Identities[i].Checks {
+			c := &rep.Identities[i].Checks[j]
+			since := now.AddDate(0, 0, -(i+j)%7)
+			c.FailingSince = &since
+			c.Owner = ""
+		}
+	}
+	for gi := range rep.Groups {
+		since := now.AddDate(0, 0, -6)
+		rep.Groups[gi].Since = &since
+	}
+	rep.Trend = rep.Trend[len(rep.Trend)-1:]
+	rep.Change30d = nil
+	rep.Exceptions = nil
+	rep.OldChecks = 0
+	if h := rep.History; h != nil {
+		h.Current = PeriodStats{Start: h.Current.Start, End: h.Current.End, New: rep.CheckCount, NewBySev: rep.BySeverity,
+			ResolvedBySev: map[string]int{}, MedianDays: map[string]float64{}, FixedInSLA: map[string]int{}}
+		h.Previous = PeriodStats{Start: h.Previous.Start, End: h.Previous.End, NewBySev: map[string]int{}, ResolvedBySev: map[string]int{}, MedianDays: map[string]float64{}, FixedInSLA: map[string]int{}}
+	}
+	return rep
 }
 
 // TestDesignsLarge renders every design for a large estate and an empty one.

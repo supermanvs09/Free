@@ -115,7 +115,7 @@ func WriteExecutiveXLSX(w io.Writer, rep *PostureReport) error {
 		{"Accepted risks", "Accepted or suppressed findings and who decided"},
 		{"Data dictionary", "What every column means"},
 	}
-	if err := x.cover("Identity Security Posture Report · Executive workbook", sheets, nil); err != nil {
+	if err := x.cover("Identity Security Posture Report · Executive workbook", stageNotes(rep, sheets), nil); err != nil {
 		return err
 	}
 	if err := x.dashboard(); err != nil {
@@ -170,9 +170,10 @@ func (x *wb) dashboard() error {
 		{"Average score", score, "dec", sub, trend},
 		{"Identities failing", rep.FailingCount, "int", pct(rep.FailingCount, rep.ScoredCount) + " of " + num(rep.ScoredCount), 0},
 		{"Critical and high", rep.BySeverity["critical"] + rep.BySeverity["high"], "int", "of " + num(rep.CheckCount) + " open", 0},
-		{"Past target", overdue, "int", pct(overdue, rep.CheckCount) + " of open", map[bool]int{true: -1, false: 0}[overdue > 0]},
+		dueTile(rep, overdue),
 	}
-	if h := rep.History; h != nil {
+	st := rep.Stage()
+	if h := rep.History; h != nil && st.Fixes {
 		ng, fg := 0, 0
 		if hasPrevious(rep) {
 			ng = map[bool]int{true: 1, false: -1}[h.Current.New <= h.Previous.New]
@@ -182,7 +183,7 @@ func (x *wb) dashboard() error {
 			tile{"Fixed in the period", h.Current.Resolved, "int", wasText(rep, h.Previous.Resolved), fg})
 	} else {
 		_, un := rep.Owners()
-		cards = append(cards, tile{"Without an owner", un, "int", "open findings", 0}, tile{"Accounts", rep.AccountsCovered, "int", "connected", 0})
+		cards = append(cards, tile{"Due within 30 days", rep.DueWithin(30), "int", "at the current targets", 0}, tile{"Without an owner", un, "int", "assign in the console", 0})
 	}
 	r = x.tiles(sh, r, 2, cards)
 
@@ -244,15 +245,28 @@ func (x *wb) dashboard() error {
 	}
 
 	// Age of open findings and the OWASP NHI Top 10, side by side.
-	x.section(sh, r, 0, 5, "Age of open findings", "Days since first detection, by severity.")
+	if st.Spread {
+		x.section(sh, r, 0, 5, "Age of open findings", "Days since first detection, by severity.")
+	} else {
+		x.section(sh, r, 0, 5, "When open findings fall due", "First detection plus the target for the severity, by severity.")
+	}
 	x.section(sh, r, 6, 11, "OWASP Non-Human Identities Top 10", "Identities failing a check that is evidence of each risk.")
 	r += 2
 	var ageLabels []string
 	ageVals := make([][]float64, len(Severities))
-	for _, b := range rep.Aging() {
-		ageLabels = append(ageLabels, b.Label)
-		for i, s := range Severities {
-			ageVals[i] = append(ageVals[i], float64(b.BySev[s]))
+	if st.Spread {
+		for _, b := range rep.Aging() {
+			ageLabels = append(ageLabels, b.Label)
+			for i, s := range Severities {
+				ageVals[i] = append(ageVals[i], float64(b.BySev[s]))
+			}
+		}
+	} else {
+		for _, b := range rep.DueSchedule() {
+			ageLabels = append(ageLabels, b.Label)
+			for i, s := range Severities {
+				ageVals[i] = append(ageVals[i], float64(b.BySev[s]))
+			}
 		}
 	}
 	var sevNames []string
@@ -275,13 +289,17 @@ func (x *wb) dashboard() error {
 		nhiVals = append(nhiVals, float64(n.Identities))
 	}
 	nhiCats, nhiRanges := x.chartRows(16, "Risk", nhiLabels, [][]float64{nhiVals}, []string{"Identities"})
-	_ = f.AddChart(sh, fmt.Sprintf("H%d", r), cleanChart(&excelize.Chart{Type: excelize.Bar, GapWidth: uintPtr(45),
-		Series:    []excelize.ChartSeries{{Name: "Identities", Categories: nhiCats, Values: nhiRanges[0], Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{xBrand}}}},
-		Legend:    excelize.ChartLegend{Position: "none"},
-		PlotArea:  excelize.ChartPlotArea{ShowVal: true},
-		XAxis:     excelize.ChartAxis{ReverseOrder: true},
-		YAxis:     excelize.ChartAxis{None: true},
-		Dimension: excelize.ChartDimension{Width: 548, Height: 290}}))
+	if !anyNHI(rep) {
+		x.put(sh, r, 6, 11, "None of the checks failing in scope is evidence of an OWASP NHI Top 10 risk.", "secCap")
+	} else {
+		_ = f.AddChart(sh, fmt.Sprintf("H%d", r), cleanChart(&excelize.Chart{Type: excelize.Bar, GapWidth: uintPtr(45),
+			Series:    []excelize.ChartSeries{{Name: "Identities", Categories: nhiCats, Values: nhiRanges[0], Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{xBrand}}}},
+			Legend:    excelize.ChartLegend{Position: "none"},
+			PlotArea:  excelize.ChartPlotArea{ShowVal: true},
+			XAxis:     excelize.ChartAxis{ReverseOrder: true},
+			YAxis:     excelize.ChartAxis{None: true},
+			Dimension: excelize.ChartDimension{Width: 548, Height: 290}}))
+	}
 	r += 16
 
 	// Tables: accounts and security areas.
@@ -429,12 +447,28 @@ func (x *wb) remediationSheet(name, table string) error {
 		}
 	}
 	overdue := rep.Overdue()
+	week, month := map[string]int{}, map[string]int{}
+	for _, id := range rep.Identities {
+		for _, c := range id.Checks {
+			if in, ok := rep.dueIn(c); ok && in >= 0 {
+				if in <= 7 {
+					week[c.Severity]++
+				}
+				if in <= 30 {
+					month[c.Severity]++
+				}
+			}
+		}
+	}
 	h := rep.History
+	prev := hasPrevious(rep)
 	cols := []xcol{
 		{"Severity", 11, kSev, "Finding severity."},
 		{"Target (days)", 12, kInt, "Remediation target in days from first detection."},
 		{"Open", 9, kInt, "Open findings now."},
 		{"Overdue", 9, kInt, "Open findings past their target."},
+		{"Due in 7 days", 10, kInt, "Open findings whose target falls in the next 7 days."},
+		{"Due in 30 days", 10, kInt, "Open findings whose target falls in the next 30 days."},
 		{"Open 0-15 days", 11, kInt, "Open findings by age."},
 		{"Open 16-30 days", 11, kInt, "Open findings by age."},
 		{"Open 31-90 days", 11, kInt, "Open findings by age."},
@@ -452,7 +486,7 @@ func (x *wb) remediationSheet(name, table string) error {
 	aging := rep.Aging()
 	_, err := x.dataSheet(name, table, "", cols, func(emit func([]interface{}) error) error {
 		for _, s := range Severities {
-			row := []interface{}{s, rep.SLA.Due(s), open[s], overdue[s]}
+			row := []interface{}{s, rep.SLA.Due(s), open[s], overdue[s], week[s], month[s]}
 			for _, b := range aging {
 				row = append(row, b.BySev[s])
 			}
@@ -471,8 +505,15 @@ func (x *wb) remediationSheet(name, table string) error {
 					}
 					return float64(p.FixedInSLA[s]) / float64(p.ResolvedBySev[s])
 				}
-				row = append(row, h.Current.NewBySev[s], h.Previous.NewBySev[s], h.Current.ResolvedBySev[s], h.Previous.ResolvedBySev[s],
-					med(h.Current), med(h.Previous), share(h.Current), share(h.Previous))
+				// The previous period is blank, not 0, when there was none.
+				pv := func(v interface{}) interface{} {
+					if !prev {
+						return nil
+					}
+					return v
+				}
+				row = append(row, h.Current.NewBySev[s], pv(h.Previous.NewBySev[s]), h.Current.ResolvedBySev[s], pv(h.Previous.ResolvedBySev[s]),
+					med(h.Current), pv(med(h.Previous)), share(h.Current), pv(share(h.Previous)))
 			}
 			if err := emit(row); err != nil {
 				return err
@@ -532,7 +573,7 @@ func WriteAnalystXLSX(w io.Writer, rep *PostureReport) error {
 		{"Trend", "tblTrend: average score per day"},
 		{"Data dictionary", "What every column means"},
 	}
-	if err := x.cover("Identity Security Posture Report · Analyst data model", sheets, nil); err != nil {
+	if err := x.cover("Identity Security Posture Report · Analyst data model", stageNotes(rep, sheets), nil); err != nil {
 		return err
 	}
 	f := x.f
@@ -800,4 +841,22 @@ func (x *wb) analystSummary(facts int) error {
 	_ = f.SetSheetView(sh, 0, &excelize.ViewOptions{ShowRowColHeaders: boolPtr(false)})
 	x.printSetup(sh, false)
 	return nil
+}
+
+// stageNotes tells the reader on the cover which sheets are empty or
+// forward-looking for now, so a blank sheet is never a surprise.
+func stageNotes(rep *PostureReport, sheets []sheetInfo) []sheetInfo {
+	st := rep.Stage()
+	out := append([]sheetInfo(nil), sheets...)
+	for i, s := range out {
+		switch {
+		case s.name == "Accepted risks" && len(rep.Exceptions) == 0:
+			out[i].about = "Empty: no finding has been accepted or suppressed"
+		case s.name == "Remediation" && !st.Fixes:
+			out[i].about = "Open findings by severity and when they fall due"
+		case s.name == "Trend" && !st.Trend:
+			out[i].about = "Starts after a few days of scans"
+		}
+	}
+	return out
 }

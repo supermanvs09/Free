@@ -154,10 +154,10 @@ func (p *plan) cover() {
 	p.at(rx, y+4.5, rw, 7, p.headline(), "L")
 	ry := y + 16
 	figs := []struct{ label, value, sub string }{
-		{"Average score", fmtScore(rep.AverageScore), changeText(rep.Change30d) + " in 30 days"},
+		{"Average score", fmtScore(rep.AverageScore), scoreSub(rep)},
 		{"Identities to fix", num(rep.FailingCount), "of " + num(rep.ScoredCount) + " scored"},
 		{"Actions", num(len(rep.Groups)), num(rep.CheckCount) + " findings"},
-		{"Overdue findings", num(p.overdueTotal()), "past their remediation target"},
+		p.dueFigure(),
 	}
 	fw := rw / 4
 	for i, f := range figs {
@@ -341,72 +341,87 @@ func (p *plan) overdueTotal() int {
 
 func (p *plan) pace() {
 	pdf, rep := p.pdf, p.rep
-	note := "Whether fixes keep up with new findings, and what is already late. " + slaLine(rep)
-	p.title("pace", "Remediation pace", note)
-	if cs := changeSentence(rep); cs != "" {
-		p.statement(p.mx, p.body*0.85, cs)
+	st := rep.Stage()
+	if st.Fixes {
+		p.title("pace", "Remediation pace", "Whether fixes keep up with new findings, and what is already late. "+slaLine(rep))
+		if cs := changeSentence(rep); cs != "" {
+			p.statement(p.mx, p.body*0.85, cs)
+		}
+		p.remediationTable(p.mx, p.body)
+	} else {
+		p.title("pace", "Remediation schedule", "Nothing has been fixed yet, so this page sets the schedule: every open finding is due at its first detection plus the target for its severity. "+slaLine(rep))
+		if cs := changeSentence(rep); cs != "" {
+			p.statement(p.mx, p.body*0.85, cs)
+		}
+		p.dueTable(p.mx, p.body)
 	}
-	p.remediationTable(p.mx, p.body)
 	pdf.SetY(pdf.GetY() + 6)
 	p.ensure(78)
 	y := pdf.GetY()
 	third := (p.body - 10) / 3
-	if rep.History != nil {
+	if st.Fixes {
 		p.daysToFix(p.mx, third)
+	} else {
+		p.dueChart(p.mx, y, third, 74)
 	}
-	end := p.agingChart(p.mx+third+5, y, third)
-	p.ownersCard(p.mx+2*(third+5), y, third, 74)
+	end := y + 74
+	if st.Spread {
+		end = p.agingChart(p.mx+third+5, y, third)
+		end = math.Max(end, p.ownersOrNote(p.mx+2*(third+5), y, third, 74))
+	} else {
+		end = math.Max(end, p.ownersOrNote(p.mx+third+5, y, 2*third+5, 74))
+	}
 	pdf.SetY(end + 9)
 
-	// The late items, most late first: the list to chase.
-	type late struct {
-		id *ReportIdentity
-		c  ReportCheck
-		by int
-		gi int
+	// The list to chase: what is late, or, when nothing is late yet, what
+	// falls due first.
+	all := rep.NextDue()
+	var list []DueItem
+	for _, d := range all {
+		if d.In < 0 {
+			list = append(list, d)
+		}
 	}
-	var list []late
-	gidx := map[string]int{}
-	for gi, g := range rep.Groups {
-		gidx[g.RuleID] = gi
-	}
-	for i := range rep.Identities {
-		id := &rep.Identities[i]
-		for _, c := range id.Checks {
-			if ok, by := rep.OverdueCheck(c); ok {
-				list = append(list, late{id, c, by, gidx[c.RuleID]})
+	title, lastCol := fmt.Sprintf("Overdue now: %s", count(len(list), "finding", "findings")), "Late by"
+	if len(list) > 0 {
+		sort.SliceStable(list, func(i, j int) bool {
+			if sevRank(list[i].Check.Severity) != sevRank(list[j].Check.Severity) {
+				return sevRank(list[i].Check.Severity) < sevRank(list[j].Check.Severity)
 			}
-		}
+			return list[i].In < list[j].In
+		})
+	} else {
+		list, title, lastCol = all, "Due next", "Due"
 	}
-	sort.SliceStable(list, func(i, j int) bool {
-		if sevRank(list[i].c.Severity) != sevRank(list[j].c.Severity) {
-			return sevRank(list[i].c.Severity) < sevRank(list[j].c.Severity)
-		}
-		return list[i].by > list[j].by
-	})
 	p.ensure(30)
-	p.sub(p.mx, pdf.GetY(), p.body, fmt.Sprintf("Overdue now: %s", count(len(list), "finding", "findings")))
+	p.sub(p.mx, pdf.GetY(), p.body, title)
 	pdf.SetY(pdf.GetY() + 8)
 	if len(list) == 0 {
 		p.font(fReg, 8.6, cInk2)
-		p.para(p.mx, p.body, 4.4, "No open finding is past its remediation target.")
+		p.para(p.mx, p.body, 4.4, "No open finding has a due date.")
 		return
 	}
-	t := p.newTable([]tcol{{"Severity", 22, "L"}, {"Check", 70, "L"}, {"Identity", 62, "L"}, {"Account", 44, "L"}, {"Owner", 36, "L"}, {"Late by", p.body - 234, "R"}})
+	t := p.newTable([]tcol{{"Severity", 22, "L"}, {"Check", 70, "L"}, {"Identity", 62, "L"}, {"Account", 44, "L"}, {"Owner", 36, "L"}, {lastCol, p.body - 234, "R"}})
 	t.maxLine = 1
 	t.header()
 	shown := min(20, len(list))
 	for _, l := range list[:shown] {
-		owner, oc := strings.TrimSpace(l.c.Owner), cInk2
+		owner, oc := strings.TrimSpace(l.Check.Owner), cInk2
 		if owner == "" {
-			owner, oc = "Unassigned", cSev["high"]
+			owner, oc = "Unassigned", cInk3
 		}
-		t.row([]tcell{{sev: l.c.Severity}, {text: l.c.Check, face: fMed, link: p.link(fmt.Sprintf("g%d", l.gi))}, {text: l.id.Name}, {text: orDash(l.id.Account), color: &cInk2},
-			{text: owner, color: &oc}, {text: daysText(l.by), face: fSemi, color: ptr(cSev["critical"])}}, false)
+		dc, due := cInk, dueText(l.In)
+		if l.In < 0 {
+			dc = cRed
+		} else if d := rep.DueDate(l.Check); d != nil {
+			due = d.UTC().Format("2 Jan") + " (" + daysText(l.In) + ")"
+		}
+		t.row([]tcell{{sev: l.Check.Severity}, {text: l.Check.Check, face: fMed, link: p.link(fmt.Sprintf("g%d", l.Group))}, {text: l.ID.Name}, {text: orDash(l.ID.Account), color: &cInk2},
+			{text: owner, color: &oc}, {text: due, face: fSemi, color: &dc}}, false)
 	}
 	if len(list) > shown {
 		p.font(fReg, 7.4, cInk3)
-		p.at(p.mx, pdf.GetY()+1, p.body, 4, fmt.Sprintf("and %s more overdue findings in the workbook", num(len(list)-shown)), "L")
+		p.at(p.mx, pdf.GetY()+1, p.body, 4, fmt.Sprintf("and %s more in the workbook", num(len(list)-shown)), "L")
 		pdf.SetY(pdf.GetY() + 5)
 	}
 }
@@ -586,12 +601,12 @@ func (p *plan) evidence() {
 		p.at(p.mx+4, by, half, 4, "HOW TO FIX", "L")
 		p.at(p.mx+half+14, by, half, 4, "WHY IT MATTERS", "L")
 		p.font(fReg, 8.4, cInk2)
-		fixL := p.wrap(orDash(g.Fix), half-4, 4)
+		fixL := p.wrap(orText(g.Fix, noFixText), half-4, 4)
 		why := g.Risk
 		if why == "" {
 			why = g.About
 		}
-		whyL := p.wrap(orDash(why), half-4, 4)
+		whyL := p.wrap(orText(why, "Not described for this check."), half-4, 4)
 		for li, l := range fixL {
 			p.at(p.mx+4, by+4.5+float64(li)*4.2, half-4, 4.2, l, "L")
 		}
@@ -678,4 +693,22 @@ func (p *plan) method() {
 		p.para(x, half, 4.2, m)
 		pdf.SetY(pdf.GetY() + 1.5)
 	}
+}
+
+// dueFigure is the cover's fourth figure: overdue findings, or what falls
+// due in the next 7 days when nothing is late yet.
+func (p *plan) dueFigure() struct{ label, value, sub string } {
+	if n := p.overdueTotal(); n > 0 {
+		return struct{ label, value, sub string }{"Overdue findings", num(n), "past their remediation target"}
+	}
+	return struct{ label, value, sub string }{"Due in the next 7 days", num(p.rep.DueWithin(7)), "none is past its target yet"}
+}
+
+// scoreSub is the line under the score: its 30-day change, or that it is
+// the baseline.
+func scoreSub(rep *PostureReport) string {
+	if rep.Change30d == nil {
+		return "the baseline: change shows from here"
+	}
+	return changeText(rep.Change30d) + " in 30 days"
 }

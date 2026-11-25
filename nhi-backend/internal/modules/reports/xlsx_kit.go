@@ -397,7 +397,7 @@ func (x *wb) cover(title string, sheets []sheetInfo, extra func(row int) int) er
 		{"Average security score", score, "dec", sub, trend},
 		{"Identities with failing checks", rep.FailingCount, "int", pct(rep.FailingCount, rep.ScoredCount) + " of " + num(rep.ScoredCount) + " scored", 0},
 		{"Critical and high findings open", rep.BySeverity["critical"] + rep.BySeverity["high"], "int", "of " + num(rep.CheckCount) + " open findings", 0},
-		{"Past remediation target", overdue, "int", pct(overdue, rep.CheckCount) + " of open findings", map[bool]int{true: -1, false: 0}[overdue > 0]},
+		dueTile(rep, overdue),
 	})
 
 	// Contents on the left, document control on the right.
@@ -489,4 +489,13 @@ func (x *wb) kpi(sheet, cell, label string, value interface{}, sub string, intVa
 	s := fmt.Sprintf("%s%d", col, row+2)
 	_ = f.SetCellValue(sheet, s, sub)
 	_ = f.SetCellStyle(sheet, s, s, x.st["kpiSub"])
+}
+
+// dueTile is overdue findings, or what falls due in the next 7 days when
+// nothing is late yet (a first assessment has nothing overdue).
+func dueTile(rep *PostureReport, overdue int) tile {
+	if overdue > 0 {
+		return tile{"Past remediation target", overdue, "int", pct(overdue, rep.CheckCount) + " of open findings", -1}
+	}
+	return tile{"Due in the next 7 days", rep.DueWithin(7), "int", "none is past its target yet", 0}
 }

@@ -264,6 +264,90 @@ func (k *kit) exceptionsTable(x, w float64, max int) {
 	}
 }
 
+// dueTable is remediation by severity before anything has been fixed: the
+// target, what is open, and when it falls due.
+func (k *kit) dueTable(x, w float64) {
+	rep := k.rep
+	open, week, month, late := map[string]int{}, map[string]int{}, map[string]int{}, map[string]int{}
+	first := map[string]int{}
+	for _, id := range rep.Identities {
+		for _, c := range id.Checks {
+			open[c.Severity]++
+			in, ok := rep.dueIn(c)
+			if !ok {
+				continue
+			}
+			switch {
+			case in < 0:
+				late[c.Severity]++
+			case in <= 7:
+				week[c.Severity]++
+				month[c.Severity]++
+			case in <= 30:
+				month[c.Severity]++
+			}
+			if in >= 0 {
+				if f, seen := first[c.Severity]; !seen || in < f {
+					first[c.Severity] = in
+				}
+			}
+		}
+	}
+	k.ensure(40)
+	rest := (w - 60) / 4
+	t := k.newTable([]tcol{{"Severity", 24, "L"}, {"Target", 18, "R"}, {"Open", 18, "R"}, {"Due in 7 days", rest, "R"}, {"Due in 30 days", rest, "R"}, {"Overdue", rest, "R"}, {"Next due", rest, "R"}})
+	t.x = x
+	t.header()
+	for _, s := range shownSeverities(rep.Options) {
+		next := "-"
+		if f, ok := first[s]; ok {
+			next = rep.GeneratedAt.AddDate(0, 0, f).UTC().Format("2 Jan 2006")
+		}
+		lc := cInk3
+		if late[s] > 0 {
+			lc = cRed
+		}
+		t.row([]tcell{{sev: s}, {text: fmt.Sprintf("%d days", rep.SLA.Due(s)), color: &cInk3}, {text: num(open[s]), face: fSemi},
+			{text: num(week[s])}, {text: num(month[s])}, {text: num(late[s]), color: &lc}, {text: next}}, false)
+	}
+}
+
+// dueChart is a card with the open findings by when they fall due.
+func (k *kit) dueChart(x, y, w, h float64) {
+	rep := k.rep
+	var cats []string
+	all, severe := []float64{}, []float64{}
+	for _, b := range rep.DueSchedule() {
+		cats = append(cats, b.Label)
+		all = append(all, float64(b.Total))
+		severe = append(severe, float64(b.BySev["critical"]+b.BySev["high"]))
+	}
+	k.card(x, y, w, h)
+	cy := k.cardHead(x, y, w, "When open findings fall due", "First detection plus the target for the severity")
+	k.vBars(x+6, cy+6, w-12, h-48, cats, [][]float64{all, severe}, []rgb{cBlue[2], cBlue[6]}, nil)
+	k.legend(x+6, y+h-22, w-12, []segment{{"All open", 0, cBlue[2]}, {"Critical and high", 0, cBlue[6]}})
+	foot := "Nothing falls due in the next 30 days"
+	if n := rep.DueWithin(30); n > 0 {
+		foot = fmt.Sprintf("%s due in 30 days", num(n))
+		if f := rep.FirstDue(); f != nil {
+			foot += ", first on " + f.UTC().Format("2 Jan")
+		}
+	}
+	k.cardFoot(x, y+h, w, foot, nil, "")
+}
+
+// ownersOrNote is the owners card when findings have owners, otherwise a
+// note on how to get them.
+func (k *kit) ownersOrNote(x, y, w, h float64) float64 {
+	if k.rep.Stage().Owners {
+		k.ownersCard(x, y, w, h)
+		return y + h
+	}
+	k.pdf.SetY(y)
+	k.note(x, w, "Ownership", noOwnerText)
+	return k.pdf.GetY()
+}
+
 // slaLine says which remediation targets the report uses.
 func slaLine(rep *PostureReport) string {
 	return fmt.Sprintf("Remediation targets: critical %d, high %d, medium %d, low %d days from first detection. Source: %s.",
@@ -276,8 +360,11 @@ func changeSentence(rep *PostureReport) string {
 	if h == nil {
 		return ""
 	}
+	if rep.Stage().Baseline {
+		return "" // a first assessment has no change to report; baselineLine says so
+	}
 	c, p := h.Current, h.Previous
-	s := fmt.Sprintf("In the last %d days %s were raised and %s fixed", h.Days, count(c.New, "finding", "findings"), num(c.Resolved))
+	s := fmt.Sprintf("In the last %d days %s were found and %s fixed", h.Days, count(c.New, "finding", "findings"), num(c.Resolved))
 	if hasPrevious(rep) {
 		s += fmt.Sprintf(" (previous %d days: %s raised, %s fixed)", h.Days, num(p.New), num(p.Resolved))
 	}
