@@ -82,13 +82,16 @@ test('home: the AI threat picture names every threat and stops it', async ({ pag
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await hydrated(page);
-  const td = page.locator('#threat .td');
-  for (const t of ['AI-generated phishing', 'Prompt injection', 'Deepfake voice', 'Tool poisoning', 'MFA fatigue', 'Agent hijacking', 'Data leakage to AI']) {
-    await expect(td).toHaveAttribute('aria-label', new RegExp(t, 'i'));
+  const dc = page.locator('#threat .dc');
+  for (const t of ['AI-generated phishing', 'Deepfake voice', 'Token theft', 'Prompt injection']) {
+    await expect(dc).toHaveAttribute('aria-label', new RegExp(t, 'i'));
   }
-  // reduced motion: one still frame with stopped threats, and the identities it protects
-  await expect(td.locator('.td-stamp')).toHaveCount(3);
-  await expect(td.locator('.td-id')).toHaveCount(6);
+  // reduced motion shows the record step; the step buttons move between steps
+  await expect(dc.locator('.dc-card')).toContainText('Every decision, on one record.');
+  await dc.getByRole('button', { name: 'Step 5: AI agents' }).click();
+  await expect(dc.locator('.dc-card')).toContainText('Zenstra AI');
+  await dc.getByRole('button', { name: 'Step 3: Human identities' }).click();
+  await expect(dc.locator('.dc-card')).toContainText('adapID AI');
 });
 
 test('home: the hero is one sentence and two actions, with a pause control', async ({ page }) => {
