@@ -6,7 +6,8 @@ const sheets = (page) => page.locator('.page > :not(.dark, .fixed)');
 
 test('one light theme: a light hero and light sheets', async ({ page }) => {
   const errors = watch(page);
-  await page.goto('/');
+  // inner pages keep the light brand hero; the home hero is a cinematic dark band (cisco.com template)
+  await page.goto('/why-deep-algorithms');
   await expect(page.locator('html')).not.toHaveAttribute('data-theme', 'dark');
   // the hero is a light brand field: dark words on near-white
   const hero = page.locator('.page > .band-brand').first();

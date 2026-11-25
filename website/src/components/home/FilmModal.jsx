@@ -6,7 +6,7 @@ import { createPortal } from 'react-dom';
    Escape or the close button returns focus to the button that opened it.
    Any button can open it, at any chapter: openFilm(seconds). */
 
-export const FILM = { src: '/video/deep-algorithms-film.mp4', poster: '/img/film/poster.webp', length: '1:30' };
+export const FILM = { src: '/video/deep-algorithms-film.mp4', length: '1:30' };
 
 export const CHAPTERS = [
   [0, '0:00', 'Every connection carries trust'],
@@ -76,7 +76,7 @@ export default function FilmModal() {
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
         </button>
         {/* eslint-disable-next-line jsx-a11y/media-has-caption -- the film has music and on-screen text only, no speech */}
-        <video ref={video} className="fm-v" src={FILM.src} poster={FILM.poster} controls playsInline preload="metadata" />
+        <video ref={video} className="fm-v" src={FILM.src} controls playsInline preload="metadata" />
       </div>
     </div>,
     document.body,

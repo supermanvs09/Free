@@ -44,22 +44,22 @@ test('a hero takes the reader into the page instead of repeating Book a demo', a
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(300);
 });
 
-test('home: the hero leads with discovery, shows it, and offers a demo and the film', async ({ page }) => {
+test('home: the hero leads with discovery and offers a demo and the film', async ({ page }) => {
   await page.goto('/');
   const hero = page.locator('section[aria-labelledby="hero-h"]');
   await expect(hero.getByRole('heading', { level: 1 })).toHaveText('Discover every human, machine and AI agent identity.');
   await expect(hero.getByRole('link', { name: 'Book a demo' })).toHaveAttribute('href', '/request-demo');
-  await expect(hero.getByRole('button', { name: /Watch the film/ })).toBeVisible();
-  await expect(hero.locator('.im-tile')).toHaveCount(4);
+  await expect(hero.getByRole('button', { name: /Watch video/ })).toBeVisible();
   await expect(hero.getByRole('link', { name: /product tour/i })).toHaveCount(0);
-  // the position is stated below the hero, in its own section
+  // no stills from the brand film anywhere on the page
+  expect(await page.locator('img[src*="/img/film/"]').count()).toBe(0);
   await expect(page.locator('#aispm h2')).toHaveText('Continuous AI Security Posture Management');
 });
 
-test('home: "Watch the film" plays the brand film in a dialog, and Escape closes it', async ({ page }) => {
+test('home: "Watch video" plays the brand film in a dialog, and Escape closes it', async ({ page }) => {
   await page.goto('/');
   await hydrated(page);
-  const btn = page.locator('section[aria-labelledby="hero-h"]').getByRole('button', { name: /Watch the film/ });
+  const btn = page.locator('section[aria-labelledby="hero-h"]').getByRole('button', { name: /Watch video/ });
   await btn.click();
   const dlg = page.getByRole('dialog', { name: 'Deep Algorithms brand film' });
   await expect(dlg).toBeVisible();
@@ -70,39 +70,36 @@ test('home: "Watch the film" plays the brand film in a dialog, and Escape closes
   await expect(btn).toBeFocused();
 });
 
-test('home: the film chapters open the film at their moment', async ({ page }) => {
+test('home: the logo wall names every customer it shows', async ({ page }) => {
   await page.goto('/');
-  await hydrated(page);
-  await page.locator('#film').getByRole('button', { name: /Identity Fraud Prevention/ }).click();
-  const v = page.getByRole('dialog').locator('video');
-  await expect.poll(() => v.evaluate((el) => el.currentTime)).toBeGreaterThanOrEqual(40);
+  const imgs = page.locator('.hm-logos img');
+  expect(await imgs.count()).toBeGreaterThanOrEqual(12);
+  for (const alt of await imgs.evaluateAll((els) => els.map((e) => e.alt))) expect(alt.length).toBeGreaterThan(2);
 });
 
-test('home: the attack path shows both versions on request', async ({ page }) => {
+test('home: the threat section closes the trust gap', async ({ page }) => {
   await page.goto('/');
   await hydrated(page);
-  const ap = page.locator('#threat .ap');
-  await ap.getByRole('button', { name: 'Without continuous posture' }).click();
-  await expect(ap.locator('.ap-st')).toHaveCount(5);
-  await expect(ap).toContainText('MFA passed');
-  await ap.getByRole('button', { name: 'With Deep Algorithms' }).click();
-  await expect(ap).toContainText('step-up verification');
+  const tg = page.locator('#threat .tg');
+  await tg.scrollIntoViewIfNeeded();
+  await expect(tg).toContainText('Continuous posture', { timeout: 12000 });
+  await expect(tg).toContainText('Deep Algorithms closes the gap');
 });
 
-test('home: the four threat tabs switch by click and arrow keys', async ({ page }) => {
+test('home: the protection accordion opens one threat at a time, with its picture', async ({ page }) => {
   await page.goto('/');
   await hydrated(page);
-  const tt = page.locator('#protect');
-  await expect(tt.getByRole('tab')).toHaveCount(4);
-  await tt.getByRole('tab', { name: /Fraud with valid credentials/ }).click();
-  await expect(tt.getByRole('tabpanel')).toContainText('Identity Fraud Prevention');
-  await page.keyboard.press('ArrowRight');
-  await expect(tt.getByRole('tab', { name: /Secrets leaking into AI/ })).toHaveAttribute('aria-selected', 'true');
-  await expect(tt.getByRole('tabpanel')).toContainText('Zenstra');
+  const pa = page.locator('#protect');
+  await expect(pa.getByRole('button', { expanded: true })).toHaveCount(1);
+  await pa.getByRole('button', { name: /Fraud with valid credentials/ }).click();
+  await expect(pa.getByRole('button', { name: /Fraud with valid credentials/ })).toHaveAttribute('aria-expanded', 'true');
+  await expect(pa.getByRole('button', { expanded: true })).toHaveCount(1);
+  await expect(pa.getByRole('region')).toContainText('Identity Fraud Prevention');
+  await expect(pa.locator('.pa-fig img')).toHaveAttribute('src', /digital-platforms/);
 });
 
 test('every hero rolls the customer logos, with a pause control', async ({ page }) => {
-  for (const path of ['/', '/adapid-ai']) {
+  for (const path of ['/adapid-ai']) {
     await page.goto(path);
     const roll = page.locator('.marquee').first();
     await expect(roll).toBeAttached();
