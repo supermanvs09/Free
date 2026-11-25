@@ -7,7 +7,8 @@ import { Icon } from '../ui.jsx';
    photograph, the way SailPoint ("How we help") and Cisco ("Powering
    outcomes") lay out use cases. One item is open at a time; the picture
    and its floating product card change with it. Pictures are concept
-   renders in cisco.com's style (each depicts its idea, no stock people).
+   renders, graded to one brand blue and framed with HUD corners, the way
+   CrowdStrike and Idira present their use cases (each depicts its idea).
    Sample data on the cards. */
 
 const ITEMS = [
@@ -36,7 +37,7 @@ const ITEMS = [
     key: 'ai', icon: 'Robot', t: 'Shadow AI agents and leaked secrets',
     p: 'Teams launch copilots, agents and MCP servers faster than security can review them, and paste secrets into AI tools. Zenstra discovers every agent, scopes it to its task and keeps secrets out of prompts.',
     link: ['Zenstra AI', '/agentic-ai/agentic-identity'],
-    img: 'concept/ai-processor', alt: 'A glowing AI processor on a circuit board',
+    img: 'concept/ai-agents', alt: 'A wireframe brain made of light, for AI agents',
     card: { k: 'Prompt to AI assistant', v: '3 secrets', tone: 'crit', rows: ['AWS access key, secret key', 'Production database password'], act: 'Blocked before it was sent' },
   },
   {

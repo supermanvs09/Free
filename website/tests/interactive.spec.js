@@ -17,7 +17,7 @@ test('home: the Zenstra band uses Zenstra wording and shows its three ways in', 
   await expect(zen.getByRole('heading', { level: 2 })).toHaveText('Secure every agent. Verify every intent.');
   await expect(zen.getByRole('link', { name: 'Agent discovery' })).toHaveAttribute('href', '/agentic-ai/agent-discovery');
   for (const w of ['Workflow Security', 'Cloud Security', 'Zenstra AI Discovery']) await expect(zen.getByRole('link', { name: new RegExp(w) })).toBeVisible();
-  await expect(zen.locator('.hm-zen-shot img')).toHaveAttribute('src', '/img/zenstra/console-overview.webp');
+  await expect(zen.locator('.zc')).toBeVisible();
 });
 
 test('reduced motion still shows every product card and figure', async ({ page }) => {
@@ -82,11 +82,13 @@ test('home: the AI threat picture names every threat and stops it', async ({ pag
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await hydrated(page);
-  const ts = page.locator('#threat .ts');
-  for (const t of ['AI-generated phishing', 'Deepfake voice and video', 'MFA fatigue', 'Session hijacking', 'Prompt injection', 'Agent hijacking']) {
-    await expect(ts).toHaveAttribute('aria-label', new RegExp(t, 'i'));
+  const td = page.locator('#threat .td');
+  for (const t of ['AI-generated phishing', 'Prompt injection', 'Deepfake voice', 'Tool poisoning', 'MFA fatigue', 'Agent hijacking', 'Data leakage to AI']) {
+    await expect(td).toHaveAttribute('aria-label', new RegExp(t, 'i'));
   }
-  await expect(ts.locator('.ts-th.done')).toHaveCount(8);
+  // reduced motion: one still frame with stopped threats, and the identities it protects
+  await expect(td.locator('.td-stamp')).toHaveCount(3);
+  await expect(td.locator('.td-id')).toHaveCount(6);
 });
 
 test('home: the hero is one sentence and two actions, with a pause control', async ({ page }) => {

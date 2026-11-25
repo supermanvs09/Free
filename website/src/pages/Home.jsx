@@ -10,7 +10,8 @@ import CertSeal from '../components/CertSeal.jsx';
 import ProductMark from '../components/ProductMark.jsx';
 import PostureConsole from '../components/home/PostureConsole.jsx';
 import TrustGap from '../components/home/TrustGap.jsx';
-import ThreatShield from '../components/home/ThreatShield.jsx';
+import ThreatDome from '../components/home/ThreatDome.jsx';
+import ZenstraCore from '../components/home/ZenstraCore.jsx';
 import ProtectAccordion from '../components/home/ProtectAccordion.jsx';
 import FilmModal, { FILM, openFilm } from '../components/home/FilmModal.jsx';
 
@@ -115,9 +116,7 @@ export default function Home() {
                   <Link to="/agentic-ai/agent-discovery" className="hm-pillbtn">Agent discovery</Link>
                 </div>
               </div>
-              <figure className="hm-zen-shot min-w-0">
-                <img src="/img/zenstra/console-overview.webp" alt="The Zenstra AI security overview: agents governed, open detections, actions blocked, decisions per second and the highest-risk agents." width="1600" height="1000" loading="lazy" decoding="async" />
-              </figure>
+              <div className="min-w-0"><ZenstraCore /></div>
             </div>
             <ul className="hm-zen-ways" aria-label="Three ways in">
               {ZEN_WAYS.map((w) => (
@@ -139,7 +138,7 @@ export default function Home() {
       <section id="threat" className="sec wash scroll-mt-20" aria-labelledby="threat-h">
         <div className="wrap">
           <SectionHead id="threat-h" eyebrow="AI-driven threats" title="Attackers don’t break in anymore. They log in." lead="AI hands attackers convincing phishing, cloned voices and stolen tokens at scale, and AI agents add identities nobody reviews. Deep Algorithms stops each threat at the identity it targets, before it executes." />
-          <Reveal up delay={80} className="mt-12 min-w-0"><ThreatShield /></Reveal>
+          <Reveal up delay={80} className="mt-12 min-w-0"><ThreatDome /></Reveal>
           <ul className="mt-12 grid gap-px overflow-hidden rounded-[20px] border border-line bg-line sm:grid-cols-2 xl:grid-cols-4">
             {STATS.map((x, i) => (
               <Reveal as="li" key={x.v} delay={i * 70} className="hm-stat bg-bg-1 p-7">
