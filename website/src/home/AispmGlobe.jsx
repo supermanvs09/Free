@@ -56,10 +56,7 @@ export default function AispmGlobe() {
 
   return (
     <figure className="gx" aria-label="Animation: your digital ecosystem as a globe inside a protective field. Attacks such as stolen credentials, phishing, MFA fatigue, compromised sessions, deepfake voices, prompt injection and hijacked AI agents arrive and are blocked at the field.">
-      <div className="gx-bar">
-        <span className="gx-title"><span className="gx-badge"><Shield /></span><span><b>Security posture</b><small>Every identity across your digital ecosystem, watched continuously</small></span></span>
-        <span className="gx-live"><i />Live environment</span>
-      </div>
+      <span className="gx-live gx-live-float"><i />Live environment</span>
       <div className="gx-body">
         <div className="gx-col">{SIDES.slice(0, 2).map((x) => <Side key={x.h} x={x} />)}</div>
         <div ref={stage} className="gx-stage">
