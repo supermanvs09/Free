@@ -1,4 +1,3 @@
-import CirmPipeline from '../../components/CirmPipeline.jsx';
 import { useState } from 'react';
 import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
@@ -70,16 +69,6 @@ export default function Cirm() {
         lead="adapID learns how every person and service account normally works, and acts the moment behaviour shifts: step up, hold or revoke, in seconds.">
         <CirmDash />
       </Hero>
-
-      {/* the platform view: every stage CIRM runs on every identity */}
-      <section className="sec" aria-labelledby="pipe-h">
-        <div className="wrap">
-          <div className="island tone-d px-4 py-14 md:px-10 md:py-20">
-            <SectionHead id="pipe-h" eyebrow="One platform view" title="From first signal to contained session, on every identity." lead="Continuous, on every identity. Not a nightly report." />
-            <Reveal up className="mx-auto mt-12 max-w-[1120px]"><CirmPipeline /></Reveal>
-          </div>
-        </div>
-      </section>
 
       <section className="sec" aria-labelledby="itdr-h">
         <div className="wrap">
