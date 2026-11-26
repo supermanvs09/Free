@@ -5,7 +5,9 @@ import App from './App.jsx';
 import { bootTranslate } from './lib/translate.js';
 import './styles.css';
 import './components/viz/viz.css';
-import './home/home.css'; // scoped under .v5; global so the prerendered home paints styled
+import '@fontsource-variable/geist';
+import '@fontsource-variable/geist-mono';
+import './home/home.css'; // scoped under .dx; global so prerendered pages paint styled
 
 const root = document.getElementById('root');
 const app = <StrictMode><BrowserRouter><App /></BrowserRouter></StrictMode>;

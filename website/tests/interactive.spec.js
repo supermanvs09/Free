@@ -1,40 +1,28 @@
 import { test, expect } from '@playwright/test';
 import { hydrated } from './helpers.js';
 
-test('home: the platform switches between the three products, each leading to its page', async ({ page }) => {
+test('home: every product line has a card that leads to its own page', async ({ page }) => {
   await page.goto('/');
   await hydrated(page);
-  const sec = page.locator('#platform');
-  await expect(sec.getByRole('tab')).toHaveCount(3);
+  const sec = page.locator('#products');
   for (const name of ['Zenstra AI', 'adapID AI', 'ICMS Compliance Suite']) {
-    await sec.getByRole('tab', { name }).click();
-    await expect(sec.getByRole('tabpanel').getByRole('link', { name: `Explore ${name}` })).toHaveAttribute('href', /^\//);
+    await expect(sec.getByRole('link', { name: `Explore ${name}` })).toHaveAttribute('href', /^\//);
   }
-  // adapID's four offerings are told apart
-  await sec.getByRole('tab', { name: 'adapID AI' }).click();
-  await expect(sec.getByRole('tabpanel').locator('.v5-caps li')).toHaveCount(4);
 });
-test('home: the identity problem names four kinds of identity and what protects each', async ({ page }) => {
+test('home: AI-SPM names what we secure, the threats it stops and the loop', async ({ page }) => {
   await page.goto('/');
-  await hydrated(page);
-  const sec = page.locator('section[aria-labelledby="eco-h"]');
-  for (const n of ['Human identities', 'Machine identities', 'AI identities', 'Sensitive data']) {
-    await sec.getByRole('button', { name: new RegExp(n) }).click();
-    await expect(sec.getByRole('button', { name: new RegExp(n) })).toHaveAttribute('aria-expanded', 'true');
-  }
-  await expect(sec.getByRole('link', { name: /ICMS Compliance Suite/ })).toHaveAttribute('href', '/dpdpa-compliance');
-});
-
-test('reduced motion still shows every diagram at its finished frame', async ({ page }) => {
+  const sec = page.locator('#aispm');
+  await expect(sec.locator('.ai-cell')).toHaveCount(4);
+  for (const h of ['People', 'Machine identities', 'AI agents', 'Personal data']) await expect(sec.getByRole('heading', { level: 3, name: h })).toBeVisible();
+  await expect(sec.locator('.ai-loop li')).toHaveCount(5);
+  await expect(sec.getByRole('link', { name: /Zenstra AI/ })).toHaveAttribute('href', '/agentic-ai/agentic-identity');
+});test('reduced motion still shows the Claude scene at its finished frame', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await hydrated(page);
-  await expect(page.locator('.tr-act')).toBeVisible();
-  await expect(page.locator('.pa-stop')).toBeVisible();
-  await expect(page.locator('section[aria-labelledby="eco-h"] h2')).toBeVisible();
-});
-
-test('zenstra: before and after sit side by side, five moments each', async ({ page }) => {
+  await expect(page.locator('.cl-toast')).toContainText('Blocked! This prompt contains credentials, API keys and tokens.');
+  await expect(page.locator('.cl-note')).toContainText('Not sent · decision recorded by Zenstra AI');
+});test('zenstra: before and after sit side by side, five moments each', async ({ page }) => {
   await page.goto('/agentic-ai/agentic-identity');
   const sec = page.locator('section:has(#chg-h)');
   await expect(sec.getByText('Without Zenstra', { exact: true })).toBeVisible();
@@ -51,20 +39,22 @@ test('a hero takes the reader into the page instead of repeating Book a demo', a
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(300);
 });
 
-test('home: the hero states the position and offers the platform, an expert and the film', async ({ page }) => {
+test('home: the hero leads with discovery and offers a demo and the film', async ({ page }) => {
   await page.goto('/');
   const hero = page.locator('section[aria-labelledby="hero-h"]');
-  await expect(hero.getByRole('heading', { level: 1 })).toHaveText('Identity security for an AI-driven world.');
-  await expect(hero.getByRole('link', { name: /Explore the platform/ })).toHaveAttribute('href', '#platform');
-  await expect(hero.getByRole('link', { name: 'Talk to our experts' })).toHaveAttribute('href', '/request-demo');
-  await expect(hero.getByRole('button', { name: /Watch the film/ })).toBeVisible();
+  await expect(hero.getByRole('heading', { level: 1 })).toHaveText('Discover every human, machine and AI agent identity.');
+  await expect(hero.getByRole('link', { name: 'Book a demo' })).toHaveAttribute('href', '/request-demo');
+  await expect(hero.getByRole('button', { name: /Watch video/ })).toBeVisible();
+  await expect(hero.getByRole('link', { name: /product tour/i })).toHaveCount(0);
+  // no stills from the brand film anywhere on the page
   expect(await page.locator('img[src*="/img/film/"]').count()).toBe(0);
+  await expect(page.locator('#aispm')).toContainText('Continuous AI Security Posture Management');
 });
 
-test('home: "Watch the film" plays the brand film in a dialog, and Escape closes it', async ({ page }) => {
+test('home: "Watch video" plays the brand film in a dialog, and Escape closes it', async ({ page }) => {
   await page.goto('/');
   await hydrated(page);
-  const btn = page.locator('section[aria-labelledby="hero-h"]').getByRole('button', { name: /Watch the film/ });
+  const btn = page.locator('section[aria-labelledby="hero-h"]').getByRole('button', { name: /Watch video/ });
   await btn.click();
   const dlg = page.getByRole('dialog', { name: 'Deep Algorithms brand film' });
   await expect(dlg).toBeVisible();
@@ -75,32 +65,30 @@ test('home: "Watch the film" plays the brand film in a dialog, and Escape closes
   await expect(btn).toBeFocused();
 });
 
-test('home: scenarios, industries and trust each lead somewhere real', async ({ page }) => {
+test('home: industries, proof and research each lead somewhere real', async ({ page }) => {
+  await page.goto('/');
+  const ind = page.locator('section[aria-labelledby="ind-h"]');
+  await expect(ind.locator('a[href^="/solutions/"]')).toHaveCount(4);
+  const proof = page.locator('section[aria-labelledby="num-h"]');
+  await expect(proof.locator('.nm-stats li')).toHaveCount(4);
+  await expect(proof).toContainText('Patent No. 602726');
+  const res = page.locator('section[aria-labelledby="res-h"]');
+  await expect(res.locator('a[href^="/blogs/"]')).toHaveCount(3);
+  await expect(res.getByRole('link', { name: /All research/ })).toHaveAttribute('href', '/blogs');
+});test('home: the hero is one sentence and two actions, with a pause control', async ({ page }) => {
   await page.goto('/');
   await hydrated(page);
-  const sc = page.locator('section[aria-labelledby="sc-h"]');
-  await expect(sc.getByRole('tab')).toHaveCount(5);
-  await sc.getByRole('tab', { name: /over-privileged AI agent/ }).click();
-  await expect(sc.getByRole('tabpanel').getByRole('link', { name: /Zenstra AI/ })).toHaveAttribute('href', '/agentic-ai/agentic-identity');
-  await expect(sc.locator('a[href^="/blogs/"]')).toHaveCount(3);
-  await expect(page.locator('section[aria-labelledby="ind-h"] a[href^="/solutions/"]')).toHaveCount(4);
-  const trust = page.locator('section[aria-labelledby="trust-h"]');
-  await expect(trust).toContainText('Patent No. 602726');
-  await expect(trust.locator('.v5-certlist li')).toHaveCount(4);
-});
-
-test('home: the hero carries the customer proof and the certifications', async ({ page }) => {
-  await page.goto('/');
   const hero = page.locator('section[aria-labelledby="hero-h"]');
-  await expect(hero).toContainText('Trusted by banks, government and enterprises across India');
-  expect(await hero.locator('.v5-marquee img:not([alt=""])').count()).toBeGreaterThanOrEqual(10);
-  await expect(hero.getByRole('list', { name: 'Certifications' }).getByRole('listitem')).toHaveCount(4);
+  expect(await hero.locator('p').count()).toBe(0);
+  await hero.getByRole('button', { name: 'Pause background animation' }).click();
+  await expect(hero.getByRole('button', { name: 'Play background animation' })).toBeVisible();
 });
 
-test('home: unverified performance figures are not shown', async ({ page }) => {
+test('home: the AI-SPM section states the position under its own name', async ({ page }) => {
   await page.goto('/');
-  const text = await page.locator('main').innerText();
-  for (const f of ['< 80 ms', 'p95 18 ms', '< 5 min']) expect(text).not.toContain(f);
+  const sec = page.locator('#aispm');
+  await expect(sec.getByRole('heading', { level: 2 })).toHaveText('Securing your identities and digital ecosystem from AI-driven threats.');
+  await expect(sec).toContainText('Continuous AI Security Posture Management');
 });
 
 test('every hero rolls the customer logos, with a pause control', async ({ page }) => {
@@ -161,11 +149,13 @@ test('fraud: three checks on one dial, each session with its own decision', asyn
   await expect(gate.locator('.card')).toHaveCount(0);
 });
 
-test('home: the platform is one click from the hero, and blogs stay in the menu', async ({ page }) => {
+test('home ends with the latest research, and the platform is one scroll away', async ({ page }) => {
   await page.goto('/');
-  await hydrated(page);
-  await page.getByRole('link', { name: /Explore the platform/ }).click();
-  await expect(page.locator('#platform-h')).toBeInViewport({ timeout: 5000 });
+  await expect(page.locator('#orbit')).toHaveCount(0);
+  await page.locator('#aispm-h').scrollIntoViewIfNeeded();
+  await expect(page.locator('#aispm-h')).toBeInViewport({ timeout: 5000 });
+  // the latest three posts close the page (docs/reference/home-ia.md); blogs stay in the menu too
+  await expect(page.locator('#res-h')).toHaveCount(1);
   await expect(page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Blogs' })).toHaveAttribute('href', '/blogs');
 });
 
