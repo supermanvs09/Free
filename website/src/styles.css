@@ -26,10 +26,10 @@
   --font-display: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SFMono-Regular', monospace;
 
-  --color-bg: #0b0e13;
-  --color-bg-1: #12161d;
-  --color-bg-2: #1a1f28;
-  --color-bg-3: #232a35;
+  --color-bg: #000000;
+  --color-bg-1: #0b0d11;
+  --color-bg-2: #13161c;
+  --color-bg-3: #1c2028;
   --color-ink: #f2f3f5;
   --color-ink-2: #c3c8d1;
   --color-ink-3: #8f97a5;
@@ -1735,3 +1735,12 @@ html.is-translated font { background: none !important; box-shadow: none !importa
 
 /* magnetic buttons glide rather than jump */
 @media (pointer: fine) and (prefers-reduced-motion: no-preference) { :is(.dx-btn, .btn-primary, .btn-white) { transition-property: background, color, border-color, box-shadow, transform, translate; transition-duration: .2s, .2s, .2s, .2s, .2s, .45s; transition-timing-function: ease, ease, ease, ease, ease, cubic-bezier(.22, 1, .36, 1); } }
+
+/* the whole site is dark: black field, near-black surfaces; the home's ink bands match */
+.dx { --ink: #000; }
+
+/* ---------- dark everywhere: blocks that were drawn light by hand ---------- */
+:root[data-theme='dark'] .band-brand { background: radial-gradient(50% 60% at 88% 0%, rgb(21 151 229 / .14), transparent 70%), #000; }
+:root[data-theme='dark'] .chg-with { background: linear-gradient(180deg, color-mix(in oklab, var(--acc) 10%, #0b0d11), #0b0d11 60%); }
+/* the bar over the top of every page is the page's own black */
+:root[data-theme='dark'] header .hdr-bg { background-color: rgb(0 0 0 / .82); }

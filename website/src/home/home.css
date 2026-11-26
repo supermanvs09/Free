@@ -397,3 +397,10 @@
 .rd-hero + .dx-proof .dx-logos { margin-top: 32px; gap: 36px 48px; }
 .rd-hero + .dx-proof .dx-logos img { height: 30px; max-width: 132px; opacity: .55; filter: grayscale(1); transition: opacity .25s; }
 .rd-hero + .dx-proof .dx-logos img:hover { opacity: .9; }
+
+/* dark everywhere: the paper bands become black like the rest */
+.dx { --paper: #000; --paper-1: #0b0d11; --ptx: #f4f6fa; --ptx-2: #a3abb7; --ptx-3: #7c8596; --pline: rgb(255 255 255 / .09); }
+.dx .px-card, .dx .ce-grid li { background: #0b0d11; border-color: rgb(255 255 255 / .09); }
+.dx .paper .dx-k i { background: #0b0d11; }
+.dx .px-feature { background: #0b0d11; border-color: rgb(255 255 255 / .09); }
+.ink .px-feature, .ink .px-feature .dx-h3, .ink .px-feature .dx-link { color: #f4f6fa; }

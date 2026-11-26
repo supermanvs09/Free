@@ -4,38 +4,35 @@ import { watch } from './helpers.js';
 const bg = (loc) => loc.evaluate((el) => getComputedStyle(el).backgroundColor);
 const sheets = (page) => page.locator('.page > :not(.dark, .fixed)');
 
-test('one light theme: a light hero and light sheets', async ({ page }) => {
+test('one dark theme: black pages, light words, on every kind of page', async ({ page }) => {
   const errors = watch(page);
-  // inner pages keep the light brand hero; the home hero is a cinematic dark band (cisco.com template)
-  await page.goto('/why-deep-algorithms');
-  await expect(page.locator('html')).not.toHaveAttribute('data-theme', 'dark');
-  // the hero is a light brand field: dark words on near-white
-  const hero = page.locator('.page > .band-brand').first();
-  expect(await hero.evaluate((el) => getComputedStyle(el).color)).toBe('rgb(14, 17, 22)');
-  expect(await bg(sheets(page).nth(1))).toMatch(/rgb\((2[3-5]\d), (2[3-5]\d), (2[3-5]\d)\)/);
+  for (const path of ['/', '/why-deep-algorithms', '/adapid-ai', '/blogs', '/contact']) {
+    await page.goto(path);
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(0, 0, 0)');
+    const h = page.locator('h1').first();
+    const c = await h.evaluate((el) => getComputedStyle(el).color);
+    const [r, g, b] = c.match(/\d+/g).map(Number);
+    expect(r + g + b, path).toBeGreaterThan(600);   // headings are near white
+  }
   expect(errors).toEqual([]);
 });
 
-test('there is no theme switch, and an old saved dark choice is ignored', async ({ page }) => {
-  await page.addInitScript(() => { try { localStorage.setItem('da-theme', 'dark'); } catch (e) { /* private mode */ } });
+test('there is no theme switch', async ({ page }) => {
   await page.goto('/agentic-ai/agentic-identity');
   await expect(page.locator('.theme-btn')).toHaveCount(0);
-  await expect(page.locator('html')).not.toHaveAttribute('data-theme', 'dark');
-  expect(await page.evaluate(() => localStorage.getItem('da-theme'))).toBeNull();
 });
 
-test('the header stays light over the light hero and when scrolled', async ({ page }) => {
+test('the header keeps its tone over the hero and when scrolled', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' });
   await expect(page.locator('header')).toHaveClass(/tone-l/);
   await page.evaluate(() => window.scrollTo(0, document.getElementById('aispm').getBoundingClientRect().top + window.scrollY));
   await expect(page.locator('header')).toHaveClass(/tone-l/);
 });
 
-test('product pictures are drawn light on a light sheet, the way identity vendors show them', async ({ page }) => {
+test('the white cards that remain are product pictures, not page sections', async ({ page }) => {
   await page.goto('/adapid-ai/nhi-security', { waitUntil: 'networkidle' });
-  const ink = (sel) => page.locator(sel).first().evaluate((el) => getComputedStyle(el).getPropertyValue('--color-ink').trim().toLowerCase());
-  expect(await ink('.page > :not(.dark, .fixed) h2')).toBe('#0e1116');
-  await expect(page.locator('section[aria-labelledby="wb-h"]')).not.toHaveClass(/dark/);
   const win = page.locator('section[aria-labelledby="wb-h"] .vz-win').first();
-  expect(await win.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)');
+  await expect(win).toBeVisible();
+  expect(await bg(page.locator('section[aria-labelledby="wb-h"]'))).not.toBe('rgb(255, 255, 255)');
 });

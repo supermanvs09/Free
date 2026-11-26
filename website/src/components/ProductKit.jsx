@@ -291,7 +291,7 @@ export function Points({ items, acc = 'brand', cols = 3 }) {
             </button>
           ))}
         </div>
-        <div ref={pane} id={`${id}-p`} role="tabpanel" aria-labelledby={`${id}-t${i}`} className="pt-pane relative overflow-hidden rounded-[24px] border border-line bg-white p-10 shadow-[0_30px_70px_-50px_rgb(11_42_82/.35)]">
+        <div ref={pane} id={`${id}-p`} role="tabpanel" aria-labelledby={`${id}-t${i}`} className="pt-pane relative overflow-hidden rounded-[24px] border border-line bg-bg-1 p-10">
           <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-24 h-[340px] w-[340px] rounded-full opacity-60 blur-3xl" style={{ background: `radial-gradient(closest-side, color-mix(in oklab, ${color} 30%, transparent), transparent)` }} />
           <div className="relative flex h-full flex-col">
             <span className="pt-ico relative inline-grid h-20 w-20 place-items-center rounded-[22px] text-white shadow-[0_18px_40px_-16px_var(--acc)]" style={{ background: `linear-gradient(140deg, color-mix(in oklab, ${color} 80%, white), ${color})` }}>
