@@ -5,21 +5,14 @@ import { Reveal, SectionHead } from '../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../components/blocks.jsx';
 import Stage3D from '../components/Stage3D.jsx';
 import { Hero, Stats, LINKS } from '../components/ProductKit.jsx';
-import { MuleCheck } from '../components/viz/fraud.jsx';
-import { AdTierGraph } from '../components/viz/adapid.jsx';
 import { KeyLineage } from '../components/viz/refs.jsx';
-import { PatientAccess } from '../components/viz/icms.jsx';
 import ProductMark from '../components/ProductMark.jsx';
 import NotFound from './NotFound.jsx';
 
 /* Each industry opens on a real photograph of the people it protects, with
    the number that matters most to it; the scene that shows the risk follows. */
-const SCENE = { bfsi: MuleCheck, healthcare: PatientAccess, government: AdTierGraph, 'digital-platforms': KeyLineage };
-const FRAMED = new Set(['bfsi']);
+const SCENE = { 'digital-platforms': KeyLineage };
 const SEE = {
-  bfsi: 'A stolen payment, followed to the mule.',
-  healthcare: 'Every patient record opened, with the reason.',
-  government: 'The paths to Domain Admins, mapped and closed.',
   'digital-platforms': 'One leaked key, traced from commit to customer data.',
 };
 const KEY = { fraud: 'fraud', nhi: 'nhi', zenstra: 'zenstra', icms: 'icms', adapid: 'cirm', ad: 'ad' };
@@ -45,12 +38,12 @@ export default function Solution() {
         </figure>
       </Hero>
 
-      <section className="stage sec" aria-labelledby="see-h">
+      {V && <section className="stage sec" aria-labelledby="see-h">
         <div className="wrap">
           <SectionHead id="see-h" eyebrow="What it looks like" title={SEE[slug]} />
-          <Reveal className="mx-auto mt-12 max-w-[980px]"><Stage3D tilt={FRAMED.has(slug) ? [4, -9] : [6, -13]}>{FRAMED.has(slug) ? <div className="scn-frame"><V /></div> : <V />}</Stage3D></Reveal>
+          <Reveal className="mx-auto mt-12 max-w-[980px]"><Stage3D tilt={[6, -13]}><V /></Stage3D></Reveal>
         </div>
-      </section>
+      </section>}
 
       <Stats items={s.stats} title="Why it matters now" />
 

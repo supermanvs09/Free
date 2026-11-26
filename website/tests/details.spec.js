@@ -88,15 +88,15 @@ test('product pages carry no hero picture except NHI security, and no cost-of-th
 
 test('a picture that leaves and comes straight back still plays its steps', async ({ page, isMobile }) => {
   test.skip(isMobile, 'one viewport is enough');
-  await page.goto('/adapid-ai');
+  await page.goto('/agentic-ai/agentic-identity');
   await hydrated(page);
-  const vz = page.locator('section:has(#blast-h) .vz');
+  const vz = page.locator('section:has(#caps-h) .vz').first();
   const to = (sel) => page.evaluate((s) => document.querySelector(s).scrollIntoView({ block: 'start', behavior: 'instant' }), sel);
-  await to('#blast-h');
+  await to('#caps-h');
   await expect(vz).not.toHaveClass(/\bk1\b/); // rewound to step 0 on entering
-  await to('#fam-h');                          // out of view before step 1…
+  await to('#cmp-h');                          // out of view before step 1…
   await page.waitForTimeout(150);
-  await to('#blast-h');                        // …and straight back
+  await to('#caps-h');                           // …and straight back
   await expect(vz).toHaveClass(/\bk2\b/, { timeout: 5000 });
 });
 

@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Link } from 'react-router';
 import { Seo } from '../lib/head.jsx';
 import { CtaBand } from '../components/blocks.jsx';
@@ -11,7 +10,7 @@ import CertSeal from '../components/CertSeal.jsx';
 import AispmGlobe from '../home/AispmGlobe.jsx';
 import { PRODUCT_MENU } from '../data/nav.js';
 import FilmModal, { FILM, openFilm } from '../components/home/FilmModal.jsx';
-import HeroWave from '../home/HeroWave.jsx';
+import HeroRadar from '../home/HeroRadar.jsx';
 import { ClaudeBlock } from '../home/Agents.jsx';
 
 /* Home (round 3). The order enterprise security leaders use, measured in
@@ -33,27 +32,22 @@ const PROD = {
 };
 
 export default function Home() {
-  const [paused, setPaused] = useState(false);
   const menu = Object.fromEntries(PRODUCT_MENU.map((l) => [l.key, l]));
   const names = Object.fromEntries(CUSTOMERS);
   return (
     <div className="dx">
       <Seo path="/" description="Deep Algorithms discovers every human, machine and AI agent identity in your enterprise and protects each one from AI-driven threats with Continuous AI Security Posture Management. ISO 27001, SOC 2 Type II, ISO 42001." />
 
-      {/* 1 · HERO: a flowing wave of light strands, signals travelling through it */}
-      <section className="dx-hero" aria-labelledby="hero-h">
-        <HeroWave paused={paused} />
-        <button type="button" className="dx-pause" onClick={() => setPaused((v) => !v)} aria-label={paused ? 'Play background animation' : 'Pause background animation'}>
-          {paused ? <Play /> : <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor" /></svg>}
-        </button>
+      {/* 1 · HERO: the promise, then a horizon scan that discovers every kind of identity */}
+      <section className="dx-hero rd-hero" aria-labelledby="hero-h">
         <div className="dx-wrap">
-          <div className="dx-hero-copy">
-            <h1 id="hero-h" className="rise" style={{ '--d': '40ms' }}>Discover every human, machine and AI agent identity.</h1>
-            <div className="dx-hero-cta rise" style={{ '--d': '160ms' }}>
-              <Link to="/request-demo" className="dx-btn solid">Book a demo</Link>
-              <button type="button" className="dx-btn ghost" onClick={() => openFilm(0)}><Play />Watch video ({FILM.length.padStart(5, '0')})</button>
-            </div>
+          <h1 id="hero-h" className="rise" style={{ '--d': '40ms' }}>Discover every human, machine and AI&nbsp;agent identity.</h1>
+          <p className="rd-sub rise" style={{ '--d': '100ms' }}>Every login, service account and AI agent in your enterprise, found, owned and protected from AI-driven threats.</p>
+          <div className="dx-hero-cta rise" style={{ '--d': '160ms' }}>
+            <Link to="/request-demo" className="dx-btn solid">Book a demo</Link>
+            <button type="button" className="dx-btn ghost" onClick={() => openFilm(0)}><Play />Watch video ({FILM.length.padStart(5, '0')})</button>
           </div>
+          <HeroRadar />
         </div>
       </section>
 

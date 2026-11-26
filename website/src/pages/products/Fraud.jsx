@@ -5,8 +5,6 @@ import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, Tabs } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
 import { Hero, Faq, Points, LINKS, ACC } from '../../components/ProductKit.jsx';
-import { CapabilityPhone, MuleCheck, WebStepUp } from '../../components/viz/fraud.jsx';
-import { FraudGate } from '../../components/viz/fraudgate.jsx';
 
 /* Identity Fraud Prevention: one platform for mobile and internet banking, from
    login to payment. The page follows the platform's own logic: three questions
@@ -67,7 +65,7 @@ function MobileCaps() {
   return (
     <div>
       <Tabs items={MOBILE.map((x) => x.tab)} value={i} onChange={setI} acc={A} label="Mobile banking capabilities" />
-      <div className="mt-10 grid items-center gap-10 lg:grid-cols-[1fr_1.15fr] lg:gap-16">
+      <div className="mt-10 max-w-[760px]">
         <div key={m.key} className="fadein">
           <p className="text-[13px] font-semibold uppercase tracking-[.08em] text-adap">The gap</p>
           <p className="mt-2 text-[21px] font-semibold leading-snug tracking-[-0.02em] md:text-[24px]">{m.gap}</p>
@@ -75,7 +73,6 @@ function MobileCaps() {
           <ol className="mt-3 space-y-3">{m.how.map((h, k) => <li key={k} className="flex gap-3 text-[15.5px] leading-relaxed text-ink-2"><span className="num mt-[2px] grid h-6 w-6 shrink-0 place-items-center rounded-full border border-line-2 text-[12px] font-semibold">{k + 1}</span>{h}</li>)}</ol>
           <p className="mt-7 flex items-start gap-3 rounded-[16px] border border-line p-4 text-[15.5px] leading-relaxed"><Icon name="CheckCircle" size={20} className="mt-[2px] shrink-0 text-ok" /><span><span className="font-semibold">Result. </span><span className="text-ink-2">{m.result}</span></span></p>
         </div>
-        <div className="mx-auto w-full max-w-[560px]"><CapabilityPhone cap={m.key} /></div>
       </div>
     </div>
   );
@@ -160,15 +157,6 @@ export default function Fraud() {
         note="Mobile banking, internet banking and UPI. One SDK, decisions in under 80 ms.">
       </Hero>
 
-      <section className="sec" aria-labelledby="q-h">
-        <div className="wrap">
-          <SectionHead id="q-h" acc={A} eyebrow="Unified fraud prevention" title="Three checks. One decision." lead="Every session is read three times over. A fraudster has to get past all three; a genuine customer never feels any of them." />
-          <Reveal className="mx-auto mt-14 max-w-[840px]"><FraudGate /></Reveal>
-        </div>
-      </section>
-
-      {/* the stakes, in figures (Anita's story is told just above; the mule figures come with the mule section) */}
-
       <section className="sec" aria-labelledby="gap-h">
         <div className="wrap">
           <SectionHead align="left" id="gap-h" acc={A} eyebrow="What is different" title="Where fraud tools stop, adapID keeps going." lead="Four things to compare with what you run today." />
@@ -184,10 +172,10 @@ export default function Fraud() {
       </section>
 
       <section className="sec" aria-labelledby="web-h">
-        <div className="wrap grid items-center gap-12 lg:grid-cols-[1fr_1.1fr] lg:gap-20">
+        <div className="wrap">
           <div>
             <SectionHead align="left" id="web-h" acc={A} eyebrow="Internet banking" title="Stolen credentials alone are not enough." />
-            <ul className="mt-10 space-y-6">
+            <ul className="mt-10 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
               {WEB.map((w, i) => (
                 <Reveal as="li" key={w.h} delay={i * 70} className="flex gap-4">
                   <span className="ico grid h-10 w-10 shrink-0 place-items-center rounded-[12px]" style={{ '--acc': A }}><Icon name={w.icon} size={20} /></span>
@@ -196,7 +184,6 @@ export default function Fraud() {
               ))}
             </ul>
           </div>
-          <Reveal up className="mx-auto w-full max-w-[540px]"><WebStepUp /></Reveal>
         </div>
       </section>
 
@@ -204,7 +191,7 @@ export default function Fraud() {
         <div className="wrap">
           <SectionHead align="left" id="txn-h" acc={A} eyebrow="Transaction intelligence" title="Each payment looks normal. The pattern does not." lead="In mobile and internet banking, fraudulent payments and mule accounts hide in ordinary traffic. Each is flagged with the reason why, and the models can run in shadow mode before going live." />
           <div className="mt-12"><Points items={TXN} acc="adap" cols={4} /></div>
-          <div className="mt-16 grid items-center gap-12 lg:grid-cols-[.78fr_1.22fr] lg:gap-16">
+          <div className="mt-16 max-w-[720px]">
             <Reveal>
               <p className="eyebrow" style={{ '--acc': A }}>India’s mule account crisis</p>
               <h3 className="t-h2 mt-6">Stop the mule at the payee, not after the money is gone.</h3>
@@ -219,7 +206,6 @@ export default function Fraud() {
               </div>
               <Link to="/blogs/india-mule-account-crisis" className="link mt-8" style={{ '--acc': A }}>Read the blog<Icon name="ArrowRight" size={14} weight="bold" /></Link>
             </Reveal>
-            <Reveal delay={120}><MuleCheck /><p className="mt-3 text-[12.5px] text-ink-3">An example payee check. Names and numbers are illustrations.</p></Reveal>
           </div>
         </div>
       </section>

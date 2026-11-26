@@ -5,7 +5,6 @@ import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, cx } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
 import { Hero, Faq, Split, LINKS, ACC } from '../../components/ProductKit.jsx';
-import { DataMap, BreachClock, ConsentLedger } from '../../components/viz/icms.jsx';
 import { AuditorQuestions } from '../../components/Changes.jsx';
 
 const p = PRODUCTS.icms;
@@ -86,9 +85,9 @@ export default function Icms() {
         </div>
       </section>
 
-      <Split id="discover" acc="icms" eyebrow="PII discovery and classification" title="Find every piece of PII, even where it should not be." lead="Databases, buckets, warehouses and shared drives scanned and classified: Aadhaar, PAN, phone numbers, account numbers, health records. Each store gets an owner, and PII outside its approved place is flagged." visual={<DataMap />} />
-      <Split id="consent" className="stage" acc="icms" flip eyebrow="Purpose and consent" title="Who touched what, and why." lead="Every access is linked to an identity and checked against its declared purpose and the principal’s consent. Access outside consent is flagged the moment it happens." visual={<ConsentLedger />} />
-      <Split id="breach" acc="icms" eyebrow="Breach response" title="Inside the 72 hours, with evidence in hand." lead="When a breach happens, ICMS scopes the affected records and data principals and drafts the report from evidence it already holds." visual={<BreachClock />} />
+      <Split id="discover" acc="icms" eyebrow="PII discovery and classification" title="Find every piece of PII, even where it should not be." lead="Databases, buckets, warehouses and shared drives scanned and classified: Aadhaar, PAN, phone numbers, account numbers, health records. Each store gets an owner, and PII outside its approved place is flagged." />
+      <Split id="consent" acc="icms" eyebrow="Purpose and consent" title="Who touched what, and why." lead="Every access is linked to an identity and checked against its declared purpose and the principal’s consent. Access outside consent is flagged the moment it happens." />
+      <Split id="breach" acc="icms" eyebrow="Breach response" title="Inside the 72 hours, with evidence in hand." lead="When a breach happens, ICMS scopes the affected records and data principals and drafts the report from evidence it already holds." />
 
       <section className="sec" aria-labelledby="chg-h">
         <div className="wrap">

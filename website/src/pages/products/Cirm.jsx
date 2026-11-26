@@ -6,17 +6,16 @@ import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, cx } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
 import { Hero, Faq, Compare, Points, LINKS, ACC } from '../../components/ProductKit.jsx';
-import { Connectors, IdentityGraph, RiskScoreCard } from '../../components/viz/adapid.jsx';
+import { Connectors } from '../../components/viz/adapid.jsx';
 import { NhiWorkbench, AdWorkbench } from '../../components/viz/workbench.jsx';
-import { ScamCatch } from '../../components/viz/fraud.jsx';
 import { IdentityTimelines } from '../../components/Changes.jsx';
 
 const p = PRODUCTS.adapid;
 
 const FAMILY = [
-  { name: 'Continuous Identity Risk Management', tag: 'You are here', body: 'A live, explainable risk score for every person, acted on the moment behaviour changes.', to: null, V: RiskScoreCard },
+  { name: 'Continuous Identity Risk Management', tag: 'You are here', body: 'A live, explainable risk score for every person, acted on the moment behaviour changes.', to: null, stat: ['94', 'risk score,', 'with the reasons'] },
   { name: 'NHI Security for AWS', body: 'Every IAM role, key and workload identity found, scored for posture and watched for new behaviour.', to: '/adapid-ai/nhi-security', V: NhiWorkbench },
-  { name: 'Identity Fraud Prevention', body: 'Mobile and internet banking protected from login to payment: takeover, scams and mules.', to: '/adapid-ai/fraud-prevention', V: ScamCatch },
+  { name: 'Identity Fraud Prevention', body: 'Mobile and internet banking protected from login to payment: takeover, scams and mules.', to: '/adapid-ai/fraud-prevention', stat: ['80 ms', 'decision on', 'every payment'] },
   { name: 'Active Directory Security', body: 'Paths to Domain Admins mapped and cut, and live abuse contained in seconds.', to: '/ad-security', V: AdWorkbench },
 ];
 
@@ -104,13 +103,6 @@ export default function Cirm() {
         </div>
       </section>
 
-      <section className="stage sec" aria-labelledby="blast-h">
-        <div className="wrap">
-          <SectionHead id="blast-h" acc={ACC.adap} eyebrow="Identity graph and blast radius" title="See what a stolen identity can reach, before the attacker does." lead="Every identity is mapped to the systems it opens and the data behind them. When one is compromised, adapID shows the blast radius, the paths to admin, and closes them in one move." />
-          <Reveal up className="mx-auto mt-14 max-w-[1120px]"><IdentityGraph /></Reveal>
-        </div>
-      </section>
-
       <section className="sec" aria-labelledby="chg-h">
         <div className="wrap">
           <SectionHead align="left" id="chg-h" acc={ACC.adap} eyebrow="What changes" title="The same stolen password. Two endings." lead="One login that MFA lets through. What happens next depends on whether anyone is watching how the identity behaves." />
@@ -127,7 +119,7 @@ export default function Cirm() {
                 <>
                   <div className="relative h-[260px] overflow-hidden rounded-[16px] border border-line md:h-[300px]" style={{ background: 'radial-gradient(70% 60% at 50% 0%, rgb(30 136 216 / .12), transparent 70%), linear-gradient(160deg, #f4f8fd, #e8f0f9)' }}>
                     {f.V ? <div className="pointer-events-none absolute left-1/2 top-4 w-[118%] -translate-x-1/2 md:w-[104%]"><f.V /></div>
-                      : <div className="absolute inset-0 flex items-center justify-center"><span className="text-[64px] font-medium tracking-[-0.015em] text-[#c4352a] num">94</span><span className="ml-3 text-[15px] text-ink-3">risk score,<br />with the reasons</span></div>}
+                      : <div className="absolute inset-0 flex items-center justify-center"><span className="text-[64px] font-medium tracking-[-0.015em] text-[#0a6dbb] num">{f.stat[0]}</span><span className="ml-3 text-[15px] text-ink-3">{f.stat[1]}<br />{f.stat[2]}</span></div>}
                     <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-24" style={{ background: 'linear-gradient(rgb(232 240 249 / 0), #e8f0f9)' }} />
                   </div>
                   <div className="mt-6 flex items-center gap-3"><h3 className="t-h3">{f.name}</h3>{f.tag && <span className="rounded-full border border-adap/40 px-2.5 py-0.5 text-[12px] font-medium text-adap">{f.tag}</span>}</div>

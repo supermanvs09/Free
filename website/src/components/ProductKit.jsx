@@ -312,17 +312,19 @@ export function Split({ eyebrow, title, lead, children, visual, flip, acc = 'bra
   const color = ACC[acc] || ACC.brand;
   return (
     <section id={id} className={cx('sec scroll-mt-20', className)}>
-      <div className={cx('wrap grid items-center gap-12 lg:grid-cols-2 lg:gap-20')}>
-        <Reveal className={cx(flip && 'lg:order-2')}>
+      <div className={cx('wrap', visual && 'grid items-center gap-12 lg:grid-cols-2 lg:gap-20')}>
+        <Reveal className={cx(flip && 'lg:order-2', !visual && 'max-w-[760px]')}>
           {eyebrow && <p className="eyebrow" style={{ '--acc': color }}>{eyebrow}</p>}
           <h2 className="t-h2 mt-6">{title}</h2>
           {lead && <p className="t-lead mt-5">{lead}</p>}
           {children}
         </Reveal>
-        <Reveal delay={120} className="relative">
-          <div aria-hidden="true" className="absolute -inset-8 -z-10 rounded-full opacity-25 blur-3xl" style={{ background: `radial-gradient(closest-side, color-mix(in oklab, ${color} 40%, transparent), transparent)` }} />
-          {visual}
-        </Reveal>
+        {visual && (
+          <Reveal delay={120} className="relative">
+            <div aria-hidden="true" className="absolute -inset-8 -z-10 rounded-full opacity-25 blur-3xl" style={{ background: `radial-gradient(closest-side, color-mix(in oklab, ${color} 40%, transparent), transparent)` }} />
+            {visual}
+          </Reveal>
+        )}
       </div>
     </section>
   );

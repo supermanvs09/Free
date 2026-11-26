@@ -89,13 +89,16 @@ test('home: industries, certifications and research each lead somewhere real', a
   await expect(res.getByRole('link', { name: /All research/ })).toHaveAttribute('href', '/blogs');
 });
 
-test('home: the hero is one sentence and two actions, with a pause control', async ({ page }) => {
+test('home: the hero is one sentence, a line of support, two actions and the identity radar', async ({ page }) => {
   await page.goto('/');
   await hydrated(page);
   const hero = page.locator('section[aria-labelledby="hero-h"]');
-  expect(await hero.locator('p').count()).toBe(0);
-  await hero.getByRole('button', { name: 'Pause background animation' }).click();
-  await expect(hero.getByRole('button', { name: 'Play background animation' })).toBeVisible();
+  await expect(hero.getByRole('heading', { level: 1 })).toHaveText('Discover every human, machine and AI agent identity.');
+  await expect(hero.getByRole('link', { name: 'Book a demo' })).toBeVisible();
+  await expect(hero.locator('.rd-node')).toHaveCount(15);
+  await expect(hero.locator('.rd-status')).toContainText('identities discovered');
+  await hero.getByRole('button', { name: 'Pause animation' }).click();
+  await expect(hero.getByRole('button', { name: 'Play animation' })).toBeVisible();
 });
 
 test('home: the AI-SPM section leads with its name, then the promise', async ({ page }) => {
@@ -146,22 +149,6 @@ test('on a phone the attack path reads as a chain, one step under the other', as
   await expect(bench.getByText('Remediated, and checked again')).toBeVisible({ timeout: 8000 });
 });
 
-test('fraud: three checks on one dial, each session with its own decision', async ({ page }) => {
-  await page.goto('/adapid-ai/fraud-prevention');
-  await hydrated(page);
-  const gate = page.locator('figure.fg');
-  await gate.scrollIntoViewIfNeeded();
-  await expect(page.getByRole('heading', { name: 'Three checks. One decision.' })).toBeVisible();
-  await expect(gate.locator('.fg-dial')).toBeVisible();
-  for (const [tab, verdict, found] of [['Genuine customer', 'Allow', 'Her typing, her phone'], ['Mule payment', 'Block', 'Payee is a known mule account'], ['Account takeover', 'Step up', 'Right password, wrong hands']]) {
-    await gate.getByRole('tab', { name: tab }).click();
-    await expect(gate.locator('.fg-verdict')).toHaveText(verdict);
-    await expect(gate.getByText(found)).toBeVisible();
-  }
-  // the three checks are named, and nothing is wrapped in a card
-  for (const n of ['Identity', 'Protection', 'Payment']) await expect(gate.locator('.fg-name', { hasText: n })).toBeVisible();
-  await expect(gate.locator('.card')).toHaveCount(0);
-});
 
 test('home ends with the latest research, and the platform is one scroll away', async ({ page }) => {
   await page.goto('/');
