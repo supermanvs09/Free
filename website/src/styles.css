@@ -1022,7 +1022,6 @@ html.is-translated font { background: none !important; box-shadow: none !importa
 .hero-navy {
   /* the strip under the fixed header stays white, so the bar reads as one white header above the band */
   background:
-    linear-gradient(#fff, #fff) top / 100% var(--hdr) no-repeat,
     radial-gradient(40% 45% at 88% 12%, color-mix(in oklab, var(--acc) 16%, transparent), transparent 70%),
     #02040a;
   color: #fff;
