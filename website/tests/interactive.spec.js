@@ -20,7 +20,8 @@ test('home: AI-SPM shows the four kinds of identity around the globe, each linke
     await expect(sec.locator('.gx-num', { hasText: l })).toContainText(v);
   }
   await expect(sec.locator('.gx-score')).toContainText('92/100');
-  for (const n of ['Zoom in', 'Zoom out', 'Scan the environment']) await expect(sec.getByRole('button', { name: n })).toBeVisible();
+  await expect(sec.locator('.gx-pill')).toHaveText('Suspicious TrafficUS-East-1');
+  await expect(sec.getByRole('button')).toHaveCount(0);
 });
 
 test('reduced motion still shows the Claude scene at its finished frame', async ({ page }) => {
