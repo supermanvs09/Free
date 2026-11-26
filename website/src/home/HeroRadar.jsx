@@ -45,6 +45,7 @@ export default function HeroRadar() {
     const frame = (now) => {
       raf = requestAnimationFrame(frame);
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      if (!beam.current || !count.current) return;   // unmounting: refs are gone before the cleanup runs
       if (pausedRef.current || !visible || document.hidden) return;
       if (rest > 0) {
         rest -= dt;
