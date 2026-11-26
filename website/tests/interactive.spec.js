@@ -13,8 +13,9 @@ test('home: AI-SPM shows the four kinds of identity around the globe, each linke
   await page.goto('/');
   const sec = page.locator('#aispm');
   await expect(sec.locator('.gx-card')).toHaveCount(4);
-  for (const h of ['People', 'Machine identities', 'AI agents', 'Personal data']) await expect(sec.locator('.gx-card', { hasText: h })).toBeVisible();
-  await expect(sec.locator('.gx-card', { hasText: 'AI agents' })).toHaveAttribute('href', '/agentic-ai/agentic-identity');
+  for (const [h, to] of [['People', '/adapid-ai'], ['Machine identities', '/adapid-ai/nhi-security'], ['AI agents', '/agentic-ai/agentic-identity'], ['Personal data', '/dpdpa-compliance']]) {
+    await expect(sec.locator(`.gx-card[href="${to}"] .gx-ct:not(.gx-num) b`)).toHaveText(h);
+  }
   await expect(sec.locator('.gx-feed li')).toHaveCount(3);
 });
 
