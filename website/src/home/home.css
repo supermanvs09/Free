@@ -388,3 +388,12 @@
   .rd-hero .dx-hero-cta { flex-direction: column; align-items: stretch; max-width: 340px; margin-inline: auto; }
 }
 @media (prefers-reduced-motion: reduce) { .rd-node { transition: none; } }
+
+/* hero → proof: one black field, clear breathing room, a hairline between */
+.rd-hero { padding-bottom: clamp(56px, 7vh, 80px); }
+.rd-hero + .dx-proof { background: #000; padding: 0 0 clamp(64px, 8vh, 88px); }
+.rd-hero + .dx-proof .dx-wrap { border-top: 1px solid rgb(255 255 255 / .09); padding-top: clamp(40px, 5vh, 56px); }
+.rd-hero + .dx-proof .dx-proof-h { font: 400 14px/1.5 'Geist Variable', system-ui, sans-serif; letter-spacing: 0; text-transform: none; color: #8a93a1; }
+.rd-hero + .dx-proof .dx-logos { margin-top: 32px; gap: 36px 48px; }
+.rd-hero + .dx-proof .dx-logos img { height: 30px; max-width: 132px; opacity: .55; filter: grayscale(1); transition: opacity .25s; }
+.rd-hero + .dx-proof .dx-logos img:hover { opacity: .9; }
