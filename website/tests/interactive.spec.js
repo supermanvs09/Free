@@ -12,11 +12,15 @@ test('home: every product line has a card that leads to its own page', async ({ 
 test('home: AI-SPM shows the four kinds of identity around the globe, each linked to its product', async ({ page }) => {
   await page.goto('/');
   const sec = page.locator('#aispm');
-  await expect(sec.locator('.gx-card')).toHaveCount(4);
+  await expect(sec.locator('.gx-m')).toHaveCount(4);
   for (const [h, to] of [['People', '/adapid-ai'], ['Machine identities', '/adapid-ai/nhi-security'], ['AI agents', '/agentic-ai/agentic-identity'], ['Personal data', '/dpdpa-compliance']]) {
-    await expect(sec.locator(`.gx-card[href="${to}"] .gx-ct:not(.gx-num) b`)).toHaveText(h);
+    await expect(sec.locator(`.gx-m[href="${to}"] .gx-ct:not(.gx-num) b`)).toHaveText(h);
   }
-  await expect(sec.locator('.gx-feed li')).toHaveCount(3);
+  for (const [v, l] of [['1,284', 'Assets'], ['18', 'Active Threats'], ['97%', 'Protected'], ['1,284', 'High-Risk']]) {
+    await expect(sec.locator('.gx-num', { hasText: l })).toContainText(v);
+  }
+  await expect(sec.locator('.gx-score')).toContainText('92/100');
+  for (const n of ['Zoom in', 'Zoom out', 'Scan the environment']) await expect(sec.getByRole('button', { name: n })).toBeVisible();
 });
 
 test('reduced motion still shows the Claude scene at its finished frame', async ({ page }) => {

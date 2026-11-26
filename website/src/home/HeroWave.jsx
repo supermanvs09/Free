@@ -1,16 +1,116 @@
 import { useEffect, useRef } from 'react';
 
-/* The hero background: a slow wave of fine light strands, drawn live on a
-   canvas with additive blending, so crossings glow like silk or optical
-   fibre (the cisco.com hero idea, made ours). Signals travel along a few
-   strands: white-blue for identities moving through the network, and now and
-   then an amber one, flagged and stopped. Pauses off screen, on the pause
-   button and in background tabs; one still frame for reduced motion. */
+/* The hero background: a ribbon of silk-fine light strands that twists
+   through space (the cisco.com hero idea, made ours). The ribbon is a real
+   surface: every strand is a line across it, and as the ribbon turns edge-on
+   the strands crowd together and the light builds up, so it has form, depth
+   and highlights rather than a flat wobble. All of it is computed on the GPU
+   (WebGL, ~100k vertices, one draw call), so it can be dense and smooth.
+   Signals travel along the strands: blue-white for identities moving through
+   the network, now and then an amber one, flagged. The ribbon leans gently
+   towards the pointer. Pauses off screen, on the pause button and in
+   background tabs; one still frame for reduced motion. Without WebGL the
+   hero keeps its dark background. */
 
-const TAU = Math.PI * 2;
-const smooth = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+const STRANDS = 320;      // lines across the ribbon
+const SEGS = 180;         // segments along each line
+const SIGNALS = 14;
 
-// a cheap deterministic random, so the server and every reload draw the same wave
+const VS = `
+precision highp float;
+attribute vec3 a;            // s along the ribbon, v across it, seed
+uniform float uT;
+uniform vec2 uRes;
+uniform vec2 uM;             // pointer, 0..1, eased
+uniform float uMode;         // 0 strands, 1 signals
+uniform float uSize;
+varying float vB;            // brightness
+varying vec3 vC;             // colour
+varying float vS;
+
+const float PI = 3.14159265;
+
+// the ribbon: centre line, half width, twist; returns screen xy, depth and edge-on factor
+vec4 ribbon(float s, float v, float layer) {
+  float t = uT + layer * 11.0;
+  float W = uRes.x, H = uRes.y;
+  float x = mix(-0.08, 1.08, s) * W;
+  // a long sweep up to the right, breathing slowly
+  float rise = smoothstep(-0.1, 1.05, s);
+  float yc = H * (0.84 - 0.46 * rise)
+           + H * 0.07 * sin(s * 5.2 - t * 0.12 + layer * 2.0)
+           + H * 0.035 * sin(s * 11.0 + t * 0.2);
+  // the pointer pulls the ribbon a little towards it
+  float pull = exp(-pow((s - uM.x) * 3.2, 2.0));
+  yc += (uM.y - 0.55) * H * 0.12 * pull;
+  float w = H * (0.07 + 0.3 * smoothstep(0.0, 0.9, s)) * (0.8 + 0.2 * sin(s * 4.0 + t * 0.17)) * (1.0 - layer * 0.35);
+  float th = s * (4.0 + layer * 1.5) + t * 0.22 + 0.9 * sin(s * 3.1 - t * 0.11) + layer * 1.3;
+  float c = cos(th), sn = sin(th);
+  // a gentle ruffle across the width, like silk
+  float ruffle = 0.12 * sin(v * 6.0 + s * 9.0 + t * 0.5) * (0.4 + 0.6 * s);
+  float y = yc + (v * c + ruffle * sn) * w;
+  float depth = v * sn;
+  x += depth * w * 0.35;
+  return vec4(x, y, depth, abs(c));
+}
+
+void main() {
+  float s, v, seed, layer;
+  if (uMode < 0.5) {
+    s = a.x; v = a.y; seed = a.z;
+    layer = step(0.78, fract(seed * 7.13));        // about a fifth of the strands on a second ribbon behind
+  } else {
+    seed = a.z; v = a.y;
+    layer = 0.0;
+    s = fract(a.x + uT * (0.028 + 0.02 * fract(seed * 3.7)));
+  }
+  vec4 r = ribbon(s, v, layer);
+  vec2 p = r.xy / uRes * 2.0 - 1.0;
+  gl_Position = vec4(p.x, -p.y, 0.0, 1.0);
+
+  float edgeOn = 1.0 - r.w;                         // 1 where the ribbon is seen edge-on
+  float light = 0.5 + 0.5 * pow(edgeOn, 1.4);
+  float rim = 0.75 + 0.25 * abs(v);                 // the ribbon's edges catch a little more light
+  float near = 0.72 + 0.28 * r.z;                   // the near side is brighter
+  float fadeL = smoothstep(0.02, 0.42, s);          // quiet under the headline
+  float fadeR = 1.0 - smoothstep(0.97, 1.08, s);
+  vB = light * rim * near * fadeL * fadeR * (1.0 - layer * 0.45);
+
+  // deep blue in the body, cyan as it brightens, white at the crest
+  vec3 deep = vec3(0.10, 0.32, 0.95), cyan = vec3(0.30, 0.78, 1.0), white = vec3(0.88, 0.95, 1.0);
+  vec3 col = mix(deep, cyan, smoothstep(0.25, 0.7, light));
+  col = mix(col, white, smoothstep(0.78, 1.0, light) * 0.8);
+  if (fract(seed * 13.7) < 0.025) col = vec3(1.0, 0.68, 0.32);   // a few amber threads
+  vC = col;
+  vS = 0.0;
+
+  if (uMode > 0.5) {
+    float life = sin(s * PI);
+    vB = life * smoothstep(0.08, 0.3, s);
+    vS = step(0.9, fract(seed * 5.3));             // amber: flagged
+    vC = mix(vec3(0.78, 0.92, 1.0), vec3(1.0, 0.7, 0.35), vS);
+    gl_PointSize = uSize * (0.7 + 0.6 * fract(seed * 9.1)) * (0.6 + 0.4 * life);
+  }
+}`;
+
+const FS = `
+precision highp float;
+uniform float uMode;
+uniform float uA;
+varying float vB;
+varying vec3 vC;
+varying float vS;
+void main() {
+  if (uMode > 0.5) {
+    vec2 d = gl_PointCoord - 0.5;
+    float r = length(d) * 2.0;
+    float g = exp(-r * r * 5.0) * 0.55 + exp(-r * r * 60.0);
+    gl_FragColor = vec4(vC * g * vB, 1.0);
+  } else {
+    gl_FragColor = vec4(vC * vB * uA, 1.0);
+  }
+}`;
+
 function rng(seed) { let s = seed; return () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646; }
 
 export default function HeroWave({ paused }) {
@@ -21,130 +121,89 @@ export default function HeroWave({ paused }) {
   useEffect(() => {
     const cv = ref.current;
     if (!cv) return undefined;
-    const ctx = cv.getContext('2d');
+    const gl = cv.getContext('webgl', { alpha: true, antialias: true, premultipliedAlpha: true, powerPreference: 'high-performance' });
+    if (!gl) return undefined;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const r = rng(7);
-    let W = 0, H = 0, dpr = 1, raf = 0, visible = true, last = performance.now(), t = 18;
+    const r = rng(11);
 
-    // strands: one ribbon made of many lines that fan out and pinch together
-    let strands = [];
-    const build = () => {
-      const n = W < 700 ? 70 : 150;
-      strands = Array.from({ length: n }, (_, i) => {
-        const rib = i % 3 === 2 ? 1 : 0;              // two ribbons that weave through each other
-        const u = r();
-        const roll = r();
-        const tone = roll < 0.05 ? 'amber' : roll < 0.28 ? 'blue' : roll < 0.4 ? 'cyan' : 'white';
-        return { u, rib, tone, a: 0.06 + Math.pow(r(), 2) * 0.27, w: 0.5 + r() * 0.9, ph: r() * TAU };
-      });
-    };
-    const signals = Array.from({ length: 9 }, (_, i) => ({ s: Math.floor(r() * 140), p: r(), v: 0.035 + r() * 0.03, flag: i === 3 }));
-    const dust = Array.from({ length: 36 }, () => ({ x: r(), y: r() * 0.75, z: 0.3 + r() * 0.7, ph: r() * TAU }));
+    const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; };
+    const prog = gl.createProgram();
+    gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return undefined;
+    gl.useProgram(prog);
+    const U = Object.fromEntries(['uT', 'uRes', 'uM', 'uMode', 'uSize', 'uA'].map((n) => [n, gl.getUniformLocation(prog, n)]));
+    const aLoc = gl.getAttribLocation(prog, 'a');
 
+    // strands, as pairs of points (gl.LINES), one buffer, one draw call
+    const lines = new Float32Array(STRANDS * SEGS * 2 * 3);
+    let k = 0;
+    for (let i = 0; i < STRANDS; i++) {
+      const v = (i / (STRANDS - 1)) * 2 - 1 + (r() - 0.5) * 0.004;
+      const seed = r();
+      for (let j = 0; j < SEGS; j++) {
+        lines[k++] = j / SEGS; lines[k++] = v; lines[k++] = seed;
+        lines[k++] = (j + 1) / SEGS; lines[k++] = v; lines[k++] = seed;
+      }
+    }
+    const lineBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, lineBuf); gl.bufferData(gl.ARRAY_BUFFER, lines, gl.STATIC_DRAW);
+    const pts = new Float32Array(SIGNALS * 3);
+    for (let i = 0; i < SIGNALS; i++) { pts[i * 3] = r(); pts[i * 3 + 1] = r() * 2 - 1; pts[i * 3 + 2] = i === 4 ? 0.95 / 5.3 + 0 : r() * 0.85; }
+    const ptBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, ptBuf); gl.bufferData(gl.ARRAY_BUFFER, pts, gl.STATIC_DRAW);
+
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);   // additive: crossings glow
+    gl.clearColor(0, 0, 0, 0);
+
+    let W = 0, H = 0, dpr = 1, raf = 0, visible = true, last = performance.now(), t = 24;
+    const m = { x: 0.7, y: 0.55, tx: 0.7, ty: 0.55 };
     const resize = () => {
       const b = cv.getBoundingClientRect();
-      dpr = Math.min(window.devicePixelRatio || 1, 1.6);
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
       W = b.width; H = b.height;
       cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      build();
+      gl.viewport(0, 0, cv.width, cv.height);
     };
-
-    // the y of strand u at x, time t
-    const yAt = (u, x, time, ph, rib = 0) => {
-      const nx = x / W;
-      const T = time + rib * 7.3;
-      const centre = H * (0.84 - 0.32 * smooth(0.05, 1, nx)) + rib * H * 0.05;     // rises to the right
-      const amp = H * (0.06 + 0.15 * smooth(0.15, 1, nx));                           // calmer on the left
-      const fan = H * (0.04 + (0.26 - rib * 0.1) * Math.pow(Math.sin(nx * 2.8 + T * 0.09 + 0.6), 2)); // the ribbon pinches and fans
-      const k = x * 0.0042;
-      const fold = Math.sin(k * 1.6 + T * 0.27 + u * 3.1) * Math.sin(nx * 3.2 + T * 0.05);  // silk folding over itself
-      const wave = Math.sin(k + T * 0.32 + u * 2.2 + ph * 0.05) * 0.6
-        + Math.sin(k * 2.27 - T * 0.23 + u * 4.6) * 0.26
-        + Math.sin(k * 0.58 + T * 0.17 + u * 1.4) * 0.55
-        + fold * 0.35 * u
-        + Math.sin(k * 4.1 + T * 0.41 + u * 9) * 0.06 * u;
-      return centre + wave * amp * (rib ? -0.85 : 1) + (u - 0.5) * fan;
-    };
-
-    const colour = { white: '226,234,255', blue: '64,150,255', cyan: '96,214,255', amber: '255,178,92' };
-
     const draw = () => {
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.clearRect(0, 0, W, H);
-      // a faint blue bloom under the wave
-      const g = ctx.createRadialGradient(W * 0.78, H * 0.82, 0, W * 0.78, H * 0.82, Math.max(W, H) * 0.6);
-      g.addColorStop(0, 'rgba(40,110,230,0.26)'); g.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-
-      ctx.globalCompositeOperation = 'lighter';
-      const step = W < 700 ? 14 : 10;
-      for (const s of strands) {
-        const grad = ctx.createLinearGradient(W * 0.12, 0, W, 0);
-        const c = colour[s.tone];
-        const a = s.tone === 'amber' ? s.a * 0.55 : s.a;
-        grad.addColorStop(0, `rgba(${c},0)`);
-        grad.addColorStop(0.35, `rgba(${c},${a * 0.6})`);
-        grad.addColorStop(0.75, `rgba(${c},${a})`);
-        grad.addColorStop(1, `rgba(${c},${a * 0.8})`);
-        ctx.strokeStyle = grad;
-        ctx.lineWidth = s.w;
-        ctx.beginPath();
-        for (let x = W * 0.1; x <= W + step; x += step) {
-          const y = yAt(s.u, x, t, s.ph, s.rib);
-          if (x === W * 0.1) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-        }
-        ctx.stroke();
-      }
-
-      // signals travelling along strands
-      for (const sg of signals) {
-        const s = strands[sg.s % strands.length];
-        const x = W * (0.22 + sg.p * 0.82);
-        const y = yAt(s.u, x, t, s.ph, s.rib);
-        const fade = smooth(0, 0.12, sg.p) * (1 - smooth(0.85, 1, sg.p));
-        const rad = sg.flag ? 22 : 16;
-        const rg = ctx.createRadialGradient(x, y, 0, x, y, rad);
-        const c = sg.flag ? '255,170,80' : '190,225,255';
-        rg.addColorStop(0, `rgba(${c},${0.95 * fade})`); rg.addColorStop(0.25, `rgba(${c},${0.35 * fade})`); rg.addColorStop(1, `rgba(${c},0)`);
-        ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(x, y, rad, 0, TAU); ctx.fill();
-        // a short comet tail behind the signal
-        ctx.strokeStyle = `rgba(${c},${0.35 * fade})`; ctx.lineWidth = 1.4; ctx.beginPath();
-        for (let k = 0; k < 9; k++) { const xx = x - k * 9; const yy = yAt(s.u, xx, t, s.ph, s.rib); if (k) ctx.lineTo(xx, yy); else ctx.moveTo(xx, yy); }
-        ctx.stroke();
-      }
-
-      // drifting specks
-      for (const d of dust) {
-        const tw = 0.35 + 0.65 * Math.pow(Math.sin(t * 0.8 * d.z + d.ph), 2);
-        const x = ((d.x + t * 0.004 * d.z) % 1) * W;
-        const y = H * d.y + Math.sin(t * 0.3 + d.ph) * 6;
-        const vis = smooth(0.3, 0.7, x / W);
-        ctx.fillStyle = `rgba(220,235,255,${0.5 * tw * vis * d.z})`;
-        ctx.beginPath(); ctx.arc(x, y, 0.6 + d.z * 1.1, 0, TAU); ctx.fill();
-      }
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.uniform1f(U.uT, t); gl.uniform2f(U.uRes, W, H); gl.uniform2f(U.uM, m.x, m.y);
+      // fewer, brighter strands on narrow screens
+      const narrow = W < 700;
+      gl.uniform1f(U.uA, (narrow ? 0.4 : 0.28) * Math.min(dpr, 1.6) / 1.3);
+      gl.uniform1f(U.uMode, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, lineBuf); gl.enableVertexAttribArray(aLoc); gl.vertexAttribPointer(aLoc, 3, gl.FLOAT, false, 0, 0);
+      gl.drawArrays(gl.LINES, 0, (narrow ? STRANDS / 2 : STRANDS) * SEGS * 2);
+      gl.uniform1f(U.uMode, 1); gl.uniform1f(U.uSize, 26 * dpr);
+      gl.bindBuffer(gl.ARRAY_BUFFER, ptBuf); gl.vertexAttribPointer(aLoc, 3, gl.FLOAT, false, 0, 0);
+      gl.drawArrays(gl.POINTS, 0, SIGNALS);
     };
-
     const tick = (now) => {
       raf = requestAnimationFrame(tick);
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
       if (pausedRef.current || !visible || document.hidden) return;
       t += dt;
-      for (const sg of signals) {
-        sg.p += sg.v * dt;
-        if (sg.p > 1) { sg.p = 0; sg.s = Math.floor(Math.random() * strands.length); }
-      }
+      m.x += (m.tx - m.x) * Math.min(1, dt * 1.8); m.y += (m.ty - m.y) * Math.min(1, dt * 1.8);
       draw();
     };
+    const onMove = (e) => {
+      const b = cv.getBoundingClientRect();
+      m.tx = Math.min(1, Math.max(0, (e.clientX - b.left) / b.width));
+      m.ty = Math.min(1, Math.max(0, (e.clientY - b.top) / b.height));
+    };
+    const onLeave = () => { m.tx = 0.7; m.ty = 0.55; };
 
-    resize();
-    draw();
-    const ro = new ResizeObserver(() => { resize(); draw(); });
-    ro.observe(cv);
-    const io = new IntersectionObserver(([e]) => { visible = e.isIntersecting; });
-    io.observe(cv);
-    if (!reduce) raf = requestAnimationFrame(tick);
-    return () => { cancelAnimationFrame(raf); ro.disconnect(); io.disconnect(); };
+    resize(); draw();
+    const ro = new ResizeObserver(() => { resize(); draw(); }); ro.observe(cv);
+    const io = new IntersectionObserver(([e]) => { visible = e.isIntersecting; }); io.observe(cv);
+    const host = cv.parentElement;
+    if (!reduce) {
+      raf = requestAnimationFrame(tick);
+      host.addEventListener('pointermove', onMove); host.addEventListener('pointerleave', onLeave);
+    }
+    return () => {
+      cancelAnimationFrame(raf); ro.disconnect(); io.disconnect();
+      host.removeEventListener('pointermove', onMove); host.removeEventListener('pointerleave', onLeave);
+      gl.getExtension('WEBGL_lose_context')?.loseContext();
+    };
   }, []);
 
   return <canvas ref={ref} className="dx-hero-cv" aria-hidden="true" />;
