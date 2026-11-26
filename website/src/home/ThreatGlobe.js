@@ -42,7 +42,7 @@ export function createGlobe(canvas, { onHit, reduced } = {}) {
         vFace = n.z; gl_PointSize = uSize * uDpr * (4.5 / -mv.z); gl_Position = projectionMatrix * mv; }`,
     fragmentShader: `varying float vFace; void main(){ vec2 c = gl_PointCoord - .5; float d = length(c); if(d > .5) discard;
         float a = smoothstep(.5, .15, d) * smoothstep(-0.15, 0.35, vFace);
-        gl_FragColor = vec4(mix(vec3(.12,.32,.85), vec3(.35,.62,1.), smoothstep(.2,.9,vFace)), a * .85); }`,
+        gl_FragColor = vec4(mix(vec3(.10,.26,.70), vec3(.24,.48,.92), smoothstep(.2,.9,vFace)), a * .55); }`,
   });
   world.add(new THREE.Points(dotGeo, dotMat));
 
@@ -54,7 +54,7 @@ export function createGlobe(canvas, { onHit, reduced } = {}) {
     const m = new THREE.Mesh(new THREE.SphereGeometry(0.022, 12, 8), nodeMat(i % 5 === 2 ? 0xffb347 : 0x6fb6ff));
     m.position.copy(v3(la, lo, 1.005)); world.add(m);
   });
-  const arcMat = new THREE.LineBasicMaterial({ color: 0x4f9bff, transparent: true, opacity: 0.85, toneMapped: false });
+  const arcMat = new THREE.LineBasicMaterial({ color: 0x4f9bff, transparent: true, opacity: 0.7, toneMapped: false });
   const arc = (a, b, lift) => {
     const A = v3(a[0], a[1], 1.005), B = v3(b[0], b[1], 1.005);
     const M = A.clone().add(B).normalize().multiplyScalar(1 + lift);
@@ -78,7 +78,7 @@ export function createGlobe(canvas, { onHit, reduced } = {}) {
       void main(){ float f = pow(1. - abs(dot(vN, vV)), uPow); gl_FragColor = vec4(uColor, f * (uA + uPulse)); }`,
   });
   scene.add(new THREE.Mesh(new THREE.SphereGeometry(R * 0.995, 64, 48), new THREE.MeshBasicMaterial({ color: 0x040b22, transparent: true, opacity: 0.96 })));
-  scene.add(new THREE.Mesh(new THREE.SphereGeometry(R * 1.01, 64, 48), fres('#3b86ff', 8, 1.0)));
+  scene.add(new THREE.Mesh(new THREE.SphereGeometry(R * 1.01, 64, 48), fres('#3b86ff', 8, 0.75)));
   // the protective field
   const shieldMat = fres('#5aa6ff', 5, 0.0);
   scene.add(new THREE.Mesh(new THREE.SphereGeometry(SHIELD, 64, 48), shieldMat));
@@ -126,7 +126,7 @@ export function createGlobe(canvas, { onHit, reduced } = {}) {
   // post: bloom
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
-  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.5, 0.25, 0.42); composer.addPass(bloom);
+  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.42, 0.25, 0.5); composer.addPass(bloom);
   composer.addPass(new OutputPass());
 
   let w = 0, h = 0;

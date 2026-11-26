@@ -64,7 +64,23 @@ export default function AispmGlobe() {
         <div className="gx-col">{SIDES.slice(0, 2).map((x) => <Side key={x.h} x={x} />)}</div>
         <div ref={stage} className="gx-stage">
           <canvas ref={canvas} className="gx-cv" aria-hidden="true" />
-          <div className="gx-core" aria-hidden="true"><span /><span /><span /><i><Shield /></i></div>
+          <svg className="gx-core" viewBox="-120 -120 240 240" aria-hidden="true">
+            <defs>
+              <radialGradient id="gxc-disc" cx="50%" cy="42%" r="60%"><stop offset="0" stopColor="#123a86" /><stop offset=".7" stopColor="#081a44" /><stop offset="1" stopColor="#050f2a" /></radialGradient>
+              <radialGradient id="gxc-halo"><stop offset=".45" stopColor="#2f7dff" stopOpacity=".55" /><stop offset="1" stopColor="#2f7dff" stopOpacity="0" /></radialGradient>
+              <filter id="gxc-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3.2" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+            </defs>
+            <circle r="118" fill="url(#gxc-halo)" />
+            <circle className="gxc-pulse" r="104" fill="none" stroke="#4d9bff" strokeWidth="1.5" opacity=".7" />
+            <circle r="96" fill="none" stroke="#3d8bff" strokeWidth="1.6" filter="url(#gxc-glow)" />
+            <circle r="76" fill="none" stroke="#5aa8ff" strokeWidth="7" filter="url(#gxc-glow)" />
+            <circle r="76" fill="none" stroke="#0a1f4d" strokeWidth="7" strokeDasharray="60 418" transform="rotate(-70)" opacity=".85" />
+            <circle r="60" fill="url(#gxc-disc)" stroke="#9fd6ff" strokeWidth="2.2" filter="url(#gxc-glow)" />
+            <g filter="url(#gxc-glow)" fill="none" strokeLinejoin="round">
+              <path d="M0 -30 L-23 -21 V-2 C-23 15 -12 26 0 31 C12 26 23 15 23 -2 V-21 Z" stroke="#e8f5ff" strokeWidth="3.4" />
+              <path d="M0 -19 L-14 -13 V-1 C-14 9 -7 16 0 19 C7 16 14 9 14 -1 V-13 Z" stroke="#9fd6ff" strokeWidth="2.4" />
+            </g>
+          </svg>
           <div ref={labels} className="gx-labels" aria-hidden="true" />
         </div>
         <div className="gx-col">{SIDES.slice(2).map((x) => <Side key={x.h} x={x} />)}</div>
