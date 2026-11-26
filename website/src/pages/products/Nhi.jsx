@@ -6,7 +6,7 @@ import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, cx } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import { Hero, Faq, LINKS, ACC } from '../../components/ProductKit.jsx';
+import { Hero, Rollout, Faq, LINKS, ACC } from '../../components/ProductKit.jsx';
 import { NhiMap } from '../../components/viz/nhimap.jsx';
 import { NhiWorkbench } from '../../components/viz/workbench.jsx';
 import { Logo } from '../../components/viz/kit.jsx';
@@ -226,6 +226,11 @@ export default function Nhi() {
           <Reveal delay={100}><LeakedKey /></Reveal>
         </div>
       </section>
+      <Rollout acc="adap" lead="One read-only role per AWS account. No agents, nothing installed on your workloads." steps={[
+          { when: 'Day 1', h: 'Connect your accounts', p: 'Deploy one read-only role per account with the trust policy we provide. The first inventory arrives within minutes.' },
+          { when: 'Week 1', h: 'Inventory and posture', p: 'Every role, key and workload identity with an owner, a posture score and what it actually uses.' },
+          { when: 'Week 2 onwards', h: 'Fix and watch', p: 'Least-privilege fixes checked against CloudTrail and applied with approval. Baselines catch the identity that changes.' },
+        ]} />
       <Faq items={FAQ} />
       <ResearchRow slugs={p.research} />
       <CtaBand related={[LINKS.cirm, LINKS.zenstra, LINKS.ad]} accent="adap" title={p.cta.title} body={p.cta.body} />

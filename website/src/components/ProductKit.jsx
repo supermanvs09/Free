@@ -1,10 +1,12 @@
+import { CERTS } from '../data/site.js';
+import CertSeal from './CertSeal.jsx';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useInView, useReducedMotion } from '../lib/motion.js';
 import { loadGsap } from '../lib/nullmotion.jsx';
 import HeroWave from '../home/HeroWave.jsx';
 import { scrollToY } from '../lib/smooth.js';
 import { Link } from 'react-router';
-import { Accordion, Breadcrumb, Button, CountUp, Icon, Reveal, cx } from './ui.jsx';
+import { Accordion, Breadcrumb, Button, CountUp, Icon, Reveal, SectionHead, cx } from './ui.jsx';
 import { TrustedRow } from './blocks.jsx';
 import ProductMark from './ProductMark.jsx';
 import { Proof, StatCard, StoryCard } from './Story.jsx';
@@ -338,3 +340,33 @@ export const LINKS = {
   ad: { line: 'adapID AI', name: 'Active Directory Security', body: 'Attack paths to Domain Admins mapped and closed, live abuse contained.', to: '/ad-security', acc: ACC.adap },
   icms: { line: 'ICMS Compliance Suite', name: 'DPDPA compliance', body: 'Every access to personal data checked, and evidence ready for audit.', to: '/dpdpa-compliance', acc: ACC.icms },
 };
+
+/* Before the FAQ: the buyer's last question, "how hard is this to roll out,
+   and is it safe to let in?", answered as a timeline that fills as you scroll
+   (three steps, each specific to the product) and a row of what we are
+   audited against. Replaces the cost-of-the-problem figures. */
+export function Rollout({ acc = 'brand', title = 'Live in weeks, not quarters.', lead, steps, note }) {
+  const color = ACC[acc] || ACC.brand;
+  return (
+    <section className="sec" aria-labelledby="roll-h" style={{ '--acc': color }}>
+      <div className="wrap">
+        <SectionHead align="left" id="roll-h" acc={color} eyebrow="Typical rollout" title={title} lead={lead} />
+        <ol className="ro-line mt-14 grid gap-5 md:grid-cols-3">
+          <span aria-hidden="true" className="ro-track"><i /></span>
+          {steps.map((s, i) => (
+            <li key={s.h} className="ro-step">
+              <span className="ro-dot" aria-hidden="true">{i + 1}</span>
+              <p className="ro-when">{s.when}</p>
+              <h3>{s.h}</h3>
+              <p className="ro-p">{s.p}</p>
+            </li>
+          ))}
+        </ol>
+        <div className="ro-trust">
+          <p>{note || 'Independently audited, every year'}</p>
+          <ul>{CERTS.map((c) => <li key={c.code}><CertSeal code={c.code} size={34} /><span>{c.name}</span></li>)}</ul>
+        </div>
+      </div>
+    </section>
+  );
+}

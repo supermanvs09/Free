@@ -5,6 +5,9 @@
    scrolls on its own (tab rows, code, tables). Everything that scrolls the
    page from code goes through scrollToY, so it glides the same way. */
 let lenis = null;
+const listeners = new Set();
+/* call fn on every smooth-scroll frame (ScrollTrigger keeps in step); returns an unsubscribe */
+export function onSmoothScroll(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 
 export function scrollToY(top, { instant = false } = {}) {
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -25,6 +28,7 @@ export async function bootSmooth() {
     prevent: (node) => !!node.closest?.('[role="dialog"], [aria-modal="true"], .mega, [data-lenis-prevent]'),
     virtualScroll: () => !locked(),
   });
+  lenis.on('scroll', () => listeners.forEach((f) => f()));
   const raf = (t) => { lenis.raf(t); requestAnimationFrame(raf); };
   requestAnimationFrame(raf);
 }

@@ -89,7 +89,7 @@ test('home: industries, certifications and research each lead somewhere real', a
   await expect(res.getByRole('link', { name: /All research/ })).toHaveAttribute('href', '/blogs');
 });
 
-test('home: the hero is one sentence, a line of support, two actions and the identity radar', async ({ page }) => {
+test('home: the hero is one sentence, two actions and the identity radar', async ({ page }) => {
   await page.goto('/');
   await hydrated(page);
   const hero = page.locator('section[aria-labelledby="hero-h"]');

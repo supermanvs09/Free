@@ -10,6 +10,10 @@
     <meta name="theme-color" content="#051530" />
     <script>(function(){var r=document.documentElement;r.classList.add('js');try{localStorage.removeItem('da-theme')}catch(e){}})();</script>
     <!--app-head-->
+      <script>
+      /* home intro: cover the page before it paints, so the menu never flashes before the logo */
+      try { if (location.pathname === '/' && (sessionStorage.getItem('da-intro') !== '1' || location.search.indexOf('intro') > -1) && !navigator.webdriver && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('intro-pre'); } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"><!--app-html--></div>

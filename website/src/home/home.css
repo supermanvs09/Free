@@ -404,3 +404,54 @@
 .dx .paper .dx-k i { background: #0b0d11; }
 .dx .px-feature { background: #0b0d11; border-color: rgb(255 255 255 / .09); }
 .ink .px-feature, .ink .px-feature .dx-h3, .ink .px-feature .dx-link { color: #f4f6fa; }
+
+/* ======================================================================
+   Scroll story (home): intro, split words, white panels, horizon close
+   ====================================================================== */
+/* the intro, from the end of our film */
+.intro { position: fixed; inset: 0; z-index: 200; display: grid; place-content: center; justify-items: center; gap: 22px;
+  background: radial-gradient(70% 60% at 50% 40%, #ffffff 0%, #eef3f8 70%, #e4ebf3 100%); clip-path: inset(0 0 0 0); transition: clip-path 1s cubic-bezier(.76, 0, .24, 1); }
+.intro.out { clip-path: inset(0 0 100% 0); }
+.intro-lock { position: relative; width: min(480px, 78vw); aspect-ratio: 640 / 142; }
+.intro-mark { position: absolute; left: 50%; top: 50%; width: 22%; translate: -50% -50%; animation: in-mark 1.3s cubic-bezier(.16, 1, .3, 1) both; }
+.intro-mark img { width: 100%; height: auto; }
+.intro-word { position: absolute; inset: 0; clip-path: inset(0 50% 0 50%); opacity: 0; animation: in-word 1s cubic-bezier(.65, 0, .35, 1) 1.05s both; }
+.intro-word img { width: 100%; height: auto; }
+.intro-line { margin: 0; text-align: center; opacity: 0; animation: in-line .9s cubic-bezier(.16, 1, .3, 1) 1.7s both; }
+.intro-line b { display: block; font-size: 19px; font-weight: 600; letter-spacing: -.01em; color: #0b1220; }
+.intro-line span { display: block; margin-top: 4px; font-size: 14.5px; color: #5b6678; }
+@keyframes in-mark { 0% { opacity: 0; transform: scale(.7); filter: blur(12px); } 55% { opacity: 1; transform: scale(1); filter: blur(0); } 80% { opacity: 1; } 100% { opacity: 0; transform: scale(1); } }
+@keyframes in-word { to { clip-path: inset(0 0 0 0); opacity: 1; } }
+@keyframes in-line { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+/* split words (titles and the hero) rise from behind their own line */
+.sw { display: inline-block; overflow: hidden; vertical-align: top; padding-bottom: .08em; margin-bottom: -.08em; }
+.sw > span { display: inline-block; will-change: transform; }
+
+/* white panels: the page turns light in places, then dark again */
+.dx .dx-band.light { --paper: #f6f8fb; --paper-1: #ffffff; --ptx: #0a0e16; --ptx-2: #4a5466; --ptx-3: #7c8596; --pline: rgb(10 20 40 / .09); }
+.dx .dx-band.light .px-card, .dx .dx-band.light .ce-grid li { background: #fff; border-color: rgb(10 20 40 / .08); }
+.dx .dx-band.light .px-card .dx-p, .dx .dx-band.light .px-items a { color: #4a5466; }
+.dx .dx-band.light .dx-link { color: #0a6dbb; }
+.dx .dx-band.light .dx-k i { background: #fff; }
+.sheet-up { border-radius: 36px 36px 0 0; margin-top: -36px; z-index: 2; }
+
+/* the close: a horizon of blue light */
+.hz-cta { overflow: hidden; text-align: center; padding-bottom: clamp(160px, 20vw, 260px); }
+.hz-cta .dx-h2 { max-width: 16ch; margin: 0 auto; }
+.hz-cta .dx-lead { margin: 24px auto 0; max-width: 560px; }
+.hz-cta .dx-btn { margin-top: 36px; background: #1597e5; border-color: #1597e5; color: #fff; }
+.hz-cta .dx-wrap { position: relative; z-index: 1; }
+.cta-glow { position: absolute; left: 50%; bottom: -60%; width: 140%; aspect-ratio: 2.4; translate: -50% 0; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, rgb(160 220 255 / .9), rgb(21 151 229 / .75) 30%, rgb(10 90 200 / .35) 60%, transparent 100%); filter: blur(10px); }
+@media (prefers-reduced-motion: reduce) { .intro { display: none; } }
+
+/* intro, dark version: the page's own black, the light lockup */
+.intro.dark { background: radial-gradient(60% 55% at 50% 42%, #0a1424 0%, #04070d 60%, #000 100%); }
+.intro.dark .intro-line b { color: #f4f6fa; }
+.intro.dark .intro-line span { color: #8a93a1; }
+
+/* before the app starts: a black cover with the mark, exactly where the intro begins */
+html.intro-pre body::after { content: ''; position: fixed; inset: 0; z-index: 300; background: radial-gradient(60% 55% at 50% 42%, #0a1424 0%, #04070d 60%, #000 100%); animation: pre-out .4s 4s forwards; pointer-events: none; }
+@keyframes pre-out { to { opacity: 0; visibility: hidden; } }
+html.intro-on header { visibility: hidden; }

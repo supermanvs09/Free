@@ -1,6 +1,6 @@
+import { useEffect, useRef } from 'react';
 import { Link } from 'react-router';
 import { Seo } from '../lib/head.jsx';
-import { CtaBand } from '../components/blocks.jsx';
 import ProductMark from '../components/ProductMark.jsx';
 import { CERTS, CUSTOMERS } from '../data/site.js';
 import { SOLUTION_PAGES } from '../data/solutions.js';
@@ -11,6 +11,8 @@ import AispmGlobe from '../home/AispmGlobe.jsx';
 import { PRODUCT_MENU } from '../data/nav.js';
 import FilmModal, { FILM, openFilm } from '../components/home/FilmModal.jsx';
 import HeroRadar from '../home/HeroRadar.jsx';
+import Intro from '../home/Intro.jsx';
+import { startScrollStory } from '../home/scrollStory.js';
 import { ClaudeBlock } from '../home/Agents.jsx';
 
 /* Home (round 3). The order enterprise security leaders use, measured in
@@ -32,17 +34,19 @@ const PROD = {
 };
 
 export default function Home() {
+  const root = useRef(null);
+  useEffect(() => { let stop = () => {}; let gone = false; startScrollStory(root.current).then((f) => { if (gone) f(); else stop = f; }); return () => { gone = true; stop(); }; }, []);
   const menu = Object.fromEntries(PRODUCT_MENU.map((l) => [l.key, l]));
   const names = Object.fromEntries(CUSTOMERS);
   return (
-    <div className="dx">
+    <div ref={root} className="dx">
+      <Intro />
       <Seo path="/" description="Deep Algorithms discovers every human, machine and AI agent identity in your enterprise and protects each one from AI-driven threats with Continuous AI Security Posture Management. ISO 27001, SOC 2 Type II, ISO 42001." />
 
       {/* 1 · HERO: the promise, then a horizon scan that discovers every kind of identity */}
       <section className="dx-hero rd-hero" aria-labelledby="hero-h">
         <div className="dx-wrap">
           <h1 id="hero-h" className="rise" style={{ '--d': '40ms' }}>Discover every human, machine and AI&nbsp;agent identity.</h1>
-          <p className="rd-sub rise" style={{ '--d': '100ms' }}>Every login, service account and AI agent in your enterprise, found, owned and protected from AI-driven threats.</p>
           <div className="dx-hero-cta rise" style={{ '--d': '160ms' }}>
             <Link to="/request-demo" className="dx-btn solid">Book a demo</Link>
             <button type="button" className="dx-btn ghost" onClick={() => openFilm(0)}><Play />Watch video ({FILM.length.padStart(5, '0')})</button>
@@ -75,8 +79,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 4 · PRODUCTS */}
-      <section id="products" className="dx-band paper scroll-mt-20" aria-labelledby="products-h">
+      {/* 4 · PRODUCTS: a white panel that grows to the full width as it arrives */}
+      <section id="products" className="dx-band paper light grow-panel scroll-mt-20" aria-labelledby="products-h">
         <div className="dx-wrap">
           <div className="dx-head-s">
             <div>
@@ -157,7 +161,7 @@ export default function Home() {
       </section>
 
       {/* 6 · CERTIFICATIONS */}
-      <section className="dx-band paper" aria-labelledby="num-h">
+      <section className="dx-band paper light sheet-up" aria-labelledby="num-h">
         <div className="dx-wrap">
           <div className="dx-head-s">
             <div>
@@ -195,7 +199,15 @@ export default function Home() {
         </div>
       </section>
 
-      <CtaBand />
+      {/* 8 · THE CLOSE: one ask, over a horizon of light */}
+      <section className="dx-band ink hz-cta" aria-labelledby="close-h">
+        <div className="dx-wrap">
+          <h2 id="close-h" className="dx-h2">Find your riskiest identity before attackers do.</h2>
+          <p className="dx-lead">A 30-minute session with a Deep Algorithms engineer, on your own environment, with your own questions.</p>
+          <Link to="/request-demo" className="dx-btn solid">Book a demo</Link>
+        </div>
+        <div aria-hidden="true" className="cta-glow" />
+      </section>
       <FilmModal />
     </div>
   );

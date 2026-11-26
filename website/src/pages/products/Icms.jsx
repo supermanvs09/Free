@@ -4,7 +4,7 @@ import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, cx } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import { Hero, Faq, Split, LINKS, ACC } from '../../components/ProductKit.jsx';
+import { Hero, Rollout, Faq, Split, LINKS, ACC } from '../../components/ProductKit.jsx';
 import { AuditorQuestions } from '../../components/Changes.jsx';
 
 const p = PRODUCTS.icms;
@@ -111,6 +111,11 @@ export default function Icms() {
           </div>
         </div>
       </section>
+      <Rollout acc="icms" lead="From connection to audit-ready evidence, without moving your data." steps={[
+          { when: 'Week 1', h: 'Connect', p: 'Your data stores and identity sources. PII is discovered and classified where it already lives.' },
+          { when: 'Week 2', h: 'Owners and purpose', p: 'Each store gets an owner, and every access is checked against its declared purpose and the principal’s consent.' },
+          { when: 'Week 3 onwards', h: 'Evidence on demand', p: 'Audit packages for DPDPA, RBI and SEBI assembled continuously, ready for the 72-hour breach window.' },
+        ]} />
       <Faq items={FAQ} />
       <ResearchRow slugs={p.research} />
       <CtaBand related={[LINKS.cirm, LINKS.zenstra, LINKS.nhi]} accent="icms" title={p.cta.title} body={p.cta.body} primary={{ label: 'Book a gap analysis', to: '/request-demo' }} />

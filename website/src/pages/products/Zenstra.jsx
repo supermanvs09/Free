@@ -4,7 +4,7 @@ import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Button, Icon, Reveal, SectionHead } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import { Hero, Faq, Compare, Explorer, Explore, LINKS } from '../../components/ProductKit.jsx';
+import { Hero, Rollout, Faq, Compare, Explorer, Explore, LINKS } from '../../components/ProductKit.jsx';
 import { ZenGateway, ZenInventory, ZenGrant, ZenMcp, ZenDetect, ZenRecord } from '../../components/viz/zenstra.jsx';
 import { Logo, logoTitle } from '../../components/viz/kit.jsx';
 import { ZenCompare } from '../../components/Changes.jsx';
@@ -188,6 +188,11 @@ export default function Zenstra() {
           </Reveal>
         </div>
       </section>
+      <Rollout acc="zen" lead="Discover first, then scope, then enforce. No agent is rewritten." steps={[
+          { when: 'Day 1', h: 'Discover every agent', p: 'Read-only connections to your platforms and devices find every agent, copilot and MCP server, with its owner.' },
+          { when: 'Week 1', h: 'Owner and scope', p: 'Each agent is tied to the person it acts for, with access sized to its task.' },
+          { when: 'Week 2 onwards', h: 'Enforce in your VPC', p: 'The gateway checks every tool call before it runs. High-impact actions wait for a named approver.' },
+        ]} />
       <Faq items={FAQ} />
       <ResearchRow slugs={p.research} title="Blogs on AI agent security" />
       <CtaBand related={[LINKS.cirm, LINKS.nhi, LINKS.icms]} accent="zen" title={p.cta.title} body={p.cta.body} />

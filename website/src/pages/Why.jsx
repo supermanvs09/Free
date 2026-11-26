@@ -195,12 +195,12 @@ function YearPhoto({ y }) {
 }
 
 function Years() {
-  const outer = useRef(null), track = useRef(null), fill = useRef(null);
+  const outer = useRef(null), stick = useRef(null);
   const reduce = useReducedMotion();
   const [hz, setHz] = useState(false);
-  const [at, setAt] = useState(0);
+  const [state, setState] = useState({ k: 0, f: 0 });
 
-  // the sideways journey is for wide screens with motion; everything else keeps the vertical list
+  // the cinematic version is for wide screens with motion; everything else keeps the list
   useEffect(() => {
     if (reduce) return undefined;
     const mq = window.matchMedia('(min-width: 1024px)');
@@ -209,89 +209,74 @@ function Years() {
     return () => mq.removeEventListener('change', set);
   }, [reduce]);
 
+  // the section holds; each chapter takes 90% of a screen of scroll
   useEffect(() => {
     if (!hz) return undefined;
-    const el = outer.current, tr = track.current;
-    let raf = 0, cur = 0, goal = 0, dist = 0, z = 1, gsap = null, alive = true;
-    const played = new Set();
-    loadGsap().then((g) => { gsap = g; });
-    // the outer box is as tall as the sideways distance, so a scroll of N pixels moves the years N pixels
-    const measure = () => {
-      z = el.getBoundingClientRect().width / el.offsetWidth || 1;      // the site's html zoom
-      const cs = tr.querySelectorAll('.yr-card');
-      dist = cs.length ? cs[cs.length - 1].offsetLeft : 0;                  // the last chapter ends square in view
-      el.style.height = `${dist + el.querySelector('.yr-stick').offsetHeight}px`;
-    };
+    const el = outer.current;
+    let raf = 0, cur = 0, goal = 0, alive = true;
+    const measure = () => { el.style.height = `${(YEARS.length - 1) * window.innerHeight * 0.9 + window.innerHeight}px`; };
     const target = () => {
-      const r = el.getBoundingClientRect();
-      const top = parseFloat(getComputedStyle(el.querySelector('.yr-stick')).top) * z;
-      goal = clamp((top - r.top) / (dist * z || 1));
-    };
-    const reveal = (card) => {
-      if (!gsap || played.has(card)) return;
-      played.add(card);
-      card.classList.remove('yr-pending');
-      gsap.timeline()
-        .fromTo(card.querySelector('.yr-photo'), { clipPath: 'inset(0 0 0 100% round 20px)' }, { clipPath: 'inset(0 0 0 0% round 20px)', duration: 1.1, ease: 'power4.out' }, 0)
-        .fromTo(card.querySelector('.yr-img'), { scale: 1.18 }, { scale: 1, duration: 1.6, ease: 'power3.out' }, 0)
-        .fromTo(card.querySelector('.yr-num'), { y: 40, opacity: 0, filter: 'blur(10px)' }, { y: 0, opacity: 1, filter: 'blur(0px)', duration: 0.9, ease: 'power4.out' }, 0.1)
-        .fromTo(card.querySelectorAll('.yr-t'), { y: 16, opacity: 0, filter: 'blur(6px)' }, { y: 0, opacity: 1, filter: 'blur(0px)', duration: 0.7, ease: 'power3.out', stagger: 0.08 }, 0.25)
-        .fromTo(card.querySelectorAll('.yr-chip'), { y: 12, opacity: 0, scale: 0.94 }, { y: 0, opacity: 1, scale: 1, duration: 0.55, ease: 'back.out(1.7)', stagger: 0.07 }, 0.45);
+      const r = el.getBoundingClientRect(), span = r.height - window.innerHeight;
+      goal = clamp(-r.top / (span || 1)) * (YEARS.length - 1);
     };
     const frame = () => {
       raf = 0;
-      cur += (goal - cur) * 0.12;                                       // eased, so the track glides
-      if (Math.abs(goal - cur) < 0.0005) cur = goal;
-      const cards = tr.querySelectorAll('.yr-card');
-      // a staircase: each chapter holds square in view, then glides to the next
-      const seg = cur * (cards.length - 1), k = Math.min(cards.length - 2, Math.floor(seg)), f = seg - k;
-      const e = f < 0.28 ? 0 : f > 0.72 ? 1 : (() => { const t = (f - 0.28) / 0.44; return t * t * (3 - 2 * t); })();
-      const shift = Math.min(dist, cards[k].offsetLeft + (cards[k + 1].offsetLeft - cards[k].offsetLeft) * e);
-      tr.style.transform = `translate3d(${-shift}px,0,0)`;
-      fill.current.style.transform = `scaleX(${(k + e) / (cards.length - 1)})`;
-      const vw = el.offsetWidth;
-      let near = 0;
-      const seen = el.getBoundingClientRect().top < window.innerHeight * 0.55;   // the section is on screen
-      cards.forEach((c, i) => {
-        const x = c.offsetLeft - shift;
-        if (seen && x < vw * 0.72) reveal(c);
-        if (x < vw * 0.45) near = i;
-        c.style.setProperty('--d', String(clamp(1 - Math.abs(x + c.offsetWidth / 2 - vw / 2) / vw)));
-      });
-      setAt(near);
-      if (alive && (cur !== goal || (seen && played.size < cards.length && !gsap))) raf = requestAnimationFrame(frame);
+      cur += (goal - cur) * 0.14;
+      if (Math.abs(goal - cur) < 0.001) cur = goal;
+      const k = Math.min(YEARS.length - 1, Math.floor(cur)), f = cur - k;
+      setState((s) => (s.k === k && Math.abs(s.f - f) < 0.002 ? s : { k, f }));
+      if (alive && cur !== goal) raf = requestAnimationFrame(frame);
     };
     const on = () => { target(); if (!raf) raf = requestAnimationFrame(frame); };
     measure(); on();
-    const ro = new ResizeObserver(() => { measure(); on(); }); ro.observe(tr);
     window.addEventListener('scroll', on, { passive: true });
-    window.addEventListener('resize', on);
-    return () => { alive = false; cancelAnimationFrame(raf); ro.disconnect(); window.removeEventListener('scroll', on); window.removeEventListener('resize', on); el.style.height = ''; tr.style.transform = ''; };
+    window.addEventListener('resize', () => { measure(); on(); });
+    return () => { alive = false; cancelAnimationFrame(raf); window.removeEventListener('scroll', on); el.style.height = ''; };
   }, [hz]);
 
   if (hz) {
+    const { k, f } = state;
+    // a chapter changes in the middle third of its scroll; before and after, it holds
+    const t = f < 0.35 ? 0 : f > 0.65 ? 1 : (() => { const x = (f - 0.35) / 0.3; return x * x * (3 - 2 * x); })();
+    const show = t > 0.5 ? Math.min(YEARS.length - 1, k + 1) : k;
+    const Y = YEARS[show];
+    const from = YEARS[k].y, to = YEARS[Math.min(YEARS.length - 1, k + 1)].y;
     return (
-      <div ref={outer} className="yr-outer relative mt-16">
-        <div className="yr-stick sticky top-[72px] flex min-h-[calc(100vh-72px)] flex-col justify-center overflow-hidden py-6">
-          <div className="relative mb-10 flex items-center gap-6" aria-hidden="true">
-            {YEARS.map((y, i) => <span key={y.y} className={cx('yr-tick text-[14px] font-semibold tracking-[.08em] transition-colors duration-500', i <= at ? 'text-cyan-2' : 'text-ink-3')}>{y.y}</span>)}
-            <span className="relative h-px flex-1 bg-line-2"><span ref={fill} className="absolute inset-0 origin-left bg-cyan-2" style={{ transform: 'scaleX(0)' }} /></span>
+      <div ref={outer} className="sy-outer relative mt-16">
+        <div ref={stick} className="sy-stick">
+          <div className="sy-grid" aria-hidden="true" />
+          <div className="sy-left">
+            {/* the year rolls digit by digit */}
+            <p className="sy-year num" aria-label={Y.y}>
+              {from.split('').map((d, i) => {
+                const same = d === to[i];
+                return (
+                  <span key={i} className="sy-digit">
+                    <span style={{ transform: same ? 'none' : `translateY(${-t * 100}%)` }}><b>{d}</b><b>{to[i]}</b></span>
+                  </span>
+                );
+              })}
+            </p>
+            <div key={show} className="sy-copy">
+              <h3>{Y.h}</h3>
+              <p>{Y.p}</p>
+              <ul>{Y.items.map(([a, w], i) => <li key={a} style={{ '--i': i }}><b>{a}</b> · {w}</li>)}</ul>
+            </div>
+            <ol className="sy-dots" aria-hidden="true">
+              {YEARS.map((y, i) => <li key={y.y} className={i === show ? 'on' : i < show ? 'past' : ''}><i />{y.y}</li>)}
+            </ol>
           </div>
-          <ol ref={track} className="flex w-max gap-10 pr-[8vw] will-change-transform">
-            {YEARS.map((y) => (
-              <li key={y.y} className="yr-card yr-pending grid w-[min(78vw,980px)] grid-cols-[1.05fr_1fr] items-center gap-12">
-                <div className="yr-photo relative aspect-[16/11] overflow-hidden rounded-[20px] border border-line bg-bg-1"><YearPhoto y={y} /></div>
-                <div>
-                  <p className="yr-num text-[clamp(72px,8vw,120px)] font-medium leading-none tracking-[-0.03em] text-cyan-2 num">{y.y}</p>
-                  <h3 className="yr-t mt-4 text-[clamp(24px,2.2vw,32px)] font-semibold tracking-[-0.015em]">{y.h}</h3>
-                  <p className="yr-t mt-3 max-w-[44ch] text-[17px] leading-relaxed text-ink-2">{y.p}</p>
-                  <ul className="mt-5 flex flex-wrap gap-2">
-                    {y.items.map(([t, w]) => <li key={t} className="yr-chip rounded-full border border-line-2 bg-bg px-3 py-1.5 text-[13px] text-ink-2"><span className="font-medium text-ink">{t}</span> · {w}</li>)}
-                  </ul>
-                </div>
-              </li>
-            ))}
-          </ol>
+          {/* the photographs: a deck, the top one flips away to reveal the next */}
+          <div className="sy-deck" aria-hidden="true">
+            {YEARS.map((y, i) => {
+              const d = i - k - t;                 // 0 = on top, negative = gone, positive = waiting below
+              const gone = d < 0, a = Math.max(-1, d);
+              const style = gone
+                ? { transform: `translate3d(${a * 70}%, ${a * 18}%, 0) rotate(${a * 14}deg) scale(${1 + a * 0.05})`, opacity: 1 + a, zIndex: 20 }
+                : { transform: `translate3d(${d * 5}%, ${d * -6}%, 0) rotate(${d * 3}deg) scale(${1 - d * 0.06})`, opacity: d > 2.5 ? 0 : 1, zIndex: 10 - i, filter: `brightness(${1 - Math.min(d, 2) * 0.22})` };
+              return <figure key={y.y} className="sy-card" style={style}><YearPhoto y={y} /><figcaption>{y.items[0][0]}</figcaption></figure>;
+            })}
+          </div>
         </div>
       </div>
     );
