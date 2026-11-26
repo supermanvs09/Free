@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router';
+import { scrollToY } from './lib/smooth.js';
 import Header from './components/Header.jsx';
 import MobileBar from './components/MobileBar.jsx';
 import JumpBar from './components/JumpBar.jsx';
@@ -55,7 +56,7 @@ function PageEffects() {
       const t = setTimeout(() => document.getElementById(decodeURIComponent(hash.slice(1)))?.scrollIntoView(), 60);
       return () => clearTimeout(t);
     }
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    scrollToY(0, { instant: true });
     return undefined;
   }, [pathname, hash]);
   // anything that scrolls sideways (the swipe rails on a phone, wide code) can

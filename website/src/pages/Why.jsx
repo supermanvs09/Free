@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { useInView, useReducedMotion } from '../lib/motion.js';
 import { Seo } from '../lib/head.jsx';
@@ -140,8 +140,16 @@ function ProductPanel() {
   );
 }
 
-/* ---------- our story: the statement lights up as you read, then the years ---------- */
-const STATEMENT = ['Attackers adopted AI. Bots that pass for people, stolen identities that drift unseen for months, data access that looks exactly like legitimate work.', 'Tools built for a world of rules could not keep up. So we built defence that learns what normal looks like, and acts before the deviation becomes a breach.'];
+/* ---------- our story ----------
+   One continuous sequence, after the company-history scrolls studied on
+   Awwwards (Maersk Stillstrom, Hutstuf, Buzzworthy): the statement lights up
+   word by word as it is read, its key phrases marked as if by hand; then the
+   section holds and the years travel past sideways, each chapter revealed in
+   turn (photo unmasked, year rising out of blur, milestones in sequence: Null
+   Motion's blur-reveal and stack timings). Built on CSS sticky and a smoothed
+   scroll position rather than a GSAP pin, so it stays exact under the site's
+   laptop zoom. Phones and reduced motion keep the vertical list. */
+const STATEMENT = ['Attackers adopted AI. Bots that pass for people, stolen identities that drift unseen for months, data access that looks exactly like *legitimate work.*', 'Tools built for a world of rules could not keep up. So we built defence that *learns what normal looks like,* and *acts before the deviation becomes a breach.*'];
 
 function Statement() {
   const ref = useRef(null);
@@ -150,14 +158,26 @@ function Statement() {
   let n = 0;
   return (
     <div ref={ref} className="space-y-8">
-      {STATEMENT.map((para, k) => (
-        <p key={k} className={cx('font-semibold leading-[1.2] tracking-[-0.015em]', k ? 'text-[clamp(26px,3.1vw,42px)] text-[#0a5ea3]' : 'text-[clamp(26px,3.1vw,42px)]')}>
-          {para.split(' ').map((w, i, a) => {
-            const on = clamp(p * total * 1.15 - n++);
-            return <span key={i} style={{ opacity: 0.18 + 0.82 * on, transition: 'opacity .2s linear' }}>{w}{i < a.length - 1 ? ' ' : ''}</span>;
-          })}
-        </p>
-      ))}
+      {STATEMENT.map((para, k) => {
+        let mark = false;
+        return (
+          <p key={k} className={cx('font-semibold leading-[1.2] tracking-[-0.015em] text-[clamp(26px,3.1vw,42px)]', k && 'text-[#0a5ea3]')}>
+            {para.split(' ').map((raw, i, a) => {
+              const opens = raw.startsWith('*'), closes = raw.endsWith('*');
+              if (opens) mark = true;
+              const w = raw.replace(/\*/g, ''), inMark = mark;
+              if (closes) mark = false;
+              const on = clamp(p * total * 1.15 - n++);
+              return (
+                <Fragment key={i}>
+                  <span className={cx('st-w', inMark && 'st-mark', inMark && on > 0.6 && 'on')} style={{ opacity: 0.16 + 0.84 * on, transform: `translateY(${(1 - on) * 0.18}em)` }}>{w}</span>
+                  {i < a.length - 1 ? ' ' : ''}
+                </Fragment>
+              );
+            })}
+          </p>
+        );
+      })}
     </div>
   );
 }
@@ -169,35 +189,133 @@ const YEARS = [
   { y: '2026', h: 'Growing the team', p: 'A new office, training with the Cyber Bureau in Hyderabad and the AI Summit in Delhi.', items: [['New office inauguration', 'Hyderabad'], ['Cyber Security Training', 'Cyber Bureau Hyderabad'], ['AI Summit', 'Delhi']], photo: 'office-inauguration' },
 ];
 
+function YearPhoto({ y }) {
+  return y.photo ? <img src={img(y.photo)} alt={y.items[0][0]} className="yr-img h-full w-full object-cover" loading="lazy" decoding="async" />
+    : <div className="flex h-full items-center justify-center" style={{ background: 'linear-gradient(140deg, #1b2430, #0e1218)' }}><span className="flex h-24 w-24 items-center justify-center rounded-[26px] bg-white p-5"><img src="/brand/mark.webp" alt="" className="h-full w-full" /></span></div>;
+}
+
 function Years() {
-  const ref = useRef(null);
-  const p = useScrollProgress(ref, { start: 0.7, end: 0.6 });
+  const outer = useRef(null), track = useRef(null), fill = useRef(null);
+  const reduce = useReducedMotion();
+  const [hz, setHz] = useState(false);
+  const [at, setAt] = useState(0);
+
+  // the sideways journey is for wide screens with motion; everything else keeps the vertical list
+  useEffect(() => {
+    if (reduce) return undefined;
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const set = () => setHz(mq.matches);
+    set(); mq.addEventListener('change', set);
+    return () => mq.removeEventListener('change', set);
+  }, [reduce]);
+
+  useEffect(() => {
+    if (!hz) return undefined;
+    const el = outer.current, tr = track.current;
+    let raf = 0, cur = 0, goal = 0, dist = 0, z = 1, gsap = null, alive = true;
+    const played = new Set();
+    loadGsap().then((g) => { gsap = g; });
+    // the outer box is as tall as the sideways distance, so a scroll of N pixels moves the years N pixels
+    const measure = () => {
+      z = el.getBoundingClientRect().width / el.offsetWidth || 1;      // the site's html zoom
+      const cs = tr.querySelectorAll('.yr-card');
+      dist = cs.length ? cs[cs.length - 1].offsetLeft : 0;                  // the last chapter ends square in view
+      el.style.height = `${dist + el.querySelector('.yr-stick').offsetHeight}px`;
+    };
+    const target = () => {
+      const r = el.getBoundingClientRect();
+      const top = parseFloat(getComputedStyle(el.querySelector('.yr-stick')).top) * z;
+      goal = clamp((top - r.top) / (dist * z || 1));
+    };
+    const reveal = (card) => {
+      if (!gsap || played.has(card)) return;
+      played.add(card);
+      card.classList.remove('yr-pending');
+      gsap.timeline()
+        .fromTo(card.querySelector('.yr-photo'), { clipPath: 'inset(0 0 0 100% round 20px)' }, { clipPath: 'inset(0 0 0 0% round 20px)', duration: 1.1, ease: 'power4.out' }, 0)
+        .fromTo(card.querySelector('.yr-img'), { scale: 1.18 }, { scale: 1, duration: 1.6, ease: 'power3.out' }, 0)
+        .fromTo(card.querySelector('.yr-num'), { y: 40, opacity: 0, filter: 'blur(10px)' }, { y: 0, opacity: 1, filter: 'blur(0px)', duration: 0.9, ease: 'power4.out' }, 0.1)
+        .fromTo(card.querySelectorAll('.yr-t'), { y: 16, opacity: 0, filter: 'blur(6px)' }, { y: 0, opacity: 1, filter: 'blur(0px)', duration: 0.7, ease: 'power3.out', stagger: 0.08 }, 0.25)
+        .fromTo(card.querySelectorAll('.yr-chip'), { y: 12, opacity: 0, scale: 0.94 }, { y: 0, opacity: 1, scale: 1, duration: 0.55, ease: 'back.out(1.7)', stagger: 0.07 }, 0.45);
+    };
+    const frame = () => {
+      raf = 0;
+      cur += (goal - cur) * 0.12;                                       // eased, so the track glides
+      if (Math.abs(goal - cur) < 0.0005) cur = goal;
+      const cards = tr.querySelectorAll('.yr-card');
+      // a staircase: each chapter holds square in view, then glides to the next
+      const seg = cur * (cards.length - 1), k = Math.min(cards.length - 2, Math.floor(seg)), f = seg - k;
+      const e = f < 0.28 ? 0 : f > 0.72 ? 1 : (() => { const t = (f - 0.28) / 0.44; return t * t * (3 - 2 * t); })();
+      const shift = Math.min(dist, cards[k].offsetLeft + (cards[k + 1].offsetLeft - cards[k].offsetLeft) * e);
+      tr.style.transform = `translate3d(${-shift}px,0,0)`;
+      fill.current.style.transform = `scaleX(${(k + e) / (cards.length - 1)})`;
+      const vw = el.offsetWidth;
+      let near = 0;
+      const seen = el.getBoundingClientRect().top < window.innerHeight * 0.55;   // the section is on screen
+      cards.forEach((c, i) => {
+        const x = c.offsetLeft - shift;
+        if (seen && x < vw * 0.72) reveal(c);
+        if (x < vw * 0.45) near = i;
+        c.style.setProperty('--d', String(clamp(1 - Math.abs(x + c.offsetWidth / 2 - vw / 2) / vw)));
+      });
+      setAt(near);
+      if (alive && (cur !== goal || (seen && played.size < cards.length && !gsap))) raf = requestAnimationFrame(frame);
+    };
+    const on = () => { target(); if (!raf) raf = requestAnimationFrame(frame); };
+    measure(); on();
+    const ro = new ResizeObserver(() => { measure(); on(); }); ro.observe(tr);
+    window.addEventListener('scroll', on, { passive: true });
+    window.addEventListener('resize', on);
+    return () => { alive = false; cancelAnimationFrame(raf); ro.disconnect(); window.removeEventListener('scroll', on); window.removeEventListener('resize', on); el.style.height = ''; tr.style.transform = ''; };
+  }, [hz]);
+
+  if (hz) {
+    return (
+      <div ref={outer} className="yr-outer relative mt-16">
+        <div className="yr-stick sticky top-[72px] flex min-h-[calc(100vh-72px)] flex-col justify-center overflow-hidden py-6">
+          <div className="relative mb-10 flex items-center gap-6" aria-hidden="true">
+            {YEARS.map((y, i) => <span key={y.y} className={cx('yr-tick text-[14px] font-semibold tracking-[.08em] transition-colors duration-500', i <= at ? 'text-cyan-2' : 'text-ink-3')}>{y.y}</span>)}
+            <span className="relative h-px flex-1 bg-line-2"><span ref={fill} className="absolute inset-0 origin-left bg-cyan-2" style={{ transform: 'scaleX(0)' }} /></span>
+          </div>
+          <ol ref={track} className="flex w-max gap-10 pr-[8vw] will-change-transform">
+            {YEARS.map((y) => (
+              <li key={y.y} className="yr-card yr-pending grid w-[min(78vw,980px)] grid-cols-[1.05fr_1fr] items-center gap-12">
+                <div className="yr-photo relative aspect-[16/11] overflow-hidden rounded-[20px] border border-line bg-bg-1"><YearPhoto y={y} /></div>
+                <div>
+                  <p className="yr-num text-[clamp(72px,8vw,120px)] font-medium leading-none tracking-[-0.03em] text-cyan-2 num">{y.y}</p>
+                  <h3 className="yr-t mt-4 text-[clamp(24px,2.2vw,32px)] font-semibold tracking-[-0.015em]">{y.h}</h3>
+                  <p className="yr-t mt-3 max-w-[44ch] text-[17px] leading-relaxed text-ink-2">{y.p}</p>
+                  <ul className="mt-5 flex flex-wrap gap-2">
+                    {y.items.map(([t, w]) => <li key={t} className="yr-chip rounded-full border border-line-2 bg-bg px-3 py-1.5 text-[13px] text-ink-2"><span className="font-medium text-ink">{t}</span> · {w}</li>)}
+                  </ul>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <ol ref={ref} className="relative mt-16 space-y-14 md:space-y-20">
+    <ol className="relative mt-16 space-y-14 md:space-y-20">
       <span aria-hidden="true" className="absolute bottom-2 left-[15px] top-2 w-px bg-line-2 md:left-1/2" />
-      <span aria-hidden="true" className="absolute left-[15px] top-2 w-px origin-top bg-cyan-2 md:left-1/2" style={{ height: 'calc(100% - 16px)', transform: `scaleY(${p})` }} />
-      {YEARS.map((y, i) => {
-        const lit = p >= (i + 0.2) / YEARS.length;
-        return (
-          <li key={y.y} className="relative grid gap-6 pl-12 md:grid-cols-2 md:gap-16 md:pl-0">
-            <span aria-hidden="true" className={cx('absolute left-[7px] top-1 h-[17px] w-[17px] rounded-full border-2 transition-colors duration-500 md:left-1/2 md:-translate-x-1/2', lit ? 'border-cyan-2 bg-cyan-2' : 'border-line-2 bg-bg')} />
-            <Reveal className={cx(i % 2 ? 'md:order-2 md:pl-4' : 'md:pr-4 md:text-right')}>
-              <p className="text-[56px] font-medium leading-none tracking-[-0.015em] text-cyan-2 num md:text-[72px]">{y.y}</p>
-              <h3 className="mt-3 text-[24px] font-semibold tracking-[-0.015em]">{y.h}</h3>
-              <p className="mt-2 text-[16.5px] leading-relaxed text-ink-2">{y.p}</p>
-              <ul className={cx('mt-4 flex flex-wrap gap-2', !(i % 2) && 'md:justify-end')}>
-                {y.items.map(([t, w]) => <li key={t} className="rounded-full border border-line-2 px-3 py-1.5 text-[13px] text-ink-2"><span className="font-medium text-ink">{t}</span> · {w}</li>)}
-              </ul>
-            </Reveal>
-            <Reveal delay={100} className={cx(i % 2 && 'md:order-1')}>
-              <div className="relative aspect-[16/10] overflow-hidden rounded-[20px] border border-line bg-bg-1">
-                {y.photo ? <img src={img(y.photo)} alt={y.items[0][0]} className="h-full w-full object-cover" loading="lazy" decoding="async" />
-                  : <div className="flex h-full items-center justify-center" style={{ background: 'linear-gradient(140deg, #1b2430, #0e1218)' }}><span className="flex h-24 w-24 items-center justify-center rounded-[26px] bg-white p-5"><img src="/brand/mark.webp" alt="" className="h-full w-full" /></span></div>}
-              </div>
-            </Reveal>
-          </li>
-        );
-      })}
+      {YEARS.map((y, i) => (
+        <li key={y.y} className="relative grid gap-6 pl-12 md:grid-cols-2 md:gap-16 md:pl-0">
+          <span aria-hidden="true" className="absolute left-[7px] top-1 h-[17px] w-[17px] rounded-full border-2 border-cyan-2 bg-cyan-2 md:left-1/2 md:-translate-x-1/2" />
+          <Reveal className={cx(i % 2 ? 'md:order-2 md:pl-4' : 'md:pr-4 md:text-right')}>
+            <p className="text-[56px] font-medium leading-none tracking-[-0.015em] text-cyan-2 num md:text-[72px]">{y.y}</p>
+            <h3 className="mt-3 text-[24px] font-semibold tracking-[-0.015em]">{y.h}</h3>
+            <p className="mt-2 text-[16.5px] leading-relaxed text-ink-2">{y.p}</p>
+            <ul className={cx('mt-4 flex flex-wrap gap-2', !(i % 2) && 'md:justify-end')}>
+              {y.items.map(([t, w]) => <li key={t} className="rounded-full border border-line-2 px-3 py-1.5 text-[13px] text-ink-2"><span className="font-medium text-ink">{t}</span> · {w}</li>)}
+            </ul>
+          </Reveal>
+          <Reveal delay={100} className={cx(i % 2 && 'md:order-1')}>
+            <div className="relative aspect-[16/10] overflow-hidden rounded-[20px] border border-line bg-bg-1"><YearPhoto y={y} /></div>
+          </Reveal>
+        </li>
+      ))}
     </ol>
   );
 }
@@ -306,14 +424,15 @@ export default function Why() {
 
       <section className="sec" aria-labelledby="cmp-h">
         <div className="wrap">
-          <SectionHead id="cmp-h" eyebrow="The difference" title="Built for the attack that looks legitimate." />
+          <SectionHead id="cmp-h" eyebrow="The difference" title="Engineered for the threats that look legitimate." lead="Deep Algorithms is an AI-native identity security company. One platform discovers every human, machine and AI agent identity across the enterprise, evaluates the risk of each action as it happens, and intervenes before a breach, with the evidence regulated industries are required to keep." />
           <Reveal className="mt-12">
-            <Compare caption="Deep Algorithms compared with rule-based and periodic security tools" cols={['Rule-based tools', 'Periodic reviews', 'Deep Algorithms']} rows={[
-              ['Catches valid logins used by the wrong person', false, false, true],
-              ['Covers machine identities and AI agents', 'Rarely', 'Partly', true],
-              ['Acts before the action completes', 'Sometimes', false, true],
-              ['Explains each decision', false, 'In a report', 'In plain language'],
-              ['Evidence for regulators', 'Raw logs', 'Point in time', 'Continuous'],
+            <Compare caption="Deep Algorithms compared with rule-based security tools and periodic access reviews" cols={['Rule-based security tools', 'Periodic access reviews', 'Deep Algorithms']} rows={[
+              ['Detection of compromised credentials used through valid sessions', 'Static rules miss legitimate-looking access', false, 'Behavioural AI baselines every identity and flags the deviation in real time'],
+              ['Governance of machine identities and autonomous AI agents', 'Limited to human accounts', 'Partial, at review time', 'Unified discovery, ownership and least-privilege scoping for every service account, API key and AI agent'],
+              ['Intervention before a high-risk action executes', 'Alerts after the event', false, 'Inline enforcement that holds, challenges or blocks the action in milliseconds'],
+              ['Explainable, auditable risk decisions', false, 'Summarised in periodic reports', 'Every decision recorded with its reasoning in plain language, for analysts and auditors alike'],
+              ['Regulatory evidence for RBI, SEBI and the DPDP Act', 'Raw logs to be assembled by hand', 'Point-in-time snapshots', 'Continuous, audit-ready evidence generated as controls operate'],
+              ['Deployment model', 'Varies by vendor', 'Manual process', 'Runs inside your own cloud environment, so sensitive data stays under your control'],
             ]} />
           </Reveal>
         </div>

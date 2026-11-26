@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useInView, useReducedMotion } from '../lib/motion.js';
 import { loadGsap } from '../lib/nullmotion.jsx';
+import HeroWave from '../home/HeroWave.jsx';
+import { scrollToY } from '../lib/smooth.js';
 import { Link } from 'react-router';
 import { Accordion, Breadcrumb, Button, CountUp, Icon, Reveal, cx } from './ui.jsx';
 import { TrustedRow } from './blocks.jsx';
@@ -32,7 +34,7 @@ export function Explore({ label = 'See how it works', target, size = 'lg', varia
     const el = target ? document.querySelector(target) : e.currentTarget.closest('section')?.nextElementSibling;
     if (!el) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 96, behavior: reduce ? 'auto' : 'smooth' });
+    scrollToY(el.getBoundingClientRect().top + window.scrollY - 96, { instant: reduce });
   };
   return <Button type="button" size={size} variant={variant} onClick={go}>{label}<Icon name="ArrowDown" size={16} weight="bold" className="transition-transform duration-300 group-hover:translate-y-0.5" /></Button>;
 }
@@ -47,6 +49,7 @@ export function Hero({ acc = 'brand', crumbs, eyebrow, title, lead, ctas, explor
   const mark = { zen: 'zenstra', adap: 'adapid', icms: 'icms' }[acc];
   return (
     <section className={cx('stage hero-under relative overflow-hidden', mark ? 'dark hero-navy' : 'band-brand')} style={{ '--acc': color }} data-page-name={eyebrow ? eyebrow.split(' · ')[0] : undefined}>
+      {mark && <div className="hero-silk" aria-hidden="true"><HeroWave paused={false} soft /></div>}
       <div className={cx('hero-drift wrap relative pb-12 pt-6 md:pb-24 md:pt-14', !stack && 'grid items-center gap-12 lg:min-h-[min(88svh,900px)] lg:grid-cols-[1fr_1.1fr] lg:gap-8')}>
         <div className={cx(stack ? 'mx-auto max-w-[900px] text-center' : 'max-w-[620px] max-md:mx-auto max-md:text-center')}>
           {crumbs && <Breadcrumb items={crumbs} className={cx('rise mb-8 max-md:hidden', stack && 'flex justify-center')} />}
@@ -145,7 +148,7 @@ export function Compare({ cols, rows, acc = 'brand', caption }) {
               <th scope="row" className="p-5 text-[15px] font-medium text-ink">{label}</th>
               {vals.map((v, i) => (
                 <td key={i} className="p-5 align-top text-[14.5px] leading-snug text-ink-2" style={i === vals.length - 1 ? { background: `color-mix(in oklab, ${color} 7%, transparent)` } : undefined}>
-                  {v === true ? <Icon name="CheckCircle" size={20} weight="fill" style={{ color }} /> : v === false ? <span className="text-ink-3">—</span> : v}
+                  {v === true ? <Icon name="CheckCircle" size={20} weight="fill" style={{ color }} /> : v === false ? <span className="text-ink-3">—</span> : i === vals.length - 1 ? <span className="flex gap-2.5 font-medium text-ink"><Icon name="CheckCircle" size={18} weight="fill" className="mt-px shrink-0" style={{ color }} />{v}</span> : v}
                 </td>
               ))}
             </tr>

@@ -87,7 +87,7 @@ export function Ring({ v, color = '#27b8f2', size = '3.4em', label = true, k: fk
   const r = 15.9, c = 2 * Math.PI * r;
   return (
     <span className="relative inline-flex shrink-0 items-center justify-center" style={{ width: size, height: size }}>
-      <svg viewBox="0 0 36 36" className="absolute inset-0 -rotate-90"><circle cx="18" cy="18" r={r} fill="none" stroke="rgb(255 255 255 / .1)" strokeWidth="3" /><circle cx="18" cy="18" r={r} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeDasharray={`${(v / 100) * c} ${c}`} style={{ transition: 'stroke-dasharray 1.2s cubic-bezier(.16,1,.3,1), stroke .4s' }} /></svg>
+      <svg viewBox="0 0 36 36" className="absolute inset-0 -rotate-90"><circle className="ring-track" cx="18" cy="18" r={r} fill="none" stroke="rgb(255 255 255 / .1)" strokeWidth="3" /><circle cx="18" cy="18" r={r} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeDasharray={`${(v / 100) * c} ${c}`} style={{ transition: 'stroke-dasharray 1.2s cubic-bezier(.16,1,.3,1), stroke .4s' }} /></svg>
       {label && <span className="relative text-[1.05em] font-bold num" style={{ color }}>{v}</span>}
     </span>
   );

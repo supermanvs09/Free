@@ -315,6 +315,11 @@ header .hdr-bg { transition: background-color 0.35s ease, border-color 0.35s eas
   }
 }
 @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+/* Lenis drives the scroll itself: the browser's own smoothing must stand aside */
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-stopped { overflow: hidden; }
 
 /* ---------- print: a research report prints as a clean document ---------- */
 .printonly { display: none; }
@@ -1011,16 +1016,15 @@ html.is-translated font { background: none !important; box-shadow: none !importa
 @media (prefers-reduced-motion: reduce) { .pt-ring { animation: none; } }
 
 
-/* Product heroes: a deep navy field, the way enterprise identity sites mark a
-   product page (the home, blog and company pages stay light). The product's own
-   colour lights one corner; white product pictures sit on it like cards. */
+/* Product heroes: the home page's night field and its silk, run softer, so the
+   product pages and the home read as one site. The product's own colour lights
+   one corner faintly; product pictures sit on it like cards. */
 .hero-navy {
   /* the strip under the fixed header stays white, so the bar reads as one white header above the band */
   background:
     linear-gradient(#fff, #fff) top / 100% var(--hdr) no-repeat,
-    radial-gradient(50% 60% at 85% 30%, color-mix(in oklab, var(--acc) 34%, transparent), transparent 70%),
-    radial-gradient(45% 55% at 0% 100%, rgb(0 174 239 / .16), transparent 70%),
-    linear-gradient(160deg, #0a2a52 0%, #071d3c 55%, #05152c 100%);
+    radial-gradient(40% 45% at 88% 12%, color-mix(in oklab, var(--acc) 16%, transparent), transparent 70%),
+    #02040a;
   color: #fff;
 }
 .hero-navy .t-h1 span { color: color-mix(in oklab, var(--acc) 55%, white) !important; }
@@ -1712,3 +1716,22 @@ html.is-translated font { background: none !important; box-shadow: none !importa
   .ac-app { width: 34px; height: 34px; }
 }
 @media (prefers-reduced-motion: reduce) { .ac-tr, .ac-note { transition: none; } .ac-live i { animation: none; } }
+
+/* Why page, our story: words that rise as they light, key phrases marked by hand */
+.st-w { display: inline-block; white-space: pre; transition: opacity .25s linear, transform .35s cubic-bezier(.22, 1, .36, 1); }
+.st-mark { background: linear-gradient(transparent 62%, rgb(98 210 255 / .35) 62%, rgb(98 210 255 / .35) 92%, transparent 92%) no-repeat 0 0 / 0% 100%; transition: opacity .25s linear, transform .35s cubic-bezier(.22, 1, .36, 1), background-size .7s cubic-bezier(.65, 0, .35, 1); }
+.st-mark.on { background-size: 100% 100%; }
+/* the years, travelling sideways: the chapter in the middle is sharpest */
+.yr-card { opacity: calc(.45 + .55 * var(--d, 1)); transition: opacity .3s linear; }
+@media (prefers-reduced-motion: reduce) { .st-w, .st-mark { transition: none; transform: none !important; } .st-mark { background-size: 100% 100%; } }
+.yr-pending .yr-photo { clip-path: inset(0 0 0 100% round 20px); }
+.yr-pending :is(.yr-num, .yr-t, .yr-chip) { opacity: 0; }
+
+/* the home's silk behind a product hero: softer, and faded out before the product picture */
+.hero-silk { position: absolute; inset: var(--hdr) 0 0 0; z-index: 0; pointer-events: none; opacity: .55;
+  mask-image: linear-gradient(180deg, #000 0%, #000 45%, transparent 85%); -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 45%, transparent 85%); }
+.hero-silk .dx-hero-cv { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
+.hero-navy > .wrap, .hero-navy > dl { position: relative; z-index: 1; }
+
+/* magnetic buttons glide rather than jump */
+@media (pointer: fine) and (prefers-reduced-motion: no-preference) { :is(.dx-btn, .btn-primary, .btn-white) { transition-property: background, color, border-color, box-shadow, transform, translate; transition-duration: .2s, .2s, .2s, .2s, .2s, .45s; transition-timing-function: ease, ease, ease, ease, ease, cubic-bezier(.22, 1, .36, 1); } }

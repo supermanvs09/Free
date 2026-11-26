@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { Viz, Win, Chip, Gl, Logo, App, Av, cx } from './kit.jsx';
 import { Ring } from './home.jsx';
 
@@ -74,6 +75,131 @@ export function AdapRiskTimeline({ k: fk } = {}) {
               </div>
             </div>
           </Win>
+        );
+      }}
+    </Viz>
+  );
+}
+
+/* A1c. The identity risk console (hero). An enterprise console in the light
+   theme, flat on the page, after the security dashboards studied on Dribbble
+   (Motyweiss, Lab7, uiyeasin): a slim navigation rail, a breadcrumb bar, the
+   identity with its connected systems, a KPI row, the activity that moved the
+   score and the score's trend against the policy lines. Three cards float
+   just off its edges, each a moment of the story (impossible travel, the
+   policy firing, the response) and drift gently; they lean with the pointer.
+   Same story as A1: 12 → 58 → 81 → 94, held and contained in 1.4 s. */
+const RC_SEV = { ok: ['Normal', '#12a150'], warn: ['Anomaly', '#b86e00'], crit: ['High', '#d92d20'] };
+export function AdapRiskConsole({ k: fk } = {}) {
+  const stage = useRef(null);
+  const move = (e) => {
+    const el = stage.current; if (!el) return;
+    const r = el.getBoundingClientRect();
+    el.style.setProperty('--px', ((e.clientX - r.left) / r.width - 0.5).toFixed(3));
+    el.style.setProperty('--py', ((e.clientY - r.top) / r.height - 0.5).toFixed(3));
+  };
+  const leave = () => { stage.current?.style.setProperty('--px', '0'); stage.current?.style.setProperty('--py', '0'); };
+  return (
+    <Viz k={fk} className="vz-light rcx" steps={[500, 1100, 1000, 1000, 1000, 1100]} hold={5200} label="Illustration: the adapID AI console for Kavya Reddy in Treasury. Her risk score rises from 12 to 94 as a sign-in from Lagos two hours after Mumbai, a new mail forwarding rule and a bulk Salesforce export follow each other. Above 80 the policy holds and contains the identity: Okta sessions revoked, the forwarding rule removed and the SOC told, in 1.4 seconds.">
+      {(k) => {
+        const n = Math.max(1, Math.min(k, 4));
+        const score = DAY[n - 1][4];
+        const col = score >= 80 ? '#d92d20' : score >= 50 ? '#c27a00' : '#12a150';
+        const pts = DAY.slice(0, n).map((d, i) => [4 + i * 30.5, 50 - (d[4] / 100) * 44]);
+        const line = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0]} ${p[1].toFixed(1)}`).join(' ');
+        const area = `${line} L${pts[pts.length - 1][0]} 56 L4 56 Z`;
+        const done = k >= 6, acting = k >= 5;
+        return (
+          <div ref={stage} className="rc-stage" onPointerMove={move} onPointerLeave={leave}>
+            <div className="rc-win">
+              {/* top bar */}
+              <div className="rc-top">
+                <span className="rc-brand"><Gl g="shield" /></span>
+                <span className="rc-crumb">adapID AI <i>/</i> Identities <i>/</i> <b>Kavya Reddy</b></span>
+                <span className="rc-search"><Gl g="search" />Search identities, apps, events</span>
+                {done ? <Chip tone="ok">Contained · 1.4 s</Chip> : <Chip tone="info">Live</Chip>}
+              </div>
+              <div className="rc-main">
+                {/* navigation rail */}
+                <nav className="rc-rail" aria-hidden="true">
+                  {['pulse', 'user', 'shield', 'flow', 'plug'].map((g, i) => <span key={g} className={i === 1 ? 'on' : undefined}><Gl g={g} /></span>)}
+                </nav>
+                <div className="rc-body">
+                  {/* the identity */}
+                  <div className="rc-id">
+                    <Av name="Kavya Reddy" i={3} />
+                    <span className="min-w-0">
+                      <span className="block rc-name">Kavya Reddy</span>
+                      <span className="flex items-center gap-[.45em] rc-sub">Treasury · Finance operations · <Logo k="okta" size="1em" /><Logo k="m365" size="1em" /><Logo k="salesforce" size="1em" /><Logo k="aws" size="1.2em" /></span>
+                    </span>
+                    <span className="ml-auto flex gap-[.45em]">
+                      <span className="rc-btn">Step-up</span>
+                      <span className={cx('rc-btn', acting && 'pri')}>{done ? 'Contained' : 'Contain'}</span>
+                    </span>
+                  </div>
+                  {/* KPIs */}
+                  <div className="rc-kpis">
+                    <div className="rc-kpi"><span>Risk score</span><b className="num" style={{ color: col }}>{score}</b><em style={{ color: col }}>{score >= 80 ? 'Critical' : score >= 50 ? 'Elevated' : 'Normal'}</em></div>
+                    <div className="rc-kpi"><span>Peer baseline</span><b className="num">14</b><em>Treasury · 38 people</em></div>
+                    <div className="rc-kpi"><span>Signals today</span><b className="num">{n}</b><em>{n > 1 ? `${n - 1} anomalous` : 'All normal'}</em></div>
+                    <div className="rc-kpi"><span>Time to contain</span><b className="num">{done ? '1.4 s' : acting ? '…' : '—'}</b><em>{done ? '3 systems acted' : 'Policy above 80'}</em></div>
+                  </div>
+                  <div className="rc-grid">
+                    {/* activity */}
+                    <div className="rc-card">
+                      <span className="rc-h">Activity that moved the score</span>
+                      <div className="mt-[.5em] space-y-[.35em]">
+                        {DAY.map((d, i) => (
+                          <div key={d[1]} className={cx(`s${i + 1}`, 'rc-row', d[5] === 'crit' && 'hot')}>
+                            <App k={d[0]} />
+                            <span className="min-w-0 flex-1"><span className="block truncate rc-rt">{d[2]}</span><span className="block truncate rc-rm">{d[1]} · {d[3]}</span></span>
+                            <span className="rc-sev" style={{ color: RC_SEV[d[5]][1], background: `color-mix(in srgb, ${RC_SEV[d[5]][1]} 9%, transparent)` }}>{RC_SEV[d[5]][0]}</span>
+                            <span className="rc-pts num" style={{ color: RC_SEV[d[5]][1] }}>+{i ? d[4] - DAY[i - 1][4] : d[4]}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {/* trend */}
+                    <div className="rc-card flex flex-col">
+                      <span className="rc-h">Risk score · today</span>
+                      <div className="relative mt-[.5em] flex-1" style={{ minHeight: '8.5em' }}>
+                        <svg viewBox="0 0 100 56" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" aria-hidden="true">
+                          <defs><linearGradient id="rc-a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={col} stopOpacity=".22" /><stop offset="1" stopColor={col} stopOpacity="0" /></linearGradient></defs>
+                          {[14, 28, 42].map((y) => <line key={y} x1="0" y1={y} x2="100" y2={y} stroke="#eef2f6" vectorEffect="non-scaling-stroke" />)}
+                          <line x1="0" y1="14.8" x2="100" y2="14.8" stroke="rgb(217 45 32 / .5)" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
+                          <line x1="0" y1="28" x2="100" y2="28" stroke="rgb(194 122 0 / .45)" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
+                          <path d={area} fill="url(#rc-a)" style={{ transition: 'd .8s cubic-bezier(.16,1,.3,1)' }} />
+                          <path d={line} fill="none" stroke={col} strokeWidth="2.2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" style={{ transition: 'd .8s cubic-bezier(.16,1,.3,1), stroke .4s' }} />
+                        </svg>
+                        {pts.map((p, i) => <span key={i} className="rc-dot" style={{ left: `${p[0]}%`, top: `${(p[1] / 56) * 100}%`, background: i === pts.length - 1 ? col : '#fff', borderColor: i === pts.length - 1 ? '#fff' : '#b8c2d0' }} />)}
+                        <span className="rc-th" style={{ top: '26.4%', color: '#d92d20' }}>Hold · 80</span>
+                        <span className="rc-th" style={{ top: '50%', color: '#a15c00' }}>Step-up · 50</span>
+                      </div>
+                      <span className="rc-rm">Baseline learnt from day one · peer group: Treasury</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* floating moments */}
+            <div className="rc-float f1 s2"><div className="rc-par" style={{ '--d': 18 }}><div className="rc-bob">
+              <span className="rc-fh"><span className="rc-fi" style={{ color: '#b86e00', background: 'rgb(245 165 36 / .12)' }}><Gl g="globe" /></span>Impossible travel</span>
+              <span className="rc-route"><b>Mumbai</b><i /><b>Lagos</b></span>
+              <span className="rc-rm">7,400 km in 2 h · new device</span>
+            </div></div></div>
+            <div className="rc-float f2 s4"><div className="rc-par" style={{ '--d': 26 }}><div className="rc-bob" style={{ animationDelay: '-2.2s' }}>
+              <span className="rc-fh"><span className="rc-fi" style={{ color: '#d92d20', background: 'rgb(229 72 77 / .1)' }}><Gl g="bolt" /></span>Policy triggered</span>
+              <span className="rc-big num" style={{ color: '#d92d20' }}>94 <small>&gt; 80</small></span>
+              <span className="rc-rm">Hold the identity and contain</span>
+            </div></div></div>
+            <div className="rc-float f3 s5"><div className="rc-par" style={{ '--d': 14 }}><div className="rc-bob" style={{ animationDelay: '-4s' }}>
+              <span className="rc-fh"><span className="rc-fi" style={{ color: '#0f9d58', background: 'rgb(18 161 80 / .1)' }}><Gl g="check" /></span>Response · {done ? '1.4 s' : 'running'}</span>
+              {RESPOND.map(([app, nm, t], i) => (
+                <span key={nm} className={cx('rc-step', (i < 2 ? acting : done) && 'on')}><Logo k={app} size="1.05em" /><span className="min-w-0 flex-1 truncate">{t}</span><Gl g="check" /></span>
+              ))}
+            </div></div></div>
+          </div>
         );
       }}
     </Viz>
@@ -269,22 +395,22 @@ const pct = ([x, y]) => ({ left: `${x / 10}%`, top: `${(y / 620) * 100}%` });
 export function IdentityGraph({ k: fk } = {}) {
   const apps = IG_APPS.map((a) => ({ ...a, p: igPt(a.a, 235, 168), res: a.res.map(([n, crit], j) => ({ n, crit, p: igPt(a.a + (j ? 13 : -13), 420, 262) })) }));
   return (
-    <Viz k={fk} className="vz-exact" steps={[600, 1000, 1200, 1400, 1500, 1500]} hold={4600} label="Illustration: Kavya Reddy's identity opens Okta, Microsoft 365, Salesforce, AWS, GitHub and Slack and, through them, twelve sensitive resources. After a suspicious sign-in her risk rises to 94, the blast radius spreads to every one of them, the two paths to admin access are highlighted, and containment closes each system until the blast radius is zero.">
+    <Viz k={fk} className="vz-exact vz-light" steps={[600, 1000, 1200, 1400, 1500, 1500]} hold={4600} label="Illustration: Kavya Reddy's identity opens Okta, Microsoft 365, Salesforce, AWS, GitHub and Slack and, through them, twelve sensitive resources. After a suspicious sign-in her risk rises to 94, the blast radius spreads to every one of them, the two paths to admin access are highlighted, and containment closes each system until the blast radius is zero.">
       {(k) => {
         const hot = k >= 3, spread = k >= 4, crit = k >= 5, held = k >= 6;
         const reach = held ? 0 : spread ? 12 : 0;
         return (
           <Win title={<span className="inline-flex items-center gap-[.5em]">Identity graph · blast radius</span>}
-            right={held ? <Chip tone="ok">Contained · 0 systems exposed</Chip> : spread ? <Chip tone="crit">6 systems · 12 resources exposed</Chip> : <Chip tone="info">Mapped</Chip>} glow="rgb(0 174 239 / .45)">
-            <div className="tone-d relative overflow-hidden rounded-[.9em]" style={{ aspectRatio: '1000 / 620', background: 'radial-gradient(70% 60% at 50% 0%, rgb(60 160 255 / .30), transparent 70%), radial-gradient(50% 50% at 100% 100%, rgb(0 174 239 / .16), transparent 70%), linear-gradient(160deg, #0b3768, #062448 60%, #04182f)', boxShadow: 'inset 0 0 0 1px rgb(120 190 255 / .18), 0 30px 60px -30px rgb(10 94 163 / .55)' }}>
+            right={held ? <Chip tone="ok">Contained · 0 systems exposed</Chip> : spread ? <Chip tone="crit">6 systems · 12 resources exposed</Chip> : <Chip tone="info">Mapped</Chip>} glow="rgb(10 109 187 / .25)">
+            <div className="relative overflow-hidden rounded-[.9em]" style={{ aspectRatio: '1000 / 620', background: 'radial-gradient(60% 55% at 50% 50%, rgb(10 109 187 / .07), transparent 70%), radial-gradient(1px 1px at 50% 50%, rgb(15 40 80 / .12) 1px, transparent 1.5px) 0 0 / 22px 22px, linear-gradient(180deg, #fbfdff, #f1f6fc)', boxShadow: 'inset 0 0 0 1px #e3e8ef' }}>
               <svg viewBox="0 0 1000 620" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" aria-hidden="true">
                 <defs>
                   <radialGradient id="ig-blast"><stop offset="0" stopColor="#ff6b5d" stopOpacity=".26" /><stop offset=".7" stopColor="#ff6b5d" stopOpacity=".08" /><stop offset="1" stopColor="#ff6b5d" stopOpacity="0" /></radialGradient>
-                  <linearGradient id="ig-edge" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#3cc8f6" stopOpacity=".55" /><stop offset="1" stopColor="#3cc8f6" stopOpacity=".18" /></linearGradient>
+                  <linearGradient id="ig-edge" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#0a6dbb" stopOpacity=".5" /><stop offset="1" stopColor="#0a6dbb" stopOpacity=".18" /></linearGradient>
                 </defs>
                 {/* orbits */}
-                <ellipse cx="500" cy="310" rx="235" ry="168" fill="none" stroke="rgb(160 190 230 / .1)" strokeDasharray="3 7" />
-                <ellipse cx="500" cy="310" rx="420" ry="262" fill="none" stroke="rgb(160 190 230 / .07)" />
+                <ellipse cx="500" cy="310" rx="235" ry="168" fill="none" stroke="rgb(15 40 80 / .14)" strokeDasharray="3 7" />
+                <ellipse cx="500" cy="310" rx="420" ry="262" fill="none" stroke="rgb(15 40 80 / .09)" />
                 {/* blast radius: a red field that grows with the spread, and waves while it is live */}
                 <ellipse cx="500" cy="310" rx={spread && !held ? 470 : hot && !held ? 120 : 0} ry={spread && !held ? 300 : hot && !held ? 86 : 0} fill="url(#ig-blast)" style={{ transition: 'rx 1.4s cubic-bezier(.16,1,.3,1), ry 1.4s cubic-bezier(.16,1,.3,1)' }} />
                 {spread && !held && [0, 1, 2].map((i) => <ellipse key={i} className="ig-wave" cx="500" cy="310" rx="470" ry="300" fill="none" stroke="rgb(255 107 93 / .45)" style={{ animationDelay: `${i * 1.1}s` }} />)}
@@ -293,17 +419,17 @@ export function IdentityGraph({ k: fk } = {}) {
                   const d1 = igCurve(IG_C, a.p, 0.12), live = spread && !held;
                   return (
                     <g key={a.k}>
-                      <path d={d1} fill="none" stroke={held ? 'rgb(63 217 143 / .35)' : live ? 'rgb(255 107 93 / .75)' : 'url(#ig-edge)'} strokeWidth={live ? 2.2 : 1.4} style={{ transition: `stroke .6s ${i * 0.12}s`, strokeDasharray: held ? '4 6' : undefined, animationDelay: `${i * 90}ms` }} className="ig-draw" />
+                      <path d={d1} fill="none" stroke={held ? 'rgb(15 157 88 / .45)' : live ? 'rgb(217 45 32 / .7)' : 'url(#ig-edge)'} strokeWidth={live ? 2.2 : 1.4} style={{ transition: `stroke .6s ${i * 0.12}s`, strokeDasharray: held ? '4 6' : undefined, animationDelay: `${i * 90}ms` }} className="ig-draw" />
                       {a.res.map((r) => {
                         const d2 = igCurve(a.p, r.p, 0.1), hi = crit && !held && r.crit;
                         return (
                           <g key={r.n}>
-                            <path d={d2} fill="none" stroke={held ? 'rgb(140 160 190 / .18)' : hi ? '#ff6b5d' : live ? 'rgb(255 107 93 / .45)' : 'rgb(160 190 230 / .2)'} strokeWidth={hi ? 3 : 1.2} style={{ transition: 'stroke .6s, stroke-width .6s', filter: hi ? 'drop-shadow(0 0 6px #ff6b5d)' : undefined }} />
-                            {hi && <circle r="4" fill="#ffd0ca"><animateMotion dur="1.4s" repeatCount="indefinite" path={`${d1} ${d2.replace('M', 'L')}`} /></circle>}
+                            <path d={d2} fill="none" stroke={held ? 'rgb(15 40 80 / .12)' : hi ? '#e5484d' : live ? 'rgb(217 45 32 / .38)' : 'rgb(15 40 80 / .18)'} strokeWidth={hi ? 3 : 1.2} style={{ transition: 'stroke .6s, stroke-width .6s', filter: hi ? 'drop-shadow(0 0 5px rgb(229 72 77 / .55))' : undefined }} />
+                            {hi && <circle r="4" fill="#e5484d"><animateMotion dur="1.4s" repeatCount="indefinite" path={`${d1} ${d2.replace('M', 'L')}`} /></circle>}
                           </g>
                         );
                       })}
-                      {live && <circle r="3.2" fill="#ff8b7e"><animateMotion dur={`${1.6 + i * 0.15}s`} repeatCount="indefinite" path={d1} /></circle>}
+                      {live && <circle r="3.2" fill="#e5484d"><animateMotion dur={`${1.6 + i * 0.15}s`} repeatCount="indefinite" path={d1} /></circle>}
                     </g>
                   );
                 })}
@@ -311,39 +437,39 @@ export function IdentityGraph({ k: fk } = {}) {
 
               {/* the identity */}
               <span className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center" style={pct(IG_C)}>
-                <span className="relative flex h-[4.6em] w-[4.6em] items-center justify-center rounded-full" style={{ background: 'var(--vz-solid)', boxShadow: hot && !held ? '0 0 0 .3em rgb(255 107 93 / .25), 0 0 2.4em rgb(255 107 93 / .55)' : '0 0 0 .3em rgb(60 200 246 / .18), 0 0 2em rgb(60 200 246 / .35)', transition: 'box-shadow .8s' }}>
-                  <Ring v={hot ? (held ? 94 : 94) : 18} color={held ? '#3fd98f' : hot ? '#ff6b5d' : '#3cc8f6'} size="4.6em" label={false} />
+                <span className="relative flex h-[4.6em] w-[4.6em] items-center justify-center rounded-full" style={{ background: 'var(--vz-solid)', boxShadow: hot && !held ? '0 0 0 .3em rgb(229 72 77 / .14), 0 .8em 2em -.4em rgb(229 72 77 / .45)' : '0 0 0 .3em rgb(10 109 187 / .1), 0 .8em 2em -.6em rgb(16 40 80 / .35)', transition: 'box-shadow .8s' }}>
+                  <Ring v={hot ? (held ? 94 : 94) : 18} color={held ? '#12a150' : hot ? '#e5484d' : '#0a6dbb'} size="4.6em" label={false} />
                   <span className="absolute"><Av name="Kavya Reddy" i={3} /></span>
                 </span>
                 <span className="mt-[.45em] whitespace-nowrap text-[.95em] font-semibold">Kavya Reddy</span>
-                <span className="mt-[.25em] whitespace-nowrap rounded-full px-[.7em] py-[.15em] vz-m" style={{ background: 'rgb(5 21 44 / .88)', border: '1px solid rgb(160 190 230 / .18)', color: held ? 'var(--vz-green)' : hot ? 'var(--vz-red)' : undefined }}>{held ? 'Held · step-up sent' : hot ? 'Risk 94 · sign-in from Lagos' : 'Risk 18 · normal'}</span>
+                <span className="mt-[.25em] whitespace-nowrap rounded-full px-[.7em] py-[.15em] vz-m" style={{ background: '#fff', border: '1px solid #e3e8ef', boxShadow: '0 .3em .8em -.4em rgb(16 40 80 / .3)', color: held ? 'var(--vz-green)' : hot ? 'var(--vz-red)' : undefined }}>{held ? 'Held · step-up sent' : hot ? 'Risk 94 · sign-in from Lagos' : 'Risk 18 · normal'}</span>
               </span>
 
               {/* systems */}
               {apps.map((a, i) => (
                 <span key={a.k} className="s1 absolute -translate-x-1/2 -translate-y-1/2" style={{ ...pct(a.p), transitionDelay: `${i * 70}ms` }}>
-                  <span className="flex items-center gap-[.45em] rounded-full py-[.3em] pl-[.3em] pr-[.75em] text-[#0e1116]" style={{ background: '#fff', border: `1px solid ${held ? 'rgb(63 217 143 / .45)' : spread ? 'rgb(255 107 93 / .5)' : 'rgb(160 190 230 / .2)'}`, boxShadow: '0 .6em 1.4em -.6em rgb(0 0 0 / .8)', transition: 'border-color .6s' }}>
+                  <span className="flex items-center gap-[.45em] rounded-full py-[.3em] pl-[.3em] pr-[.75em] text-[#0e1116]" style={{ background: '#fff', border: `1px solid ${held ? 'rgb(15 157 88 / .45)' : spread ? 'rgb(217 45 32 / .45)' : '#e3e8ef'}`, boxShadow: '0 .5em 1.2em -.6em rgb(16 40 80 / .35)', transition: 'border-color .6s' }}>
                     <App k={a.k} />
                     <span className="whitespace-nowrap text-[max(var(--vz-min),.88em)] font-semibold">{a.n}</span>
-                    {held && <Gl g="lock" className="h-[1em] w-[1em]" style={{ color: '#4be29a' }} />}
+                    {held && <Gl g="lock" className="h-[1em] w-[1em]" style={{ color: '#12a150' }} />}
                   </span>
                 </span>
               ))}
 
               {/* resources */}
               {apps.flatMap((a) => a.res).map((r, i) => (
-                <span key={r.n} className="s2 absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full px-[.6em] py-[.18em] text-[max(var(--vz-min),.74em)] font-medium" style={{ ...pct(r.p), transitionDelay: `${i * 40}ms`, background: '#0b203f', color: held ? '#9aa6b8' : crit && r.crit ? '#ffe1dc' : spread ? '#ffb1a8' : '#c9d3e1', border: `1px solid ${crit && r.crit && !held ? 'rgb(255 107 93 / .7)' : 'rgb(160 190 230 / .14)'}`, boxShadow: crit && r.crit && !held ? '0 0 1.2em rgb(255 107 93 / .45)' : 'none', transition: 'all .6s' }}>{r.n}</span>
+                <span key={r.n} className="s2 absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full px-[.6em] py-[.18em] text-[max(var(--vz-min),.74em)] font-medium" style={{ ...pct(r.p), transitionDelay: `${i * 40}ms`, background: crit && r.crit && !held ? '#fff1f0' : '#fff', color: held ? '#8a94a6' : crit && r.crit ? '#b42318' : spread ? '#d92d20' : '#3b4555', border: `1px solid ${crit && r.crit && !held ? 'rgb(217 45 32 / .55)' : '#e3e8ef'}`, boxShadow: crit && r.crit && !held ? '0 0 0 .25em rgb(229 72 77 / .1)' : '0 .2em .5em -.3em rgb(16 40 80 / .25)', transition: 'all .6s' }}>{r.n}</span>
               ))}
 
               {/* reach counter */}
-              <span className="s3 absolute left-[2.5%] top-[4%] rounded-[.7em] px-[.8em] py-[.5em]" style={{ background: 'rgb(11 32 63 / .9)', border: '1px solid rgb(160 190 230 / .14)' }}>
+              <span className="s3 absolute left-[2.5%] top-[4%] rounded-[.7em] px-[.8em] py-[.5em]" style={{ background: 'rgb(255 255 255 / .94)', border: '1px solid #e3e8ef', boxShadow: '0 .6em 1.4em -.8em rgb(16 40 80 / .3)' }}>
                 <span className="block vz-h">Blast radius</span>
-                <span className="block text-[1.6em] font-semibold tracking-[-0.015em] num" style={{ color: held ? '#4be29a' : spread ? '#ff7d70' : '#edeff3' }}>{reach}<span className="vz-m" style={{ fontSize: 'max(var(--vz-min), .5em)' }}> of 12 resources</span></span>
+                <span className="block text-[1.6em] font-semibold tracking-[-0.015em] num" style={{ color: held ? '#0f9d58' : spread ? '#d92d20' : '#0f1a2a' }}>{reach}<span className="vz-m" style={{ fontSize: 'max(var(--vz-min), .5em)' }}> of 12 resources</span></span>
               </span>
             </div>
             <div className="mt-[.7em] grid grid-cols-3 gap-[.5em]">
               {[['okta', 'Okta', 'Sessions revoked', 'Admin console'], ['aws', 'AWS', 'prod-admin suspended', 'prod-admin role'], ['github', 'GitHub', 'Token rotated', 'Actions secrets']].map(([app, n, done, risk]) => (
-                <span key={n} className="s3 flex items-center gap-[.55em] rounded-[.7em] px-[.6em] py-[.5em]" style={{ background: held ? 'rgb(63 217 143 / .08)' : crit ? 'rgb(255 107 93 / .09)' : 'rgb(255 255 255 / .03)', border: `1px solid ${held ? 'rgb(63 217 143 / .3)' : crit ? 'rgb(255 107 93 / .3)' : 'rgb(160 190 230 / .1)'}`, transition: 'all .6s' }}>
+                <span key={n} className="s3 flex items-center gap-[.55em] rounded-[.7em] px-[.6em] py-[.5em]" style={{ background: held ? 'rgb(18 161 80 / .07)' : crit ? 'rgb(229 72 77 / .07)' : '#f7f9fc', border: `1px solid ${held ? 'rgb(18 161 80 / .3)' : crit ? 'rgb(229 72 77 / .3)' : '#e6ebf2'}`, transition: 'all .6s' }}>
                   <App k={app} />
                   <span className="min-w-0"><span className="block truncate vz-t" style={{ fontSize: 'max(var(--vz-min), .85em)' }}>{n}</span><span className="block truncate vz-m" style={{ fontSize: 'max(var(--vz-min), .74em)', color: held ? 'var(--vz-green)' : crit ? 'var(--vz-red)' : undefined }}>{held ? done : crit ? `Path to admin · ${risk}` : 'Watching'}</span></span>
                 </span>

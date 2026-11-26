@@ -35,6 +35,7 @@ const SIDES = [
 ];
 
 /* ---------------------------------------------------------- the drawing */
+const THREATS = ['Stolen credentials', 'Phishing', 'MFA fatigue', 'Tool poisoning', 'Compromised session', 'Prompt injection', 'Hijacked AI agent', 'Credential stuffing'];
 const TAU = Math.PI * 2;
 const RAD = Math.PI / 180;
 // land dots, four per source point so the continents read as a fine pixel grid
@@ -117,8 +118,9 @@ function startGlobe(cv, { onHit, still }) {
     core = { c, P };
   };
   const size = () => {
-    const b = cv.getBoundingClientRect(); dpr = Math.min(window.devicePixelRatio || 1, 2);
-    W = b.width; H = b.height; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    // CSS pixels (clientWidth), not getBoundingClientRect: the site zooms html to .9 on laptops, and labels are placed in CSS pixels
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = cv.clientWidth; H = cv.clientHeight; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const wide = W / H > 1.2;
     cx = W / 2; cy = H * (wide ? 0.49 : 0.5); R = wide ? H * 0.27 : Math.min(W, H) * 0.31;
@@ -132,7 +134,7 @@ function startGlobe(cv, { onHit, still }) {
   const BLUE = '40,140,255', CYAN = '90,200,255', GOLDC = '255,170,30';
   const attacks = [], ripples = [];
   const intro = { v: still ? 1 : 0 };   // 0..1, tweened by GSAP on entrance
-  let T = 0, rot = -0.4, nextAtk = 2.2;
+  let T = 0, rot = -0.4, nextAtk = 2.2, ti = 0;
 
   const draw = () => {
     if (!body || R <= 2) return;
@@ -206,10 +208,10 @@ function startGlobe(cv, { onHit, still }) {
   const step = (dt) => {
     T += dt; rot += dt * 0.05;
     nextAtk -= dt;
-    if (nextAtk <= 0) { attacks.push({ ang: Math.random() * TAU, t: 0, sp: 0.5 + Math.random() * 0.15 }); nextAtk = 2.8 + Math.random() * 1.8; }
+    if (nextAtk <= 0) { attacks.push({ ang: (ti * 2.4 + Math.random() * 0.8) % TAU, t: 0, sp: 0.5 + Math.random() * 0.15, name: THREATS[ti++ % THREATS.length] }); nextAtk = 2.8 + Math.random() * 1.8; }
     for (let i = attacks.length - 1; i >= 0; i--) {
       const a = attacks[i]; a.t += dt * a.sp;
-      if (a.t >= 1) { ripples.push({ x: cx + Math.cos(a.ang) * R * 1.04, y: cy + Math.sin(a.ang) * R * 1.04, t: 0 }); attacks.splice(i, 1); onHit?.(); }
+      if (a.t >= 1) { const x = cx + Math.cos(a.ang) * R * 1.04, y = cy + Math.sin(a.ang) * R * 1.04; ripples.push({ x, y, t: 0 }); attacks.splice(i, 1); onHit?.(a.name, x, y, Math.cos(a.ang)); }
     }
     for (let i = ripples.length - 1; i >= 0; i--) { ripples[i].t += dt * 0.9; if (ripples[i].t >= 1) ripples.splice(i, 1); }
   };
@@ -244,14 +246,28 @@ function Side({ x }) {
 }
 
 export default function AispmGlobe() {
-  const root = useRef(null), canvas = useRef(null), pill = useRef(null), score = useRef(null);
+  const root = useRef(null), canvas = useRef(null), pill = useRef(null), score = useRef(null), labels = useRef(null);
   useEffect(() => {
     const el = root.current; if (!el) return undefined;
     const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     // below the fold: hold the text back now, so nothing flashes before the entrance plays
     if (!still && el.getBoundingClientRect().top > window.innerHeight * 0.9) el.classList.add('nm-pre');
     // each blocked attack makes the traffic pill glow once
-    const onHit = () => { const p = pill.current; if (!p) return; p.classList.remove('hit'); void p.offsetWidth; p.classList.add('hit'); };
+    // each blocked attack is named where it was stopped, and the traffic pill glows once
+    const onHit = (name, x, y, dir) => {
+      const p = pill.current; if (p) { p.classList.remove('hit'); void p.offsetWidth; p.classList.add('hit'); }
+      const box = labels.current; if (!box) return;
+      const lab = document.createElement('span');
+      lab.className = 'gx-hit';
+      lab.innerHTML = `<i></i>${name}<b>Blocked</b>`;
+      box.appendChild(lab);
+      // placed beside the point where it was stopped, on the outer side of the globe
+      const c = canvas.current, px = x + c.offsetLeft, py = y + c.offsetTop;
+      lab.style.left = `${Math.max(4, Math.min(box.clientWidth - lab.offsetWidth - 4, dir < 0 ? px - lab.offsetWidth - 12 : px + 12))}px`;
+      lab.style.top = `${py - lab.offsetHeight / 2}px`;
+      setTimeout(() => lab.remove(), 2600);
+      while (box.children.length > 2) box.firstChild.remove();
+    };
     const g = startGlobe(canvas.current, { onHit, still });
     let gsap, swap, intro, played = false, alt = false, killed = false;
 
@@ -293,8 +309,9 @@ export default function AispmGlobe() {
   }, []);
 
   return (
-    <figure ref={root} className="gx" aria-label="Security posture of a sample environment: a globe with a security core at its centre. Attacks such as stolen credentials, phishing, MFA fatigue, compromised sessions, deepfake voices, prompt injection and hijacked AI agents arrive and are blocked at its edge. 1,284 assets, 18 active threats, 97% protected, 1,284 high-risk, posture score 92 out of 100, strong.">
+    <figure ref={root} className="gx" aria-label="Security posture of a sample environment: a globe with a security core at its centre. Attacks such as stolen credentials, phishing, MFA fatigue, compromised sessions, tool poisoning, prompt injection and hijacked AI agents arrive and are blocked at its edge. 1,284 assets, 18 active threats, 97% protected, 1,284 high-risk, posture score 92 out of 100, strong.">
       <canvas ref={canvas} className="gx-cv" aria-hidden="true" />
+      <div ref={labels} className="gx-labels" aria-hidden="true" />
       <div className="gx-head" aria-hidden="true">
         <span className="gx-emb">{I.shield}</span>
         <span><b>Security Posture</b><small>Real-Time Visibility Across Your Global Environment</small></span>

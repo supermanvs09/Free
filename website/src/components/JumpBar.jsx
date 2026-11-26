@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
 import { cx } from './ui.jsx';
+import { scrollToY } from '../lib/smooth.js';
 
 /* Long pages get a bar of their sections once the reader is past the hero,
    the way enterprise product pages carry one: what is on the page, where you
@@ -61,7 +62,7 @@ export default function JumpBar() {
     const el = document.getElementById(id);
     if (!el) return;
     const off = window.innerWidth >= 768 ? 140 : 70;
-    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - off, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    scrollToY(el.getBoundingClientRect().top + window.scrollY - off);
   };
   return (
     <nav ref={bar} aria-label="On this page" className={cx('jumpbar tone-l noprint', on && 'on')}>

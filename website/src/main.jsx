@@ -3,6 +3,7 @@ import { createRoot, hydrateRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
 import App from './App.jsx';
 import { bootTranslate } from './lib/translate.js';
+import { bootMagnet, bootSmooth } from './lib/smooth.js';
 import './styles.css';
 import './components/viz/viz.css';
 import '@fontsource-variable/geist';
@@ -16,6 +17,8 @@ else createRoot(root).render(app);
 
 // a chosen language is applied once React owns the page, never before hydration
 setTimeout(bootTranslate, 600);
+// smooth scrolling starts after first paint, so it never delays the page
+setTimeout(() => { bootSmooth(); bootMagnet(); }, 300);
 
 /* For whoever opens the developer tools: a hello and a small puzzle. */
 console.log('%cDeep Algorithms', 'font: 600 22px Inter, system-ui, sans-serif; color: #4fb3f6; letter-spacing: -0.02em; padding: 4px 0;');
