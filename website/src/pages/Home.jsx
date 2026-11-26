@@ -6,9 +6,9 @@ import ProductMark from '../components/ProductMark.jsx';
 import { CERTS, CUSTOMERS } from '../data/site.js';
 import { SOLUTION_PAGES } from '../data/solutions.js';
 import { PRODUCTS } from '../data/products.js';
-import { RECOGNITION } from '../data/company.js';
 import { POSTS, formatDate } from '../data/posts.js';
-import { Gl } from '../components/viz/kit.jsx';
+import CertSeal from '../components/CertSeal.jsx';
+import AispmGlobe from '../home/AispmGlobe.jsx';
 import { PRODUCT_MENU } from '../data/nav.js';
 import FilmModal, { FILM, openFilm } from '../components/home/FilmModal.jsx';
 import HeroWave from '../home/HeroWave.jsx';
@@ -25,21 +25,9 @@ const Arrow = () => <svg viewBox="0 0 24 24" width="14" height="14" fill="none" 
 const Tick = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>;
 const Play = () => <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="currentColor" /></svg>;
 
-const SECURE = [
-  { g: 'user', h: 'People', p: 'A live risk score for every employee, contractor and customer login, from your identity provider to the payment.', stops: 'Deepfake help-desk calls, AI-written phishing, MFA fatigue', by: 'adapID AI', to: '/adapid-ai' },
-  { g: 'key', h: 'Machine identities', p: 'Every service account, cloud role, key and Active Directory path, found, scored and watched for behaviour that drifts.', stops: 'Leaked keys, bot-scale credential stuffing, paths to Domain Admins', by: 'adapID AI', to: '/adapid-ai/nhi-security' },
-  { g: 'bot', h: 'AI agents', p: 'Every agent, copilot and MCP server given an owner and a scope, with each action checked against its task before it runs.', stops: 'Prompt injection, tool poisoning, shadow AI, secrets pasted into AI', by: 'Zenstra AI', to: '/agentic-ai/agentic-identity' },
-  { g: 'db', h: 'Personal data', p: 'PII found wherever it lives, every access checked against purpose and consent, and evidence ready for the DPDP Act.', stops: 'Misuse of legitimate access, unreported breaches', by: 'ICMS', to: '/dpdpa-compliance' },
-];
-const LOOP = [['Discover', 'Every identity, with an owner'], ['Assess', 'Posture scored and fixed'], ['Detect', 'Behaviour, not rules'], ['Decide', 'Inline, before it runs'], ['Prove', 'Every decision on record']];
-const FIGURES = [
-  { v: '< 80 ms', l: 'risk decision at every login, payee and payment', s: 'Deep Algorithms benchmark' },
-  { v: 'p95 18 ms', l: 'to decide an AI agent’s tool call, inline', s: 'Zenstra AI' },
-  { v: '< 5 min', l: 'to generate a DPDP audit package', s: 'Deep Algorithms benchmark' },
-  { v: '4', l: 'independent certifications: ISO 27001, SOC 2 Type II, ISO 42001, ISO 27701', s: 'Audited annually' },
-];
 const LOGOS = ['meity', 'canara-bank', 'karnataka-bank', 'dcb-bank', 'ncrtc', 'iit-kanpur', 'iit-mandi', 'iiit-hyderabad', 'bhaktivedanta', 'ccoe'];
 const PROD = {
+  zenstra: { secures: 'AI agents', line: 'Every AI agent, copilot and MCP server found, owned and scoped to its task, with each action checked before it runs.' },
   adapid: { secures: 'Human and machine identities', line: 'A live risk score for every login, key and service account, with the response decided the moment behaviour changes.' },
   icms: { secures: 'Personal data under the DPDP Act', line: 'Personal data found across your estate, every access checked for purpose and consent, and audit evidence on demand.' },
 };
@@ -82,61 +70,32 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 3 · CONTINUOUS AI-SPM: what we secure, the threats we stop, the loop */}
-      <section id="aispm" className="dx-band ink scroll-mt-20" aria-labelledby="aispm-h">
+      {/* 3 · CONTINUOUS AI-SPM: the name, the promise, and the picture that proves it */}
+      <section id="aispm" className="dx-band ink ai-band scroll-mt-20" aria-labelledby="aispm-h">
         <div className="dx-wrap">
-          <div className="dx-head-s">
-            <div>
-              <p className="dx-k">Continuous AI Security Posture Management</p>
-              <h2 id="aispm-h" className="dx-h2">Securing your identities and digital ecosystem from AI-driven threats.</h2>
-            </div>
-            <p className="dx-lead">Attackers now use AI to clone voices, write phishing that passes and try stolen passwords at bot scale. Deep Algorithms watches every identity that can act in your business, people, machines and AI agents, and decides before an unsafe action runs.</p>
+          <div className="ai-title">
+            <h2 id="aispm-h" className="ai-big">Continuous AI Security Posture Management</h2>
+            <p className="ai-sub">Securing your Identities and Digital Ecosystem from AI-driven threats.</p>
           </div>
-          <div className="ai-grid">
-            {SECURE.map((x) => (
-              <article key={x.h} className="ai-cell">
-                <span className="ai-ic"><Gl g={x.g} /></span>
-                <h3>{x.h}</h3>
-                <p>{x.p}</p>
-                <p className="ai-stop"><span>Stops</span>{x.stops}</p>
-                <Link to={x.to} className="ai-by">{x.by} <Arrow /></Link>
-              </article>
-            ))}
-          </div>
-          <ol className="ai-loop" aria-label="How it runs, continuously">
-            {LOOP.map(([n, t], i) => <li key={n}><i>{String(i + 1).padStart(2, '0')}</i><b>{n}</b><span>{t}</span></li>)}
-          </ol>
+          <AispmGlobe />
         </div>
       </section>
 
-      {/* 4 · PRODUCTS: three doors, one posture */}
+      {/* 4 · PRODUCTS */}
       <section id="products" className="dx-band paper scroll-mt-20" aria-labelledby="products-h">
         <div className="dx-wrap">
           <div className="dx-head-s">
             <div>
               <p className="dx-k">Products</p>
-              <h2 id="products-h" className="dx-h2">Three products. One posture.</h2>
+              <h2 id="products-h" className="dx-h2">Built for every identity in your enterprise.</h2>
             </div>
-            <p className="dx-lead">They share one inventory, one policy engine and one decision record. Start where your risk is highest and add the others when you are ready.</p>
+            <p className="dx-lead">Security for people, machine identities, AI agents and personal data. Deploy the product your risk needs first, and add the others as you grow.</p>
           </div>
-
-          <article className="px-feature">
-            <div className="px-feature-t">
-              <div className="px-id"><ProductMark p="zenstra" size={40} /><span><b>Zenstra AI</b><small>AI agents</small></span></div>
-              <h3 className="dx-h3">Let AI agents act. Check every action first.</h3>
-              <p className="dx-p">A developer pastes a production .env into Claude to debug a deploy. Zenstra reads the prompt on the device, finds the keys and the password, and blocks it before it is sent.</p>
-              <ul className="px-ticks">
-                <li><Tick />Discovery on every device: Copilot, ChatGPT, Claude Code and Cursor</li>
-                <li><Tick />Workflow security: every hop checked against its task</li>
-                <li><Tick />Cloud security: a gateway in your VPC, p95 18 ms</li>
-              </ul>
-              <Link to={menu.zenstra.path} className="dx-link">Explore Zenstra AI <Arrow /></Link>
-            </div>
-            <ClaudeBlock />
-          </article>
-
-          <div className="px-two">
-            {['adapid', 'icms'].map((k) => {
+          <div className="pr-visual">
+            <img src="/img/home/products-shield.webp" alt="Illustration: a blue shield at the centre of an enterprise's systems, connected to code, dashboards, credentials, cloud, workloads and documents." width="2720" height="1536" loading="lazy" decoding="async" />
+          </div>
+          <div className="pr-grid">
+            {['zenstra', 'adapid', 'icms'].map((k) => {
               const L = menu[k];
               return (
                 <article key={k} className="px-card">
@@ -148,6 +107,32 @@ export default function Home() {
               );
             })}
           </div>
+        </div>
+      </section>
+
+      {/* 4b · ZENSTRA AI IN ACTION: the film's Claude scene, on its own */}
+      <section className="dx-band ink" aria-labelledby="zen-h">
+        <div className="dx-wrap">
+          <div className="dx-head-s">
+            <div>
+              <p className="dx-k">Zenstra AI in action</p>
+              <h2 id="zen-h" className="dx-h2">Secrets stopped before they leave the laptop.</h2>
+            </div>
+            <p className="dx-lead">A developer pastes a production .env into Claude to debug a deploy. Zenstra reads the prompt on the device, finds the keys and the password, and blocks it before it is sent.</p>
+          </div>
+          <article className="px-feature">
+            <div className="px-feature-t">
+              <div className="px-id"><ProductMark p="zenstra" size={40} /><span><b>Zenstra AI</b><small>AI agents</small></span></div>
+              <h3 className="dx-h3">Let AI agents act. Check every action first.</h3>
+              <ul className="px-ticks">
+                <li><Tick />Discovery on every device: Copilot, ChatGPT, Claude Code and Cursor</li>
+                <li><Tick />Workflow security: every hop checked against its task</li>
+                <li><Tick />Cloud security: a gateway in your VPC, p95 18 ms</li>
+              </ul>
+              <Link to={menu.zenstra.path} className="dx-link">Explore Zenstra AI <Arrow /></Link>
+            </div>
+            <ClaudeBlock />
+          </article>
         </div>
       </section>
 
@@ -177,35 +162,19 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 6 · PROOF: measured, certified, recognised */}
+      {/* 6 · CERTIFICATIONS */}
       <section className="dx-band paper" aria-labelledby="num-h">
         <div className="dx-wrap">
           <div className="dx-head-s">
             <div>
-              <p className="dx-k">Proof</p>
-              <h2 id="num-h" className="dx-h2">Measured, certified and recognised.</h2>
+              <p className="dx-k">Certifications</p>
+              <h2 id="num-h" className="dx-h2">Certified and independently audited.</h2>
             </div>
-            <p className="dx-lead">Decisions fast enough to sit in the path of a login, a payment or an agent’s tool call, audited every year, and built in Hyderabad.</p>
+            <p className="dx-lead">Audited every year against the standards enterprises and regulators expect.</p>
           </div>
-          <ul className="nm-stats">
-            {FIGURES.map((f) => <li key={f.v}><b>{f.v}</b><span>{f.l}</span><small>{f.s}</small></li>)}
+          <ul className="ce-grid">
+            {CERTS.map((c) => <li key={c.code}><CertSeal code={c.code} size={72} /><b>{c.name}</b><span>{c.desc}</span></li>)}
           </ul>
-          <div className="nm-row">
-            {RECOGNITION.slice(0, 3).map((r) => (
-              <figure key={r.title} className="nm-award">
-                <img src={`/img/events/${r.img}.webp`} alt={`${r.title}, ${r.where}`} loading="lazy" decoding="async" />
-                <figcaption><b>{r.title}</b><span>{r.where} · {r.year}</span></figcaption>
-              </figure>
-            ))}
-            <div className="nm-side">
-              <div className="nm-patent">
-                <p className="dx-k">Patent granted · October 2026</p>
-                <p className="nm-pt">“Intelligent Centralized Middleware System and Method for Multi-Domain Fraud Detection, Investigation, and Resolution.”</p>
-                <p className="nm-pn">Patent No. 602726</p>
-              </div>
-              <ul className="nm-certs">{CERTS.map((c) => <li key={c.code}><b>{c.name}</b><span>{c.desc}</span></li>)}</ul>
-            </div>
-          </div>
         </div>
       </section>
 

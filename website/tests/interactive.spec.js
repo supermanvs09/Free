@@ -9,20 +9,24 @@ test('home: every product line has a card that leads to its own page', async ({ 
     await expect(sec.getByRole('link', { name: `Explore ${name}` })).toHaveAttribute('href', /^\//);
   }
 });
-test('home: AI-SPM names what we secure, the threats it stops and the loop', async ({ page }) => {
+test('home: AI-SPM shows the four kinds of identity around the globe, each linked to its product', async ({ page }) => {
   await page.goto('/');
   const sec = page.locator('#aispm');
-  await expect(sec.locator('.ai-cell')).toHaveCount(4);
-  for (const h of ['People', 'Machine identities', 'AI agents', 'Personal data']) await expect(sec.getByRole('heading', { level: 3, name: h })).toBeVisible();
-  await expect(sec.locator('.ai-loop li')).toHaveCount(5);
-  await expect(sec.getByRole('link', { name: /Zenstra AI/ })).toHaveAttribute('href', '/agentic-ai/agentic-identity');
-});test('reduced motion still shows the Claude scene at its finished frame', async ({ page }) => {
+  await expect(sec.locator('.gx-card')).toHaveCount(4);
+  for (const h of ['People', 'Machine identities', 'AI agents', 'Personal data']) await expect(sec.locator('.gx-card', { hasText: h })).toBeVisible();
+  await expect(sec.locator('.gx-card', { hasText: 'AI agents' })).toHaveAttribute('href', '/agentic-ai/agentic-identity');
+  await expect(sec.locator('.gx-feed li')).toHaveCount(3);
+});
+
+test('reduced motion still shows the Claude scene at its finished frame', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await hydrated(page);
   await expect(page.locator('.cl-toast')).toContainText('Blocked! This prompt contains credentials, API keys and tokens.');
   await expect(page.locator('.cl-note')).toContainText('Not sent · decision recorded by Zenstra AI');
-});test('zenstra: before and after sit side by side, five moments each', async ({ page }) => {
+});
+
+test('zenstra: before and after sit side by side, five moments each', async ({ page }) => {
   await page.goto('/agentic-ai/agentic-identity');
   const sec = page.locator('section:has(#chg-h)');
   await expect(sec.getByText('Without Zenstra', { exact: true })).toBeVisible();
@@ -65,17 +69,21 @@ test('home: "Watch video" plays the brand film in a dialog, and Escape closes it
   await expect(btn).toBeFocused();
 });
 
-test('home: industries, proof and research each lead somewhere real', async ({ page }) => {
+test('home: industries, certifications and research each lead somewhere real', async ({ page }) => {
   await page.goto('/');
   const ind = page.locator('section[aria-labelledby="ind-h"]');
   await expect(ind.locator('a[href^="/solutions/"]')).toHaveCount(4);
-  const proof = page.locator('section[aria-labelledby="num-h"]');
-  await expect(proof.locator('.nm-stats li')).toHaveCount(4);
-  await expect(proof).toContainText('Patent No. 602726');
+  const certs = page.locator('section[aria-labelledby="num-h"]');
+  await expect(certs.locator('.ce-grid li')).toHaveCount(4);
+  // the certifications section is certifications only
+  await expect(certs.locator('img')).toHaveCount(0);
+  await expect(certs).not.toContainText('Patent');
   const res = page.locator('section[aria-labelledby="res-h"]');
   await expect(res.locator('a[href^="/blogs/"]')).toHaveCount(3);
   await expect(res.getByRole('link', { name: /All research/ })).toHaveAttribute('href', '/blogs');
-});test('home: the hero is one sentence and two actions, with a pause control', async ({ page }) => {
+});
+
+test('home: the hero is one sentence and two actions, with a pause control', async ({ page }) => {
   await page.goto('/');
   await hydrated(page);
   const hero = page.locator('section[aria-labelledby="hero-h"]');
@@ -84,11 +92,11 @@ test('home: industries, proof and research each lead somewhere real', async ({ p
   await expect(hero.getByRole('button', { name: 'Play background animation' })).toBeVisible();
 });
 
-test('home: the AI-SPM section states the position under its own name', async ({ page }) => {
+test('home: the AI-SPM section leads with its name, then the promise', async ({ page }) => {
   await page.goto('/');
   const sec = page.locator('#aispm');
-  await expect(sec.getByRole('heading', { level: 2 })).toHaveText('Securing your identities and digital ecosystem from AI-driven threats.');
-  await expect(sec).toContainText('Continuous AI Security Posture Management');
+  await expect(sec.getByRole('heading', { level: 2 })).toHaveText('Continuous AI Security Posture Management');
+  await expect(sec.locator('.ai-sub')).toHaveText('Securing your Identities and Digital Ecosystem from AI-driven threats.');
 });
 
 test('every hero rolls the customer logos, with a pause control', async ({ page }) => {
