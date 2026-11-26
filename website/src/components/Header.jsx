@@ -138,25 +138,6 @@ function LanguageMenu({ away, className, up }) {
   );
 }
 
-/* Desktop only: the line above the menu. News on the left; phone, search and
-   language on the right. It folds away on scroll. */
-function UtilityBar({ away }) {
-  const t = away ? -1 : undefined;
-  return (
-    <div className={cx('ubar hidden border-b border-line lg:block', away && 'away')} aria-hidden={away || undefined}>
-      <div className="wrap flex h-full items-center justify-between gap-6 text-[13px] text-ink-3">
-        <p className="truncate"><span className="mr-2 rounded-[5px] bg-[#0a6dbb] px-1.5 py-0.5 text-[10.5px] font-bold uppercase tracking-[.08em] text-white">New</span><span className="font-semibold text-ink-2">Prompt Heist</span> · crack five AI vaults with words, win internships and goodies
-          <Link to="/prompt-heist" tabIndex={t} className="ml-2 font-medium text-cyan-2 hover:text-fg">Take the challenge<span aria-hidden="true"> →</span></Link></p>
-        <ul className="flex shrink-0 items-center gap-6">
-          <li><a href={SITE.phoneHref} tabIndex={t} className="inline-flex items-center gap-1.5 hover:text-ink"><Icon name="Phone" size={13} />{SITE.phone}</a></li>
-          <li><button type="button" tabIndex={t} onClick={() => window.dispatchEvent(new CustomEvent('da:command', { detail: 'search' }))} title="Search (Ctrl K or ⌘ K)" className="inline-flex items-center gap-1.5 hover:text-ink"><Icon name="MagnifyingGlass" size={14} />Search</button></li>
-          <li><LanguageMenu away={away} /></li>
-        </ul>
-      </div>
-    </div>
-  );
-}
-
 const NAV = [
   { label: 'Products', menu: ProductsMenu },
   { label: 'Solutions', menu: SolutionsMenu },
@@ -267,7 +248,6 @@ export default function Header() {
     <header className={cx('noprint fixed inset-x-0 top-0 z-50 transition-transform duration-300', light && 'tone-l', tucked && !mobile && 'max-md:-translate-y-full')} onMouseLeave={leave}>
       <a href="#main" className="sr-only-focusable absolute left-4 top-3 z-50 rounded-full bg-white px-4 py-2 text-[#12171f]">Skip to content</a>
       <div aria-hidden="true" className={cx('hdr-bg absolute inset-0 -z-10 border-b', solid ? 'solid border-line bg-[#0b0e13]/80 backdrop-blur-xl' : 'border-transparent bg-transparent')} />
-      <UtilityBar away={scrolled || !!open} />
       <div className="wrap flex h-[64px] items-center gap-6 lg:h-[72px]">
         <Link to="/" aria-label="Deep Algorithms home" className="shrink-0"><Logo dual className="h-[30px] lg:h-[36px]" /></Link>
         <nav aria-label="Primary" className="hidden flex-1 lg:block">
@@ -289,9 +269,10 @@ export default function Header() {
         </nav>
         <div className="ml-auto flex items-center gap-2 lg:ml-0">
           <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('da:command', { detail: 'search' }))} aria-label="Search the site" title="Search (Ctrl K or ⌘ K)"
-            className={cx('inline-flex h-10 w-10 items-center justify-center rounded-full border border-line-2 text-ink-2 transition-colors hover:border-fg/30 hover:text-ink max-md:hidden', !scrolled && 'lg:hidden')}>
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line-2 text-ink-2 transition-colors hover:border-fg/30 hover:text-ink max-md:hidden">
             <Icon name="MagnifyingGlass" size={17} />
           </button>
+          <LanguageMenu className="hidden rounded-full border border-line-2 px-3.5 py-2 text-[14px] text-ink-2 hover:text-ink lg:inline-flex" />
           <Button to="/request-demo" size="sm" className="max-md:hidden lg:h-11 lg:px-6 lg:text-[15.5px]">Book a demo</Button>
           <button type="button" className="inline-flex h-11 w-11 items-center justify-center rounded-full text-ink max-md:hidden lg:hidden" aria-label={mobile ? 'Close menu' : 'Open menu'} aria-expanded={mobile} aria-controls="mobile-menu" onClick={() => setMobile(!mobile)}>
             <Icon name={mobile ? 'X' : 'List'} size={26} />

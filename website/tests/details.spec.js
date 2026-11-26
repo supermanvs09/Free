@@ -22,7 +22,7 @@ test.describe('desktop details', () => {
   test('the header search button opens search and Escape closes it', async ({ page }) => {
     await page.goto('/why-deep-algorithms');
     await hydrated(page);
-    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    await page.getByRole('banner').getByRole('button', { name: 'Search the site' }).click();
     await expect(page.getByRole('dialog', { name: 'Search the site' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -65,14 +65,25 @@ test('the home hero names who we secure, and proof follows straight after', asyn
   await expect(page.locator('section[aria-labelledby="hero-h"] + section').getByRole('heading', { name: 'Trusted by banks, government and enterprises across India' })).toBeAttached();
 });
 
-test('the utility bar carries search and the language menu, and folds away on scroll', async ({ page, isMobile }) => {
+test('there is no line above the menu; search and language sit in the main bar', async ({ page, isMobile }) => {
   test.skip(isMobile, 'desktop only');
   await page.goto('/');
-  const bar = page.locator('.ubar');
-  await expect(bar.getByRole('button', { name: 'Search', exact: true })).toBeVisible();
+  await expect(page.locator('.ubar')).toHaveCount(0);
+  const bar = page.getByRole('banner');
+  await expect(bar.getByRole('button', { name: 'Search the site' })).toBeVisible();
   await expect(bar.getByRole('button', { name: /Language: English/ })).toBeVisible();
-  await page.evaluate(() => window.scrollTo(0, 600));
-  await expect(bar).toHaveClass(/away/);
+});
+
+test('product pages carry no hero picture except NHI security, and no cost-of-the-problem card', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'one viewport is enough');
+  for (const path of ['/adapid-ai', '/agentic-ai/agentic-identity', '/dpdpa-compliance', '/ad-security', '/adapid-ai/fraud-prevention', '/agentic-ai/agent-discovery']) {
+    await page.goto(path);
+    await expect(page.locator('section.hero-under .vzw, section.hero-under [role="img"]')).toHaveCount(0);
+    await expect(page.getByText('The cost of a login nobody questioned')).toHaveCount(0);
+    await expect(page.getByText('Why it matters now')).toHaveCount(0);
+  }
+  await page.goto('/adapid-ai/nhi-security');
+  await expect(page.locator('section.hero-under').first()).toBeVisible();
 });
 
 test('a picture that leaves and comes straight back still plays its steps', async ({ page, isMobile }) => {

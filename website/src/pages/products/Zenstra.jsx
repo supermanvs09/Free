@@ -4,12 +4,10 @@ import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Button, Icon, Reveal, SectionHead } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import Stage3D from '../../components/Stage3D.jsx';
-import { Hero, Stats, Faq, Compare, Explorer, Explore, LINKS } from '../../components/ProductKit.jsx';
+import { Hero, Faq, Compare, Explorer, Explore, LINKS } from '../../components/ProductKit.jsx';
 import { ZenGateway, ZenInventory, ZenGrant, ZenMcp, ZenDetect, ZenRecord } from '../../components/viz/zenstra.jsx';
 import { Logo, logoTitle } from '../../components/viz/kit.jsx';
 import { ZenCompare } from '../../components/Changes.jsx';
-import { STORIES } from '../../data/stories.js';
 
 const p = PRODUCTS.zenstra;
 
@@ -86,9 +84,6 @@ export default function Zenstra() {
         lead="Zenstra finds every AI agent and MCP server in your enterprise, gives each one an owner and access sized to its task, and decides every tool call before it runs."
         ctas={<><Explore label="See it check an agent" /><Button href="https://www.zenstra.ai" target="_blank" rel="noopener" variant="ghost" size="lg">Visit zenstra.ai<Icon name="ArrowUpRight" size={16} /></Button></>}
         note="One platform for copilots, cloud agents, workflow automations, coding agents and MCP servers.">
-        <Stage3D tilt={[6, -15]}>
-          <ZenGateway pop />
-        </Stage3D>
       </Hero>
 
       {/* controlled access: every agent tied to a person, every grant scoped */}
@@ -193,8 +188,6 @@ export default function Zenstra() {
           </Reveal>
         </div>
       </section>
-
-      <Stats acc="zen" items={p.stats} title="Why it matters now" {...STORIES.zenstra} />
       <Faq items={FAQ} />
       <ResearchRow slugs={p.research} title="Blogs on AI agent security" />
       <CtaBand related={[LINKS.cirm, LINKS.nhi, LINKS.icms]} accent="zen" title={p.cta.title} body={p.cta.body} />

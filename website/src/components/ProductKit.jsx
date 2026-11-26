@@ -45,7 +45,7 @@ export function Explore({ label = 'See how it works', target, size = 'lg', varia
    `split` (copy left, picture right) and `stack` (copy centred, picture below). */
 export function Hero({ acc = 'brand', crumbs, eyebrow, title, lead, ctas, explore, children, layout = 'split', ribbons = 'product', note, proof = true, glance }) {
   const color = ACC[acc] || ACC.brand;
-  const stack = layout === 'stack';
+  const stack = layout === 'stack' || !children;   // no picture: the copy stands centred
   const mark = { zen: 'zenstra', adap: 'adapid', icms: 'icms' }[acc];
   return (
     <section className={cx('stage hero-under relative overflow-hidden', mark ? 'dark hero-navy' : 'band-brand')} style={{ '--acc': color }} data-page-name={eyebrow ? eyebrow.split(' · ')[0] : undefined}>

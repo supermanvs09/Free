@@ -4,12 +4,9 @@ import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, Check3 } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import { Hero, Stats, Faq, Steps, LINKS, ACC } from '../../components/ProductKit.jsx';
-import { AdTierGraph } from '../../components/viz/adapid.jsx';
+import { Hero, Faq, Steps, LINKS, ACC } from '../../components/ProductKit.jsx';
 import { AdWorkbench } from '../../components/viz/workbench.jsx';
-import Stage3D from '../../components/Stage3D.jsx';
 import { Gl } from '../../components/viz/kit.jsx';
-import { STORIES } from '../../data/stories.js';
 
 const p = PRODUCTS.ad;
 const A = ACC.adap;
@@ -36,7 +33,6 @@ export default function AdSecurity() {
       <Hero glance={[['Protects', 'Active Directory: users, groups, service accounts and trusts'], ['Stops', 'Paths to Domain Admins, Kerberoasting and DCSync'], ['Deploys', 'Read-only access to your directory'], ['Shows', 'The one change that closes the most paths']]} layout="stack" acc="adap" crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Active Directory Security' }]} eyebrow="adapID AI · Active Directory Security"
         title={<>Close the path to Domain Admins <span style={{ color: 'var(--acc)' }}>before anyone takes it.</span></>}
         lead="See every account, privilege and path through Active Directory, cut the routes attackers would use, and catch the account that starts behaving unlike itself.">
-        <Stage3D tilt={[10, 0]} range={[2, 4]} className="mx-auto max-w-[1060px]"><AdTierGraph /></Stage3D>
       </Hero>
 
       {/* how it sits: between your identities and Tier 0 */}
@@ -93,8 +89,6 @@ export default function AdSecurity() {
           <div className="mt-12"><Steps acc="adap" items={[{ h: 'Map the directory', p: 'Users, groups, computers, service accounts, GPOs and trusts, read-only.' }, { h: 'Rank every path', p: 'Each route to a high-value identity, ordered by how far it reaches.' }, { h: 'Get the fix list', p: 'The changes that close the most paths, first, with their business impact checked.' }]} /></div>
         </div>
       </section>
-
-      <Stats acc="adap" items={p.stats} {...STORIES.ad} />
       <Faq items={FAQ} />
       <ResearchRow slugs={p.research} />
       <CtaBand related={[LINKS.cirm, LINKS.nhi, LINKS.icms]} accent="adap" title={p.cta.title} body={p.cta.body} primary={{ label: 'Book an assessment', to: '/request-demo' }} />

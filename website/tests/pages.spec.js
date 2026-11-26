@@ -47,7 +47,8 @@ test('every product page is built differently', async ({ page }) => {
 });
 
 test('figures that are not ours carry a source', async ({ page }) => {
-  for (const route of PRODUCT_PAGES) {
+  // product pages no longer quote outside figures; the industry pages do, each with its source
+  for (const route of ['/solutions/bfsi', '/solutions/healthcare', '/solutions/government', '/solutions/digital-platforms']) {
     await page.goto(route);
     expect(await page.locator('main p', { hasText: /^Source: / }).count(), route).toBeGreaterThan(0);
   }

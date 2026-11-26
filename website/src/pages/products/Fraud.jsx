@@ -4,9 +4,8 @@ import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, Tabs } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import { Hero, Stats, Faq, Points, LINKS, ACC } from '../../components/ProductKit.jsx';
+import { Hero, Faq, Points, LINKS, ACC } from '../../components/ProductKit.jsx';
 import { CapabilityPhone, MuleCheck, WebStepUp } from '../../components/viz/fraud.jsx';
-import SessionJourney from '../../components/viz/journey.jsx';
 import { FraudGate } from '../../components/viz/fraudgate.jsx';
 
 /* Identity Fraud Prevention: one platform for mobile and internet banking, from
@@ -159,7 +158,6 @@ export default function Fraud() {
         layout="stack"
         lead="adapID reads how each customer types, taps, holds the phone and moves the mouse, from the moment they open the app to the moment they pay. When the session is not them, or not their decision, the money stays put."
         note="Mobile banking, internet banking and UPI. One SDK, decisions in under 80 ms.">
-        <SessionJourney />
       </Hero>
 
       <section className="sec" aria-labelledby="q-h">
@@ -170,7 +168,6 @@ export default function Fraud() {
       </section>
 
       {/* the stakes, in figures (Anita's story is told just above; the mule figures come with the mule section) */}
-      <Stats acc="adap" items={[{ v: '₹36,014 Cr', l: 'involved in bank frauds reported in India in 2024–25', s: 'RBI Annual Report, 2024–25' }, p.stats[2], { v: '1 in 1', l: 'decisions with a reason an analyst and an auditor can read', s: 'adapID AI' }]} />
 
       <section className="sec" aria-labelledby="gap-h">
         <div className="wrap">

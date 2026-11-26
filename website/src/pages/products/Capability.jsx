@@ -3,11 +3,8 @@ import { Seo } from '../../lib/head.jsx';
 import { ZCAPS } from '../../data/zenstra.js';
 import { Icon, Reveal, SectionHead, cx } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import Stage3D from '../../components/Stage3D.jsx';
 import { Hero, Steps, Points, ACC } from '../../components/ProductKit.jsx';
-import { ZenApproval, ZenInventory, ZenGrant, ZenMcp, ZenDetect, ZenRecord } from '../../components/viz/zenstra.jsx';
 
-const VIS = { discovery: ZenInventory, identity: ZenGrant, enforce: ZenApproval, mcp: ZenMcp, detect: ZenDetect, record: ZenRecord };
 const ICON = { discovery: 'MagnifyingGlass', identity: 'Fingerprint', enforce: 'ShieldCheck', mcp: 'PlugsConnected', detect: 'Pulse', record: 'ClipboardText' };
 const STAGE = { discovery: 'Discover', identity: 'Scope', enforce: 'Enforce', mcp: 'Trust', detect: 'Detect', record: 'Prove' };
 const A = ACC.zen;
@@ -34,13 +31,11 @@ function Rail({ current }) {
 
 export default function Capability({ id }) {
   const c = ZCAPS[id];
-  const V = VIS[c.kind];
   return (
     <>
       <Seo title={c.seoTitle.replace(/ \| Zenstra AI$/, '')} description={c.description} path={c.path} crumbs={[{ name: 'Zenstra AI', path: c.parent }, { name: c.name, path: c.path }]} />
       <Hero acc="zen" crumbs={[{ name: 'Zenstra AI', path: c.parent }, { name: c.name }]} eyebrow={`Zenstra AI · ${c.name}`}
         title={<>{c.hero.lead} <span style={{ color: 'var(--acc)' }}>{c.hero.accent}.</span></>} lead={c.hero.sub}>
-        <Stage3D tilt={[6, -14]}><V /></Stage3D>
       </Hero>
 
       <section className="sec-tight" aria-label="All Zenstra capabilities"><div className="wrap"><Rail current={c.kind} /></div></section>

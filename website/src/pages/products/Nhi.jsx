@@ -6,11 +6,10 @@ import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, cx } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import { Hero, Stats, Faq, LINKS, ACC } from '../../components/ProductKit.jsx';
+import { Hero, Faq, LINKS, ACC } from '../../components/ProductKit.jsx';
 import { NhiMap } from '../../components/viz/nhimap.jsx';
 import { NhiWorkbench } from '../../components/viz/workbench.jsx';
 import { Logo } from '../../components/viz/kit.jsx';
-import { STORIES } from '../../data/stories.js';
 
 const p = PRODUCTS.nhi;
 const A = ACC.adap;
@@ -227,8 +226,6 @@ export default function Nhi() {
           <Reveal delay={100}><LeakedKey /></Reveal>
         </div>
       </section>
-
-      <Stats acc="adap" items={p.stats} {...STORIES.nhi} />
       <Faq items={FAQ} />
       <ResearchRow slugs={p.research} />
       <CtaBand related={[LINKS.cirm, LINKS.zenstra, LINKS.ad]} accent="adap" title={p.cta.title} body={p.cta.body} />

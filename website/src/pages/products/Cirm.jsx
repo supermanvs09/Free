@@ -5,12 +5,11 @@ import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, cx } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import { Hero, Stats, Faq, Compare, Points, LINKS, ACC } from '../../components/ProductKit.jsx';
-import { AdapRiskConsole, Connectors, IdentityGraph, RiskScoreCard } from '../../components/viz/adapid.jsx';
+import { Hero, Faq, Compare, Points, LINKS, ACC } from '../../components/ProductKit.jsx';
+import { Connectors, IdentityGraph, RiskScoreCard } from '../../components/viz/adapid.jsx';
 import { NhiWorkbench, AdWorkbench } from '../../components/viz/workbench.jsx';
 import { ScamCatch } from '../../components/viz/fraud.jsx';
 import { IdentityTimelines } from '../../components/Changes.jsx';
-import { STORIES } from '../../data/stories.js';
 
 const p = PRODUCTS.adapid;
 
@@ -78,7 +77,6 @@ export default function Cirm() {
       <Hero glance={[['Protects', 'People and machine identities across your IdP, cloud and SaaS'], ['Stops', 'Account takeover, insider misuse and over-privileged keys'], ['Deploys', 'Read-only connectors; one read-only role per AWS account'], ['Shows', 'A live risk score with the reason for every point']]} layout="stack" acc="adap" crumbs={[{ name: 'Products', path: '/products' }, { name: 'adapID AI' }]} eyebrow="adapID AI · Continuous identity risk management"
         title={<>A live risk score for every identity. <span style={{ color: 'var(--acc)' }}>Acted on the moment it changes.</span></>}
         lead="adapID AI learns how each person normally works across your identity provider, cloud and SaaS, and acts when that changes, before a stolen login becomes a breach.">
-        <div className="mx-auto max-w-[1180px]"><AdapRiskConsole /></div>
       </Hero>
 
       {/* the platform view: every stage CIRM runs on every identity */}
@@ -171,8 +169,6 @@ export default function Cirm() {
           <Reveal delay={80}><Connectors keys={['okta', 'entra', 'ad', 'm365', 'google', 'aws', 'github', 'atlassian', 'salesforce', 'slack']} /></Reveal>
         </div>
       </section>
-
-      <Stats acc="adap" items={p.stats} title="The cost of a login nobody questioned" {...STORIES.cirm} />
       <Faq items={FAQ} />
       <ResearchRow slugs={p.research} title="Blogs on identity attacks" />
       <CtaBand related={[LINKS.zenstra, LINKS.nhi, LINKS.icms]} relatedTitle="Other Deep Algorithms products" accent="adap" title={p.cta.title} body={p.cta.body} />

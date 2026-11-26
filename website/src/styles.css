@@ -207,9 +207,9 @@ main { overflow-x: clip; }
    The L selector is spelt out each time:
      :root:not([data-theme='dark']) :is(.page > :not(.dark, .fixed), .tone-l)
    ========================================================================== */
-/* sections meet edge to edge, as enterprise pages do; --hdr is the fixed header's height (a utility bar sits above the menu from 1024px) */
+/* sections meet edge to edge, as enterprise pages do; --hdr is the fixed header's height */
 :root { --hl: 74%; --sheet-r: 0px; --sheet-x: 0px; --hdr: 64px; }
-@media (min-width: 1024px) { :root { --hdr: 104px; } }
+@media (min-width: 1024px) { :root { --hdr: 72px; } }
 
 @layer base {
   :root:not([data-theme='dark']) :is(.page > :not(.dark, .fixed), .tone-l) {
