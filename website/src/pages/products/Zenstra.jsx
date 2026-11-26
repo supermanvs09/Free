@@ -4,6 +4,7 @@ import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Button, Icon, Reveal, SectionHead } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
+import { ZenDash } from '../../components/dashboards.jsx';
 import { Hero, Rollout, Faq, Compare, Explorer, Explore, LINKS } from '../../components/ProductKit.jsx';
 import { ZenGateway, ZenInventory, ZenGrant, ZenMcp, ZenDetect, ZenRecord } from '../../components/viz/zenstra.jsx';
 import { Logo, logoTitle } from '../../components/viz/kit.jsx';
@@ -12,12 +13,12 @@ import { ZenCompare } from '../../components/Changes.jsx';
 const p = PRODUCTS.zenstra;
 
 const CAPS = [
-  { tab: 'Discover', icon: 'MagnifyingGlass', h: 'Every agent, including the shadow ones', p: 'Custom, third-party and employee-built agents across workflows, cloud and staff devices, in one inventory with an owner, a platform and what each one can reach.', points: ['Copilot Studio, Claude, Cursor, n8n, LangGraph and more', 'Agents with no owner flagged for assignment', 'Ranked by what they can reach'], to: '/agentic-ai/agent-discovery', cta: 'Agent discovery', V: ZenInventory },
-  { tab: 'Scope', icon: 'Fingerprint', h: 'An owner, a job and access that expires', p: 'Each agent gets the narrowest grant for its declared task. When the task ends, so does the access. Renewal needs a person.', points: ['Wildcard roles replaced with task-sized grants', 'Standing keys removed', 'Risk explained in plain language'], to: '/agentic-ai/agent-access', cta: 'Agent identity and access', V: ZenGrant },
-  { tab: 'Enforce', icon: 'ShieldCheck', h: 'Allow, hold or block, before the call runs', p: 'A gateway inside your VPC compares each tool call with the agent’s task, grant and your policy, in milliseconds. High-impact actions wait for a named approver.', points: ['No agent rewrite', 'Payloads never leave your cloud', 'Human approval where it counts'], to: '/agentic-ai/runtime-enforcement', cta: 'Runtime enforcement', V: ZenGateway, props: { compact: true } },
-  { tab: 'MCP', icon: 'PlugsConnected', h: 'Trust MCP servers on purpose', p: 'Allow-list servers and tools per agent, mark unofficial servers, and hold any tool whose definition changes after you approved it.', points: ['Per-agent tool scope', 'Changed tools held with the difference shown', 'Unofficial servers kept out by default'], to: '/agentic-ai/mcp-security', cta: 'MCP security', V: ZenMcp },
-  { tab: 'Detect', icon: 'Pulse', h: 'Misuse of legitimate access, caught', p: 'A baseline per agent for tools, volumes, destinations and timing. When an agent steps outside its task, even with valid credentials, it is contained and its owner gets the evidence.', points: ['Beyond what an access check allows', 'Containment by policy', 'Evidence attached'], to: '/agentic-ai/detection-response', cta: 'Detection and response', V: ZenDetect },
-  { tab: 'Prove', icon: 'ClipboardText', h: 'A record an auditor can read', p: 'Agent, task, policy and outcome on one line, chained so that any edit or gap shows. Export evidence for SOC 2, ISO/IEC 42001 and DPDPA reviews.', points: ['Tamper-evident chain', 'Policy version on every decision', 'PDF and CSV export'], to: '/agentic-ai/decision-record', cta: 'Decision record', V: ZenRecord },
+  { tab: 'Discover', icon: 'MagnifyingGlass', h: 'Every agent, including the shadow ones', p: 'Every agent, built or bought, in one inventory with an owner.', points: ['Copilot Studio, Claude, Cursor, n8n, LangGraph and more', 'Agents with no owner flagged for assignment', 'Ranked by what they can reach'], to: '/agentic-ai/agent-discovery', cta: 'Agent discovery', V: ZenInventory },
+  { tab: 'Scope', icon: 'Fingerprint', h: 'An owner, a job and access that expires', p: 'The narrowest grant for each task. When the task ends, so does the access.', points: ['Wildcard roles replaced with task-sized grants', 'Standing keys removed', 'Risk explained in plain language'], to: '/agentic-ai/agent-access', cta: 'Agent identity and access', V: ZenGrant },
+  { tab: 'Enforce', icon: 'ShieldCheck', h: 'Allow, hold or block, before the call runs', p: 'A gateway in your VPC checks each tool call against task, grant and policy in milliseconds.', points: ['No agent rewrite', 'Payloads never leave your cloud', 'Human approval where it counts'], to: '/agentic-ai/runtime-enforcement', cta: 'Runtime enforcement', V: ZenGateway, props: { compact: true } },
+  { tab: 'MCP', icon: 'PlugsConnected', h: 'Trust MCP servers on purpose', p: 'Approved servers and tools per agent. Any changed tool definition is held.', points: ['Per-agent tool scope', 'Changed tools held with the difference shown', 'Unofficial servers kept out by default'], to: '/agentic-ai/mcp-security', cta: 'MCP security', V: ZenMcp },
+  { tab: 'Detect', icon: 'Pulse', h: 'Misuse of legitimate access, caught', p: 'A baseline per agent. Step outside the task, even with valid credentials, and it is contained.', points: ['Beyond what an access check allows', 'Containment by policy', 'Evidence attached'], to: '/agentic-ai/detection-response', cta: 'Detection and response', V: ZenDetect },
+  { tab: 'Prove', icon: 'ClipboardText', h: 'A record an auditor can read', p: 'Agent, task, policy and outcome on one tamper-evident line. Ready for SOC 2, ISO/IEC 42001 and DPDPA.', points: ['Tamper-evident chain', 'Policy version on every decision', 'PDF and CSV export'], to: '/agentic-ai/decision-record', cta: 'Decision record', V: ZenRecord },
 ];
 
 const FAQ = [
@@ -79,18 +80,19 @@ export default function Zenstra() {
   return (
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'Zenstra AI', path: p.path }]} />
-      <Hero glance={[['Protects', 'AI agents you build and the ones you buy'], ['Stops', 'Any action outside an agent’s task, before it runs'], ['Deploys', 'A gateway inside your VPC'], ['Shows', 'A tamper-evident record of every decision']]} acc="zen" crumbs={[{ name: 'Products', path: '/products' }, { name: 'Zenstra AI' }]} eyebrow="Zenstra AI · Security for AI agents"
-        title={<>Let AI agents act. <span style={{ color: 'var(--acc)' }}>Check every action first.</span></>}
-        lead="Zenstra finds every AI agent and MCP server in your enterprise, gives each one an owner and access sized to its task, and decides every tool call before it runs."
+      <Hero layout="stack" glance={[['Protects', 'AI agents you build and the ones you buy'], ['Stops', 'Any action outside an agent’s task, before it runs'], ['Deploys', 'A gateway inside your VPC'], ['Shows', 'A tamper-evident record of every decision']]} acc="zen" crumbs={[{ name: 'Products', path: '/products' }, { name: 'Zenstra AI' }]} eyebrow="Zenstra AI · Security for AI agents"
+        title={<>Let AI agents act. Check every action first.</>}
+        lead="Find every AI agent, give it an owner and a scope, and check every tool call before it runs."
         ctas={<><Explore label="See it check an agent" /><Button href="https://www.zenstra.ai" target="_blank" rel="noopener" variant="ghost" size="lg">Visit zenstra.ai<Icon name="ArrowUpRight" size={16} /></Button></>}
         note="One platform for copilots, cloud agents, workflow automations, coding agents and MCP servers.">
+        <ZenDash />
       </Hero>
 
       {/* controlled access: every agent tied to a person, every grant scoped */}
       <section className="sec" aria-labelledby="where-h">
         <div className="wrap">
           <div className="island tone-d px-4 py-14 md:px-10 md:py-20">
-            <SectionHead id="where-h" eyebrow="Controlled access" title="Agent security starts with an owner and a scope." lead="Zenstra ties every agent to the person it acts for, maps every credential it holds, and narrows each grant to the task in front of it." />
+            <SectionHead id="where-h" eyebrow="Controlled access" title="Agent security starts with an owner and a scope." lead="Every agent tied to its owner, with access narrowed to its task." />
             <ul className="mx-auto mt-8 grid max-w-[880px] gap-3 text-[15px] text-white/85 md:grid-cols-3">
               {['Every agent has a named owner who answers for it.', 'Every credential is mapped to the systems it reaches.', 'Every grant is scoped to the task and expires on its own.'].map((t) => <li key={t} className="flex gap-2.5"><Icon name="CheckCircle" size={18} weight="fill" className="mt-0.5 shrink-0 text-[#4fb3f6]" />{t}</li>)}
             </ul>
@@ -102,7 +104,7 @@ export default function Zenstra() {
       {/* the console: every agent with an identity, an owner and a scope */}
       <section className="sec pt-0" aria-labelledby="con-h">
         <div className="wrap">
-          <SectionHead id="con-h" acc="var(--color-zen)" eyebrow="The agent console" title="Treat every AI agent like the employee it acts as." lead="An identity, an owner, a scope and a record, from the day an agent is created to the day it is retired." />
+          <SectionHead id="con-h" acc="var(--color-zen)" eyebrow="The agent console" title="Treat every AI agent like the employee it acts as." lead="Identity, owner, scope and record, from creation to retirement." />
           <Reveal up className="mx-auto mt-14 max-w-[1080px]"><AgentConsole /></Reveal>
         </div>
       </section>
@@ -189,9 +191,9 @@ export default function Zenstra() {
         </div>
       </section>
       <Rollout acc="zen" lead="Discover first, then scope, then enforce. No agent is rewritten." steps={[
-          { when: 'Day 1', h: 'Discover every agent', p: 'Read-only connections to your platforms and devices find every agent, copilot and MCP server, with its owner.' },
-          { when: 'Week 1', h: 'Owner and scope', p: 'Each agent is tied to the person it acts for, with access sized to its task.' },
-          { when: 'Week 2 onwards', h: 'Enforce in your VPC', p: 'The gateway checks every tool call before it runs. High-impact actions wait for a named approver.' },
+          { when: 'Day 1', h: 'Discover every agent', p: 'Every agent, copilot and MCP server, with its owner.' },
+          { when: 'Week 1', h: 'Owner and scope', p: 'Access sized to each agent’s task.' },
+          { when: 'Week 2 onwards', h: 'Enforce in your VPC', p: 'Every tool call checked before it runs.' },
         ]} />
       <Faq items={FAQ} />
       <ResearchRow slugs={p.research} title="Blogs on AI agent security" />

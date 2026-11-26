@@ -4,6 +4,7 @@ import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, Check3 } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
+import { AdDash } from '../../components/dashboards.jsx';
 import { Hero, Rollout, Faq, LINKS, ACC } from '../../components/ProductKit.jsx';
 import { AdWorkbench } from '../../components/viz/workbench.jsx';
 import { Gl } from '../../components/viz/kit.jsx';
@@ -33,14 +34,15 @@ export default function AdSecurity() {
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Active Directory Security', path: p.path }]} />
       <Hero glance={[['Protects', 'Active Directory: users, groups, service accounts and trusts'], ['Stops', 'Paths to Domain Admins, Kerberoasting and DCSync'], ['Deploys', 'Read-only to map; scoped rights only for the responses you enable'], ['Shows', 'The one change that closes the most paths']]} layout="stack" acc="adap" crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Active Directory Security' }]} eyebrow="adapID AI · Active Directory Security"
         title={<>Cut every route to Domain Admins. Stop anyone already on one.</>}
-        lead="adapID maps every account, group, delegation and trust in Active Directory, ranks the paths to Tier 0 and names the one change that closes the most. If someone tries a path anyway, Kerberoasting, DCSync and pass-the-hash are contained by your policy in seconds.">
+        lead="adapID maps every path to Tier 0, names the one change that closes the most, and contains live attacks while they run.">
+        <AdDash />
       </Hero>
 
       {/* how it sits: between your identities and Tier 0 */}
       <section className="sec" aria-labelledby="how-h">
         <div className="wrap">
           <div className="island tone-d px-4 py-14 md:px-10 md:py-20">
-            <SectionHead id="how-h" eyebrow="How it works" title="One layer between your users and your domain controllers." lead="Map the paths, remove the weak access behind them, and contain live abuse before it reaches Tier 0, in one product." />
+            <SectionHead id="how-h" eyebrow="How it works" title="One layer between your users and your domain controllers." lead="Map the paths. Remove the weak access. Contain live abuse." />
             <Reveal up className="mx-auto mt-14 max-w-[1120px]"><ItdrFlow /></Reveal>
   </div>
         </div>
@@ -48,7 +50,7 @@ export default function AdSecurity() {
 
       <section className="sec" aria-labelledby="tech-h">
         <div className="wrap">
-          <SectionHead id="tech-h" acc={A} eyebrow="Live detection" title="Directory attacks, stopped while they run." lead="Every identity is baselined across Kerberos, NTLM and LDAP. When one does something it never does, the response runs automatically. Five of the techniques it contains:" />
+          <SectionHead id="tech-h" acc={A} eyebrow="Live detection" title="Directory attacks, stopped while they run." lead="Baselined across Kerberos, NTLM and LDAP. Responses run automatically." />
           <div className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
             {TECH.map(([t, d, r], i) => (
               <Reveal key={t} delay={i * 70} className="card flex flex-col p-6">
@@ -64,7 +66,7 @@ export default function AdSecurity() {
 
       <section className="stage sec" aria-labelledby="fix-h">
         <div className="wrap">
-          <SectionHead id="fix-h" acc={A} eyebrow="Two ways to act" title="Fix what is exposed. Contain what is active." lead="Posture and detection work from the same map, so each fix closes a real path and each alert shows the path it was on." />
+          <SectionHead id="fix-h" acc={A} eyebrow="Two ways to act" title="Fix what is exposed. Contain what is active." lead="One map for posture and detection. Every fix closes a real path." />
           <div className="mt-12 grid gap-5 md:grid-cols-2">
             <Reveal className="card p-7 md:p-9">
               <span className="inline-flex h-12 w-12 items-center justify-center rounded-[14px] bg-adap/12 text-adap"><Gl g="tree" className="h-6 w-6" /></span>
@@ -85,14 +87,14 @@ export default function AdSecurity() {
 
       <section className="sec" aria-labelledby="as-h">
         <div className="wrap">
-          <SectionHead id="as-h" acc={A} eyebrow="Attack path assessment" title="Your attack paths, ranked, in a single assessment." lead="Read-only mapping of users, groups, service accounts, GPOs and trusts, then a fix list ranked by how many paths each change closes, checked for business impact before you touch anything." />
+          <SectionHead id="as-h" acc={A} eyebrow="Attack path assessment" title="Your attack paths, ranked, in a single assessment." lead="Read-only mapping, then a fix list ranked by the paths each change closes." />
           <Reveal up className="mx-auto mt-12 max-w-[920px]"><AdWorkbench /></Reveal>
         </div>
       </section>
       <Rollout acc="adap" lead="Read-only to map. Containment only for the responses you choose to enable." steps={[
-          { when: 'Day 1', h: 'Map the directory', p: 'Users, groups, computers, service accounts, GPOs and trusts, read-only, with nothing installed on domain controllers.' },
-          { when: 'Week 1', h: 'A ranked fix list', p: 'Every path to Tier 0, ordered by reach, with the one change that closes the most, checked for business impact.' },
-          { when: 'Week 2 onwards', h: 'Contain live abuse', p: 'Kerberoasting, DCSync and pass-the-hash contained by your policy, every action logged with its evidence.' },
+          { when: 'Day 1', h: 'Map the directory', p: 'Read-only. Nothing installed on domain controllers.' },
+          { when: 'Week 1', h: 'A ranked fix list', p: 'Every path to Tier 0, ranked by reach.' },
+          { when: 'Week 2 onwards', h: 'Contain live abuse', p: 'Kerberoasting, DCSync and pass-the-hash contained by policy.' },
         ]} />
       <Faq items={FAQ} />
       <ResearchRow slugs={p.research} />

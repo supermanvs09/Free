@@ -35,7 +35,8 @@ test.describe('phone layout', () => {
   test('long pages get a bar of their sections that jumps to each', async ({ page }) => {
     await page.goto('/dpdpa-compliance');
     await hydrated(page);
-    await page.evaluate(() => window.scrollTo(0, innerHeight * 1.6));
+    // the bar arrives with the first section, past the hero and its dashboard
+    await page.evaluate(() => window.scrollTo(0, document.querySelector('main h2[id]').getBoundingClientRect().top + scrollY - 100));
     const jump = page.getByRole('navigation', { name: 'On this page' });
     await expect(jump).toBeVisible();
     await jump.getByRole('button', { name: 'FAQ' }).click();

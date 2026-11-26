@@ -6,6 +6,7 @@ import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, cx } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
+import { NhiDash } from '../../components/dashboards.jsx';
 import { Hero, Rollout, Faq, LINKS, ACC } from '../../components/ProductKit.jsx';
 import { NhiMap } from '../../components/viz/nhimap.jsx';
 import { NhiWorkbench } from '../../components/viz/workbench.jsx';
@@ -151,11 +152,16 @@ export default function Nhi() {
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'NHI Security for AWS', path: p.path }]} />
       <Hero glance={[['Protects', 'IAM roles, keys and workload identities in AWS'], ['Stops', 'Unused permissions, open trust policies, leaked secrets'], ['Deploys', 'One read-only role per AWS account'], ['Shows', 'The least-privilege fix, checked against CloudTrail']]} acc="adap" crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'NHI Security for AWS' }]} eyebrow="adapID AI · NHI Security for AWS"
-        title={<>Every machine identity in your AWS accounts. <span style={{ color: 'var(--acc)' }}>Found, scored, watched.</span></>}
-        lead="Machine identities far outnumber people, and most were created by a deploy, not by a decision. adapID finds each role, key and workload identity, shows what it can reach and what it actually uses, and catches the one that starts behaving differently."
+        title={<>Every machine identity in your AWS accounts. Found, scored, watched.</>}
+        lead="Find every role, key and workload identity in AWS, see what each one really uses, and apply the least-privilege fix with confidence."
         note="Agentless. One read-only role per account.">
         <NhiMap />
       </Hero>
+
+      {/* the posture screen: what a security team opens first */}
+      <section className="sec pt-0" aria-label="NHI Security dashboard">
+        <div className="wrap max-w-[1180px]"><NhiDash /></div>
+      </section>
 
       <section className="sec" aria-labelledby="on-h">
         <div className="wrap grid gap-12 lg:grid-cols-[1fr_1fr] lg:gap-16">
@@ -184,7 +190,7 @@ export default function Nhi() {
       <section className="sec" aria-labelledby="lin-h">
         <div className="wrap">
           <div className="island tone-d px-4 py-14 md:px-10 md:py-20">
-            <SectionHead id="lin-h" eyebrow="Lineage" title="Every key has a history. adapID reads all of it." lead="Who created it, where it is stored, what uses it and what it can reach, on one line. So you know what breaks before you rotate, and who to ask." />
+            <SectionHead id="lin-h" eyebrow="Lineage" title="Every key has a history. adapID reads all of it." lead="Creator, storage, consumers and reach on one line. Know what breaks before you rotate." />
             <Reveal up className="mx-auto mt-14 max-w-[1120px]"><KeyLineage /></Reveal>
   </div>
         </div>
@@ -192,14 +198,14 @@ export default function Nhi() {
 
       <section className="sec" aria-labelledby="wb-h">
         <div className="wrap grid items-center gap-12 lg:grid-cols-[.75fr_1.25fr] lg:gap-16">
-          <SectionHead align="left" id="wb-h" acc={A} eyebrow="One view per identity" title="What it is, what it reaches, why it is risky, and the fix." lead="Every machine identity gets an owner, a risk level and a usage score. Open one to see its graph, the findings behind its risk and the remediation, applied with approval." />
+          <SectionHead align="left" id="wb-h" acc={A} eyebrow="One view per identity" title="What it is, what it reaches, why it is risky, and the fix." lead="An owner, a risk level and a usage score for every machine identity." />
           <Reveal delay={100}><NhiWorkbench /></Reveal>
         </div>
       </section>
 
       <section className="sec" aria-labelledby="gu-h">
         <div className="wrap">
-          <SectionHead id="gu-h" acc={A} eyebrow="Posture and access" title="Granted is not the same as used." lead="Each identity is scored from 100 down by the checks it fails. The access graph shows who can assume what, and 90 days of CloudTrail show what is actually used." />
+          <SectionHead id="gu-h" acc={A} eyebrow="Posture and access" title="Granted is not the same as used." lead="90 days of CloudTrail show what each identity actually uses." />
           <Reveal className="mx-auto mt-14 max-w-[900px]"><GrantBars /></Reveal>
         </div>
       </section>
@@ -227,9 +233,9 @@ export default function Nhi() {
         </div>
       </section>
       <Rollout acc="adap" lead="One read-only role per AWS account. No agents, nothing installed on your workloads." steps={[
-          { when: 'Day 1', h: 'Connect your accounts', p: 'Deploy one read-only role per account with the trust policy we provide. The first inventory arrives within minutes.' },
-          { when: 'Week 1', h: 'Inventory and posture', p: 'Every role, key and workload identity with an owner, a posture score and what it actually uses.' },
-          { when: 'Week 2 onwards', h: 'Fix and watch', p: 'Least-privilege fixes checked against CloudTrail and applied with approval. Baselines catch the identity that changes.' },
+          { when: 'Day 1', h: 'Connect your accounts', p: 'One read-only role per account. Inventory in minutes.' },
+          { when: 'Week 1', h: 'Inventory and posture', p: 'Every identity with an owner, a score and real usage.' },
+          { when: 'Week 2 onwards', h: 'Fix and watch', p: 'Least-privilege fixes, applied with approval.' },
         ]} />
       <Faq items={FAQ} />
       <ResearchRow slugs={p.research} />

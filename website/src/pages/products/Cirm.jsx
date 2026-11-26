@@ -4,6 +4,7 @@ import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, cx } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
+import { CirmDash } from '../../components/dashboards.jsx';
 import { Hero, Rollout, Faq, Compare, Points, LINKS, ACC } from '../../components/ProductKit.jsx';
 import { Connectors } from '../../components/viz/adapid.jsx';
 import { IdentityTimelines } from '../../components/Changes.jsx';
@@ -66,14 +67,15 @@ export default function Cirm() {
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'adapID AI', path: p.path }]} />
       <Hero glance={[['Protects', 'People and machine identities across your IdP, cloud and SaaS'], ['Stops', 'Account takeover, insider misuse and over-privileged keys'], ['Deploys', 'Read-only to assess; scoped permissions only for the actions you enable'], ['Shows', 'A live risk score with the reason for every point']]} layout="stack" acc="adap" crumbs={[{ name: 'Products', path: '/products' }, { name: 'adapID AI' }]} eyebrow="adapID AI · Continuous identity risk management"
         title={<>Know the moment a trusted identity stops acting like itself.</>}
-        lead="adapID learns how every person and service account normally works across your identity provider, cloud and SaaS. When behaviour shifts, your policy steps up, holds or revokes access in seconds, and every decision comes with its reason.">
+        lead="adapID learns how every person and service account normally works, and acts the moment behaviour shifts: step up, hold or revoke, in seconds.">
+        <CirmDash />
       </Hero>
 
       {/* the platform view: every stage CIRM runs on every identity */}
       <section className="sec" aria-labelledby="pipe-h">
         <div className="wrap">
           <div className="island tone-d px-4 py-14 md:px-10 md:py-20">
-            <SectionHead id="pipe-h" eyebrow="One platform view" title="From first signal to contained session, on every identity." lead="Discover, baseline, score, explain, step up, contain and record run on every identity all the time, not as a nightly report. Pick a stage to see what happens there." />
+            <SectionHead id="pipe-h" eyebrow="One platform view" title="From first signal to contained session, on every identity." lead="Continuous, on every identity. Not a nightly report." />
             <Reveal up className="mx-auto mt-12 max-w-[1120px]"><CirmPipeline /></Reveal>
           </div>
         </div>
@@ -81,7 +83,7 @@ export default function Cirm() {
 
       <section className="sec" aria-labelledby="itdr-h">
         <div className="wrap">
-          <SectionHead id="itdr-h" acc={ACC.adap} eyebrow="Continuous identity risk management" title="Detection raises an alert. Risk management changes the outcome." lead="Most identity tools tell the SOC an attack is under way. adapID acts on the session itself, at the first sign of risk, through controls you already run." />
+          <SectionHead id="itdr-h" acc={ACC.adap} eyebrow="Continuous identity risk management" title="Detection raises an alert. Risk management changes the outcome." lead="adapID acts on the session itself, through the controls you already run." />
           <Reveal className="mt-12">
             <Compare acc="adap" caption="adapID CIRM compared with SIEM rules and ITDR" cols={['SIEM rules', 'ITDR', 'adapID CIRM']} rows={[
               ['When it acts', 'After an alert', 'After detection', 'Continuously, before misuse'],
@@ -96,14 +98,14 @@ export default function Cirm() {
 
       <section className="sec" aria-labelledby="chg-h">
         <div className="wrap">
-          <SectionHead align="left" id="chg-h" acc={ACC.adap} eyebrow="What changes" title="The same stolen password. Two endings." lead="Password and MFA both pass. In one ending the attacker has 47 days. In the other, the session is held within a second." />
+          <SectionHead align="left" id="chg-h" acc={ACC.adap} eyebrow="What changes" title="The same stolen password. Two endings." lead="Password and MFA both pass. One ending gives the attacker 47 days. The other, one second." />
           <div className="mt-12"><IdentityTimelines /></div>
         </div>
       </section>
 
       <section className="sec" aria-labelledby="sig-h">
         <div className="wrap">
-          <SectionHead align="left" id="sig-h" acc={ACC.adap} eyebrow="How the score is built" title="Passing MFA is not proof. Behaviour is." lead="Each identity is scored against its own normal: hours, apps, devices, privilege and its role from HR. Anything that departs from it raises the score, and every point shows its reason." />
+          <SectionHead align="left" id="sig-h" acc={ACC.adap} eyebrow="How the score is built" title="Passing MFA is not proof. Behaviour is." lead="Every identity scored against its own normal. Every point shows its reason." />
           <div className="mt-12"><Points items={SIGNALS} acc="adap" /></div>
         </div>
       </section>
@@ -126,9 +128,9 @@ export default function Cirm() {
         </div>
       </section>
       <Rollout acc="adap" lead="Connected on day one, enforcing by policy within weeks. Every step is reviewed with our engineers." steps={[
-          { when: 'Day 1', h: 'Connect', p: 'Your identity provider, cloud and SaaS, read-only. Scoring starts the same day, with transfer learning.' },
-          { when: 'Week 1', h: 'Review the riskiest', p: 'Every person and service account scored. Our engineers walk through the identities that matter most, with you.' },
-          { when: 'Week 2 onwards', h: 'Enforce by policy', p: 'Switch on step-up, hold and revoke for the thresholds you choose, through the controls you already run.' },
+          { when: 'Day 1', h: 'Connect', p: 'IdP, cloud and SaaS, read-only. Scoring starts the same day.' },
+          { when: 'Week 1', h: 'Review the riskiest', p: 'The riskiest identities reviewed with our engineers.' },
+          { when: 'Week 2 onwards', h: 'Enforce by policy', p: 'Step-up, hold and revoke at your thresholds.' },
         ]} />
       <Faq items={FAQ} />
       <ResearchRow slugs={p.research} title="Blogs on identity attacks" />

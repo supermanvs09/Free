@@ -4,6 +4,7 @@ import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, cx } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
+import { IcmsDash } from '../../components/dashboards.jsx';
 import { Hero, Rollout, Faq, Split, LINKS, ACC } from '../../components/ProductKit.jsx';
 import { AuditorQuestions } from '../../components/Changes.jsx';
 
@@ -52,10 +53,11 @@ export default function Icms() {
   return (
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'ICMS Compliance Suite', path: p.path }]} />
-      <Hero glance={[['Protects', 'PII and sensitive personal data, where it already lives'], ['Stops', 'Access without consent or a lawful purpose'], ['Deploys', 'Connected to your data stores and identity sources'], ['Shows', 'DPDPA evidence, ready for the 72-hour breach report']]} acc="icms" crumbs={[{ name: 'Products', path: '/products' }, { name: 'ICMS Compliance Suite' }]} eyebrow="ICMS Compliance Suite · DPDPA"
-        title={<>Protect every piece of PII. <span style={{ color: 'var(--acc)' }}>Prove DPDPA compliance.</span></>}
-        lead="ICMS finds the PII your organisation holds, from Aadhaar and PAN to account numbers and health records, masks it where it should not be seen, checks every access against purpose and consent, and keeps the evidence an auditor asks for."
+      <Hero layout="stack" glance={[['Protects', 'PII and sensitive personal data, where it already lives'], ['Stops', 'Access without consent or a lawful purpose'], ['Deploys', 'Connected to your data stores and identity sources'], ['Shows', 'DPDPA evidence, ready for the 72-hour breach report']]} acc="icms" crumbs={[{ name: 'Products', path: '/products' }, { name: 'ICMS Compliance Suite' }]} eyebrow="ICMS Compliance Suite · DPDPA"
+        title={<>Protect every piece of PII. Prove DPDPA compliance.</>}
+        lead="Find PII wherever it lives, check every access against consent and purpose, and keep DPDPA evidence ready at all times."
         note="For customer data, patient records and employee data.">
+        <IcmsDash />
       </Hero>
 
       <section className="sec" aria-labelledby="duty-h">
@@ -85,9 +87,9 @@ export default function Icms() {
         </div>
       </section>
 
-      <Split id="discover" acc="icms" eyebrow="PII discovery and classification" title="Find every piece of PII, even where it should not be." lead="Databases, buckets, warehouses and shared drives scanned and classified: Aadhaar, PAN, phone numbers, account numbers, health records. Each store gets an owner, and PII outside its approved place is flagged." />
-      <Split id="consent" acc="icms" eyebrow="Purpose and consent" title="Who touched what, and why." lead="Every access is linked to an identity and checked against its declared purpose and the principal’s consent. Access outside consent is flagged the moment it happens." />
-      <Split id="breach" acc="icms" eyebrow="Breach response" title="Inside the 72 hours, with evidence in hand." lead="When a breach happens, ICMS scopes the affected records and data principals and drafts the report from evidence it already holds." />
+      <Split id="discover" acc="icms" eyebrow="PII discovery and classification" title="Find every piece of PII, even where it should not be." lead="Aadhaar, PAN, account numbers and health records, found and classified in every store." />
+      <Split id="consent" acc="icms" eyebrow="Purpose and consent" title="Who touched what, and why." lead="Every access checked against purpose and consent, the moment it happens." />
+      <Split id="breach" acc="icms" eyebrow="Breach response" title="Inside the 72 hours, with evidence in hand." lead="Affected records scoped and the report drafted from evidence already held." />
 
       <section className="sec" aria-labelledby="chg-h">
         <div className="wrap">
@@ -112,9 +114,9 @@ export default function Icms() {
         </div>
       </section>
       <Rollout acc="icms" lead="From connection to audit-ready evidence, without moving your data." steps={[
-          { when: 'Week 1', h: 'Connect', p: 'Your data stores and identity sources. PII is discovered and classified where it already lives.' },
-          { when: 'Week 2', h: 'Owners and purpose', p: 'Each store gets an owner, and every access is checked against its declared purpose and the principal’s consent.' },
-          { when: 'Week 3 onwards', h: 'Evidence on demand', p: 'Audit packages for DPDPA, RBI and SEBI assembled continuously, ready for the 72-hour breach window.' },
+          { when: 'Week 1', h: 'Connect', p: 'PII discovered where it already lives.' },
+          { when: 'Week 2', h: 'Owners and purpose', p: 'Every store owned. Every access checked.' },
+          { when: 'Week 3 onwards', h: 'Evidence on demand', p: 'DPDPA, RBI and SEBI packages, always current.' },
         ]} />
       <Faq items={FAQ} />
       <ResearchRow slugs={p.research} />

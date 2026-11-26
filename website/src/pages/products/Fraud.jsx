@@ -5,6 +5,7 @@ import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, Tabs } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
 import FraudPhone from './FraudPhone.jsx';
+import { FraudDash } from '../../components/dashboards.jsx';
 import { Hero, Rollout, Faq, Points, LINKS, ACC } from '../../components/ProductKit.jsx';
 
 /* Identity Fraud Prevention: one platform for mobile and internet banking, from
@@ -43,21 +44,21 @@ function Versus() {
 
 /* mobile banking: one phone, five capabilities */
 const MOBILE = [
-  { key: 'biometrics', tab: 'Behavioural biometrics', gap: 'A fraudster with the customer’s password and OTP looks exactly like the customer.',
-    how: ['Our SDK measures how the customer types, taps, holds and moves the phone, never what they type.', 'It learns each customer’s own normal from their first sessions.', 'Every new session is compared with that profile, and a risk score from 0 to 100 comes back in real time, with the reasons.'],
-    result: 'Account takeover is caught even when the password and OTP are correct, with no extra step for genuine customers.' },
-  { key: 'totp', tab: 'Silent TOTP', gap: 'SMS OTPs are phished, forwarded by malware and stolen through SIM swaps.',
-    how: ['The customer’s phone is registered and bound to the account once.', 'A one-time code is generated silently on that phone.', 'The platform verifies the code over an encrypted channel.'],
-    result: 'No SMS to intercept, and nothing for the customer to type.' },
-  { key: 'face', tab: 'Face verification', gap: 'High-risk actions need proof that the real customer is present.',
-    how: ['Face verification runs only at high-risk moments, such as a new device or a large payment.', 'Every attempt is logged with the session.'],
+  { key: 'biometrics', tab: 'Behavioural biometrics', gap: 'A stolen password and OTP look exactly like the customer.',
+    how: ['Learns how each customer types, taps and holds the phone, never what they type.', 'Scores every session against that profile, with the reasons.'],
+    result: 'Takeover caught even when the password and OTP are right.' },
+  { key: 'totp', tab: 'Silent TOTP', gap: 'SMS OTPs are phished, forwarded and stolen through SIM swaps.',
+    how: ['The phone is bound to the account once.', 'A one-time code is generated and verified silently, over an encrypted channel.'],
+    result: 'No SMS to intercept. Nothing for the customer to type.' },
+  { key: 'face', tab: 'Face verification', gap: 'High-risk moments need proof the real customer is present.',
+    how: ['Runs only when risk is high: a new device, a large payment.', 'Every attempt is logged with the session.'],
     result: 'Strong proof of presence, only when it matters.' },
-  { key: 'rasp', tab: 'Device security', gap: 'Fraudsters watch or control the customer’s phone through malware and remote-access apps.',
-    how: ['The app checks the device continuously during the session.', 'It detects remote control (screen sharing, overlays), malware (banking trojans, SMS forwarders), tampering (rooting, hooking, cloned apps) and fake devices (emulators, failed attestation).', 'The bank’s policy decides the response: log, warn or block.'],
-    result: 'The banking session runs only on a safe device.' },
-  { key: 'scam', tab: 'Scam signals', gap: 'In a payment scam the real customer is paying, coached by a fraudster on the phone. Identity checks pass.',
-    how: ['We collect evidence around the payment: behaviour (bursts of typing, long pauses), device (a call during the payment, a pasted account number), security (remote access, mule lists, SIM swap) and history (an unusual amount, a new payee).', 'Each piece adds points by how strongly it points to a scam, giving a scam risk score from 0 to 100.', 'The analyst sees the suspected scam type and why every point was added.'],
-    result: 'Scams are stopped before the money leaves, with a clear reason for every hold.' },
+  { key: 'rasp', tab: 'Device security', gap: 'Malware and remote-access apps let fraudsters drive the customer’s phone.',
+    how: ['Checks for screen sharing, overlays, rooting, hooking and emulators, all session long.', 'Your policy decides: log, warn or block.'],
+    result: 'Banking runs only on a safe device.' },
+  { key: 'scam', tab: 'Scam signals', gap: 'In a scam, the real customer pays. Identity checks pass.',
+    how: ['Reads the evidence around the payment: a live call, a pasted account, a new payee.', 'Each signal adds points, with the reason the analyst sees.'],
+    result: 'The money stays until the customer is safe.' },
 ];
 
 function MobileCaps() {
@@ -81,8 +82,8 @@ function MobileCaps() {
 }
 
 const WEB = [
-  { icon: 'CursorClick', h: 'Behavioural biometrics on the web', p: 'Internet banking credentials are the most phished in banking. Our web SDK learns each customer’s typing and mouse behaviour and scores every login against it, so stolen credentials alone are not enough.' },
-  { icon: 'Gauge', h: 'Risk-based step-up and trusted devices', p: 'Below the bank’s threshold the customer continues with no OTP; above it, a step-up check, logged for review. The bank sets the thresholds for desktop and mobile web, the extra factors and each customer’s trusted devices.' },
+  { icon: 'CursorClick', h: 'Behavioural biometrics on the web', p: 'Typing and mouse behaviour scored at every login. Stolen credentials alone no longer get in.' },
+  { icon: 'Gauge', h: 'Risk-based step-up', p: 'Low risk: no OTP. High risk: a step-up, logged. Your thresholds, your trusted devices.' },
 ];
 
 const TXN = [
@@ -92,32 +93,7 @@ const TXN = [
   { icon: 'UserCircle', h: 'New-customer scoring', p: 'Customers with little history protected by comparing them with their peers.' },
 ];
 
-const CASE = [
-  ['Alert', 'A held payment or a risky login'],
-  ['Case created', 'With the score and every reason attached'],
-  ['Analyst reviews', 'Calls the customer, decides, records why'],
-];
-
-function CaseFlow() {
-  return (
-    <ol className="relative space-y-3">
-      {CASE.map(([h, s], i) => (
-        <Reveal as="li" key={h} delay={i * 70} className="card flex items-center gap-4 p-4">
-          <span className="num grid h-9 w-9 shrink-0 place-items-center rounded-full text-[14px] font-semibold" style={{ background: `color-mix(in oklab, ${A} 14%, transparent)`, color: A }}>{i + 1}</span>
-          <span><span className="block text-[16px] font-semibold">{h}</span><span className="block text-[14px] text-ink-3">{s}</span></span>
-        </Reveal>
-      ))}
-      <Reveal as="li" delay={220} className="grid gap-3 sm:grid-cols-2">
-        <span className="card flex items-start gap-3 p-4"><Icon name="CheckCircle" size={20} className="mt-[2px] shrink-0 text-ok" /><span><span className="block text-[15px] font-semibold">Resolved in time</span><span className="block text-[13.5px] text-ink-3">Closed with the decision on record</span></span></span>
-        <span className="card flex items-start gap-3 p-4"><Icon name="ArrowUpRight" size={20} className="mt-[2px] shrink-0 text-warn" /><span><span className="block text-[15px] font-semibold">Not resolved in time</span><span className="block text-[13.5px] text-ink-3">Escalated to L2, then L3, then closed</span></span></span>
-      </Reveal>
-      <Reveal as="li" delay={280} className="card flex items-center gap-4 p-4">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-ink-2" style={{ background: 'color-mix(in oklab, var(--color-fg) 6%, transparent)' }}><Icon name="FileText" size={18} /></span>
-        <span><span className="block text-[16px] font-semibold">Reports</span><span className="block text-[14px] text-ink-3">Every alert with an owner, a decision and a record</span></span>
-      </Reveal>
-    </ol>
-  );
-}
+const CASE = [['Alert', 'Held payment or risky login'], ['Case', 'Score and reasons attached'], ['Decision', 'Recorded, escalated on SLA']];
 
 function Explanation() {
   return (
@@ -132,7 +108,6 @@ function Explanation() {
         <span className="text-ink-3">Score</span><span className="num font-semibold text-ink">26</span><Icon name="ArrowRight" size={14} className="text-ink-3" /><span className="num font-semibold" style={{ color: '#a86400' }}>35</span>
         <span className="ml-2 rounded-full border border-line-2 px-2.5 py-0.5 text-[13px] text-ink-2">Low → Medium</span>
       </div>
-      <p className="mt-6 text-[14.5px] leading-relaxed text-ink-3">The bank can explain every decision to the customer, to management and to regulators.</p>
     </div>
   );
 }
@@ -155,20 +130,21 @@ export default function Fraud() {
       <Hero glance={[['Protects', 'Mobile banking, internet banking and UPI'], ['Stops', 'Account takeover, payment scams and mule accounts'], ['Deploys', 'An SDK in your app and on your web channel'], ['Shows', 'Every decision in under 80 ms, with its reason']]} acc="adap" crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Identity Fraud Prevention' }]} eyebrow="adapID AI · Identity Fraud Prevention"
         title={<>Stop takeover, scams and mule payments before money moves.</>}
         layout="stack"
-        lead="One SDK in your mobile app and internet banking reads the customer's behaviour, the device and the payment together. Within 80 ms it tells you whether the session is really them, and whether the decision is really theirs, with a reason you can show the customer and the regulator."
+        lead="One SDK reads the customer, the device and the payment together, and decides in under 80 ms, with a reason you can show the regulator."
         note="Mobile banking, internet banking and UPI. Built for RBI's 2025 authentication directions.">
+        <FraudDash />
       </Hero>
 
       <section className="sec" aria-labelledby="gap-h">
         <div className="wrap">
-          <SectionHead align="left" id="gap-h" acc={A} eyebrow="What is different" title="Rules judge the payment. adapID judges the person making it." lead="Four questions to ask of any fraud stack, and how the answers change." />
+          <SectionHead align="left" id="gap-h" acc={A} eyebrow="What is different" title="Rules judge the payment. adapID judges the person making it." lead="Four questions to ask of any fraud stack." />
           <div className="mt-12"><Versus /></div>
         </div>
       </section>
 
       <section className="stage sec" aria-labelledby="mob-h">
         <div className="wrap">
-          <SectionHead align="left" id="mob-h" acc={A} eyebrow="Mobile banking" title="Five layers of protection in one mobile SDK." lead="Behaviour, a silent second factor, face checks when risk is high, device integrity and scam signals. Genuine customers notice less friction, not more." />
+          <SectionHead align="left" id="mob-h" acc={A} eyebrow="Mobile banking" title="Five layers of protection in one mobile SDK." lead="More protection. Less friction for genuine customers." />
           <div className="mt-12"><MobileCaps /></div>
         </div>
       </section>
@@ -176,7 +152,7 @@ export default function Fraud() {
       <section className="sec" aria-labelledby="web-h">
         <div className="wrap">
           <div>
-            <SectionHead align="left" id="web-h" acc={A} eyebrow="Internet banking" title="Phished credentials stop working on internet banking." lead="Typing and mouse behaviour, trusted devices and risk-based step-up mean a stolen password and OTP are no longer enough to get in." />
+            <SectionHead align="left" id="web-h" acc={A} eyebrow="Internet banking" title="Phished credentials stop working on internet banking." lead="A stolen password and OTP are no longer enough." />
             <ul className="mt-10 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
               {WEB.map((w, i) => (
                 <Reveal as="li" key={w.h} delay={i * 70} className="flex gap-4">
@@ -191,13 +167,13 @@ export default function Fraud() {
 
       <section className="sec" aria-labelledby="txn-h">
         <div className="wrap">
-          <SectionHead align="left" id="txn-h" acc={A} eyebrow="Transaction intelligence" title="Each payment looks normal. The pattern does not." lead="Each payment is compared with the customer\'s own history, with similar customers, and with everyone else paying the same payee, across mobile, internet banking and UPI. Run it in shadow mode first, alongside your current controls." />
+          <SectionHead align="left" id="txn-h" acc={A} eyebrow="Transaction intelligence" title="Each payment looks normal. The pattern does not." lead="Every payment compared with the customer’s history, their peers and everyone paying the same payee." />
           <div className="mt-12"><Points items={TXN} acc="adap" cols={4} /></div>
           <div className="mt-16 max-w-[720px]">
             <Reveal>
               <p className="eyebrow" style={{ '--acc': A }}>Mule payees</p>
               <h3 className="t-h2 mt-6">Check the payee before the money lands.</h3>
-              <p className="t-lead mt-5">Mule networks run on accounts that look ordinary. adapID profiles every receiving account and flags a likely mule at the moment of payment, alongside industry efforts such as RBIH’s MuleHunter.AI.</p>
+              <p className="t-lead mt-5">Every receiving account profiled. A likely mule flagged at the moment of payment.</p>
               <Link to="/blogs/india-mule-account-crisis" className="link mt-8" style={{ '--acc': A }}>Read the blog<Icon name="ArrowRight" size={14} weight="bold" /></Link>
             </Reveal>
           </div>
@@ -205,23 +181,26 @@ export default function Fraud() {
       </section>
 
       <section className="sec" aria-labelledby="case-h">
-        <div className="wrap grid gap-12 lg:grid-cols-2 lg:gap-16">
+        <div className="wrap grid items-center gap-12 lg:grid-cols-[1fr_1.05fr] lg:gap-16">
           <div>
-            <SectionHead align="left" id="case-h" acc={A} eyebrow="Case management" title="From alert to closed case, with every step on record." />
-            <div className="mt-10"><CaseFlow /></div>
+            <SectionHead align="left" id="case-h" acc={A} eyebrow="Cases and explanations" title="Every hold arrives as a case, with its reasons." lead="Your analysts, the customer and the regulator see the same plain-words reason." />
+            <ol className="mt-10 grid gap-3 sm:grid-cols-3">
+              {CASE.map(([h, t], i) => (
+                <Reveal as="li" key={h} delay={i * 80} className="border-t-2 pt-4" style={{ borderColor: i === 0 ? A : 'var(--color-line-2)' }}>
+                  <span className="block text-[16px] font-semibold">{h}</span><span className="mt-1 block text-[14px] text-ink-3">{t}</span>
+                </Reveal>
+              ))}
+            </ol>
           </div>
-          <div>
-            <SectionHead align="left" id="exp-h" acc={A} eyebrow="Explainable by design" title="A reason for every hold, in words a customer understands." />
-            <Reveal className="mt-10"><Explanation /></Reveal>
-          </div>
+          <Reveal><Explanation /></Reveal>
         </div>
       </section>
 
 
-      <Rollout acc="adap" lead="Starts in shadow mode, so nothing reaches a customer until you have seen the results." steps={[
-          { when: 'Weeks 1–2', h: 'Shadow mode', p: 'The SDK goes into your app and internet banking and scores every session alongside your current controls, with no customer impact.' },
-          { when: 'Weeks 3–4', h: 'Tune with your outcomes', p: 'Decisions are compared with your confirmed fraud and complaints, and thresholds are set with your fraud team.' },
-          { when: 'Go live', h: 'Decide in the channel', p: 'Allow, step up or hold in under 80 ms, with the reason recorded for the customer, the ombudsman and the auditor.' },
+      <Rollout acc="adap" lead="Shadow mode first. No customer impact until you approve." steps={[
+          { when: 'Weeks 1–2', h: 'Shadow mode', p: 'Every session scored beside your current controls.' },
+          { when: 'Weeks 3–4', h: 'Tune', p: 'Thresholds set against your confirmed fraud.' },
+          { when: 'Go live', h: 'Decide in the channel', p: 'Allow, step up or hold in under 80 ms.' },
         ]} />
       <Faq items={FAQ} />
       <ResearchRow slugs={p.research} />
