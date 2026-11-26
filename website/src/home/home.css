@@ -275,7 +275,7 @@
    Round 8: the security-posture screen, laid out from the reference
    (Cyntra, 949 x 693). Positions are the reference's, in cqw / %.
    ====================================================================== */
-.gx { position: relative; margin: clamp(40px, 5vw, 64px) 0 0; aspect-ratio: 949 / 693; container-type: inline-size; overflow: hidden; border-radius: 26px; color: #f5f7ff;
+.gx { position: relative; margin: clamp(36px, 4vw, 56px) auto 0; max-width: 860px; aspect-ratio: 949 / 693; container-type: inline-size; overflow: hidden; border-radius: 26px; color: #f5f7ff;
   background: radial-gradient(42% 36% at 96% 0%, rgb(8 123 255 / .28), transparent 72%), radial-gradient(60% 30% at 70% 0%, rgb(8 90 220 / .12), transparent 80%), #080d15;
   border: 1px solid rgb(120 170 255 / .1); box-shadow: 0 60px 120px -70px rgb(8 123 255 / .6); }
 .gx-cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
