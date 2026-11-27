@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-/* The opening, taken from the end of our film: on a soft light field the D
-   mark arrives alone, then the wordmark slides out beside it and the line
-   "Securing identity and AI in the connected world." settles underneath.
-   Then the whole panel lifts away like a curtain and the page is there.
-   Black, like the page it opens onto: no flash from white to dark.
+/* The opening is the end of our film: on its light field the light stroke
+   slides in, the D sweeps round it, a sheen crosses the mark, the mark steps
+   left as the wordmark wipes in, and the two lines settle underneath. Then
+   the panel lifts away like a curtain onto the page.
    Once per visit (session), never for reduced motion, and any click or key
    skips it. The page renders underneath all along, so nothing waits on it. */
 
@@ -38,7 +37,7 @@ export default function Intro() {
       window.dispatchEvent(new Event('da:intro-done'));
       setTimeout(() => setOn(false), 1100);
     };
-    const t = setTimeout(finish, 3200);
+    const t = setTimeout(finish, 4700);
     const skip = () => finish();
     window.addEventListener('keydown', skip, { once: true });
     window.addEventListener('pointerdown', skip, { once: true });
@@ -49,10 +48,14 @@ export default function Intro() {
   if (!on) return null;
   // straight onto <body>, above the fixed header and outside any page layer
   return createPortal(
-    <div ref={ref} className="intro dark" aria-hidden="true">
+    <div ref={ref} className="intro" aria-hidden="true">
       <div className="intro-lock">
-        <span className="intro-mark"><img src="/brand/mark.webp" alt="" width="160" height="160" /></span>
-        <span className="intro-word"><img src="/brand/logo-lockup-inverse.webp" alt="" /></span>
+        <span className="il-mark">
+          <img className="il-bowl" src="/brand/mark-bowl.webp" alt="" />
+          <img className="il-stroke" src="/brand/mark-stroke.webp" alt="" />
+          <i className="il-sheen" />
+        </span>
+        <span className="il-word"><img src="/brand/wordmark.webp" alt="" /></span>
       </div>
       <p className="intro-line"><b>Deep Algorithms Solutions</b><span>Securing identity and AI in the connected world.</span></p>
     </div>,

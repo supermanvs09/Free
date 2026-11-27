@@ -252,7 +252,7 @@ function Years() {
                 const same = d === to[i];
                 return (
                   <span key={i} className="sy-digit">
-                    <span style={{ transform: same ? 'none' : `translateY(${-t * 100}%)` }}><b>{d}</b><b>{to[i]}</b></span>
+                    <span style={{ transform: same ? 'none' : `translateY(${-t * 50}%)` }}><b>{d}</b><b>{to[i]}</b></span>
                   </span>
                 );
               })}

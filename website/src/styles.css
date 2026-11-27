@@ -1755,7 +1755,7 @@ html.is-translated font { background: none !important; box-shadow: none !importa
 @supports (animation-timeline: view()) {
   @media (prefers-reduced-motion: no-preference) {
     /* pictures */
-    .page :is(.sec, .sec-tight, .stage) :is(.vzw, .scn-frame, figure:not(.vzw figure), .rounded-\[20px\] > img, .rounded-\[24px\] > img) {
+    .page :is(.sec, .sec-tight, .stage) :is(.vzw, .scn-frame, figure:not(.vzw figure):not(.sy-card), .rounded-\[20px\] > img, .rounded-\[24px\] > img) {
       animation: pic-in linear both; animation-timeline: view(); animation-range: entry 0% cover 35%;
     }
     /* heroes lift and soften as they leave the screen */

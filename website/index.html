@@ -12,7 +12,7 @@
     <!--app-head-->
       <script>
       /* home intro: cover the page before it paints, so the menu never flashes before the logo */
-      try { if (location.pathname === '/' && (sessionStorage.getItem('da-intro') !== '1' || location.search.indexOf('intro') > -1) && !navigator.webdriver && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('intro-pre'); } catch (e) {}
+      try { if (location.pathname === '/' && (sessionStorage.getItem('da-intro') !== '1' || location.search.indexOf('intro') > -1) && !navigator.webdriver && !matchMedia('(prefers-reduced-motion: reduce)').matches) { document.documentElement.classList.add('intro-pre'); ['mark-stroke', 'mark-bowl', 'wordmark'].forEach(function (n) { var l = document.createElement('link'); l.rel = 'preload'; l.as = 'image'; l.href = '/brand/' + n + '.webp'; document.head.appendChild(l); }); } } catch (e) {}
     </script>
   </head>
   <body>

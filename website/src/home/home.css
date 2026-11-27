@@ -408,21 +408,34 @@
 /* ======================================================================
    Scroll story (home): intro, split words, white panels, horizon close
    ====================================================================== */
-/* the intro, from the end of our film */
-.intro { position: fixed; inset: 0; z-index: 200; display: grid; place-content: center; justify-items: center; gap: 22px;
-  background: radial-gradient(70% 60% at 50% 40%, #ffffff 0%, #eef3f8 70%, #e4ebf3 100%); clip-path: inset(0 0 0 0); transition: clip-path 1s cubic-bezier(.76, 0, .24, 1); }
+/* the intro: the last four seconds of our film, frame for frame.
+   The light stroke slides in, the D sweeps round it, a sheen crosses the
+   mark, the mark steps left as the wordmark wipes in, then the two lines.
+   On the film's own light field; the panel then lifts away like a curtain. */
+.intro { position: fixed; inset: 0; z-index: 200; display: grid; place-content: center; justify-items: center; gap: 26px;
+  background: radial-gradient(60% 55% at 50% 45%, #ffffff 0%, #f3f6fa 55%, #e9eef4 100%); clip-path: inset(0 0 0 0); transition: clip-path 1s cubic-bezier(.76, 0, .24, 1); }
 .intro.out { clip-path: inset(0 0 100% 0); }
-.intro-lock { position: relative; width: min(480px, 78vw); aspect-ratio: 640 / 142; }
-.intro-mark { position: absolute; left: 50%; top: 50%; width: 22%; translate: -50% -50%; animation: in-mark 1.3s cubic-bezier(.16, 1, .3, 1) both; }
-.intro-mark img { width: 100%; height: auto; }
-.intro-word { position: absolute; inset: 0; clip-path: inset(0 50% 0 50%); opacity: 0; animation: in-word 1s cubic-bezier(.65, 0, .35, 1) 1.05s both; }
-.intro-word img { width: 100%; height: auto; }
-.intro-line { margin: 0; text-align: center; opacity: 0; animation: in-line .9s cubic-bezier(.16, 1, .3, 1) 1.7s both; }
-.intro-line b { display: block; font-size: 19px; font-weight: 600; letter-spacing: -.01em; color: #0b1220; }
-.intro-line span { display: block; margin-top: 4px; font-size: 14.5px; color: #5b6678; }
-@keyframes in-mark { 0% { opacity: 0; transform: scale(.7); filter: blur(12px); } 55% { opacity: 1; transform: scale(1); filter: blur(0); } 80% { opacity: 1; } 100% { opacity: 0; transform: scale(1); } }
-@keyframes in-word { to { clip-path: inset(0 0 0 0); opacity: 1; } }
-@keyframes in-line { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+.intro-lock { position: relative; width: min(520px, 80vw); aspect-ratio: 640 / 142; }
+.il-mark { position: absolute; left: 0; top: 0; width: 20.47%; height: 100%; transform: translateX(194%) scale(1.75);
+  animation: il-move .7s cubic-bezier(.65, 0, .35, 1) 2s both; }
+.il-mark img, .il-sheen { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.il-stroke { opacity: 0; animation: il-stroke .55s cubic-bezier(.2, .8, .2, 1) .2s both; }
+.il-bowl { opacity: 0; animation: il-bowl .55s cubic-bezier(.3, .7, .2, 1) .75s both; }
+.il-sheen { -webkit-mask: url(/brand/mark-bowl.webp) center / contain no-repeat; mask: url(/brand/mark-bowl.webp) center / contain no-repeat;
+  background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / .85) 50%, transparent 65%) no-repeat; background-size: 260% 100%; background-position: 130% 0; opacity: 0;
+  animation: il-sheen .7s ease-in-out 1.35s both; }
+.il-word { position: absolute; left: 24.84%; top: 0; width: 75.16%; height: 100%; clip-path: inset(0 100% 0 0); animation: il-word .65s cubic-bezier(.65, 0, .35, 1) 2.4s both; }
+.il-word img { width: 100%; height: 100%; object-fit: contain; }
+.intro-line { margin: 0; text-align: center; }
+.intro-line b, .intro-line span { display: block; opacity: 0; animation: in-line .7s cubic-bezier(.16, 1, .3, 1) 3s both; }
+.intro-line b { font-size: 18px; font-weight: 600; letter-spacing: -.01em; color: #0b1220; }
+.intro-line span { margin-top: 5px; font-size: 14px; color: #5b6678; animation-delay: 3.25s; }
+@keyframes il-stroke { from { opacity: 0; transform: translate(-38%, -46%); filter: blur(5px); } to { opacity: 1; transform: none; filter: blur(0); } }
+@keyframes il-bowl { from { opacity: .3; clip-path: circle(0% at 22% 0%); } to { opacity: 1; clip-path: circle(150% at 22% 0%); } }
+@keyframes il-sheen { from { opacity: 0; background-position: 130% 0; } 15%, 85% { opacity: 1; } to { opacity: 0; background-position: -30% 0; } }
+@keyframes il-move { to { transform: none; } }
+@keyframes il-word { to { clip-path: inset(0 0 0 0); } }
+@keyframes in-line { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
 /* split words (titles and the hero) rise from behind their own line */
 .sw { display: inline-block; overflow: hidden; vertical-align: top; padding-bottom: .08em; margin-bottom: -.08em; }
@@ -446,12 +459,7 @@
   background: radial-gradient(closest-side, rgb(160 220 255 / .9), rgb(21 151 229 / .75) 30%, rgb(10 90 200 / .35) 60%, transparent 100%); filter: blur(10px); }
 @media (prefers-reduced-motion: reduce) { .intro { display: none; } }
 
-/* intro, dark version: the page's own black, the light lockup */
-.intro.dark { background: radial-gradient(60% 55% at 50% 42%, #0a1424 0%, #04070d 60%, #000 100%); }
-.intro.dark .intro-line b { color: #f4f6fa; }
-.intro.dark .intro-line span { color: #8a93a1; }
-
-/* before the app starts: a black cover with the mark, exactly where the intro begins */
-html.intro-pre body::after { content: ''; position: fixed; inset: 0; z-index: 300; background: radial-gradient(60% 55% at 50% 42%, #0a1424 0%, #04070d 60%, #000 100%); animation: pre-out .4s 4s forwards; pointer-events: none; }
+/* before the app starts: the intro's light field, so nothing flashes */
+html.intro-pre body::after { content: ''; position: fixed; inset: 0; z-index: 300; background: radial-gradient(60% 55% at 50% 45%, #ffffff 0%, #f3f6fa 55%, #e9eef4 100%); animation: pre-out .4s 4s forwards; pointer-events: none; }
 @keyframes pre-out { to { opacity: 0; visibility: hidden; } }
 html.intro-on header { visibility: hidden; }
