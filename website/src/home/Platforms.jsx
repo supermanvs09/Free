@@ -137,7 +137,7 @@ export default function Platforms() {
     const size = () => {
       dpr = Math.min(2, devicePixelRatio || 1); w = el.clientWidth; h = el.clientHeight;
       c.width = w * dpr; c.height = h * dpr; c.style.width = `${w}px`; c.style.height = `${h}px`;
-      el.style.setProperty('--k', Math.min(1, Math.max(0.4, w / 1380)).toFixed(3));
+      el.style.setProperty('--k', Math.min(0.74, Math.max(0.4, w / 1800)).toFixed(3));
     };
     const blob = (x, y, r, [R, G, B], a) => {
       const g = ctx.createRadialGradient(x, y, 0, x, y, r);
