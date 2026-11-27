@@ -12,7 +12,7 @@ const PAYERS = Array.from({ length: 13 }, (_, i) => ({ a: 0.07 + hash(i, 41) * 0
 const ANITA = 6;
 const M = { a: 0.55, b: 0.5 }, WALL_A = 0.37;
 const OUTS = [['••2291', 'bank'], ['Wallet', 'phone'], ['••0318', 'bank'], ['ATM · cash', 'cash']].map(([n, g], i) => ({ n, g, a: 0.86, b: 0.18 + i * 0.213 }));
-preload([['user', '#9fdcff'], ['user', '#ffffff'], ['bank', GOLD], ['bank', RED], ['bank', '#ffb9a3'], ['phone', '#ffb9a3'], ['cash', '#ffb9a3']]);
+preload([['user', '#a8c3ff'], ['user', '#ffffff'], ['bank', GOLD], ['bank', RED], ['bank', '#ffb9a3'], ['phone', '#ffb9a3'], ['cash', '#ffb9a3']]);
 
 const inr = (n) => { const s = String(Math.round(n)); if (s.length <= 3) return s; const last = s.slice(-3); return `${s.slice(0, -3).replace(/\B(?=(\d{2})+(?!\d))/g, ',')},${last}`; };
 
@@ -110,9 +110,9 @@ function draw(ctx, w, h, t, { narrow }) {
   PAYERS.forEach((p, i) => {
     if (narrow && i % 2) return;
     const [x, y] = P(p.a, p.b), s = unit * (i === ANITA ? 0.042 : 0.03);
-    ctx.fillStyle = rgba('#141922', appear); ctx.strokeStyle = rgba(i === ANITA ? '#ffffff' : '#7fd3ff', (i === ANITA ? 0.8 : 0.4) * appear); ctx.lineWidth = 1.2;
+    ctx.fillStyle = rgba('#141922', appear); ctx.strokeStyle = rgba(i === ANITA ? '#ffffff' : '#8db3ff', (i === ANITA ? 0.8 : 0.4) * appear); ctx.lineWidth = 1.2;
     ctx.beginPath(); ctx.arc(x, y, s, 0, TAU); ctx.fill(); ctx.stroke();
-    drawIcon(ctx, 'user', x, y, s * 1.1, i === ANITA ? '#ffffff' : '#9fdcff', appear);
+    drawIcon(ctx, 'user', x, y, s * 1.1, i === ANITA ? '#ffffff' : '#a8c3ff', appear);
   });
   // outflow accounts
   OUTS.forEach((o) => {
@@ -128,7 +128,7 @@ function draw(ctx, w, h, t, { narrow }) {
   ctx.globalCompositeOperation = 'lighter';
   glow(ctx, m[0], m[1], mr * 3.2, col, (0.45 + 0.25 * red) * appear);
   ctx.globalCompositeOperation = 'source-over';
-  if (t > T.scan && t < T.wall) { const a0 = (t - T.scan) * 4; ctx.strokeStyle = rgba('#7fd3ff', 0.9 * fade); ctx.lineWidth = 2.2; ctx.beginPath(); ctx.arc(m[0], m[1], mr * 1.35, a0, a0 + 1.3); ctx.stroke(); }
+  if (t > T.scan && t < T.wall) { const a0 = (t - T.scan) * 4; ctx.strokeStyle = rgba('#8db3ff', 0.9 * fade); ctx.lineWidth = 2.2; ctx.beginPath(); ctx.arc(m[0], m[1], mr * 1.35, a0, a0 + 1.3); ctx.stroke(); }
   if (red > 0) { const pu = ((t - T.wall) % 1.3) / 1.3; ring(ctx, m[0], m[1], mr * (1.1 + pu * 1.2), RED, (1 - pu) * 0.6 * red * fade, 1.6); }
   ctx.fillStyle = rgba('#1a1612', appear); ctx.strokeStyle = rgba(col, 0.9 * appear); ctx.lineWidth = 1.8;
   ctx.beginPath(); ctx.arc(m[0], m[1], mr, 0, TAU); ctx.fill(); ctx.stroke();

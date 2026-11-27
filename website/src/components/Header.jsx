@@ -26,7 +26,7 @@ const ADAPID_ICON = { '/adapid-ai': 'Gauge', '/adapid-ai/nhi-security': 'Cloud',
 /* Menus in the plain enterprise style: a group label, then a name and one
    grey line per item. Only Products and Solutions open a menu. */
 const GroupLabel = ({ children }) => <p className="mb-2 border-b border-line pb-3 text-[12px] font-semibold uppercase tracking-[.1em] text-ink-3">{children}</p>;
-const Tile = ({ name }) => <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] bg-[#0a6dbb] text-white"><Icon name={name} size={17} /></span>;
+const Tile = ({ name }) => <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] bg-[#1a58d0] text-white"><Icon name={name} size={17} /></span>;
 const Item = ({ to, name, desc, lead, onPeek, on }) => (
   <Link to={to} onMouseEnter={onPeek} onFocus={onPeek} className="group -mx-3 flex items-start gap-3 rounded-[12px] px-3 py-2.5 transition-colors hover:bg-fg/[.045] focus-visible:bg-fg/[.045]" data-on={on || undefined}>
     {lead}
@@ -70,7 +70,7 @@ function ProductsMenu() {
             <Suspense fallback={<div className="mt-5 h-[120px]" />}><WorksWith keys={d.works} /></Suspense>
             <p className="mt-6 text-[12px] font-semibold uppercase tracking-[.1em] text-ink-3">Capabilities</p>
             <ul className="mt-3 space-y-2">
-              {d.caps.map((c) => <li key={c} className="flex items-start gap-2 text-[14px] leading-snug text-ink-2"><Icon name="CheckCircle" size={16} weight="fill" className="mt-px shrink-0 text-[#0a6dbb]" />{c}</li>)}
+              {d.caps.map((c) => <li key={c} className="flex items-start gap-2 text-[14px] leading-snug text-ink-2"><Icon name="CheckCircle" size={16} weight="fill" className="mt-px shrink-0 text-[#1a58d0]" />{c}</li>)}
             </ul>
           </div>
         ) : (

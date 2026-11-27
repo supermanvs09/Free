@@ -39,7 +39,7 @@ export default function MobileBar() {
       <button type="button" className={btn} onClick={() => window.dispatchEvent(new CustomEvent('da:command', { detail: 'search' }))}><Icon name="MagnifyingGlass" size={21} />Search</button>
       <a href={SITE.phoneHref} className={btn}><Icon name="Phone" size={21} />Call</a>
       <Link to="/request-demo" aria-hidden={quiet || onDemo} tabIndex={quiet || onDemo ? -1 : undefined}
-        className={cx('mbar-cta inline-flex h-12 items-center justify-center rounded-[14px] bg-[#0a6dbb] px-5 text-[15px] font-semibold text-white transition-all duration-300', (quiet || onDemo) && 'is-away')}>
+        className={cx('mbar-cta inline-flex h-12 items-center justify-center rounded-[14px] bg-[#1a58d0] px-5 text-[15px] font-semibold text-white transition-all duration-300', (quiet || onDemo) && 'is-away')}>
         Book a demo
       </Link>
     </nav>

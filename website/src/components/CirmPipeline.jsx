@@ -84,7 +84,7 @@ export default function CirmPipeline({ caption = true }) {
           <div className="pl-chev relative max-md:hidden">
             <svg viewBox={`0 0 ${VBW} ${H}`} className="block h-auto w-full" aria-hidden="true">
               <defs>
-                <linearGradient id="pl-on" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#1e88d8" /><stop offset="1" stopColor="#0a5ea3" /></linearGradient>
+                <linearGradient id="pl-on" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#2a68e0" /><stop offset="1" stopColor="#1a4cb4" /></linearGradient>
               </defs>
               {/* fans in and out */}
               

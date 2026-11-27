@@ -127,7 +127,7 @@ export function MachineCrowd({ t, film, dpr }) {
         n0: <Name c="#c3d6ee" kind="service account">{NAMED[0][2]}</Name>,
         n1: <Name c="#ffd98f" kind="cloud key">{NAMED[1][2]}</Name>,
         n2: <Name c="#c9d0ff" kind="AI agent">{NAMED[2][2]}</Name>,
-        person: <span className="scn-tag" style={{ color: '#7fdcff' }}>One person</span>,
+        person: <span className="scn-tag" style={{ color: '#8db3ff' }}>One person</span>,
         crowd: <span className="scn-tag" style={{ color: '#dfe6ef' }}>Each point: a service account, key or AI agent that can log in too</span>,
         over: <span className="scn-tag" style={{ color: '#ffcf85' }}><span style={{ width: '.5em', height: '.5em', borderRadius: '50%', background: 'currentColor' }} />Most hold more access than they ever use</span>,
       }} />

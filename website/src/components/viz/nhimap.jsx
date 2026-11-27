@@ -39,7 +39,7 @@ export function NhiMap() {
         {TILES.map((t, i) => (
           <g key={t.k}>
             <path id={`nm-p${i}`} d={curve(C, t)} pathLength="1" fill="none" stroke="rgb(190 215 255 / .55)" strokeWidth="1.6" className={cx('nhm-line', k >= 1 && 'on')} style={{ transitionDelay: `${i * 120}ms` }} />
-            {k >= 2 && !reduce && <circle r="4" fill="#7fdcff"><animateMotion dur="2.4s" repeatCount="indefinite" begin={`${i * 0.3}s`}><mpath href={`#nm-p${i}`} /></animateMotion></circle>}
+            {k >= 2 && !reduce && <circle r="4" fill="#8db3ff"><animateMotion dur="2.4s" repeatCount="indefinite" begin={`${i * 0.3}s`}><mpath href={`#nm-p${i}`} /></animateMotion></circle>}
           </g>
         ))}
         {/* the line to the finding */}

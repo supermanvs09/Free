@@ -96,7 +96,7 @@ export default function Zenstra() {
           <div className="island tone-d px-4 py-14 md:px-10 md:py-20">
             <SectionHead id="where-h" eyebrow="Controlled access" title="Agent security starts with an owner and a scope." lead="Every agent tied to its owner, with access narrowed to its task." />
             <ul className="mx-auto mt-8 grid max-w-[880px] gap-3 text-[16px] text-white/85 md:grid-cols-3">
-              {['Every agent has a named owner who answers for it.', 'Every credential is mapped to the systems it reaches.', 'Every grant is scoped to the task and expires on its own.'].map((t) => <li key={t} className="flex gap-2.5"><Icon name="CheckCircle" size={18} weight="fill" className="mt-0.5 shrink-0 text-[#4fb3f6]" />{t}</li>)}
+              {['Every agent has a named owner who answers for it.', 'Every credential is mapped to the systems it reaches.', 'Every grant is scoped to the task and expires on its own.'].map((t) => <li key={t} className="flex gap-2.5"><Icon name="CheckCircle" size={18} weight="fill" className="mt-0.5 shrink-0 text-[#5b8ff5]" />{t}</li>)}
             </ul>
             <Reveal up className="mx-auto mt-12 max-w-[1040px]"><AgentAccess /></Reveal>
           </div>

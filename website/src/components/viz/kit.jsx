@@ -38,13 +38,13 @@ export function Win({ title, right, className, children, glow, style, bodyClass 
 
 export const Chip = ({ tone = 'mute', plain, children, className }) => <span className={cx('vz-chip', `c-${tone}`, plain && 'plain', className)}>{children}</span>;
 
-const AV = ['#7fd3ff', '#9fb0ff', '#7ef0c9', '#ffd27a', '#ffa3c4', '#b6f07f'];
+const AV = ['#8db3ff', '#9fb0ff', '#7ef0c9', '#ffd27a', '#ffa3c4', '#b6f07f'];
 export function Av({ name, i = 0 }) {
   const ini = name.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
   return <span className="vz-av" style={{ background: AV[i % AV.length] }}>{ini}</span>;
 }
 
-export function Spark({ data, color = '#27b8f2', w = 120, h = 32, fill = true, className, domain }) {
+export function Spark({ data, color = '#3d86f2', w = 120, h = 32, fill = true, className, domain }) {
   const [min, max] = domain || [Math.min(...data), Math.max(...data)];
   const pts = data.map((v, i) => [(i / (data.length - 1)) * w, h - 3 - ((v - min) / (max - min || 1)) * (h - 6)]);
   const d = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');

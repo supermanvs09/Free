@@ -32,7 +32,7 @@ export function HeroActivity({ k: fk, tilt = [7, -16], range, pad = '9% 6% 12% 1
                 ))}
               </div>
               <div className="mt-[1em] grid grid-cols-3 gap-[.8em] s3">
-                {[['Allowed today', '1,284', '#27b8f2', [4, 6, 5, 7, 6, 8, 9, 8, 10, 11]], ['Held for a person', '6', '#f6b955', [1, 0, 1, 2, 1, 1, 0, 1, 2, 1]], ['Blocked', '23', '#ff6b5d', [1, 2, 1, 3, 2, 2, 4, 3, 2, 3]]].map(([l, v, c, d]) => (
+                {[['Allowed today', '1,284', '#3d86f2', [4, 6, 5, 7, 6, 8, 9, 8, 10, 11]], ['Held for a person', '6', '#f6b955', [1, 0, 1, 2, 1, 1, 0, 1, 2, 1]], ['Blocked', '23', '#ff6b5d', [1, 2, 1, 3, 2, 2, 4, 3, 2, 3]]].map(([l, v, c, d]) => (
                   <div key={l} className="vz-panel" style={{ padding: '.8em .9em' }}>
                     <span className="vz-m block">{l}</span>
                     <span className="mt-[.2em] block text-[1.5em] font-semibold tracking-[-0.015em] num">{v}</span>
@@ -57,7 +57,7 @@ export function HeroActivity({ k: fk, tilt = [7, -16], range, pad = '9% 6% 12% 1
             <Pop z={80} delay={700} className="absolute" style={{ right: '0%', top: '0%', width: '29%' }}>
               <div className="vz-pop s4" style={{ padding: '.9em 1em', '--glow': 'rgb(246 185 85 / .45)' }}>
                 <div className="flex items-center gap-[.6em]">
-                  <Ring v={k >= 4 ? 94 : 22} color={k >= 4 ? '#f6b955' : '#27b8f2'} />
+                  <Ring v={k >= 4 ? 94 : 22} color={k >= 4 ? '#f6b955' : '#3d86f2'} />
                   <span className="min-w-0"><span className="block vz-t truncate">Priya Nair</span><span className="block vz-m">Risk {k >= 4 ? 'high' : 'normal'}</span></span>
                 </div>
                 <ul className="mt-[.7em] space-y-[.3em] vz-m">
@@ -83,7 +83,7 @@ export function HeroActivity({ k: fk, tilt = [7, -16], range, pad = '9% 6% 12% 1
   );
 }
 
-export function Ring({ v, color = '#27b8f2', size = '3.4em', label = true, k: fk }) {
+export function Ring({ v, color = '#3d86f2', size = '3.4em', label = true, k: fk }) {
   const r = 15.9, c = 2 * Math.PI * r;
   return (
     <span className="relative inline-flex shrink-0 items-center justify-center" style={{ width: size, height: size }}>

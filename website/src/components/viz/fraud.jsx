@@ -8,7 +8,7 @@ import { useOnView } from '../../lib/nullmotion.jsx';
    bank's own app (light, as banking apps are); next to it is what the bank sees.
    Every name, amount and score is sample data. */
 
-const ADAP = '#3cc8f6';
+const ADAP = '#5a90f7';
 
 /* ---------- the phone and its screens ---------- */
 export function Phone({ children, call, time = '9:41', className, style }) {
@@ -391,13 +391,13 @@ export function MuleCheck() {
       .to(el.querySelector('.mc-verdict'), { scaleX: 1.03, scaleY: 0.97, duration: 0.1, yoyo: true, repeat: 1 }, 4.15);
   });
   return (
-    <div ref={ref} className="mc overflow-hidden rounded-[22px] border border-[#0a5ea3]/10 bg-white shadow-[0_40px_80px_-40px_rgb(10_94_163/.45)]" role="img"
+    <div ref={ref} className="mc overflow-hidden rounded-[22px] border border-[#1a4cb4]/10 bg-white shadow-[0_40px_80px_-40px_rgb(10_94_163/.45)]" role="img"
       aria-label="Payee check: a customer pays ₹48,000 to a new payee. The receiving account is 9 days old, received money from 13 unrelated senders today and sends it out within minutes. Mule risk 91 of 100. The payment is held before it leaves and the customer is warned.">
       {/* the payment being made */}
       <div className="mc-pay flex items-center gap-3 border-b border-[#0e1116]/[.07] bg-[#f6f9fd] px-5 py-3.5">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#e6f0fb] text-[#0a6dbb]"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M3 10 12 4l9 6M5 10v8M12 10v8M19 10v8M3 20h18" /></svg></span>
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#e6f0fb] text-[#1a58d0]"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M3 10 12 4l9 6M5 10v8M12 10v8M19 10v8M3 20h18" /></svg></span>
         <span className="min-w-0 flex-1"><span className="block text-[14.5px] font-semibold text-[#0e1116]">Paying ₹48,000 to a new payee</span><span className="block truncate text-[12.5px] text-[#5b6472]">“KYC Update Desk” · a/c ••4410</span></span>
-        <span className="flex items-center gap-1.5 rounded-full bg-[#0a6dbb]/10 px-2.5 py-1 text-[11.5px] font-semibold text-[#0a6dbb]"><ProductMark p="adapid" size={14} />Checking payee</span>
+        <span className="flex items-center gap-1.5 rounded-full bg-[#1a58d0]/10 px-2.5 py-1 text-[11.5px] font-semibold text-[#1a58d0]"><ProductMark p="adapid" size={14} />Checking payee</span>
       </div>
       {/* where the money comes from and goes: labelled, small */}
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-5 py-5">
@@ -427,7 +427,7 @@ export function MuleCheck() {
       <div className="px-5 pb-5 pt-3">
         <div className="flex items-baseline justify-between text-[12.5px] text-[#5b6472]"><span>Mule risk</span><span><b className="mc-score text-[22px] font-semibold tracking-[-0.02em] text-[#c4352a]">91</b> / 100</span></div>
         <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[#eef1f5]"><div className="mc-bar h-full origin-left rounded-full bg-gradient-to-r from-[#f3c27a] via-[#ef7d57] to-[#e5484d]" style={{ transform: 'scaleX(.91)' }} /></div>
-        <div className="mc-verdict mt-4 flex items-center gap-3 rounded-[14px] bg-gradient-to-r from-[#0a5ea3] to-[#1e88d8] px-4 py-3 text-white shadow-[0_16px_30px_-14px_rgb(10_94_163/.8)]">
+        <div className="mc-verdict mt-4 flex items-center gap-3 rounded-[14px] bg-gradient-to-r from-[#1a4cb4] to-[#2a68e0] px-4 py-3 text-white shadow-[0_16px_30px_-14px_rgb(10_94_163/.8)]">
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6z" /><path d="m8.5 12 2.5 2.5 4.5-5" /></svg>
           <span className="min-w-0"><span className="block text-[14.5px] font-semibold">Payment held before the money left</span><span className="block text-[12.5px] text-white/80">Customer warned · payee reported · reason on record</span></span>
         </div>

@@ -154,7 +154,7 @@ export function AgentConsole() {
             <span className="ac-core"><img src="/img/zenstra/agent.webp" alt="" width="520" height="520" loading="lazy" decoding="async" /></span>
             <span className="ac-chip c1"><i />invoice-agent · owner: Finance</span>
             <span className="ac-chip c2"><i className="g" />Scope: pay approved invoices</span>
-            <svg className="ac-spark" viewBox="0 0 24 24" width="22" height="22"><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8z" fill="#4fb3f6" /></svg>
+            <svg className="ac-spark" viewBox="0 0 24 24" width="22" height="22"><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8z" fill="#5b8ff5" /></svg>
           </div>
           <div className="ac-copy">
             <p className="ac-h">Every AI agent, with an identity and an owner.</p>
@@ -187,8 +187,8 @@ export function ItdrFlow() {
       <div aria-hidden="true" className="itf-scroll">
         <svg viewBox="0 0 1000 420" className="block h-auto w-full min-w-[760px]">
           <defs>
-            <marker id="itf-a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#0a5ea3" /></marker>
-            <linearGradient id="itf-core" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#2b94e0" /><stop offset="1" stopColor="#0a5ea3" /></linearGradient>
+            <marker id="itf-a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#1a4cb4" /></marker>
+            <linearGradient id="itf-core" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#2b94e0" /><stop offset="1" stopColor="#1a4cb4" /></linearGradient>
           </defs>
           {/* the three capabilities, bracketed */}
           {ITDR_LEFT.map(([h, lines], i) => {
@@ -197,7 +197,7 @@ export function ItdrFlow() {
               <g key={h}>
                 <text x="250" y={y} textAnchor="end" className="itf-h">{h.toUpperCase()}</text>
                 {lines.map((l, j) => <text key={l} x="250" y={y + 22 + j * 19} textAnchor="end" className="itf-l">{l} –</text>)}
-                <circle cx="268" cy={y + 30} r="3.5" fill="#0a5ea3" />
+                <circle cx="268" cy={y + 30} r="3.5" fill="#1a4cb4" />
                 <path d={`M268 ${y + 30}H290`} className="itf-line" />
               </g>
             );
@@ -206,8 +206,8 @@ export function ItdrFlow() {
           <path d="M290 220H350" className="itf-line" />
           {/* identities */}
           <g transform="translate(395 220)">
-            <rect x="-40" y="-32" width="80" height="56" rx="10" fill="#fff" stroke="#0a5ea3" strokeWidth="2" />
-            <g transform="translate(-14 -18)" color="#0a5ea3"><svg width="28" height="28" viewBox="0 0 24 24"><path d={ICO.users} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg></g>
+            <rect x="-40" y="-32" width="80" height="56" rx="10" fill="#fff" stroke="#1a4cb4" strokeWidth="2" />
+            <g transform="translate(-14 -18)" color="#1a4cb4"><svg width="28" height="28" viewBox="0 0 24 24"><path d={ICO.users} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg></g>
             <text y="50" textAnchor="middle" className="itf-n">Users and service accounts</text>
           </g>
           <text x="395" y="120" textAnchor="middle" className="itf-k">READ-ONLY DIRECTORY ACCESS</text>

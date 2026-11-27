@@ -87,7 +87,7 @@ export default function Icms() {
           <ol className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             {[['MagnifyingGlass', 'Discover', 'Scan every store for PII and sensitive personal data'], ['Tag', 'Classify', 'Label Aadhaar, PAN, financial and health data by sensitivity'], ['EyeSlash', 'Mask', 'Mask or tokenise PII for people and apps that do not need it'], ['Fingerprint', 'Govern access', 'Check each access against identity, purpose and consent'], ['Trash', 'Retain and erase', 'Erase on request or at retention end, with proof']].map(([ic, h, d], i) => (
               <Reveal as="li" key={h} delay={i * 60} className="card relative p-5">
-                <span className="flex items-center justify-between"><span className="grid h-10 w-10 place-items-center rounded-[12px] text-white" style={{ background: 'linear-gradient(140deg,#1e88d8,#0a5ea3)' }}><Icon name={ic} size={19} /></span><span className="mono text-[12px] text-ink-3">{String(i + 1).padStart(2, '0')}</span></span>
+                <span className="flex items-center justify-between"><span className="grid h-10 w-10 place-items-center rounded-[12px] text-white" style={{ background: 'linear-gradient(140deg,#2a68e0,#1a4cb4)' }}><Icon name={ic} size={19} /></span><span className="mono text-[12px] text-ink-3">{String(i + 1).padStart(2, '0')}</span></span>
                 <h3 className="mt-4 text-[17px] font-semibold">{h}</h3>
                 <p className="mt-1.5 text-[14px] leading-snug text-ink-2">{d}</p>
               </Reveal>

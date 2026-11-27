@@ -120,7 +120,7 @@ function DecisionLog({ log: L }) {
         ))}
       </ol>
       <div className="flex justify-end border-t border-[#0e1116]/[.07] px-4 py-3">
-        <span className="dl-verdict inline-flex items-center gap-1.5 rounded-full bg-[#0a6dbb] px-3 py-1.5 text-[12.5px] font-semibold text-white shadow-[0_8px_20px_-8px_rgb(10_109_187/.7)]"><Icon name="CheckCircle" size={14} weight="fill" />{L.verdict}</span>
+        <span className="dl-verdict inline-flex items-center gap-1.5 rounded-full bg-[#1a58d0] px-3 py-1.5 text-[12.5px] font-semibold text-white shadow-[0_8px_20px_-8px_rgb(10_109_187/.7)]"><Icon name="CheckCircle" size={14} weight="fill" />{L.verdict}</span>
       </div>
     </div>
   );
@@ -165,7 +165,7 @@ export function StoryCard({ story: R, log }) {
           <ul className="divide-y divide-[#0e1116]/[.07] px-4">
             {R.chips.map((c, i) => (
               <li key={c} className={cx('rc-chip flex items-center gap-3 py-2.5 text-[13.5px]', i === 0 ? 'font-semibold text-[#0e1116]' : 'text-[#434852]', R.alert === i && 'font-medium !text-[#c4352a]')} style={{ animationDelay: `${150 + i * 120}ms` }}>
-                <span className={cx('grid h-6 w-6 shrink-0 place-items-center rounded-[7px]', R.alert === i ? 'bg-[#fdecec] text-[#c4352a]' : 'bg-[#eef5fc] text-[#0a6dbb]')}><Icon name={(R.icons || CHIP_ICONS)[i]} size={13} weight="bold" /></span>{c}
+                <span className={cx('grid h-6 w-6 shrink-0 place-items-center rounded-[7px]', R.alert === i ? 'bg-[#fdecec] text-[#c4352a]' : 'bg-[#eef5fc] text-[#1a58d0]')}><Icon name={(R.icons || CHIP_ICONS)[i]} size={13} weight="bold" /></span>{c}
               </li>
             ))}
           </ul>

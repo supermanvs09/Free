@@ -86,7 +86,7 @@ export function LoginGlobe({ t }) {
         lag: <Card place="Lagos" time="11:05" dev="New device" tone="red" />,
         lagflag: <span className="scn-tag" style={{ color: '#ff8b7e' }}>Impossible travel</span>,
         dist: <span className="scn-tag" style={{ color: '#ffd28a' }}>7,620 km in 1 h 53 min</span>,
-        held: <span className="scn-card text-center" style={{ borderColor: 'rgb(60 200 246 / .45)' }}><b>Session held at risk 94</b><span>Kavya confirms on her own phone before anything else happens</span></span>,
+        held: <span className="scn-card text-center" style={{ borderColor: 'rgb(90 144 247 / .45)' }}><b>Session held at risk 94</b><span>Kavya confirms on her own phone before anything else happens</span></span>,
       }} />
   );
 }

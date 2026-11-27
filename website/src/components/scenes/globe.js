@@ -15,7 +15,7 @@ export function view(lat0, lon0) {
 export const onScreen = (g, p) => { const q = g.v(p); return { x: g.cx + q[0] * g.R, y: g.cy + q[1] * g.R, z: q[2] }; };
 export const city = (g, lat, lon, lift = 1) => onScreen(g, sph(lat, lon).map((c) => c * lift));
 
-export function drawGlobe(ctx, g, alpha = 1, tint = '#3cc8f6') {
+export function drawGlobe(ctx, g, alpha = 1, tint = '#5a90f7') {
   const { cx, cy, R } = g;
   // atmosphere
   const at = ctx.createRadialGradient(cx, cy, R * 0.92, cx, cy, R * 1.22);
@@ -34,7 +34,7 @@ export function drawGlobe(ctx, g, alpha = 1, tint = '#3cc8f6') {
     bands[Math.min(4, Math.floor(q[2] * 5))].push(cx + q[0] * R, cy + q[1] * R);
   }
   bands.forEach((b, i) => {
-    ctx.fillStyle = rgba('#8fd8ff', (0.2 + i * 0.15) * alpha);
+    ctx.fillStyle = rgba('#a8c3ff', (0.2 + i * 0.15) * alpha);
     for (let j = 0; j < b.length; j += 2) ctx.fillRect(b[j] - s / 2, b[j + 1] - s / 2, s, s);
   });
   // rim

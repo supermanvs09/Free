@@ -11,7 +11,7 @@ import { Logo } from '../viz/kit.jsx';
 const STEPS = ['Discover', 'Assess', 'Enforce', 'Prove'];
 
 const INVENTORY = [
-  { k: 'human', label: 'Human identities', v: 12480, sub: 'Employees, partners, customers', tone: '#0a6dbb' },
+  { k: 'human', label: 'Human identities', v: 12480, sub: 'Employees, partners, customers', tone: '#1a58d0' },
   { k: 'machine', label: 'Machine identities', v: 51818, sub: 'Service accounts, keys, workloads', tone: '#4050c8' },
   { k: 'agent', label: 'AI agents', v: 1284, sub: '312 without an owner', tone: '#b45309', flag: true },
 ];
@@ -92,7 +92,7 @@ export default function PostureConsole() {
             <svg viewBox="0 0 120 120">
               <circle cx="60" cy="60" r={R} fill="none" className="pc-ring-track" strokeWidth="10" />
               <circle cx="60" cy="60" r={R} fill="none" stroke="url(#pcg)" strokeWidth="10" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - score / 100)} transform="rotate(-90 60 60)" />
-              <defs><linearGradient id="pcg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#1597e5" /><stop offset="1" stopColor="#0a5ea3" /></linearGradient></defs>
+              <defs><linearGradient id="pcg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#2f6fec" /><stop offset="1" stopColor="#1a4cb4" /></linearGradient></defs>
             </svg>
             <span className="pc-ring-v"><b>{score}</b><small>/100</small></span>
           </div>

@@ -54,10 +54,10 @@ export default function Demo() {
             <ol className="rise mt-8 grid gap-3 sm:grid-cols-3" style={{ '--d': '300ms' }} aria-label="The 30-minute agenda">
               {[['0–5 min', 'Your risks', 'What worries you most, in your words'], ['5–20 min', 'Live, on your stack', 'The product on identities like yours'], ['20–30 min', 'A plan', 'A first deployment, sized and scoped']].map(([t, h, p], i) => (
                 <li key={t} className="relative rounded-[16px] border border-line-2 bg-bg-2 p-4">
-                  <span className="mono text-[11.5px] font-semibold text-[#5cc0ff]">{t}</span>
+                  <span className="mono text-[11.5px] font-semibold text-[#6b9aff]">{t}</span>
                   <span className="mt-1.5 block text-[16px] font-semibold text-ink">{h}</span>
                   <span className="mt-1 block text-[14px] leading-snug text-ink-2">{p}</span>
-                  {i < 2 && <span aria-hidden="true" className="absolute -right-[10px] top-1/2 z-10 hidden h-5 w-5 -translate-y-1/2 place-items-center rounded-full bg-[#0a6dbb] text-white sm:grid"><Icon name="CaretRight" size={11} weight="bold" /></span>}
+                  {i < 2 && <span aria-hidden="true" className="absolute -right-[10px] top-1/2 z-10 hidden h-5 w-5 -translate-y-1/2 place-items-center rounded-full bg-[#1a58d0] text-white sm:grid"><Icon name="CaretRight" size={11} weight="bold" /></span>}
                 </li>
               ))}
             </ol>

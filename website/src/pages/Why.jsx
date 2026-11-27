@@ -44,7 +44,7 @@ function useScrollProgress(ref, { start = 0.85, end = 0.25 } = {}) {
 
 const LINEUP = [
   ['zenstra', 'Zenstra AI', 'AI agents', '#93a2ff', 'Agent’s CRM export blocked', '4 ms', '/agentic-ai/agentic-identity', 'Security for AI agents: every action checked against its task before it runs.'],
-  ['adapid', 'adapID AI', 'People and machine identities', '#3cc8f6', 'Lagos sign-in held at risk 94', '1.4 s', '/adapid-ai', 'Security for people and machine identities: the one that starts behaving differently is stopped.'],
+  ['adapid', 'adapID AI', 'People and machine identities', '#5a90f7', 'Lagos sign-in held at risk 94', '1.4 s', '/adapid-ai', 'Security for people and machine identities: the one that starts behaving differently is stopped.'],
   ['icms', 'ICMS Compliance Suite', 'Personal data and DPDPA', '#f4c76c', 'Read without consent refused', 'now', '/dpdpa-compliance', 'DPDPA compliance: every access to personal data becomes evidence, ready before the auditor asks.'],
 ];
 
@@ -95,7 +95,7 @@ function ProductPanel() {
   const pick = (k) => { setHeld(true); setOn(k); };
   const P = LINEUP[on];
   return (
-    <div ref={ref} className="ps relative mx-auto grid w-full max-w-[560px] place-items-center py-6 text-center" style={{ '--pc': '#1e88d8' }}>
+    <div ref={ref} className="ps relative mx-auto grid w-full max-w-[560px] place-items-center py-6 text-center" style={{ '--pc': '#2a68e0' }}>
       {/* the backdrop: one light-blue field and a floor, the same for every product */}
       <div aria-hidden="true" className="ps-field absolute inset-x-[-6%] top-0 h-[300px] rounded-[40px] max-sm:h-[240px]" />
 
@@ -131,7 +131,7 @@ function ProductPanel() {
         {LINEUP.map(([k, name], i) => (
           <button key={k} type="button" onClick={() => pick(i)} aria-label={name} aria-current={i === on || undefined} className="group py-2">
             <span className="block h-[3px] w-10 overflow-hidden rounded-full bg-ink/10 transition-colors group-hover:bg-ink/20">
-              <span className={cx('block h-full rounded-full', i === on && !held && !reduce && seen ? 'ps-fill' : '')} style={{ background: '#1e88d8', width: i === on && (held || reduce || !seen) ? '100%' : i === on ? undefined : '0%', animationDuration: `${HOLD}ms` }} />
+              <span className={cx('block h-full rounded-full', i === on && !held && !reduce && seen ? 'ps-fill' : '')} style={{ background: '#2a68e0', width: i === on && (held || reduce || !seen) ? '100%' : i === on ? undefined : '0%', animationDuration: `${HOLD}ms` }} />
             </span>
           </button>
         ))}
@@ -161,7 +161,7 @@ function Statement() {
       {STATEMENT.map((para, k) => {
         let mark = false;
         return (
-          <p key={k} className={cx('font-semibold leading-[1.2] tracking-[-0.015em] text-[clamp(26px,3.1vw,42px)]', k && 'text-[#0a5ea3]')}>
+          <p key={k} className={cx('font-semibold leading-[1.2] tracking-[-0.015em] text-[clamp(26px,3.1vw,42px)]', k && 'text-[#1a4cb4]')}>
             {para.split(' ').map((raw, i, a) => {
               const opens = raw.startsWith('*'), closes = raw.endsWith('*');
               if (opens) mark = true;
@@ -315,7 +315,7 @@ function Leader({ p }) {
         </span>
         <span className="min-w-0 pr-8">
           <span className="block text-[17px] font-semibold leading-tight tracking-[-0.015em]">{p.name}</span>
-          <span className="mt-1 block text-[14px] font-medium text-[#0a6dbb]">{p.role}</span>
+          <span className="mt-1 block text-[14px] font-medium text-[#1a58d0]">{p.role}</span>
         </span>
       </div>
       <p className="mt-4 flex-1 border-t border-line pt-4 text-[14px] leading-relaxed text-ink-2">{p.bio}</p>

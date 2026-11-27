@@ -1,7 +1,7 @@
 import { Viz, Win, Chip, Gl, Logo, App, Av, cx } from './kit.jsx';
 import { Ring } from './home.jsx';
 
-const ADAP = '#3cc8f6';
+const ADAP = '#5a90f7';
 
 /* A1. Continuous identity risk: signals from every system one person uses
    raise a single live score, with the reason for each point; when the score
@@ -125,7 +125,7 @@ export function NhiGraph({ k: fk } = {}) {
                 <span className="block vz-m">Permissions in 90 days</span>
                 <div className="mt-[.5em] space-y-[.45em]">
                   <div><div className="flex justify-between vz-m"><span>Granted</span><span className="text-white num">214</span></div><div className="vz-meter mt-[.25em]"><i style={{ '--w': '100%', '--mc': '#686a6e' }} /></div></div>
-                  <div><div className="flex justify-between vz-m"><span>Used</span><span className="text-white num">9</span></div><div className="vz-meter mt-[.25em]"><i style={{ '--w': k >= 4 ? '4.2%' : '0%', '--mc': '#3cc8f6' }} /></div></div>
+                  <div><div className="flex justify-between vz-m"><span>Used</span><span className="text-white num">9</span></div><div className="vz-meter mt-[.25em]"><i style={{ '--w': k >= 4 ? '4.2%' : '0%', '--mc': '#5a90f7' }} /></div></div>
                 </div>
               </div>
               <div className="s5"><Chip tone="crit">secretsmanager:* on every secret</Chip></div>
@@ -146,7 +146,7 @@ export function RiskScoreCard({ k: fk } = {}) {
         const v = 12 + REASONS.slice(0, Math.min(k, 3)).reduce((a, r) => a + r[2], 0);
         const col = v >= 80 ? '#ff7d70' : v >= 50 ? '#ffc566' : '#4be29a';
         return (
-          <Win title="adapID AI · Identity risk" right={k >= 4 ? <Chip tone="ok">Contained · 1.4 s</Chip> : <Chip tone="info">Live</Chip>} glow="rgb(60 200 246 / .4)">
+          <Win title="adapID AI · Identity risk" right={k >= 4 ? <Chip tone="ok">Contained · 1.4 s</Chip> : <Chip tone="info">Live</Chip>} glow="rgb(90 144 247 / .4)">
             <div className="flex items-center gap-[1em]">
               <Ring v={v} color={col} size="4.6em" />
               <span className="min-w-0"><span className="block vz-t" style={{ fontSize: '1.15em' }}>Kavya Reddy</span><span className="block vz-m">Treasury · baseline from day one</span></span>
@@ -275,12 +275,12 @@ export function IdentityGraph({ k: fk } = {}) {
         const reach = held ? 0 : spread ? 12 : 0;
         return (
           <Win title={<span className="inline-flex items-center gap-[.5em]">Identity graph · blast radius</span>}
-            right={held ? <Chip tone="ok">Contained · 0 systems exposed</Chip> : spread ? <Chip tone="crit">6 systems · 12 resources exposed</Chip> : <Chip tone="info">Mapped</Chip>} glow="rgb(10 109 187 / .25)">
-            <div className="relative overflow-hidden rounded-[.9em]" style={{ aspectRatio: '1000 / 620', background: 'radial-gradient(60% 55% at 50% 50%, rgb(10 109 187 / .07), transparent 70%), radial-gradient(1px 1px at 50% 50%, rgb(15 40 80 / .12) 1px, transparent 1.5px) 0 0 / 22px 22px, linear-gradient(180deg, #fbfdff, #f1f6fc)', boxShadow: 'inset 0 0 0 1px #e3e8ef' }}>
+            right={held ? <Chip tone="ok">Contained · 0 systems exposed</Chip> : spread ? <Chip tone="crit">6 systems · 12 resources exposed</Chip> : <Chip tone="info">Mapped</Chip>} glow="rgb(26 88 208 / .25)">
+            <div className="relative overflow-hidden rounded-[.9em]" style={{ aspectRatio: '1000 / 620', background: 'radial-gradient(60% 55% at 50% 50%, rgb(26 88 208 / .07), transparent 70%), radial-gradient(1px 1px at 50% 50%, rgb(15 40 80 / .12) 1px, transparent 1.5px) 0 0 / 22px 22px, linear-gradient(180deg, #fbfdff, #f1f6fc)', boxShadow: 'inset 0 0 0 1px #e3e8ef' }}>
               <svg viewBox="0 0 1000 620" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" aria-hidden="true">
                 <defs>
                   <radialGradient id="ig-blast"><stop offset="0" stopColor="#ff6b5d" stopOpacity=".26" /><stop offset=".7" stopColor="#ff6b5d" stopOpacity=".08" /><stop offset="1" stopColor="#ff6b5d" stopOpacity="0" /></radialGradient>
-                  <linearGradient id="ig-edge" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#0a6dbb" stopOpacity=".5" /><stop offset="1" stopColor="#0a6dbb" stopOpacity=".18" /></linearGradient>
+                  <linearGradient id="ig-edge" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#1a58d0" stopOpacity=".5" /><stop offset="1" stopColor="#1a58d0" stopOpacity=".18" /></linearGradient>
                 </defs>
                 {/* orbits */}
                 <ellipse cx="500" cy="310" rx="235" ry="168" fill="none" stroke="rgb(15 40 80 / .14)" strokeDasharray="3 7" />
@@ -311,8 +311,8 @@ export function IdentityGraph({ k: fk } = {}) {
 
               {/* the identity */}
               <span className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center" style={pct(IG_C)}>
-                <span className="relative flex h-[4.6em] w-[4.6em] items-center justify-center rounded-full" style={{ background: 'var(--vz-solid)', boxShadow: hot && !held ? '0 0 0 .3em rgb(229 72 77 / .14), 0 .8em 2em -.4em rgb(229 72 77 / .45)' : '0 0 0 .3em rgb(10 109 187 / .1), 0 .8em 2em -.6em rgb(16 40 80 / .35)', transition: 'box-shadow .8s' }}>
-                  <Ring v={hot ? (held ? 94 : 94) : 18} color={held ? '#12a150' : hot ? '#e5484d' : '#0a6dbb'} size="4.6em" label={false} />
+                <span className="relative flex h-[4.6em] w-[4.6em] items-center justify-center rounded-full" style={{ background: 'var(--vz-solid)', boxShadow: hot && !held ? '0 0 0 .3em rgb(229 72 77 / .14), 0 .8em 2em -.4em rgb(229 72 77 / .45)' : '0 0 0 .3em rgb(26 88 208 / .1), 0 .8em 2em -.6em rgb(16 40 80 / .35)', transition: 'box-shadow .8s' }}>
+                  <Ring v={hot ? (held ? 94 : 94) : 18} color={held ? '#12a150' : hot ? '#e5484d' : '#1a58d0'} size="4.6em" label={false} />
                   <span className="absolute"><Av name="Kavya Reddy" i={3} /></span>
                 </span>
                 <span className="mt-[.45em] whitespace-nowrap text-[.95em] font-semibold">Kavya Reddy</span>

@@ -106,7 +106,7 @@ function Count({ from, to, run }) {
 function Findings({ summary, rows, fixed, fixLabel, done }) {
   return (
     <div>
-      <div className="flex gap-[.8em] rounded-[.7em] p-[.9em]" style={{ background: 'rgb(10 116 196 / .07)' }}>
+      <div className="flex gap-[.8em] rounded-[.7em] p-[.9em]" style={{ background: 'rgb(29 95 216 / .07)' }}>
         <svg viewBox="0 0 24 24" width="1.7em" height="1.7em" aria-hidden="true" className="shrink-0" style={{ color: '#2f6fe4' }}><path d="M10 2l1.8 5.2L17 9l-5.2 1.8L10 16l-1.8-5.2L3 9l5.2-1.8zM18 13l.9 2.6 2.6.9-2.6.9L18 20l-.9-2.6-2.6-.9 2.6-.9z" fill="currentColor" /></svg>
         <span><span className="block vz-t" style={{ fontWeight: 650 }}>Summary</span><span className="mt-[.2em] block vz-m" style={{ fontSize: 'max(var(--vz-min), .86em)' }}>{summary}</span></span>
       </div>

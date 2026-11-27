@@ -142,7 +142,7 @@ export function AgentGateway() {
           </ul>
           <div>
             <p className="sc-h2">AI agents</p>
-            <div className="sc-flow"><span><I n="cube" s={22} c="#0a6dbb" />AI agent</span><I n="arrow" s={16} c="#475569" /><span><img src="/brand/products/zenstra.webp" alt="" />Zenstra gateway</span></div>
+            <div className="sc-flow"><span><I n="cube" s={22} c="#1a58d0" />AI agent</span><I n="arrow" s={16} c="#475569" /><span><img src="/brand/products/zenstra.webp" alt="" />Zenstra gateway</span></div>
             <p className="sc-p">Add the agents allowed to call these finance tools.</p>
             <p className="sc-h2">Allowed agents</p>
             <p className="sc-select"><span className="sc-chip"><Brand k="claude" s={12} />Claude <I n="x" s={10} w={2.4} /></span><I n="chev" s={14} /></p>
@@ -170,7 +170,7 @@ export function AgentKill() {
         <dl className="sc-dl"><dt>Name<code>agentName</code></dt><dd>Invoice Bot</dd><dt>Description<code>agentDescription</code></dt><dd>Matches supplier invoices to purchase orders in SAP</dd></dl>
       </div>
       <div className="sc-menu" style={{ left: 420, top: 120 }}><p>Actions <I n="chev" s={14} /></p><b>Deactivate</b></div>
-      <div className="sc-toast blue" style={{ left: 230, top: 440 }}><span className="sc-tick w"><I n="check" s={14} w={3} c="#0a6dbb" /></span>AI agent deactivated</div>
+      <div className="sc-toast blue" style={{ left: 230, top: 440 }}><span className="sc-tick w"><I n="check" s={14} w={3} c="#1a58d0" /></span>AI agent deactivated</div>
       <div className="sc-toast" style={{ left: 230, top: 528 }}><span className="sc-i">i</span>Revoking 6 credentials</div>
     </Panel>
   );
@@ -183,7 +183,7 @@ export function RiskEngine() {
     <Panel label="Risk engine">
       <svg className="sc-ring" viewBox="0 0 700 660"><circle cx="350" cy="360" r="210" /><path d="M120 572 H600" /><path d="M590 572l10 0-8-5M590 572l10 0-8 5" /></svg>
       {at.map(([x, y, n], i) => (
-        <span key={i} className="sc-node" style={{ left: x - 44, top: y - 44 }}><I n={i === 1 ? 'search' : i === 3 ? 'lock' : i === 0 ? 'cube' : 'sync'} s={26} c="#0a6dbb" w={1.6} /></span>
+        <span key={i} className="sc-node" style={{ left: x - 44, top: y - 44 }}><I n={i === 1 ? 'search' : i === 3 ? 'lock' : i === 0 ? 'cube' : 'sync'} s={26} c="#1a58d0" w={1.6} /></span>
       ))}
       <div className="sc-core"><I n="shield" s={44} c="#0f172a" w={1.4} /><p>Continuous risk<br />assessment</p></div>
     </Panel>
@@ -202,7 +202,7 @@ export function ThreatResponses() {
       </svg>
       <div className="sc-pill" style={{ left: 110, top: 330 }}>Identity risk signal</div>
       {out.map(([ic, t, y]) => (
-        <div key={t} className="sc-tile" style={{ left: 484, top: y - 54 }}><span /><span /><div><I n={ic} s={30} c="#0a6dbb" w={1.6} /><p>{t}</p></div></div>
+        <div key={t} className="sc-tile" style={{ left: 484, top: y - 54 }}><span /><span /><div><I n={ic} s={30} c="#1a58d0" w={1.6} /><p>{t}</p></div></div>
       ))}
     </Panel>
   );
@@ -256,11 +256,11 @@ function SprawlGraph() {
       <p className="sc-sg-l c" style={{ left: 140, top: 128 }}>a.sharma<em>corp.bank.local</em></p>
       <span className="sc-sg-n bad" style={{ left: 330, top: 60 }}><Brand k="entra" s={26} /></span>
       <p className="sc-sg-l c" style={{ left: 300, top: 128 }}>a.sharma<em>Entra ID</em></p>
-      <span className="sc-sg-flag" style={{ left: 300, top: 36 }}><I n="warn" s={13} c="#64748b" /><I n="crown" s={13} c="#0a6dbb" /></span>
+      <span className="sc-sg-flag" style={{ left: 300, top: 36 }}><I n="warn" s={13} c="#64748b" /><I n="crown" s={13} c="#1a58d0" /></span>
       <span className="sc-sg-tip" style={{ left: 404, top: 52 }}><I n="crown" s={13} c="#64748b" />Unused Global Admin</span>
       <span className="sc-sg-n bad" style={{ left: 175, top: 300 }}><Brand k="microsoft" s={26} /></span>
       <p className="sc-sg-l c" style={{ left: 140, top: 368 }}>a.sharma-adm<em>Domain Admins</em></p>
-      <span className="sc-sg-flag" style={{ left: 146, top: 276 }}><I n="warn" s={13} c="#64748b" /><I n="crown" s={13} c="#0a6dbb" /></span>
+      <span className="sc-sg-flag" style={{ left: 146, top: 276 }}><I n="warn" s={13} c="#64748b" /><I n="crown" s={13} c="#1a58d0" /></span>
       <span className="sc-sg-tip" style={{ left: 250, top: 296 }}><I n="crown" s={13} c="#64748b" />Hidden admin path</span>
     </div>
   );
@@ -268,7 +268,7 @@ function SprawlGraph() {
 function MfaGap() {
   return (
     <div className="sc-mfa">
-      <div className="sc-ov-d lg"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="46" stroke="#e5e7eb" strokeWidth="12" fill="none" /><circle cx="60" cy="60" r="46" stroke="#0a6dbb" strokeWidth="12" fill="none" pathLength="100" strokeDasharray="78 100" transform="rotate(-90 60 60)" /></svg><p><b>78%</b><span>Admins on MFA</span></p></div>
+      <div className="sc-ov-d lg"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="46" stroke="#e5e7eb" strokeWidth="12" fill="none" /><circle cx="60" cy="60" r="46" stroke="#1a58d0" strokeWidth="12" fill="none" pathLength="100" strokeDasharray="78 100" transform="rotate(-90 60 60)" /></svg><p><b>78%</b><span>Admins on MFA</span></p></div>
       <ul>{[['svc-backup-adm', 'No MFA · Domain Admins'], ['j.rao-adm', 'SMS only · Enterprise Admins'], ['helpdesk-t2', 'No MFA · Account Operators']].map(([a, b]) => <li key={a}><I n="warn" s={14} c="#e11d48" /><span><b>{a}</b><em>{b}</em></span></li>)}</ul>
     </div>
   );
@@ -343,9 +343,9 @@ export function NhiScale() {
 
 /* ── three benefits with line icons ── */
 const BI = {
-  watch: <svg viewBox="0 0 64 64" width="64" height="64" fill="none" strokeWidth="3" strokeLinecap="round"><path d="M4 22l8-8 6 6" stroke="#1597e5" /><path d="M46 8l-8 8" stroke="#1597e5" /><circle cx="30" cy="34" r="12" stroke="currentColor" /><path d="M39 43l9 9" stroke="currentColor" /><path d="M24 33l5 4 7-7" stroke="#1597e5" /></svg>,
-  route: <svg viewBox="0 0 64 64" width="64" height="64" fill="none" strokeWidth="3" strokeLinecap="round"><path d="M6 10h30a8 8 0 0 1 0 16H18a8 8 0 0 0 0 16h30" stroke="#1597e5" /><path d="M44 36l6 6-6 6" stroke="#1597e5" /><path d="M20 12l8 8M28 12l-8 8" stroke="currentColor" /><circle cx="30" cy="34" r="5" stroke="currentColor" /></svg>,
-  hub: <svg viewBox="0 0 64 64" width="64" height="64" fill="none" strokeWidth="3" strokeLinecap="round"><circle cx="32" cy="32" r="8" stroke="currentColor" />{[[32, 8], [32, 56], [10, 20], [54, 20], [10, 44], [54, 44]].map(([x, y]) => <g key={`${x}${y}`}><path d={`M32 32 L${x} ${y}`} stroke="#1597e5" strokeDasharray="2 5" /><circle cx={x} cy={y} r="3.5" fill="#1597e5" stroke="none" /></g>)}</svg>,
+  watch: <svg viewBox="0 0 64 64" width="64" height="64" fill="none" strokeWidth="3" strokeLinecap="round"><path d="M4 22l8-8 6 6" stroke="#2f6fec" /><path d="M46 8l-8 8" stroke="#2f6fec" /><circle cx="30" cy="34" r="12" stroke="currentColor" /><path d="M39 43l9 9" stroke="currentColor" /><path d="M24 33l5 4 7-7" stroke="#2f6fec" /></svg>,
+  route: <svg viewBox="0 0 64 64" width="64" height="64" fill="none" strokeWidth="3" strokeLinecap="round"><path d="M6 10h30a8 8 0 0 1 0 16H18a8 8 0 0 0 0 16h30" stroke="#2f6fec" /><path d="M44 36l6 6-6 6" stroke="#2f6fec" /><path d="M20 12l8 8M28 12l-8 8" stroke="currentColor" /><circle cx="30" cy="34" r="5" stroke="currentColor" /></svg>,
+  hub: <svg viewBox="0 0 64 64" width="64" height="64" fill="none" strokeWidth="3" strokeLinecap="round"><circle cx="32" cy="32" r="8" stroke="currentColor" />{[[32, 8], [32, 56], [10, 20], [54, 20], [10, 44], [54, 44]].map(([x, y]) => <g key={`${x}${y}`}><path d={`M32 32 L${x} ${y}`} stroke="#2f6fec" strokeDasharray="2 5" /><circle cx={x} cy={y} r="3.5" fill="#2f6fec" stroke="none" /></g>)}</svg>,
 };
 export function Benefits({ title, lead, items }) {
   return (
@@ -402,7 +402,7 @@ export function AiThreats() {
           ))}
         </ul>
       </div>
-      <div className="sc-toast blue" style={{ left: 230, top: 470, width: 450 }}><span className="sc-tick w"><I n="check" s={14} w={3} c="#0a6dbb" /></span>Impossible travel detected, session held</div>
+      <div className="sc-toast blue" style={{ left: 230, top: 470, width: 450 }}><span className="sc-tick w"><I n="check" s={14} w={3} c="#1a58d0" /></span>Impossible travel detected, session held</div>
       <div className="sc-toast" style={{ left: 230, top: 560, width: 450 }}><span className="sc-i">i</span>Owner verified on a trusted device</div>
     </Panel>
   );
@@ -422,13 +422,13 @@ export function PostureGlance() {
         </div>
         <div className="pg-card pg-mfa">
           <p className="pg-h">MFA coverage</p>
-          <div className="pg-donut"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="46" stroke="#e5e7eb" strokeWidth="12" fill="none" /><circle cx="60" cy="60" r="46" stroke="url(#pgg)" strokeWidth="12" fill="none" strokeLinecap="round" pathLength="100" strokeDasharray="88 100" transform="rotate(-90 60 60)" /><defs><linearGradient id="pgg"><stop offset="0" stopColor="#0a6dbb" /><stop offset="1" stopColor="#5cc0ff" /></linearGradient></defs></svg><p><b>88%</b><span>Strong MFA</span></p></div>
+          <div className="pg-donut"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="46" stroke="#e5e7eb" strokeWidth="12" fill="none" /><circle cx="60" cy="60" r="46" stroke="url(#pgg)" strokeWidth="12" fill="none" strokeLinecap="round" pathLength="100" strokeDasharray="88 100" transform="rotate(-90 60 60)" /><defs><linearGradient id="pgg"><stop offset="0" stopColor="#1a58d0" /><stop offset="1" stopColor="#6b9aff" /></linearGradient></defs></svg><p><b>88%</b><span>Strong MFA</span></p></div>
         </div>
         <div className="pg-card pg-src">
           <p className="pg-h">Sources</p>
           <div className="pg-srcs">{['entra', 'okta', 'aws', 'google', 'github'].map((k) => <span key={k}><Brand k={k} s={16} /><i /></span>)}</div>
         </div>
-        <span className="pg-lock"><I n="lock" s={22} c="#0a6dbb" /></span>
+        <span className="pg-lock"><I n="lock" s={22} c="#1a58d0" /></span>
       </div>
     </Fit>
   );
@@ -473,7 +473,7 @@ export function NhiInventory() {
   return (
     <Panel w={720} h={660}>
       <div className="sc-card fade" style={{ left: 36, top: 70, width: 648, padding: '22px 22px 6px' }}>
-        <p className="sc-th"><span className="nv-ic"><I n="key" s={18} c="#0a6dbb" /></span><b>Machine identities</b><span className="sc-th-n">2,318</span></p>
+        <p className="sc-th"><span className="nv-ic"><I n="key" s={18} c="#1a58d0" /></span><b>Machine identities</b><span className="sc-th-n">2,318</span></p>
         <table className="nv">
           <thead><tr><th>Identity</th><th>Type</th><th>Privilege</th><th>Last used</th></tr></thead>
           <tbody>{rows.map(([k, n, t, p, u, tone]) => (
@@ -482,7 +482,7 @@ export function NhiInventory() {
         </table>
       </div>
       <div className="nv-chip" style={{ left: 420, top: 452 }}><I n="warn" s={15} c="#dc2626" />2 dormant keys found</div>
-      <div className="nv-chip" style={{ left: 300, top: 512 }}><I n="user" s={15} c="#0a6dbb" />Owner assigned: platform-team</div>
+      <div className="nv-chip" style={{ left: 300, top: 512 }}><I n="user" s={15} c="#1a58d0" />Owner assigned: platform-team</div>
       <div className="nv-chip solid" style={{ left: 440, top: 572 }}><I n="sync" s={15} c="#fff" />Rotate key</div>
     </Panel>
   );
@@ -496,7 +496,7 @@ export function SignalsPipeline() {
       <svg className="sc-lines" viewBox="0 0 720 660">{src.map(([, , x, y]) => <path key={x} d={`M${x} ${y - 40} C ${x} ${y - 140} 360 ${y - 140} 360 300`} />)}</svg>
       <div className="sp-core"><span><img src="/brand/products/adapid.webp" alt="" /></span><p>adapID risk engine</p></div>
       {src.map(([t, ic, x, y]) => (
-        <div key={t} className="sp-src" style={{ left: x - 46, top: y - 46 }}><span><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#0a6dbb" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d={TI[ic] || P[ic]} /></svg></span><p>{t}</p></div>
+        <div key={t} className="sp-src" style={{ left: x - 46, top: y - 46 }}><span><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#1a58d0" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d={TI[ic] || P[ic]} /></svg></span><p>{t}</p></div>
       ))}
       <div className="sp-out"><I n="check" s={14} w={3} c="#fff" />Token replay from a new device · held</div>
     </Panel>
@@ -509,7 +509,7 @@ export function PiiDiscovery() {
   return (
     <Panel w={720} h={660}>
       <div className="sc-card" style={{ left: 36, top: 60, width: 648, padding: '22px 22px 8px' }}>
-        <p className="sc-th"><span className="nv-ic"><I n="search" s={18} c="#0a6dbb" /></span><b>Personal data discovered</b><span className="sc-th-n">38 stores scanned</span></p>
+        <p className="sc-th"><span className="nv-ic"><I n="search" s={18} c="#1a58d0" /></span><b>Personal data discovered</b><span className="sc-th-n">38 stores scanned</span></p>
         <ul className="pd">
           {rows.map(([k, n, t, c, bad]) => (
             <li key={n} className={bad ? 'bad' : ''}><Brand k={k} s={18} /><span className="pd-n"><b>{n}</b><em>{c} records</em></span><span className="pd-t">{t.map((x) => <i key={x}>{x}</i>)}</span></li>
@@ -532,7 +532,7 @@ export function ConsentCheck() {
         <p className="cc-who"><span className="sc-av">RS</span><span><b>reports-svc</b><em>is reading customers.mobile for 4,210 principals</em></span></p>
         <ul className="cc">{chk.map(([a, b, ok]) => <li key={a} className={ok ? '' : 'bad'}><span className={`cc-d${ok ? '' : ' bad'}`}><I n={ok ? 'check' : 'x'} s={12} w={3} c="#fff" /></span><span>{a}</span><b>{b}</b></li>)}</ul>
       </div>
-      <div className="sc-toast blue" style={{ left: 200, top: 430, width: 460 }}><span className="sc-tick w"><I n="check" s={14} w={3} c="#0a6dbb" /></span>Access held, owner notified</div>
+      <div className="sc-toast blue" style={{ left: 200, top: 430, width: 460 }}><span className="sc-tick w"><I n="check" s={14} w={3} c="#1a58d0" /></span>Access held, owner notified</div>
       <div className="sc-toast" style={{ left: 200, top: 520, width: 460 }}><span className="sc-i">i</span>Logged to the consent ledger</div>
     </Panel>
   );
@@ -544,10 +544,10 @@ export function BreachWindow() {
   return (
     <Panel w={720} h={660}>
       <div className="sc-card" style={{ left: 50, top: 70, width: 620, padding: '28px 30px', display: 'grid', gridTemplateColumns: '210px 1fr', gap: 30, alignItems: 'center' }}>
-        <div className="pg-donut" style={{ width: 200, height: 200, margin: 0 }}><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="46" stroke="#e5e7eb" strokeWidth="10" fill="none" /><circle cx="60" cy="60" r="46" stroke="#0a6dbb" strokeWidth="10" fill="none" strokeLinecap="round" pathLength="100" strokeDasharray="22 100" transform="rotate(-90 60 60)" /></svg><p><b>56:12</b><span>hours left of 72</span></p></div>
+        <div className="pg-donut" style={{ width: 200, height: 200, margin: 0 }}><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="46" stroke="#e5e7eb" strokeWidth="10" fill="none" /><circle cx="60" cy="60" r="46" stroke="#1a58d0" strokeWidth="10" fill="none" strokeLinecap="round" pathLength="100" strokeDasharray="22 100" transform="rotate(-90 60 60)" /></svg><p><b>56:12</b><span>hours left of 72</span></p></div>
         <div><p className="sc-h">Breach response</p><ul className="bw">{steps.map(([t, ok]) => <li key={t} className={ok ? 'ok' : ''}><i />{t}</li>)}</ul></div>
       </div>
-      <div className="sc-toast blue" style={{ left: 200, top: 400, width: 460 }}><span className="sc-tick w"><I n="check" s={14} w={3} c="#0a6dbb" /></span>Report drafted from evidence held</div>
+      <div className="sc-toast blue" style={{ left: 200, top: 400, width: 460 }}><span className="sc-tick w"><I n="check" s={14} w={3} c="#1a58d0" /></span>Report drafted from evidence held</div>
     </Panel>
   );
 }

@@ -4,12 +4,14 @@ import { watch } from './helpers.js';
 const bg = (loc) => loc.evaluate((el) => getComputedStyle(el).backgroundColor);
 const sheets = (page) => page.locator('.page > :not(.dark, .fixed)');
 
-test('one dark theme: black pages, light words, on every kind of page', async ({ page }) => {
+test('one dark theme: navy-black pages (never pure black), light words, on every kind of page', async ({ page }) => {
   const errors = watch(page);
   for (const path of ['/', '/why-deep-algorithms', '/adapid-ai', '/blogs', '/request-demo']) {
     await page.goto(path);
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(0, 0, 0)');
+    const [br, bgc, bb] = (await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).match(/\d+/g).map(Number);
+    expect(br + bgc + bb, path).toBeLessThan(45);   // still very dark
+    expect(bb, path).toBeGreaterThan(br);           // but tinted navy, as the premium competitors do
     const h = page.locator('h1').first();
     const c = await h.evaluate((el) => getComputedStyle(el).color);
     const [r, g, b] = c.match(/\d+/g).map(Number);

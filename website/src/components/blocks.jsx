@@ -210,26 +210,26 @@ const NEWS_ART = {
     <div className="mx-auto flex w-[86%] items-center justify-between gap-2">
       <span className="grid h-14 w-14 place-items-center rounded-[14px] bg-white text-[#4050c8] shadow-[0_12px_24px_-12px_rgb(64_80_200/.6)]"><Icon name="Robot" size={28} /></span>
       <span className="relative h-0.5 flex-1 bg-gradient-to-r from-[#4050c8] to-[#e5484d]"><span className="absolute left-1/2 top-1/2 grid h-7 w-7 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-[#e5484d] text-white ring-4 ring-white"><Icon name="Prohibit" size={14} weight="bold" /></span></span>
-      <span className="grid h-14 w-14 place-items-center rounded-[14px] bg-white text-[#0a6dbb] shadow-[0_12px_24px_-12px_rgb(10_109_187/.6)]"><Icon name="Bank" size={28} /></span>
+      <span className="grid h-14 w-14 place-items-center rounded-[14px] bg-white text-[#1a58d0] shadow-[0_12px_24px_-12px_rgb(10_109_187/.6)]"><Icon name="Bank" size={28} /></span>
     </div>
   ),
   Event: (n) => (
     <div className="mx-auto w-[64%] rounded-[14px] bg-white p-3 text-center shadow-[0_16px_30px_-16px_rgb(10_94_163/.5)]">
       <span className="mx-auto block h-2 w-10 rounded-full bg-[#dbe6f3]" />
-      <span className="mt-2 block rounded-[10px] bg-gradient-to-br from-[#0a5ea3] to-[#1e88d8] px-2 py-3 text-white"><span className="block text-[10.5px] uppercase tracking-[.16em] text-white/75">{n.kind === 'Event' && n.title.includes('Partner') ? 'Silver Partner' : 'Participant'}</span><span className="mt-1 block text-[14px] font-semibold leading-tight">{n.title.replace('Silver Partner, ', '')}</span></span>
+      <span className="mt-2 block rounded-[10px] bg-gradient-to-br from-[#1a4cb4] to-[#2a68e0] px-2 py-3 text-white"><span className="block text-[10.5px] uppercase tracking-[.16em] text-white/75">{n.kind === 'Event' && n.title.includes('Partner') ? 'Silver Partner' : 'Participant'}</span><span className="mt-1 block text-[14px] font-semibold leading-tight">{n.title.replace('Silver Partner, ', '')}</span></span>
       <span className="mt-2 block text-[11.5px] font-medium text-[#5b6472]">{n.meta}</span>
     </div>
   ),
   Interview: (n) => (
     <div className="mx-auto flex w-[82%] items-center gap-3 rounded-[14px] bg-white p-3.5 shadow-[0_16px_30px_-16px_rgb(10_94_163/.5)]">
       <img src="/img/people/jp-mishra.webp" alt="" className="h-12 w-12 shrink-0 rounded-full object-cover" loading="lazy" decoding="async" />
-      <span className="min-w-0"><span className="block text-[26px] font-bold leading-[.6] text-[#0a6dbb]">“</span><span className="block text-[14px] font-semibold text-[#0e1116]">JP Mishra</span><span className="block text-[11.5px] text-[#5b6472]">Interview · {n.meta}</span></span>
+      <span className="min-w-0"><span className="block text-[26px] font-bold leading-[.6] text-[#1a58d0]">“</span><span className="block text-[14px] font-semibold text-[#0e1116]">JP Mishra</span><span className="block text-[11.5px] text-[#5b6472]">Interview · {n.meta}</span></span>
     </div>
   ),
   Funding: () => (
     <div className="mx-auto w-[78%] rounded-[14px] bg-white p-4 shadow-[0_16px_30px_-16px_rgb(10_94_163/.5)]">
-      <div className="flex items-baseline justify-between"><span className="text-[11px] font-semibold uppercase tracking-[.12em] text-[#5b6472]">Pre-Series A</span><span className="text-[20px] font-bold tracking-[-0.02em] text-[#0a6dbb]">₹16 Cr</span></div>
-      <div className="mt-3 flex h-12 items-end gap-1.5">{[22, 30, 28, 40, 46, 58, 72, 100].map((h, i) => <span key={i} className="flex-1 rounded-t-[3px]" style={{ height: `${h}%`, background: i === 7 ? 'linear-gradient(#1e88d8,#0a5ea3)' : '#dbe7f4' }} />)}</div>
+      <div className="flex items-baseline justify-between"><span className="text-[11px] font-semibold uppercase tracking-[.12em] text-[#5b6472]">Pre-Series A</span><span className="text-[20px] font-bold tracking-[-0.02em] text-[#1a58d0]">₹16 Cr</span></div>
+      <div className="mt-3 flex h-12 items-end gap-1.5">{[22, 30, 28, 40, 46, 58, 72, 100].map((h, i) => <span key={i} className="flex-1 rounded-t-[3px]" style={{ height: `${h}%`, background: i === 7 ? 'linear-gradient(#2a68e0,#1a4cb4)' : '#dbe7f4' }} />)}</div>
       <p className="mt-2 text-[11px] text-[#5b6472]">Led by Unicorn India Ventures</p>
     </div>
   ),
@@ -237,7 +237,7 @@ const NEWS_ART = {
     <svg viewBox="0 0 200 110" className="mx-auto w-[86%]" aria-hidden="true">
       <path d="M20 90 C50 40, 90 70, 120 30 S180 40, 190 20" fill="none" stroke="#c9d8ea" strokeWidth="1.5" strokeDasharray="4 4" />
       {[[45, 62, 'Kolhapur'], [112, 38, 'Sangli'], [170, 26, 'Karad']].map(([x, y, t]) => (
-        <g key={t}><circle cx={x} cy={y} r="11" fill="#0a6dbb" fillOpacity=".12" /><circle cx={x} cy={y} r="5" fill="#0a6dbb" /><text x={x} y={y + 22} textAnchor="middle" fontSize="10" fontWeight="600" fill="#2b313b">{t}</text></g>
+        <g key={t}><circle cx={x} cy={y} r="11" fill="#1a58d0" fillOpacity=".12" /><circle cx={x} cy={y} r="5" fill="#1a58d0" /><text x={x} y={y + 22} textAnchor="middle" fontSize="10" fontWeight="600" fill="#2b313b">{t}</text></g>
       ))}
     </svg>
   ),
@@ -253,7 +253,7 @@ export function NewsCards({ items, cols = 3 }) {
                 : <span className="w-full transition-transform duration-500 group-hover:-translate-y-1">{NEWS_ART[n.kind](n)}</span>}
             </span>
             <span className="flex flex-1 flex-col p-6">
-              <span className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[.1em] text-[#0a6dbb]">{n.kind === 'Field' ? 'In the field' : n.kind}<span className="font-normal normal-case tracking-normal text-ink-3">· {n.date}</span></span>
+              <span className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[.1em] text-[#1a58d0]">{n.kind === 'Field' ? 'In the field' : n.kind}<span className="font-normal normal-case tracking-normal text-ink-3">· {n.date}</span></span>
               <span className="mt-2 text-[18px] font-semibold leading-snug tracking-[-0.015em]">{n.title}</span>
               <span className="mt-2 flex-1 text-[14px] leading-relaxed text-ink-2">{n.body}</span>
               <span className="link mt-5 text-[14px]">{n.cta}<Icon name="ArrowUpRight" size={13} weight="bold" /></span>
