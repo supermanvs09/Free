@@ -374,3 +374,131 @@ export function Wide({ id, eyebrow, title, lead, children }) {
     </section>
   );
 }
+
+/* ── AI-driven threats, stopped at the identity ── */
+const THREATS = [
+  ['phone', 'Deepfake voice call to the helpdesk', 'Password reset for A. Rao', 'Reset held', 'bad'],
+  ['mail', 'AI-written phishing, MFA prompt bombing', 'V. Mehta · IT admin', 'Session revoked', 'bad'],
+  ['key', 'Leaked access key used by a bot', 'svc-payments-prod', 'Key disabled', 'bad'],
+  ['sync', 'Session token replayed from a new device', 'N. Kulkarni · Treasury', 'Stepped up', 'warn'],
+  ['cube', 'Agent asked to export customer data', 'Claims copilot', 'Blocked', 'bad'],
+];
+const TI = {
+  phone: 'M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z',
+  mail: 'M3 6h18v12H3zM3 7l9 6 9-6',
+};
+export function AiThreats() {
+  return (
+    <Panel w={720} h={660}>
+      <div className="sc-card" style={{ left: 40, top: 56, width: 640, padding: '24px 26px 10px' }}>
+        <p className="sc-th"><b>AI-driven threats</b><span>Last 24 hours</span><span className="sc-th-n">1,284 stopped</span></p>
+        <ul className="sc-tl">
+          {THREATS.map(([ic, t, who, act, tone], i) => (
+            <li key={t} className={i > 3 ? 'blur' : ''}>
+              <span className="sc-ti"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={TI[ic] || P[ic]} /></svg></span>
+              <span className="sc-tt"><b>{t}</b><em>{who}</em></span>
+              <span className={`sc-tag ${tone}`}>{act}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="sc-toast blue" style={{ left: 230, top: 470, width: 450 }}><span className="sc-tick w"><I n="check" s={14} w={3} c="#0a6dbb" /></span>Voice clone detected, reset held</div>
+      <div className="sc-toast" style={{ left: 230, top: 560, width: 450 }}><span className="sc-i">i</span>Owner verified on a trusted device</div>
+    </Panel>
+  );
+}
+
+/* ── Posture at a glance: a photograph with floating cards ── */
+export function PostureGlance() {
+  const sev = [['Critical', 6, '#dc2626'], ['High', 41, '#f97316'], ['Medium', 128, '#facc15'], ['Low', 302, '#94a3b8']];
+  return (
+    <Fit w={1240} className="sc-fit">
+      <div className="pg">
+        <img className="pg-photo" src="/img/photos/p-glance.webp" alt="" />
+        <div className="pg-card pg-sev">
+          <p className="pg-h">Open issues by severity <span>This week</span></p>
+          <div className="pg-legend">{sev.map(([t, n, c]) => <span key={t}><i style={{ background: c }} />{t} <b>{n}</b></span>)}</div>
+          <div className="pg-bar">{sev.map(([t, n, c]) => <i key={t} style={{ flex: n, background: c }} />)}</div>
+        </div>
+        <div className="pg-card pg-mfa">
+          <p className="pg-h">MFA coverage</p>
+          <div className="pg-donut"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="46" stroke="#e5e7eb" strokeWidth="12" fill="none" /><circle cx="60" cy="60" r="46" stroke="url(#pgg)" strokeWidth="12" fill="none" strokeLinecap="round" pathLength="100" strokeDasharray="88 100" transform="rotate(-90 60 60)" /><defs><linearGradient id="pgg"><stop offset="0" stopColor="#0a6dbb" /><stop offset="1" stopColor="#5cc0ff" /></linearGradient></defs></svg><p><b>88%</b><span>Strong MFA</span></p></div>
+        </div>
+        <div className="pg-card pg-src">
+          <p className="pg-h">Sources</p>
+          <div className="pg-srcs">{['entra', 'okta', 'aws', 'google', 'github'].map((k) => <span key={k}><Brand k={k} s={16} /><i /></span>)}</div>
+        </div>
+        <span className="pg-lock"><I n="lock" s={22} c="#0a6dbb" /></span>
+      </div>
+    </Fit>
+  );
+}
+
+/* ── One person, every account they hold ── */
+export function IdentityGraph() {
+  const acc = [
+    ['entra', 'a.rao@bank.in', 'Entra ID', 70, null],
+    ['aws', 'arao-admin', 'AWS · prod-payments', 170, 'Admin, unused 94 days'],
+    ['github', 'arao', 'GitHub · org owner', 270, null],
+    ['google', 'a.rao@bank.in', 'Google Workspace', 370, 'No MFA'],
+    ['microsoft', 'RAO-A', 'Active Directory', 470, 'Kerberoastable SPN'],
+  ];
+  return (
+    <Panel w={720} h={660} label="Identity analysis">
+      <div className="sc-card ig" style={{ left: 40, top: 92, width: 640, height: 520, padding: 0 }}>
+        <svg className="ig-lines" viewBox="0 0 640 520">{acc.map(([, , , y]) => <path key={y} d={`M118 270 C 190 270 190 ${y} 262 ${y}`} />)}</svg>
+        <span className="ig-me"><I n="user" s={30} c="#fff" /></span>
+        <p className="ig-me-l">A. Rao<em>Finance · Mumbai</em></p>
+        {acc.map(([k, id, where, y, risk]) => (
+          <div key={where} className="ig-acc" style={{ top: y - 32 }}>
+            <span className={`ig-ic${risk ? ' bad' : ''}`}><Brand k={k} s={22} /></span>
+            <span className="ig-t"><b>{id}</b><em>{where}</em></span>
+            {risk && <span className="ig-risk"><I n="warn" s={13} c="#dc2626" />{risk}</span>}
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+/* ── Every machine identity, in one inventory ── */
+export function NhiInventory() {
+  const rows = [
+    ['aws', 'role/ci-deploy-prod', 'IAM role', 'Admin-like', '2 h ago', 'ok'],
+    ['github', 'deploy-bot', 'GitHub app', 'Repo write', '1 day ago', 'ok'],
+    ['aws', 'user/legacy-backup', 'Access key', 'S3 full', '214 days', 'bad'],
+    ['kubernetes', 'sa/payments-api', 'Workload', 'Secrets read', '5 min ago', 'ok'],
+    ['google', 'svc-reports@bank', 'Service account', 'Owner', 'Never', 'bad'],
+  ];
+  return (
+    <Panel w={720} h={660}>
+      <div className="sc-card fade" style={{ left: 36, top: 70, width: 648, padding: '22px 22px 6px' }}>
+        <p className="sc-th"><span className="nv-ic"><I n="key" s={18} c="#0a6dbb" /></span><b>Machine identities</b><span className="sc-th-n">2,318</span></p>
+        <table className="nv">
+          <thead><tr><th>Identity</th><th>Type</th><th>Privilege</th><th>Last used</th></tr></thead>
+          <tbody>{rows.map(([k, n, t, p, u, tone]) => (
+            <tr key={n}><td><span className="nv-n"><Brand k={k} s={15} /><b>{n}</b></span></td><td>{t}</td><td>{p}</td><td className={tone === 'bad' ? 'bad' : ''}>{u}</td></tr>
+          ))}</tbody>
+        </table>
+      </div>
+      <div className="nv-chip" style={{ left: 420, top: 452 }}><I n="warn" s={15} c="#dc2626" />2 dormant keys found</div>
+      <div className="nv-chip" style={{ left: 300, top: 512 }}><I n="user" s={15} c="#0a6dbb" />Owner assigned: platform-team</div>
+      <div className="nv-chip solid" style={{ left: 440, top: 572 }}><I n="sync" s={15} c="#fff" />Rotate key</div>
+    </Panel>
+  );
+}
+
+/* ── Signals from the whole stack, feeding one risk engine ── */
+export function SignalsPipeline() {
+  const src = [['Voice and helpdesk', 'phone', 110, 470], ['Email security', 'mail', 230, 560], ['EDR', 'shield', 360, 590], ['Device management', 'lock', 490, 560], ['SaaS and cloud logs', 'search', 610, 470]];
+  return (
+    <Panel w={720} h={660} label="AI threat signals">
+      <svg className="sc-lines" viewBox="0 0 720 660">{src.map(([, , x, y]) => <path key={x} d={`M${x} ${y - 40} C ${x} ${y - 140} 360 ${y - 140} 360 300`} />)}</svg>
+      <div className="sp-core"><span><img src="/brand/products/adapid.webp" alt="" /></span><p>adapID risk engine</p></div>
+      {src.map(([t, ic, x, y]) => (
+        <div key={t} className="sp-src" style={{ left: x - 46, top: y - 46 }}><span><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#0a6dbb" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d={TI[ic] || P[ic]} /></svg></span><p>{t}</p></div>
+      ))}
+      <div className="sp-out"><I n="check" s={14} w={3} c="#fff" />Deepfake reset attempt · held</div>
+    </Panel>
+  );
+}

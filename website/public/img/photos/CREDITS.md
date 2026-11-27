@@ -13,6 +13,7 @@ Free to use under the Unsplash License (https://unsplash.com/license).
 | p-servers.webp | https://images.unsplash.com/photo-1762163516269-3c143e04175c |
 | p-records.webp | https://images.unsplash.com/photo-1758691463203-cce9d415b2b5 |
 | p-analyst.webp | https://images.unsplash.com/photo-1580894908361-967195033215 |
+| p-glance.webp | https://images.unsplash.com/photo-1542744173-05336fcc7ad4 |
 | p-team.webp | https://images.unsplash.com/photo-1758873268745-dd2cf0d677b5 |
 
 bfsi.webp and fraud-hero.webp: supplied by Deep Algorithms.

@@ -19,7 +19,7 @@ const words = (el) => {
   el.dataset.split = '1';
   const txt = el.textContent;
   el.setAttribute('aria-label', txt);
-  el.innerHTML = txt.split(/(\s+)/).map((w) => (/^\s+$/.test(w) ? w : `<span class="sw" aria-hidden="true"><span>${w}</span></span>`)).join('');
+  el.innerHTML = txt.split(/( +)/).map((w) => (/^ +$/.test(w) ? w : `<span class="sw" aria-hidden="true"><span>${w}</span></span>`)).join('');
   return el.querySelectorAll('.sw > span');
 };
 

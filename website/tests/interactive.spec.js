@@ -100,7 +100,10 @@ test('home: the AI-SPM section leads with its name, then the promise', async ({ 
   await page.goto('/');
   const sec = page.locator('#aispm');
   await expect(sec.getByRole('heading', { level: 2 })).toHaveText('Continuous AI Security Posture Management');
-  await expect(sec.locator('.ai-sub')).toHaveText('Securing your Identities and Digital Ecosystem from AI-driven threats.');
+  await expect(sec.locator('.ai-sub')).toContainText('the posture of every human and machine identity');
+  // the promise moved up, under the hero headline
+  await expect(page.locator('section[aria-labelledby="hero-h"] .rd-sub2')).toHaveText('Securing your Identities and Digital Ecosystem from AI\u2011driven threats.');
+  for (const id of ['sp-ov', 'sp-graph', 'sp-nhi', 'sp-sig', 'sp-ai']) await expect(page.locator(`#${id}`)).toHaveCount(1);
 });
 
 test('every hero rolls the customer logos, with a pause control', async ({ page }) => {

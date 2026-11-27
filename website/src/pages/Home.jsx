@@ -11,6 +11,7 @@ import { PRODUCT_MENU } from '../data/nav.js';
 import FilmModal, { FILM, openFilm } from '../components/home/FilmModal.jsx';
 import { IconStack } from '../lib/nullmotion.jsx';
 import AgenticSecurity from '../components/AgenticSecurity.jsx';
+import { AiThreats, Feature, IdentityGraph, NhiInventory, PostureGlance, SignalsPipeline, Wide } from '../components/showcase.jsx';
 import Intro from '../home/Intro.jsx';
 import { startScrollStory } from '../home/scrollStory.js';
 import { ClaudeBlock } from '../home/Agents.jsx';
@@ -47,7 +48,8 @@ export default function Home() {
       <section className="dx-hero rd-hero" aria-labelledby="hero-h">
         <div className="dx-wrap">
           <h1 id="hero-h" className="rise" style={{ '--d': '40ms' }}>Discover every human, machine and AI&nbsp;agent identity.</h1>
-          <div className="dx-hero-cta rise" style={{ '--d': '160ms' }}>
+          <p className="rd-sub2 rise" style={{ '--d': '120ms' }}>Securing your Identities and Digital Ecosystem from AI&#8209;driven threats.</p>
+          <div className="dx-hero-cta rise" style={{ '--d': '200ms' }}>
             <Link to="/request-demo" className="dx-btn solid">Book a demo</Link>
             <button type="button" className="dx-btn ghost" onClick={() => openFilm(0)}><Play />Watch video ({FILM.length.padStart(5, '0')})</button>
           </div>
@@ -72,10 +74,34 @@ export default function Home() {
         <div className="dx-wrap">
           <div className="ai-title">
             <h2 id="aispm-h" className="ai-big">Continuous AI Security Posture Management</h2>
-            <p className="ai-sub">Securing your Identities and Digital Ecosystem from AI-driven threats.</p>
+            <p className="ai-sub">One platform for two jobs: the posture of every human and machine identity, and the security of every AI agent.</p>
           </div>
         </div>
       </section>
+
+      {/* 3a · the posture of human and machine identities, protected from AI-driven threats */}
+      <div className="sc-agentic sp-part">
+        <div className="wrap sc-intro">
+          <p className="sc-eyebrow">Identity security posture</p>
+          <h2 className="sc-title">Every human and machine identity, hardened against AI-driven attacks.</h2>
+          <p className="sc-lead">Attackers now use AI to sound like your staff, write the perfect phishing mail and try leaked keys at machine speed. We keep each identity's posture strong and act the moment one is used against you.</p>
+        </div>
+        <Wide id="sp-ov" eyebrow="How exposed are we?" title="Know your identity posture at a glance" lead="Open issues ranked by severity, MFA coverage and every connected source, for people and machines alike.">
+          <PostureGlance />
+        </Wide>
+        <Feature id="sp-graph" eyebrow="Who can reach what?" title="See every account a person really holds" lead="One person, five systems, three risks nobody had joined up. adapID links each identity to every account behind it, so an unused cloud admin or a missing MFA is found before an attacker finds it.">
+          <IdentityGraph />
+        </Feature>
+        <Feature id="sp-nhi" flip eyebrow="What about machines?" title="Bring every machine identity to light" lead="Roles, keys, service accounts and workload identities in one inventory, each with an owner, a privilege and when it was last used, so dormant keys are rotated or removed.">
+          <NhiInventory />
+        </Feature>
+        <Feature id="sp-sig" eyebrow="Who is attacking?" title="Catch AI-driven attacks with signals from your whole stack" lead="Voice and helpdesk, email, endpoint, device and cloud logs feed one risk engine, so a deepfake call, an AI-written phish or a bot trying leaked keys is seen for what it is.">
+          <SignalsPipeline />
+        </Feature>
+        <Feature id="sp-ai" flip eyebrow="And then?" title="Stop them at the identity, in seconds" lead="Each attack is answered by your policy, at the identity it targets: a reset held, a session revoked, a key disabled, an agent blocked.">
+          <AiThreats />
+        </Feature>
+      </div>
 
       {/* 4 · AGENTIC AI SECURITY */}
       <AgenticSecurity rows={['find', 'run']} />

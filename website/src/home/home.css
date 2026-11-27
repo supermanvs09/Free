@@ -471,3 +471,10 @@ html.intro-on header { visibility: hidden; }
 .rd-hero .dx-hero-cta { margin-top: 36px; }
 /* the posture title stands on its own */
 .ai-band { padding: clamp(120px, 14vw, 200px) 0; }
+
+/* the line under the hero headline */
+.rd-sub2 { margin: 22px auto 0; max-width: 640px; font-size: clamp(18px, 1.6vw, 22px); line-height: 1.45; color: rgb(232 240 255 / .74); }
+.ai-band { padding: clamp(110px, 12vw, 180px) 0 clamp(40px, 5vw, 64px); }
+.ai-sub { white-space: normal; max-width: 760px; margin-left: auto; margin-right: auto; font-size: clamp(17px, 1.6vw, 22px); font-weight: 400; }
+.sp-part { padding-top: clamp(24px, 3vw, 40px); }
+.sp-part .sc-intro .sc-title { max-width: 24ch; }
