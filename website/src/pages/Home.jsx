@@ -3,15 +3,14 @@ import { Link } from 'react-router';
 import { Seo } from '../lib/head.jsx';
 import ProductMark from '../components/ProductMark.jsx';
 import { CERTS, CUSTOMERS } from '../data/site.js';
-import { SOLUTION_PAGES } from '../data/solutions.js';
-import { PRODUCTS } from '../data/products.js';
 import { POSTS, formatDate } from '../data/posts.js';
 import CertSeal from '../components/CertSeal.jsx';
 import { PRODUCT_MENU } from '../data/nav.js';
 import FilmModal, { FILM, openFilm } from '../components/home/FilmModal.jsx';
 import { IconStack } from '../lib/nullmotion.jsx';
 import AgenticSecurity from '../components/AgenticSecurity.jsx';
-import { AiThreats, Feature, IdentityGraph, NhiInventory, PostureGlance, SignalsPipeline, Wide } from '../components/showcase.jsx';
+import { Feature, IdentityGraph, NhiInventory, PostureGlance, SignalsPipeline, Wide } from '../components/showcase.jsx';
+import Platforms from '../home/Platforms.jsx';
 import Intro from '../home/Intro.jsx';
 import { startScrollStory } from '../home/scrollStory.js';
 import { ClaudeBlock } from '../home/Agents.jsx';
@@ -98,9 +97,6 @@ export default function Home() {
         <Feature id="sp-sig" eyebrow="Who is attacking?" title="Catch AI-driven attacks with signals from your whole stack" lead="Your identity provider, email, endpoint, device and cloud logs feed one risk engine, so an AI-written phish, a replayed session or a bot trying leaked keys is seen for what it is.">
           <SignalsPipeline />
         </Feature>
-        <Feature id="sp-ai" flip eyebrow="And then?" title="Stop them at the identity, in seconds" lead="Each attack is answered by your policy, at the identity it targets: a sign-in stepped up, a session revoked, a key disabled, an agent blocked.">
-          <AiThreats />
-        </Feature>
       </div>
 
       {/* 4 · AGENTIC AI SECURITY */}
@@ -132,31 +128,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 5 · INDUSTRIES */}
-      <section className="dx-band ink" aria-labelledby="ind-h">
-        <div className="dx-wrap">
-          <div className="dx-head-s">
-            <div>
-              <p className="dx-k">Industries</p>
-              <h2 id="ind-h" className="dx-h2">Built for India’s regulated industries.</h2>
-            </div>
-            <p className="dx-lead">Banks, hospitals, government departments and digital platforms run on the same identities attackers now target with AI. Each gets the products and the evidence its regulator expects.</p>
-          </div>
-          <div className="in-grid">
-            {Object.entries(SOLUTION_PAGES).map(([slug, x]) => (
-              <Link key={slug} to={`/solutions/${slug}`} className="in-card">
-                <img src={`/img/photos/${slug}.webp`} alt="" width="1200" height="800" loading="lazy" decoding="async" />
-                <span className="in-body">
-                  <span className="in-name">{x.name}</span>
-                  <span className="in-h">{x.title}</span>
-                  <span className="in-tags">{(x.products || []).slice(0, 3).map((p) => <i key={p}>{PRODUCTS[p]?.name}</i>)}</span>
-                  <span className="in-go">See how <Arrow /></span>
-                </span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* 5 · OUR PRODUCTS, one lit card */}
+      <Platforms />
 
       {/* 6 · CERTIFICATIONS */}
       <section className="dx-band paper light sheet-up" aria-labelledby="num-h">

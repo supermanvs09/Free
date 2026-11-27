@@ -70,10 +70,11 @@ test('home: "Watch video" plays the brand film in a dialog, and Escape closes it
   await expect(btn).toBeFocused();
 });
 
-test('home: industries, certifications and research each lead somewhere real', async ({ page }) => {
+test('home: products, certifications and research each lead somewhere real', async ({ page }) => {
   await page.goto('/');
-  const ind = page.locator('section[aria-labelledby="ind-h"]');
-  await expect(ind.locator('a[href^="/solutions/"]')).toHaveCount(4);
+  await expect(page.locator('section[aria-labelledby="ind-h"]')).toHaveCount(0);
+  const prod = page.locator('section[aria-labelledby="pk-h"]');
+  for (const to of ['/adapid-ai', '/agentic-ai/agentic-identity', '/dpdpa-compliance']) await expect(prod.locator(`a[href="${to}"]`)).toHaveCount(1);
   const certs = page.locator('section[aria-labelledby="num-h"]');
   await expect(certs.locator('.ce-grid li')).toHaveCount(4);
   // the certifications section is certifications only
@@ -103,7 +104,7 @@ test('home: the AI-SPM section leads with its name, then the promise', async ({ 
   await expect(sec.locator('.ai-sub')).toContainText('the posture of every human and machine identity');
   // the promise moved up, under the hero headline
   await expect(page.locator('section[aria-labelledby="hero-h"] .rd-sub2')).toHaveText('Securing your Identities and Digital Ecosystem from AI\u2011driven threats.');
-  for (const id of ['sp-ov', 'sp-graph', 'sp-nhi', 'sp-sig', 'sp-ai']) await expect(page.locator(`#${id}`)).toHaveCount(1);
+  for (const id of ['sp-ov', 'sp-graph', 'sp-nhi', 'sp-sig']) await expect(page.locator(`#${id}`)).toHaveCount(1);
 });
 
 test('every hero rolls the customer logos, with a pause control', async ({ page }) => {
