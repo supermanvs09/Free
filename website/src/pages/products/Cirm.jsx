@@ -59,6 +59,9 @@ const FAQ = [
   { title: 'Does it help with CERT-In reporting?', body: 'Yes. Every case carries a timeline and its evidence, which shortens the six-hour CERT-In incident report and the review that follows.' },
   { title: 'Can my analysts see why a score changed?', body: 'Yes. Every point of risk comes with its reason in plain language, and every action is logged for review and audit.' },
   { title: 'Does it cover machine identities too?', body: 'People and service accounts are scored here. For AWS roles, keys and workload identities in depth, NHI Security for AWS goes further, in the same adapID console.' },
+  { title: 'Can it detect session hijacking and token theft?', body: 'Yes. adapID keeps scoring after sign-in. A session token replayed from a new device, network or location, or behaviour that no longer matches the identity, raises the risk and triggers your response, from step-up to revoking the session.' },
+  { title: 'Does it use signals from our other security tools?', body: 'Yes. Alerts from your EDR, email security, device management and cloud logs feed the same risk score, so a compromised laptop or a phished user changes the risk of the identity, not just a ticket in another console.' },
+  { title: 'Does it run around the clock?', body: 'Yes. Scoring and policy run continuously on every identity, so a risky change at 2 a.m. is answered by policy in seconds, without waiting for someone to read an alert.' },
 ];
 
 export default function Cirm() {

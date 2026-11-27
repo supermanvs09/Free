@@ -1,4 +1,4 @@
-import { Feature, NhiScale } from '../../components/showcase.jsx';
+import { Benefits, Feature, NhiScale } from '../../components/showcase.jsx';
 import { useGridPop } from '../../lib/nullmotion.jsx';
 import { KeyLineage } from '../../components/viz/refs.jsx';
 import { useRef } from 'react';
@@ -145,6 +145,9 @@ const FAQ = [
   { title: 'Which identities are covered?', body: 'IAM roles, users, service-linked roles and workload identities across accounts and regions, with their credentials and trust relationships.' },
   { title: 'How do you know what is used?', body: 'Granted permissions are compared with 90 days of CloudTrail activity, so unused access stands out for removal.' },
   { title: 'Where do you look for leaked secrets?', body: 'GitHub and AWS CodeCommit, with model-based triage so analysts see real exposures first, and full-history deep scans on demand.' },
+  { title: 'Can it find shadow service accounts and forgotten keys?', body: 'Yes. Every IAM user, role, access key and workload identity in each connected account is inventoried, including those with no owner, no recent use or no tag.' },
+  { title: 'How does it handle the OWASP Top 10 risks for non-human identities?', body: 'The checks cover the main ones: improper offboarding, secret leakage, over-privileged identities, long-lived credentials, insecure cloud deployment configurations and identity reuse across environments.' },
+  { title: 'Does it support machine-to-machine access?', body: 'Yes. Roles assumed by workloads, cross-account trusts and federated identities from Kubernetes and CI systems are mapped with what they can reach and what they actually use.' },
 ];
 
 export default function Nhi() {
@@ -241,6 +244,11 @@ export default function Nhi() {
           <Reveal delay={100}><LeakedKey /></Reveal>
         </div>
       </section>
+      <Benefits title="Secure machine identities without slowing delivery" lead="Read-only to connect, with fixes applied only when you approve them." items={[
+          ['watch', 'Every machine identity found', 'Roles, users, keys and workload identities across all your AWS accounts, including the ones nobody remembers creating.'],
+          ['route', 'Least privilege, measured', 'Unused permissions removed against 90 days of real CloudTrail usage, so the fix never breaks a deploy.'],
+          ['hub', 'No standing secrets', 'Old and unused keys rotated or removed, each identity given an owner, and every change watched after.'],
+        ]} />
       <Rollout acc="adap" lead="One read-only role per AWS account. No agents, nothing installed on your workloads." steps={[
           { when: 'Day 1', h: 'Connect your accounts', p: 'One read-only role per account. Inventory in minutes.' },
           { when: 'Week 1', h: 'Inventory and posture', p: 'Every identity with an owner, a score and real usage.' },

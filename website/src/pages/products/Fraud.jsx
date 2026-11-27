@@ -1,3 +1,4 @@
+import { Benefits } from '../../components/showcase.jsx';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { Seo } from '../../lib/head.jsx';
@@ -135,6 +136,7 @@ const FAQ = [
   { title: 'Can we try it before it affects customers?', body: 'Yes. Transaction intelligence can run in shadow mode, scoring payments alongside your current controls before any decision goes live.' },
   { title: 'How does it fit RBI’s 2025 authentication directions?', body: 'The directions allow risk-based checks on user behaviour, device attributes and transaction history, and accept software tokens as a factor. Behavioural and device signals and silent TOTP are built for exactly that, and every decision is explained and logged for audit.' },
   { title: 'What data does the SDK collect?', body: 'How the device is used, such as timing, pressure and movement, plus device and session signals. Never the characters typed, so customer data stays minimal under the DPDP Act.' },
+  { title: 'Is it phishing-resistant?', body: 'The silent TOTP is bound to the customer’s registered device and verified over an encrypted channel, so there is no code to phish, forward or intercept through a SIM swap.' },
 ];
 
 export default function Fraud() {
@@ -218,6 +220,11 @@ export default function Fraud() {
       </section>
 
 
+      <Benefits title="Less friction for genuine customers" lead="Strong where risk is high, invisible where it is not." items={[
+          ['watch', 'Risk-based step-up', 'Genuine customers pass without an extra step; a risky session or payment is asked for more.'],
+          ['route', 'Phishing-resistant by design', 'A silent, device-bound factor replaces SMS OTPs that can be phished or forwarded.'],
+          ['hub', 'Device and behaviour together', 'Device integrity, behaviour and the payment are judged together, in under 80 ms.'],
+        ]} />
       <Rollout acc="adap" lead="Shadow mode first. No customer impact until you approve." steps={[
           { when: 'Weeks 1–2', h: 'Shadow mode', p: 'Every session scored beside your current controls.' },
           { when: 'Weeks 3–4', h: 'Tune', p: 'Thresholds set against your confirmed fraud.' },

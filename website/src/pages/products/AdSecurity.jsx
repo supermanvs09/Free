@@ -1,4 +1,4 @@
-import { AdminSprawl } from '../../components/showcase.jsx';
+import { AdminSprawl, Benefits } from '../../components/showcase.jsx';
 import { FixClick } from '../../lib/nullmotion.jsx';
 import { ItdrFlow } from '../../components/viz/refs.jsx';
 import { Seo } from '../../lib/head.jsx';
@@ -28,6 +28,9 @@ const FAQ = [
   { title: 'Does it work with hybrid identity?', body: 'Yes. Active Directory is mapped alongside Microsoft 365, so paths that cross from the cloud into the domain are visible.' },
   { title: 'Does it help with RBI and CERT-In expectations on privileged access?', body: 'Yes. Tier 0 membership, every privileged change and every containment action are logged with their evidence, ready for the auditor and for incident reporting.' },
   { title: 'How is the fix list ranked?', body: 'By how many paths a single change closes. The first item on the list is the one change that removes the most routes to Domain Admins.' },
+  { title: 'Does it help with SOC 2 and ISO 27001 audits?', body: 'Yes. Privileged group membership, stale admin accounts, password and Kerberos settings and every change are reported with evidence, mapped to the access-control requirements auditors check.' },
+  { title: 'Does it find dormant and unused accounts?', body: 'Yes. Accounts with no sign-in for 90 days, disabled accounts still in privileged groups and service accounts nobody uses are flagged, ranked by the access they still hold.' },
+  { title: 'How does it find over-privileged accounts?', body: 'By mapping effective rights, including nested groups, delegations, ACLs and GPO links, so an account that can reach Domain Admins through three hops is shown, not hidden.' },
 ];
 
 export default function AdSecurity() {
@@ -100,6 +103,11 @@ export default function AdSecurity() {
           <Reveal up className="mx-auto mt-12 max-w-[920px]"><AdWorkbench /></Reveal>
         </div>
       </section>
+      <Benefits title="Fewer paths, faster fixes" lead="Built for the teams who own Active Directory day to day." items={[
+          ['watch', 'Identity-focused analysis', 'Every user, group, computer and service account linked to the paths they open, not just a list of settings.'],
+          ['route', 'Fixes ranked by impact', 'The one change that closes the most paths first, checked for business impact before you touch anything.'],
+          ['hub', 'Faster security outcomes', 'Posture and live detection on one map, so each alert shows the path it was on and each fix is measured.'],
+        ]} />
       <Rollout acc="adap" lead="Read-only to map. Containment only for the responses you choose to enable." steps={[
           { when: 'Day 1', h: 'Map the directory', p: 'Read-only. Nothing installed on domain controllers.' },
           { when: 'Week 1', h: 'A ranked fix list', p: 'Every path to Tier 0, ranked by reach.' },

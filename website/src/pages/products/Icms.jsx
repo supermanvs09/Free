@@ -1,3 +1,4 @@
+import { Benefits, BreachWindow, ConsentCheck, Feature, PiiDiscovery } from '../../components/showcase.jsx';
 import { SearchType } from '../../lib/nullmotion.jsx';
 import { useState } from 'react';
 import { Seo } from '../../lib/head.jsx';
@@ -47,6 +48,8 @@ const FAQ = [
   { title: 'Which regulations does ICMS cover?', body: 'It is built around the Digital Personal Data Protection Act 2023 and the DPDP Rules 2025, with evidence mapped to RBI and SEBI expectations. The same evidence model supports GDPR obligations.' },
   { title: 'Does it include service accounts?', body: 'Yes. Every access is tied to an identity, human or machine, so service accounts and integrations are checked against purpose too.' },
   { title: 'How quickly can we produce an audit package?', body: 'Evidence is assembled continuously, so a package can be generated in minutes rather than collected over weeks.' },
+  { title: 'Does ICMS handle data principal rights requests?', body: 'Yes. Access, correction and erasure requests are traced to every store holding the principal’s data, with each step and its completion recorded for the audit.' },
+  { title: 'Does our data leave our environment?', body: 'No. Discovery and classification run where the data lives; ICMS keeps the findings and evidence, not copies of the personal data.' },
 ];
 
 
@@ -94,9 +97,15 @@ export default function Icms() {
         </div>
       </section>
 
-      <Split id="discover" acc="icms" eyebrow="PII discovery and classification" title="Find every piece of PII, even where it should not be." lead="Aadhaar, PAN, account numbers and health records, found and classified in every store." />
-      <Split id="consent" acc="icms" eyebrow="Purpose and consent" title="Who touched what, and why." lead="Every access checked against purpose and consent, the moment it happens." />
-      <Split id="breach" acc="icms" eyebrow="Breach response" title="Inside the 72 hours, with evidence in hand." lead="Affected records scoped and the report drafted from evidence already held." />
+      <Feature id="discover" eyebrow="PII discovery and classification" title="Find every piece of PII, even where it should not be." lead="Aadhaar, PAN, account numbers and health records, found and classified in every store.">
+        <PiiDiscovery />
+      </Feature>
+      <Feature id="consent" flip eyebrow="Purpose and consent" title="Who touched what, and why." lead="Every access checked against purpose and consent, the moment it happens.">
+        <ConsentCheck />
+      </Feature>
+      <Feature id="breach" eyebrow="Breach response" title="Inside the 72 hours, with evidence in hand." lead="Affected records scoped and the report drafted from evidence already held.">
+        <BreachWindow />
+      </Feature>
 
       <section className="sec" aria-labelledby="chg-h">
         <div className="wrap">
@@ -120,6 +129,11 @@ export default function Icms() {
           </div>
         </div>
       </section>
+      <Benefits title="Personal data under control" lead="What your DPO, CISO and auditors get from day one." items={[
+          ['watch', 'Know where personal data lives', 'Every store classified, with an owner, and data outside its approved place flagged.'],
+          ['route', 'Prove every access was lawful', 'Each access checked against purpose and consent, and kept in a ledger auditors can read.'],
+          ['hub', 'Answer the regulator fast', 'Breach scope and the report drafted from evidence already held, inside the 72 hours.'],
+        ]} />
       <Rollout acc="icms" lead="From connection to audit-ready evidence, without moving your data." steps={[
           { when: 'Week 1', h: 'Connect', p: 'PII discovered where it already lives.' },
           { when: 'Week 2', h: 'Owners and purpose', p: 'Every store owned. Every access checked.' },

@@ -1,3 +1,4 @@
+import { Benefits } from '../../components/showcase.jsx';
 import AgenticSecurity from '../../components/AgenticSecurity.jsx';
 import { HubSpokes } from '../../lib/nullmotion.jsx';
 import { AgentConsole, AgentAccess } from '../../components/viz/refs.jsx';
@@ -26,6 +27,9 @@ const FAQ = [
   { title: 'Which agents and platforms does it cover?', body: 'Copilots, cloud agents, workflow automations such as n8n and Zapier, coding agents such as Cursor and Claude, and the MCP servers they connect to.' },
   { title: 'Will it slow our agents down?', body: 'Decisions are made inline in milliseconds. Only the actions your policy marks as high-impact wait for a person.' },
   { title: 'What do auditors get?', body: 'A tamper-evident decision record with the agent, its task, the policy version and the outcome for every action, exported as PDF or CSV.' },
+  { title: 'Why can’t traditional IAM handle AI agents?', body: 'Agents act on their own, at machine speed, across many tools, often with a person’s or a shared credential. Login-time checks and static roles do not see what an agent does after it starts, so Zenstra checks each tool call at runtime.' },
+  { title: 'Can Zenstra find shadow AI agents?', body: 'Yes. It discovers agents and MCP servers across your cloud platforms, automation tools and staff devices, including the ones built without IT, and asks for an owner for each.' },
+  { title: 'How does it help against prompt injection and excessive agency?', body: 'It does not trust what the agent was told. Each tool call is compared with the agent’s declared task and grant, so an injected instruction to export data or call an unapproved tool is blocked, whatever the prompt said.' },
 ];
 
 /* Three ways in, as zenstra.ai sets them out: an SDK for agents your teams
@@ -186,6 +190,11 @@ export default function Zenstra() {
           </Reveal>
         </div>
       </section>
+      <Benefits title="Let AI agents act, safely" lead="What changes when every agent has an owner, a scope and a record." items={[
+          ['watch', 'Every agent, accounted for', 'Built, bought and shadow agents in one inventory, each tied to the person it acts for.'],
+          ['route', 'Checked before it runs', 'Every tool call compared with the agent’s task and your policy, and held or blocked before it executes.'],
+          ['hub', 'Evidence on demand', 'A tamper-evident record of every decision, ready for SOC 2, ISO/IEC 42001 and DPDPA reviews.'],
+        ]} />
       <Rollout acc="zen" lead="Discover first, then scope, then enforce. No agent is rewritten." steps={[
           { when: 'Day 1', h: 'Discover every agent', p: 'Every agent, copilot and MCP server, with its owner.' },
           { when: 'Week 1', h: 'Owner and scope', p: 'Access sized to each agent’s task.' },

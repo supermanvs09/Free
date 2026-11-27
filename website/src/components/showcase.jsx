@@ -502,3 +502,52 @@ export function SignalsPipeline() {
     </Panel>
   );
 }
+
+/* ── ICMS: personal data found and classified ── */
+export function PiiDiscovery() {
+  const rows = [['postgresql', 'core_banking.customers', ['Aadhaar', 'PAN', 'Mobile'], '1.8M'], ['snowflake', 'analytics.kyc_snapshot', ['Aadhaar', 'Address'], '940K'], ['aws', 's3://exports/2026-10/kyc.csv', ['Aadhaar', 'PAN'], '62K', true], ['googledrive', 'HR / payroll_oct.xlsx', ['PAN', 'Bank account'], '4.1K']];
+  return (
+    <Panel w={720} h={660}>
+      <div className="sc-card" style={{ left: 36, top: 60, width: 648, padding: '22px 22px 8px' }}>
+        <p className="sc-th"><span className="nv-ic"><I n="search" s={18} c="#0a6dbb" /></span><b>Personal data discovered</b><span className="sc-th-n">38 stores scanned</span></p>
+        <ul className="pd">
+          {rows.map(([k, n, t, c, bad]) => (
+            <li key={n} className={bad ? 'bad' : ''}><Brand k={k} s={18} /><span className="pd-n"><b>{n}</b><em>{c} records</em></span><span className="pd-t">{t.map((x) => <i key={x}>{x}</i>)}</span></li>
+          ))}
+        </ul>
+      </div>
+      <div className="nv-chip" style={{ left: 300, top: 430 }}><I n="warn" s={15} c="#dc2626" />Aadhaar outside its approved place</div>
+      <div className="nv-chip solid" style={{ left: 420, top: 492 }}><I n="eye" s={15} c="#fff" />Masked for all but KYC team</div>
+    </Panel>
+  );
+}
+
+/* ── ICMS: every access checked against purpose and consent ── */
+export function ConsentCheck() {
+  const chk = [['Principal consented to', 'KYC, account servicing', true], ['Declared purpose', 'Monthly risk report', true], ['Purpose matches consent', 'No: marketing use', false]];
+  return (
+    <Panel w={720} h={660}>
+      <div className="sc-card" style={{ left: 60, top: 70, width: 600, padding: '26px 28px' }}>
+        <p className="sc-over">Access request · 14:02</p>
+        <p className="cc-who"><span className="sc-av">RS</span><span><b>reports-svc</b><em>is reading customers.mobile for 4,210 principals</em></span></p>
+        <ul className="cc">{chk.map(([a, b, ok]) => <li key={a} className={ok ? '' : 'bad'}><span className={`cc-d${ok ? '' : ' bad'}`}><I n={ok ? 'check' : 'x'} s={12} w={3} c="#fff" /></span><span>{a}</span><b>{b}</b></li>)}</ul>
+      </div>
+      <div className="sc-toast blue" style={{ left: 200, top: 430, width: 460 }}><span className="sc-tick w"><I n="check" s={14} w={3} c="#0a6dbb" /></span>Access held, owner notified</div>
+      <div className="sc-toast" style={{ left: 200, top: 520, width: 460 }}><span className="sc-i">i</span>Logged to the consent ledger</div>
+    </Panel>
+  );
+}
+
+/* ── ICMS: the 72-hour breach window ── */
+export function BreachWindow() {
+  const steps = [['Affected stores identified', true], ['Data principals listed (12,408)', true], ['Board notice drafted', true], ['Report to the Board filed', false]];
+  return (
+    <Panel w={720} h={660}>
+      <div className="sc-card" style={{ left: 50, top: 70, width: 620, padding: '28px 30px', display: 'grid', gridTemplateColumns: '210px 1fr', gap: 30, alignItems: 'center' }}>
+        <div className="pg-donut" style={{ width: 200, height: 200, margin: 0 }}><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="46" stroke="#e5e7eb" strokeWidth="10" fill="none" /><circle cx="60" cy="60" r="46" stroke="#0a6dbb" strokeWidth="10" fill="none" strokeLinecap="round" pathLength="100" strokeDasharray="22 100" transform="rotate(-90 60 60)" /></svg><p><b>56:12</b><span>hours left of 72</span></p></div>
+        <div><p className="sc-h">Breach response</p><ul className="bw">{steps.map(([t, ok]) => <li key={t} className={ok ? 'ok' : ''}><i />{t}</li>)}</ul></div>
+      </div>
+      <div className="sc-toast blue" style={{ left: 200, top: 400, width: 460 }}><span className="sc-tick w"><I n="check" s={14} w={3} c="#0a6dbb" /></span>Report drafted from evidence held</div>
+    </Panel>
+  );
+}
