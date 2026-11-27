@@ -14,7 +14,7 @@ export default function AgenticSecurity({ head = true, rows = ['find', 'govern',
           <p className="sc-lead">Agents now act with real credentials across your business. Zenstra gives each one an identity, an owner and a scope, and stops it the moment it steps outside.</p>
         </div>
       )}
-      {on('find') && <Feature id="ag-find" eyebrow="Where are my agents?" title="Find and register every agent" lead="Discover agents from browsers and laptops to cloud platforms. Bring them into one directory, alongside the agents from each platform and identity provider, and give each one a human owner.">
+      {on('find') && <Feature id="ag-find" eyebrow="Where are my agents?" title="Find every agent, including the shadow ones" lead="Discover agents from browsers and laptops to cloud platforms. Bring them into one inventory, alongside the agents already known to your identity provider, and give each one a human owner.">
         <AgentsFound />
       </Feature>}
       {on('govern') && <Feature id="ag-govern" flip eyebrow="What can they do?" title="Govern agents from creation to retirement" lead="Hold every agent to least privilege across each connection it makes, and keep its access honest with regular owner reviews.">

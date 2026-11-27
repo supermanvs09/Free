@@ -104,13 +104,13 @@ export function AgentsDirectory() {
           <p className="sc-brand"><img src="/brand/products/zenstra.webp" alt="" />Zenstra</p>
           <p className="sc-dim">Admin</p>
           <i className="sc-ph" />
-          <p className="sc-grp">Directory <I n="chev" s={10} /></p>
-          <p className="sc-nav">People</p>
+          <p className="sc-grp">Inventory <I n="chev" s={10} /></p>
+          <p className="sc-nav">Copilots</p>
           <p className="sc-nav on">AI agents</p>
           <i className="sc-ph" /><i className="sc-ph" /><i className="sc-ph" /><i className="sc-ph" />
         </aside>
         <div className="sc-app-main">
-          <div className="sc-app-top"><b>AI agents</b><span className="sc-btn blue">Register AI agent</span></div>
+          <div className="sc-app-top"><b>AI agents</b><span className="sc-btn blue">Assign owner</span></div>
           <table className="sc-tbl">
             <thead><tr><th>Name</th><th>Status</th><th>Owner</th></tr></thead>
             <tbody>{rows.map(([n, g, o], i) => (
