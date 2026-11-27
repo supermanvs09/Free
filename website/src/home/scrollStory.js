@@ -33,10 +33,11 @@ export async function startScrollStory(root) {
     const hero = root.querySelector('#hero-h');
     if (hero) {
       const w = words(hero);
-      const play = () => gsap.fromTo(w, { yPercent: 110, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 1.1, ease: 'expo.out', stagger: 0.045 });
-      gsap.set(w, { yPercent: 110, opacity: 0 });
-      if (document.documentElement.classList.contains('intro-on')) window.addEventListener('da:intro-done', () => setTimeout(play, 250), { once: true });
-      else play();
+      // after the intro the page is simply there (the intro dissolves into it, as on go.ai);
+      // without an intro the words rise into place
+      if (!document.documentElement.classList.contains('intro-on')) {
+        gsap.fromTo(w, { yPercent: 110, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 1.1, ease: 'expo.out', stagger: 0.045 });
+      }
     }
 
     // 2 titles
