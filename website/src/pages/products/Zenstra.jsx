@@ -1,3 +1,4 @@
+import ZenArchitecture from '../../components/ZenArchitecture.jsx';
 import AgenticSecurity from '../../components/AgenticSecurity.jsx';
 import { HubSpokes } from '../../lib/nullmotion.jsx';
 import { AgentConsole, AgentAccess } from '../../components/viz/refs.jsx';
@@ -166,6 +167,8 @@ export default function Zenstra() {
           <div className="mx-auto mt-12 max-w-[1120px]"><ZenCompare /></div>
         </div>
       </section>
+
+      <ZenArchitecture />
 
       <section className="sec" aria-labelledby="dep-h">
         <div className="wrap grid items-center gap-12 lg:grid-cols-[.8fr_1.2fr] lg:gap-16">

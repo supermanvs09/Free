@@ -2132,3 +2132,27 @@ h1, h2, .t-h1, .t-h2, .dx-h2, .dx-hero h1 { font-weight: 400; letter-spacing: -0
 .sc-row { padding: clamp(48px, 6vw, 88px) 0; }
 .sc-wide-h { text-align: center; } .sc-wide-h .sc-title { margin-left: auto; margin-right: auto; max-width: 22ch; } .sc-wide-h .sc-lead { margin-left: auto; margin-right: auto; }
 .sc-ov-range, .sc-ov-rep, .sc-sync { white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
+
+/* Zenstra architecture */
+.za-fit .db-fit-in { font-family: var(--font-sans); color: #e8eef7; text-align: left; letter-spacing: 0; }
+.za { position: relative; height: 740px; border-radius: 30px; overflow: hidden; border: 1px solid rgb(255 255 255 / .08);
+  background: radial-gradient(70% 60% at 50% 70%, #0c2a4d 0%, rgb(12 42 77 / 0) 70%), radial-gradient(60% 50% at 20% 10%, #0b1a30 0%, rgb(11 26 48 / 0) 70%), linear-gradient(180deg, #060b14, #03060c); }
+.za::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(rgb(255 255 255 / .06) 1px, transparent 1px); background-size: 26px 26px; mask-image: radial-gradient(80% 70% at 50% 50%, #000, transparent); }
+.za-lines { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
+.za-lines path { fill: none; stroke: rgb(203 213 225 / .42); stroke-width: 1.4; }
+.za-lines path.hot { stroke: #38b6ff; stroke-width: 1.8; filter: drop-shadow(0 0 4px rgb(56 182 255 / .8)); }
+.za-lines .dot { fill: #e2e8f0; stroke: #38b6ff; stroke-width: 2; }
+.za-glow { position: absolute; border-radius: 50%; background: radial-gradient(closest-side, rgb(21 151 229 / .35), transparent); filter: blur(30px); z-index: 0; }
+.za-box { position: absolute; z-index: 2; display: flex; align-items: center; justify-content: center; gap: 14px; padding: 0 22px; border-radius: 16px; font-size: 19px; font-weight: 450;
+  background: linear-gradient(135deg, rgb(255 255 255 / .1), rgb(255 255 255 / .03)); border: 1px solid rgb(255 255 255 / .22); backdrop-filter: blur(8px); box-shadow: inset 0 1px 0 rgb(255 255 255 / .12), 0 20px 40px -24px #000; }
+.za-box.round { border-radius: 999px; justify-content: flex-start; padding-left: 34px; }
+.za-box svg { color: #7cc8ff; flex: none; }
+.za-box.stack { box-shadow: 10px 10px 0 -1px #0a1628, 10px 10px 0 0 rgb(255 255 255 / .16), 20px 20px 0 -1px #0a1628, 20px 20px 0 0 rgb(255 255 255 / .1), inset 0 1px 0 rgb(255 255 255 / .12); background: linear-gradient(135deg, #18324f, #0e1d33); }
+.za-box { white-space: nowrap; }
+.za-box.hub { justify-content: center; padding-left: 22px; font-size: 30px; font-weight: 450; letter-spacing: -0.01em; border-color: rgb(124 200 255 / .5); background: linear-gradient(135deg, rgb(56 182 255 / .2), rgb(255 255 255 / .05)); box-shadow: 0 0 60px rgb(21 151 229 / .35), inset 0 1px 0 rgb(255 255 255 / .2); }
+.za-c { text-align: center; line-height: 1.3; } .za-c em { display: block; margin-top: 4px; font-style: normal; font-size: 14px; color: #93a4ba; }
+.za-ctl { position: absolute; z-index: 3; display: flex; align-items: center; gap: 12px; height: 58px; padding: 0 22px 0 12px; border-radius: 999px; font-size: 17px; font-weight: 500; color: #fff;
+  background: linear-gradient(100deg, #0a6dbb 0%, #1b4f8f 40%, #2b2f6b 75%, #3a3a7a 100%); border: 1px solid rgb(160 215 255 / .55); box-shadow: 0 0 34px rgb(21 151 229 / .45), inset 0 1px 0 rgb(255 255 255 / .25); }
+.za-ctl-i { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: rgb(255 255 255 / .14); }
+@media (prefers-reduced-motion: no-preference) { .za-lines path.hot { stroke-dasharray: 6 6; animation: za-flow 1.6s linear infinite; } }
+@keyframes za-flow { to { stroke-dashoffset: -24; } }
