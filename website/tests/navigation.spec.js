@@ -70,11 +70,24 @@ test('the main navigation ends with Why Deep Algorithms', async ({ page, isMobil
   expect(labels.at(-1)).toBe('Why Deep Algorithms');
 });
 
-test('the language menu offers English and six international languages', async ({ page, isMobile }) => {
-  test.skip(isMobile, 'desktop utility bar');
+test('the region menu works as on okta.com: a region on the button, the others in a panel', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'desktop header');
   await page.goto('/');
-  await page.getByRole('button', { name: 'Language: English' }).first().click();
-  const items = page.getByRole('listbox', { name: 'Language' }).getByRole('option');
-  await expect(items).toHaveCount(7);
-  for (const n of ['English', 'Español', 'Français', 'Deutsch', 'Português', '日本語', '简体中文']) await expect(items.filter({ hasText: n })).toHaveCount(1);
+  await hydrated(page);
+  const btn = page.getByRole('banner').getByRole('button', { name: /Region and language: India \(EN\)/ });
+  await expect(btn).toBeVisible();
+  await btn.click();
+  const panel = page.getByRole('list', { name: 'Choose your region' });
+  const items = panel.getByRole('button');
+  await expect(items).toHaveCount(14);
+  for (const n of ['Australia', 'Brazil', 'Canada (EN)', 'France', 'Germany', 'Japan', 'Korea', 'Mexico', 'Netherlands', 'Singapore', 'Spain', 'Sweden', 'United Kingdom', 'United States']) await expect(items.filter({ hasText: n })).toHaveCount(1);
+  await expect(items.filter({ hasText: 'India' })).toHaveCount(0);
+  // an English-speaking region changes the label without reloading
+  await items.filter({ hasText: 'United Kingdom' }).click();
+  await expect(page.getByRole('banner').getByRole('button', { name: /United Kingdom \(EN\)/ })).toBeVisible();
+  // another language switches translation on and reloads
+  await page.getByRole('banner').getByRole('button', { name: /Region and language/ }).click();
+  await Promise.all([page.waitForEvent('load'), page.getByRole('list', { name: 'Choose your region' }).getByRole('button', { name: 'France' }).click()]);
+  expect(await page.evaluate(() => document.cookie)).toContain('googtrans=/en/fr');
+  await page.context().clearCookies();
 });

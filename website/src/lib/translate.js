@@ -10,8 +10,34 @@ export const LANGS = [
   ['de', 'Deutsch', 'German'],
   ['pt', 'Português', 'Portuguese'],
   ['ja', '日本語', 'Japanese'],
-  ['zh-CN', '简体中文', 'Chinese (Simplified)'],
+  ['ko', '한국어', 'Korean'],
 ];
+
+/* The region menu, as on okta.com: a country, shown with its language code.
+   English-speaking regions keep the English site; the others translate it. */
+export const REGIONS = [
+  ['in', 'India', 'en'], ['au', 'Australia', 'en'], ['br', 'Brazil', 'pt'], ['ca', 'Canada', 'en'],
+  ['fr', 'France', 'fr'], ['de', 'Germany', 'de'], ['jp', 'Japan', 'ja'], ['kr', 'Korea', 'ko'],
+  ['mx', 'Mexico', 'es'], ['nl', 'Netherlands', 'en'], ['sg', 'Singapore', 'en'], ['es', 'Spain', 'es'],
+  ['se', 'Sweden', 'en'], ['gb', 'United Kingdom', 'en'], ['us', 'United States', 'en'],
+];
+const RKEY = 'da-region';
+export function getRegion() {
+  if (typeof window === 'undefined') return REGIONS[0];
+  let k = null; try { k = localStorage.getItem(RKEY); } catch { /* private mode */ }
+  const lang = getLang();
+  const r = REGIONS.find(([c]) => c === k);
+  // the saved region wins while it still matches the page language
+  if (r && r[2] === lang) return r;
+  return REGIONS.find(([, , l]) => l === lang) || REGIONS[0];
+}
+export const regionLabel = (r) => `${r[1]} (${r[2].toUpperCase()})`;
+export function setRegion(code) {
+  const r = REGIONS.find(([c]) => c === code); if (!r) return;
+  try { localStorage.setItem(RKEY, code); } catch { /* private mode */ }
+  if (r[2] !== getLang()) setLang(r[2]);
+  else window.dispatchEvent(new Event('da:region'));
+}
 
 export function getLang() {
   if (typeof document === 'undefined') return 'en';

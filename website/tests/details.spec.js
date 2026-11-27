@@ -71,7 +71,7 @@ test('there is no line above the menu; search and language sit in the main bar',
   await expect(page.locator('.ubar')).toHaveCount(0);
   const bar = page.getByRole('banner');
   await expect(bar.getByRole('button', { name: 'Search the site' })).toBeVisible();
-  await expect(bar.getByRole('button', { name: /Language: English/ })).toBeVisible();
+  await expect(bar.getByRole('button', { name: /Region and language: India \(EN\)/ })).toBeVisible();
 });
 
 test('product pages carry no hero picture except NHI security, and no cost-of-the-problem card', async ({ page, isMobile }) => {

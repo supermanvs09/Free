@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router';
 import { SITE, SOLUTIONS } from '../data/site.js';
 import { PRODUCT_MENU, CHALLENGES, MENU_DETAIL } from '../data/nav.js';
-import { LANGS, getLang, setLang } from '../lib/translate.js';
+import { REGIONS, getRegion, regionLabel, setRegion } from '../lib/translate.js';
 import { Button, Icon, cx } from './ui.jsx';
 import ProductMark from './ProductMark.jsx';
 
@@ -104,9 +104,13 @@ function SolutionsMenu() {
 /* The language menu (src/lib/translate.js): English is the source. */
 function LanguageMenu({ away, className, up }) {
   const [open, setOpen] = useState(false);
-  const [lang, setL] = useState('en');
+  const [region, setR] = useState(REGIONS[0]);
   const ref = useRef(null);
-  useEffect(() => { setL(getLang()); }, []);
+  useEffect(() => {
+    const sync = () => setR(getRegion());
+    sync(); window.addEventListener('da:region', sync);
+    return () => window.removeEventListener('da:region', sync);
+  }, []);
   useEffect(() => {
     if (!open) return undefined;
     const out = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
@@ -115,21 +119,19 @@ function LanguageMenu({ away, className, up }) {
     document.addEventListener('keydown', key);
     return () => { document.removeEventListener('pointerdown', out); document.removeEventListener('keydown', key); };
   }, [open]);
-  const cur = LANGS.find(([c]) => c === lang);
+  // as on okta.com: the current region on the button, every other region in the panel
+  const others = REGIONS.filter(([c]) => c !== region[0]);
   return (
     <div ref={ref} className={cx('relative notranslate', className)} translate="no">
-      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-haspopup="listbox" aria-label={`Language: ${cur[2]}`} tabIndex={away ? -1 : undefined}
-        className="inline-flex items-center gap-1.5 hover:text-ink">
-        <Icon name="Globe" size={14} />{cur[1]}<Icon name="CaretDown" size={10} weight="bold" className={cx('transition-transform', open && 'rotate-180')} />
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-haspopup="true" aria-label={`Region and language: ${regionLabel(region)}`} tabIndex={away ? -1 : undefined}
+        className={cx('lm-btn inline-flex items-center gap-2', open && 'on')}>
+        <Icon name="Globe" size={17} /><span className="lm-label">{regionLabel(region)}</span><Icon name="CaretDown" size={11} weight="bold" className={cx('transition-transform', open && 'rotate-180')} />
       </button>
       {open && (
-        <ul role="listbox" aria-label="Language" className={cx('absolute right-0 z-10 max-h-[340px] w-[210px] overflow-y-auto rounded-[12px] border border-line-2 bg-bg p-1.5 shadow-[0_24px_60px_-20px_rgba(6,25,55,.45)]', up ? 'bottom-full mb-2' : 'top-full mt-2')}>
-          {LANGS.map(([c, n, en]) => (
+        <ul aria-label="Choose your region" className={cx('lm-panel', up ? 'up' : '')}>
+          {others.map(([c, n, l]) => (
             <li key={c}>
-              <button type="button" role="option" aria-selected={c === lang} onClick={() => { setOpen(false); setLang(c); }}
-                className={cx('flex w-full items-center justify-between rounded-[8px] px-3 py-2 text-left text-[14px] hover:bg-fg/[.05]', c === lang ? 'font-semibold text-ink' : 'text-ink-2')}>
-                <span>{n}</span>{c !== 'en' && <span className="text-[12.5px] text-ink-3">{en}</span>}{c === lang && c === 'en' && <Icon name="Check" size={14} />}
-              </button>
+              <button type="button" onClick={() => { setOpen(false); setRegion(c); }} lang={l}>{n}{l === 'en' && ['ca'].includes(c) ? ' (EN)' : ''}</button>
             </li>
           ))}
         </ul>
@@ -179,7 +181,7 @@ function MobileMenu({ onNav }) {
       </div>
       <div className="mt-4 flex items-center justify-between text-[14.5px] text-ink-2">
         <span>Language</span>
-        <LanguageMenu up className="rounded-full border border-line-2 px-3.5 py-2" />
+        <LanguageMenu up />
       </div>
       <Button to="/request-demo" onClick={onNav} className="mt-5 w-full">Book a demo</Button>
     </nav>
@@ -272,7 +274,7 @@ export default function Header() {
             className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line-2 text-ink-2 transition-colors hover:border-fg/30 hover:text-ink max-md:hidden">
             <Icon name="MagnifyingGlass" size={17} />
           </button>
-          <LanguageMenu className="hidden rounded-full border border-line-2 px-3.5 py-2 text-[14px] text-ink-2 hover:text-ink lg:inline-flex" />
+          <LanguageMenu className="hidden lg:inline-flex" />
           <Button to="/request-demo" size="sm" className="max-md:hidden lg:h-11 lg:px-6 lg:text-[15.5px]">Book a demo</Button>
           <button type="button" className="inline-flex h-11 w-11 items-center justify-center rounded-full text-ink max-md:hidden lg:hidden" aria-label={mobile ? 'Close menu' : 'Open menu'} aria-expanded={mobile} aria-controls="mobile-menu" onClick={() => setMobile(!mobile)}>
             <Icon name={mobile ? 'X' : 'List'} size={26} />
