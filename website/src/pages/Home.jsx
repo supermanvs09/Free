@@ -174,7 +174,7 @@ export default function Home() {
       <section className="dx-band ink hz-cta" aria-labelledby="close-h">
         <div className="dx-wrap">
           {/* the three product lines rise and fan out, as on every product page */}
-          <div className="pl-28 md:pl-32"><IconStack className="mb-10" /></div>
+          <IconStack className="mb-10" />
           <h2 id="close-h" className="dx-h2">Find your riskiest identity before attackers do.</h2>
           <p className="dx-lead">A 30-minute session with a Deep Algorithms engineer, on your own environment, with your own questions.</p>
           <Link to="/request-demo" className="dx-btn solid">Book a demo</Link>

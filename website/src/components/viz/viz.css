@@ -204,6 +204,7 @@
   & .vz-rows .hot { background: linear-gradient(90deg, rgb(196 53 42 / .07), transparent 70%); }
   & .vz-rows .sel { background: linear-gradient(90deg, rgb(10 116 196 / .08), transparent 75%); }
   & .vz-ic { background: #f1f4f9; border-color: rgb(16 40 80 / .1); }
+  & .vz-app { background: #f4f6fa; border-color: rgb(16 40 80 / .1); color: #0e1116; }
   & .vz-meter { background: rgb(16 40 80 / .08); }
   & .vz-pop { background: #fff; border-color: rgb(16 40 80 / .12); box-shadow: 0 2.4em 4em -1.6em rgb(16 40 80 / .4), 0 0 0 1px rgb(16 40 80 / .04); }
   & .text-white { color: #0e1116; }

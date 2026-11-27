@@ -146,3 +146,14 @@ test('there is no Trust center page, and nothing links to one', async ({ page })
   await page.goto('/trust');
   await expect(page.getByRole('heading', { level: 1, name: 'Security you can verify before you sign.' })).toHaveCount(0);
 });
+
+test('brand marks stay visible on white pictures (GitHub and MCP on the Zenstra MCP tab)', async ({ page }) => {
+  await page.goto('/agentic-ai/agentic-identity#cap-mcp');
+  await hydrated(page);
+  const panel = page.getByRole('tabpanel', { name: 'MCP' });
+  for (const name of ['GitHub', 'Model Context Protocol']) {
+    const fill = await panel.locator(`svg[aria-label="${name}"] path`).first().evaluate((p) => getComputedStyle(p).fill);
+    const [r, g, b] = fill.match(/\d+/g).map(Number);
+    expect(0.2126 * r + 0.7152 * g + 0.0722 * b, name).toBeLessThan(90);
+  }
+});

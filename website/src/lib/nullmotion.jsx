@@ -84,12 +84,12 @@ export function IconStack({ className }) {
   const ref = useRef(null);
   useOnView(ref, (gsap, el) => {
     const cards = el.querySelectorAll('.nm-card'), line = el.querySelector('.nm-line'), glint = el.querySelector('.nm-glint');
-    const fan = [-1.5, -.5, .5, 1.5];
-    gsap.set(cards, { y: 160, opacity: 0, rotationX: 12, transformPerspective: 1400, x: 0, rotationZ: (k) => [-6, -2, 2, 6][k] });
+    const fan = [-1, 0, 1]; // three products, centred
+    gsap.set(cards, { y: 160, opacity: 0, rotationX: 12, transformPerspective: 1400, x: 0, rotationZ: (k) => [-5, 0, 5][k] });
     return gsap.timeline({ defaults: { ease: 'power4.out' } })
       .to(cards, { opacity: 1, y: -12, rotationX: -2, duration: .9, stagger: .07 }, 0)
       .to(cards, { y: 0, rotationX: 0, duration: .3, ease: 'back.out(1.28)', stagger: .07 }, .8)
-      .to(cards, { x: (k) => fan[k] * 132, rotationZ: (k) => fan[k] * 2.2, duration: .72, ease: 'back.out(1.38)', stagger: .04 }, 1.05)
+      .to(cards, { x: (k) => fan[k] * 124, rotationZ: (k) => fan[k] * 3, duration: .72, ease: 'back.out(1.38)', stagger: .04 }, 1.05)
       .fromTo(line, { opacity: 0, scaleX: .06 }, { opacity: .7, scaleX: 1, duration: .5 }, 1.1)
       .fromTo(glint, { opacity: 0, scale: .7 }, { opacity: .55, scale: 1.1, duration: .5 }, 1.1)
       .to([line, glint], { opacity: .18, duration: .6 }, 1.9);
@@ -97,7 +97,7 @@ export function IconStack({ className }) {
   return (
     <div ref={ref} className={cx('nm-stack', className)} aria-hidden="true">
       <span className="nm-glint" /><span className="nm-line" />
-      {LINE.map((p, k) => <span key={p} className="nm-card" style={{ zIndex: 4 - Math.abs(k - 1.5) }}><ProductMark p={p} size={54} /></span>)}
+      {LINE.map((p, k) => <span key={p} className="nm-card" style={{ zIndex: 3 - Math.abs(k - 1) }}><ProductMark p={p} size={54} /></span>)}
     </div>
   );
 }

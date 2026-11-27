@@ -118,7 +118,9 @@ const CUSTOM = {
    they read on a dark window and on a light page alike */
 const brandFill = (hex) => {
   const n = parseInt(hex, 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b < 60 ? 'currentColor' : `#${hex}`;
+  const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  // near-black and near-white marks (GitHub, Vault's pale yellow) take the text colour, so they read on light tiles and dark ones
+  return l < 60 || l > 175 ? 'currentColor' : `#${hex}`;
 };
 
 /* an app icon: the brand mark on a small rounded tile */

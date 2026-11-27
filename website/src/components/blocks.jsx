@@ -79,7 +79,7 @@ export function CtaBand({ title = 'Find your riskiest identity before attackers 
     <div className="dx noprint" data-cta>
       <section className="dx-band ink hz-cta" aria-label={title}>
         <div className="dx-wrap">
-          <div className="pl-28 md:pl-32"><IconStack className="mb-10" /></div>
+          <IconStack className="mb-10" />
           <h2 className="dx-h2">{title}</h2>
           {body && <p className="dx-lead">{body}</p>}
           <Link to={primary.to} className="dx-btn solid">{primary.label}</Link>
