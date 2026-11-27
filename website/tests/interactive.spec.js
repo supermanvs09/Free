@@ -1,12 +1,15 @@
 import { test, expect } from '@playwright/test';
 import { hydrated } from './helpers.js';
 
-test('home: agentic AI security follows the posture section, in four questions', async ({ page }) => {
+test('home: agentic AI security follows the posture section; the rest is on the Zenstra page', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#products')).toHaveCount(0);
-  for (const id of ['ag-find', 'ag-govern', 'ag-run', 'ag-stop']) await expect(page.locator(`#${id}`)).toHaveCount(1);
+  for (const id of ['ag-find', 'ag-run']) await expect(page.locator(`#${id}`)).toHaveCount(1);
+  for (const id of ['ag-govern', 'ag-stop']) await expect(page.locator(`#${id}`)).toHaveCount(0);
   const order = await page.evaluate(() => document.getElementById('aispm').compareDocumentPosition(document.getElementById('ag-find')) & Node.DOCUMENT_POSITION_FOLLOWING);
   expect(order).toBeTruthy();
+  await page.goto('/agentic-ai/agentic-identity');
+  for (const id of ['ag-find', 'ag-govern', 'ag-run', 'ag-stop']) await expect(page.locator(`#${id}`)).toHaveCount(1);
 });
 test('home: AI-SPM shows the four kinds of identity around the globe, each linked to its product', async ({ page }) => {
   await page.goto('/');

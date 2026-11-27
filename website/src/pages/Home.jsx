@@ -82,7 +82,7 @@ export default function Home() {
       </section>
 
       {/* 4 · AGENTIC AI SECURITY */}
-      <AgenticSecurity />
+      <AgenticSecurity rows={['find', 'run']} />
 
       {/* 4b · ZENSTRA AI IN ACTION: the film's Claude scene, on its own */}
       <section className="dx-band ink" aria-labelledby="zen-h">

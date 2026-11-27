@@ -541,7 +541,6 @@ export default function Why() {
               </Reveal>
             ))}
           </div>
-          <p className="mt-8 text-[15px] text-ink-2">Evaluating a product? <Link to="/request-demo" className="link">Book a demo<Icon name="ArrowRight" size={13} weight="bold" /></Link></p>
         </div>
       </section>
 

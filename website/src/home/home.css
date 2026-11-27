@@ -450,12 +450,12 @@
 .sheet-up { border-radius: 36px 36px 0 0; margin-top: -36px; z-index: 2; }
 
 /* the close: a horizon of blue light */
-.hz-cta { overflow: hidden; text-align: center; padding-bottom: clamp(160px, 20vw, 260px); }
+.hz-cta { overflow: hidden; text-align: center; padding-bottom: clamp(72px, 7vw, 104px); }
 .hz-cta .dx-h2 { max-width: 16ch; margin: 0 auto; }
 .hz-cta .dx-lead { margin: 24px auto 0; max-width: 560px; }
 .hz-cta .dx-btn { margin-top: 36px; background: #1597e5; border-color: #1597e5; color: #fff; }
 .hz-cta .dx-wrap { position: relative; z-index: 1; }
-.cta-glow { position: absolute; left: 50%; bottom: -60%; width: 140%; aspect-ratio: 2.4; translate: -50% 0; border-radius: 50%; pointer-events: none;
+.cta-glow { position: absolute; left: 50%; bottom: -92%; width: 120%; aspect-ratio: 2.4; translate: -50% 0; border-radius: 50%; pointer-events: none;
   background: radial-gradient(closest-side, rgb(160 220 255 / .9), rgb(21 151 229 / .75) 30%, rgb(10 90 200 / .35) 60%, transparent 100%); filter: blur(10px); }
 @media (prefers-reduced-motion: reduce) { .intro { display: none; } }
 
