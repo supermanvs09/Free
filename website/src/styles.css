@@ -2186,3 +2186,50 @@ h1, h2, .t-h1, .t-h2, .dx-h2, .dx-hero h1 { font-weight: 400; letter-spacing: -0
 .cc { margin-top: 20px; display: grid; } .cc li { display: grid; grid-template-columns: 26px 1fr auto; gap: 12px; align-items: center; padding: 13px 0; border-top: 1px solid #f1f3f6; font-size: 14px; color: #334155; } .cc b { font-weight: 600; color: #0f172a; } .cc li.bad b { color: #dc2626; }
 .cc-d { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: #16a34a; } .cc-d.bad { background: #dc2626; }
 .bw { display: grid; gap: 14px; margin-top: 4px; } .bw li { display: flex; align-items: center; gap: 12px; font-size: 14.5px; color: #64748b; } .bw i { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #cbd5e1; flex: none; } .bw li.ok { color: #0f172a; } .bw li.ok i { border-color: #16a34a; background: #16a34a; box-shadow: inset 0 0 0 3px #fff; }
+
+/* ==========================================================================
+   Premium pass (Nov 2026): one type voice, three greys, one button, and
+   some rhythm between sections. Measured against Okta, CrowdStrike,
+   Silverfort and Cisco: each uses one weight per heading level, two or three
+   body sizes and a handful of greys; we used three heading weights, up to
+   thirteen body sizes and 12-17 greys per page. Pictures (.vz, dashboards,
+   showcase panels) keep their own scale. The :root prefix lets this layer
+   win over the older ones without !important.
+   ========================================================================== */
+:root {
+  --h2-size: clamp(34px, 3.7vw, 54px);
+  --tone-1: #f2f3f5; /* headings, key text */
+  --tone-2: #c3c8d1; /* body */
+  --tone-3: #8f97a5; /* meta, captions */
+}
+/* section headings: one size, one regular weight, one tracking */
+:root :is(.t-h2, .sc-title, .pk-head h2) { font-size: var(--h2-size); font-weight: 400; line-height: 1.1; letter-spacing: -0.028em; }
+:root .ai-big { font-weight: 400; letter-spacing: -0.035em; }
+:root :is(.dx-h2, .t-h1, .dx-hero h1) { font-weight: 400; }
+/* feature titles (text beside a picture) and card titles: one weight each */
+:root :is(.dx-h3, .t-h3, .sc-copy h3, .px-feature-t h3) { font-weight: 400; letter-spacing: -0.02em; }
+:root .sc-copy h3 { font-size: clamp(26px, 2.4vw, 32px); line-height: 1.15; }
+/* the home page's own greys collapse onto the site's three */
+:root .dx { --tx: var(--tone-1); --tx-2: var(--tone-2); --tx-3: var(--tone-3); --ptx-2: var(--tone-2); --ptx-3: var(--tone-3); }
+:root :is(.rd-sub, .rd-status, .rd-status button) { color: var(--tone-2); }
+:root .rd-hero + .dx-proof .dx-proof-h { color: var(--tone-3); }
+:root :is(.sc-lead, .dx-lead, .t-lead) { color: var(--tone-2); }
+:root .sc-eyebrow { font-size: 13px; font-weight: 600; letter-spacing: .14em; color: var(--tone-3); }
+/* one button: 48px tall, medium weight, wherever it appears */
+:root :is(.btn, .dx-btn) { height: 48px; font-weight: 500; }
+:root .btn-lg { height: 48px; font-size: 16px; padding: 0 24px; }
+/* customer logos: one height, one tone */
+:root .dx-logos img { height: 30px; opacity: .72; filter: grayscale(1) contrast(1.05); transition: opacity .3s, filter .3s; }
+:root .dx-logos img:hover { opacity: 1; filter: none; }
+/* rhythm: a few bands become inset panels on a raised surface, as Okta
+   contains its key sections, so the page is no longer one black slab */
+:root :is(.ai-band, .sc-ben, section[aria-labelledby='roll-h'], section[aria-labelledby='res-h']) {
+  margin-inline: clamp(8px, 1.4vw, 20px); border-radius: clamp(20px, 2.4vw, 32px);
+  background: radial-gradient(120% 140% at 50% 0%, #0d1424 0%, #080b12 55%, #06080d 100%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .06), inset 0 1px 0 rgb(255 255 255 / .08);
+}
+:root :is(.sc-ben, section[aria-labelledby='roll-h']) { margin-block: clamp(24px, 3vw, 48px); }
+/* one lead size, and the body size for steps and bullets */
+:root :is(.t-lead, .sc-lead, .dx-lead) { font-size: clamp(17px, 1.35vw, 20px); line-height: 1.55; }
+:root .ro-p { font-size: 16px; }
+:root .sc-bullets { font-size: 17px; }

@@ -48,7 +48,7 @@ function Deployment() {
           <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px]" style={{ background: 'color-mix(in oklab, var(--color-zen) 16%, transparent)', color: 'var(--color-zen)' }}><Icon name={w.icon} size={22} /></span>
           <span className="min-w-0 flex-1">
             <span className="block text-[17px] font-semibold tracking-[-0.01em]">{w.h}</span>
-            <span className="mt-1 block text-[15px] leading-relaxed text-ink-2">{w.p}</span>
+            <span className="mt-1 block text-[16px] leading-relaxed text-ink-2">{w.p}</span>
             {w.logos && (
               <span className="mt-3 flex flex-wrap gap-2">
                 {w.logos.map((k) => <span key={k} title={logoTitle(k)} className="inline-flex h-9 w-9 items-center justify-center rounded-[9px] border border-line bg-white text-[#12171f]"><Logo k={k} size={19} color={k === 'azure' ? '#0078d4' : undefined} /><span className="sr-only">{logoTitle(k)}</span></span>)}
@@ -95,7 +95,7 @@ export default function Zenstra() {
         <div className="wrap">
           <div className="island tone-d px-4 py-14 md:px-10 md:py-20">
             <SectionHead id="where-h" eyebrow="Controlled access" title="Agent security starts with an owner and a scope." lead="Every agent tied to its owner, with access narrowed to its task." />
-            <ul className="mx-auto mt-8 grid max-w-[880px] gap-3 text-[15px] text-white/85 md:grid-cols-3">
+            <ul className="mx-auto mt-8 grid max-w-[880px] gap-3 text-[16px] text-white/85 md:grid-cols-3">
               {['Every agent has a named owner who answers for it.', 'Every credential is mapped to the systems it reaches.', 'Every grant is scoped to the task and expires on its own.'].map((t) => <li key={t} className="flex gap-2.5"><Icon name="CheckCircle" size={18} weight="fill" className="mt-0.5 shrink-0 text-[#4fb3f6]" />{t}</li>)}
             </ul>
             <Reveal up className="mx-auto mt-12 max-w-[1040px]"><AgentAccess /></Reveal>
@@ -131,7 +131,7 @@ export default function Zenstra() {
                 <span className="relative grid h-12 w-12 place-items-center rounded-full bg-white/15 text-white ring-1 ring-white/25"><Icon name={ic} size={22} /></span>
                 <p className="relative mt-6 text-[11.5px] font-semibold uppercase tracking-[.14em] text-white/60">{k}</p>
                 <h3 className="relative mt-1 text-[24px] font-semibold tracking-[-0.02em] text-white">{h}</h3>
-                <p className="relative mt-2 text-[15px] leading-relaxed text-white/80">{p}</p>
+                <p className="relative mt-2 text-[16px] leading-relaxed text-white/80">{p}</p>
               </Reveal>
             ))}
           </div>
@@ -140,14 +140,14 @@ export default function Zenstra() {
             {CAPLIST.map(([ic, t], i) => (
               <Reveal as="li" key={t} delay={(i % 3) * 50} className="card flex items-center gap-3.5 p-4">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#1b2a6b] text-white"><Icon name={ic} size={18} /></span>
-                <span className="text-[15px] font-medium text-ink">{t}</span>
+                <span className="text-[16px] font-medium text-ink">{t}</span>
               </Reveal>
             ))}
           </ul>
           <div className="mt-14 grid gap-10 lg:grid-cols-2">
             <div>
               <p className="kicker" style={{ '--acc': 'var(--color-zen)' }}>Works with your stack</p>
-              <p className="mt-3 text-[15px] text-ink-2">Native coverage for agent and automation frameworks, plus vendor-agnostic monitoring for conversational LLMs.</p>
+              <p className="mt-3 text-[16px] text-ink-2">Native coverage for agent and automation frameworks, plus vendor-agnostic monitoring for conversational LLMs.</p>
               <ul className="mt-5 flex flex-wrap gap-2.5">
                 {STACK.map(([k, n]) => <li key={n} className="inline-flex items-center gap-2 rounded-full border border-line-2 bg-white px-3.5 py-2 text-[14px] font-medium text-[#0f172a] shadow-[0_6px_16px_-12px_rgb(11_42_82/.4)]">{k ? <Logo k={k} size="16px" /> : <Icon name="Robot" size={15} className="text-[#64748b]" />}{n}</li>)}
                 <li className="inline-flex items-center rounded-full border border-dashed border-line-2 px-3.5 py-2 text-[14px] text-ink-3">and more</li>
@@ -156,7 +156,7 @@ export default function Zenstra() {
             <div>
               <p className="kicker" style={{ '--acc': 'var(--color-zen)' }}>Technical snapshot</p>
               <dl className="mt-5 divide-y divide-line border-y border-line">
-                {SNAPSHOT.map(([k, v]) => <div key={k} className="grid grid-cols-[140px_1fr] gap-4 py-4"><dt className="text-[12.5px] font-semibold uppercase tracking-[.1em] text-ink">{k}</dt><dd className="text-[15px] text-ink-2">{v}</dd></div>)}
+                {SNAPSHOT.map(([k, v]) => <div key={k} className="grid grid-cols-[140px_1fr] gap-4 py-4"><dt className="text-[12.5px] font-semibold uppercase tracking-[.1em] text-ink">{k}</dt><dd className="text-[16px] text-ink-2">{v}</dd></div>)}
               </dl>
             </div>
           </div>

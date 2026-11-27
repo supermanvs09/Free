@@ -27,14 +27,14 @@ function Duties() {
       {DUTIES.map((x, i) => (
         <div key={x.d} className={cx('border-b border-line last:border-0 transition-colors', o === i && 'bg-icms/[.06]')}>
           <button type="button" aria-expanded={o === i} onClick={() => setO(o === i ? -1 : i)} className="flex w-full items-center gap-5 px-5 py-5 text-left md:px-7">
-            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-[13px] font-semibold num" style={{ borderColor: o === i ? A : 'var(--color-line-2)', color: o === i ? A : 'var(--color-ink-3)' }}>{i + 1}</span>
+            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-[14px] font-semibold num" style={{ borderColor: o === i ? A : 'var(--color-line-2)', color: o === i ? A : 'var(--color-ink-3)' }}>{i + 1}</span>
             <span className="flex-1 text-[17px] font-semibold tracking-[-0.015em] md:text-[19px]">{x.d}</span>
             <Icon name="CaretDown" size={16} className={cx('shrink-0 text-ink-3 transition-transform', o === i && 'rotate-180')} />
           </button>
           {o === i && (
             <div className="fadein grid gap-4 px-5 pb-6 md:grid-cols-2 md:px-7 md:pl-[76px]">
-              <div><p className="text-[12px] font-semibold uppercase tracking-[.08em] text-ink-3">What ICMS does</p><p className="mt-2 text-[15.5px] leading-relaxed text-ink-2">{x.how}</p></div>
-              <div><p className="text-[12px] font-semibold uppercase tracking-[.08em]" style={{ color: A }}>Evidence you keep</p><p className="mt-2 flex gap-2 text-[15.5px] leading-relaxed text-ink"><Icon name="FileText" size={18} className="mt-[3px] shrink-0" style={{ color: A }} />{x.ev}</p></div>
+              <div><p className="text-[12px] font-semibold uppercase tracking-[.08em] text-ink-3">What ICMS does</p><p className="mt-2 text-[16px] leading-relaxed text-ink-2">{x.how}</p></div>
+              <div><p className="text-[12px] font-semibold uppercase tracking-[.08em]" style={{ color: A }}>Evidence you keep</p><p className="mt-2 flex gap-2 text-[16px] leading-relaxed text-ink"><Icon name="FileText" size={18} className="mt-[3px] shrink-0" style={{ color: A }} />{x.ev}</p></div>
             </div>
           )}
         </div>
@@ -115,7 +115,7 @@ export default function Icms() {
               <Reveal key={h} delay={i * 70} className="card p-6">
                 <span className="inline-flex h-11 w-11 items-center justify-center rounded-[12px] bg-icms/12 text-icms"><Icon name={ic} size={22} /></span>
                 <h3 className="t-h3 mt-5">{h}</h3>
-                <p className="mt-2 text-[15px] leading-relaxed text-ink-2">{t}</p>
+                <p className="mt-2 text-[16px] leading-relaxed text-ink-2">{t}</p>
               </Reveal>
             ))}
           </div>

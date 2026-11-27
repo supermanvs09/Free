@@ -154,7 +154,7 @@ export function Accordion({ items, defaultOpen = 0 }) {
               </span>
             </button>
           </h3>
-          <div id={`${id}-${k}`} hidden={open !== k} className="max-w-[760px] pb-6 text-[16.5px] leading-relaxed text-ink-2">{it.body}</div>
+          <div id={`${id}-${k}`} hidden={open !== k} className="max-w-[760px] pb-6 text-[16px] leading-relaxed text-ink-2">{it.body}</div>
         </li>
       ))}
     </ul>
@@ -169,7 +169,7 @@ export function Tabs({ items, value, onChange, className, acc, label = 'Views' }
       {items.map((t, k) => (
         <button key={t} id={`${id}-${k}`} role="tab" type="button" aria-selected={value === k} onClick={() => onChange(k)}
           onKeyDown={(e) => { if (e.key === 'ArrowRight') onChange((value + 1) % items.length); if (e.key === 'ArrowLeft') onChange((value - 1 + items.length) % items.length); }}
-          className={cx('h-10 shrink-0 rounded-full px-4 text-[14.5px] font-medium transition-colors', value === k ? 'bg-fg text-bg' : 'text-ink-2 hover:text-ink')}
+          className={cx('h-10 shrink-0 rounded-full px-4 text-[14px] font-medium transition-colors', value === k ? 'bg-fg text-bg' : 'text-ink-2 hover:text-ink')}
           style={value === k && acc ? { background: acc, color: 'var(--color-on-acc)' } : undefined}>
           {t}
         </button>

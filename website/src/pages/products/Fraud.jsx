@@ -49,8 +49,8 @@ function Versus() {
       {VERSUS.map(([q, them, us, icon], i) => (
         <Reveal key={q} delay={i * 60} className="contents">
           <p className="flex items-center gap-3 border-t border-line py-5 text-[16px] font-semibold text-ink max-md:pt-6 md:pr-4"><span className="ico grid h-9 w-9 shrink-0 place-items-center rounded-[11px]" style={{ '--acc': A }}><Icon name={icon} size={18} /></span>{q}</p>
-          <p className="flex items-start gap-2.5 border-t border-line px-6 py-5 text-[15.5px] leading-snug text-ink-3 md:bg-[color-mix(in_oklab,var(--color-crit)_4%,var(--color-bg-1))]"><Icon name="X" size={15} weight="bold" className="mt-[3px] shrink-0 text-crit" />{them}</p>
-          <p className="flex items-start gap-2.5 border-t border-line px-6 py-5 text-[15.5px] font-medium leading-snug text-ink md:bg-[color-mix(in_oklab,var(--color-adap)_10%,var(--color-bg-1))]"><Icon name="CheckCircle" size={17} weight="fill" className="mt-[2px] shrink-0" style={{ color: A }} />{us}</p>
+          <p className="flex items-start gap-2.5 border-t border-line px-6 py-5 text-[16px] leading-snug text-ink-3 md:bg-[color-mix(in_oklab,var(--color-crit)_4%,var(--color-bg-1))]"><Icon name="X" size={15} weight="bold" className="mt-[3px] shrink-0 text-crit" />{them}</p>
+          <p className="flex items-start gap-2.5 border-t border-line px-6 py-5 text-[16px] font-medium leading-snug text-ink md:bg-[color-mix(in_oklab,var(--color-adap)_10%,var(--color-bg-1))]"><Icon name="CheckCircle" size={17} weight="fill" className="mt-[2px] shrink-0" style={{ color: A }} />{us}</p>
         </Reveal>
       ))}
     </div>
@@ -87,8 +87,8 @@ function MobileCaps() {
           <p className="text-[13px] font-semibold uppercase tracking-[.08em] text-adap">The gap</p>
           <p className="mt-2 text-[21px] font-semibold leading-snug tracking-[-0.02em] md:text-[24px]">{m.gap}</p>
           <p className="mt-7 text-[13px] font-semibold uppercase tracking-[.08em] text-ink-3">How we solve it</p>
-          <ol className="mt-3 space-y-3">{m.how.map((h, k) => <li key={k} className="flex gap-3 text-[15.5px] leading-relaxed text-ink-2"><span className="num mt-[2px] grid h-6 w-6 shrink-0 place-items-center rounded-full border border-line-2 text-[12px] font-semibold">{k + 1}</span>{h}</li>)}</ol>
-          <p className="mt-7 flex items-start gap-3 rounded-[16px] border border-line p-4 text-[15.5px] leading-relaxed"><Icon name="CheckCircle" size={20} className="mt-[2px] shrink-0 text-ok" /><span><span className="font-semibold">Result. </span><span className="text-ink-2">{m.result}</span></span></p>
+          <ol className="mt-3 space-y-3">{m.how.map((h, k) => <li key={k} className="flex gap-3 text-[16px] leading-relaxed text-ink-2"><span className="num mt-[2px] grid h-6 w-6 shrink-0 place-items-center rounded-full border border-line-2 text-[12px] font-semibold">{k + 1}</span>{h}</li>)}</ol>
+          <p className="mt-7 flex items-start gap-3 rounded-[16px] border border-line p-4 text-[16px] leading-relaxed"><Icon name="CheckCircle" size={20} className="mt-[2px] shrink-0 text-ok" /><span><span className="font-semibold">Result. </span><span className="text-ink-2">{m.result}</span></span></p>
         </div>
         <FraudPhone k={m.key} />
       </div>
@@ -119,9 +119,9 @@ function Explanation() {
         <span className="shrink-0 rounded-full px-3 py-1 text-[16px] font-semibold num" style={{ background: '#fff4e0', color: '#a86400' }}>+9 points</span>
       </div>
       <p className="mt-4 text-[16px] leading-relaxed text-ink-2">Seen about 7.5× more often in scams than in genuine sessions.</p>
-      <div className="mt-7 flex flex-wrap items-center gap-3 border-t border-line pt-6 text-[15px]">
+      <div className="mt-7 flex flex-wrap items-center gap-3 border-t border-line pt-6 text-[16px]">
         <span className="text-ink-3">Score</span><span className="num font-semibold text-ink">26</span><Icon name="ArrowRight" size={14} className="text-ink-3" /><span className="num font-semibold" style={{ color: '#a86400' }}>35</span>
-        <span className="ml-2 rounded-full border border-line-2 px-2.5 py-0.5 text-[13px] text-ink-2">Low → Medium</span>
+        <span className="ml-2 rounded-full border border-line-2 px-2.5 py-0.5 text-[14px] text-ink-2">Low → Medium</span>
       </div>
     </div>
   );
@@ -180,7 +180,7 @@ export default function Fraud() {
               {WEB.map((w, i) => (
                 <Reveal as="li" key={w.h} delay={i * 70} className="flex gap-4">
                   <span className="ico grid h-10 w-10 shrink-0 place-items-center rounded-[12px]" style={{ '--acc': A }}><Icon name={w.icon} size={20} /></span>
-                  <span><span className="block text-[18px] font-semibold tracking-[-0.015em]">{w.h}</span><span className="mt-1 block text-[15.5px] leading-relaxed text-ink-2">{w.p}</span></span>
+                  <span><span className="block text-[18px] font-semibold tracking-[-0.015em]">{w.h}</span><span className="mt-1 block text-[16px] leading-relaxed text-ink-2">{w.p}</span></span>
                 </Reveal>
               ))}
             </ul>

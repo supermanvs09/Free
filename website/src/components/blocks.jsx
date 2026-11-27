@@ -100,7 +100,7 @@ export function FilmPlayer({ src = '/video/deep-algorithms-film', poster = '/vid
     window.addEventListener('da:play-film', on);
     return () => window.removeEventListener('da:play-film', on);
   }, []);
-  const meta = <span className="inline-flex items-center gap-2 rounded-full bg-black/40 px-3 py-1.5 text-[13.5px] font-medium text-white/90 backdrop-blur"><Icon name="ClosedCaptioning" size={16} />Captions · {duration}</span>;
+  const meta = <span className="inline-flex items-center gap-2 rounded-full bg-black/40 px-3 py-1.5 text-[14px] font-medium text-white/90 backdrop-blur"><Icon name="ClosedCaptioning" size={16} />Captions · {duration}</span>;
   return (
     <div>
       <div className={cx('relative aspect-video w-full overflow-hidden rounded-[18px] border border-line-2 bg-black md:rounded-[28px]', compact ? 'shadow-[0_40px_80px_-40px_rgb(11_42_82/.45)] md:rounded-[22px]' : 'shadow-[0_60px_120px_-50px_rgba(0,0,0,.85)]')}>
@@ -138,8 +138,8 @@ export function PostCard({ post, big }) {
       <Cover post={post} className={cx('aspect-[16/10] rounded-[18px] border border-line transition-all duration-500 group-hover:border-line-2', big && 'md:aspect-[16/9]')} />
       <p className="mt-5 text-[13px] font-semibold uppercase tracking-[.08em] text-cyan-2">{post.category}</p>
       <h3 className={cx('mt-2 font-semibold tracking-[-0.02em] text-ink transition-colors group-hover:text-fg', big ? 'text-[26px] leading-[1.2] md:text-[32px]' : 'text-[19px] leading-snug')}>{post.title}</h3>
-      <p className="mt-2 line-clamp-2 text-[15px] leading-relaxed text-ink-3">{post.excerpt}</p>
-      <p className="mt-3 text-[13.5px] text-ink-3">{formatDate(post)} · {post.read} min read</p>
+      <p className="mt-2 line-clamp-2 text-[16px] leading-relaxed text-ink-3">{post.excerpt}</p>
+      <p className="mt-3 text-[14px] text-ink-3">{formatDate(post)} · {post.read} min read</p>
     </Link>
   );
 }
@@ -166,7 +166,7 @@ export function CertStrip({ className }) {
       {CERTS.map((c) => (
         <li key={c.code} className="card flex items-center gap-4 p-4">
           <CertSeal code={c.code} size={48} />
-          <span><span className="block text-[15px] font-semibold">{c.name}</span><span className="block text-[13px] text-ink-3">{c.desc}</span></span>
+          <span><span className="block text-[16px] font-semibold">{c.name}</span><span className="block text-[14px] text-ink-3">{c.desc}</span></span>
         </li>
       ))}
     </ul>
@@ -177,10 +177,10 @@ export function CertStrip({ className }) {
 export function FormTrust({ reply = 'A reply within one business day' }) {
   return (
     <div className="mt-7 border-t border-line pt-6">
-      <p className="flex items-center gap-2 text-[13.5px] font-medium text-ink"><span className="relative flex h-2 w-2"><span className="absolute inset-0 animate-ping rounded-full bg-[#1f9d63]/60" /><span className="relative h-2 w-2 rounded-full bg-[#1f9d63]" /></span>{reply}, from an engineer, not a bot</p>
+      <p className="flex items-center gap-2 text-[14px] font-medium text-ink"><span className="relative flex h-2 w-2"><span className="absolute inset-0 animate-ping rounded-full bg-[#1f9d63]/60" /><span className="relative h-2 w-2 rounded-full bg-[#1f9d63]" /></span>{reply}, from an engineer, not a bot</p>
       <ul className="mt-4 flex flex-wrap items-center gap-3" aria-label="Certifications">
         {CERTS.map((c) => <li key={c.code} title={`${c.name}: ${c.desc}`}><CertSeal code={c.code} size={40} /></li>)}
-        <li className="text-[12.5px] leading-snug text-ink-3">Certified for information security,<br />privacy and AI management</li>
+        <li className="text-[14px] leading-snug text-ink-3">Certified for information security,<br />privacy and AI management</li>
       </ul>
     </div>
   );
@@ -202,7 +202,7 @@ const NEWS_ART = {
   Press: () => (
     <div className="mx-auto w-[80%] rounded-[8px] bg-white p-4 shadow-[0_16px_30px_-18px_rgb(11_42_82/.4)]">
       <p className="border-b-2 border-[#0e1116] pb-1 text-[22px] font-bold leading-none tracking-[-0.02em] text-[#0e1116]">Mint</p>
-      <p className="mt-2 text-[12.5px] font-semibold leading-snug text-[#0e1116]">Proving, not just promising</p>
+      <p className="mt-2 text-[14px] font-semibold leading-snug text-[#0e1116]">Proving, not just promising</p>
       <div className="mt-2 grid grid-cols-2 gap-2">{[0, 1].map((c) => <div key={c} className="space-y-1">{[100, 92, 96, 70, 88].map((w, i) => <div key={i} className="h-1 rounded-full bg-[#dfe3e8]" style={{ width: `${w}%` }} />)}</div>)}</div>
     </div>
   ),
@@ -216,14 +216,14 @@ const NEWS_ART = {
   Event: (n) => (
     <div className="mx-auto w-[64%] rounded-[14px] bg-white p-3 text-center shadow-[0_16px_30px_-16px_rgb(10_94_163/.5)]">
       <span className="mx-auto block h-2 w-10 rounded-full bg-[#dbe6f3]" />
-      <span className="mt-2 block rounded-[10px] bg-gradient-to-br from-[#0a5ea3] to-[#1e88d8] px-2 py-3 text-white"><span className="block text-[10.5px] uppercase tracking-[.16em] text-white/75">{n.kind === 'Event' && n.title.includes('Partner') ? 'Silver Partner' : 'Participant'}</span><span className="mt-1 block text-[13px] font-semibold leading-tight">{n.title.replace('Silver Partner, ', '')}</span></span>
+      <span className="mt-2 block rounded-[10px] bg-gradient-to-br from-[#0a5ea3] to-[#1e88d8] px-2 py-3 text-white"><span className="block text-[10.5px] uppercase tracking-[.16em] text-white/75">{n.kind === 'Event' && n.title.includes('Partner') ? 'Silver Partner' : 'Participant'}</span><span className="mt-1 block text-[14px] font-semibold leading-tight">{n.title.replace('Silver Partner, ', '')}</span></span>
       <span className="mt-2 block text-[11.5px] font-medium text-[#5b6472]">{n.meta}</span>
     </div>
   ),
   Interview: (n) => (
     <div className="mx-auto flex w-[82%] items-center gap-3 rounded-[14px] bg-white p-3.5 shadow-[0_16px_30px_-16px_rgb(10_94_163/.5)]">
       <img src="/img/people/jp-mishra.webp" alt="" className="h-12 w-12 shrink-0 rounded-full object-cover" loading="lazy" decoding="async" />
-      <span className="min-w-0"><span className="block text-[26px] font-bold leading-[.6] text-[#0a6dbb]">“</span><span className="block text-[12.5px] font-semibold text-[#0e1116]">JP Mishra</span><span className="block text-[11.5px] text-[#5b6472]">Interview · {n.meta}</span></span>
+      <span className="min-w-0"><span className="block text-[26px] font-bold leading-[.6] text-[#0a6dbb]">“</span><span className="block text-[14px] font-semibold text-[#0e1116]">JP Mishra</span><span className="block text-[11.5px] text-[#5b6472]">Interview · {n.meta}</span></span>
     </div>
   ),
   Funding: () => (
@@ -255,7 +255,7 @@ export function NewsCards({ items, cols = 3 }) {
             <span className="flex flex-1 flex-col p-6">
               <span className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[.1em] text-[#0a6dbb]">{n.kind === 'Field' ? 'In the field' : n.kind}<span className="font-normal normal-case tracking-normal text-ink-3">· {n.date}</span></span>
               <span className="mt-2 text-[18px] font-semibold leading-snug tracking-[-0.015em]">{n.title}</span>
-              <span className="mt-2 flex-1 text-[14.5px] leading-relaxed text-ink-2">{n.body}</span>
+              <span className="mt-2 flex-1 text-[14px] leading-relaxed text-ink-2">{n.body}</span>
               <span className="link mt-5 text-[14px]">{n.cta}<Icon name="ArrowUpRight" size={13} weight="bold" /></span>
             </span>
           </a>

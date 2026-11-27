@@ -47,7 +47,7 @@ function ProductCallout({ post }) {
     <aside className="my-10 overflow-hidden rounded-[22px] border border-line p-7 md:p-8" style={{ background: `radial-gradient(90% 140% at 100% 0%, hsl(${h} 90% 50% / .14), transparent 60%), color-mix(in oklab, var(--color-fg) 3%, transparent)` }}>
       <p className="text-[12.5px] font-semibold uppercase tracking-[.1em]" style={{ color: `hsl(${h} 100% var(--hl))` }}>Related product</p>
       <p className="mt-3 flex items-center gap-3 text-[24px] font-semibold tracking-[-0.02em]"><ProductMark p={post.product.name} size={40} />{post.product.name}</p>
-      <p className="mt-1 text-[15.5px] text-ink-2">See how Deep Algorithms handles this in practice, on your own environment.</p>
+      <p className="mt-1 text-[16px] text-ink-2">See how Deep Algorithms handles this in practice, on your own environment.</p>
       <div className="mt-6 flex flex-wrap gap-3">
         <Button to={post.product.path} size="sm" arrow>See how {post.product.name} works</Button>
       </div>
@@ -178,14 +178,14 @@ export default function Article() {
         <header className="wrap pt-10 md:pt-14">
           <Breadcrumb items={[{ name: 'Blogs', path: '/blogs' }, { name: post.category }]} className="rise" />
           <div className="mx-auto mt-10 max-w-[900px] text-center">
-            <p className="rise inline-flex items-center gap-2 rounded-full border border-line-2 px-3.5 py-1.5 text-[13px] font-semibold" style={{ color: `hsl(${h} 100% var(--hl))` }}>{post.category}{post.fiction && <span className="font-normal text-ink-3">· Dramatised account</span>}</p>
+            <p className="rise inline-flex items-center gap-2 rounded-full border border-line-2 px-3.5 py-1.5 text-[14px] font-semibold" style={{ color: `hsl(${h} 100% var(--hl))` }}>{post.category}{post.fiction && <span className="font-normal text-ink-3">· Dramatised account</span>}</p>
             <h1 className="rise mt-6 font-semibold tracking-[-0.015em]" style={{ fontSize: 'clamp(32px, 4.4vw, 60px)', lineHeight: 1.06, '--d': '80ms' }}>{post.title}</h1>
             <p className="t-lead rise mx-auto mt-6 max-w-[700px]" style={{ '--d': '160ms' }}>{post.excerpt}</p>
             <div className="rise mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-[14px] text-ink-3" style={{ '--d': '240ms' }}>
               <span className="inline-flex items-center gap-3"><span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white p-1.5"><img src="/brand/mark.webp" alt="" className="h-full w-full" /></span><span className="font-medium text-ink-2">{authorOf(post)}</span></span>
               <span>{formatDate(post)}</span><span>{post.read} min read</span>
             </div>
-            <p className="printonly mt-4 text-[13px]">{SITE.url.replace(/^https?:\/\//, '')}{path}</p>
+            <p className="printonly mt-4 text-[14px]">{SITE.url.replace(/^https?:\/\//, '')}{path}</p>
           </div>
           <Cover post={post} className="noprint rise mx-auto mt-12 aspect-[16/9] max-w-[1180px] rounded-[26px] border border-line md:aspect-[21/9]" style={{ '--d': '300ms' }} />
         </header>
@@ -196,8 +196,8 @@ export default function Article() {
             <div className="min-w-0">
               {toc.length > 2 && (
                 <details className="noprint mb-10 rounded-[18px] border border-line bg-fg/[.03] p-5 lg:hidden">
-                  <summary className="cursor-pointer text-[15px] font-semibold">In this report ({toc.length} sections)</summary>
-                  <ol className="mt-4 space-y-2 text-[15px]">{toc.map((t, k) => <li key={t.id} className="flex gap-3"><span className="w-5 shrink-0 text-cyan-2 num">{k + 1}</span><a href={`#${t.id}`} className="text-ink-2 hover:text-ink">{t.text}</a></li>)}</ol>
+                  <summary className="cursor-pointer text-[16px] font-semibold">In this report ({toc.length} sections)</summary>
+                  <ol className="mt-4 space-y-2 text-[16px]">{toc.map((t, k) => <li key={t.id} className="flex gap-3"><span className="w-5 shrink-0 text-cyan-2 num">{k + 1}</span><a href={`#${t.id}`} className="text-ink-2 hover:text-ink">{t.text}</a></li>)}</ol>
                 </details>
               )}
               <Suspense fallback={<div className="min-h-[60vh]" />}><Body slug={slug} post={post} onToc={setToc} /></Suspense>
@@ -205,14 +205,14 @@ export default function Article() {
               <div className="noprint mt-16 rounded-[22px] border border-line p-6 md:p-8">
                 <div className="flex items-center gap-4">
                   <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white p-2.5"><img src="/brand/mark.webp" alt="" className="h-full w-full" /></span>
-                  <div><p className="text-[19px] font-semibold">{authorOf(post)}</p><p className="text-[14.5px] text-ink-3">Field notes and analysis on identity, AI agents, fraud and the regulation that shapes them.</p></div>
+                  <div><p className="text-[19px] font-semibold">{authorOf(post)}</p><p className="text-[14px] text-ink-3">Field notes and analysis on identity, AI agents, fraud and the regulation that shapes them.</p></div>
                 </div>
                 <div className="mt-6 border-t border-line pt-6"><p className="mb-3 text-[14px] text-ink-2">Share this report</p><Share post={post} path={path} /></div>
               </div>
 
               <nav aria-label="More blogs" className="noprint mt-10 grid gap-4 sm:grid-cols-2">
-                {older && <Link to={`/blogs/${older.slug}`} className="card card-hover p-5"><span className="flex items-center gap-1.5 text-[13px] text-ink-3"><Icon name="ArrowLeft" size={13} />Previous</span><span className="mt-2 block text-[16px] font-semibold leading-snug">{older.title}</span></Link>}
-                {newer && <Link to={`/blogs/${newer.slug}`} className="card card-hover p-5 sm:col-start-2 sm:text-right"><span className="flex items-center gap-1.5 text-[13px] text-ink-3 sm:justify-end">Next<Icon name="ArrowRight" size={13} /></span><span className="mt-2 block text-[16px] font-semibold leading-snug">{newer.title}</span></Link>}
+                {older && <Link to={`/blogs/${older.slug}`} className="card card-hover p-5"><span className="flex items-center gap-1.5 text-[14px] text-ink-3"><Icon name="ArrowLeft" size={13} />Previous</span><span className="mt-2 block text-[16px] font-semibold leading-snug">{older.title}</span></Link>}
+                {newer && <Link to={`/blogs/${newer.slug}`} className="card card-hover p-5 sm:col-start-2 sm:text-right"><span className="flex items-center gap-1.5 text-[14px] text-ink-3 sm:justify-end">Next<Icon name="ArrowRight" size={13} /></span><span className="mt-2 block text-[16px] font-semibold leading-snug">{newer.title}</span></Link>}
               </nav>
             </div>
             <aside className="noprint hidden lg:block">

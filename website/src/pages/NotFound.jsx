@@ -25,7 +25,7 @@ export default function NotFound() {
           </p>
           <ul className="mx-auto mt-10 flex max-w-[760px] flex-wrap justify-center gap-3">
             {POPULAR.map(([n, to]) => (
-              <li key={to}><Link to={to} className="inline-flex items-center gap-1.5 rounded-full border border-line-2 px-4 py-2 text-[15px] text-ink hover:border-fg/40">{n}<Icon name="CaretRight" size={12} weight="bold" /></Link></li>
+              <li key={to}><Link to={to} className="inline-flex items-center gap-1.5 rounded-full border border-line-2 px-4 py-2 text-[16px] text-ink hover:border-fg/40">{n}<Icon name="CaretRight" size={12} weight="bold" /></Link></li>
             ))}
           </ul>
           <div className="mt-10 flex flex-wrap justify-center gap-3">

@@ -68,8 +68,8 @@ export default function AdSecurity() {
               <Reveal key={t} delay={i * 70} className="card flex flex-col p-6">
                 <span className="inline-flex h-10 w-10 items-center justify-center rounded-[12px] bg-crit/10 text-crit"><Icon name="Crosshair" size={20} /></span>
                 <h3 className="mt-5 text-[18px] font-semibold tracking-[-0.015em]">{t}</h3>
-                <p className="mt-2 flex-1 text-[14.5px] leading-relaxed text-ink-2">{d}</p>
-                <p className="mt-5 inline-flex items-center gap-2 text-[13.5px] font-medium text-ok"><Icon name="CheckCircle" size={16} weight="fill" />{r}</p>
+                <p className="mt-2 flex-1 text-[14px] leading-relaxed text-ink-2">{d}</p>
+                <p className="mt-5 inline-flex items-center gap-2 text-[14px] font-medium text-ok"><Icon name="CheckCircle" size={16} weight="fill" />{r}</p>
               </Reveal>
             ))}
           </div>

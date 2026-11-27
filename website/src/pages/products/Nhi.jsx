@@ -45,7 +45,7 @@ const TONE = { ok: 'c-ok', warn: 'c-warn', crit: 'c-crit' };
 function Table({ cols, rows, caption }) {
   return (
     <div className="overflow-x-auto rounded-[20px] border border-line bg-bg-1" role="region" tabIndex={0} aria-label={caption}>
-      <table className="w-full min-w-[640px] text-left text-[14.5px]">
+      <table className="w-full min-w-[640px] text-left text-[14px]">
         <caption className="sr-only">{caption}</caption>
         <thead><tr className="border-b border-line">{cols.map((c) => <th key={c} scope="col" className="px-5 py-4 text-[12px] font-semibold uppercase tracking-[.08em] text-ink-3">{c}</th>)}</tr></thead>
         <tbody>{rows.map((r) => (
@@ -78,7 +78,7 @@ function LeakedKey() {
   return (
     <div ref={ref} className="grid gap-4">
       <div className="relative overflow-hidden rounded-[20px] border border-line bg-[#0d1117] text-[#c9d1d9] shadow-[0_30px_70px_-40px_rgba(0,0,0,.6)]">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-white/10 px-5 py-3.5 text-[13px]">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-white/10 px-5 py-3.5 text-[14px]">
           <span className="text-white"><Logo k="github" size={18} /></span>
           <span className="font-mono text-[#e6edf3]">acme/payments-api</span><span className="text-[#7d8590]">/</span><span className="font-mono text-[#e6edf3]">config.yml</span>
           <span className="ml-auto font-mono text-[12px] text-[#7d8590]">commit 9f2c41e · 2 days ago</span>
@@ -95,9 +95,9 @@ function LeakedKey() {
           <div className="flex flex-wrap items-start gap-x-6 gap-y-2 p-4">
             <span className="min-w-0 flex-1">
               <span className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[.08em] text-[#c4302b]"><span className="h-2 w-2 rounded-full bg-[#e5484d]" />adapID · Real secret, still active</span>
-              <span className="mt-1.5 block text-[15px] font-semibold leading-snug">This key works, and reaches the bucket payments-prod-settlements.</span>
+              <span className="mt-1.5 block text-[16px] font-semibold leading-snug">This key works, and reaches the bucket payments-prod-settlements.</span>
             </span>
-            <span className="text-[13px] leading-relaxed text-[#5c6777]">Owner: payments team<br />Rotate it, then remove it from history</span>
+            <span className="text-[14px] leading-relaxed text-[#5c6777]">Owner: payments team<br />Rotate it, then remove it from history</span>
           </div>
         </div>
       </div>
@@ -135,7 +135,7 @@ function GrantBars() {
           </div>
         </div>
       ))}
-      <p className="mt-6 text-[13.5px] text-ink-3">Illustrative identities. Unused permissions are listed for removal with the CloudTrail evidence behind each one.</p>
+      <p className="mt-6 text-[14px] text-ink-3">Illustrative identities. Unused permissions are listed for removal with the CloudTrail evidence behind each one.</p>
     </div>
   );
 }
@@ -173,7 +173,7 @@ export default function Nhi() {
               {[['Create the role', 'Deploy one read-only IAM role with the trust policy on the right. No agents, no write access.'], ['Pass three checks', 'adapID verifies it can assume the role, read IAM and read CloudTrail before the first sync is queued.'], ['See every identity', 'Roles, users, keys and workload identities appear with owner, exposure and posture score, and every change since the last sync.']].map(([h, t], i) => (
                 <li key={h} className="flex gap-5">
                   <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[14px] font-bold text-on-acc" style={{ background: A }}>{i + 1}</span>
-                  <span><span className="block text-[19px] font-semibold tracking-[-0.015em]">{h}</span><span className="mt-1 block text-[15.5px] leading-relaxed text-ink-2">{t}</span></span>
+                  <span><span className="block text-[19px] font-semibold tracking-[-0.015em]">{h}</span><span className="mt-1 block text-[16px] leading-relaxed text-ink-2">{t}</span></span>
                 </li>
               ))}
             </ol>
@@ -239,7 +239,7 @@ export default function Nhi() {
             <p className="eyebrow" style={{ '--acc': A }}>Exposed secrets</p>
             <h2 id="sec-h" className="t-h2 mt-6">Keys leaked into code, found and ranked by real risk.</h2>
             <p className="t-lead mt-5">Secrets found in GitHub and AWS CodeCommit are sorted by models, so analysts see real exposures before false alarms.</p>
-            <p className="mt-6 flex items-center gap-2 text-[15px] text-ink-2"><Icon name="Code" size={18} className="text-adap" />Full-history deep scans on demand</p>
+            <p className="mt-6 flex items-center gap-2 text-[16px] text-ink-2"><Icon name="Code" size={18} className="text-adap" />Full-history deep scans on demand</p>
           </Reveal>
           <Reveal delay={100}><LeakedKey /></Reveal>
         </div>

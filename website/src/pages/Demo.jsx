@@ -45,7 +45,7 @@ export default function Demo() {
                 {MARK[pick[0]] ? <ProductMark key={pick[0]} p={MARK[pick[0]]} size={40} className="fadein" /> : <span className="flex -space-x-2">{['zenstra', 'adapid', 'icms'].map((k) => <ProductMark key={k} p={k} size={30} />)}</span>}
                 <span>
                   <span className="block text-[12.5px] font-semibold uppercase tracking-[.1em] text-cyan-2">Your session will cover</span>
-                  <span className="mt-0.5 block text-[15px] text-ink-3">{pick[1]}</span>
+                  <span className="mt-0.5 block text-[16px] text-ink-3">{pick[1]}</span>
                 </span>
               </div>
               <ul className="mt-5 space-y-3">{pick[2].map((t) => <li key={t} className="flex gap-3 text-[16px] text-ink"><Icon name="CheckCircle" size={20} weight="fill" className="mt-[2px] shrink-0 text-cyan-2" />{t}</li>)}</ul>
@@ -55,8 +55,8 @@ export default function Demo() {
               {[['0–5 min', 'Your risks', 'What worries you most, in your words'], ['5–20 min', 'Live, on your stack', 'The product on identities like yours'], ['20–30 min', 'A plan', 'A first deployment, sized and scoped']].map(([t, h, p], i) => (
                 <li key={t} className="relative rounded-[16px] border border-line-2 bg-bg-2 p-4">
                   <span className="mono text-[11.5px] font-semibold text-[#5cc0ff]">{t}</span>
-                  <span className="mt-1.5 block text-[15px] font-semibold text-ink">{h}</span>
-                  <span className="mt-1 block text-[13px] leading-snug text-ink-2">{p}</span>
+                  <span className="mt-1.5 block text-[16px] font-semibold text-ink">{h}</span>
+                  <span className="mt-1 block text-[14px] leading-snug text-ink-2">{p}</span>
                   {i < 2 && <span aria-hidden="true" className="absolute -right-[10px] top-1/2 z-10 hidden h-5 w-5 -translate-y-1/2 place-items-center rounded-full bg-[#0a6dbb] text-white sm:grid"><Icon name="CaretRight" size={11} weight="bold" /></span>}
                 </li>
               ))}
@@ -77,7 +77,7 @@ export default function Demo() {
                 <Field label="Work email" name="email" type="email" autoComplete="email" required error={errors.email} {...bind('email')} />
                 <Field label="Mobile number" name="mobile" type="tel" autoComplete="tel" required error={errors.mobile} {...bind('mobile')} />
                 <SubmitRow status={status} label="Book my demo" />
-                <p className="text-[13px] text-ink-3">By submitting, you agree to our <a href="/privacy-policy" className="underline underline-offset-2 hover:text-ink">privacy policy</a>. We use your details only to arrange the demo.</p>
+                <p className="text-[14px] text-ink-3">By submitting, you agree to our <a href="/privacy-policy" className="underline underline-offset-2 hover:text-ink">privacy policy</a>. We use your details only to arrange the demo.</p>
               </form>
             )}
             <FormTrust />

@@ -15,7 +15,7 @@ export default function Legal({ id }) {
           <aside className="hidden lg:block">
             <nav aria-label="Legal pages" className="sticky top-28">
               <p className="text-[12.5px] font-semibold uppercase tracking-[.1em] text-ink-3">Legal</p>
-              <ul className="mt-4 space-y-1 border-l border-line text-[14.5px]">
+              <ul className="mt-4 space-y-1 border-l border-line text-[14px]">
                 {Object.entries(LEGAL).map(([k, x]) => <li key={k}><Link to={`/${k}`} aria-current={k === id ? 'page' : undefined} className={`-ml-px block border-l-2 py-1.5 pl-4 ${k === id ? 'border-cyan text-ink' : 'border-transparent text-ink-3 hover:text-ink'}`}>{x.title}</Link></li>)}
               </ul>
             </nav>
@@ -23,7 +23,7 @@ export default function Legal({ id }) {
           <div className="min-w-0">
             <Breadcrumb items={[{ name: l.title }]} />
             <h1 className="t-h1 mt-8">{l.title}</h1>
-            <p className="mt-4 text-[15px] text-ink-3">Last updated: {l.updated}</p>
+            <p className="mt-4 text-[16px] text-ink-3">Last updated: {l.updated}</p>
             <div className="mt-10 border-t border-line pt-4"><Prose blocks={l.blocks} /></div>
           </div>
         </div>

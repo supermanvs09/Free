@@ -89,13 +89,13 @@ export function Stats({ items, acc = 'brand', title, story, proof, log }) {
             {items.map((x, i) => (
               <Reveal key={x.l} delay={i * 80} className={cx('rounded-[22px] p-7 max-md:text-center md:p-8', ['rc-stat', 'rc-proof', 'rc-main'][i % 3])}>
                 <p className="rc-num font-semibold tracking-[-0.015em]" style={{ fontSize: 'clamp(40px, 4vw, 56px)', lineHeight: 1 }}><CountUp value={x.v} /></p>
-                <p className="mt-4 max-w-[300px] text-[15.5px] leading-relaxed text-[var(--rc-ink)] max-md:mx-auto">{x.l}</p>
-                {x.s && <p className="mt-4 text-[12.5px] text-[var(--rc-ink2)]">Source: {x.s}</p>}
+                <p className="mt-4 max-w-[300px] text-[16px] leading-relaxed text-[var(--rc-ink)] max-md:mx-auto">{x.l}</p>
+                {x.s && <p className="mt-4 text-[14px] text-[var(--rc-ink2)]">Source: {x.s}</p>}
               </Reveal>
             ))}
           </div>
         )}
-        {story && <p className="mt-4 text-[12.5px] text-ink-3">{log ? 'People shown are models. The record is an example; names and numbers are illustrations.' : 'People shown are models. Names, places and access are illustrations.'}</p>}
+        {story && <p className="mt-4 text-[14px] text-ink-3">{log ? 'People shown are models. The record is an example; names and numbers are illustrations.' : 'People shown are models. Names, places and access are illustrations.'}</p>}
       </div>
     </section>
   );
@@ -126,15 +126,15 @@ export function Compare({ cols, rows, acc = 'brand', caption }) {
         <thead>
           <tr className="border-b border-line">
             <th scope="col" className="p-5 text-[13px] font-semibold uppercase tracking-[.08em] text-ink-3">&nbsp;</th>
-            {cols.map((c, i) => <th key={c} scope="col" className={cx('p-5 text-[15px] font-semibold', i === cols.length - 1 ? 'text-ink' : 'text-ink-2')} style={i === cols.length - 1 ? { background: `color-mix(in oklab, ${color} 12%, transparent)` } : undefined}>{c}</th>)}
+            {cols.map((c, i) => <th key={c} scope="col" className={cx('p-5 text-[16px] font-semibold', i === cols.length - 1 ? 'text-ink' : 'text-ink-2')} style={i === cols.length - 1 ? { background: `color-mix(in oklab, ${color} 12%, transparent)` } : undefined}>{c}</th>)}
           </tr>
         </thead>
         <tbody>
           {rows.map(([label, ...vals]) => (
             <tr key={label} className="border-b border-line last:border-0">
-              <th scope="row" className="p-5 text-[15px] font-medium text-ink">{label}</th>
+              <th scope="row" className="p-5 text-[16px] font-medium text-ink">{label}</th>
               {vals.map((v, i) => (
-                <td key={i} className="p-5 align-top text-[14.5px] leading-snug text-ink-2" style={i === vals.length - 1 ? { background: `color-mix(in oklab, ${color} 7%, transparent)` } : undefined}>
+                <td key={i} className="p-5 align-top text-[14px] leading-snug text-ink-2" style={i === vals.length - 1 ? { background: `color-mix(in oklab, ${color} 7%, transparent)` } : undefined}>
                   {v === true ? <Icon name="CheckCircle" size={20} weight="fill" style={{ color }} /> : v === false ? <span className="text-ink-3">—</span> : i === vals.length - 1 ? <span className="flex gap-2.5 font-medium text-ink"><Icon name="CheckCircle" size={18} weight="fill" className="mt-px shrink-0" style={{ color }} />{v}</span> : v}
                 </td>
               ))}
@@ -158,8 +158,8 @@ export function Related({ items, title = 'Works alongside' }) {
               <Link to={p.to} className="card card-hover group flex h-full flex-col p-6" style={{ '--acc': p.acc }}>
                 <span className="flex items-center gap-2.5 text-[13px] font-semibold uppercase tracking-[.08em]" style={{ color: p.acc }}><ProductMark p={p.line} size={26} />{p.line}</span>
                 <span className="mt-3 text-[19px] font-semibold tracking-[-0.015em]">{p.name}</span>
-                <span className="mt-2 flex-1 text-[15px] leading-relaxed text-ink-2">{p.body}</span>
-                <span className="link mt-5 text-[14.5px]">Learn more<Icon name="ArrowRight" size={14} weight="bold" /></span>
+                <span className="mt-2 flex-1 text-[16px] leading-relaxed text-ink-2">{p.body}</span>
+                <span className="link mt-5 text-[14px]">Learn more<Icon name="ArrowRight" size={14} weight="bold" /></span>
               </Link>
             </Reveal>
           ))}
@@ -192,7 +192,7 @@ export function Explorer({ items, acc = 'brand', label }) {
       <div role="tablist" aria-label={label} className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 md:mx-0 md:flex-wrap md:px-0">
         {items.map((x, k) => (
           <button key={x.tab} id={x.anchor || `${id}-t${k}`} role="tab" type="button" aria-selected={k === i} aria-controls={`${id}-p`} onClick={() => setI(k)}
-            className={cx('inline-flex h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-[14.5px] font-medium transition-colors', k === i ? 'border-transparent text-on-acc' : 'border-line-2 text-ink-2 hover:border-fg/30 hover:text-ink')}
+            className={cx('inline-flex h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-[14px] font-medium transition-colors', k === i ? 'border-transparent text-on-acc' : 'border-line-2 text-ink-2 hover:border-fg/30 hover:text-ink')}
             style={k === i ? { background: color } : undefined}>
             {x.icon && <Icon name={x.icon} size={16} />}{x.tab}
           </button>
@@ -202,10 +202,10 @@ export function Explorer({ items, acc = 'brand', label }) {
         <div>
           <h3 className="text-[28px] font-medium leading-tight tracking-[-0.015em] md:text-[34px]">{it.h}</h3>
           <p className="mt-4 text-[17px] leading-relaxed text-ink-2">{it.p}</p>
-          {it.points && <ul className="mt-6 space-y-3">{it.points.map((t) => <li key={t} className="flex gap-3 text-[15.5px] text-ink-2"><Icon name="Check" size={18} weight="bold" className="mt-[3px] shrink-0" style={{ color }} />{t}</li>)}</ul>}
+          {it.points && <ul className="mt-6 space-y-3">{it.points.map((t) => <li key={t} className="flex gap-3 text-[16px] text-ink-2"><Icon name="Check" size={18} weight="bold" className="mt-[3px] shrink-0" style={{ color }} />{t}</li>)}</ul>}
           {it.steps && (
             <ol className="mt-8 flex flex-col gap-4 border-t border-line pt-6" aria-label="How it works">
-              {it.steps.map(([h, t], k) => <li key={h} className="flex gap-2"><span className="w-[28px] shrink-0 pt-[2px] text-[13px] font-semibold tabular-nums" style={{ color }}>{String(k + 1).padStart(2, '0')}</span><span><span className="block text-[15.5px] font-semibold">{h}</span><span className="mt-0.5 block text-[14.5px] leading-relaxed text-ink-3">{t}</span></span></li>)}
+              {it.steps.map(([h, t], k) => <li key={h} className="flex gap-2"><span className="w-[28px] shrink-0 pt-[2px] text-[14px] font-semibold tabular-nums" style={{ color }}>{String(k + 1).padStart(2, '0')}</span><span><span className="block text-[16px] font-semibold">{h}</span><span className="mt-0.5 block text-[14px] leading-relaxed text-ink-3">{t}</span></span></li>)}
             </ol>
           )}
           {it.to && <Link to={it.to} className="link mt-7" style={{ '--acc': color }}>{it.cta || 'Learn more'}<Icon name="ArrowRight" size={14} weight="bold" /></Link>}
@@ -228,10 +228,10 @@ export function Steps({ items, acc = 'brand', loop }) {
         <Reveal as="li" key={s.h} delay={i * 80} className="card relative p-6 md:p-7">
           <span className="flex items-center gap-3">
             <span className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[14px] font-bold text-on-acc num" style={{ background: color }}>{i + 1}</span>
-            {loop && i === items.length - 1 && <span className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-3"><Icon name="ArrowsClockwise" size={14} />then again</span>}
+            {loop && i === items.length - 1 && <span className="inline-flex items-center gap-1.5 text-[14px] text-ink-3"><Icon name="ArrowsClockwise" size={14} />then again</span>}
           </span>
           <h3 className="t-h3 mt-5">{s.h}</h3>
-          <p className="mt-2 text-[15.5px] leading-relaxed text-ink-2">{s.p}</p>
+          <p className="mt-2 text-[16px] leading-relaxed text-ink-2">{s.p}</p>
         </Reveal>
       ))}
     </ol>
@@ -277,7 +277,7 @@ export function Points({ items, acc = 'brand', cols = 3 }) {
           <Reveal key={x.h} delay={k * 70} className="card p-6 md:p-7">
             {x.icon && <span className="ico inline-flex h-11 w-11 items-center justify-center rounded-[12px]" style={{ '--acc': color }}><Icon name={x.icon} size={22} /></span>}
             <h3 className={cx('t-h3', x.icon && 'mt-5')}>{x.h}</h3>
-            <p className="mt-2 text-[15.5px] leading-relaxed text-ink-2">{x.p}</p>
+            <p className="mt-2 text-[16px] leading-relaxed text-ink-2">{x.p}</p>
           </Reveal>
         ))}
       </div>
@@ -388,7 +388,7 @@ export function PhotoFeature({ id, eyebrow, title, lead, points = [], img, pos =
               {points.map(([ic, h, t], i) => (
                 <Reveal as="li" key={h} delay={i * 70} className="flex gap-4">
                   <span className="ico grid h-10 w-10 shrink-0 place-items-center rounded-[12px]" style={{ '--acc': color }}><Icon name={ic} size={19} /></span>
-                  <span><span className="block text-[16.5px] font-semibold">{h}</span><span className="mt-0.5 block text-[15px] leading-relaxed text-ink-3">{t}</span></span>
+                  <span><span className="block text-[16px] font-semibold">{h}</span><span className="mt-0.5 block text-[16px] leading-relaxed text-ink-3">{t}</span></span>
                 </Reveal>
               ))}
             </ul>

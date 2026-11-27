@@ -37,7 +37,7 @@ function RiskPolicy() {
         </div>
         <div className="max-w-[420px] text-right">
           <p className="text-[22px] font-semibold tracking-[-0.02em]" style={{ color: z.tone }}>{z.label}</p>
-          <p className="mt-1 text-[15px] text-ink-2">{z.act}</p>
+          <p className="mt-1 text-[16px] text-ink-2">{z.act}</p>
         </div>
       </div>
       <div className="relative mt-8">
@@ -45,9 +45,9 @@ function RiskPolicy() {
           {ZONES.map((x, i) => <span key={x.label} style={{ flex: (x.to - (i ? ZONES[i - 1].to : 0)), background: x.tone, opacity: x === z ? 1 : 0.35 }} />)}
         </div>
         <input type="range" min="0" max="100" value={v} onChange={(e) => setV(+e.target.value)} aria-label="Drag to set a risk score" className="absolute inset-x-0 -top-2 h-7 w-full cursor-pointer appearance-none bg-transparent [&::-webkit-slider-thumb]:h-7 [&::-webkit-slider-thumb]:w-7 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-4 [&::-webkit-slider-thumb]:border-[#0f141b] [&::-webkit-slider-thumb]:bg-white [&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:w-6 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white" />
-        <div className="mt-4 grid grid-cols-4 text-[12.5px] text-ink-3">{ZONES.map((x) => <span key={x.label}>{x.label}</span>)}</div>
+        <div className="mt-4 grid grid-cols-4 text-[14px] text-ink-3">{ZONES.map((x) => <span key={x.label}>{x.label}</span>)}</div>
       </div>
-      <p className="mt-6 text-[13.5px] text-ink-3">Drag the score. Thresholds and responses are your policy; these are an example.</p>
+      <p className="mt-6 text-[14px] text-ink-3">Drag the score. Thresholds and responses are your policy; these are an example.</p>
     </div>
   );
 }

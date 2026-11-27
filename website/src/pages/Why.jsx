@@ -291,9 +291,9 @@ function Years() {
           <Reveal className={cx(i % 2 ? 'md:order-2 md:pl-4' : 'md:pr-4 md:text-right')}>
             <p className="text-[56px] font-medium leading-none tracking-[-0.015em] text-cyan-2 num md:text-[72px]">{y.y}</p>
             <h3 className="mt-3 text-[24px] font-semibold tracking-[-0.015em]">{y.h}</h3>
-            <p className="mt-2 text-[16.5px] leading-relaxed text-ink-2">{y.p}</p>
+            <p className="mt-2 text-[16px] leading-relaxed text-ink-2">{y.p}</p>
             <ul className={cx('mt-4 flex flex-wrap gap-2', !(i % 2) && 'md:justify-end')}>
-              {y.items.map(([t, w]) => <li key={t} className="rounded-full border border-line-2 px-3 py-1.5 text-[13px] text-ink-2"><span className="font-medium text-ink">{t}</span> · {w}</li>)}
+              {y.items.map(([t, w]) => <li key={t} className="rounded-full border border-line-2 px-3 py-1.5 text-[14px] text-ink-2"><span className="font-medium text-ink">{t}</span> · {w}</li>)}
             </ul>
           </Reveal>
           <Reveal delay={100} className={cx(i % 2 && 'md:order-1')}>
@@ -315,7 +315,7 @@ function Leader({ p }) {
         </span>
         <span className="min-w-0 pr-8">
           <span className="block text-[17px] font-semibold leading-tight tracking-[-0.015em]">{p.name}</span>
-          <span className="mt-1 block text-[13.5px] font-medium text-[#0a6dbb]">{p.role}</span>
+          <span className="mt-1 block text-[14px] font-medium text-[#0a6dbb]">{p.role}</span>
         </span>
       </div>
       <p className="mt-4 flex-1 border-t border-line pt-4 text-[14px] leading-relaxed text-ink-2">{p.bio}</p>
@@ -329,9 +329,9 @@ function Advisor({ p }) {
     <a href={p.linkedin} target="_blank" rel="noreferrer" className="group flex h-full items-start gap-3.5 rounded-[16px] border border-line p-4 transition-colors hover:border-line-2 hover:bg-fg/[.025]" aria-label={`${p.name}, ${p.role}, on LinkedIn`}>
       <img src={`/img/people/${p.img}.webp`} alt="" width="48" height="48" className="h-12 w-12 shrink-0 rounded-full bg-[#0f1115] object-cover" loading="lazy" decoding="async" />
       <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-1.5 text-[15px] font-semibold leading-tight">{p.name}<Icon name="LinkedinLogo" size={14} className="text-ink-3 opacity-0 transition-opacity group-hover:opacity-100" /></span>
-        <span className="mt-0.5 block text-[12.5px] font-medium text-cyan-2">{p.role}</span>
-        <span className="mt-1.5 block text-[13px] leading-snug text-ink-3">{p.bio}</span>
+        <span className="flex items-center gap-1.5 text-[16px] font-semibold leading-tight">{p.name}<Icon name="LinkedinLogo" size={14} className="text-ink-3 opacity-0 transition-opacity group-hover:opacity-100" /></span>
+        <span className="mt-0.5 block text-[14px] font-medium text-cyan-2">{p.role}</span>
+        <span className="mt-1.5 block text-[14px] leading-snug text-ink-3">{p.bio}</span>
       </span>
     </a>
   );
@@ -351,7 +351,7 @@ function TeamRoll() {
           <li key={t.img + i} className="w-[316px] shrink-0 pr-4 md:w-[396px]" aria-hidden={copy || undefined}>
             <figure>
               <img src={img(t.img)} alt={copy ? '' : t.title} className="aspect-[4/3] w-full rounded-[18px] border border-line object-cover" loading="lazy" decoding="async" />
-              <figcaption className="mt-2.5 text-[13.5px] text-ink-3">{t.title}</figcaption>
+              <figcaption className="mt-2.5 text-[14px] text-ink-3">{t.title}</figcaption>
             </figure>
           </li>
         );
@@ -389,7 +389,7 @@ export default function Why() {
             <p className="t-lead rise mt-7 max-w-[560px] max-md:mx-auto" style={{ '--d': '160ms' }}>Attackers adopted AI, automation and stolen identities. We build products that learn your environment, decide in the moment and explain every decision, for organisations that cannot afford a breach.</p>
             <dl className="rise mt-10 grid max-w-[320px] grid-cols-2 gap-x-8 max-md:mx-auto" style={{ '--d': '240ms' }}>
               {[['Founded', SITE.founded], ['Headquarters', 'Hyderabad']].map(([k, v]) => (
-                <div key={k}><dt className="text-[13px] text-ink-3">{k}</dt><dd className="mt-1 text-[24px] font-semibold tracking-[-0.015em] num">{v}</dd></div>
+                <div key={k}><dt className="text-[14px] text-ink-3">{k}</dt><dd className="mt-1 text-[24px] font-semibold tracking-[-0.015em] num">{v}</dd></div>
               ))}
             </dl>
           </div>
@@ -431,7 +431,7 @@ export default function Why() {
               <Reveal as="li" key={b.title} delay={(i % 3) * 70} className="border-t border-line py-7">
                 <Icon name={b.icon} size={24} className="text-cyan-2" />
                 <span className="mt-4 block text-[19px] font-semibold tracking-[-0.02em]">{b.title}</span>
-                <span className="mt-2 block text-[15.5px] leading-relaxed text-ink-2">{b.body}</span>
+                <span className="mt-2 block text-[16px] leading-relaxed text-ink-2">{b.body}</span>
               </Reveal>
             ))}
           </ol>
@@ -455,7 +455,7 @@ export default function Why() {
             <img src={`/img/people/${FOUNDER_QUOTE.img}.webp`} alt="" width="200" height="200" className="relative h-[150px] w-[150px] rounded-[28px] object-cover shadow-[0_24px_50px_-20px_rgb(0_0_0/.6)] ring-4 ring-white/15 md:h-[200px] md:w-[200px]" loading="lazy" decoding="async" />
             <div className="relative">
               <blockquote className="text-[clamp(22px,2.4vw,32px)] font-semibold leading-[1.25] tracking-[-0.02em] text-white">“{FOUNDER_QUOTE.text}”</blockquote>
-              <figcaption className="mt-6 text-[15px] text-white/80"><b className="font-semibold text-white">{FOUNDER_QUOTE.name}</b>, {FOUNDER_QUOTE.role} · <a href={FOUNDER_QUOTE.href} target="_blank" rel="noreferrer" className="underline decoration-white/40 underline-offset-4 hover:text-white">{FOUNDER_QUOTE.source}</a></figcaption>
+              <figcaption className="mt-6 text-[16px] text-white/80"><b className="font-semibold text-white">{FOUNDER_QUOTE.name}</b>, {FOUNDER_QUOTE.role} · <a href={FOUNDER_QUOTE.href} target="_blank" rel="noreferrer" className="underline decoration-white/40 underline-offset-4 hover:text-white">{FOUNDER_QUOTE.source}</a></figcaption>
             </div>
           </figure>
         </div>
@@ -475,7 +475,7 @@ export default function Why() {
             {RECOGNITION.slice(0, 4).map((r, i) => (
               <Reveal key={r.title} delay={(i % 4) * 60} className={cx('card group overflow-hidden', i === 0 && 'sm:col-span-2 lg:row-span-2')}>
                 <div className={cx('overflow-hidden', i === 0 ? 'aspect-[4/3]' : 'aspect-[16/10]')}><img src={img(r.img)} alt={`${r.title}, ${r.where}`} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]" loading="lazy" decoding="async" /></div>
-                <div className="p-5"><p className={cx('font-semibold tracking-[-0.015em]', i === 0 ? 'text-[22px]' : 'text-[16px]')}>{r.title}</p><p className="mt-1 text-[13.5px] text-ink-3">{r.where} · {r.year}</p></div>
+                <div className="p-5"><p className={cx('font-semibold tracking-[-0.015em]', i === 0 ? 'text-[22px]' : 'text-[16px]')}>{r.title}</p><p className="mt-1 text-[14px] text-ink-3">{r.where} · {r.year}</p></div>
               </Reveal>
             ))}
             <Reveal delay={240}>
@@ -484,7 +484,7 @@ export default function Why() {
                 <span>
                   <span className="block text-[19px] font-semibold tracking-[-0.015em]">See more on LinkedIn</span>
                   <span className="mt-1.5 block text-[14px] leading-snug text-ink-3">Every award, event and team moment, as it happens.</span>
-                  <span className="link mt-4 text-[14.5px]">Follow Deep Algorithms<Icon name="ArrowUpRight" size={14} weight="bold" /></span>
+                  <span className="link mt-4 text-[14px]">Follow Deep Algorithms<Icon name="ArrowUpRight" size={14} weight="bold" /></span>
                 </span>
               </a>
             </Reveal>
@@ -519,8 +519,8 @@ export default function Why() {
                 <li key={t.name} className="flex flex-col rounded-[18px] border border-line p-6">
                   <Icon name={t.icon} size={24} className="text-cyan-2" />
                   <h3 className="mt-5 text-[19px] font-semibold tracking-[-0.015em]">{t.name}</h3>
-                  <p className="mt-2 flex-1 text-[15px] leading-relaxed text-ink-2">{t.work}</p>
-                  <a href={`mailto:${SITE.careersEmail}?subject=${encodeURIComponent(`Careers: ${t.name}`)}`} className="link mt-5 text-[14.5px]">Write to us about this<Icon name="ArrowRight" size={13} weight="bold" /></a>
+                  <p className="mt-2 flex-1 text-[16px] leading-relaxed text-ink-2">{t.work}</p>
+                  <a href={`mailto:${SITE.careersEmail}?subject=${encodeURIComponent(`Careers: ${t.name}`)}`} className="link mt-5 text-[14px]">Write to us about this<Icon name="ArrowRight" size={13} weight="bold" /></a>
                 </li>
               ))}
             </ul>
@@ -536,8 +536,8 @@ export default function Why() {
               <Reveal key={o.city} delay={i * 70} className="card flex flex-col p-7">
                 <p className="text-[12.5px] font-semibold uppercase tracking-[.1em] text-cyan-2">{o.label}</p>
                 <p className="mt-3 text-[24px] font-semibold tracking-[-0.015em]">{o.city}</p>
-                <p className="mt-3 flex-1 text-[15.5px] leading-relaxed text-ink-2">{o.address}</p>
-                {o.map && <a href={o.map} target="_blank" rel="noreferrer" className="link mt-5 text-[14.5px]">Open in Maps<Icon name="ArrowUpRight" size={14} weight="bold" /></a>}
+                <p className="mt-3 flex-1 text-[16px] leading-relaxed text-ink-2">{o.address}</p>
+                {o.map && <a href={o.map} target="_blank" rel="noreferrer" className="link mt-5 text-[14px]">Open in Maps<Icon name="ArrowUpRight" size={14} weight="bold" /></a>}
               </Reveal>
             ))}
           </div>

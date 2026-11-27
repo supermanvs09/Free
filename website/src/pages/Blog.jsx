@@ -55,7 +55,7 @@ export default function Blog() {
                 <span className="text-[12.5px] font-semibold uppercase tracking-[.1em]" style={{ color: hueOf(feat.category) }}>Featured · {feat.category}</span>
                 <span className="mt-3 text-[clamp(24px,2.4vw,32px)] font-medium leading-tight tracking-[-0.015em]">{feat.title}</span>
                 <span className="mt-4 text-[16px] leading-relaxed text-ink-2">{feat.excerpt}</span>
-                <span className="mt-6 text-[13.5px] text-ink-3">{formatDate(feat)} · {feat.read} min read</span>
+                <span className="mt-6 text-[14px] text-ink-3">{formatDate(feat)} · {feat.read} min read</span>
                 <span className="link mt-5">Read the blog<Icon name="ArrowRight" size={14} weight="bold" /></span>
               </span>
             </Link>
@@ -63,10 +63,10 @@ export default function Blog() {
           <div className="grid gap-10 lg:grid-cols-[250px_1fr] lg:gap-12">
             {/* filters: a sidebar on desktop, chip rows on phones */}
             <aside className="lg:sticky lg:top-28 lg:self-start" aria-label="Filter blogs">
-              <label htmlFor="rs" className="mb-2 block text-[13px] font-medium text-ink-3">Search the blogs</label>
+              <label htmlFor="rs" className="mb-2 block text-[14px] font-medium text-ink-3">Search the blogs</label>
               <div className="flex h-11 items-center gap-2.5 rounded-[12px] border border-line-2 bg-white px-3.5 focus-within:border-[#1e88d8] focus-within:shadow-[0_0_0_3px_rgb(30_136_216/.15)]">
                 <Icon name="MagnifyingGlass" size={17} className="text-ink-3" />
-                <input id="rs" type="search" value={q} onChange={(e) => set('q', e.target.value)} placeholder="Mule accounts, MCP, AI agents…" className="h-full w-full bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-3" />
+                <input id="rs" type="search" value={q} onChange={(e) => set('q', e.target.value)} placeholder="Mule accounts, MCP, AI agents…" className="h-full w-full bg-transparent text-[16px] text-ink outline-none placeholder:text-ink-3" />
               </div>
               {[['Topic', 'topic', [['', 'All topics', POSTS.length], ...TOPICS.map((t) => [topicSlug(t), t, POSTS.filter((p) => p.category === t).length])], topic],
                 ['Product', 'product', [['', 'All products', POSTS.length], ...PRODUCTS.map((v) => [v, v, POSTS.filter((p) => p.product.name.startsWith(v)).length])], product]].map(([title, key, opts, cur]) => (
@@ -89,13 +89,13 @@ export default function Blog() {
             <div>
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
                 <h2 id="all-h" className="text-[22px] font-semibold tracking-[-0.02em]">{filtering ? `${list.length} ${list.length === 1 ? 'result' : 'results'}` : 'All blogs'}</h2>
-                <label className="flex items-center gap-2 text-[13.5px] text-ink-3">Sort by
+                <label className="flex items-center gap-2 text-[14px] text-ink-3">Sort by
                   <select value={sort} onChange={(e) => set('sort', e.target.value === 'new' ? '' : e.target.value)} className="h-10 rounded-[10px] border border-line-2 bg-white px-3 text-[14px] text-ink">
                     <option value="new">Most recent</option><option value="old">Oldest first</option><option value="short">Quickest read</option>
                   </select>
                 </label>
               </div>
-              <p className="mt-3 text-[13px] text-ink-3" aria-live="polite">Showing {list.length} of {POSTS.length} blogs</p>
+              <p className="mt-3 text-[14px] text-ink-3" aria-live="polite">Showing {list.length} of {POSTS.length} blogs</p>
               {list.length ? (
                 <div className="mt-8 grid gap-x-7 gap-y-12 md:grid-cols-2">
                   {(filtering || sort !== "new" ? list : list.filter((p) => p !== feat)).map((p) => <div key={p.slug} className="fadein"><PostCard post={p} /></div>)}

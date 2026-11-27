@@ -17,7 +17,7 @@ function Col({ title, children }) {
         <span className="text-[12.5px] font-semibold uppercase tracking-[.1em] text-ink-3">{title}</span>
         <Icon name="CaretDown" size={14} className={cx('text-ink-3 transition-transform', open && 'rotate-180')} />
       </button>
-      <ul className={cx('space-y-2.5 text-[14.5px] max-md:pb-5', !open && 'max-md:hidden')}>{children}</ul>
+      <ul className={cx('space-y-2.5 text-[14px] max-md:pb-5', !open && 'max-md:hidden')}>{children}</ul>
     </div>
   );
 }
@@ -30,8 +30,8 @@ export default function Footer() {
         <div className="grid gap-12 lg:grid-cols-[1.25fr_2.6fr]">
           <div>
             <Link to="/" aria-label="Deep Algorithms home" className="inline-block"><Logo className="h-[32px]" /></Link>
-            <p className="mt-5 max-w-[340px] text-[15px] leading-relaxed text-ink-2">Identity security, fraud prevention, AI agent security and DPDPA compliance, built in Hyderabad for organisations that cannot afford a breach.</p>
-            <ul className="mt-6 space-y-2 text-[14.5px]">
+            <p className="mt-5 max-w-[340px] text-[16px] leading-relaxed text-ink-2">Identity security, fraud prevention, AI agent security and DPDPA compliance, built in Hyderabad for organisations that cannot afford a breach.</p>
+            <ul className="mt-6 space-y-2 text-[14px]">
               <li><a href={`mailto:${SITE.email}`} className="inline-flex items-center gap-2 text-ink-2 hover:text-ink"><Icon name="EnvelopeSimple" size={16} />{SITE.email}</a></li>
               <li><a href={SITE.phoneHref} className="inline-flex items-center gap-2 text-ink-2 hover:text-ink"><Icon name="Phone" size={16} />{SITE.phone}</a></li>
               <li><a href={SITE.linkedin} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-ink-2 hover:text-ink"><Icon name="LinkedinLogo" size={16} />Deep Algorithms on LinkedIn</a></li>
@@ -64,7 +64,7 @@ export default function Footer() {
             </Col>
           </div>
         </div>
-        <div className="mt-16 flex flex-col gap-4 border-t border-line pt-7 text-[13.5px] text-ink-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="mt-16 flex flex-col gap-4 border-t border-line pt-7 text-[14px] text-ink-3 lg:flex-row lg:items-center lg:justify-between">
           <p>© {new Date().getFullYear()} {SITE.legalName} · Gachibowli, Hyderabad 500032, India</p>
           <ul className="flex flex-wrap gap-x-6 gap-y-2">
             {[['Terms of use', '/terms-of-use'], ['Privacy policy', '/privacy-policy'], ['Cookie policy', '/cookie-policy'], ['Accessibility', '/accessibility']].map(([t, to]) => <li key={to}><Link to={to} className="hover:text-ink">{t}</Link></li>)}
