@@ -44,10 +44,49 @@ test.describe('desktop details', () => {
   });
 });
 
-test('the main menu has no separate Contact link; Contact stays under Company', async ({ page }) => {
+test('the retired pages are linked from nowhere, and their old addresses land on the page that replaced them', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('nav[aria-label="Primary"] a[href="/contact"]:visible')).toHaveCount(0);
-  await expect(page.locator('footer a[href="/contact"]').first()).toBeAttached();
+  await hydrated(page);
+  const old = ['/products', '/contact', '/sitemap', '/agentic-ai/agent-discovery', '/agentic-ai/agent-access', '/agentic-ai/runtime-enforcement', '/agentic-ai/mcp-security', '/agentic-ai/detection-response', '/agentic-ai/decision-record'];
+  for (const href of old) await expect(page.locator(`a[href="${href}"]`)).toHaveCount(0);
+  for (const [from, to] of [['/contact', /\/request-demo$/], ['/products', /\/$/], ['/agentic-ai/mcp-security', /\/agentic-ai\/agentic-identity#cap-mcp$/]]) {
+    await page.evaluate((u) => { history.pushState({}, '', u); dispatchEvent(new PopStateEvent('popstate')); }, from);
+    await expect(page).toHaveURL(to);
+  }
+});
+
+test('zenstra: each capability is a tab with its three steps, and a link can open any tab', async ({ page }) => {
+  await page.goto('/agentic-ai/agentic-identity#cap-mcp');
+  await hydrated(page);
+  const tab = page.getByRole('tab', { name: 'MCP' });
+  await expect(tab).toHaveAttribute('aria-selected', 'true');
+  const panel = page.getByRole('tabpanel', { name: 'MCP' });
+  await expect(panel.locator('ol li')).toHaveCount(3);
+  await expect(panel).toContainText('Approve');
+  await page.getByRole('tab', { name: 'Prove' }).click();
+  await expect(page.getByRole('tabpanel', { name: 'Prove' })).toContainText('Tamper-evident chain');
+});
+
+test('dpdpa: no auditor-questions table', async ({ page }) => {
+  await page.goto('/dpdpa-compliance');
+  await expect(page.locator('#chg-h')).toHaveCount(0);
+  await expect(page.getByText('Five questions every auditor asks')).toHaveCount(0);
+});
+
+test('the closing call to action reads in two lines on a laptop', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'laptop width');
+  await page.goto('/');
+  const h = page.locator('#close-h');
+  const lines = await h.evaluate((el) => Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)));
+  expect(lines).toBe(2);
+});
+
+test('the pictures over photos keep their tables inside the card', async ({ page }) => {
+  for (const path of ['/adapid-ai/nhi-security', '/adapid-ai/fraud-prevention', '/ad-security', '/dpdpa-compliance']) {
+    await page.goto(path);
+    const over = await page.evaluate(() => [...document.querySelectorAll('.pf-panel table')].map((t) => t.scrollWidth - t.parentElement.clientWidth));
+    for (const o of over) expect(o, path).toBeLessThanOrEqual(1);
+  }
 });
 
 test('a missing page names the address and offers search', async ({ page }) => {
@@ -76,7 +115,7 @@ test('there is no line above the menu; search and language sit in the main bar',
 
 test('product pages carry no hero picture except NHI security, and no cost-of-the-problem card', async ({ page, isMobile }) => {
   test.skip(isMobile, 'one viewport is enough');
-  for (const path of ['/adapid-ai', '/agentic-ai/agentic-identity', '/dpdpa-compliance', '/ad-security', '/adapid-ai/fraud-prevention', '/agentic-ai/agent-discovery']) {
+  for (const path of ['/adapid-ai', '/agentic-ai/agentic-identity', '/dpdpa-compliance', '/ad-security', '/adapid-ai/fraud-prevention']) {
     await page.goto(path);
     await expect(page.locator('section.hero-under .vzw, section.hero-under [role="img"]')).toHaveCount(0);
     await expect(page.getByText('The cost of a login nobody questioned')).toHaveCount(0);

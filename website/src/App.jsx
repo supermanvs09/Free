@@ -8,25 +8,20 @@ import Footer from './components/Footer.jsx';
 import Backdrop from './components/Backdrop.jsx';
 import CommandLauncher from './components/CommandLauncher.jsx';
 import { PRODUCTS } from './data/products.js';
-import { ZCAPS } from './data/zenstra.js';
 import { SOLUTIONS } from './data/site.js';
 import { POSTS } from './data/posts.js';
 import { LEGAL } from './data/legal.js';
 
 const Home = lazy(() => import('./pages/Home.jsx'));
-const Products = lazy(() => import('./pages/Products.jsx'));
 const Solution = lazy(() => import('./pages/Solution.jsx'));
 const Why = lazy(() => import('./pages/Why.jsx'));
 const Blog = lazy(() => import('./pages/Blog.jsx'));
 const Article = lazy(() => import('./pages/Article.jsx'));
 const Demo = lazy(() => import('./pages/Demo.jsx'));
-const Contact = lazy(() => import('./pages/Contact.jsx'));
 const Legal = lazy(() => import('./pages/Legal.jsx'));
-const Sitemap = lazy(() => import('./pages/Sitemap.jsx'));
 const NotFound = lazy(() => import('./pages/NotFound.jsx'));
-const Capability = lazy(() => import('./pages/products/Capability.jsx'));
 
-/* Every product has its own page; the six Zenstra capabilities share one. */
+/* Every product has its own page. */
 const PRODUCT_PAGES = {
   zenstra: lazy(() => import('./pages/products/Zenstra.jsx')),
   adapid: lazy(() => import('./pages/products/Cirm.jsx')),
@@ -36,13 +31,16 @@ const PRODUCT_PAGES = {
   icms: lazy(() => import('./pages/products/Icms.jsx')),
 };
 
+/* The six Zenstra capability pages became tabs on the Zenstra page. */
+const ZEN_OLD = [['/agentic-ai/agent-discovery', 'discover'], ['/agentic-ai/agent-access', 'scope'], ['/agentic-ai/runtime-enforcement', 'enforce'], ['/agentic-ai/mcp-security', 'mcp'], ['/agentic-ai/detection-response', 'detect'], ['/agentic-ai/decision-record', 'prove']];
+
 /* Every public URL; scripts/prerender.mjs renders these and lists them in sitemap.xml. */
 export const PATHS = [
-  '/', '/products',
+  '/',
   ...Object.values(PRODUCTS).map((p) => p.path),
   ...SOLUTIONS.map((s) => `/solutions/${s.slug}`),
   '/why-deep-algorithms', '/blogs', ...POSTS.map((p) => `/blogs/${p.slug}`),
-  '/request-demo', '/contact', '/sitemap', ...Object.keys(LEGAL).map((k) => `/${k}`),
+  '/request-demo', ...Object.keys(LEGAL).map((k) => `/${k}`),
 ];
 
 /* Scroll to top on navigation, or to the #hash target. */
@@ -99,16 +97,17 @@ export default function App() {
             {/* the company page and the old Why page are now one page */}
             <Route path="/platform" element={<Navigate to="/why-deep-algorithms" replace />} />
             <Route path="/about-us" element={<Navigate to="/why-deep-algorithms" replace />} />
-            <Route path="/products" element={<Products />} />
+            {/* pages folded into others: the products card on home, the Zenstra tabs, the demo form */}
+            <Route path="/products" element={<Navigate to="/" replace />} />
+            <Route path="/contact" element={<Navigate to="/request-demo" replace />} />
+            <Route path="/sitemap" element={<Navigate to="/" replace />} />
+            {ZEN_OLD.map(([from, tab]) => <Route key={from} path={from} element={<Navigate to={`/agentic-ai/agentic-identity#cap-${tab}`} replace />} />)}
             {Object.entries(PRODUCT_PAGES).map(([k, P]) => <Route key={k} path={PRODUCTS[k].path} element={<P />} />)}
-            {Object.entries(ZCAPS).map(([k, c]) => <Route key={k} path={c.path} element={<Capability id={k} />} />)}
             <Route path="/solutions/:slug" element={<Solution />} />
             <Route path="/why-deep-algorithms" element={<Why />} />
             <Route path="/blogs" element={<Blog />} />
             <Route path="/blogs/:slug" element={<Article />} />
             <Route path="/request-demo" element={<Demo />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/sitemap" element={<Sitemap />} />
             {Object.keys(LEGAL).map((k) => <Route key={k} path={`/${k}`} element={<Legal id={k} />} />)}
             <Route path="*" element={<NotFound />} />
           </Routes>

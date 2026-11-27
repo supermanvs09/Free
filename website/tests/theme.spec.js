@@ -6,7 +6,7 @@ const sheets = (page) => page.locator('.page > :not(.dark, .fixed)');
 
 test('one dark theme: black pages, light words, on every kind of page', async ({ page }) => {
   const errors = watch(page);
-  for (const path of ['/', '/why-deep-algorithms', '/adapid-ai', '/blogs', '/contact']) {
+  for (const path of ['/', '/why-deep-algorithms', '/adapid-ai', '/blogs', '/request-demo']) {
     await page.goto(path);
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(0, 0, 0)');

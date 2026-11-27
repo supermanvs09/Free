@@ -1,4 +1,3 @@
-import { ZCAPS } from './zenstra.js';
 
 /* Product facts shared by the product pages, the sitemap and SEO. Each product
    has its own page under src/pages/products/. Third-party statistics carry
@@ -58,5 +57,4 @@ export const PRODUCTS = {
     research: ['ctem-dpdpa-india-2026', 'india-mule-account-crisis'],
     cta: { title: 'Be ready the day the Data Protection Board asks.', body: 'Book a DPDPA gap analysis with a compliance engineer.' },
   },
-  ...ZCAPS,
 };

@@ -451,7 +451,7 @@
 
 /* the close: a horizon of blue light */
 .hz-cta { overflow: hidden; text-align: center; padding-bottom: clamp(72px, 7vw, 104px); }
-.hz-cta .dx-h2 { max-width: 16ch; margin: 0 auto; }
+.hz-cta .dx-h2 { max-width: 24ch; margin: 0 auto; }
 .hz-cta .dx-lead { margin: 24px auto 0; max-width: 560px; }
 .hz-cta .dx-btn { margin-top: 36px; background: #1597e5; border-color: #1597e5; color: #fff; }
 .hz-cta .dx-wrap { position: relative; z-index: 1; }

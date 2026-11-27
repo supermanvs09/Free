@@ -52,7 +52,6 @@ function ProductsMenu() {
             <p className="text-[20px] font-semibold tracking-[-0.015em] text-ink">Products</p>
             <p className="mt-1 text-[14.5px] text-ink-2">Security for people, machine identities and AI agents.</p>
           </div>
-          <Button to="/products" size="sm" arrow>All products</Button>
         </div>
         <GroupLabel>Platforms</GroupLabel>
         <div className="grid grid-cols-2 gap-x-8">
@@ -166,7 +165,7 @@ function MobileMenu({ onNav }) {
         ))}
       </ul>
       <div className="no-scrollbar -mx-5 mt-3 flex gap-2 overflow-x-auto px-5">
-        {[['NHI Security for AWS', '/adapid-ai/nhi-security'], ['Fraud Prevention', '/adapid-ai/fraud-prevention'], ['Active Directory', '/ad-security'], ['All products', '/products']].map(([n, to]) => (
+        {[['NHI Security for AWS', '/adapid-ai/nhi-security'], ['Fraud Prevention', '/adapid-ai/fraud-prevention'], ['Active Directory', '/ad-security']].map(([n, to]) => (
           <Link key={to} to={to} onClick={onNav} className="shrink-0 rounded-full border border-line-2 px-3.5 py-2 text-[14px] text-ink-2">{n}</Link>
         ))}
       </div>
@@ -175,7 +174,7 @@ function MobileMenu({ onNav }) {
         {SOLUTIONS.map((x) => <Link key={x.slug} to={`/solutions/${x.slug}`} onClick={onNav} className="rounded-full border border-line-2 px-3.5 py-2 text-[14px] text-ink-2">{x.name}</Link>)}
       </div>
       <div className="mt-5">
-        {[['Blogs', '/blogs'], ['Why Deep Algorithms', '/why-deep-algorithms'], ['Careers', '/why-deep-algorithms#careers'], ['Contact', '/contact']].map(([n, to]) => (
+        {[['Blogs', '/blogs'], ['Why Deep Algorithms', '/why-deep-algorithms'], ['Careers', '/why-deep-algorithms#careers']].map(([n, to]) => (
           <Link key={to} to={to} onClick={onNav} className={row}>{n}<Icon name="CaretRight" size={15} className="text-ink-3" /></Link>
         ))}
       </div>

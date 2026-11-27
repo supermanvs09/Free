@@ -20,12 +20,12 @@ export const PRODUCT_MENU = [
     kind: 'platform',
     covers: 'For copilots, cloud agents, workflow automations, coding agents and MCP servers.',
     items: [
-      { name: 'Agent discovery', path: '/agentic-ai/agent-discovery' },
-      { name: 'Agent identity and access', path: '/agentic-ai/agent-access' },
-      { name: 'Runtime enforcement', path: '/agentic-ai/runtime-enforcement' },
-      { name: 'MCP security', path: '/agentic-ai/mcp-security' },
-      { name: 'Detection and response', path: '/agentic-ai/detection-response' },
-      { name: 'Decision record', path: '/agentic-ai/decision-record' },
+      { name: 'Agent discovery', path: '/agentic-ai/agentic-identity#cap-discover' },
+      { name: 'Agent identity and access', path: '/agentic-ai/agentic-identity#cap-scope' },
+      { name: 'Runtime enforcement', path: '/agentic-ai/agentic-identity#cap-enforce' },
+      { name: 'MCP security', path: '/agentic-ai/agentic-identity#cap-mcp' },
+      { name: 'Detection and response', path: '/agentic-ai/agentic-identity#cap-detect' },
+      { name: 'Decision record', path: '/agentic-ai/agentic-identity#cap-prove' },
     ],
   },
 

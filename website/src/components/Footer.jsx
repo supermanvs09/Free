@@ -49,7 +49,6 @@ export default function Footer() {
             </Col>
             <Col title="Solutions">
               {SOLUTIONS.map((s) => <L key={s.slug} to={`/solutions/${s.slug}`}>{s.name}</L>)}
-              <L to="/products">All products</L>
               <L to="/why-deep-algorithms">Why Deep Algorithms</L>
             </Col>
             <Col title="Resources">
@@ -62,14 +61,13 @@ export default function Footer() {
             <Col title="Company">
               <L to="/why-deep-algorithms#leadership">Leadership</L>
               <L to="/why-deep-algorithms#careers">Careers</L>
-              <L to="/contact">Contact</L>
             </Col>
           </div>
         </div>
         <div className="mt-16 flex flex-col gap-4 border-t border-line pt-7 text-[13.5px] text-ink-3 lg:flex-row lg:items-center lg:justify-between">
           <p>© {new Date().getFullYear()} {SITE.legalName} · Gachibowli, Hyderabad 500032, India</p>
           <ul className="flex flex-wrap gap-x-6 gap-y-2">
-            {[['Terms of use', '/terms-of-use'], ['Privacy policy', '/privacy-policy'], ['Cookie policy', '/cookie-policy'], ['Accessibility', '/accessibility'], ['Sitemap', '/sitemap']].map(([t, to]) => <li key={to}><Link to={to} className="hover:text-ink">{t}</Link></li>)}
+            {[['Terms of use', '/terms-of-use'], ['Privacy policy', '/privacy-policy'], ['Cookie policy', '/cookie-policy'], ['Accessibility', '/accessibility']].map(([t, to]) => <li key={to}><Link to={to} className="hover:text-ink">{t}</Link></li>)}
           </ul>
         </div>
       </div>

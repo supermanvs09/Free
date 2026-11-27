@@ -37,7 +37,7 @@ export function Hero({ acc = 'brand', eyebrow, title, lead, ctas, explore, child
   const color = ACC[acc] || ACC.brand;
   const mark = { zen: 'zenstra', adap: 'adapid', icms: 'icms' }[acc];
   const split = layout === 'split' && children;
-  const actions = ctas || <><Explore label={explore} /><Button to="/contact" variant="ghost" size="lg">Talk to an engineer</Button></>;
+  const actions = ctas || <><Explore label={explore} /><Button to="/request-demo" variant="ghost" size="lg">Talk to an engineer</Button></>;
   // product pages: as on the home page, the headline first and the picture beneath it.
   // industry pages (split): the headline on the left, the photograph on the right.
   return (
@@ -108,7 +108,7 @@ export function Faq({ items, title = 'Questions teams ask us' }) {
         <Reveal>
           <p className="eyebrow">FAQ</p>
           <h2 id="faq-h" className="t-h2 mt-6">{title}</h2>
-          <p className="t-lead mt-5">Something else on your mind? <Link to="/contact" className="text-cyan-2 underline underline-offset-4 hover:text-fg">Ask an engineer</Link>.</p>
+          <p className="t-lead mt-5">Something else on your mind? <Link to="/request-demo" className="text-cyan-2 underline underline-offset-4 hover:text-fg">Ask an engineer</Link>.</p>
         </Reveal>
         <Reveal delay={100}><Accordion items={items} /></Reveal>
       </div>
@@ -172,6 +172,18 @@ export function Related({ items, title = 'Works alongside' }) {
 /* Horizontal explorer: tabs on top, the picture and its copy below. */
 export function Explorer({ items, acc = 'brand', label }) {
   const [i, setI] = useState(0);
+  // a link such as #cap-mcp opens that tab
+  useEffect(() => {
+    const pick = () => {
+      const k = items.findIndex((x) => x.anchor && `#${x.anchor}` === window.location.hash);
+      if (k < 0) return;
+      setI(k);
+      // bring the tabs into view once the page above has settled
+      setTimeout(() => document.getElementById(items[k].anchor)?.closest('section')?.scrollIntoView({ block: 'start' }), 350);
+    };
+    pick(); window.addEventListener('hashchange', pick);
+    return () => window.removeEventListener('hashchange', pick);
+  }, [items]);
   const id = useId();
   const color = ACC[acc] || ACC.brand;
   const it = items[i];
@@ -179,18 +191,23 @@ export function Explorer({ items, acc = 'brand', label }) {
     <div>
       <div role="tablist" aria-label={label} className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 md:mx-0 md:flex-wrap md:px-0">
         {items.map((x, k) => (
-          <button key={x.tab} id={`${id}-t${k}`} role="tab" type="button" aria-selected={k === i} aria-controls={`${id}-p`} onClick={() => setI(k)}
+          <button key={x.tab} id={x.anchor || `${id}-t${k}`} role="tab" type="button" aria-selected={k === i} aria-controls={`${id}-p`} onClick={() => setI(k)}
             className={cx('inline-flex h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-[14.5px] font-medium transition-colors', k === i ? 'border-transparent text-on-acc' : 'border-line-2 text-ink-2 hover:border-fg/30 hover:text-ink')}
             style={k === i ? { background: color } : undefined}>
             {x.icon && <Icon name={x.icon} size={16} />}{x.tab}
           </button>
         ))}
       </div>
-      <div id={`${id}-p`} role="tabpanel" aria-labelledby={`${id}-t${i}`} key={i} className="fadein mt-10 grid items-center gap-10 lg:grid-cols-[.85fr_1.15fr] lg:gap-16">
+      <div id={`${id}-p`} role="tabpanel" aria-labelledby={it.anchor || `${id}-t${i}`} key={i} className="fadein mt-10 grid items-center gap-10 lg:grid-cols-[.85fr_1.15fr] lg:gap-16">
         <div>
           <h3 className="text-[28px] font-medium leading-tight tracking-[-0.015em] md:text-[34px]">{it.h}</h3>
           <p className="mt-4 text-[17px] leading-relaxed text-ink-2">{it.p}</p>
           {it.points && <ul className="mt-6 space-y-3">{it.points.map((t) => <li key={t} className="flex gap-3 text-[15.5px] text-ink-2"><Icon name="Check" size={18} weight="bold" className="mt-[3px] shrink-0" style={{ color }} />{t}</li>)}</ul>}
+          {it.steps && (
+            <ol className="mt-8 flex flex-col gap-4 border-t border-line pt-6" aria-label="How it works">
+              {it.steps.map(([h, t], k) => <li key={h} className="flex gap-2"><span className="w-[28px] shrink-0 pt-[2px] text-[13px] font-semibold tabular-nums" style={{ color }}>{String(k + 1).padStart(2, '0')}</span><span><span className="block text-[15.5px] font-semibold">{h}</span><span className="mt-0.5 block text-[14.5px] leading-relaxed text-ink-3">{t}</span></span></li>)}
+            </ol>
+          )}
           {it.to && <Link to={it.to} className="link mt-7" style={{ '--acc': color }}>{it.cta || 'Learn more'}<Icon name="ArrowRight" size={14} weight="bold" /></Link>}
         </div>
         <div className="relative">
@@ -278,7 +295,7 @@ export function Points({ items, acc = 'brand', cols = 3 }) {
             </button>
           ))}
         </div>
-        <div ref={pane} id={`${id}-p`} role="tabpanel" aria-labelledby={`${id}-t${i}`} className="pt-pane relative overflow-hidden rounded-[24px] border border-line bg-bg-1 p-10">
+        <div ref={pane} id={`${id}-p`} role="tabpanel" aria-labelledby={it.anchor || `${id}-t${i}`} className="pt-pane relative overflow-hidden rounded-[24px] border border-line bg-bg-1 p-10">
           <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-24 h-[340px] w-[340px] rounded-full opacity-60 blur-3xl" style={{ background: `radial-gradient(closest-side, color-mix(in oklab, ${color} 30%, transparent), transparent)` }} />
           <div className="relative flex h-full flex-col">
             <span className="pt-ico relative inline-grid h-20 w-20 place-items-center rounded-[22px] text-white shadow-[0_18px_40px_-16px_var(--acc)]" style={{ background: `linear-gradient(140deg, color-mix(in oklab, ${color} 80%, white), ${color})` }}>

@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { PRODUCTS } from '../data/products.js';
-import { ZCAPS } from '../data/zenstra.js';
 import { SOLUTIONS } from '../data/site.js';
 import { POSTS } from '../data/posts.js';
 import { LEGAL } from '../data/legal.js';
@@ -29,17 +28,14 @@ function useOverlay(onClose) {
 /* ---------- search ---------- */
 const INDEX = [
   ...Object.values(PRODUCTS).map((p) => ({ group: 'Products', title: p.name, sub: p.line === p.name ? p.description : `${p.line} · ${p.description}`, path: p.path })),
-  ...Object.values(ZCAPS).map((c) => ({ group: 'Zenstra AI capabilities', title: c.name, sub: c.short, path: c.path })),
   ...SOLUTIONS.map((s) => ({ group: 'Solutions', title: s.name, sub: s.desc, path: `/solutions/${s.slug}` })),
   ...POSTS.map((p) => ({ group: 'Blogs', title: p.title, sub: `${p.category} · ${p.read} min read`, path: `/blogs/${p.slug}`, more: p.excerpt })),
   { group: 'Company', title: 'Why Deep Algorithms', sub: 'The company, the team and how the products work', path: '/why-deep-algorithms' },
-  { group: 'Company', title: 'All products', sub: 'Filter by what you need to protect', path: '/products' },
   { group: 'Company', title: 'All blogs', sub: 'Reports, field notes and analysis', path: '/blogs' },
   ...[
     ['Leadership', 'The team and our advisors', '/why-deep-algorithms#leadership'],
     ['Recognition', 'Awards, programmes and certifications', '/why-deep-algorithms#recognition'],
     ['Careers', 'Work on hard security problems', '/why-deep-algorithms#careers'],
-    ['Contact', 'Offices, phone and email', '/contact'],
   ].map(([title, sub, path]) => ({ group: 'Company', title, sub, path })),
   { group: 'Company', title: 'Book a demo', sub: '30 minutes with an engineer, on your environment', path: '/request-demo' },
   ...Object.entries(LEGAL).map(([k, l]) => ({ group: 'Legal', title: l.title, sub: '', path: `/${k}` })),
@@ -120,7 +116,7 @@ function Search({ onClose }) {
 const DIRS = {
   zenstra: '/agentic-ai/agentic-identity', adapid: '/adapid-ai', icms: '/dpdpa-compliance',
   nhi: '/adapid-ai/nhi-security', fraud: '/adapid-ai/fraud-prevention', ad: '/ad-security',
-  blogs: '/blogs', research: '/blogs', company: '/why-deep-algorithms', platform: '/why-deep-algorithms', products: '/products', demo: '/request-demo', contact: '/contact', home: '/',
+  blogs: '/blogs', research: '/blogs', company: '/why-deep-algorithms', platform: '/why-deep-algorithms', products: '/', demo: '/request-demo', contact: '/request-demo', home: '/',
 };
 const HELP = [
   ['help', 'this list'], ['ls', 'what is here'], ['open <name>', 'go to a page, e.g. open zenstra'], ['whoami', 'who the site thinks you are'],
