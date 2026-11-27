@@ -1034,9 +1034,7 @@ html.is-translated font { background: none !important; box-shadow: none !importa
    the fixed bar (articles, legal pages) never show a dark strip under it */
 :root:not([data-theme='dark']), :root:not([data-theme='dark']) body { background-color: #f6f9fd; }
 :root:not([data-theme='dark']) .backdrop { background: linear-gradient(180deg, #f6f9fd, #ffffff 70%); }
-/* laptops: the whole page a touch more compact (sections, cards, type and the bar
-   scale together, so proportions hold). Large monitors and phones are unchanged. */
-@media (min-width: 1024px) and (max-width: 1680px) { html { zoom: .9; } }
+/* no page zoom: CSS zoom on <html> shifts the fixed header in some browsers (Edge at high display scaling) */
 [data-on] { background: rgb(10 109 187 / .06); }
 
 /* ==========================================================================
