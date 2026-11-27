@@ -111,7 +111,7 @@
 .px-items a:hover svg { opacity: 1; transform: translateX(3px); }
 
 /* Claude window (a faithful replica of the film's 1:00 scene) */
-.cl-win { position: absolute; inset: 3.2% 3% 4%; border-radius: 1.1em; overflow: hidden; background: #f6f4ef; color: #1f1e1b; box-shadow: 0 2.4em 5em -1.5em rgb(0 0 0 / .7), 0 0 0 1px rgb(255 255 255 / .12); font-family: 'Inter Tight Variable', 'Inter Tight Variable', system-ui, sans-serif; }
+.cl-win { position: absolute; inset: 3.2% 3% 4%; border-radius: 1.1em; overflow: hidden; background: #f6f4ef; color: #1f1e1b; box-shadow: 0 2.4em 5em -1.5em rgb(0 0 0 / .7), 0 0 0 1px rgb(255 255 255 / .12); font-family: 'Inter Tight Variable', system-ui, sans-serif; }
 .cl-bar { height: 4.4%; min-height: 0; display: flex; align-items: center; gap: .5em; padding: 0 1.1em; background: #efede7; border-bottom: 1px solid #e4e1d9; }
 .cl-bar i { width: .75em; height: .75em; border-radius: 99em; background: #ec6a5e; }
 .cl-bar i:nth-child(2) { background: #f4bf4f; } .cl-bar i:nth-child(3) { background: #61c554; }
