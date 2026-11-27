@@ -463,3 +463,11 @@
 html.intro-pre body::after { content: ''; position: fixed; inset: 0; z-index: 300; background: #000; animation: pre-out .4s 4s forwards; pointer-events: none; }
 @keyframes pre-out { to { opacity: 0; visibility: hidden; } }
 html.intro-on header { visibility: hidden; }
+
+/* the hero alone: headline and actions in the middle of the first screen */
+.rd-hero { display: flex; align-items: center; min-height: calc(100svh - var(--hdr, 72px)); padding: 0; }
+.rd-hero > .dx-wrap { width: 100%; }
+.rd-hero h1 { font-size: clamp(38px, 5vw, 72px); max-width: 980px; }
+.rd-hero .dx-hero-cta { margin-top: 36px; }
+/* the posture title stands on its own */
+.ai-band { padding: clamp(120px, 14vw, 200px) 0; }

@@ -51,8 +51,8 @@ export default function Intro() {
       t2 = setTimeout(() => setOn(false), 700);
     };
     // after the lockup lands, the line names who we protect, one word at a time (as go.ai does)
-    const ws = WORDS.map((_, i) => setTimeout(() => setW(i), 2950 + i * 420));
-    const t = setTimeout(finish, 2950 + WORDS.length * 420 + 380);
+    const ws = WORDS.map((_, i) => setTimeout(() => setW(i), 2950 + i * 700));
+    const t = setTimeout(finish, 2950 + WORDS.length * 700 + 500);
     window.addEventListener('keydown', finish);
     window.addEventListener('pointerdown', finish);
     window.addEventListener('wheel', finish, { passive: true });

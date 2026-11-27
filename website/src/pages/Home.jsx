@@ -7,10 +7,8 @@ import { SOLUTION_PAGES } from '../data/solutions.js';
 import { PRODUCTS } from '../data/products.js';
 import { POSTS, formatDate } from '../data/posts.js';
 import CertSeal from '../components/CertSeal.jsx';
-import AispmGlobe from '../home/AispmGlobe.jsx';
 import { PRODUCT_MENU } from '../data/nav.js';
 import FilmModal, { FILM, openFilm } from '../components/home/FilmModal.jsx';
-import HeroRadar from '../home/HeroRadar.jsx';
 import { IconStack } from '../lib/nullmotion.jsx';
 import AgenticSecurity from '../components/AgenticSecurity.jsx';
 import Intro from '../home/Intro.jsx';
@@ -45,7 +43,7 @@ export default function Home() {
       <Intro />
       <Seo path="/" description="Deep Algorithms discovers every human, machine and AI agent identity in your enterprise and protects each one from AI-driven threats with Continuous AI Security Posture Management. ISO 27001, SOC 2 Type II, ISO 42001." />
 
-      {/* 1 · HERO: the promise, then a horizon scan that discovers every kind of identity */}
+      {/* 1 · HERO: the promise and two actions, in the middle of the first screen (the radar is kept in HeroRadar.jsx) */}
       <section className="dx-hero rd-hero" aria-labelledby="hero-h">
         <div className="dx-wrap">
           <h1 id="hero-h" className="rise" style={{ '--d': '40ms' }}>Discover every human, machine and AI&nbsp;agent identity.</h1>
@@ -53,7 +51,6 @@ export default function Home() {
             <Link to="/request-demo" className="dx-btn solid">Book a demo</Link>
             <button type="button" className="dx-btn ghost" onClick={() => openFilm(0)}><Play />Watch video ({FILM.length.padStart(5, '0')})</button>
           </div>
-          <HeroRadar />
         </div>
       </section>
 
@@ -70,14 +67,13 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 3 · CONTINUOUS AI-SPM: the name, the promise, and the picture that proves it */}
+      {/* 3 · CONTINUOUS AI-SPM: the name and the promise (the globe is kept in AispmGlobe.jsx) */}
       <section id="aispm" className="dx-band ink ai-band scroll-mt-20" aria-labelledby="aispm-h">
         <div className="dx-wrap">
           <div className="ai-title">
             <h2 id="aispm-h" className="ai-big">Continuous AI Security Posture Management</h2>
             <p className="ai-sub">Securing your Identities and Digital Ecosystem from AI-driven threats.</p>
           </div>
-          <AispmGlobe />
         </div>
       </section>
 

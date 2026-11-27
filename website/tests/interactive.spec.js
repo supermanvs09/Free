@@ -11,19 +11,11 @@ test('home: agentic AI security follows the posture section; the rest is on the 
   await page.goto('/agentic-ai/agentic-identity');
   for (const id of ['ag-find', 'ag-govern', 'ag-run', 'ag-stop']) await expect(page.locator(`#${id}`)).toHaveCount(1);
 });
-test('home: AI-SPM shows the four kinds of identity around the globe, each linked to its product', async ({ page }) => {
+test('home: AI-SPM is its name and promise, with no picture', async ({ page }) => {
   await page.goto('/');
   const sec = page.locator('#aispm');
-  await expect(sec.locator('.gx-m')).toHaveCount(4);
-  for (const [h, to] of [['People', '/adapid-ai'], ['Machine identities', '/adapid-ai/nhi-security'], ['AI agents', '/agentic-ai/agentic-identity'], ['Personal data', '/dpdpa-compliance']]) {
-    await expect(sec.locator(`.gx-m[href="${to}"] .gx-ct:not(.gx-num) b`)).toHaveText(h);
-  }
-  for (const [v, l] of [['1,284', 'Assets'], ['18', 'Active Threats'], ['97%', 'Protected'], ['1,284', 'High-Risk']]) {
-    await expect(sec.locator('.gx-num', { hasText: l })).toContainText(v);
-  }
-  await expect(sec.locator('.gx-score')).toContainText('92/100');
-  await expect(sec.locator('.gx-pill')).toHaveText('Suspicious TrafficUS-East-1');
-  await expect(sec.getByRole('button')).toHaveCount(0);
+  await expect(sec.locator('.gx')).toHaveCount(0);
+  await expect(sec.locator('canvas, img')).toHaveCount(0);
 });
 
 test('reduced motion still shows the Claude scene at its finished frame', async ({ page }) => {
@@ -92,16 +84,16 @@ test('home: industries, certifications and research each lead somewhere real', a
   await expect(res.getByRole('link', { name: /All research/ })).toHaveAttribute('href', '/blogs');
 });
 
-test('home: the hero is one sentence, two actions and the identity radar', async ({ page }) => {
+test('home: the hero is one sentence and two actions, in the middle of the first screen', async ({ page }) => {
   await page.goto('/');
   await hydrated(page);
   const hero = page.locator('section[aria-labelledby="hero-h"]');
   await expect(hero.getByRole('heading', { level: 1 })).toHaveText('Discover every human, machine and AI agent identity.');
   await expect(hero.getByRole('link', { name: 'Book a demo' })).toBeVisible();
-  await expect(hero.locator('.rd-node')).toHaveCount(15);
-  await expect(hero.locator('.rd-status')).toContainText('identities discovered');
-  await hero.getByRole('button', { name: 'Pause animation' }).click();
-  await expect(hero.getByRole('button', { name: 'Play animation' })).toBeVisible();
+  await expect(hero.locator('.rd-node, .rd')).toHaveCount(0);
+  const [mid, vh] = await hero.getByRole('heading', { level: 1 }).evaluate((h) => { const r = h.getBoundingClientRect(); return [r.top + r.height / 2, innerHeight]; });
+  expect(mid).toBeGreaterThan(vh * 0.3);
+  expect(mid).toBeLessThan(vh * 0.6);
 });
 
 test('home: the AI-SPM section leads with its name, then the promise', async ({ page }) => {
