@@ -11,6 +11,7 @@ import AispmGlobe from '../home/AispmGlobe.jsx';
 import { PRODUCT_MENU } from '../data/nav.js';
 import FilmModal, { FILM, openFilm } from '../components/home/FilmModal.jsx';
 import HeroRadar from '../home/HeroRadar.jsx';
+import { IconStack } from '../lib/nullmotion.jsx';
 import Intro from '../home/Intro.jsx';
 import { startScrollStory } from '../home/scrollStory.js';
 import { ClaudeBlock } from '../home/Agents.jsx';
@@ -202,6 +203,8 @@ export default function Home() {
       {/* 8 · THE CLOSE: one ask, over a horizon of light */}
       <section className="dx-band ink hz-cta" aria-labelledby="close-h">
         <div className="dx-wrap">
+          {/* the three product lines rise and fan out, as on every product page */}
+          <div className="pl-28 md:pl-32"><IconStack className="mb-10" /></div>
           <h2 id="close-h" className="dx-h2">Find your riskiest identity before attackers do.</h2>
           <p className="dx-lead">A 30-minute session with a Deep Algorithms engineer, on your own environment, with your own questions.</p>
           <Link to="/request-demo" className="dx-btn solid">Book a demo</Link>
