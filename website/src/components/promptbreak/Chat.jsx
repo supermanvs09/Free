@@ -189,7 +189,7 @@ function Game({ me, setMe }) {
           <button className="pb-btn pb-btn-green">Submit</button>
           <p className="pb-verdict" role="status">{verdict === 'ok' ? `Cracked! +${L.pts} points. Level ${Math.min(lv + 1, 7)} unlocked.` : verdict === 'no' ? 'Not quite. The guardian smirks.' : ''}</p>
         </form>
-        {MODE === 'practice' && <p className="pb-note"><SIcon k="flag" s={16} />Practice mode: the live guardians switch on when Season 1 opens. Practice scores are not added to the leaderboard.</p>}
+        {MODE === 'practice' && <p className="pb-note"><SIcon k="flag" s={16} />Practice mode: the live guardians switch on when the challenge opens. Practice scores are not added to the leaderboard.</p>}
       </section>
     </div>
   );

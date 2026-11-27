@@ -24,7 +24,7 @@ export default function Leaderboard() {
       <section aria-labelledby="pb-top-h" className="pb-sec">
         <div className="pb-sec-h">
           <h2 id="pb-top-h" className="pb-h2">Top 20 hackers</h2>
-          {board?.sample && <span className="pb-tag">Sample data · the live board opens with Season 1</span>}
+          {board?.sample && <span className="pb-tag">Sample data · the live board opens with the challenge</span>}
         </div>
         <ol className="pb-podium" aria-label="Top three">
           {POD.map(([d, r]) => {

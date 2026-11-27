@@ -21,7 +21,7 @@ function Countdown() {
   const opens = useCountdown(PB.opens), closes = useCountdown(PB.closes);
   const live = opens?.over && !closes?.over;
   const c = live ? closes : opens;
-  const label = live ? 'Season 1 closes in' : opens?.over ? 'Season 1 has closed' : 'Season 1 opens in';
+  const label = live ? 'The challenge closes in' : opens?.over ? 'The challenge has closed' : 'The challenge opens in';
   return (
     <div className="pb-count-box" aria-live="off">
       <p>{label}</p>
@@ -39,20 +39,11 @@ export default function Promptbreak({ tab = 'play' }) {
       <Seo title={board ? 'Promptbreak Leaderboard: Prompt Injection Challenge' : 'Promptbreak: The Prompt Injection Challenge'} path={board ? PB.boardPath : PB.path}
         description="Trick seven AI guardians into revealing their passwords with prompt injection. A free challenge by Deep Algorithms, with cash prizes, swag and job offers for the best hackers." />
 
-      {/* the announcement, shouted */}
-      <div className="pb-ticker" role="marquee" aria-label={`${PB.season}: win cash prizes and job offers. Seven AI guardians. Free to play.`}>
-        <div className="pb-ticker-track" aria-hidden="true">
-          {[0, 1].map((k) => (
-            <span key={k}>{['Season 1 is coming', 'Win cash prizes', 'Job offers on our AI security team', '7 AI guardians', 'Free to play', 'Swag for the top 50'].map((t) => <span key={t}>{t}<SIcon k="spark" s={16} /></span>)}</span>
-          ))}
-        </div>
-      </div>
-
       {/* the announcement */}
       <section className="pb-hero" aria-labelledby="pb-h">
         <div className="pb-wrap pb-hero-grid">
           <div>
-            <div className="pb-shout"><Megaphone className="pb-shout-art" /><p className="pb-sticker">Big announcement · {PB.season} · Free to play</p></div>
+            <div className="pb-shout"><Megaphone className="pb-shout-art" /><p className="pb-sticker">Big announcement · Free to play</p></div>
             <h1 id="pb-h" className="pb-h1">Can you make our AI <span className="pb-mark">spill its secret<Scribble className="pb-scribble" /></span>?</h1>
             <p className="pb-lead">{PB.pitch}</p>
             <div className="pb-ctas">

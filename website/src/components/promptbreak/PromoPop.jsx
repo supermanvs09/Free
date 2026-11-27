@@ -33,7 +33,7 @@ export default function PromoPop() {
   return (
     <aside className="pb-pop" aria-label="Promptbreak challenge">
       <img src="/img/doodles/unboxing.svg" alt="" width="76" height="57" />
-      <p className="pb-pop-k">New · {PB.season}</p>
+      <p className="pb-pop-k">New · Prompt injection challenge</p>
       <p className="pb-pop-t">Crack our AI, <span>win prizes and job offers</span></p>
       <Link to={PB.path} className="pb-pop-go" onClick={close}>Play Promptbreak<SIcon k="arrow" s={16} /></Link>
       <button type="button" className="pb-pop-x" onClick={close} aria-label="Close the Promptbreak note"><SIcon k="x" s={14} /></button>

@@ -10,7 +10,6 @@
 
 export const PB = {
   name: 'Promptbreak',
-  season: 'Season 1',
   path: '/promptbreak',
   boardPath: '/promptbreak/leaderboard',
   opens: '2026-12-15T10:00:00+05:30', // placeholder
@@ -42,7 +41,7 @@ export const RULES = [
   'One account per person. Teams are welcome, but play under one name.',
   'Attack the guardians through the chat only. Our infrastructure is out of scope.',
   'No automated flooding. Messages are rate-limited to keep the game fair.',
-  'Keep your winning prompts to yourself until the season closes.',
+  'Keep your winning prompts to yourself until the challenge closes.',
   'Found a real bug in the platform? Tell us privately and we will thank you properly.',
 ];
 
@@ -54,7 +53,7 @@ export const SCORING = [
 
 export const FAQ = [
   ['What is prompt injection?', 'Text that makes an AI model ignore its instructions and follow yours instead. It is the top risk in the OWASP Top 10 for LLM applications, and the reason products like Zenstra check what an agent does, not only what it was told.'],
-  ['Do I need to be a security expert?', 'No. The first levels are made for curious beginners. The last ones will test seasoned red teamers.'],
+  ['Do I need to be a security expert?', 'No. The first levels are made for curious beginners. The last ones will test experienced red teamers.'],
   ['Who can join?', 'Anyone, anywhere. You need an email address to keep your score.'],
   ['Is it free?', 'Yes, completely.'],
 ];

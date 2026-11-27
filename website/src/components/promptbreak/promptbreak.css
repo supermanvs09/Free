@@ -249,15 +249,7 @@ header.pb-hdr :focus-visible { outline-color: #23784f; }
 .mbar.pb-mbar :is(a, button) { color: #17150f; }
 .mbar.pb-mbar .mbar-cta { background: #17150f; color: #fbf7ee; }
 
-/* ---------- next level: ticker, shout, steps, map, prize art, job, confetti ---------- */
-.pb-ticker { overflow: hidden; background: var(--ink); color: var(--paper); border-bottom: 2px solid var(--ink); }
-.pb-ticker-track { display: flex; width: max-content; animation: pb-tick 38s linear infinite; }
-.pb-ticker-track > span { display: flex; }
-.pb-ticker-track span span { display: inline-flex; align-items: center; gap: 14px; padding: 10px 14px; font: 400 21px/1 var(--hand); white-space: nowrap; }
-.pb-ticker-track span span svg { color: var(--hi); }
-.pb-ticker-track span span:nth-child(2n) { color: var(--green); }
-@keyframes pb-tick { to { transform: translateX(-50%); } }
-.pb-ticker:hover .pb-ticker-track { animation-play-state: paused; }
+/* ---------- next level: shout, steps, map, prize art, job, confetti ---------- */
 .pb-shout { display: flex; align-items: center; gap: 4px; margin-left: -12px; }
 .pb-shout-art { width: 96px; height: auto; flex: none; transform: rotate(-8deg); }
 .pb-hero-doodle { width: min(100%, 560px); height: auto; }
@@ -309,4 +301,4 @@ header.pb-hdr :focus-visible { outline-color: #23784f; }
 .pb-stamp { padding: 8px 22px; border: 4px solid var(--red); border-radius: 12px; color: var(--red); background: rgb(255 255 255 / .9); font: 400 54px/1 var(--hand); letter-spacing: .04em; transform: rotate(-12deg); animation: pb-stamp .45s cubic-bezier(.2, 1.6, .4, 1) both; }
 @keyframes pb-stamp { from { transform: rotate(-12deg) scale(2.2); opacity: 0; } }
 @keyframes pb-fade { 0%, 75% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
-@media (prefers-reduced-motion: reduce) { .pb-ticker-track, .pb-stop.next .pb-stop-n, .pb-confetti i, .pb-stamp { animation: none; } .pb-confetti i { display: none; } }
+@media (prefers-reduced-motion: reduce) { .pb-stop.next .pb-stop-n, .pb-confetti i, .pb-stamp { animation: none; } .pb-confetti i { display: none; } } 

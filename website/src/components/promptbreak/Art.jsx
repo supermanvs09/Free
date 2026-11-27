@@ -12,7 +12,7 @@ function Svg({ vb, className, children }) {
 }
 const Spark = ({ x, y, r = 9, f = Y }) => <path d={`M${x} ${y - r}c${r * .2} ${r * .55} ${r * .45} ${r * .8} ${r} ${r}c-${r * .55} ${r * .2}-${r * .8} ${r * .45}-${r} ${r}c-${r * .2}-${r * .55}-${r * .45}-${r * .8}-${r}-${r}c${r * .55}-${r * .2} ${r * .8}-${r * .45} ${r}-${r}Z`} fill={f} {...s} strokeWidth={2.4} />;
 
-/* the announcement: a megaphone shouting the season */
+/* the announcement: a megaphone shouting the news */
 export function Megaphone({ className }) {
   return (
     <Svg vb="0 0 260 190" className={className}>
