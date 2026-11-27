@@ -84,7 +84,7 @@ export default function Home() {
         <div className="wrap sc-intro">
           <p className="sc-eyebrow">Identity security posture</p>
           <h2 className="sc-title">Every human and machine identity, hardened against AI-driven attacks.</h2>
-          <p className="sc-lead">Attackers now use AI to sound like your staff, write the perfect phishing mail and try leaked keys at machine speed. We keep each identity's posture strong and act the moment one is used against you.</p>
+          <p className="sc-lead">Attackers now use AI to write the perfect phishing mail, hijack sessions and try leaked keys at machine speed. We keep each identity's posture strong and act the moment one is used against you.</p>
         </div>
         <Wide id="sp-ov" eyebrow="How exposed are we?" title="Know your identity posture at a glance" lead="Open issues ranked by severity, MFA coverage and every connected source, for people and machines alike.">
           <PostureGlance />
@@ -95,10 +95,10 @@ export default function Home() {
         <Feature id="sp-nhi" flip eyebrow="What about machines?" title="Bring every machine identity to light" lead="Roles, keys, service accounts and workload identities in one inventory, each with an owner, a privilege and when it was last used, so dormant keys are rotated or removed.">
           <NhiInventory />
         </Feature>
-        <Feature id="sp-sig" eyebrow="Who is attacking?" title="Catch AI-driven attacks with signals from your whole stack" lead="Voice and helpdesk, email, endpoint, device and cloud logs feed one risk engine, so a deepfake call, an AI-written phish or a bot trying leaked keys is seen for what it is.">
+        <Feature id="sp-sig" eyebrow="Who is attacking?" title="Catch AI-driven attacks with signals from your whole stack" lead="Your identity provider, email, endpoint, device and cloud logs feed one risk engine, so an AI-written phish, a replayed session or a bot trying leaked keys is seen for what it is.">
           <SignalsPipeline />
         </Feature>
-        <Feature id="sp-ai" flip eyebrow="And then?" title="Stop them at the identity, in seconds" lead="Each attack is answered by your policy, at the identity it targets: a reset held, a session revoked, a key disabled, an agent blocked.">
+        <Feature id="sp-ai" flip eyebrow="And then?" title="Stop them at the identity, in seconds" lead="Each attack is answered by your policy, at the identity it targets: a sign-in stepped up, a session revoked, a key disabled, an agent blocked.">
           <AiThreats />
         </Feature>
       </div>

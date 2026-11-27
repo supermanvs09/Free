@@ -377,7 +377,7 @@ export function Wide({ id, eyebrow, title, lead, children }) {
 
 /* ── AI-driven threats, stopped at the identity ── */
 const THREATS = [
-  ['phone', 'Deepfake voice call to the helpdesk', 'Password reset for A. Rao', 'Reset held', 'bad'],
+  ['user', 'Sign-in from a new country, minutes after Mumbai', 'A. Rao · Finance', 'Stepped up', 'warn'],
   ['mail', 'AI-written phishing, MFA prompt bombing', 'V. Mehta · IT admin', 'Session revoked', 'bad'],
   ['key', 'Leaked access key used by a bot', 'svc-payments-prod', 'Key disabled', 'bad'],
   ['sync', 'Session token replayed from a new device', 'N. Kulkarni · Treasury', 'Stepped up', 'warn'],
@@ -402,7 +402,7 @@ export function AiThreats() {
           ))}
         </ul>
       </div>
-      <div className="sc-toast blue" style={{ left: 230, top: 470, width: 450 }}><span className="sc-tick w"><I n="check" s={14} w={3} c="#0a6dbb" /></span>Voice clone detected, reset held</div>
+      <div className="sc-toast blue" style={{ left: 230, top: 470, width: 450 }}><span className="sc-tick w"><I n="check" s={14} w={3} c="#0a6dbb" /></span>Impossible travel detected, session held</div>
       <div className="sc-toast" style={{ left: 230, top: 560, width: 450 }}><span className="sc-i">i</span>Owner verified on a trusted device</div>
     </Panel>
   );
@@ -490,7 +490,7 @@ export function NhiInventory() {
 
 /* ── Signals from the whole stack, feeding one risk engine ── */
 export function SignalsPipeline() {
-  const src = [['Voice and helpdesk', 'phone', 110, 470], ['Email security', 'mail', 230, 560], ['EDR', 'shield', 360, 590], ['Device management', 'lock', 490, 560], ['SaaS and cloud logs', 'search', 610, 470]];
+  const src = [['Identity provider', 'user', 110, 470], ['Email security', 'mail', 230, 560], ['EDR', 'shield', 360, 590], ['Device management', 'lock', 490, 560], ['SaaS and cloud logs', 'search', 610, 470]];
   return (
     <Panel w={720} h={660} label="AI threat signals">
       <svg className="sc-lines" viewBox="0 0 720 660">{src.map(([, , x, y]) => <path key={x} d={`M${x} ${y - 40} C ${x} ${y - 140} 360 ${y - 140} 360 300`} />)}</svg>
@@ -498,7 +498,7 @@ export function SignalsPipeline() {
       {src.map(([t, ic, x, y]) => (
         <div key={t} className="sp-src" style={{ left: x - 46, top: y - 46 }}><span><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#0a6dbb" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d={TI[ic] || P[ic]} /></svg></span><p>{t}</p></div>
       ))}
-      <div className="sp-out"><I n="check" s={14} w={3} c="#fff" />Deepfake reset attempt · held</div>
+      <div className="sp-out"><I n="check" s={14} w={3} c="#fff" />Token replay from a new device · held</div>
     </Panel>
   );
 }

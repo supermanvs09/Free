@@ -478,3 +478,14 @@ html.intro-on header { visibility: hidden; }
 .ai-sub { white-space: normal; max-width: 760px; margin-left: auto; margin-right: auto; font-size: clamp(17px, 1.6vw, 22px); font-weight: 400; }
 .sp-part { padding-top: clamp(24px, 3vw, 40px); }
 .sp-part .sc-intro .sc-title { max-width: 24ch; }
+
+/* home: pictures sit on the page itself, no panel or frame around them */
+.dx .sc-panel { background: none; box-shadow: none; border-radius: 0; overflow: visible; }
+.dx .sc-panel .sc-label { color: #8a93a1; }
+.dx .sc-ring circle, .dx .sc-ring path, .dx .sc-lines path { stroke: rgb(255 255 255 / .28); }
+.dx .ig { background: #fff; }
+.dx .sp-core p, .dx .sp-src p { color: #c9d1dc; }
+.dx .sp-core span { box-shadow: 0 0 0 8px rgb(255 255 255 / .06), 0 0 60px rgb(21 151 229 / .35); }
+.dx .pg { background: none; border-radius: 0; overflow: visible; }
+.dx .pg-photo { border-radius: 0; -webkit-mask-image: radial-gradient(80% 85% at 65% 50%, #000 55%, transparent 100%); mask-image: radial-gradient(80% 85% at 65% 50%, #000 55%, transparent 100%); }
+.dx .sc-card.fade { -webkit-mask-image: none; mask-image: none; }
