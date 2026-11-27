@@ -1995,3 +1995,13 @@ html.is-translated font { background: none !important; box-shadow: none !importa
 .hero-pic .fh { max-width: 780px; margin: 0 auto; }
 .db-table .mono, .db-table em, .db-table td b.mono { white-space: nowrap; }
 .pf-panel { width: min(90%, 560px); }
+/* the closing call outside the home page: the glow rises as it comes into view */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    [data-cta] .cta-glow { animation: cta-rise linear both; animation-timeline: view(); animation-range: entry 0% cover 55%; transform-origin: 50% 100%; }
+  }
+}
+@keyframes cta-rise { from { opacity: 0; transform: scaleY(.4); } to { opacity: 1; transform: none; } }
+/* hero headlines break into even lines: one or two on product pages */
+.hero-h1 { text-wrap: balance; }
+[data-cta].dx { font-family: inherit; }

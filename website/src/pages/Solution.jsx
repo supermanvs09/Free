@@ -27,8 +27,8 @@ export default function Solution() {
   return (
     <>
       <Seo title={s.seoTitle} description={s.description} path={path} crumbs={[{ name: s.name, path }]} />
-      <Hero crumbs={[{ name: 'Solutions' }, { name: s.name }]} eyebrow={`Solutions · ${s.name}`} title={s.title} lead={s.sub}>
-        <figure className="relative mx-auto w-full max-w-[600px]">
+      <Hero layout="split" crumbs={[{ name: 'Solutions' }, { name: s.name }]} eyebrow={`Solutions · ${s.name}`} title={s.title} lead={s.sub}>
+        <figure className="relative ml-auto w-full max-w-[620px]">
           <img src={`/img/photos/${slug}.webp`} alt="" width="1200" height="800" className="aspect-[4/3] w-full rounded-[24px] border border-white/15 object-cover shadow-[0_40px_90px_-40px_rgba(0,0,0,.8)]" fetchPriority="high" decoding="async" />
           <figcaption className="absolute bottom-[6%] left-[-4%] w-[64%] min-w-[240px] rounded-[16px] bg-white p-4 text-left text-[#0e1116] shadow-[0_28px_60px_-22px_rgba(0,0,0,.7)] max-sm:relative max-sm:inset-auto max-sm:mt-3 max-sm:w-full max-sm:min-w-0">
             <span className="block text-[26px] font-medium leading-none tracking-[-0.015em] text-[#0a6dbb] num">{s.stats[0].v}</span>

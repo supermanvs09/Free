@@ -33,22 +33,34 @@ export function Explore({ label = 'See how it works', target, size = 'lg', varia
    desktop, a rolling strip on phones and tablets. */
 /* Product hero frame: ribbons tinted by the product, crumbs, and two layouts:
    `split` (copy left, picture right) and `stack` (copy centred, picture below). */
-export function Hero({ acc = 'brand', eyebrow, title, lead, ctas, explore, children, proof = true }) {
+export function Hero({ acc = 'brand', eyebrow, title, lead, ctas, explore, children, proof = true, layout = 'stack' }) {
   const color = ACC[acc] || ACC.brand;
   const mark = { zen: 'zenstra', adap: 'adapid', icms: 'icms' }[acc];
-  // as on the home page: the headline first, then the picture beneath it
+  const split = layout === 'split' && children;
+  const actions = ctas || <><Explore label={explore} /><Button to="/contact" variant="ghost" size="lg">Talk to an engineer</Button></>;
+  // product pages: as on the home page, the headline first and the picture beneath it.
+  // industry pages (split): the headline on the left, the photograph on the right.
   return (
     <section className={cx('stage hero-under relative overflow-hidden', mark ? 'dark hero-navy' : 'band-brand')} style={{ '--acc': color }} data-page-name={eyebrow ? eyebrow.split(' · ')[0] : undefined}>
-      <div className="hero-drift wrap relative pb-16 pt-10 md:pb-24 md:pt-20">
-        <div className="mx-auto max-w-[900px] text-center">
-          <h1 className="t-h1 rise mx-auto max-w-[20ch]" style={{ '--d': '60ms' }}>{title}</h1>
-          {lead && <p className="t-lead rise mx-auto mt-6 max-w-[640px]" style={{ '--d': '140ms' }}>{lead}</p>}
-          <div className="rise mt-9 flex flex-wrap justify-center gap-3 max-md:flex-col max-md:[&>*]:w-full" style={{ '--d': '220ms' }}>
-            {ctas || <><Explore label={explore} /><Button to="/contact" variant="ghost" size="lg">Talk to an engineer</Button></>}
+      {split ? (
+        <div className="hero-drift wrap relative grid items-center gap-12 pb-16 pt-10 md:pb-24 md:pt-16 lg:min-h-[min(80svh,820px)] lg:grid-cols-[1.05fr_1fr] lg:gap-16">
+          <div className="max-lg:text-center">
+            <h1 className="t-h1 hero-h1 rise" style={{ '--d': '60ms' }}>{title}</h1>
+            {lead && <p className="t-lead rise mt-6 max-w-[560px] max-lg:mx-auto" style={{ '--d': '140ms' }}>{lead}</p>}
+            <div className="rise mt-9 flex flex-wrap gap-3 max-lg:justify-center max-md:flex-col max-md:[&>*]:w-full" style={{ '--d': '220ms' }}>{actions}</div>
           </div>
+          <div className="hero-pic rise relative" style={{ '--d': '300ms' }}>{children}</div>
         </div>
-        {children && <div className="hero-pic rise relative mx-auto mt-14 max-w-[1120px] md:mt-20" style={{ '--d': '300ms' }}>{children}</div>}
-      </div>
+      ) : (
+        <div className="hero-drift wrap relative pb-16 pt-10 md:pb-24 md:pt-20">
+          <div className="mx-auto max-w-[1120px] text-center">
+            <h1 className="t-h1 hero-h1 rise mx-auto max-w-[34ch]" style={{ '--d': '60ms' }}>{title}</h1>
+            {lead && <p className="t-lead rise mx-auto mt-6 max-w-[640px]" style={{ '--d': '140ms' }}>{lead}</p>}
+            <div className="rise mt-9 flex flex-wrap justify-center gap-3 max-md:flex-col max-md:[&>*]:w-full" style={{ '--d': '220ms' }}>{actions}</div>
+          </div>
+          {children && <div className="hero-pic rise relative mx-auto mt-14 max-w-[1120px] md:mt-20" style={{ '--d': '300ms' }}>{children}</div>}
+        </div>
+      )}
       {proof && <TrustedRow />}
     </section>
   );

@@ -5,7 +5,7 @@ import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, Tabs } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
 import FraudPhone from './FraudPhone.jsx';
-import { FraudDash, FraudQueue } from '../../components/dashboards.jsx';
+import { FraudQueue } from '../../components/dashboards.jsx';
 import { Zoom } from '../../components/Dash.jsx';
 import { Hero, PhotoFeature, Integrations, Rollout, Faq, Points, LINKS, ACC } from '../../components/ProductKit.jsx';
 
@@ -148,10 +148,6 @@ export default function Fraud() {
         <HeroPhoto />
       </Hero>
 
-      {/* the fraud team's screen, right after the promise */}
-      <section className="sec pt-0" aria-label="Fraud operations dashboard">
-        <div className="wrap max-w-[1180px]"><FraudDash /></div>
-      </section>
 
       <section className="sec" aria-labelledby="gap-h">
         <div className="wrap">

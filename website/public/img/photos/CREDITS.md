@@ -6,8 +6,8 @@ Free to use under the Unsplash License (https://unsplash.com/license).
 |---|---|
 | healthcare.webp | https://images.unsplash.com/photo-1758691462353-36b215702253 |
 | government.webp | https://images.unsplash.com/photo-1760872646618-13594fc00567 |
-| digital-platforms.webp | https://images.unsplash.com/photo-1559526324-593bc073d938 |
-| p-workforce.webp | https://images.unsplash.com/photo-1603201667141-5a2d4c673378 |
+| digital-platforms.webp | https://images.unsplash.com/photo-1708807472445-d33589e6b090 |
+| p-workforce.webp | https://images.unsplash.com/photo-1522071820081-009f0129c71c |
 | p-datacenter.webp | https://images.unsplash.com/photo-1584169417032-d34e8d805e8b |
 | p-payment.webp | https://images.unsplash.com/photo-1509017174183-0b7e0278f1ec |
 | p-servers.webp | https://images.unsplash.com/photo-1762163516269-3c143e04175c |

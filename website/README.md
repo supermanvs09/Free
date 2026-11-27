@@ -51,11 +51,8 @@ Two stages: Node 22 installs, builds and prerenders every page; nginx then serve
 | `src/components/Command.jsx` | Loaded on demand. Site search (Ctrl/⌘ K, `/` or the header button) over every product, solution, report and page; and a small toy terminal behind the `` ` `` key (try `help`), hinted at by a puzzle in the browser console. |
 | `src/pages/products/` | One page per product, each with its own structure; the six Zenstra capabilities share `Capability.jsx`. |
 | `src/data/` | Products, solutions, company, legal, posts and site facts. Article bodies are in `src/content/posts/`. |
-| `tools/film/` | The one-minute product film: script, voice, music, captions, frame renderer. See its README. |
-| `tools/walkthrough/` | The site walkthrough video, recorded frame by frame on a virtual clock (`clock.js`), so every scroll and animation is smooth whatever the machine: `record.mjs <url> <dir> <segment>` for each segment in `script.mjs`, `cards.mjs`, then `make-video.sh <dir> walkthrough.mp4`. |
 | `tests/` | Playwright end-to-end checks: every page, menus, film, interactions, search and terminal, phone layouts. |
 | `Dockerfile`, `docker-compose.yml`, `nginx/`, `scripts/csp.mjs` | Container build and serving (see Docker above). |
 
-Dev-only pages (not part of the build): `gallery.html` shows every product picture side by side; `film.html` renders the film frame by frame.
 
 Product figures are attributed to Deep Algorithms; third-party figures carry their source. All product UI in the pictures is illustrative.

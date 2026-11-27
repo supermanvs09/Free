@@ -71,37 +71,22 @@ export function LogoRoll({ keys, className, paused }) {
 }
 
 /* Closing call to action on a band of light. */
-export function CtaBand({ title = 'Find your riskiest identity before attackers do.', body = 'A 30-minute session with a Deep Algorithms engineer, on your own environment, with your own questions.', primary = { label: 'Book a demo', to: '/request-demo' }, related, relatedTitle = 'Works alongside' }) {
+/* The closing call on every page, the same as the home page's: the three
+   product marks rise and fan out, one line, one action, over a horizon of
+   blue light. Each page keeps its own words. */
+export function CtaBand({ title = 'Find your riskiest identity before attackers do.', body = 'A 30-minute session with a Deep Algorithms engineer, on your own environment, with your own questions.', primary = { label: 'Book a demo', to: '/request-demo' } }) {
   return (
-    <section data-cta className="noprint sec">
-      <div className="wrap">
-        <div className="island island-blue tone-d relative overflow-hidden px-6 py-16 text-center md:py-24">
-          <div aria-hidden="true" className="absolute inset-0" style={{ background: 'radial-gradient(50% 60% at 50% 0%, rgb(120 200 255 / .28), transparent 70%), radial-gradient(40% 50% at 100% 100%, rgb(0 174 239 / .18), transparent 70%)' }} />
-          <div className="pl-28 md:pl-32">
-            <IconStack className="mb-10" />
-          </div>
-          <Reveal className="relative">
-            <h2 className="t-h1 mx-auto max-w-[18ch] text-white">{title}</h2>
-            <p className="t-lead mx-auto mt-6 max-w-[600px] text-white/80">{body}</p>
-            <div className="mt-10 flex flex-wrap justify-center gap-3">
-              <Button to={primary.to} size="lg" arrow className="cta-primary">{primary.label}</Button>
-            </div>
-            {related?.length > 0 && (
-              <nav aria-label={relatedTitle} className="mx-auto mt-12 max-w-[980px] border-t border-white/15 pt-8">
-                <p className="text-[12.5px] font-semibold uppercase tracking-[.12em] text-white/60">{relatedTitle}</p>
-                <ul className="mt-4 flex flex-wrap justify-center gap-2.5">
-                  {related.map((r) => (
-                    <li key={r.to}><Link to={r.to} className="group inline-flex items-center gap-2.5 rounded-full border border-white/20 bg-white/10 py-1.5 pl-1.5 pr-4 text-[14.5px] font-medium text-white backdrop-blur transition-colors hover:border-white/40 hover:bg-white/20">
-                      <span className="grid h-8 w-8 place-items-center rounded-full bg-white"><ProductMark p={r.line} size={20} /></span>{r.name}<Icon name="ArrowRight" size={13} weight="bold" className="opacity-60 transition-transform group-hover:translate-x-0.5" />
-                    </Link></li>
-                  ))}
-                </ul>
-              </nav>
-            )}
-          </Reveal>
+    <div className="dx noprint" data-cta>
+      <section className="dx-band ink hz-cta" aria-label={title}>
+        <div className="dx-wrap">
+          <div className="pl-28 md:pl-32"><IconStack className="mb-10" /></div>
+          <h2 className="dx-h2">{title}</h2>
+          {body && <p className="dx-lead">{body}</p>}
+          <Link to={primary.to} className="dx-btn solid">{primary.label}</Link>
         </div>
-      </div>
-    </section>
+        <div aria-hidden="true" className="cta-glow" />
+      </section>
+    </div>
   );
 }
 

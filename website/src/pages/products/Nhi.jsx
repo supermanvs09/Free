@@ -6,7 +6,7 @@ import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, cx } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import { NhiDash, NhiFixTable } from '../../components/dashboards.jsx';
+import { NhiFixTable } from '../../components/dashboards.jsx';
 import { Zoom } from '../../components/Dash.jsx';
 import { Hero, PhotoFeature, Integrations, Rollout, Faq, LINKS, ACC } from '../../components/ProductKit.jsx';
 import { NhiMap } from '../../components/viz/nhimap.jsx';
@@ -159,10 +159,6 @@ export default function Nhi() {
         <NhiMap />
       </Hero>
 
-      {/* the posture screen: what a security team opens first */}
-      <section className="sec pt-0" aria-label="NHI Security dashboard">
-        <div className="wrap max-w-[1180px]"><NhiDash /></div>
-      </section>
 
       <section className="sec" aria-labelledby="on-h">
         <div className="wrap grid gap-12 lg:grid-cols-[1fr_1fr] lg:gap-16">

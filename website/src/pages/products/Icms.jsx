@@ -4,7 +4,7 @@ import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, cx } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import { IcmsDash, IcmsRecord } from '../../components/dashboards.jsx';
+import { IcmsRecord } from '../../components/dashboards.jsx';
 import { Zoom } from '../../components/Dash.jsx';
 import { Hero, PhotoFeature, Rollout, Faq, Split, LINKS, ACC } from '../../components/ProductKit.jsx';
 import { AuditorQuestions } from '../../components/Changes.jsx';
@@ -58,7 +58,6 @@ export default function Icms() {
         title={<>Protect every piece of PII. Prove DPDPA compliance.</>}
         lead="Find PII wherever it lives, check every access against consent and purpose, and keep DPDPA evidence ready at all times."
         note="For customer data, patient records and employee data.">
-        <IcmsDash />
       </Hero>
 
       <section className="sec" aria-labelledby="duty-h">

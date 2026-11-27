@@ -4,7 +4,7 @@ import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Button, Icon, Reveal, SectionHead } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import { ZenApproval, ZenDash } from '../../components/dashboards.jsx';
+import { ZenApproval } from '../../components/dashboards.jsx';
 import { Zoom } from '../../components/Dash.jsx';
 import { Hero, PhotoFeature, Integrations, Rollout, Faq, Compare, Explorer, Explore, LINKS } from '../../components/ProductKit.jsx';
 import { ZenGateway, ZenInventory, ZenGrant, ZenMcp, ZenDetect, ZenRecord } from '../../components/viz/zenstra.jsx';
@@ -86,7 +86,6 @@ export default function Zenstra() {
         lead="Find every AI agent, give it an owner and a scope, and check every tool call before it runs."
         ctas={<><Explore label="See it check an agent" /><Button href="https://www.zenstra.ai" target="_blank" rel="noopener" variant="ghost" size="lg">Visit zenstra.ai<Icon name="ArrowUpRight" size={16} /></Button></>}
         note="One platform for copilots, cloud agents, workflow automations, coding agents and MCP servers.">
-        <ZenDash />
       </Hero>
 
       {/* controlled access: every agent tied to a person, every grant scoped */}

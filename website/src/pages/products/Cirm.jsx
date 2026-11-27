@@ -1,9 +1,10 @@
+import CirmPipeline from '../../components/CirmPipeline.jsx';
 import { useState } from 'react';
 import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, cx } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import { CirmDash, CirmWhy } from '../../components/dashboards.jsx';
+import { CirmWhy } from '../../components/dashboards.jsx';
 import { Zoom } from '../../components/Dash.jsx';
 import { Hero, PhotoFeature, Integrations, Rollout, Faq, Compare, Points, LINKS, ACC } from '../../components/ProductKit.jsx';
 import { Connectors } from '../../components/viz/adapid.jsx';
@@ -68,8 +69,17 @@ export default function Cirm() {
       <Hero glance={[['Protects', 'People and machine identities across your IdP, cloud and SaaS'], ['Stops', 'Account takeover, insider misuse and over-privileged keys'], ['Deploys', 'Read-only to assess; scoped permissions only for the actions you enable'], ['Shows', 'A live risk score with the reason for every point']]} layout="stack" acc="adap" crumbs={[{ name: 'Products', path: '/products' }, { name: 'adapID AI' }]} eyebrow="adapID AI · Continuous identity risk management"
         title={<>Know the moment a trusted identity stops acting like itself.</>}
         lead="adapID learns how every person and service account normally works, and acts the moment behaviour shifts: step up, hold or revoke, in seconds.">
-        <CirmDash />
       </Hero>
+
+      {/* the platform view: every stage CIRM runs on every identity */}
+      <section className="sec" aria-labelledby="pipe-h">
+        <div className="wrap">
+          <div className="island tone-d px-4 py-14 md:px-10 md:py-20">
+            <SectionHead id="pipe-h" eyebrow="One platform view" title="From first signal to contained session, on every identity." lead="Continuous, on every identity. Not a nightly report." />
+            <Reveal up className="mx-auto mt-12 max-w-[1120px]"><CirmPipeline /></Reveal>
+          </div>
+        </div>
+      </section>
 
       <section className="sec" aria-labelledby="itdr-h">
         <div className="wrap">

@@ -25,9 +25,6 @@ const Legal = lazy(() => import('./pages/Legal.jsx'));
 const Sitemap = lazy(() => import('./pages/Sitemap.jsx'));
 const NotFound = lazy(() => import('./pages/NotFound.jsx'));
 const Capability = lazy(() => import('./pages/products/Capability.jsx'));
-const Heist = lazy(() => import('./pages/Heist.jsx'));
-const HeistPlay = lazy(() => import('./pages/HeistPlay.jsx'));
-const HeistTeaser = lazy(() => import('./components/challenge/Heist.jsx').then((m) => ({ default: m.HeistTeaser })));
 
 /* Every product has its own page; the six Zenstra capabilities share one. */
 const PRODUCT_PAGES = {
@@ -45,7 +42,7 @@ export const PATHS = [
   ...Object.values(PRODUCTS).map((p) => p.path),
   ...SOLUTIONS.map((s) => `/solutions/${s.slug}`),
   '/why-deep-algorithms', '/blogs', ...POSTS.map((p) => `/blogs/${p.slug}`),
-  '/request-demo', '/contact', '/sitemap', '/prompt-heist', '/prompt-heist/play', ...Object.keys(LEGAL).map((k) => `/${k}`),
+  '/request-demo', '/contact', '/sitemap', ...Object.keys(LEGAL).map((k) => `/${k}`),
 ];
 
 /* Scroll to top on navigation, or to the #hash target. */
@@ -109,8 +106,6 @@ export default function App() {
             <Route path="/why-deep-algorithms" element={<Why />} />
             <Route path="/blogs" element={<Blog />} />
             <Route path="/blogs/:slug" element={<Article />} />
-            <Route path="/prompt-heist" element={<Heist />} />
-            <Route path="/prompt-heist/play" element={<HeistPlay />} />
             <Route path="/request-demo" element={<Demo />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/sitemap" element={<Sitemap />} />
@@ -123,7 +118,6 @@ export default function App() {
       <Footer />
       <JumpBar />
       <MobileBar />
-      <Suspense fallback={null}><HeistTeaser /></Suspense>
     </>
   );
 }
