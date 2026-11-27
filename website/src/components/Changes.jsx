@@ -117,7 +117,7 @@ export function AuditorQuestions() {
             <span className="flex items-center justify-between gap-3"><span className="text-[12px] font-semibold uppercase tracking-[.1em] text-ink-3">Today</span><span className="rounded-full px-2 py-0.5 text-[12px] font-semibold" style={{ background: 'color-mix(in oklab, var(--color-crit) 12%, transparent)', color: 'var(--color-crit)' }}>{t1}</span></span>
             <span className="mt-1 block text-[15px] leading-snug text-ink-3">{today}</span>
           </p>
-          <p className="rounded-[14px] border-l-[3px] bg-white p-3.5 shadow-[0_10px_24px_-16px_rgb(16_40_80/.35)] md:-my-2" style={{ borderColor: 'var(--color-icms)' }}>
+          <p className="rounded-[14px] border-l-[3px] bg-bg-2 p-3.5 md:-my-2" style={{ borderColor: 'var(--color-icms)' }}>
             <span className="flex items-center justify-between gap-3"><span className="text-[12px] font-semibold uppercase tracking-[.1em]" style={{ color: 'var(--color-icms)' }}>With ICMS</span><span className="rounded-full px-2 py-0.5 text-[12px] font-semibold" style={{ background: 'color-mix(in oklab, var(--color-ok) 14%, transparent)', color: 'var(--color-ok)' }}>{t2}</span></span>
             <span className="mt-1 block text-[15px] font-medium leading-snug">{icms}</span>
           </p>

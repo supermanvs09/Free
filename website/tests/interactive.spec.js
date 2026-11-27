@@ -34,13 +34,14 @@ test('reduced motion still shows the Claude scene at its finished frame', async 
   await expect(page.locator('.cl-note')).toContainText('Not sent · decision recorded by Zenstra AI');
 });
 
-test('zenstra: before and after sit side by side, five moments each', async ({ page }) => {
+test('zenstra: one comparison (Why it is different), and the stack names are readable', async ({ page }) => {
   await page.goto('/agentic-ai/agentic-identity');
-  const sec = page.locator('section:has(#chg-h)');
-  await expect(sec.getByText('Without Zenstra', { exact: true })).toBeVisible();
-  await expect(sec.getByText('With Zenstra', { exact: true })).toBeVisible();
-  await expect(sec.locator('.chg-with li')).toHaveCount(5);
-  await expect(sec.locator('.chg-without li')).toHaveCount(5);
+  await expect(page.locator('#chg-h')).toHaveCount(0);
+  await expect(page.locator('#cmp-h')).toHaveCount(1);
+  const chip = page.locator('li', { hasText: 'Copilot Studio' }).filter({ has: page.locator('img, svg, span') }).last();
+  const [fg, bg] = await chip.evaluate((el) => [getComputedStyle(el).color, getComputedStyle(el).backgroundColor]);
+  expect(fg).not.toBe(bg);
+  expect(fg).toBe('rgb(15, 23, 42)');
 });
 
 test('a hero takes the reader into the page instead of repeating Book a demo', async ({ page }) => {

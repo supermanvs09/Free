@@ -1,4 +1,3 @@
-import ZenArchitecture from '../../components/ZenArchitecture.jsx';
 import AgenticSecurity from '../../components/AgenticSecurity.jsx';
 import { HubSpokes } from '../../lib/nullmotion.jsx';
 import { AgentConsole, AgentAccess } from '../../components/viz/refs.jsx';
@@ -9,7 +8,6 @@ import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
 import { Hero, Integrations, Rollout, Faq, Compare, Explorer, Explore, LINKS } from '../../components/ProductKit.jsx';
 import { ZenGateway, ZenInventory, ZenGrant, ZenMcp, ZenDetect, ZenRecord } from '../../components/viz/zenstra.jsx';
 import { Logo, logoTitle } from '../../components/viz/kit.jsx';
-import { ZenCompare } from '../../components/Changes.jsx';
 
 const p = PRODUCTS.zenstra;
 
@@ -147,7 +145,7 @@ export default function Zenstra() {
               <p className="kicker" style={{ '--acc': 'var(--color-zen)' }}>Works with your stack</p>
               <p className="mt-3 text-[15px] text-ink-2">Native coverage for agent and automation frameworks, plus vendor-agnostic monitoring for conversational LLMs.</p>
               <ul className="mt-5 flex flex-wrap gap-2.5">
-                {STACK.map(([k, n]) => <li key={n} className="inline-flex items-center gap-2 rounded-full border border-line-2 bg-white px-3.5 py-2 text-[14px] font-medium text-ink shadow-[0_6px_16px_-12px_rgb(11_42_82/.4)]">{k ? <Logo k={k} size="16px" /> : <Icon name="Robot" size={15} className="text-ink-3" />}{n}</li>)}
+                {STACK.map(([k, n]) => <li key={n} className="inline-flex items-center gap-2 rounded-full border border-line-2 bg-white px-3.5 py-2 text-[14px] font-medium text-[#0f172a] shadow-[0_6px_16px_-12px_rgb(11_42_82/.4)]">{k ? <Logo k={k} size="16px" /> : <Icon name="Robot" size={15} className="text-[#64748b]" />}{n}</li>)}
                 <li className="inline-flex items-center rounded-full border border-dashed border-line-2 px-3.5 py-2 text-[14px] text-ink-3">and more</li>
               </ul>
             </div>
@@ -161,14 +159,6 @@ export default function Zenstra() {
         </div>
       </section>
 
-      <section className="sec" aria-labelledby="chg-h">
-        <div className="wrap">
-          <SectionHead id="chg-h" acc="var(--color-zen)" eyebrow="What changes" title="What changes with Zenstra." lead="Five moments in every agent’s life, before and after." />
-          <div className="mx-auto mt-12 max-w-[1120px]"><ZenCompare /></div>
-        </div>
-      </section>
-
-      <ZenArchitecture />
 
       <section className="sec" aria-labelledby="dep-h">
         <div className="wrap grid items-center gap-12 lg:grid-cols-[.8fr_1.2fr] lg:gap-16">

@@ -53,8 +53,8 @@ export default function Demo() {
             {/* the 30 minutes, minute by minute */}
             <ol className="rise mt-8 grid gap-3 sm:grid-cols-3" style={{ '--d': '300ms' }} aria-label="The 30-minute agenda">
               {[['0–5 min', 'Your risks', 'What worries you most, in your words'], ['5–20 min', 'Live, on your stack', 'The product on identities like yours'], ['20–30 min', 'A plan', 'A first deployment, sized and scoped']].map(([t, h, p], i) => (
-                <li key={t} className="relative rounded-[16px] border border-[#0a5ea3]/12 bg-white p-4 shadow-[0_18px_40px_-28px_rgb(10_94_163/.5)]">
-                  <span className="mono text-[11.5px] font-semibold text-[#0a6dbb]">{t}</span>
+                <li key={t} className="relative rounded-[16px] border border-line-2 bg-bg-2 p-4">
+                  <span className="mono text-[11.5px] font-semibold text-[#5cc0ff]">{t}</span>
                   <span className="mt-1.5 block text-[15px] font-semibold text-ink">{h}</span>
                   <span className="mt-1 block text-[13px] leading-snug text-ink-2">{p}</span>
                   {i < 2 && <span aria-hidden="true" className="absolute -right-[10px] top-1/2 z-10 hidden h-5 w-5 -translate-y-1/2 place-items-center rounded-full bg-[#0a6dbb] text-white sm:grid"><Icon name="CaretRight" size={11} weight="bold" /></span>}
