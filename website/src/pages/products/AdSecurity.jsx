@@ -1,3 +1,4 @@
+import { AdminSprawl } from '../../components/showcase.jsx';
 import { FixClick } from '../../lib/nullmotion.jsx';
 import { ItdrFlow } from '../../components/viz/refs.jsx';
 import { Seo } from '../../lib/head.jsx';
@@ -53,6 +54,7 @@ export default function AdSecurity() {
           ['Lightning', 'Live containment', 'DCSync, Kerberoasting, pass-the-hash.'],
           ['FileText', 'Evidence kept', 'Every action logged.'],
         ]} />
+      <AdminSprawl />
 
 
       <section className="sec" aria-labelledby="tech-h">

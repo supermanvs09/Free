@@ -1,3 +1,4 @@
+import { Feature, NhiScale } from '../../components/showcase.jsx';
 import { useGridPop } from '../../lib/nullmotion.jsx';
 import { KeyLineage } from '../../components/viz/refs.jsx';
 import { useRef } from 'react';
@@ -183,6 +184,9 @@ export default function Nhi() {
         </div>
       </section>
 
+      <Feature id="scale-h" title="Secure machine identities at scale" lead="Every access key, role and service account across your AWS accounts, with its owner, its age and what it really uses, under one policy, without slowing a single deploy.">
+        <NhiScale />
+      </Feature>
       <PhotoFeature id="pf-h" acc="adap" eyebrow="Where machine identities live" title="Every key, mapped to what it really uses." lead="90 days of CloudTrail decide what can go." img="/img/photos/p-datacenter.webp" panel={<Zoom><NhiFixTable /></Zoom>} points={[
           ['Key', 'Owner for every key', 'No orphaned access.'],
           ['ChartBar', 'Used vs granted', 'The safe fix, measured.'],

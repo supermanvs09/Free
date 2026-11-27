@@ -1,13 +1,12 @@
 import { test, expect } from '@playwright/test';
 import { hydrated } from './helpers.js';
 
-test('home: every product line has a card that leads to its own page', async ({ page }) => {
+test('home: agentic AI security follows the posture section, in four questions', async ({ page }) => {
   await page.goto('/');
-  await hydrated(page);
-  const sec = page.locator('#products');
-  for (const name of ['Zenstra AI', 'adapID AI', 'ICMS Compliance Suite']) {
-    await expect(sec.getByRole('link', { name: `Explore ${name}` })).toHaveAttribute('href', /^\//);
-  }
+  await expect(page.locator('#products')).toHaveCount(0);
+  for (const id of ['ag-find', 'ag-govern', 'ag-run', 'ag-stop']) await expect(page.locator(`#${id}`)).toHaveCount(1);
+  const order = await page.evaluate(() => document.getElementById('aispm').compareDocumentPosition(document.getElementById('ag-find')) & Node.DOCUMENT_POSITION_FOLLOWING);
+  expect(order).toBeTruthy();
 });
 test('home: AI-SPM shows the four kinds of identity around the globe, each linked to its product', async ({ page }) => {
   await page.goto('/');

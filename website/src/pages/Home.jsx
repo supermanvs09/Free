@@ -12,6 +12,7 @@ import { PRODUCT_MENU } from '../data/nav.js';
 import FilmModal, { FILM, openFilm } from '../components/home/FilmModal.jsx';
 import HeroRadar from '../home/HeroRadar.jsx';
 import { IconStack } from '../lib/nullmotion.jsx';
+import AgenticSecurity from '../components/AgenticSecurity.jsx';
 import Intro from '../home/Intro.jsx';
 import { startScrollStory } from '../home/scrollStory.js';
 import { ClaudeBlock } from '../home/Agents.jsx';
@@ -80,34 +81,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 4 · PRODUCTS: a white panel that grows to the full width as it arrives */}
-      <section id="products" className="dx-band paper light grow-panel scroll-mt-20" aria-labelledby="products-h">
-        <div className="dx-wrap">
-          <div className="dx-head-s">
-            <div>
-              <p className="dx-k">Products</p>
-              <h2 id="products-h" className="dx-h2">Built for every identity in your enterprise.</h2>
-            </div>
-            <p className="dx-lead">Security for people, machine identities, AI agents and personal data. Deploy the product your risk needs first, and add the others as you grow.</p>
-          </div>
-          <div className="pr-visual">
-            <img src="/img/home/products-shield.webp" alt="Illustration: a blue shield at the centre of an enterprise's systems, connected to code, dashboards, credentials, cloud, workloads and documents." width="2720" height="1536" loading="lazy" decoding="async" />
-          </div>
-          <div className="pr-grid">
-            {['zenstra', 'adapid', 'icms'].map((k) => {
-              const L = menu[k];
-              return (
-                <article key={k} className="px-card">
-                  <div className="px-id"><ProductMark p={k} size={40} /><span><b>{L.name}</b><small>{PROD[k].secures}</small></span></div>
-                  <p className="dx-p">{PROD[k].line}</p>
-                  <ul className="px-items">{L.items.slice(0, 4).map((m) => <li key={m.name}><Link to={m.path}>{m.name}<Arrow /></Link></li>)}</ul>
-                  <Link to={L.path} className="dx-link">{`Explore ${L.name}`} <Arrow /></Link>
-                </article>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+      {/* 4 · AGENTIC AI SECURITY */}
+      <AgenticSecurity />
 
       {/* 4b · ZENSTRA AI IN ACTION: the film's Claude scene, on its own */}
       <section className="dx-band ink" aria-labelledby="zen-h">

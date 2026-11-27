@@ -6,7 +6,6 @@ import { bootTranslate } from './lib/translate.js';
 import { bootMagnet, bootSmooth } from './lib/smooth.js';
 import './styles.css';
 import './components/viz/viz.css';
-import '@fontsource-variable/geist';
 import '@fontsource-variable/geist-mono';
 import './home/home.css'; // scoped under .dx; global so prerendered pages paint styled
 

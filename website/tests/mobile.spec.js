@@ -32,15 +32,12 @@ test.describe('phone layout', () => {
     await expect(page.locator('.mbar')).not.toHaveClass(/is-down/);
   });
 
-  test('long pages get a bar of their sections that jumps to each', async ({ page }) => {
+  test('product pages carry no section bar under the header', async ({ page }) => {
     await page.goto('/dpdpa-compliance');
     await hydrated(page);
-    // the bar arrives with the first section, past the hero and its dashboard
-    await page.evaluate(() => window.scrollTo(0, document.querySelector('main h2[id]').getBoundingClientRect().top + scrollY - 100));
-    const jump = page.getByRole('navigation', { name: 'On this page' });
-    await expect(jump).toBeVisible();
-    await jump.getByRole('button', { name: 'FAQ' }).click();
-    await expect(page.locator('#faq-h')).toBeInViewport();
+    await page.evaluate(() => window.scrollTo(0, innerHeight * 2));
+    await page.waitForTimeout(700);
+    await expect(page.getByRole('navigation', { name: 'On this page' })).toHaveCount(0);
   });
 
   test('card grids become rails you swipe, and the footer folds', async ({ page }) => {
@@ -57,15 +54,13 @@ test.describe('phone layout', () => {
   });
 });
 
-test('desktop keeps its own controls: no bottom bar, a section bar with the page name', async ({ page, isMobile }) => {
+test('desktop keeps its own controls: no bottom bar, no section bar on product pages', async ({ page, isMobile }) => {
   test.skip(isMobile, 'desktop check');
   await page.goto('/adapid-ai');
   await hydrated(page);
   await expect(page.getByRole('navigation', { name: 'Quick actions' })).toBeHidden();
   await page.evaluate(() => window.scrollTo(0, innerHeight * 2));
-  const bar = page.getByRole('navigation', { name: 'On this page' });
-  await expect(bar).toBeVisible();
-  await expect(bar).toContainText('adapID AI');
-  await expect(bar.getByRole('link', { name: 'Book a demo' })).toHaveCount(0); // the header already offers it
+  await page.waitForTimeout(700);
+  await expect(page.getByRole('navigation', { name: 'On this page' })).toHaveCount(0);
   await expect(page.locator('header').getByRole('link', { name: 'Book a demo' })).toBeVisible();
 });

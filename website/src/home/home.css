@@ -14,7 +14,7 @@
   --sig: #4cb4ff; --sig-2: #8fd3ff; --agent: #9a8cff; --agent-2: #c4bbff;
   --ok: #34d399; --warn: #ffb547; --bad: #ff5b6e;
   --r: 22px;
-  font-family: 'Geist Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: 'Inter Tight Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-feature-settings: 'ss01', 'cv11';
   -webkit-font-smoothing: antialiased;
 }
@@ -111,7 +111,7 @@
 .px-items a:hover svg { opacity: 1; transform: translateX(3px); }
 
 /* Claude window (a faithful replica of the film's 1:00 scene) */
-.cl-win { position: absolute; inset: 3.2% 3% 4%; border-radius: 1.1em; overflow: hidden; background: #f6f4ef; color: #1f1e1b; box-shadow: 0 2.4em 5em -1.5em rgb(0 0 0 / .7), 0 0 0 1px rgb(255 255 255 / .12); font-family: 'Inter Variable', 'Geist Variable', system-ui, sans-serif; }
+.cl-win { position: absolute; inset: 3.2% 3% 4%; border-radius: 1.1em; overflow: hidden; background: #f6f4ef; color: #1f1e1b; box-shadow: 0 2.4em 5em -1.5em rgb(0 0 0 / .7), 0 0 0 1px rgb(255 255 255 / .12); font-family: 'Inter Tight Variable', 'Inter Tight Variable', system-ui, sans-serif; }
 .cl-bar { height: 4.4%; min-height: 0; display: flex; align-items: center; gap: .5em; padding: 0 1.1em; background: #efede7; border-bottom: 1px solid #e4e1d9; }
 .cl-bar i { width: .75em; height: .75em; border-radius: 99em; background: #ec6a5e; }
 .cl-bar i:nth-child(2) { background: #f4bf4f; } .cl-bar i:nth-child(3) { background: #61c554; }
@@ -136,7 +136,7 @@
 .cl-sec .hl { position: absolute; inset: -.12em -.18em; border-radius: .3em; background: rgb(225 60 70 / .14); border: 1px solid rgb(214 60 70 / .7); }
 .cl-sec .v { position: relative; color: inherit; }
 .cl-env .blk .cl-sec .v { color: #b4232f; }
-.cl-lab { display: inline-block; margin: 0 .4em 0 .5em; padding: .22em .5em; border-radius: .3em; background: #d4363f; color: #fff; font: 600 .78em/1 'Inter Variable', system-ui, sans-serif; vertical-align: .1em; }
+.cl-lab { display: inline-block; margin: 0 .4em 0 .5em; padding: .22em .5em; border-radius: .3em; background: #d4363f; color: #fff; font: 600 .78em/1 'Inter Tight Variable', system-ui, sans-serif; vertical-align: .1em; }
 .cl-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 1em; }
 .cl-plus { width: 2.3em; height: 2.3em; border-radius: .55em; border: 1px solid #e3e0d8; display: grid; place-items: center; color: #6b6963; }
 .cl-plus svg { width: 1em; height: 1em; }
@@ -393,7 +393,7 @@
 .rd-hero { padding-bottom: clamp(56px, 7vh, 80px); }
 .rd-hero + .dx-proof { background: #000; padding: 0 0 clamp(64px, 8vh, 88px); }
 .rd-hero + .dx-proof .dx-wrap { border-top: 1px solid rgb(255 255 255 / .09); padding-top: clamp(40px, 5vh, 56px); }
-.rd-hero + .dx-proof .dx-proof-h { font: 400 14px/1.5 'Geist Variable', system-ui, sans-serif; letter-spacing: 0; text-transform: none; color: #8a93a1; }
+.rd-hero + .dx-proof .dx-proof-h { font: 400 14px/1.5 'Inter Tight Variable', system-ui, sans-serif; letter-spacing: 0; text-transform: none; color: #8a93a1; }
 .rd-hero + .dx-proof .dx-logos { margin-top: 32px; gap: 36px 48px; }
 .rd-hero + .dx-proof .dx-logos img { height: 30px; max-width: 132px; opacity: .55; filter: grayscale(1); transition: opacity .25s; }
 .rd-hero + .dx-proof .dx-logos img:hover { opacity: .9; }

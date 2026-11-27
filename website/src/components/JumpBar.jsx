@@ -10,7 +10,8 @@ import { scrollToY } from '../lib/smooth.js';
    Phones: at the top, as swipeable chips (the header tucks away on scroll).
    Sections are read from the page itself (each h2 with an id), named by their
    eyebrow. */
-const LONG = /^\/(adapid-ai|agentic-ai|dpdpa-compliance|ad-security|solutions|platform|about-us|trust)/;
+// product pages carry no section bar; the longer company and industry pages do
+const LONG = /^\/(solutions|platform|about-us|trust)/;
 
 export default function JumpBar() {
   const { pathname } = useLocation();

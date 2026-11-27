@@ -1,12 +1,11 @@
+import { Benefits, CirmOverview, Feature, RiskEngine, ThreatResponses, Wide } from '../../components/showcase.jsx';
 import CirmPipeline from '../../components/CirmPipeline.jsx';
 import { useState } from 'react';
 import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, cx } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import { CirmWhy } from '../../components/dashboards.jsx';
-import { Zoom } from '../../components/Dash.jsx';
-import { Hero, PhotoFeature, Integrations, Rollout, Faq, Compare, Points, LINKS, ACC } from '../../components/ProductKit.jsx';
+import { Hero, Integrations, Rollout, Faq, Compare, Points, LINKS, ACC } from '../../components/ProductKit.jsx';
 import { Connectors } from '../../components/viz/adapid.jsx';
 import { IdentityTimelines } from '../../components/Changes.jsx';
 
@@ -96,10 +95,19 @@ export default function Cirm() {
         </div>
       </section>
 
-      <PhotoFeature id="pf-h" acc="adap" eyebrow="Built for the people who answer the alert" title="The reason comes with the score." lead="Your analysts see why an identity is risky before they act." img="/img/photos/p-workforce.webp" panel={<Zoom><CirmWhy /></Zoom>} points={[
-          ['ChatCircleText', 'Every point explained', 'No black-box scores.'],
-          ['Lightning', 'Acts in seconds', 'Step-up, hold or revoke by policy.'],
-          ['Users', 'People and machines', 'One score model for both.'],
+      <Wide id="ov-h" eyebrow="Identity posture" title="See every identity risk in one place" lead="People, accounts, machine identities and admins across every source, scored and ranked, with the fixes that matter first.">
+        <CirmOverview />
+      </Wide>
+      <Feature id="eng-h" title="Protection that never sleeps" lead="Session hijacking and token theft happen after a good login. adapID keeps watching behaviour, device health and context for the whole session, and re-scores risk the moment any of it changes.">
+        <RiskEngine />
+      </Feature>
+      <Feature id="resp-h" flip title="Automated responses, in real time" lead="Policies act on changes in identity, device or context, as they happen:" bullets={['Step-up MFA, on demand', 'Session termination', 'Workflows, such as dropping to read-only access']}>
+        <ThreatResponses />
+      </Feature>
+      <Benefits title="What you get" lead="adapID joins identity signals with what your security tools already see, so threats are found sooner and answered on their own." items={[
+          ['watch', 'Always-on protection', 'Continuous monitoring and AI-driven detection throughout every session, not only at sign-in.'],
+          ['route', 'Automated threat response', 'Flexible, adaptive controls that act in seconds to stop a threat in progress.'],
+          ['hub', 'Connected intelligence', 'Signals from across your stack, joined up for better access decisions.'],
         ]} />
 
 

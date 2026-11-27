@@ -133,7 +133,7 @@ export function Logo({ k, size = '1.25em', color, className }) {
   if (k === 'aws') {
     return (
       <svg viewBox="0 0 24 24" width={size} height={size} className={className} role="img" aria-label="AWS">
-        <text x="12" y="13.2" textAnchor="middle" fontSize="9.6" fontWeight="800" fontFamily="Inter Variable, Arial, sans-serif" fill={color || 'currentColor'}>aws</text>
+        <text x="12" y="13.2" textAnchor="middle" fontSize="9.6" fontWeight="800" fontFamily="Inter Tight Variable, Arial, sans-serif" fill={color || 'currentColor'}>aws</text>
         <path d="M5 16.6c4.2 2.4 9.6 2.4 13.6 0" fill="none" stroke="#ff9900" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
     );

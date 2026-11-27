@@ -80,7 +80,7 @@ export function line(ctx, a, b, color, alpha, w = 1) {
 }
 export function text(ctx, s, x, y, { size = 12, weight = 500, color = '#e8eaee', alpha = 1, align = 'center', mono = false, base = 'middle' } = {}) {
   if (alpha <= 0) return;
-  ctx.font = `${weight} ${size}px ${mono ? '"JetBrains Mono Variable", ui-monospace, monospace' : '"Inter Variable", Inter, system-ui, sans-serif'}`;
+  ctx.font = `${weight} ${size}px ${mono ? '"JetBrains Mono Variable", ui-monospace, monospace' : '"Inter Tight Variable", system-ui, sans-serif'}`;
   ctx.textAlign = align; ctx.textBaseline = base;
   ctx.fillStyle = rgba(color, alpha);
   ctx.fillText(s, x, y);
