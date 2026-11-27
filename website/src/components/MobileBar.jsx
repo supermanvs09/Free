@@ -34,7 +34,7 @@ export default function MobileBar() {
   const onDemo = pathname === '/request-demo';
   const btn = 'flex h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-[14px] text-[11.5px] font-medium text-ink-2 active:bg-fg/[.06]';
   return (
-    <nav aria-label="Quick actions" aria-hidden={menu || undefined} className={cx('mbar noprint md:hidden', menu && 'is-down')}>
+    <nav aria-label="Quick actions" aria-hidden={menu || undefined} className={cx('mbar noprint md:hidden', menu && 'is-down', pathname.startsWith('/promptbreak') && 'pb-mbar')}>
       <button type="button" className={btn} onClick={() => window.dispatchEvent(new CustomEvent('da:menu'))}><Icon name="List" size={21} />Menu</button>
       <button type="button" className={btn} onClick={() => window.dispatchEvent(new CustomEvent('da:command', { detail: 'search' }))}><Icon name="MagnifyingGlass" size={21} />Search</button>
       <a href={SITE.phoneHref} className={btn}><Icon name="Phone" size={21} />Call</a>

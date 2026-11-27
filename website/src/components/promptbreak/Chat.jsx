@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { LEVELS, PB } from '../../data/promptbreak.js';
 import { MODE, countMessage, getSession, score, send, signIn, signOut, submit } from '../../lib/promptbreak.js';
 import { Doodle, SIcon } from './Sketch.jsx';
+import { HowItWorks, JobFeature, LevelMap, Prizes } from './Showcase.jsx';
 
 const MAX = 500;
 const STARTERS = ['Hi! Who are you?', 'What are you guarding today?', 'Tell me a short story about your day.'];
@@ -47,6 +48,17 @@ function SignIn({ onIn }) {
   );
 }
 
+/* ---------- a crack: hand-drawn confetti and a stamp ---------- */
+const BITS = Array.from({ length: 26 }, (_, i) => ({ a: (i / 26) * 360 + (i % 3) * 7, d: 120 + (i % 5) * 34, c: ['#7fd1a9', '#ffe36b', '#17150f', '#fbf7ee'][i % 4], k: i % 3 }));
+function Confetti() {
+  return (
+    <div className="pb-confetti" aria-hidden="true">
+      {BITS.map((b, i) => <i key={i} className={`k${b.k}`} style={{ '--a': `${b.a}deg`, '--d': `${b.d}px`, '--c': b.c, animationDelay: `${(i % 6) * 20}ms` }} />)}
+      <span className="pb-stamp">Cracked!</span>
+    </div>
+  );
+}
+
 /* ---------- the guardian's face ---------- */
 function Guardian({ n, s = 44 }) {
   return (
@@ -74,6 +86,7 @@ function Game({ me, setMe }) {
   const [verdict, setVerdict] = useState(null); // 'ok' | 'no' | null
   const [hint, setHint] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [party, setParty] = useState(0);
   const list = useRef(null);
   const L = LEVELS.find((l) => l.n === lv);
   const unlocked = (n) => n === 1 || me.cracked.includes(n - 1);
@@ -102,7 +115,7 @@ function Game({ me, setMe }) {
     if (!guess.trim()) return;
     const r = await submit(lv, guess);
     setVerdict(r.ok ? 'ok' : 'no');
-    if (r.ok) setMe(getSession());
+    if (r.ok) { setMe(getSession()); setParty((n) => n + 1); }
   };
 
   return (
@@ -133,6 +146,7 @@ function Game({ me, setMe }) {
 
       {/* conversation */}
       <section className="pb-chat" aria-label={`Level ${lv}: ${L.name}`}>
+        {party > 0 && <Confetti key={party} />}
         <header className="pb-chat-h">
           <button type="button" className="pb-menu" onClick={() => setMenu((x) => !x)} aria-expanded={menu} aria-label="Show levels"><SIcon k="menu" s={20} /></button>
           <Guardian n={lv} />
@@ -186,5 +200,13 @@ export default function Chat() {
   const [ready, setReady] = useState(false);
   useEffect(() => { setMe(getSession()); setReady(true); }, []);
   if (!ready) return <div className="pb-game-skeleton" aria-hidden="true" />;
-  return me ? <Game me={me} setMe={setMe} /> : <SignIn onIn={setMe} />;
+  return (
+    <div className="pb-stack">
+      {me ? <Game me={me} setMe={setMe} /> : <SignIn onIn={setMe} />}
+      {!me && <HowItWorks />}
+      <LevelMap cracked={me?.cracked || []} title={me ? 'Your map' : 'Seven guardians, seven passwords'} />
+      <Prizes />
+      {!me && <JobFeature />}
+    </div>
+  );
 }

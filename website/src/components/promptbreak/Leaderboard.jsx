@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import { FAQ, LEVELS, PB, PRIZES, RULES, SCORING } from '../../data/promptbreak.js';
+import { FAQ, LEVELS, PB, RULES, SCORING } from '../../data/promptbreak.js';
 import { getSession, leaderboard, score } from '../../lib/promptbreak.js';
 import { Doodle, SIcon } from './Sketch.jsx';
+import { JobFeature, LevelMap, Prizes } from './Showcase.jsx';
 
 function Dots({ n }) {
   return <span className="pb-dots" aria-label={`${n} of 7 levels`}>{LEVELS.map((l) => <i key={l.n} className={l.n <= n ? 'on' : ''} />)}</span>;
@@ -73,8 +74,8 @@ export default function Leaderboard() {
 
       {/* what and why */}
       <section aria-labelledby="pb-what-h" className="pb-sec">
-        <div className="pb-grid2">
-          <article className="pb-card pb-feature">
+        <div>
+          <article className="pb-card pb-feature pb-feature-wide">
             <Doodle k="reading" className="pb-feature-doodle" />
             <div>
               <p className="pb-kicker"><SIcon k="book" s={18} />The basics</p>
@@ -83,35 +84,12 @@ export default function Leaderboard() {
               <p>Every guardian here has a secret and orders to keep it. Your job is to talk it out of them.</p>
             </div>
           </article>
-          <article className="pb-card pb-feature">
-            <Doodle k="meditating" className="pb-feature-doodle" />
-            <div>
-              <p className="pb-kicker"><SIcon k="lock" s={18} />What to crack</p>
-              <h2 className="pb-h3">Seven guardians, seven passwords</h2>
-              <ol className="pb-ladder">
-                {LEVELS.map((l) => <li key={l.n}><span>{l.n}</span><b>{l.name}</b><small>{l.pts} pts</small></li>)}
-              </ol>
-            </div>
-          </article>
         </div>
       </section>
 
-      {/* prizes */}
-      <section aria-labelledby="pb-prize-h" className="pb-sec">
-        <div className="pb-sec-h">
-          <h2 id="pb-prize-h" className="pb-h2">What you can win</h2>
-        </div>
-        <ul className="pb-prizes">
-          {PRIZES.map((p) => (
-            <li key={p.k} className={`pb-card pb-prize${p.k === 'job' ? ' job' : ''}`}>
-              <Doodle k={p.doodle} className="pb-prize-doodle" />
-              <p className="pb-kicker"><SIcon k={p.k === 'job' ? 'case' : p.k === 'cash' ? 'trophy' : p.k === 'swag' ? 'gift' : 'spark'} s={18} />{p.k === 'job' ? 'The big one' : 'Prize'}</p>
-              <h3 className="pb-h3">{p.title}</h3>
-              <p>{p.body}</p>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <LevelMap />
+      <Prizes />
+      <JobFeature />
 
       {/* scoring and rules */}
       <section aria-labelledby="rules" className="pb-sec">

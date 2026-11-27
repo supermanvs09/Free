@@ -2,7 +2,8 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link, NavLink } from 'react-router';
 import { Seo } from '../lib/head.jsx';
 import { PB } from '../data/promptbreak.js';
-import { Doodle, SIcon, Scribble } from '../components/promptbreak/Sketch.jsx';
+import { SIcon, Scribble } from '../components/promptbreak/Sketch.jsx';
+import { GuardianScene, Megaphone } from '../components/promptbreak/Art.jsx';
 
 const Chat = lazy(() => import('../components/promptbreak/Chat.jsx'));
 const Leaderboard = lazy(() => import('../components/promptbreak/Leaderboard.jsx'));
@@ -38,11 +39,20 @@ export default function Promptbreak({ tab = 'play' }) {
       <Seo title={board ? 'Promptbreak Leaderboard: Prompt Injection Challenge' : 'Promptbreak: The Prompt Injection Challenge'} path={board ? PB.boardPath : PB.path}
         description="Trick seven AI guardians into revealing their passwords with prompt injection. A free challenge by Deep Algorithms, with cash prizes, swag and job offers for the best hackers." />
 
+      {/* the announcement, shouted */}
+      <div className="pb-ticker" role="marquee" aria-label={`${PB.season}: win cash prizes and job offers. Seven AI guardians. Free to play.`}>
+        <div className="pb-ticker-track" aria-hidden="true">
+          {[0, 1].map((k) => (
+            <span key={k}>{['Season 1 is coming', 'Win cash prizes', 'Job offers on our AI security team', '7 AI guardians', 'Free to play', 'Swag for the top 50'].map((t) => <span key={t}>{t}<SIcon k="spark" s={16} /></span>)}</span>
+          ))}
+        </div>
+      </div>
+
       {/* the announcement */}
       <section className="pb-hero" aria-labelledby="pb-h">
         <div className="pb-wrap pb-hero-grid">
           <div>
-            <p className="pb-sticker"><SIcon k="spark" s={18} />New · {PB.season} · Free to play</p>
+            <div className="pb-shout"><Megaphone className="pb-shout-art" /><p className="pb-sticker">Big announcement · {PB.season} · Free to play</p></div>
             <h1 id="pb-h" className="pb-h1">Can you make our AI <span className="pb-mark">spill its secret<Scribble className="pb-scribble" /></span>?</h1>
             <p className="pb-lead">{PB.pitch}</p>
             <div className="pb-ctas">
@@ -56,7 +66,7 @@ export default function Promptbreak({ tab = 'play' }) {
             </ul>
           </div>
           <div className="pb-hero-art">
-            <Doodle k="clumsy" className="pb-hero-doodle" alt="" w={560} h={420} />
+            <GuardianScene className="pb-hero-doodle" />
             <div className="pb-note-card pb-tilt-r"><SIcon k="case" s={20} /><span><b>Top hackers</b> get job offers on our AI security team</span></div>
             <Countdown />
           </div>

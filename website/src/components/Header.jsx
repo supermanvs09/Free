@@ -246,7 +246,7 @@ export default function Header() {
   const light = overLight || open || mobile;
 
   return (
-    <header className={cx('noprint fixed inset-x-0 top-0 z-50 transition-transform duration-300', light && 'tone-l', tucked && !mobile && 'max-md:-translate-y-full')} onMouseLeave={leave}>
+    <header className={cx('noprint fixed inset-x-0 top-0 z-50 transition-transform duration-300', light && 'tone-l', pathname.startsWith('/promptbreak') && 'pb-hdr', tucked && !mobile && 'max-md:-translate-y-full')} onMouseLeave={leave}>
       <a href="#main" className="sr-only-focusable absolute left-4 top-3 z-50 rounded-full bg-white px-4 py-2 text-[#12171f]">Skip to content</a>
       <div aria-hidden="true" className={cx('hdr-bg absolute inset-0 -z-10 border-b', solid ? 'solid border-line bg-black/80 backdrop-blur-xl' : 'border-transparent bg-transparent')} />
       <div className="wrap flex h-[64px] items-center gap-6 lg:h-[72px]">
