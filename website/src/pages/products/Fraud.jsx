@@ -16,6 +16,19 @@ import { Hero, Rollout, Faq, Points, LINKS, ACC } from '../../components/Product
 const p = PRODUCTS.fraud;
 const A = ACC.adap;
 
+/* the hero picture: the bank in the customer's hand, with the decisions it
+   makes floating in, one after another */
+function HeroPhoto() {
+  return (
+    <div className="fh" aria-hidden="true">
+      <div className="fh-img"><img src="/img/photos/fraud-hero.webp" alt="" width="612" height="369" fetchPriority="high" decoding="async" /></div>
+      <div className="fh-chip c1"><i className="ok" /><span><b>Session verified</b><em>Behaviour matches · 63 ms</em></span></div>
+      <div className="fh-chip c2"><i className="warn" /><span><b>Payment held</b><em>Call in progress · new payee</em></span></div>
+      <div className="fh-chip c3"><i className="ok" /><span><b>₹ 3.8 Cr protected</b><em>Today, mobile and UPI</em></span></div>
+    </div>
+  );
+}
+
 /* how we differ from the fraud tools a bank already runs: four things a buyer
    checks, side by side */
 const VERSUS = [
@@ -129,11 +142,15 @@ export default function Fraud() {
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Identity Fraud Prevention', path: p.path }]} />
       <Hero glance={[['Protects', 'Mobile banking, internet banking and UPI'], ['Stops', 'Account takeover, payment scams and mule accounts'], ['Deploys', 'An SDK in your app and on your web channel'], ['Shows', 'Every decision in under 80 ms, with its reason']]} acc="adap" crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Identity Fraud Prevention' }]} eyebrow="adapID AI · Identity Fraud Prevention"
         title={<>Stop takeover, scams and mule payments before money moves.</>}
-        layout="stack"
         lead="One SDK reads the customer, the device and the payment together, and decides in under 80 ms, with a reason you can show the regulator."
         note="Mobile banking, internet banking and UPI. Built for RBI's 2025 authentication directions.">
-        <FraudDash />
+        <HeroPhoto />
       </Hero>
+
+      {/* the fraud team's screen, right after the promise */}
+      <section className="sec pt-0" aria-label="Fraud operations dashboard">
+        <div className="wrap max-w-[1180px]"><FraudDash /></div>
+      </section>
 
       <section className="sec" aria-labelledby="gap-h">
         <div className="wrap">
