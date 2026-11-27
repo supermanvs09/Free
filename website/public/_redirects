@@ -12,3 +12,4 @@
 /agentic-ai/mcp-security         /agentic-ai/agentic-identity#cap-mcp  301
 /agentic-ai/detection-response   /agentic-ai/agentic-identity#cap-detect  301
 /agentic-ai/decision-record      /agentic-ai/agentic-identity#cap-prove  301
+/challenge                       /promptbreak  302

@@ -31,6 +31,7 @@ const INDEX = [
   ...SOLUTIONS.map((s) => ({ group: 'Solutions', title: s.name, sub: s.desc, path: `/solutions/${s.slug}` })),
   ...POSTS.map((p) => ({ group: 'Blogs', title: p.title, sub: `${p.category} · ${p.read} min read`, path: `/blogs/${p.slug}`, more: p.excerpt })),
   { group: 'Company', title: 'Why Deep Algorithms', sub: 'The company, the team and how the products work', path: '/why-deep-algorithms' },
+  { group: 'Company', title: 'Promptbreak challenge', sub: 'Crack our AI guardians, win prizes and job offers', path: '/promptbreak' },
   { group: 'Company', title: 'All blogs', sub: 'Reports, field notes and analysis', path: '/blogs' },
   ...[
     ['Leadership', 'The team and our advisors', '/why-deep-algorithms#leadership'],

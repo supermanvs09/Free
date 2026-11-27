@@ -20,6 +20,8 @@ const Article = lazy(() => import('./pages/Article.jsx'));
 const Demo = lazy(() => import('./pages/Demo.jsx'));
 const Legal = lazy(() => import('./pages/Legal.jsx'));
 const NotFound = lazy(() => import('./pages/NotFound.jsx'));
+const Promptbreak = lazy(() => import('./pages/Promptbreak.jsx'));
+import PromoPop from './components/promptbreak/PromoPop.jsx';
 
 /* Every product has its own page. */
 const PRODUCT_PAGES = {
@@ -40,7 +42,7 @@ export const PATHS = [
   ...Object.values(PRODUCTS).map((p) => p.path),
   ...SOLUTIONS.map((s) => `/solutions/${s.slug}`),
   '/why-deep-algorithms', '/blogs', ...POSTS.map((p) => `/blogs/${p.slug}`),
-  '/request-demo', ...Object.keys(LEGAL).map((k) => `/${k}`),
+  '/request-demo', '/promptbreak', '/promptbreak/leaderboard', ...Object.keys(LEGAL).map((k) => `/${k}`),
 ];
 
 /* Scroll to top on navigation, or to the #hash target. */
@@ -108,6 +110,9 @@ export default function App() {
             <Route path="/blogs" element={<Blog />} />
             <Route path="/blogs/:slug" element={<Article />} />
             <Route path="/request-demo" element={<Demo />} />
+            <Route path="/promptbreak" element={<Promptbreak />} />
+            <Route path="/promptbreak/leaderboard" element={<Promptbreak tab="board" />} />
+            <Route path="/challenge" element={<Navigate to="/promptbreak" replace />} />
             {Object.keys(LEGAL).map((k) => <Route key={k} path={`/${k}`} element={<Legal id={k} />} />)}
             <Route path="*" element={<NotFound />} />
           </Routes>
@@ -117,6 +122,7 @@ export default function App() {
       <Footer />
       <JumpBar />
       <MobileBar />
+      <PromoPop />
     </>
   );
 }

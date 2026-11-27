@@ -52,6 +52,7 @@ export default function Footer() {
               <L to="/why-deep-algorithms">Why Deep Algorithms</L>
             </Col>
             <Col title="Resources">
+              <L to="/promptbreak">Promptbreak challenge</L>
               <L to="/blogs">All blogs</L>
               <L to="/blogs/india-mule-account-crisis">Mule account crisis</L>
               <L to="/blogs/ai-agent-governance">AI agent governance</L>

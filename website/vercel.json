@@ -66,6 +66,11 @@
       "source": "/agentic-ai/decision-record",
       "destination": "/agentic-ai/agentic-identity#cap-prove",
       "permanent": true
+    },
+    {
+      "source": "/challenge",
+      "destination": "/promptbreak",
+      "permanent": false
     }
   ]
 }

@@ -7,7 +7,8 @@ import { bootMagnet, bootSmooth } from './lib/smooth.js';
 import './styles.css';
 import './components/viz/viz.css';
 import '@fontsource-variable/geist-mono';
-import './home/home.css'; // scoped under .dx; global so prerendered pages paint styled
+import './home/home.css';
+import './components/promptbreak/promptbreak.css'; // scoped under .pb and .pb-pop // scoped under .dx; global so prerendered pages paint styled
 
 const root = document.getElementById('root');
 const app = <StrictMode><BrowserRouter><App /></BrowserRouter></StrictMode>;
