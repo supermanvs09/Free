@@ -5,8 +5,9 @@ import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, Tabs } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
 import FraudPhone from './FraudPhone.jsx';
-import { FraudDash } from '../../components/dashboards.jsx';
-import { Hero, Rollout, Faq, Points, LINKS, ACC } from '../../components/ProductKit.jsx';
+import { FraudDash, FraudQueue } from '../../components/dashboards.jsx';
+import { Zoom } from '../../components/Dash.jsx';
+import { Hero, PhotoFeature, Integrations, Rollout, Faq, Points, LINKS, ACC } from '../../components/ProductKit.jsx';
 
 /* Identity Fraud Prevention: one platform for mobile and internet banking, from
    login to payment. The page follows the platform's own logic: three questions
@@ -158,6 +159,13 @@ export default function Fraud() {
           <div className="mt-12"><Versus /></div>
         </div>
       </section>
+
+      <PhotoFeature id="pf-h" acc="adap" eyebrow="At the moment of payment" title="The customer pays. adapID checks who is really paying." lead="Behaviour, device and payee, judged together." img="/img/photos/p-payment.webp" panel={<Zoom><FraudQueue /></Zoom>} points={[
+          ['Fingerprint', 'Behaviour, not passwords', 'Typing and touch, never content.'],
+          ['Phone', 'Scam signals', 'A live call, a pasted account.'],
+          ['Bank', 'Mule payees', 'Flagged before money lands.'],
+        ]} />
+
 
       <section className="stage sec" aria-labelledby="mob-h">
         <div className="wrap">

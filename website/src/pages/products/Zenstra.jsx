@@ -4,8 +4,9 @@ import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Button, Icon, Reveal, SectionHead } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import { ZenDash } from '../../components/dashboards.jsx';
-import { Hero, Rollout, Faq, Compare, Explorer, Explore, LINKS } from '../../components/ProductKit.jsx';
+import { ZenApproval, ZenDash } from '../../components/dashboards.jsx';
+import { Zoom } from '../../components/Dash.jsx';
+import { Hero, PhotoFeature, Integrations, Rollout, Faq, Compare, Explorer, Explore, LINKS } from '../../components/ProductKit.jsx';
 import { ZenGateway, ZenInventory, ZenGrant, ZenMcp, ZenDetect, ZenRecord } from '../../components/viz/zenstra.jsx';
 import { Logo, logoTitle } from '../../components/viz/kit.jsx';
 import { ZenCompare } from '../../components/Changes.jsx';
@@ -100,6 +101,14 @@ export default function Zenstra() {
           </div>
         </div>
       </section>
+
+      <PhotoFeature id="pf-h" acc="zen" eyebrow="A person behind every agent" title="High-impact actions wait for a named approver." lead="Agents work at machine speed. Decisions that matter stay human." img="/img/photos/p-team.webp" panel={<Zoom><ZenApproval /></Zoom>} points={[
+          ['UserCircle', 'An owner for each agent', 'No orphaned automation.'],
+          ['ShieldCheck', 'Checked before it runs', 'Every tool call, in your VPC.'],
+          ['Fingerprint', 'A signed record', 'Tamper-evident, exportable.'],
+        ]} />
+      <Integrations title="Finds agents built on" items={[['microsoft', 'Copilot Studio'], ['claude', 'Claude'], ['chatgpt', 'ChatGPT'], ['githubcopilot', 'GitHub Copilot'], ['cursor', 'Cursor'], ['n8n', 'n8n'], ['langchain', 'LangGraph']]} />
+
 
       {/* the console: every agent with an identity, an owner and a scope */}
       <section className="sec pt-0" aria-labelledby="con-h">

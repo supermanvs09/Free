@@ -6,8 +6,9 @@ import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, cx } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import { NhiDash } from '../../components/dashboards.jsx';
-import { Hero, Rollout, Faq, LINKS, ACC } from '../../components/ProductKit.jsx';
+import { NhiDash, NhiFixTable } from '../../components/dashboards.jsx';
+import { Zoom } from '../../components/Dash.jsx';
+import { Hero, PhotoFeature, Integrations, Rollout, Faq, LINKS, ACC } from '../../components/ProductKit.jsx';
 import { NhiMap } from '../../components/viz/nhimap.jsx';
 import { NhiWorkbench } from '../../components/viz/workbench.jsx';
 import { Logo } from '../../components/viz/kit.jsx';
@@ -185,6 +186,14 @@ export default function Nhi() {
           </Reveal>
         </div>
       </section>
+
+      <PhotoFeature id="pf-h" acc="adap" eyebrow="Where machine identities live" title="Every key, mapped to what it really uses." lead="90 days of CloudTrail decide what can go." img="/img/photos/p-datacenter.webp" panel={<Zoom><NhiFixTable /></Zoom>} points={[
+          ['Key', 'Owner for every key', 'No orphaned access.'],
+          ['ChartBar', 'Used vs granted', 'The safe fix, measured.'],
+          ['ShieldCheck', 'Applied with approval', 'Nothing changes on its own.'],
+        ]} />
+      <Integrations title="Reads from" items={[['aws', 'AWS IAM'], ['aws', 'AWS CloudTrail'], ['kubernetes', 'Amazon EKS'], ['github', 'GitHub']]} />
+
 
       {/* lineage: where one key came from and everything it reaches */}
       <section className="sec" aria-labelledby="lin-h">

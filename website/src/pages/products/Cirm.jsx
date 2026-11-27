@@ -3,8 +3,9 @@ import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, cx } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import { CirmDash } from '../../components/dashboards.jsx';
-import { Hero, Rollout, Faq, Compare, Points, LINKS, ACC } from '../../components/ProductKit.jsx';
+import { CirmDash, CirmWhy } from '../../components/dashboards.jsx';
+import { Zoom } from '../../components/Dash.jsx';
+import { Hero, PhotoFeature, Integrations, Rollout, Faq, Compare, Points, LINKS, ACC } from '../../components/ProductKit.jsx';
 import { Connectors } from '../../components/viz/adapid.jsx';
 import { IdentityTimelines } from '../../components/Changes.jsx';
 
@@ -84,6 +85,13 @@ export default function Cirm() {
           </Reveal>
         </div>
       </section>
+
+      <PhotoFeature id="pf-h" acc="adap" eyebrow="Built for the people who answer the alert" title="The reason comes with the score." lead="Your analysts see why an identity is risky before they act." img="/img/photos/p-workforce.webp" panel={<Zoom><CirmWhy /></Zoom>} points={[
+          ['ChatCircleText', 'Every point explained', 'No black-box scores.'],
+          ['Lightning', 'Acts in seconds', 'Step-up, hold or revoke by policy.'],
+          ['Users', 'People and machines', 'One score model for both.'],
+        ]} />
+
 
       <section className="sec" aria-labelledby="chg-h">
         <div className="wrap">

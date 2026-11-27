@@ -4,8 +4,9 @@ import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, Check3 } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import { AdDash } from '../../components/dashboards.jsx';
-import { Hero, Rollout, Faq, LINKS, ACC } from '../../components/ProductKit.jsx';
+import { AdDash, AdDetections } from '../../components/dashboards.jsx';
+import { Zoom } from '../../components/Dash.jsx';
+import { Hero, PhotoFeature, Rollout, Faq, LINKS, ACC } from '../../components/ProductKit.jsx';
 import { AdWorkbench } from '../../components/viz/workbench.jsx';
 import { Gl } from '../../components/viz/kit.jsx';
 
@@ -47,6 +48,13 @@ export default function AdSecurity() {
   </div>
         </div>
       </section>
+
+      <PhotoFeature id="pf-h" acc="adap" eyebrow="Tier 0, protected" title="Your domain controllers, watched while attacks run." lead="Kerberos, NTLM and LDAP baselined for every identity." img="/img/photos/p-servers.webp" panel={<Zoom><AdDetections /></Zoom>} points={[
+          ['Graph', 'Attack paths ranked', 'The fix that closes the most.'],
+          ['Lightning', 'Live containment', 'DCSync, Kerberoasting, pass-the-hash.'],
+          ['FileText', 'Evidence kept', 'Every action logged.'],
+        ]} />
+
 
       <section className="sec" aria-labelledby="tech-h">
         <div className="wrap">

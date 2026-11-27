@@ -4,8 +4,9 @@ import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, cx } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import { IcmsDash } from '../../components/dashboards.jsx';
-import { Hero, Rollout, Faq, Split, LINKS, ACC } from '../../components/ProductKit.jsx';
+import { IcmsDash, IcmsRecord } from '../../components/dashboards.jsx';
+import { Zoom } from '../../components/Dash.jsx';
+import { Hero, PhotoFeature, Rollout, Faq, Split, LINKS, ACC } from '../../components/ProductKit.jsx';
 import { AuditorQuestions } from '../../components/Changes.jsx';
 
 const p = PRODUCTS.icms;
@@ -70,6 +71,13 @@ export default function Icms() {
           <Reveal delay={100}><Duties /></Reveal>
         </div>
       </section>
+
+      <PhotoFeature id="pf-h" acc="icms" eyebrow="Personal data, protected where it lives" title="Sensitive data, masked for everyone who does not need it." lead="Aadhaar, PAN and health records, classified and masked in place." img="/img/photos/p-records.webp" panel={<Zoom><IcmsRecord /></Zoom>} points={[
+          ['MagnifyingGlass', 'Found everywhere', 'Databases, buckets, shared drives.'],
+          ['EyeSlash', 'Masked by default', 'Shown only for a lawful purpose.'],
+          ['CheckCircle', 'Consent checked', 'On every access.'],
+        ]} />
+
 
       {/* the PII lifecycle, in one row: what ICMS does to personal data from the moment it is found */}
       <section className="sec-tight" aria-labelledby="pii-h">

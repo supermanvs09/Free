@@ -1,12 +1,12 @@
 import { CERTS } from '../data/site.js';
 import CertSeal from './CertSeal.jsx';
 import { useEffect, useId, useRef, useState } from 'react';
+import { Brand } from './Dash.jsx';
 import { useInView, useReducedMotion } from '../lib/motion.js';
 import { loadGsap } from '../lib/nullmotion.jsx';
-import HeroWave from '../home/HeroWave.jsx';
 import { scrollToY } from '../lib/smooth.js';
 import { Link } from 'react-router';
-import { Accordion, Breadcrumb, Button, CountUp, Icon, Reveal, SectionHead, cx } from './ui.jsx';
+import { Accordion, Button, CountUp, Icon, Reveal, SectionHead, cx } from './ui.jsx';
 import { TrustedRow } from './blocks.jsx';
 import ProductMark from './ProductMark.jsx';
 import { Proof, StatCard, StoryCard } from './Story.jsx';
@@ -16,18 +16,6 @@ export const ACC = { zen: 'var(--color-zen)', adap: 'var(--color-adap)', icms: '
 
 /* The product's own mark with its name, then what this page is about:
    "Zenstra AI · Security for AI agents" becomes the mark, the name, the topic. */
-function ProductLockup({ p, text, center }) {
-  const [name, ...rest] = text.split(' · ');
-  return (
-    <div className={cx('rise flex items-center gap-3.5 max-md:justify-center', center && 'justify-center')}>
-      <span className="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-[15px] border border-line-2 bg-white shadow-sm" style={{ boxShadow: '0 0 34px -10px var(--acc)' }}><ProductMark p={p} size={36} /></span>
-      <span className="text-left">
-        <span className="block text-[16.5px] font-semibold tracking-[-0.01em] text-ink">{name}</span>
-        {rest.length > 0 && <span className="block text-[14px] text-ink-2">{rest.join(' · ')}</span>}
-      </span>
-    </div>
-  );
-}
 
 /* The hero's own action: take the reader into the page, rather than repeat the
    header's "Book a demo". Scrolls to the section after the hero. */
@@ -45,37 +33,22 @@ export function Explore({ label = 'See how it works', target, size = 'lg', varia
    desktop, a rolling strip on phones and tablets. */
 /* Product hero frame: ribbons tinted by the product, crumbs, and two layouts:
    `split` (copy left, picture right) and `stack` (copy centred, picture below). */
-export function Hero({ acc = 'brand', crumbs, eyebrow, title, lead, ctas, explore, children, layout = 'split', ribbons = 'product', note, proof = true, glance }) {
+export function Hero({ acc = 'brand', eyebrow, title, lead, ctas, explore, children, proof = true }) {
   const color = ACC[acc] || ACC.brand;
-  const stack = layout === 'stack' || !children;   // no picture: the copy stands centred
   const mark = { zen: 'zenstra', adap: 'adapid', icms: 'icms' }[acc];
+  // as on the home page: the headline first, then the picture beneath it
   return (
     <section className={cx('stage hero-under relative overflow-hidden', mark ? 'dark hero-navy' : 'band-brand')} style={{ '--acc': color }} data-page-name={eyebrow ? eyebrow.split(' · ')[0] : undefined}>
-      {mark && <div className="hero-silk" aria-hidden="true"><HeroWave paused={false} soft /></div>}
-      <div className={cx('hero-drift wrap relative pb-12 pt-6 md:pb-24 md:pt-14', !stack && 'grid items-center gap-12 lg:min-h-[min(88svh,900px)] lg:grid-cols-[1fr_1.1fr] lg:gap-8')}>
-        <div className={cx(stack ? 'mx-auto max-w-[900px] text-center' : 'max-w-[620px] max-md:mx-auto max-md:text-center')}>
-          {crumbs && <Breadcrumb items={crumbs} className={cx('rise mb-8 max-md:hidden', stack && 'flex justify-center')} />}
-          {eyebrow && (mark ? <ProductLockup p={mark} text={eyebrow} center={stack} /> : <p className="eyebrow rise" style={{ '--acc': color }}>{eyebrow}</p>)}
-          <h1 className={cx('t-h1 rise mt-6', stack && 'mx-auto max-w-[20ch]')} style={{ '--d': '80ms' }}>{title}</h1>
-          {lead && <p className={cx('t-lead rise mt-6', stack ? 'mx-auto max-w-[680px]' : 'max-w-[560px] max-md:mx-auto')} style={{ '--d': '160ms' }}>{lead}</p>}
-          <div className={cx('rise mt-9 flex flex-wrap gap-3 max-md:flex-col max-md:[&>*]:w-full', stack && 'justify-center')} style={{ '--d': '240ms' }}>
+      <div className="hero-drift wrap relative pb-16 pt-10 md:pb-24 md:pt-20">
+        <div className="mx-auto max-w-[900px] text-center">
+          <h1 className="t-h1 rise mx-auto max-w-[20ch]" style={{ '--d': '60ms' }}>{title}</h1>
+          {lead && <p className="t-lead rise mx-auto mt-6 max-w-[640px]" style={{ '--d': '140ms' }}>{lead}</p>}
+          <div className="rise mt-9 flex flex-wrap justify-center gap-3 max-md:flex-col max-md:[&>*]:w-full" style={{ '--d': '220ms' }}>
             {ctas || <><Explore label={explore} /><Button to="/contact" variant="ghost" size="lg">Talk to an engineer</Button></>}
           </div>
-          {note && <p className={cx('rise mt-7 text-[14px] text-ink-3 max-md:text-center', stack && 'text-center')} style={{ '--d': '300ms' }}>{note}</p>}
         </div>
-        {children && <div className={cx('relative', mark && 'tone-l', stack ? 'mx-auto mt-16 max-w-[1080px]' : 'lg:-mr-6')}>{children}</div>}
+        {children && <div className="hero-pic rise relative mx-auto mt-14 max-w-[1120px] md:mt-20" style={{ '--d': '300ms' }}>{children}</div>}
       </div>
-      {/* the product at a glance: what it protects, stops, needs and shows */}
-      {glance && (
-        <dl className="rise wrap relative grid grid-cols-2 gap-x-4 gap-y-1 overflow-hidden pb-10 lg:grid-cols-4 md:pb-14" style={{ '--d': '320ms' }}>
-          {glance.map(([k, v]) => (
-            <div key={k} className="border-t border-line pt-4 pb-3 lg:pr-6">
-              <dt className="text-[12.5px] font-semibold uppercase tracking-[.1em]" style={{ color: mark ? 'color-mix(in oklab, var(--acc) 45%, white)' : 'color-mix(in oklab, var(--acc) 70%, #0b1220)' }}>{k}</dt>
-              <dd className="mt-1.5 text-[14px] leading-snug text-ink-2 md:text-[15px]">{v}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
       {proof && <TrustedRow />}
     </section>
   );
@@ -366,6 +339,50 @@ export function Rollout({ acc = 'brand', title = 'Live in weeks, not quarters.',
           <p>{note || 'Independently audited, every year'}</p>
           <ul>{CERTS.map((c) => <li key={c.code}><CertSeal code={c.code} size={34} /><span>{c.name}</span></li>)}</ul>
         </div>
+      </div>
+    </section>
+  );
+}
+
+/* A real photograph of where the product works, with one panel of the
+   product's own screen floating over it, close up. Copy on the other side:
+   a short title, one line, and three facts with icons. */
+export function PhotoFeature({ id, eyebrow, title, lead, points = [], img, pos = '50% 50%', panel, flip, acc = 'adap' }) {
+  const color = ACC[acc] || ACC.brand;
+  return (
+    <section className="sec" aria-labelledby={id} style={{ '--acc': color }}>
+      <div className={cx('wrap grid items-center gap-12 lg:grid-cols-[1fr_1.15fr] lg:gap-16', flip && 'lg:[&>*:first-child]:order-2')}>
+        <div>
+          <SectionHead align="left" id={id} acc={color} eyebrow={eyebrow} title={title} lead={lead} />
+          {points.length > 0 && (
+            <ul className="mt-9 grid gap-5">
+              {points.map(([ic, h, t], i) => (
+                <Reveal as="li" key={h} delay={i * 70} className="flex gap-4">
+                  <span className="ico grid h-10 w-10 shrink-0 place-items-center rounded-[12px]" style={{ '--acc': color }}><Icon name={ic} size={19} /></span>
+                  <span><span className="block text-[16.5px] font-semibold">{h}</span><span className="mt-0.5 block text-[15px] leading-relaxed text-ink-3">{t}</span></span>
+                </Reveal>
+              ))}
+            </ul>
+          )}
+        </div>
+        <Reveal className="pf">
+          <div className="pf-img"><img src={img} alt="" width="1600" height="1000" loading="lazy" decoding="async" style={{ objectPosition: pos }} /></div>
+          {panel && <div className="pf-panel">{panel}</div>}
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
+/* the tools a product connects to, as their own marks */
+export function Integrations({ title = 'Works with the stack you already run', items }) {
+  return (
+    <section className="sec-tight" aria-label={title}>
+      <div className="wrap">
+        <p className="kicker mb-6 text-center">{title}</p>
+        <ul className="ig-row">
+          {items.map(([k, t]) => <li key={t}><Brand k={k} s={22} /><span>{t}</span></li>)}
+        </ul>
       </div>
     </section>
   );
