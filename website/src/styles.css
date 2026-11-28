@@ -2410,3 +2410,4 @@ a.ind-field-card:hover .ind-field-img img { transform: scale(1.04); }
   .hero-under .justify-center { justify-content: flex-start !important; }
   .hero-under .trusted-row, .hero-under [class*='trusted'] { text-align: left; }
 }
+@media (max-width: 767px) { .max-lg\:text-center { text-align: left !important; } .max-lg\:text-center :is(h1, p) { margin-left: 0 !important; margin-right: 0 !important; } }
