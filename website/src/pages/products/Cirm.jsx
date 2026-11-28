@@ -5,7 +5,7 @@ import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, cx } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import { Hero, Integrations, Rollout, Faq, Compare, Points, LINKS, ACC } from '../../components/ProductKit.jsx';
+import { Hero, Integrations, Faq, Compare, Points, LINKS, ACC } from '../../components/ProductKit.jsx';
 import { Connectors } from '../../components/viz/adapid.jsx';
 import { IdentityTimelines } from '../../components/Changes.jsx';
 
@@ -145,11 +145,6 @@ export default function Cirm() {
           <Reveal delay={80}><Connectors keys={['okta', 'entra', 'ad', 'm365', 'google', 'aws', 'github', 'atlassian', 'salesforce', 'slack']} /></Reveal>
         </div>
       </section>
-      <Rollout acc="adap" lead="Connected on day one, enforcing by policy within weeks. Every step is reviewed with our engineers." steps={[
-          { when: 'Day 1', h: 'Connect', p: 'IdP, cloud and SaaS, read-only. Scoring starts the same day.' },
-          { when: 'Week 1', h: 'Review the riskiest', p: 'The riskiest identities reviewed with our engineers.' },
-          { when: 'Week 2 onwards', h: 'Enforce by policy', p: 'Step-up, hold and revoke at your thresholds.' },
-        ]} />
       <Faq items={FAQ} />
       <ResearchRow slugs={p.research} title="Blogs on identity attacks" />
       <CtaBand related={[LINKS.zenstra, LINKS.nhi, LINKS.icms]} relatedTitle="Other Deep Algorithms products" accent="adap" title={p.cta.title} body={p.cta.body} />

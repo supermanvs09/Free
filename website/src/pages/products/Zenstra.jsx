@@ -6,7 +6,7 @@ import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Button, Icon, Reveal, SectionHead } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import { Hero, Integrations, Rollout, Faq, Compare, Explorer, Explore, LINKS } from '../../components/ProductKit.jsx';
+import { Hero, Integrations, Faq, Compare, Explorer, Explore, LINKS } from '../../components/ProductKit.jsx';
 import { ZenGateway, ZenInventory, ZenGrant, ZenMcp, ZenDetect, ZenRecord } from '../../components/viz/zenstra.jsx';
 import { Logo, logoTitle } from '../../components/viz/kit.jsx';
 
@@ -194,11 +194,6 @@ export default function Zenstra() {
           ['watch', 'Every agent, accounted for', 'Built, bought and shadow agents in one inventory, each tied to the person it acts for.'],
           ['route', 'Checked before it runs', 'Every tool call compared with the agent’s task and your policy, and held or blocked before it executes.'],
           ['hub', 'Evidence on demand', 'A tamper-evident record of every decision, ready for SOC 2, ISO/IEC 42001 and DPDPA reviews.'],
-        ]} />
-      <Rollout acc="zen" lead="Discover first, then scope, then enforce. No agent is rewritten." steps={[
-          { when: 'Day 1', h: 'Discover every agent', p: 'Every agent, copilot and MCP server, with its owner.' },
-          { when: 'Week 1', h: 'Owner and scope', p: 'Access sized to each agent’s task.' },
-          { when: 'Week 2 onwards', h: 'Enforce in your VPC', p: 'Every tool call checked before it runs.' },
         ]} />
       <Faq items={FAQ} />
       <ResearchRow slugs={p.research} title="Blogs on AI agent security" />

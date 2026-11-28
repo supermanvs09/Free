@@ -7,7 +7,7 @@ import { Icon, Reveal, SectionHead, Check3 } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
 import { AdDetections } from '../../components/dashboards.jsx';
 import { Zoom } from '../../components/Dash.jsx';
-import { Hero, PhotoFeature, Rollout, Faq, LINKS, ACC } from '../../components/ProductKit.jsx';
+import { Hero, PhotoFeature, Faq, LINKS, ACC } from '../../components/ProductKit.jsx';
 import { AdWorkbench } from '../../components/viz/workbench.jsx';
 import { Gl } from '../../components/viz/kit.jsx';
 
@@ -107,11 +107,6 @@ export default function AdSecurity() {
           ['watch', 'Identity-focused analysis', 'Every user, group, computer and service account linked to the paths they open, not just a list of settings.'],
           ['route', 'Fixes ranked by impact', 'The one change that closes the most paths first, checked for business impact before you touch anything.'],
           ['hub', 'Faster security outcomes', 'Posture and live detection on one map, so each alert shows the path it was on and each fix is measured.'],
-        ]} />
-      <Rollout acc="adap" lead="Read-only to map. Containment only for the responses you choose to enable." steps={[
-          { when: 'Day 1', h: 'Map the directory', p: 'Read-only. Nothing installed on domain controllers.' },
-          { when: 'Week 1', h: 'A ranked fix list', p: 'Every path to Tier 0, ranked by reach.' },
-          { when: 'Week 2 onwards', h: 'Contain live abuse', p: 'Kerberoasting, DCSync and pass-the-hash contained by policy.' },
         ]} />
       <Faq items={FAQ} />
       <ResearchRow slugs={p.research} />

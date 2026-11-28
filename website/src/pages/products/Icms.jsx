@@ -7,7 +7,7 @@ import { Icon, Reveal, SectionHead, cx } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
 import { IcmsRecord } from '../../components/dashboards.jsx';
 import { Zoom } from '../../components/Dash.jsx';
-import { Hero, PhotoFeature, Rollout, Faq, Split, LINKS, ACC } from '../../components/ProductKit.jsx';
+import { Hero, PhotoFeature, Faq, Split, LINKS, ACC } from '../../components/ProductKit.jsx';
 
 const p = PRODUCTS.icms;
 const A = ACC.icms;
@@ -125,11 +125,6 @@ export default function Icms() {
           ['watch', 'Know where personal data lives', 'Every store classified, with an owner, and data outside its approved place flagged.'],
           ['route', 'Prove every access was lawful', 'Each access checked against purpose and consent, and kept in a ledger auditors can read.'],
           ['hub', 'Answer the regulator fast', 'Breach scope and the report drafted from evidence already held, inside the 72 hours.'],
-        ]} />
-      <Rollout acc="icms" lead="From connection to audit-ready evidence, without moving your data." steps={[
-          { when: 'Week 1', h: 'Connect', p: 'PII discovered where it already lives.' },
-          { when: 'Week 2', h: 'Owners and purpose', p: 'Every store owned. Every access checked.' },
-          { when: 'Week 3 onwards', h: 'Evidence on demand', p: 'DPDPA, RBI and SEBI packages, always current.' },
         ]} />
       <Faq items={FAQ} />
       <ResearchRow slugs={p.research} />

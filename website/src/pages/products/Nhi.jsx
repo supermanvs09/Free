@@ -9,7 +9,7 @@ import { Icon, Reveal, SectionHead, cx } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
 import { NhiFixTable } from '../../components/dashboards.jsx';
 import { Zoom } from '../../components/Dash.jsx';
-import { Hero, PhotoFeature, Integrations, Rollout, Faq, LINKS, ACC } from '../../components/ProductKit.jsx';
+import { Hero, PhotoFeature, Integrations, Faq, LINKS, ACC } from '../../components/ProductKit.jsx';
 import { NhiMap } from '../../components/viz/nhimap.jsx';
 import { NhiWorkbench } from '../../components/viz/workbench.jsx';
 import { Logo } from '../../components/viz/kit.jsx';
@@ -156,7 +156,7 @@ export default function Nhi() {
   return (
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'NHI Security for AWS', path: p.path }]} />
-      <Hero glance={[['Protects', 'IAM roles, keys and workload identities in AWS'], ['Stops', 'Unused permissions, open trust policies, leaked secrets'], ['Deploys', 'One read-only role per AWS account'], ['Shows', 'The least-privilege fix, checked against CloudTrail']]} acc="adap" crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'NHI Security for AWS' }]} eyebrow="adapID AI · NHI Security for AWS"
+      <Hero layout="split" glance={[['Protects', 'IAM roles, keys and workload identities in AWS'], ['Stops', 'Unused permissions, open trust policies, leaked secrets'], ['Deploys', 'One read-only role per AWS account'], ['Shows', 'The least-privilege fix, checked against CloudTrail']]} acc="adap" crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'NHI Security for AWS' }]} eyebrow="adapID AI · NHI Security for AWS"
         title={<>Every machine identity in your AWS accounts. Found, scored, watched.</>}
         lead="Find every role, key and workload identity in AWS, see what each one really uses, and apply the least-privilege fix with confidence."
         note="Agentless. One read-only role per account.">
@@ -248,11 +248,6 @@ export default function Nhi() {
           ['watch', 'Every machine identity found', 'Roles, users, keys and workload identities across all your AWS accounts, including the ones nobody remembers creating.'],
           ['route', 'Least privilege, measured', 'Unused permissions removed against 90 days of real CloudTrail usage, so the fix never breaks a deploy.'],
           ['hub', 'No standing secrets', 'Old and unused keys rotated or removed, each identity given an owner, and every change watched after.'],
-        ]} />
-      <Rollout acc="adap" lead="One read-only role per AWS account. No agents, nothing installed on your workloads." steps={[
-          { when: 'Day 1', h: 'Connect your accounts', p: 'One read-only role per account. Inventory in minutes.' },
-          { when: 'Week 1', h: 'Inventory and posture', p: 'Every identity with an owner, a score and real usage.' },
-          { when: 'Week 2 onwards', h: 'Fix and watch', p: 'Least-privilege fixes, applied with approval.' },
         ]} />
       <Faq items={FAQ} />
       <ResearchRow slugs={p.research} />

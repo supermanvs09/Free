@@ -8,7 +8,7 @@ import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
 import FraudPhone from './FraudPhone.jsx';
 import { FraudQueue } from '../../components/dashboards.jsx';
 import { Zoom } from '../../components/Dash.jsx';
-import { Hero, PhotoFeature, Integrations, Rollout, Faq, Points, LINKS, ACC } from '../../components/ProductKit.jsx';
+import { Hero, PhotoFeature, Integrations, Faq, Points, LINKS, ACC } from '../../components/ProductKit.jsx';
 
 /* Identity Fraud Prevention: one platform for mobile and internet banking, from
    login to payment. The page follows the platform's own logic: three questions
@@ -143,7 +143,7 @@ export default function Fraud() {
   return (
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Identity Fraud Prevention', path: p.path }]} />
-      <Hero glance={[['Protects', 'Mobile banking, internet banking and UPI'], ['Stops', 'Account takeover, payment scams and mule accounts'], ['Deploys', 'An SDK in your app and on your web channel'], ['Shows', 'Every decision in under 80 ms, with its reason']]} acc="adap" crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Identity Fraud Prevention' }]} eyebrow="adapID AI · Identity Fraud Prevention"
+      <Hero layout="split" glance={[['Protects', 'Mobile banking, internet banking and UPI'], ['Stops', 'Account takeover, payment scams and mule accounts'], ['Deploys', 'An SDK in your app and on your web channel'], ['Shows', 'Every decision in under 80 ms, with its reason']]} acc="adap" crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Identity Fraud Prevention' }]} eyebrow="adapID AI · Identity Fraud Prevention"
         title={<>Stop takeover, scams and mule payments before money moves.</>}
         lead="One SDK reads the customer, the device and the payment together, and decides in under 80 ms, with a reason you can show the regulator."
         note="Mobile banking, internet banking and UPI. Built for RBI's 2025 authentication directions.">
@@ -224,11 +224,6 @@ export default function Fraud() {
           ['watch', 'Risk-based step-up', 'Genuine customers pass without an extra step; a risky session or payment is asked for more.'],
           ['route', 'Phishing-resistant by design', 'A silent, device-bound factor replaces SMS OTPs that can be phished or forwarded.'],
           ['hub', 'Device and behaviour together', 'Device integrity, behaviour and the payment are judged together, in under 80 ms.'],
-        ]} />
-      <Rollout acc="adap" lead="Shadow mode first. No customer impact until you approve." steps={[
-          { when: 'Weeks 1–2', h: 'Shadow mode', p: 'Every session scored beside your current controls.' },
-          { when: 'Weeks 3–4', h: 'Tune', p: 'Thresholds set against your confirmed fraud.' },
-          { when: 'Go live', h: 'Decide in the channel', p: 'Allow, step up or hold in under 80 ms.' },
         ]} />
       <Faq items={FAQ} />
       <ResearchRow slugs={p.research} />
