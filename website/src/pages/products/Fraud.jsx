@@ -23,7 +23,7 @@ const A = ACC.adap;
 function HeroPhoto() {
   return (
     <div className="fh" aria-hidden="true">
-      <div className="fh-img"><img src="/img/photos/fraud-hero.webp" alt="" width="612" height="369" fetchPriority="high" decoding="async" /></div>
+      <div className="fh-img"><img src="/img/photos/fraud-person.webp" alt="" width="612" height="369" fetchPriority="high" decoding="async" /></div>
       <div className="fh-chip c1"><i className="ok" /><span><b>Session verified</b><em>Behaviour matches · 63 ms</em></span></div>
       <div className="fh-chip c2"><i className="warn" /><span><b>Payment held</b><em>Call in progress · new payee</em></span></div>
       <div className="fh-chip c3"><i className="ok" /><span><b>₹ 3.8 Cr protected</b><em>Today, mobile and UPI</em></span></div>
@@ -158,7 +158,7 @@ export default function Fraud() {
         </div>
       </section>
 
-      <PhotoFeature id="pf-h" acc="adap" eyebrow="At the moment of payment" title="The customer pays. adapID checks who is really paying." lead="Behaviour, device and payee, judged together." img="/img/photos/p-payment.webp" panel={<Zoom><FraudQueue /></Zoom>} points={[
+      <PhotoFeature id="pf-h" acc="adap" eyebrow="At the moment of payment" title="The customer pays. adapID checks who is really paying." lead="Behaviour, device and payee, judged together." img="/img/photos/p-payment.webp" pos="50% 30%" panel={<Zoom><FraudQueue /></Zoom>} points={[
           ['Fingerprint', 'Behaviour, not passwords', 'Typing and touch, never content.'],
           ['Phone', 'Scam signals', 'A live call, a pasted account.'],
           ['Bank', 'Mule payees', 'Flagged before money lands.'],

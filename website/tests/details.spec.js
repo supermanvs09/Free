@@ -157,3 +157,16 @@ test('brand marks stay visible on white pictures (GitHub and MCP on the Zenstra 
     expect(0.2126 * r + 0.7152 * g + 0.0722 * b, name).toBeLessThan(90);
   }
 });
+
+test('each industry page has products, real proof (customers, certifications), our own field photos and the systems it works with', async ({ page }) => {
+  for (const s of ['bfsi', 'healthcare', 'government', 'digital-platforms']) {
+    await page.goto(`/solutions/${s}`);
+    await expect(page.locator('.ind-prod'), s).toHaveCount(4);
+    expect(await page.locator('.ind-logos img').count(), s).toBeGreaterThanOrEqual(2);
+    await expect(page.locator('.ind-certs li'), s).toHaveCount(4);
+    await expect(page.locator('.ind-field-card'), s).toHaveCount(3);
+    for (const src of await page.locator('.ind-field-img img').evaluateAll((els) => els.map((e) => e.getAttribute('src')))) expect(src).toMatch(/^\/img\/events\//);
+    expect(await page.locator('.ind-eco .ig-row li').count(), s).toBeGreaterThanOrEqual(6);
+    await expect(page.locator('.ind-quote'), `${s}: no unpublished quotes`).toHaveCount(0);
+  }
+});
