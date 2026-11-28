@@ -2255,7 +2255,9 @@ html.intro-pre body::after { background: var(--ink-base); }
 :root .ai-band :is(.ai-big, h2) { color: #fff; }
 :root .ai-band .ai-sub { color: rgb(232 239 255 / .9); }
 /* brand field 2: the closing call to action glows cobalt */
-:root .hz-cta .cta-glow { background: radial-gradient(60% 80% at 50% 100%, rgb(47 111 236 / .55), transparent 70%); }
+/* the closing call keeps its blue horizon arc (home.css .cta-glow); cobalt light on top */
+:root .hz-cta .cta-glow { background: radial-gradient(closest-side, rgb(190 214 255 / .9), rgb(47 111 236 / .8) 30%, rgb(26 70 200 / .38) 60%, transparent 100%); opacity: 1; }
+:root .dx-band.ink.hz-cta.hz-cta { padding-top: clamp(96px, 9vw, 140px); }
 :root .hz-cta .dx-btn { background: #2f6fec; border-color: #2f6fec; }
 :root .hz-cta .dx-btn:hover { background: #4a82f0; border-color: #4a82f0; }
 :root footer.site-foot { background-color: #0a0e1a; }
@@ -2297,3 +2299,19 @@ a.ind-field-card:hover .ind-field-img img { transform: scale(1.04); }
 .ind-partners li { display: inline-flex; flex-direction: column; gap: 4px; padding: 14px 22px; border-radius: 16px; background: var(--color-bg-1); box-shadow: inset 0 0 0 1px var(--color-line); text-align: left; }
 .ind-partners b { font-size: 18px; font-weight: 600; } .ind-partners span { font-size: 14px; color: var(--color-ink-3); }
 .ind-eco .ig-row { margin-top: 18px; }
+:root .hz-cta .cta-glow { bottom: -80%; filter: blur(6px); box-shadow: 0 -1px 0 rgb(190 214 255 / .55), 0 -24px 90px -10px rgb(47 111 236 / .55); }
+
+/* ==========================================================================
+   Stone (Nov 2026): the surfaces our pictures sit on take a warm stone,
+   #ECE8E4, in place of bright white, so the product art reads as printed
+   on paper rather than as a white box on black. Cards inside stay white,
+   which is what gives the depth.
+   ========================================================================== */
+:root { --stone: #ece8e4; --stone-2: #e2ddd6; }
+/* product-page panels (were silver) */
+.sc-panel { background: radial-gradient(90% 70% at 15% 0%, rgb(255 255 255 / .55) 0%, rgb(255 255 255 / 0) 60%), linear-gradient(165deg, var(--stone) 0%, var(--stone-2) 100%) !important; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .45); }
+/* picture windows and canvases that were white */
+:is(.pl, .kl, .itf, .nm-fix, .nm-search, .sc-ov-dash, .cl-win) { background-color: var(--stone) !important; }
+.sc-card:not(.fade) { background: var(--stone) !important; }
+.db-body { background: var(--stone); }
+.page > :not(.dark, .fixed) .vz:not(.tone-d .vz) .vz-win, .vz-light .vz-win { background: var(--stone) !important; }

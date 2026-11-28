@@ -17,15 +17,6 @@ import { Logo } from '../../components/viz/kit.jsx';
 const p = PRODUCTS.nhi;
 const A = ACC.adap;
 
-const TRUST = `{
-  "Version": "2012-10-17",
-  "Statement": [{
-    "Effect": "Allow",
-    "Principal": { "AWS": "arn:aws:iam::<adapid-account>:root" },
-    "Action": "sts:AssumeRole",
-    "Condition": { "StringEquals": { "sts:ExternalId": "<your-external-id>" } }
-  }]
-}`;
 
 const GENOME = [
   ['lambda-kyc-sync', 'GetSecretValue from eu-west-1', '30 days', 'Needs review', 'warn', 'lambda'],
@@ -164,28 +155,6 @@ export default function Nhi() {
       </Hero>
 
 
-      <section className="sec" aria-labelledby="on-h">
-        <div className="wrap grid gap-12 lg:grid-cols-[1fr_1fr] lg:gap-16">
-          <Reveal>
-            <p className="eyebrow" style={{ '--acc': A }}>Connect an account</p>
-            <h2 id="on-h" className="t-h2 mt-6">From one read-only role to a full inventory, in minutes.</h2>
-            <ol className="mt-10 space-y-7">
-              {[['Create the role', 'Deploy one read-only IAM role with the trust policy on the right. No agents, no write access.'], ['Pass three checks', 'adapID verifies it can assume the role, read IAM and read CloudTrail before the first sync is queued.'], ['See every identity', 'Roles, users, keys and workload identities appear with owner, exposure and posture score, and every change since the last sync.']].map(([h, t], i) => (
-                <li key={h} className="flex gap-5">
-                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[14px] font-bold text-on-acc" style={{ background: A }}>{i + 1}</span>
-                  <span><span className="block text-[19px] font-semibold tracking-[-0.015em]">{h}</span><span className="mt-1 block text-[16px] leading-relaxed text-ink-2">{t}</span></span>
-                </li>
-              ))}
-            </ol>
-          </Reveal>
-          <Reveal delay={120} className="self-center">
-            <div className="tone-d overflow-hidden rounded-[20px] border border-line bg-[#080a0e]">
-              <div className="flex items-center justify-between border-b border-line px-5 py-3"><span className="font-mono text-[13px] text-ink-2">adapid-readonly · trust policy</span><span className="vz-chip c-ok" style={{ fontSize: 12 }}>Read-only</span></div>
-              <pre tabIndex={0} aria-label="config/notify.env, with the leaked key on line 14" className="overflow-x-auto p-5 font-mono text-[13px] leading-[1.75] text-[#bcd6f2]"><code>{TRUST}</code></pre>
-            </div>
-          </Reveal>
-        </div>
-      </section>
 
       <Feature id="scale-h" title="Secure machine identities at scale" lead="Every access key, role and service account across your AWS accounts, with its owner, its age and what it really uses, under one policy, without slowing a single deploy.">
         <NhiScale />

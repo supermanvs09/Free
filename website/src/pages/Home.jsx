@@ -73,7 +73,7 @@ export default function Home() {
         <div className="dx-wrap">
           <div className="ai-title">
             <h2 id="aispm-h" className="ai-big">Continuous AI Security Posture Management</h2>
-            <p className="ai-sub">One platform for two jobs: the posture of every human and machine identity, and the security of every AI agent.</p>
+            <p className="ai-sub">Secure every identity, verify every intent.</p>
           </div>
         </div>
       </section>
