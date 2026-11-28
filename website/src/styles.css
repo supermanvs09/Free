@@ -2259,3 +2259,5 @@ html.intro-pre body::after { background: var(--ink-base); }
 :root .hz-cta .dx-btn { background: #2f6fec; border-color: #2f6fec; }
 :root .hz-cta .dx-btn:hover { background: #4a82f0; border-color: #4a82f0; }
 :root footer.site-foot { background-color: #0a0e1a; }
+/* the cobalt band: shorter, with the heading in the middle */
+:root section.ai-band.ai-band { padding: clamp(56px, 6vw, 92px) 0; }
