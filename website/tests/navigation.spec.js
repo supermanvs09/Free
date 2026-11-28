@@ -34,13 +34,14 @@ test('only Products and Solutions open a menu, with no arrows; the rest are plai
   for (const [name, href] of [['Why Deep Algorithms', '/why-deep-algorithms'], ['Blogs', '/blogs']]) await expect(nav.getByRole('link', { name })).toHaveAttribute('href', href);
 });
 
-test('the phone menu rises from the bottom bar, navigates and closes', async ({ page, isMobile }) => {
+test('the phone menu opens from the header, navigates and closes', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'phone menu');
   await page.goto('/');
   await hydrated(page);
-  await page.getByRole('navigation', { name: 'Quick actions' }).getByRole('button', { name: 'Menu' }).click();
+  await page.getByRole('banner').getByRole('button', { name: 'Open menu' }).click();
   const menu = page.locator('#mobile-menu');
   await expect(menu).toBeVisible();
+  await menu.getByRole('button', { name: 'Products' }).click();
   await menu.getByRole('link', { name: 'NHI Security for AWS' }).click();
   await expect(page).toHaveURL(/nhi-security/);
   await expect(menu).toBeHidden();

@@ -149,40 +149,38 @@ const NAV = [
 /* Phones and tablets: a sheet that rises from the bottom, products first as
    large tiles, then everything else one tap away, contact at the end. */
 function MobileMenu({ onNav }) {
-  const row = 'flex items-center justify-between border-b border-line py-3.5 text-[17px] font-medium';
+  // as enterprise sites do it on a phone: a short list, each group opens in place
+  const [g, setG] = useState(null);
+  const row = 'mm-row';
+  const groups = [
+    ['Products', [...PRODUCT_MENU.map((l) => [l.name, l.path, l.key]), ['NHI Security for AWS', '/adapid-ai/nhi-security'], ['Identity Fraud Prevention', '/adapid-ai/fraud-prevention'], ['Active Directory Security', '/ad-security']]],
+    ['Solutions', SOLUTIONS.map((x) => [x.name, `/solutions/${x.slug}`])],
+  ];
   return (
-    <nav aria-label="Mobile" className="px-5 pb-[calc(env(safe-area-inset-bottom)+20px)] pt-1">
-      <p className="mb-3 text-[12px] font-semibold uppercase tracking-[.1em] text-ink-3">Products</p>
-      <ul className="grid grid-cols-2 gap-2.5">
-        {PRODUCT_MENU.map((l) => (
-          <li key={l.key}>
-            <Link to={l.path} onClick={onNav} className="flex h-full flex-col rounded-[18px] border border-line-2 p-3.5" style={{ background: `linear-gradient(160deg, color-mix(in oklab, ${l.acc} 14%, transparent), transparent 70%)` }}>
-              <ProductMark p={l.key} size={34} />
-              <span className="mt-3 text-[15.5px] font-semibold leading-tight">{l.name}</span>
-              <span className="mt-1 text-[12.5px] leading-snug text-ink-3">{l.blurb}</span>
-            </Link>
+    <nav aria-label="Mobile" className="mm">
+      <ul className="mm-list">
+        {groups.map(([t, items]) => (
+          <li key={t}>
+            <button type="button" className={row} aria-expanded={g === t} onClick={() => setG(g === t ? null : t)}>{t}<Icon name="CaretRight" size={16} className={cx('mm-car', g === t && 'on')} /></button>
+            {g === t && (
+              <ul className="mm-sub">
+                {items.map(([n, to, mark]) => <li key={to}><Link to={to} onClick={onNav}>{mark && <ProductMark p={mark} size={22} />}{n}</Link></li>)}
+              </ul>
+            )}
           </li>
         ))}
+        {[['Blogs', '/blogs'], ['Why Deep Algorithms', '/why-deep-algorithms'], ['Promptbreak challenge', '/promptbreak']].map(([n, to]) => (
+          <li key={to}><Link to={to} onClick={onNav} className={row}>{n}<Icon name="CaretRight" size={16} className="mm-car" /></Link></li>
+        ))}
       </ul>
-      <div className="no-scrollbar -mx-5 mt-3 flex gap-2 overflow-x-auto px-5">
-        {[['NHI Security for AWS', '/adapid-ai/nhi-security'], ['Fraud Prevention', '/adapid-ai/fraud-prevention'], ['Active Directory', '/ad-security']].map(([n, to]) => (
-          <Link key={to} to={to} onClick={onNav} className="shrink-0 rounded-full border border-line-2 px-3.5 py-2 text-[14px] text-ink-2">{n}</Link>
-        ))}
+      <div className="mm-ctas">
+        <Button to="/request-demo" onClick={onNav} variant="ghost">Talk to an engineer</Button>
+        <Button to="/request-demo" onClick={onNav}>Book a demo</Button>
       </div>
-      <p className="mb-2 mt-7 text-[12px] font-semibold uppercase tracking-[.1em] text-ink-3">Solutions</p>
-      <div className="flex flex-wrap gap-2">
-        {SOLUTIONS.map((x) => <Link key={x.slug} to={`/solutions/${x.slug}`} onClick={onNav} className="rounded-full border border-line-2 px-3.5 py-2 text-[14px] text-ink-2">{x.name}</Link>)}
-      </div>
-      <div className="mt-5">
-        {[['Blogs', '/blogs'], ['Why Deep Algorithms', '/why-deep-algorithms'], ['Careers', '/why-deep-algorithms#careers']].map(([n, to]) => (
-          <Link key={to} to={to} onClick={onNav} className={row}>{n}<Icon name="CaretRight" size={15} className="text-ink-3" /></Link>
-        ))}
-      </div>
-      <div className="mt-4 flex items-center justify-between text-[14.5px] text-ink-2">
-        <span>Language</span>
+      <div className="mm-foot">
+        <a href={SITE.phoneHref}><Icon name="Phone" size={20} />Call</a>
         <LanguageMenu up />
       </div>
-      <Button to="/request-demo" onClick={onNav} className="mt-5 w-full">Book a demo</Button>
     </nav>
   );
 }
@@ -250,7 +248,7 @@ export default function Header() {
       <a href="#main" className="sr-only-focusable absolute left-4 top-3 z-50 rounded-full bg-white px-4 py-2 text-[#12171f]">Skip to content</a>
       <div aria-hidden="true" className={cx('hdr-bg absolute inset-0 -z-10 border-b', solid ? 'solid border-line bg-black/80 backdrop-blur-xl' : 'border-transparent bg-transparent')} />
       <div className="wrap flex h-[64px] items-center gap-6 lg:h-[72px]">
-        <Link to="/" aria-label="Deep Algorithms home" className="shrink-0"><Logo dual className="h-[30px] lg:h-[36px]" /></Link>
+        <Link to="/" aria-label="Deep Algorithms home" className="hdr-home shrink-0"><Logo dual className="h-[30px] lg:h-[36px]" /></Link>
         <nav aria-label="Primary" className="hidden flex-1 lg:block">
           <ul className="flex items-center justify-center gap-0.5 xl:gap-1.5">
             {NAV.map((n) => (
@@ -275,7 +273,7 @@ export default function Header() {
           </button>
           <LanguageMenu className="hidden lg:inline-flex" />
           <Button to="/request-demo" size="sm" className="max-md:hidden lg:h-11 lg:px-6 lg:text-[15.5px]">Book a demo</Button>
-          <button type="button" className="inline-flex h-11 w-11 items-center justify-center rounded-full text-ink max-md:hidden lg:hidden" aria-label={mobile ? 'Close menu' : 'Open menu'} aria-expanded={mobile} aria-controls="mobile-menu" onClick={() => setMobile(!mobile)}>
+          <button type="button" className="mm-btn inline-flex h-11 w-11 items-center justify-center rounded-full text-ink lg:hidden" aria-label={mobile ? 'Close menu' : 'Open menu'} aria-expanded={mobile} aria-controls="mobile-menu" onClick={() => setMobile(!mobile)}>
             <Icon name={mobile ? 'X' : 'List'} size={26} />
           </button>
         </div>
@@ -293,13 +291,8 @@ export default function Header() {
       )}
       {mobile && (
         <div className="lg:hidden">
-          <button type="button" aria-label="Close menu" className="sheet-scrim fixed inset-0 z-[60] bg-black/55 backdrop-blur-[2px]" onClick={() => setMobile(false)} />
-          <div id="mobile-menu" role="dialog" aria-modal="true" aria-label="Menu" className="sheet fixed inset-x-0 bottom-0 z-[61] max-h-[88svh] overflow-y-auto rounded-t-[26px] border-t border-line-2 bg-bg shadow-[0_-30px_80px_-20px_rgba(0,0,0,.7)]">
-            <div className="sticky top-0 z-[1] flex items-center justify-between bg-bg px-5 pb-2 pt-3">
-              <span aria-hidden="true" className="absolute left-1/2 top-2 h-1 w-10 -translate-x-1/2 rounded-full bg-fg/20" />
-              <span className="pt-3 text-[15px] font-semibold">Menu</span>
-              <button type="button" onClick={() => setMobile(false)} aria-label="Close menu" className="mt-2 inline-flex h-10 w-10 items-center justify-center rounded-full border border-line-2"><Icon name="X" size={18} /></button>
-            </div>
+          <button type="button" aria-label="Close menu" className="sheet-scrim fixed inset-0 z-[40] bg-black/55 backdrop-blur-[2px]" onClick={() => setMobile(false)} />
+          <div id="mobile-menu" role="dialog" aria-modal="true" aria-label="Menu" className="mm-card">
             <MobileMenu onNav={() => setMobile(false)} />
           </div>
         </div>

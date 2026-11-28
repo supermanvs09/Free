@@ -2,7 +2,6 @@ import { lazy, Suspense, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router';
 import { scrollToY } from './lib/smooth.js';
 import Header from './components/Header.jsx';
-import MobileBar from './components/MobileBar.jsx';
 import JumpBar from './components/JumpBar.jsx';
 import Footer from './components/Footer.jsx';
 import Backdrop from './components/Backdrop.jsx';
@@ -121,7 +120,6 @@ export default function App() {
       </main>
       <Footer />
       <JumpBar />
-      <MobileBar />
       <PromoPop />
     </>
   );
