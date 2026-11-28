@@ -6,14 +6,19 @@ import { createPortal } from 'react-dom';
    Escape or the close button returns focus to the button that opened it.
    Any button can open it, at any chapter: openFilm(seconds). */
 
-export const FILM = { src: '/video/deep-algorithms-film.mp4', length: '1:30' };
+export const FILM = { src: '/video/deep-algorithms-film.mp4', captions: '/video/deep-algorithms-film.vtt', poster: '/video/film-poster.webp', length: '1:20' };
 
+/* One story, not a tour of products: the new workforce, how attackers get
+   in, the questions we ask, one view across systems, where risk travels,
+   and what the platform does about it. Ends on the logo, in white. */
 export const CHAPTERS = [
-  [0, '0:00', 'Every connection carries trust'],
-  [13, '0:13', 'Continuous Identity Risk Management'],
-  [29, '0:29', 'Non-Human Identity Security for AWS'],
-  [41, '0:41', 'Identity Fraud Prevention'],
-  [58, '0:58', 'Secure AI Interactions with Zenstra'],
+  [0, '0:00', 'The new workforce'],
+  [7, '0:07', 'Attackers log in'],
+  [14, '0:14', 'Better questions'],
+  [26, '0:26', 'Every system, one view'],
+  [33, '0:33', 'Where risk travels'],
+  [49, '0:49', 'Detect, decide, prove'],
+  [64, '1:04', 'Secure every identity'],
 ];
 
 export function openFilm(at = 0) {
@@ -75,8 +80,9 @@ export default function FilmModal() {
         <button ref={close} type="button" className="fm-x" onClick={() => setOpen(false)} aria-label="Close the film">
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
         </button>
-        {/* eslint-disable-next-line jsx-a11y/media-has-caption -- the film has music and on-screen text only, no speech */}
-        <video ref={video} className="fm-v" src={FILM.src} controls playsInline preload="metadata" />
+        <video ref={video} className="fm-v" src={FILM.src} poster={FILM.poster} controls playsInline preload="metadata">
+          <track kind="captions" src={FILM.captions} srcLang="en" label="English" />
+        </video>
       </div>
     </div>,
     document.body,
