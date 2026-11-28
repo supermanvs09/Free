@@ -3,7 +3,7 @@
    Inline SVG, so they stay sharp and take the page's colours. Decorative:
    every one is aria-hidden; the words around them carry the meaning. */
 
-const INK = '#17150f', G = '#7fd1a9', Y = '#ffe36b', W = '#ffffff', P = '#fbf7ee', R = '#c8402f';
+const INK = 'var(--a-ink, #17150f)', G = 'var(--a-g, #7fd1a9)', Y = 'var(--a-y, #ffe36b)', W = 'var(--a-w, #ffffff)', P = 'var(--a-p, #fbf7ee)', R = 'var(--a-r, #c8402f)';
 const s = { stroke: INK, strokeWidth: 3.2, strokeLinecap: 'round', strokeLinejoin: 'round' };
 const hand = { fontFamily: "'Patrick Hand', cursive" };
 

@@ -37,19 +37,26 @@ test('promptbreak leaderboard: top 20, the top three on a podium, and the cards 
   }
 });
 
-test('the Promptbreak note sits in the corner of other pages and stays closed once closed', async ({ page }) => {
+test('the Promptbreak note: closing leaves a small tab, the tab can be closed too, and a new tab brings the note back', async ({ page, context }) => {
   await page.goto('/?promo');
   const note = page.getByRole('complementary', { name: 'Promptbreak challenge' });
-  await expect(note).toBeVisible({ timeout: 6000 });
-  await expect(note.getByRole('link', { name: /Play Promptbreak/ })).toHaveAttribute('href', '/promptbreak');
+  await expect(note.getByRole('link', { name: /Play Promptbreak/ })).toBeVisible({ timeout: 6000 });
   await note.getByRole('button', { name: 'Close the Promptbreak note' }).click();
-  await expect(note).toHaveCount(0);
+  // a small tab stays, still leading to the challenge
+  await expect(note.getByRole('link', { name: /Promptbreak/ })).toHaveAttribute('href', '/promptbreak');
   await page.goto('/adapid-ai?promo');
+  await expect(note.getByRole('button', { name: 'Hide the Promptbreak tab' })).toBeVisible({ timeout: 6000 });
+  await note.getByRole('button', { name: 'Hide the Promptbreak tab' }).click();
+  await expect(note).toHaveCount(0);
+  await page.goto('/why-deep-algorithms?promo');
   await page.waitForTimeout(1500);
-  await expect(page.getByRole('complementary', { name: 'Promptbreak challenge' })).toHaveCount(0);
+  await expect(note).toHaveCount(0);
+  // a new browser tab starts fresh
+  const tab = await context.newPage();
+  await tab.goto('/?promo');
+  await expect(tab.getByRole('complementary', { name: 'Promptbreak challenge' }).getByRole('link', { name: /Play Promptbreak/ })).toBeVisible({ timeout: 6000 });
   // never on the challenge itself
-  await page.evaluate(() => localStorage.removeItem('pb-pop-closed-v1'));
-  await page.goto('/promptbreak?promo');
-  await page.waitForTimeout(1500);
-  await expect(page.getByRole('complementary', { name: 'Promptbreak challenge' })).toHaveCount(0);
+  await tab.goto('/promptbreak?promo');
+  await tab.waitForTimeout(1500);
+  await expect(tab.getByRole('complementary', { name: 'Promptbreak challenge' })).toHaveCount(0);
 });

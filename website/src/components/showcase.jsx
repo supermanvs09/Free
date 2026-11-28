@@ -68,27 +68,24 @@ const Mark = () => <span className="sc-mark"><img src="/brand/products/zenstra.w
 
 /* ── Zenstra: where are my agents? ── */
 export function AgentsFound() {
+  // discovery as a sweep: sources on the left feed one ring; the shadow agents it found wait for owners
+  const src = [['microsoft', 'Copilot Studio', 34], ['aws', 'AWS Bedrock', 17], ['n8n', 'n8n', 11], ['cursor', 'Laptops · Cursor', 24]];
   return (
     <Panel>
-      <div className="sc-card" style={{ left: 380, top: 52, width: 260, padding: '22px 24px' }}>
-        <p className="sc-count"><span className="sc-hex"><I n="cube" s={20} c="#fff" /></span>86 AI agents</p>
+      <div className="ag-src">
+        <p className="ag-k">Scanning sources</p>
+        {src.map(([k, t, n]) => <p key={t} className="ag-src-r"><Brand k={k} s={16} /><span>{t}</span><b>{n}</b></p>)}
       </div>
-      <div className="sc-card fade" style={{ left: 44, top: 128, width: 420 }}>
-        <p className="sc-h">Agents by platform</p>
-        {[['microsoft', 'Copilot Studio', 34], ['claude', 'Claude', 22], ['cursor', 'Cursor', 18], ['githubcopilot', 'GitHub Copilot', 12]].map(([k, t, n]) => (
-          <p key={t} className="sc-stat"><Brand k={k} s={15} /><span>{t}</span><Bar v={n * 2.8} /><b>{n}</b></p>
+      <svg className="ag-wires" viewBox="0 0 700 660" aria-hidden="true">{[150, 205, 260, 315].map((y) => <path key={y} d={`M300 ${y} C 360 ${y}, 380 235, 430 235`} />)}</svg>
+      <div className="ag-ring">
+        <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" /><circle cx="60" cy="60" r="52" className="on" strokeDasharray="327" strokeDashoffset="72" /></svg>
+        <p><b>86</b><span>agents found</span></p>
+      </div>
+      <div className="ag-shadow">
+        <p className="ag-k">19 shadow agents · no owner</p>
+        {[['claude', 'contract-summariser', 'Legal drive'], ['n8n', 'lead-enrich-flow', 'CRM write'], ['githubcopilot', 'pr-auto-merge', 'Repo admin']].map(([k, n, r]) => (
+          <p key={n} className="ag-sh-r"><Brand k={k} s={15} /><code>{n}</code><span className="ag-reach">{r}</span><span className="ag-own">Assign owner</span></p>
         ))}
-      </div>
-      <div className="sc-card fade" style={{ left: 226, top: 318, width: 430 }}>
-        <p className="sc-h">Agents by MCP server</p>
-        {[['googledrive', 'Google Drive', 28], ['github', 'GitHub', 21], ['jira', 'Jira', 12]].map(([k, t, n]) => (
-          <p key={t} className="sc-stat"><Brand k={k} s={15} /><span>{t}</span><Bar v={n * 3.4} /><b>{n}</b></p>
-        ))}
-      </div>
-      <div className="sc-card fade" style={{ left: 44, top: 464, width: 300 }}>
-        <p className="sc-h">Owned agents</p>
-        <p className="sc-own"><span className="sc-tick"><I n="check" s={11} w={3} c="#fff" /></span>82% have a named owner</p>
-        <span className="sc-prog"><i style={{ width: '82%' }} /></span>
       </div>
     </Panel>
   );
@@ -96,62 +93,51 @@ export function AgentsFound() {
 
 /* ── Zenstra: what can they do? ── */
 export function AgentsDirectory() {
-  const rows = [['Claims Copilot', 'Group', 'Ops-Admins'], ['Support Agent', '', 'R. Iyer, A. Khan'], ['Treasury Analyst', '', 'S. Gupta'], ['Invoice Bot', '', 'Unassigned']];
+  // an agent's passport: who answers for it, what it is for, what it may touch, when access ends
   return (
     <Panel>
-      <div className="sc-card sc-app fade" style={{ left: 54, top: 80, width: 592, height: 470 }}>
-        <aside className="sc-side">
-          <p className="sc-brand"><img src="/brand/products/zenstra.webp" alt="" />Zenstra</p>
-          <p className="sc-dim">Admin</p>
-          <i className="sc-ph" />
-          <p className="sc-grp">Inventory <I n="chev" s={10} /></p>
-          <p className="sc-nav">Copilots</p>
-          <p className="sc-nav on">AI agents</p>
-          <i className="sc-ph" /><i className="sc-ph" /><i className="sc-ph" /><i className="sc-ph" />
-        </aside>
-        <div className="sc-app-main">
-          <div className="sc-app-top"><b>AI agents</b><span className="sc-btn blue">Assign owner</span></div>
-          <table className="sc-tbl">
-            <thead><tr><th>Name</th><th>Status</th><th>Owner</th></tr></thead>
-            <tbody>{rows.map(([n, g, o], i) => (
-              <tr key={n} className={i > 1 ? 'blur' : ''}><td className="lnk">{n}</td><td><span className="sc-tag ok">Active</span></td><td className="lnk">{g && <em>{g}</em>}{g ? <><I n="gear" s={12} /> {o}</> : o}</td></tr>
-            ))}</tbody>
-          </table>
+      <div className="ag-pass">
+        <div className="ag-pass-h">
+          <span className="ag-ava"><I n="cube" s={22} c="#fff" /></span>
+          <div><p className="ag-big">Treasury Analyst</p><p className="ag-dim">Agent ID ag-7f21 · built on Claude</p></div>
+          <span className="ag-tag ok">Governed</span>
         </div>
+        <div className="ag-pass-g">
+          <p><span>Owner</span><b><i className="ag-face">SG</i>S. Gupta, Treasury</b></p>
+          <p><span>Purpose</span><b>Reconcile daily FX positions</b></p>
+        </div>
+        <p className="ag-k" style={{ marginTop: 22 }}>Scopes</p>
+        {[['Read FX ledger', true], ['Read bank statements', true], ['Initiate payments', false], ['Email outside the bank', false]].map(([t, on]) => (
+          <p key={t} className="ag-scope"><span>{t}</span><i className={`ag-sw${on ? ' on' : ''}`} /></p>
+        ))}
       </div>
-      <div className="sc-acts" style={{ left: 440, top: 384 }}>
-        <span><I n="shield" s={15} />Review access</span>
-        <span><I n="gear" s={15} />Scope connections</span>
-        <span><I n="check" s={15} />Remediate</span>
-      </div>
+      <div className="ag-exp"><I n="lock" s={18} c="#1a58d0" /><span><b>Access expires in 2 h</b><small>Renewal needs the owner, not the agent</small></span></div>
+      <div className="ag-review"><I n="user" s={16} c="#0f172a" /><span>Owner review due in 12 days</span></div>
     </Panel>
   );
 }
 
 /* ── Zenstra: what are they doing? ── */
 export function AgentGateway() {
+  // the live feed of tool calls, each decided before it runs; one held for a person
+  const rows = [['support-agent', 'crm.read_ticket', 'Allow', 'ok', '4 ms'], ['claims-copilot', 'docs.search', 'Allow', 'ok', '3 ms'], ['payments-agent', 'payments.transfer ₹18.4L', 'Hold', 'warn', 'needs a person'], ['lead-enrich-flow', 'email.send_bulk', 'Block', 'bad', 'outside task']];
   return (
     <Panel>
-      <div className="sc-card fade" style={{ left: 44, top: 52, width: 612, height: 470, padding: '34px 30px' }}>
-        <p className="sc-over">Zenstra gateway</p>
-        <p className="sc-big">Finance tools <span className="sc-tag ok">Active</span></p>
-        <p className="sc-tabs"><b>Configuration</b><span>Recent activity</span></p>
-        <div className="sc-cfg">
-          <ul>
-            {['Profile', 'AI agents', 'Tool connections', 'Tool policies'].map((t, i) => <li key={t} className={i === 1 ? 'on' : ''}>{t}<I n="check" s={14} w={2.2} /></li>)}
-          </ul>
-          <div>
-            <p className="sc-h2">AI agents</p>
-            <div className="sc-flow"><span><I n="cube" s={22} c="#1a58d0" />AI agent</span><I n="arrow" s={16} c="#475569" /><span><img src="/brand/products/zenstra.webp" alt="" />Zenstra gateway</span></div>
-            <p className="sc-p">Add the agents allowed to call these finance tools.</p>
-            <p className="sc-h2">Allowed agents</p>
-            <p className="sc-select"><span className="sc-chip"><Brand k="claude" s={12} />Claude <I n="x" s={10} w={2.4} /></span><I n="chev" s={14} /></p>
+      <div className="ag-feed">
+        <p className="ag-feed-h"><span className="ag-live" />Live tool calls<span className="ag-dim">Zenstra gateway · in your VPC</span></p>
+        {rows.map(([a, t, d, tone, why], i) => (
+          <div key={t} className={`ag-call ${tone}`} style={{ '--i': i }}>
+            <span className="ag-a"><I n="cube" s={14} c="#1a58d0" />{a}</span>
+            <code>{t}</code>
+            <span className={`ag-tag ${tone}`}>{d}</span>
+            <small>{why}</small>
           </div>
-        </div>
+        ))}
       </div>
-      <div className="sc-card glass" style={{ left: 190, top: 470, width: 466, padding: '22px 26px' }}>
-        <p className="sc-note"><span className="sc-i">i</span><b>Client configuration needed</b></p>
-        <p className="sc-note-p">Route agent requests through the Zenstra gateway.</p>
+      <div className="ag-why">
+        <p className="ag-k">Why blocked</p>
+        <p>Declared task: <b>enrich CRM leads</b>. Bulk email was never granted.</p>
+        <p className="ag-rec"><I n="check" s={13} w={2.6} c="#15803d" />Decision #48231 recorded</p>
       </div>
     </Panel>
   );
@@ -159,19 +145,21 @@ export function AgentGateway() {
 
 /* ── Zenstra: how do I respond? ── */
 export function AgentKill() {
+  // one switch, and the revocations fan out across every system the agent reached
+  const out = [['okta', 'Okta API token'], ['github', 'GitHub app key'], ['googledrive', 'Drive service account'], ['aws', 'AWS role session'], ['jira', 'Jira API token']];
   return (
     <Panel>
-      <div className="sc-card fade" style={{ left: 50, top: 80, width: 600, height: 400, padding: '32px 34px' }}>
-        <p className="sc-over">AI agents</p>
-        <p className="sc-big" style={{ marginTop: 6 }}>Invoice Bot</p>
-        <p className="sc-dim2">Managed status <I n="info" s={14} /></p>
-        <span className="sc-tag bad lg">Inactive</span>
-        <hr className="sc-hr" />
-        <dl className="sc-dl"><dt>Name<code>agentName</code></dt><dd>Invoice Bot</dd><dt>Description<code>agentDescription</code></dt><dd>Matches supplier invoices to purchase orders in SAP</dd></dl>
+      <div className="ag-kill">
+        <p className="ag-k">lead-enrich-flow · n8n</p>
+        <p className="ag-big">Stop this agent</p>
+        <div className="ag-switch"><i /><span>Off</span></div>
+        <p className="ag-dim">Contained 9 seconds after the blocked call</p>
       </div>
-      <div className="sc-menu" style={{ left: 420, top: 120 }}><p>Actions <I n="chev" s={14} /></p><b>Deactivate</b></div>
-      <div className="sc-toast blue" style={{ left: 230, top: 440 }}><span className="sc-tick w"><I n="check" s={14} w={3} c="#1a58d0" /></span>AI agent deactivated</div>
-      <div className="sc-toast" style={{ left: 230, top: 528 }}><span className="sc-i">i</span>Revoking 6 credentials</div>
+      <svg className="ag-fan" viewBox="0 0 700 660" aria-hidden="true">{out.map((_, i) => <path key={i} d={`M300 330 C 360 330, 360 ${150 + i * 90}, 410 ${150 + i * 90}`} />)}</svg>
+      <ul className="ag-out">
+        {out.map(([k, t], i) => <li key={t} style={{ top: 126 + i * 90 }}><Brand k={k} s={16} /><span>{t}</span><span className="ag-rv"><I n="check" s={11} w={3} c="#fff" />Revoked</span></li>)}
+      </ul>
+      <div className="ag-evi"><I n="copy" s={16} c="#0f172a" />Evidence pack ready for the owner and audit</div>
     </Panel>
   );
 }
