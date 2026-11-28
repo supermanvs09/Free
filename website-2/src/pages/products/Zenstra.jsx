@@ -8,6 +8,7 @@ import { Button, Icon, Reveal, SectionHead } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
 import { Hero, Integrations, Rollout, Faq, Compare, Explorer, Explore, LINKS } from '../../components/ProductKit.jsx';
 import { ZenGateway, ZenInventory, ZenGrant, ZenMcp, ZenDetect, ZenRecord } from '../../components/viz/zenstra.jsx';
+import { ZenDash } from '../../components/dashboards.jsx';
 import { Logo, logoTitle } from '../../components/viz/kit.jsx';
 
 const p = PRODUCTS.zenstra;
@@ -83,7 +84,7 @@ export default function Zenstra() {
   return (
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'Zenstra AI', path: p.path }]} />
-      <Hero layout="stack" glance={[['Protects', 'AI agents you build and the ones you buy'], ['Stops', 'Any action outside an agent’s task, before it runs'], ['Deploys', 'A gateway inside your VPC'], ['Shows', 'A tamper-evident record of every decision']]} acc="zen" crumbs={[{ name: 'Zenstra AI' }]} eyebrow="Zenstra AI · Security for AI agents"
+      <Hero art={<ZenDash />} layout="stack" glance={[['Protects', 'AI agents you build and the ones you buy'], ['Stops', 'Any action outside an agent’s task, before it runs'], ['Deploys', 'A gateway inside your VPC'], ['Shows', 'A tamper-evident record of every decision']]} acc="zen" crumbs={[{ name: 'Zenstra AI' }]} eyebrow="Zenstra AI · Security for AI agents"
         title={<>Let AI agents act. Check every action first.</>}
         lead="Find every AI agent, give it an owner and a scope, and check every tool call before it runs."
         ctas={<><Explore label="See it check an agent" /><Button href="https://www.zenstra.ai" target="_blank" rel="noopener" variant="ghost" size="lg">Visit zenstra.ai<Icon name="ArrowUpRight" size={16} /></Button></>}

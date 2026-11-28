@@ -99,3 +99,41 @@
 }
 :root[data-theme='light'] .rs-cat { color: #1a58d0; }
 :root[data-theme='light'] section[aria-labelledby='chg-h'] .block { color: #3c475a; }
+
+/* ==========================================================================
+   The framed hero (website 2): one rounded card on the paper. Words on the
+   left, left-aligned; our own product or photograph on the right.
+   ========================================================================== */
+.hx-sec { background: transparent; }
+.hx { position: relative; display: grid; gap: clamp(28px, 4vw, 56px); align-items: center; overflow: hidden; isolation: isolate;
+  padding: clamp(28px, 4.4vw, 64px); border-radius: clamp(22px, 2.6vw, 36px);
+  background: radial-gradient(70% 90% at 100% 0%, rgb(26 88 208 / .12), transparent 60%), radial-gradient(60% 80% at 0% 100%, rgb(104 79 216 / .07), transparent 65%), linear-gradient(160deg, #ffffff 0%, #f3f6fc 100%);
+  box-shadow: 0 1px 2px rgb(11 18 32 / .05), 0 40px 80px -56px rgb(11 18 32 / .45), inset 0 0 0 1px rgb(11 18 32 / .07); }
+@media (min-width: 1024px) { .hx { grid-template-columns: minmax(0, .95fr) minmax(0, 1.15fr); min-height: min(68svh, 640px); } .hx.hx-solo { grid-template-columns: minmax(0, 1fr); } }
+.hx-k { display: inline-flex; align-items: center; gap: 10px; margin: 0 0 20px; font-size: 13px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--color-ink-3); }
+.hx .hx-h { text-align: left; max-width: 18ch; margin: 0; }
+.hx .hx-lead { margin-top: 20px; max-width: 520px; text-align: left; }
+.hx-ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+.hx-art { position: relative; min-width: 0; }
+.hx-art > * { margin-inline: auto; }
+@media (max-width: 1023px) { .hx-art { margin-top: 4px; } }
+@media (max-width: 767px) { .hx-ctas { flex-direction: column; } .hx-ctas > * { width: 100%; } }
+/* dark mode: the same frame, in night blue */
+:root[data-theme='dark'] .hx { background: radial-gradient(70% 90% at 100% 0%, rgb(47 111 236 / .22), transparent 60%), linear-gradient(160deg, #0f1629, #0a0f1c); box-shadow: inset 0 0 0 1px rgb(255 255 255 / .08), 0 40px 80px -50px rgb(0 0 0 / .8); }
+:root[data-theme='dark'] .hx-sec { background: var(--ink-base, #070a12); }
+
+/* framed hero, refinements: more room for the product, a calmer headline */
+@media (min-width: 1024px) { .hx { grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr); } }
+.hx .hx-h { font-size: clamp(34px, 3.5vw, 52px); line-height: 1.08; }
+/* the home hero inside the frame */
+.rd-hero .hx { text-align: left; margin-top: clamp(8px, 2vw, 24px); }
+.rd-hero .hx h1 { margin: 0; max-width: 15ch; font-size: clamp(36px, 3.9vw, 58px); line-height: 1.05; text-align: left; }
+.rd-hero .hx .rd-sub2 { margin: 20px 0 0; max-width: 460px; text-align: left; }
+.rd-hero .hx .dx-hero-cta { justify-content: flex-start; margin-top: 30px; }
+.rd-hero { padding-top: clamp(16px, 3vh, 32px); padding-bottom: clamp(24px, 4vh, 40px); }
+.hx-stack { position: relative; aspect-ratio: 1.45; }
+.hx-s { position: absolute; width: 86%; border-radius: 12px; box-shadow: 0 30px 60px -30px rgb(11 18 32 / .45); transition: transform .6s cubic-bezier(.16, 1, .3, 1); }
+.hx-s1 { right: 0; top: 0; transform: scale(.9); transform-origin: top right; opacity: .55; }
+.hx-s2 { right: 7%; top: 9%; transform: scale(.95); transform-origin: top right; opacity: .8; }
+.hx-s3 { left: 0; bottom: 0; }
+@media (max-width: 1023px) { .hx-stack { aspect-ratio: 1.3; } }

@@ -245,7 +245,7 @@ export default function Header() {
   const leave = () => { clearTimeout(timer.current); timer.current = setTimeout(() => setOpen(null), 200); };
   const Menu = NAV.find((n) => n.label === open)?.menu;
   const solid = scrolled || open || mobile;
-  const light = overLight || open || mobile;
+  const light = theme === 'light' || overLight || open || mobile;
 
   return (
     <header className={cx('noprint fixed inset-x-0 top-0 z-50 transition-transform duration-300', light && 'tone-l', pathname.startsWith('/promptbreak') && 'pb-hdr', tucked && !mobile && 'max-md:-translate-y-full')} onMouseLeave={leave}>

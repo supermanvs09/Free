@@ -5,7 +5,7 @@ import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, Check3 } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import { AdDetections } from '../../components/dashboards.jsx';
+import { AdDash, AdDetections } from '../../components/dashboards.jsx';
 import { Zoom } from '../../components/Dash.jsx';
 import { Hero, PhotoFeature, Rollout, Faq, LINKS, ACC } from '../../components/ProductKit.jsx';
 import { AdWorkbench } from '../../components/viz/workbench.jsx';
@@ -37,7 +37,7 @@ export default function AdSecurity() {
   return (
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Active Directory Security', path: p.path }]} />
-      <Hero glance={[['Protects', 'Active Directory: users, groups, service accounts and trusts'], ['Stops', 'Paths to Domain Admins, Kerberoasting and DCSync'], ['Deploys', 'Read-only to map; scoped rights only for the responses you enable'], ['Shows', 'The one change that closes the most paths']]} layout="stack" acc="adap" crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Active Directory Security' }]} eyebrow="adapID AI · Active Directory Security"
+      <Hero art={<AdDash />} glance={[['Protects', 'Active Directory: users, groups, service accounts and trusts'], ['Stops', 'Paths to Domain Admins, Kerberoasting and DCSync'], ['Deploys', 'Read-only to map; scoped rights only for the responses you enable'], ['Shows', 'The one change that closes the most paths']]} layout="stack" acc="adap" crumbs={[{ name: 'adapID AI', path: '/adapid-ai' }, { name: 'Active Directory Security' }]} eyebrow="adapID AI · Active Directory Security"
         title={<>Cut every route to Domain Admins. Stop anyone already on one.</>}
         lead="adapID maps every path to Tier 0, names the one change that closes the most, and contains live attacks while they run.">
       </Hero>

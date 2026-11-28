@@ -7,6 +7,7 @@ import { Icon, Reveal, SectionHead, cx } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
 import { Hero, Integrations, Rollout, Faq, Compare, Points, LINKS, ACC } from '../../components/ProductKit.jsx';
 import { Connectors } from '../../components/viz/adapid.jsx';
+import { CirmDash } from '../../components/dashboards.jsx';
 import { IdentityTimelines } from '../../components/Changes.jsx';
 
 const p = PRODUCTS.adapid;
@@ -68,7 +69,7 @@ export default function Cirm() {
   return (
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'adapID AI', path: p.path }]} />
-      <Hero glance={[['Protects', 'People and machine identities across your IdP, cloud and SaaS'], ['Stops', 'Account takeover, insider misuse and over-privileged keys'], ['Deploys', 'Read-only to assess; scoped permissions only for the actions you enable'], ['Shows', 'A live risk score with the reason for every point']]} layout="stack" acc="adap" crumbs={[{ name: 'adapID AI' }]} eyebrow="adapID AI · Continuous identity risk management"
+      <Hero art={<CirmDash />} glance={[['Protects', 'People and machine identities across your IdP, cloud and SaaS'], ['Stops', 'Account takeover, insider misuse and over-privileged keys'], ['Deploys', 'Read-only to assess; scoped permissions only for the actions you enable'], ['Shows', 'A live risk score with the reason for every point']]} layout="stack" acc="adap" crumbs={[{ name: 'adapID AI' }]} eyebrow="adapID AI · Continuous identity risk management"
         title={<>Know the moment a trusted identity stops acting like itself.</>}
         lead="adapID learns how every person and service account normally works, and acts the moment behaviour shifts: step up, hold or revoke, in seconds.">
       </Hero>

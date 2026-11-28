@@ -33,9 +33,9 @@ test('the theme switch turns the site dark, and the choice is remembered', async
 
 test('the header keeps its tone over the hero and when scrolled', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' });
-  await expect(page.locator('header')).toHaveClass(/tone-l/);
+  await expect(page.getByRole('banner')).toHaveClass(/tone-l/);
   await page.evaluate(() => window.scrollTo(0, document.getElementById('aispm').getBoundingClientRect().top + window.scrollY));
-  await expect(page.locator('header')).toHaveClass(/tone-l/);
+  await expect(page.getByRole('banner')).toHaveClass(/tone-l/);
 });
 
 test('in dark mode, the white cards that remain are product pictures, not page sections', async ({ page }) => {

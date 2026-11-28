@@ -11,6 +11,7 @@ import { IconStack } from '../lib/nullmotion.jsx';
 import AgenticSecurity from '../components/AgenticSecurity.jsx';
 import { Feature, IdentityGraph, NhiInventory, PostureGlance, SignalsPipeline, Wide } from '../components/showcase.jsx';
 import Platforms from '../home/Platforms.jsx';
+import { CirmDash, IcmsDash, ZenDash } from '../components/dashboards.jsx';
 import Intro from '../home/Intro.jsx';
 import { startScrollStory } from '../home/scrollStory.js';
 import { ClaudeBlock } from '../home/Agents.jsx';
@@ -46,11 +47,21 @@ export default function Home() {
       {/* 1 · HERO: the promise and two actions, in the middle of the first screen (the radar is kept in HeroRadar.jsx) */}
       <section className="dx-hero rd-hero" aria-labelledby="hero-h">
         <div className="dx-wrap">
-          <h1 id="hero-h" className="rise" style={{ '--d': '40ms' }}>Discover every human, machine and AI&nbsp;agent identity.</h1>
-          <p className="rd-sub2 rise" style={{ '--d': '120ms' }}>Securing your Identities and Digital Ecosystem from AI&#8209;driven threats.</p>
-          <div className="dx-hero-cta rise" style={{ '--d': '200ms' }}>
-            <Link to="/request-demo" className="dx-btn solid">Book a demo</Link>
-            <button type="button" className="dx-btn ghost" onClick={() => openFilm(0)}><Play />Watch video ({FILM.length.padStart(5, '0')})</button>
+          <div className="hx hx-home">
+            <div className="hx-copy">
+              <h1 id="hero-h" className="rise" style={{ '--d': '40ms' }}>Discover every human, machine and AI&nbsp;agent identity.</h1>
+              <p className="rd-sub2 rise" style={{ '--d': '120ms' }}>Securing your Identities and Digital Ecosystem from AI&#8209;driven threats.</p>
+              <div className="dx-hero-cta rise" style={{ '--d': '200ms' }}>
+                <Link to="/request-demo" className="dx-btn solid">Book a demo</Link>
+                <button type="button" className="dx-btn ghost" onClick={() => openFilm(0)}><Play />Watch video ({FILM.length.padStart(5, '0')})</button>
+              </div>
+            </div>
+            {/* our three products, as their own consoles, stacked like cards */}
+            <div className="hx-art hx-stack rise" style={{ '--d': '280ms' }} aria-hidden="true">
+              <div className="hx-s hx-s1"><ZenDash /></div>
+              <div className="hx-s hx-s2"><IcmsDash /></div>
+              <div className="hx-s hx-s3"><CirmDash /></div>
+            </div>
           </div>
         </div>
       </section>

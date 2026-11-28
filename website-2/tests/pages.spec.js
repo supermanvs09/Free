@@ -29,7 +29,7 @@ test('one type family across the whole site: Inter Tight', async ({ page }) => {
   for (const route of ['/', '/adapid-ai', '/blogs/identity-security', '/why-deep-algorithms']) {
     await page.goto(route);
     const families = await page.evaluate(() => [...document.querySelectorAll('h1, h2, h3, p, a, button, li')]
-      .filter((e) => !e.closest('.vz, .mono, .dx-mono, .dx-st, pre, code')).map((e) => getComputedStyle(e).fontFamily.split(',')[0].replace(/"/g, '')));
+      .filter((e) => !e.closest('.vz, .mono, .dx-mono, .dx-st, pre, code, .hx-art, .db-zoom')).map((e) => getComputedStyle(e).fontFamily.split(',')[0].replace(/"/g, '')));
     const allowed = ['Inter Tight Variable', 'Geist Mono Variable'];
     for (const f of new Set(families)) expect(allowed, `${route}: ${f}`).toContain(f);
   }

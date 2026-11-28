@@ -5,7 +5,7 @@ import { Seo } from '../../lib/head.jsx';
 import { PRODUCTS } from '../../data/products.js';
 import { Icon, Reveal, SectionHead, cx } from '../../components/ui.jsx';
 import { CtaBand, ResearchRow } from '../../components/blocks.jsx';
-import { IcmsRecord } from '../../components/dashboards.jsx';
+import { IcmsDash, IcmsRecord } from '../../components/dashboards.jsx';
 import { Zoom } from '../../components/Dash.jsx';
 import { Hero, PhotoFeature, Rollout, Faq, Split, LINKS, ACC } from '../../components/ProductKit.jsx';
 
@@ -56,7 +56,7 @@ export default function Icms() {
   return (
     <>
       <Seo title={p.seoTitle} description={p.description} path={p.path} crumbs={[{ name: 'ICMS Compliance Suite', path: p.path }]} />
-      <Hero layout="stack" glance={[['Protects', 'PII and sensitive personal data, where it already lives'], ['Stops', 'Access without consent or a lawful purpose'], ['Deploys', 'Connected to your data stores and identity sources'], ['Shows', 'DPDPA evidence, ready for the 72-hour breach report']]} acc="icms" crumbs={[{ name: 'ICMS Compliance Suite' }]} eyebrow="ICMS Compliance Suite · DPDPA"
+      <Hero art={<IcmsDash />} layout="stack" glance={[['Protects', 'PII and sensitive personal data, where it already lives'], ['Stops', 'Access without consent or a lawful purpose'], ['Deploys', 'Connected to your data stores and identity sources'], ['Shows', 'DPDPA evidence, ready for the 72-hour breach report']]} acc="icms" crumbs={[{ name: 'ICMS Compliance Suite' }]} eyebrow="ICMS Compliance Suite · DPDPA"
         title={<>Protect every piece of PII. Prove DPDPA compliance.</>}
         lead="Find PII wherever it lives, check every access against consent and purpose, and keep DPDPA evidence ready at all times."
         note="For customer data, patient records and employee data.">
