@@ -1,0 +1,19 @@
+# Only what the build needs goes to Docker: package files, index.html, vite.config.js,
+# src/, public/, scripts/ and nginx/.
+node_modules
+dist
+dist-ssr
+csp.conf
+test-results
+playwright-report
+tests
+playwright.config.js
+tools
+.git
+.gitignore
+.impeccable
+*.log
+Dockerfile
+docker-compose.yml
+.dockerignore
+README.md

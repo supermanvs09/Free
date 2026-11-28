@@ -1,0 +1,76 @@
+{
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/svg-export",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/verify",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/about-us",
+      "destination": "/why-deep-algorithms",
+      "permanent": true
+    },
+    {
+      "source": "/platform",
+      "destination": "/why-deep-algorithms",
+      "permanent": true
+    },
+    {
+      "source": "/products",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/contact",
+      "destination": "/request-demo",
+      "permanent": true
+    },
+    {
+      "source": "/sitemap",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/agentic-ai/agent-discovery",
+      "destination": "/agentic-ai/agentic-identity#cap-discover",
+      "permanent": true
+    },
+    {
+      "source": "/agentic-ai/agent-access",
+      "destination": "/agentic-ai/agentic-identity#cap-scope",
+      "permanent": true
+    },
+    {
+      "source": "/agentic-ai/runtime-enforcement",
+      "destination": "/agentic-ai/agentic-identity#cap-enforce",
+      "permanent": true
+    },
+    {
+      "source": "/agentic-ai/mcp-security",
+      "destination": "/agentic-ai/agentic-identity#cap-mcp",
+      "permanent": true
+    },
+    {
+      "source": "/agentic-ai/detection-response",
+      "destination": "/agentic-ai/agentic-identity#cap-detect",
+      "permanent": true
+    },
+    {
+      "source": "/agentic-ai/decision-record",
+      "destination": "/agentic-ai/agentic-identity#cap-prove",
+      "permanent": true
+    },
+    {
+      "source": "/challenge",
+      "destination": "/promptbreak",
+      "permanent": false
+    }
+  ]
+}

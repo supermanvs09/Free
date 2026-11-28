@@ -1,0 +1,101 @@
+/* ==========================================================================
+   Website 2 · light theme (the default)
+   Our own palette, not a competitor's: a cool porcelain paper tinted toward
+   our logo blue (#0068ac), navy ink for text, cobalt (#1a58d0 / #2f6fec)
+   for actions, and a few dark-navy panels as the highlights of each page.
+   Dark mode (data-theme="dark") keeps website 1's look unchanged.
+   ========================================================================== */
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --color-bg: #f5f7fb; --color-bg-1: #ffffff; --color-bg-2: #edf1f7; --color-bg-3: #e1e7f0;
+  --color-ink: #0b1220; --color-ink-2: #3c475a; --color-ink-3: #5c687b;
+  --color-line: rgb(11 18 32 / .08); --color-line-2: rgb(11 18 32 / .15);
+  --color-fg: #0b1220; --color-on-acc: #ffffff;
+  --color-sky: #1a58d0; --color-cyan-2: #1a58d0;
+  --color-adap: #1a58d0; --color-zen: #4650c4; --color-icms: #8a5a00;
+  --tone-1: #0b1220; --tone-2: #3c475a; --tone-3: #5c687b;
+  --ink-base: #f5f7fb;
+}
+:root[data-theme='light'], :root[data-theme='light'] body { background-color: #f5f7fb; color: #0b1220; }
+:root[data-theme='light'] .backdrop { background: #f5f7fb; }
+
+/* the home page's own variables */
+:root[data-theme='light'] .dx {
+  --ink: #f5f7fb; --ink-1: #ffffff; --ink-2: #edf1f7; --ink-3: #e1e7f0;
+  --paper: #f5f7fb; --paper-1: #ffffff;
+  --tx: #0b1220; --tx-2: #3c475a; --tx-3: #5c687b;
+  --ptx: #0b1220; --ptx-2: #3c475a; --ptx-3: #5c687b;
+  --line: rgb(11 18 32 / .08); --line-2: rgb(11 18 32 / .15); --pline: rgb(11 18 32 / .08);
+  --sig: #1a58d0; --sig-2: #1a58d0;
+}
+:root[data-theme='light'] :is(.rd-hero, .rd-hero + .dx-proof, .pk-sec, .sc-agentic) { background-color: #f5f7fb; }
+:root[data-theme='light'] .intro { background-color: #070a12; } /* the logo film stays on night blue */
+
+/* ---------- the dark panels: the highlights of each page ---------- */
+:root[data-theme='light'] :is(.panel-d, .tone-d, .sc-ben, section[aria-labelledby='roll-h'], section[aria-labelledby='zen-h'], .hz-cta, footer.site-foot, .stage:not(.hero-under)) {
+  --color-bg: #0b1328; --color-bg-1: #111a33; --color-bg-2: #18223f; --color-bg-3: #212c4c;
+  --color-ink: #f2f4f8; --color-ink-2: #c5ccd8; --color-ink-3: #93a0b4;
+  --color-line: rgb(255 255 255 / .1); --color-line-2: rgb(255 255 255 / .18);
+  --color-fg: #ffffff; --color-on-acc: #0b1220; --color-sky: #8db3ff; --color-cyan-2: #8db3ff;
+  --color-adap: #74a3ff; --color-zen: #a6b1ff; --color-icms: #f4c76c;
+  --tone-1: #f2f4f8; --tone-2: #c5ccd8; --tone-3: #93a0b4;
+  --ink: #0b1328; --paper: #0b1328; --tx: #f2f4f8; --tx-2: #c5ccd8; --tx-3: #93a0b4; --ptx: #f2f4f8; --ptx-2: #c5ccd8; --ptx-3: #93a0b4;
+  --line: rgb(255 255 255 / .1); --line-2: rgb(255 255 255 / .18); --sig: #74a3ff; --sig-2: #9fbcff;
+  color: #f2f4f8;
+}
+:root[data-theme='light'] :is(.sc-ben, section[aria-labelledby='roll-h'], section[aria-labelledby='zen-h']) {
+  background: radial-gradient(90% 120% at 100% 0%, #1b3a8c 0%, transparent 60%), linear-gradient(170deg, #0f1a38, #0a1226);
+  box-shadow: 0 30px 60px -40px rgb(11 18 32 / .5);
+}
+:root[data-theme='light'] section[aria-labelledby='zen-h'] { margin-inline: clamp(8px, 1.4vw, 20px); border-radius: clamp(20px, 2.4vw, 32px); }
+:root[data-theme='light'] .hz-cta { background: radial-gradient(70% 90% at 50% 110%, #2f6fec 0%, transparent 60%), #0a1226; margin-inline: clamp(8px, 1.4vw, 20px); border-radius: clamp(20px, 2.4vw, 32px); margin-bottom: clamp(16px, 2vw, 28px); }
+:root[data-theme='light'] footer.site-foot { background-color: #0a1226; }
+:root[data-theme='light'] .stage:not(.hero-under) { background-color: #0a1226; }
+/* heroes sit on the paper, with one soft cobalt light */
+:root[data-theme='light'] :is(.hero-navy, .band-brand, .stage.hero-under) {
+  background: radial-gradient(55% 70% at 88% 6%, rgb(26 88 208 / .10), transparent 64%), radial-gradient(45% 55% at 6% 100%, rgb(104 79 216 / .06), transparent 70%), linear-gradient(180deg, #eef2f9 0%, #f5f7fb 80%);
+  color: #0b1220;
+}
+:root[data-theme='light'] .hero-navy .t-lead { color: #3c475a; }
+:root[data-theme='light'] .hero-navy .vz-win { box-shadow: 0 1px 2px rgb(11 18 32 / .06), 0 2.6em 4.6em -2.6em rgb(11 18 32 / .4) !important; }
+
+/* raised panels that were dark become white cards on the paper */
+:root[data-theme='light'] section[aria-labelledby='res-h'] { background: #ffffff; box-shadow: 0 1px 2px rgb(11 18 32 / .04), 0 24px 48px -32px rgb(11 18 32 / .25), inset 0 0 0 1px rgb(11 18 32 / .06); }
+
+/* ---------- header and phone bar ---------- */
+:root[data-theme='light'] header .hdr-logo.on-l { opacity: 1; }
+:root[data-theme='light'] header .hdr-logo.on-d { opacity: 0; }
+:root[data-theme='light'] header .hdr-bg, :root[data-theme='light'] header .hdr-bg.solid { background-color: rgb(245 247 251 / .86); border-color: rgb(11 18 32 / .08); box-shadow: none; }
+:root[data-theme='light'] .mbar { background: rgb(255 255 255 / .92); border-color: rgb(11 18 32 / .1); box-shadow: 0 12px 30px -12px rgb(11 18 32 / .25); }
+
+/* ---------- buttons ---------- */
+:root[data-theme='light'] .btn-primary { background: #1a58d0; color: #fff; box-shadow: 0 1px 0 rgb(255 255 255 / .2) inset, 0 10px 24px -14px rgb(26 88 208 / .7); }
+:root[data-theme='light'] .btn-primary:hover { background: #2462dc; }
+:root[data-theme='light'] .btn-ghost { background: #fff; border-color: rgb(11 18 32 / .16); color: #0b1220; }
+:root[data-theme='light'] .btn-ghost:hover { border-color: rgb(11 18 32 / .32); }
+:root[data-theme='light'] .dx-btn.solid { background: #1a58d0; border-color: #1a58d0; color: #fff; }
+:root[data-theme='light'] .dx-btn.solid:hover { background: #2462dc; border-color: #2462dc; }
+:root[data-theme='light'] .dx-btn.ghost { background: #fff; color: #0b1220; border-color: rgb(11 18 32 / .2); }
+:root[data-theme='light'] .dx-btn.ghost:hover { border-color: rgb(11 18 32 / .4); background: #fff; }
+/* inside dark panels the buttons go back to their dark-theme look */
+:root[data-theme='light'] :is(.hz-cta, .stage:not(.hero-under), .tone-d, .panel-d) .btn-ghost { background: transparent; border-color: rgb(255 255 255 / .3); color: #fff; }
+
+/* ---------- surfaces and small parts ---------- */
+:root[data-theme='light'] .card { background: #ffffff; border-color: rgb(11 18 32 / .08); box-shadow: 0 1px 2px rgb(11 18 32 / .04), 0 18px 40px -28px rgb(11 18 32 / .28); }
+:root[data-theme='light'] .dx-logos img, :root[data-theme='light'] .marquee img { filter: grayscale(1) brightness(.35); opacity: .75; }
+:root[data-theme='light'] .dx-logos img:hover { filter: none; opacity: 1; }
+:root[data-theme='light'] ::selection { background: rgb(26 88 208 / .18); color: inherit; }
+
+/* ---------- home hero on paper ---------- */
+:root[data-theme='light'] .rd-hero { color: #0b1220; }
+:root[data-theme='light'] .rd-hero h1 { color: #0b1220; }
+:root[data-theme='light'] :is(.rd-sub, .rd-sub2, .rd-status) { color: #3c475a; }
+:root[data-theme='light'] .rd-status b { color: #0b1220; }
+
+/* cards inside a dark panel stay dark */
+:root[data-theme='light'] :is(.panel-d, .tone-d, .sc-ben, section[aria-labelledby='roll-h'], section[aria-labelledby='zen-h'], .hz-cta, footer.site-foot, .stage:not(.hero-under)) .card {
+  background: rgb(255 255 255 / .045); border-color: rgb(255 255 255 / .1); box-shadow: none;
+}
+:root[data-theme='light'] .rs-cat { color: #1a58d0; }
+:root[data-theme='light'] section[aria-labelledby='chg-h'] .block { color: #3c475a; }
